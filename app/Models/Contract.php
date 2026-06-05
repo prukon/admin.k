@@ -24,6 +24,9 @@ class Contract extends Model
 
     public const FILL_TTL_DAYS = 7;
 
+    /** Срок, в течение которого родитель может исправить данные после формирования PDF. */
+    public const CLIENT_EDIT_FILLED_DATA_TTL_DAYS = 30;
+
     // Статусы
     public const STATUS_DRAFT   = 'draft';
     public const STATUS_AWAITING_CLIENT_FILL = 'awaiting_client_fill';
@@ -156,11 +159,48 @@ class Contract extends Model
         return $message !== '' ? $message : null;
     }
 
+    /**
+     * Удаляет сообщение о неудачной фоновой генерации PDF из filled_data.
+     */
+    public function clearPdfGenerationError(): bool
+    {
+        $data = is_array($this->filled_data) ? $this->filled_data : [];
+        if (!array_key_exists('_generation_error', $data)) {
+            return false;
+        }
+
+        unset($data['_generation_error']);
+        $this->filled_data = $data;
+        $this->save();
+
+        return true;
+    }
+
     public function canClientSign(): bool
     {
         return $this->isTemplateMode()
             && $this->status === self::STATUS_DRAFT
-            && !empty($this->source_pdf_path);
+            && !empty($this->source_pdf_path)
+            && !$this->isGeneratingPdf();
+    }
+
+    public function isClientEditExpired(): bool
+    {
+        if ($this->created_at === null) {
+            return true;
+        }
+
+        return $this->created_at->copy()->addDays(self::CLIENT_EDIT_FILLED_DATA_TTL_DAYS)->isPast();
+    }
+
+    public function canClientEditFilledData(): bool
+    {
+        return $this->isTemplateMode()
+            && $this->status === self::STATUS_DRAFT
+            && !empty($this->source_pdf_path)
+            && !$this->isGeneratingPdf()
+            && empty($this->provider_doc_id)
+            && !$this->isClientEditExpired();
     }
 
     // ===== Аксессоры =====

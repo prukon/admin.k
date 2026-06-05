@@ -29,7 +29,22 @@ class AccountContractFillController extends Controller
     {
         abort_unless((int) $contract->user_id === (int) Auth::id(), 404);
 
-        $unavailableMessage = $this->fillUnavailableMessage($contract);
+        $fillMode = $request->string('mode')->toString() === 'edit' ? 'edit' : 'default';
+
+        if ($fillMode === 'edit') {
+            $editUnavailableMessage = $this->editUnavailableMessage($contract);
+            if ($editUnavailableMessage !== null) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['message' => $editUnavailableMessage], 422);
+                }
+
+                return redirect()
+                    ->route('account.documents.index')
+                    ->withErrors(['contract' => $editUnavailableMessage]);
+            }
+        }
+
+        $unavailableMessage = $this->fillUnavailableMessage($contract, $fillMode);
         if ($unavailableMessage !== null) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['message' => $unavailableMessage], 422);
@@ -40,7 +55,7 @@ class AccountContractFillController extends Controller
                 ->withErrors(['contract' => $unavailableMessage]);
         }
 
-        $viewData = $this->fillViewData($contract);
+        $viewData = $this->fillViewData($contract, $fillMode);
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -50,11 +65,21 @@ class AccountContractFillController extends Controller
             ]);
         }
 
-        return redirect()->route('account.documents.index', ['fill' => $contract->id]);
+        return redirect()->route('account.documents.index', [
+            'fill' => $contract->id,
+            'mode' => $fillMode === 'edit' ? 'edit' : null,
+        ]);
     }
 
-    public function generate(AccountContractGenerateRequest $request, Contract $contract): RedirectResponse
+    public function generate(AccountContractGenerateRequest $request, Contract $contract): RedirectResponse|JsonResponse
     {
+        $wantsJson = $request->ajax() || $request->wantsJson();
+        $isRegeneration = $contract->canClientEditFilledData();
+        $fillRouteParams = ['fill' => $contract->id];
+        if ($isRegeneration) {
+            $fillRouteParams['mode'] = 'edit';
+        }
+
         try {
             $this->pdfGeneration->queueClientGeneration(
                 $contract,
@@ -62,15 +87,57 @@ class AccountContractFillController extends Controller
                 Auth::id(),
             );
         } catch (ValidationException $e) {
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => collect($e->errors())->flatten()->first() ?? 'Проверьте заполнение полей.',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+
             return redirect()
-                ->route('account.documents.index', ['fill' => $contract->id])
+                ->route('account.documents.index', $fillRouteParams)
                 ->withErrors($e->errors())
                 ->withInput();
         }
 
+        $contract->refresh();
+
+        if ($contract->status === Contract::STATUS_AWAITING_CLIENT_FILL && $contract->pdfGenerationError() !== null) {
+            $errorMessage = $contract->pdfGenerationError();
+
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => $errorMessage,
+                    'errors'  => ['contract' => [$errorMessage]],
+                ], 422);
+            }
+
+            return redirect()
+                ->route('account.documents.index', $fillRouteParams)
+                ->withErrors(['contract' => $errorMessage])
+                ->withInput();
+        }
+
+        if ($contract->isGeneratingPdf()) {
+            $message = $isRegeneration
+                ? 'Договор обновляется. Подождите несколько секунд — окно обновится автоматически.'
+                : 'Договор формируется. Подождите несколько секунд — окно обновится автоматически.';
+        } elseif ($isRegeneration) {
+            $message = 'Данные сохранены. PDF обновлён.';
+        } else {
+            $message = 'Договор сформирован.';
+        }
+
+        if ($wantsJson) {
+            return response()->json([
+                'message' => $message,
+                'poll'    => $contract->isGeneratingPdf(),
+            ]);
+        }
+
         return redirect()
-            ->route('account.documents.index', ['fill' => $contract->id])
-            ->with('success', 'Договор формируется. Подождите несколько секунд — окно обновится автоматически.');
+            ->route('account.documents.index', $fillRouteParams)
+            ->with('success', $message);
     }
 
     public function sign(Contract $contract, ContractSendRequest $request): RedirectResponse
@@ -101,7 +168,7 @@ class AccountContractFillController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function fillViewData(Contract $contract): array
+    private function fillViewData(Contract $contract, string $fillMode = 'default'): array
     {
         $contract->load(['templateVersion.template', 'user', 'team']);
 
@@ -127,12 +194,49 @@ class AccountContractFillController extends Controller
             'signerDefaults'        => $signerDefaults,
             'generationError'       => $contract->pdfGenerationError(),
             'showContractFieldKeys' => Gate::allows('account.contracts.showFieldKeys'),
+            'fillMode'              => $fillMode,
         ];
     }
 
-    private function fillUnavailableMessage(Contract $contract): ?string
+    private function editUnavailableMessage(Contract $contract): ?string
     {
         $contract->load(['templateVersion.template', 'user', 'team']);
+
+        if ($contract->isGeneratingPdf()) {
+            return null;
+        }
+
+        if ($contract->canClientEditFilledData()) {
+            return null;
+        }
+
+        if ($contract->isTemplateMode()
+            && $contract->status === Contract::STATUS_DRAFT
+            && !empty($contract->source_pdf_path)
+            && empty($contract->provider_doc_id)
+            && $contract->isClientEditExpired()
+        ) {
+            return 'Срок изменения данных договора истёк. Обратитесь в организацию.';
+        }
+
+        if (!empty($contract->provider_doc_id)) {
+            return 'Договор уже отправлен на подпись и недоступен для изменения.';
+        }
+
+        return 'Договор недоступен для изменения.';
+    }
+
+    private function fillUnavailableMessage(Contract $contract, string $fillMode = 'default'): ?string
+    {
+        $contract->load(['templateVersion.template', 'user', 'team']);
+
+        if ($fillMode === 'edit') {
+            if ($contract->isGeneratingPdf() || $contract->canClientEditFilledData()) {
+                return null;
+            }
+
+            return 'Договор недоступен для изменения.';
+        }
 
         if ($contract->isFillExpired() && $contract->status === Contract::STATUS_AWAITING_CLIENT_FILL) {
             return 'Срок заполнения договора истёк. Обратитесь в организацию.';

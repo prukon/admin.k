@@ -4,6 +4,9 @@
     $fieldGroups = $fieldGroups ?? ContractTemplateVariablePresets::groupFieldsForParentForm($fields ?? []);
     $parentFields = $fieldGroups[ContractTemplateVariablePresets::GROUP_PARENT] ?? [];
     $childFields = $fieldGroups[ContractTemplateVariablePresets::GROUP_CHILD] ?? [];
+    $fillMode = $fillMode ?? 'default';
+    $showFillForm = $contract->canClientFill()
+        || ($fillMode === 'edit' && ($contract->canClientEditFilledData() || $contract->isGeneratingPdf()));
 @endphp
 
 @if(session('success'))
@@ -32,9 +35,15 @@
     </div>
 @endif
 
-@if($contract->canClientFill())
+@if($showFillForm && !$contract->isGeneratingPdf())
     <form method="post" action="{{ route('account.documents.generate', $contract) }}" class="contract-fill-form">
         @csrf
+
+        @if($fillMode === 'edit')
+            <div class="alert alert-warning mb-3">
+                PDF будет пересоздан с новыми данными. Проверьте поля перед сохранением.
+            </div>
+        @endif
 
         @if($parentFields !== [])
             <section class="contract-fill-panel contract-fill-panel--parent mb-3">
@@ -87,12 +96,16 @@
         @endif
 
         <div class="d-flex flex-wrap gap-2 pt-1">
-            <button type="submit" class="btn btn-primary">Сформировать договор</button>
+            @if($fillMode === 'edit')
+                <button type="submit" class="btn btn-primary">Сохранить и обновить PDF</button>
+            @else
+                <button type="submit" class="btn btn-primary">Сформировать договор</button>
+            @endif
         </div>
     </form>
 @endif
 
-@if($contract->canClientSign())
+@if($contract->canClientSign() && $fillMode !== 'edit')
     <div class="contract-fill-sign-block {{ $contract->canClientFill() ? 'mt-4 pt-3 border-top' : '' }}">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
             <h6 class="mb-0">Договор сформирован</h6>
@@ -135,8 +148,14 @@
                         </div>
                         <div class="col-12 col-md-6 text-start">
                             <label class="form-label mb-1 text-start w-100">Телефон для SMS <span class="text-danger">*</span></label>
-                            <input type="text" name="signer_phone" class="form-control js-contract-fill-phone @error('signer_phone') is-invalid @enderror"
-                                   value="{{ old('signer_phone', $signerDefaults['phone']) }}" required>
+                            @include('includes.fields.phone-input', [
+                                'name' => 'signer_phone',
+                                'value' => old('signer_phone', $signerDefaults['phone']),
+                                'unmask' => true,
+                                'contractFill' => true,
+                                'required' => true,
+                                'class' => trim(($errors->has('signer_phone') ? 'is-invalid' : '')),
+                            ])
                             @error('signer_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>

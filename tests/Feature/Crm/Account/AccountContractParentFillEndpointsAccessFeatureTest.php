@@ -194,7 +194,8 @@ class AccountContractParentFillEndpointsAccessFeatureTest extends CrmTestCase
             ->getJson(route('account.documents.fill', $awaiting))
             ->assertOk();
 
-        $this->post(route('account.documents.generate', $awaiting), [
+        $this->flushHeaders()
+            ->post(route('account.documents.generate', $awaiting), [
             'fields' => [
                 'parent_lastname'  => 'Петров',
                 'parent_firstname' => 'Пётр',

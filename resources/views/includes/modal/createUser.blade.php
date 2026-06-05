@@ -68,15 +68,14 @@
                             <div class="mb-3">
                                 <label for="create-phone" class="form-label">Телефон</label>
 
-                                <input
-                                    type="tel"
-                                    class="form-control"
-                                    id="create-phone"
-                                    name="phone"
-                                    placeholder="+7 (XXX) XXX-XX-XX"
-                                    data-can-phone="{{ $canPhone ? 1 : 0 }}"
-                                    @unless($canPhone) disabled aria-disabled="true" @endunless
-                                >
+                                @include('includes.fields.phone-input', [
+                                    'name' => 'phone',
+                                    'id' => 'create-phone',
+                                    'disabled' => !$canPhone,
+                                    'attributes' => [
+                                        'data-can-phone' => $canPhone ? 1 : 0,
+                                    ],
+                                ])
 
                                 @unless($canPhone)
                                     <div class="form-text text-muted mt-1">
@@ -170,12 +169,6 @@
         }
 
         showCurPassword();
-
-        // Телефон: та же маска, что и в редактировании
-        const $phone = $('#create-phone');
-        if ($phone.length && $phone.inputmask) {
-            $phone.inputmask("+7 (999) 999-99-99");
-        }
 
         function createStudentRoleId() {
             const studentRoleId = $('.js-student-parent-fields[data-parent-prefix="create"]').data('student-role-id');

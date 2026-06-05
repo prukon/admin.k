@@ -28,12 +28,6 @@
 
 @include('contract-templates.partials.edit-docx-panel', ['template' => $template])
 
-@include('contract-templates.partials.variables-reference', [
-    'compact' => true,
-    'collapseAll' => true,
-    'accordionId' => 'editContractTemplateVariablesAccordion',
-])
-
 @php
     $templateIsArchived = filter_var(old('is_archived', $template->is_archived), FILTER_VALIDATE_BOOLEAN);
 @endphp

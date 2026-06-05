@@ -121,6 +121,8 @@
     </main>
 </div>
 
+@include('includes.scripts.phone-inputmask')
+
 @yield('scripts')
 
 @include('includes.modal.confirmDeleteModal')

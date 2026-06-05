@@ -196,7 +196,10 @@
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-phone">Телефон</label>
-                                    <input type="tel" class="form-control" name="phone" id="trainer-create-phone" placeholder="+7 (XXX) XXX-XX-XX" />
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'phone',
+                                        'id' => 'trainer-create-phone',
+                                    ])
                                     <div class="invalid-feedback d-block" data-error-for="phone"></div>
                                 </div>
                             </div>
@@ -310,7 +313,10 @@
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-edit-phone">Телефон</label>
-                                    <input type="tel" class="form-control" name="phone" id="trainer-edit-phone" placeholder="+7 (XXX) XXX-XX-XX" />
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'phone',
+                                        'id' => 'trainer-edit-phone',
+                                    ])
                                     <div class="invalid-feedback d-block" data-error-for="phone"></div>
                                 </div>
                             </div>
@@ -411,7 +417,6 @@
 
 @section('scripts')
     @parent
-    <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/jquery.inputmask.min.js"></script>
     <script>
         window.__trainerPageConfig = {
             defaultAvatar: @json(asset('img/default-avatar.png')),
@@ -831,17 +836,6 @@
                 }
             }
 
-            function initTrainerEditPhoneMask() {
-                const $phone = window.jQuery ? window.jQuery('#trainer-edit-phone') : null;
-                if (!$phone || !$phone.length || !$.fn.inputmask) {
-                    return;
-                }
-                if ($phone.inputmask) {
-                    $phone.inputmask('remove');
-                }
-                $phone.inputmask('+7 (999) 999-99-99');
-            }
-
             function resetTrainerPasswordUi() {
                 const changeBtn = document.getElementById('trainer-change-password-btn');
                 const passWrap = document.getElementById('trainer-change-pass-wrap');
@@ -926,10 +920,6 @@
 
             document.getElementById('trainerEditModal')?.addEventListener('hidden.bs.modal', function () {
                 resetTrainerPasswordUi();
-                const $phone = window.jQuery ? window.jQuery('#trainer-edit-phone') : null;
-                if ($phone && $phone.inputmask) {
-                    $phone.inputmask('remove');
-                }
             });
 
             if (!window.__trainerPageConfig.canChangePassword) {
@@ -969,8 +959,7 @@
                 editForm.querySelector('[name="lastname"]').value = data.lastname || '';
                 editForm.querySelector('[name="name"]').value = data.name || '';
                 editForm.querySelector('[name="email"]').value = data.email || '';
-                editForm.querySelector('[name="phone"]').value = data.phone || '';
-                initTrainerEditPhoneMask();
+                window.PhoneInputMask?.setValue(editForm.querySelector('[name="phone"]'), data.phone || '');
                 editForm.querySelector('[name="description"]').value = data.description || '';
                 resetTrainerPasswordUi();
                 editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
@@ -998,6 +987,13 @@
                 }
                 const { ok, status, data } = await postForm(`/admin/trainers/${id}`, editForm, 'PUT');
                 handleSaveResponse(editForm, ok, status, data, { modalId: 'trainerEditModal' });
+                if (ok && typeof showSuccessModal === 'function') {
+                    showSuccessModal(
+                        'Редактирование тренера',
+                        data.message || 'Тренер успешно обновлён.',
+                        0
+                    );
+                }
             });
 
             function performTrainerDelete() {
@@ -1061,7 +1057,6 @@
             });
 
             initTrainerPasswordToggle();
-            initTrainerEditPhoneMask();
         })();
     </script>
     @endverbatim

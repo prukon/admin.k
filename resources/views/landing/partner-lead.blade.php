@@ -237,7 +237,10 @@
                 </div>
                 <div class="col-md-6">
                     <label for="parent_phone" class="form-label">Телефон <span class="required-mark">*</span></label>
-                    <input type="tel" name="parent_phone" id="parent_phone" class="form-control" autocomplete="tel">
+                    @include('includes.fields.phone-input', [
+                        'name' => 'parent_phone',
+                        'id' => 'parent_phone',
+                    ])
                     <div class="field-error" data-error-for="parent_phone" style="display:none;"></div>
                 </div>
                 <div class="col-md-6">
@@ -633,5 +636,6 @@
     });
 })();
 </script>
+@include('includes.scripts.phone-inputmask', ['requireJquery' => true])
 </body>
 </html>

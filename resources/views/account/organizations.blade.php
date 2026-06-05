@@ -101,8 +101,11 @@
                 {{-- Телефон --}}
                 <div class="mb-3">
                     <label for="phone" class="form-label">Телефон</label>
-                    <input type="text" class="form-control" id="phone" name="phone"
-                           value="{{ old('phone', $partner->phone) }}">
+                    @include('includes.fields.phone-input', [
+                        'name' => 'phone',
+                        'id' => 'phone',
+                        'value' => old('phone', $partner->phone),
+                    ])
                     @error('phone')
                     <p class="text-danger">{{ $message }}</p>
                     @enderror
@@ -180,8 +183,6 @@
 
 @can('account.partner.update')
 @section('scripts')
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 //Обновление партнера
@@ -273,16 +274,6 @@
 
             updatePartnerData();
             toggleFields();
-        });
-
-
-        $(document).ready(function () {
-
-            // Маска телефона
-            $('#phone').mask('+0 (000) 000-00-00', {
-                placeholder: '+_ (___) ___-__-__'
-            });
-
         });
 
     </script>

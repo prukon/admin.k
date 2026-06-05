@@ -181,6 +181,12 @@ class ContractTemplateService
         $sha = hash_file('sha256', $absolute);
         $path = $docx->store('contract-templates/' . $template->partner_id . '/' . date('Y/m'));
 
+        if (!is_string($path) || $path === '' || !Storage::disk()->exists($path)) {
+            throw ValidationException::withMessages([
+                'docx' => 'Не удалось сохранить файл шаблона на сервере. Проверьте права на каталог storage/app/contract-templates.',
+            ]);
+        }
+
         $schema = $this->placeholderExtractor->buildFieldsSchema($keys, $previousSchema);
 
         if ($fieldsInput !== null) {

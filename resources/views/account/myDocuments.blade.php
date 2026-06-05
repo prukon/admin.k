@@ -125,11 +125,16 @@
             <div class="mb-3">
                 <label for="phone" class="form-label">Телефон</label>
                 <div class="input-group">
-                    <input type="tel" id="phone" name="phone" class="form-control"
-                           value="{{ old('phone', $user->phone) }}" placeholder="+7 (___) ___ __-__"
-                           data-original="{{ $user->phone ?? '' }}"
-                           data-verified="{{ $user->phone_verified_at ? 1 : 0 }}"
-                           @unless($canPhone) disabled aria-disabled="true" @endunless>
+                    @include('includes.fields.phone-input', [
+                        'name' => 'phone',
+                        'id' => 'phone',
+                        'value' => old('phone', $user->phone),
+                        'disabled' => !$canPhone,
+                        'attributes' => [
+                            'data-original' => $user->phone ?? '',
+                            'data-verified' => $user->phone_verified_at ? 1 : 0,
+                        ],
+                    ])
 
                     @if($canPhone)
                         <button type="button" id="verify-phone-btn" class="btn btn-success">Подтвердить</button>
@@ -401,14 +406,10 @@
                 return d.slice(0, 11);
             }
 
-            function fmt(d) {
-                if (!d) return '';
-                let s = '+7';
-                if (d.length > 1) s += ' (' + d.slice(1, 4);
-                if (d.length >= 4) s += ') ' + d.slice(4, 7);
-                if (d.length >= 7) s += ' ' + d.slice(7, 9);
-                if (d.length >= 9) s += '-' + d.slice(9, 11);
-                return s;
+            function displayPhone() {
+                return window.PhoneInputMask
+                    ? window.PhoneInputMask.formatDisplay(state.$phone)
+                    : String(state.$phone.val() || '');
             }
 
             function pad2(n) {
@@ -419,24 +420,6 @@
                 if (!iso) return '';
                 const d = new Date(iso.replace(' ', 'T'));
                 return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-            }
-
-            function digitsLeft(val, caret) {
-                let c = 0;
-                for (let i = 0; i < Math.min(caret, val.length); i++) if (/\d/.test(val[i])) c++;
-                return c;
-            }
-
-            function caretFromDigits(formatted, n) {
-                if (n <= 0) return 0;
-                let c = 0;
-                for (let i = 0; i < formatted.length; i++) {
-                    if (/\d/.test(formatted[i])) {
-                        c++;
-                        if (c === n) return i + 1;
-                    }
-                }
-                return formatted.length;
             }
 
             // ---------- UI helpers ----------
@@ -501,79 +484,6 @@
                 showVerifyBtn(canShowBtn, /*enabled*/ true);
             }
 
-            // ---------- Маска ----------
-            function applyMask($input) {
-                const el = $input.get(0);
-                if (!el) return;
-                const prevVal = el.value;
-                const prevCaret = (el.selectionStart ?? String(prevVal).length);
-                const prevDigits = digitsLeft(String(prevVal), prevCaret);
-                const dig = normalizeRu(prevVal);
-                const formatted = fmt(dig);
-                el.value = formatted;
-                try {
-                    const newCaret = caretFromDigits(formatted, Math.min(prevDigits, dig.length));
-                    el.setSelectionRange(newCaret, newCaret);
-                } catch (e) {
-                }
-                updateUiState();
-            }
-
-            function wireMask() {
-                const $p = state.$phone;
-                if (!$p || !$p.length) return;
-
-                // init
-                $p.val(fmt(normalizeRu($p.val())));
-                updateUiState();
-
-                // ввод/вставка
-                $p.on('input paste change keyup', function () {
-                    applyMask($p);
-                });
-
-                // Backspace/Delete перепрыгивания
-                $p.on('keydown', function (e) {
-                    const el = this, val = el.value;
-                    const start = el.selectionStart, end = el.selectionEnd;
-                    if (start !== end) return;
-                    if (e.key === 'Backspace' && start > 0 && /\D/.test(val[start - 1])) {
-                        e.preventDefault();
-                        let pos = start - 1;
-                        while (pos > 0 && /\D/.test(val[pos - 1])) pos--;
-                        el.setSelectionRange(pos, pos);
-                        const dig = normalizeRu(val), n = digitsLeft(val, pos);
-                        const ndig = dig.slice(0, Math.max(0, n - 1)) + dig.slice(n);
-                        el.value = fmt(ndig);
-                        try {
-                            const c = caretFromDigits(el.value, Math.max(0, n - 1));
-                            el.setSelectionRange(c, c);
-                        } catch (e2) {
-                        }
-                        updateUiState();
-                        return;
-                    }
-                    if (e.key === 'Delete' && start < val.length && /\D/.test(val[start])) {
-                        e.preventDefault();
-                        let pos = start + 1;
-                        while (pos < val.length && /\D/.test(val[pos])) pos++;
-                        el.setSelectionRange(pos, pos);
-                        const dig = normalizeRu(val), n = digitsLeft(val, pos);
-                        if (n < dig.length) {
-                            const ndig = dig.slice(0, n) + dig.slice(n + 1);
-                            el.value = fmt(ndig);
-                            try {
-                                const c = caretFromDigits(el.value, n);
-                                el.setSelectionRange(c, c);
-                            } catch (e2) {
-                            }
-                            updateUiState();
-                        }
-                        return;
-                    }
-                });
-            }
-
             // ---------- Verify flow ----------
             function wireVerifyFlow() {
                 const {$phone, $verifyBtn} = state;
@@ -612,13 +522,13 @@
                                 return;
                             }
                             if (state.$codeModal && state.$codeModal.length) {
-                                state.$codeTarget.text(fmt(d));
+                                state.$codeTarget.text(displayPhone());
                                 state.$codeInput.val('');
                                 state.$codeErr.addClass('d-none').text('');
                                 state.$codeModal.modal('show');
                                 state.$codeInput.trigger('focus');
                             } else {
-                                alert('Код отправлен на ' + fmt(d));
+                                alert('Код отправлен на ' + displayPhone());
                             }
                         },
                         error: function (xhr) {
@@ -709,13 +619,14 @@
                 state.$codeResend = $('#resend-code-btn');
                 state.$codeConfirm = $('#confirm-code-btn');
 
-                wireMask();
+                state.$phone.on('complete incomplete cleared input keyup paste blur', updateUiState);
+
                 wireVerifyFlow();
                 updateUiState();
                 wireFormPatch();
             }
 
-            return {init, normalize: normalizeRu, format: fmt};
+            return {init, normalize: normalizeRu, format: displayPhone};
         })(jQuery);
 
         // запуск

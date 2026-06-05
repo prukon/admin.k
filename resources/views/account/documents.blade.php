@@ -99,6 +99,14 @@
                                             </button>
                                         @endif
 
+                                        @if($c->canClientEditFilledData())
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary js-open-contract-fill-edit"
+                                                    data-contract-id="{{ $c->id }}">
+                                                Изменить
+                                            </button>
+                                        @endif
+
                                         @if($c->status === \App\Models\Contract::STATUS_SIGNED)
                                             <a class="btn btn-sm btn-primary"
                                                href="{{ route('account.documents.downloadSigned', $c) }}">
@@ -167,7 +175,6 @@
     </div>
 
     @push('scripts')
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.9/jquery.inputmask.min.js" referrerpolicy="no-referrer"></script>
         <script>
             (function(){
                 const fillModalEl = document.getElementById('contractFillModal');
@@ -179,6 +186,7 @@
                 let fillBsModal = null;
                 let fillPollTimer = null;
                 let fillCurrentContractId = null;
+                let fillCurrentMode = null;
 
                 function getFillModal() {
                     if (!fillBsModal && fillModalEl) {
@@ -198,23 +206,12 @@
                     }
                 }
 
-                function initContractFillPhoneMask() {
-                    if (!$.fn.inputmask || !fillModalEl) {
+                function refreshContractFillPhoneMask() {
+                    if (!fillModalEl) {
                         return;
                     }
 
-                    $('#contractFillModal .js-contract-fill-phone').each(function () {
-                        const $phone = $(this);
-                        if ($phone.inputmask) {
-                            $phone.inputmask('remove');
-                        }
-                        $phone.inputmask({
-                            mask: '+7 (999) 999-99-99',
-                            showMaskOnHover: false,
-                            autoUnmask: true,
-                            removeMaskOnSubmit: true,
-                        });
-                    });
+                    $(document).trigger('phone-inputmask:refresh', [fillModalEl]);
                 }
 
                 function showFillLoading() {
@@ -226,22 +223,70 @@
                     }
                 }
 
-                function loadContractFill(contractId) {
+                function showFillAjaxErrors(errors) {
+                    if (!fillContent || !errors || typeof errors !== 'object') {
+                        return;
+                    }
+
+                    const messages = [];
+                    Object.keys(errors).forEach(function (key) {
+                        const items = errors[key];
+                        if (Array.isArray(items)) {
+                            items.forEach(function (item) {
+                                if (item) {
+                                    messages.push(String(item));
+                                }
+                            });
+                        }
+                    });
+
+                    if (messages.length === 0) {
+                        return;
+                    }
+
+                    const list = messages.map(function (msg) {
+                        return '<li>' + $('<div>').text(msg).html() + '</li>';
+                    }).join('');
+
+                    const alertHtml = '<div class="alert alert-danger mb-3 contract-fill-ajax-errors">'
+                        + '<ul class="mb-0">' + list + '</ul></div>';
+
+                    fillContent.querySelectorAll('.contract-fill-ajax-errors').forEach(function (node) {
+                        node.remove();
+                    });
+                    fillContent.insertAdjacentHTML('afterbegin', alertHtml);
+                }
+
+                function loadContractFill(contractId, isPoll, mode) {
                     if (!contractId) {
                         return;
                     }
 
                     fillCurrentContractId = contractId;
-                    showFillLoading();
-                    getFillModal()?.show();
+                    fillCurrentMode = mode || null;
+                    if (!isPoll) {
+                        showFillLoading();
+                        getFillModal()?.show();
+                    }
 
-                    $.ajax({
+                    const query = [];
+                    if (isPoll) {
+                        query.push('poll=1');
+                    }
+                    if (fillCurrentMode === 'edit') {
+                        query.push('mode=edit');
+                    }
+                    const fillUrl = '/account-settings/documents/contracts/' + contractId + '/fill'
+                        + (query.length ? '?' + query.join('&') : '');
+
+                    return $.ajax({
                         method: 'GET',
-                        url: '/account-settings/documents/contracts/' + contractId + '/fill',
+                        url: fillUrl,
                         headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
                         dataType: 'json',
                     }).done(function (resp) {
                         fillLoading?.classList.add('d-none');
+                        fillError?.classList.add('d-none');
                         if (fillModalTitle && resp.title) {
                             fillModalTitle.textContent = resp.title;
                         }
@@ -249,11 +294,11 @@
                             fillContent.innerHTML = resp.html || '';
                             fillContent.classList.remove('d-none');
                         }
-                        initContractFillPhoneMask();
+                        refreshContractFillPhoneMask();
                         clearFillPoll();
                         if (resp.poll) {
                             fillPollTimer = setTimeout(function () {
-                                loadContractFill(contractId);
+                                loadContractFill(contractId, true);
                             }, 3000);
                         }
                     }).fail(function (xhr) {
@@ -268,18 +313,81 @@
                             fillError.textContent = msg;
                             fillError.classList.remove('d-none');
                         }
+                        if (fillContent) {
+                            fillContent.classList.remove('d-none');
+                        }
                     });
                 }
 
                 window.openContractFillModal = loadContractFill;
 
                 $(document).on('click', '.js-open-contract-fill', function () {
-                    loadContractFill($(this).data('contract-id'));
+                    loadContractFill($(this).data('contract-id'), false, null);
+                });
+
+                $(document).on('click', '.js-open-contract-fill-edit', function () {
+                    loadContractFill($(this).data('contract-id'), false, 'edit');
+                });
+
+                $(document).on('submit', '#contractFillModal .contract-fill-form', function (e) {
+                    e.preventDefault();
+
+                    const form = this;
+                    const contractId = fillCurrentContractId;
+                    if (!contractId) {
+                        return;
+                    }
+
+                    const $submit = $(form).find('[type="submit"]');
+                    $submit.prop('disabled', true);
+                    fillError?.classList.add('d-none');
+
+                    $.ajax({
+                        method: 'POST',
+                        url: form.action,
+                        data: $(form).serialize(),
+                        headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+                        dataType: 'json',
+                    }).done(function (resp) {
+                        loadContractFill(contractId, true);
+                        if (resp.message && fillContent) {
+                            const successHtml = '<div class="alert alert-success mb-3 contract-fill-ajax-success">'
+                                + $('<div>').text(resp.message).html()
+                                + '</div>';
+                            fillContent.querySelectorAll('.contract-fill-ajax-success').forEach(function (node) {
+                                node.remove();
+                            });
+                            fillContent.insertAdjacentHTML('afterbegin', successHtml);
+                        }
+                    }).fail(function (xhr) {
+                        if (xhr.status === 422) {
+                            loadContractFill(contractId, true).done(function () {
+                                showFillAjaxErrors(xhr.responseJSON?.errors || {});
+                                if (!xhr.responseJSON?.errors && xhr.responseJSON?.message && fillError) {
+                                    fillError.textContent = xhr.responseJSON.message;
+                                    fillError.classList.remove('d-none');
+                                }
+                            });
+                            return;
+                        }
+
+                        let msg = 'Не удалось сформировать договор';
+                        if (xhr.responseJSON?.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        if (fillError) {
+                            fillError.textContent = msg;
+                            fillError.classList.remove('d-none');
+                        }
+                    }).always(function () {
+                        $submit.prop('disabled', false);
+                    });
                 });
 
                 fillModalEl?.addEventListener('hidden.bs.modal', function () {
                     clearFillPoll();
                     fillCurrentContractId = null;
+                    fillCurrentMode = null;
                     fillContent?.classList.add('d-none');
                     if (fillContent) {
                         fillContent.innerHTML = '';
@@ -287,7 +395,7 @@
                 });
 
                 @if(!empty($openFillContractId))
-                loadContractFill(@json((int) $openFillContractId));
+                loadContractFill(@json((int) $openFillContractId), false, @json($openFillMode ?? null));
                 @endif
 
                 const modalEl = document.getElementById('requestsModal');

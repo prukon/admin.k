@@ -173,7 +173,11 @@ class ContractCreateModalFeatureTest extends ContractsFeatureTestCase
 
         $this->followRedirects($response)
             ->assertOk()
-            ->assertViewHas('shouldOpenCreateModal', true);
+            ->assertViewHas('shouldOpenCreateModal', true)
+            ->assertSee('data-field-error="user_id"', false)
+            ->assertSee('Выберите ученика.', false)
+            ->assertSee('data-field-error="pdf"', false)
+            ->assertSee('Загрузите PDF-файл договора.', false);
     }
 
     /** @test */

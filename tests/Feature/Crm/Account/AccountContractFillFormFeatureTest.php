@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Crm\Account;
 
+use App\Models\Contract;
 use App\Models\ParentProfile;
+use App\Services\Contracts\ContractPdfGenerationService;
 use App\Services\Contracts\ContractTemplatePrefillSources;
 use App\Services\Contracts\ContractTemplateVariablePresets;
 use Tests\Feature\Crm\Account\Concerns\InteractsWithAccountContractFill;
@@ -218,5 +220,99 @@ class AccountContractFillFormFeatureTest extends CrmTestCase
             ContractTemplateVariablePresets::FILL_SORT_DEFAULT_CUSTOM,
             ContractTemplateVariablePresets::guessFillSortOrder('unknown_custom_field', ContractTemplateVariablePresets::GROUP_PARENT),
         );
+    }
+
+    public function test_fill_form_shows_generation_error_from_filled_data(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_full_name', 'label' => 'Родитель: ФИО', 'required' => true],
+            ],
+            ['parent_full_name'],
+        );
+
+        $contract->forceFill([
+            'filled_data' => [
+                'parent_lastname'    => 'Баранова',
+                'parent_firstname'   => 'Мальвина',
+                'parent_middlename'  => 'Алексеевич',
+                '_generation_error'  => 'Поле «Родитель: ФИО» обязательно для заполнения.',
+            ],
+        ])->save();
+
+        $html = $this->getContractFillModalHtml($contract);
+
+        $this->assertStringContainsString('Поле «Родитель: ФИО» обязательно для заполнения.', $html);
+        $this->assertSame(
+            'Поле «Родитель: ФИО» обязательно для заполнения.',
+            $contract->fresh()->pdfGenerationError(),
+        );
+    }
+
+    public function test_poll_fill_request_keeps_generation_error(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_full_name', 'label' => 'Родитель: ФИО', 'required' => true],
+            ],
+            ['parent_full_name'],
+        );
+
+        $contract->forceFill([
+            'filled_data' => [
+                'parent_lastname'   => 'Баранова',
+                'parent_firstname'  => 'Мальвина',
+                '_generation_error' => 'Не удалось сформировать PDF. Обратитесь в организацию.',
+            ],
+        ])->save();
+
+        $html = (string) $this->withSession($this->accountDocumentsSession())
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->getJson(route('account.documents.fill', ['contract' => $contract, 'poll' => 1]))
+            ->assertOk()
+            ->json('html');
+
+        $this->assertStringContainsString('Не удалось сформировать PDF. Обратитесь в организацию.', $html);
+        $this->assertSame(
+            'Не удалось сформировать PDF. Обратитесь в организацию.',
+            $contract->fresh()->pdfGenerationError(),
+        );
+    }
+
+    public function test_validate_field_input_accepts_split_parent_name_without_parent_full_name_key(): void
+    {
+        $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm([
+            ['key' => 'parent_full_name', 'label' => 'Родитель: ФИО', 'required' => true],
+        ]);
+
+        app(ContractPdfGenerationService::class)->validateFieldInput($schema, [
+            'parent_lastname'  => 'Иванов',
+            'parent_firstname' => 'Иван',
+        ]);
+
+        $this->assertTrue(true);
+    }
+
+    public function test_generate_with_split_parent_fields_composes_parent_full_name_in_filled_data(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_full_name', 'label' => 'Родитель: ФИО', 'required' => true],
+            ],
+            ['parent_full_name'],
+        );
+
+        $this->post(route('account.documents.generate', $contract), [
+            'fields' => [
+                'parent_lastname'   => 'Баранова',
+                'parent_firstname'  => 'Мальвина',
+                'parent_middlename' => 'Алексеевич',
+            ],
+        ])->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
+
+        $contract->refresh();
+        $this->assertSame(Contract::STATUS_DRAFT, $contract->status);
+        $this->assertSame('Баранова Мальвина Алексеевич', $contract->filled_data['parent_full_name'] ?? null);
+        $this->assertNull($contract->pdfGenerationError());
     }
 }

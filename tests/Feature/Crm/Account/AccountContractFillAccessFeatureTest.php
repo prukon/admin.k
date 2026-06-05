@@ -21,7 +21,10 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
     {
         parent::setUp();
 
-        config(['contracts.pdf_converter' => 'fake']);
+        config([
+            'contracts.pdf_converter' => 'fake',
+            'queue.default'           => 'sync',
+        ]);
 
         $root = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR
@@ -98,14 +101,16 @@ class AccountContractFillAccessFeatureTest extends CrmTestCase
         $this->get(route('account.documents.index'))->assertOk();
         $this->getContractFillModalHtml($contract);
 
-        $this->post(route('account.documents.generate', $contract), [
-            'fields' => [
-                'parent_lastname'  => 'Иванов',
-                'parent_firstname' => 'Иван',
-                'parent_middlename' => 'Иванович',
-            ],
-        ])
-            ->assertRedirect(route('account.documents.index', ['fill' => $contract->id]));
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->postJson(route('account.documents.generate', $contract), [
+                'fields' => [
+                    'parent_lastname'   => 'Иванов',
+                    'parent_firstname'  => 'Иван',
+                    'parent_middlename' => 'Иванович',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('poll', false);
 
         $contract->refresh();
         $contract->update([

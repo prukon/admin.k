@@ -16,8 +16,12 @@
             @csrf
             <div class="mb-3">
                 <label for="phone" class="form-label">Телефон</label>
-                <input type="tel" class="form-control" id="phone" name="phone"
-                       value="{{ old('phone') }}" placeholder="+7 999 111 22 33" required>
+                @include('includes.fields.phone-input', [
+                    'name' => 'phone',
+                    'id' => 'phone',
+                    'value' => old('phone'),
+                    'required' => true,
+                ])
                 <small class="text-muted">Формат: 79XXXXXXXXX (для sms.ru)</small>
             </div>
             <button type="submit" class="btn btn-primary">Сохранить и получить код</button>

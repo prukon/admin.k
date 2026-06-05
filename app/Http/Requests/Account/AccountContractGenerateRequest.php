@@ -112,7 +112,7 @@ class AccountContractGenerateRequest extends FormRequest
             $normalized[$key] = $value;
         }
 
-        return $normalized;
+        return ContractTemplateVariablePresets::composeNameFieldsForPdf($normalized);
     }
 
     public function withValidator($validator): void
@@ -122,7 +122,7 @@ class AccountContractGenerateRequest extends FormRequest
             $contract = $this->route('contract');
 
             try {
-                app(ContractPdfGenerationService::class)->assertCanGenerate($contract);
+                app(ContractPdfGenerationService::class)->assertCanClientSubmitFields($contract);
             } catch (\Illuminate\Validation\ValidationException $e) {
                 foreach ($e->errors() as $key => $messages) {
                     foreach ($messages as $message) {

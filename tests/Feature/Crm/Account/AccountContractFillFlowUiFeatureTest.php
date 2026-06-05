@@ -86,7 +86,7 @@ class AccountContractFillFlowUiFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Формируем договор', $html);
     }
 
-    public function test_fill_json_shows_generation_error_from_filled_data(): void
+    public function test_fill_json_shows_generation_error_from_filled_data_on_poll(): void
     {
         $contract = $this->makeAwaitingFillContract(
             [['key' => 'parent_lastname', 'label' => 'Фамилия', 'required' => true]],
@@ -95,9 +95,57 @@ class AccountContractFillFlowUiFeatureTest extends CrmTestCase
             'filled_data' => ['_generation_error' => 'Не удалось сформировать PDF.'],
         ]);
 
-        $html = $this->getContractFillModalHtml($contract);
+        $html = (string) $this->withSession($this->accountDocumentsSession())
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->getJson(route('account.documents.fill', ['contract' => $contract, 'poll' => 1]))
+            ->assertOk()
+            ->json('html');
 
         $this->assertStringContainsString('Не удалось сформировать PDF.', $html);
+    }
+
+    public function test_generate_without_ajax_still_redirects_with_success(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_lastname', 'label' => 'Фамилия', 'required' => true],
+                ['key' => 'parent_firstname', 'label' => 'Имя', 'required' => true],
+            ],
+            ['parent_full_name'],
+        );
+
+        $this->post(route('account.documents.generate', $contract), [
+            'fields' => [
+                'parent_lastname'  => 'Иванов',
+                'parent_firstname' => 'Иван',
+            ],
+        ])
+            ->assertRedirect(route('account.documents.index', ['fill' => $contract->id]))
+            ->assertSessionHas('success');
+    }
+
+    public function test_generate_ajax_returns_json_and_poll_flag(): void
+    {
+        $contract = $this->makeAwaitingFillContract(
+            [
+                ['key' => 'parent_lastname', 'label' => 'Фамилия', 'required' => true],
+                ['key' => 'parent_firstname', 'label' => 'Имя', 'required' => true],
+            ],
+            ['parent_full_name'],
+        );
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+            ->postJson(route('account.documents.generate', $contract), [
+                'fields' => [
+                    'parent_lastname'  => 'Иванов',
+                    'parent_firstname' => 'Иван',
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['message', 'poll']);
+
+        $contract->refresh();
+        $this->assertSame(Contract::STATUS_DRAFT, $contract->status);
     }
 
     public function test_fill_json_returns_422_when_contract_already_sent(): void

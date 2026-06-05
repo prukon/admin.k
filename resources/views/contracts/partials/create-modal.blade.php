@@ -34,9 +34,8 @@
                                     class="form-select @error('user_id') is-invalid @enderror"
                                     data-placeholder="Начните вводить имя/телефон/email"
                                     required></select>
-                            @error('user_id')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                            @enderror
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="user_id">@error('user_id'){{ $message }}@enderror</div>
                         </div>
 
                         <div class="col-12">
@@ -74,17 +73,15 @@
                                        value="template" @checked(old('creation_mode') === 'template')>
                                 <label class="form-check-label" for="mode_template">Отправить шаболн договора</label>
                             </div>
-                            @error('creation_mode')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                            @enderror
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="creation_mode">@error('creation_mode'){{ $message }}@enderror</div>
                         </div>
 
                         <div class="col-12" id="block-pdf">
                             <label class="form-label" for="input_pdf">PDF-файл договора</label>
                             <input type="file" name="pdf" id="input_pdf" class="form-control @error('pdf') is-invalid @enderror" accept="application/pdf">
-                            @error('pdf')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                            @enderror
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="pdf">@error('pdf'){{ $message }}@enderror</div>
                         </div>
 
                         <div class="col-12" id="block-template" style="display:none">
@@ -110,9 +107,8 @@
                                        onclick="setTimeout(function () { window.focus(); }, 0);">Управление шаблонами</a>
                                 </div>
                             @endif
-                            @error('contract_template_id')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                            @enderror
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="contract_template_id">@error('contract_template_id'){{ $message }}@enderror</div>
                         </div>
                     </div>
 
@@ -263,6 +259,14 @@
             background-color: #e9ecef !important;
             border-color: #ced4da !important;
         }
+
+        #createContractModal .field-error-msg:empty {
+            display: none;
+        }
+
+        #createContractModal .select2-container.is-invalid .select2-selection {
+            border-color: #dc3545;
+        }
     </style>
 @endpush
 
@@ -274,6 +278,113 @@
             const shouldOpenCreateModal = @json($shouldOpenCreateModal ?? false);
             const createModalEl = document.getElementById('createContractModal');
             let suppressCreateModalReset = false;
+
+            function getContractCreateFieldInput(fieldName) {
+                if (fieldName === 'creation_mode') {
+                    return $('input[name="creation_mode"]').first();
+                }
+
+                return $('#contract-create-form').find('[name="' + fieldName + '"]');
+            }
+
+            function getContractCreateFieldErrorEl(fieldName) {
+                return $('#contract-create-form').find('[data-field-error="' + fieldName + '"]');
+            }
+
+            function markContractCreateFieldInvalid(fieldName, isInvalid) {
+                if (fieldName === 'user_id') {
+                    const $userSelect = $('#user_id');
+                    $userSelect.toggleClass('is-invalid', isInvalid);
+                    $userSelect.next('.select2-container').toggleClass('is-invalid', isInvalid);
+                    return;
+                }
+
+                if (fieldName === 'creation_mode') {
+                    $('input[name="creation_mode"]').toggleClass('is-invalid', isInvalid);
+                    return;
+                }
+
+                const $input = getContractCreateFieldInput(fieldName);
+                if ($input.length) {
+                    $input.toggleClass('is-invalid', isInvalid);
+                }
+            }
+
+            function clearContractCreateFieldError(fieldName) {
+                const $error = getContractCreateFieldErrorEl(fieldName);
+                $error.text('');
+                markContractCreateFieldInvalid(fieldName, false);
+            }
+
+            function showContractCreateFieldError(fieldName, message) {
+                getContractCreateFieldErrorEl(fieldName).text(message);
+                markContractCreateFieldInvalid(fieldName, true);
+            }
+
+            function clearAllContractCreateFieldErrors() {
+                $('#contract-create-form [data-field-error]').each(function () {
+                    $(this).text('');
+                });
+                $('#contract-create-form .is-invalid').removeClass('is-invalid');
+                $('#user_id').next('.select2-container').removeClass('is-invalid');
+            }
+
+            function applyServerContractCreateFieldErrors() {
+                $('#contract-create-form [data-field-error]').each(function () {
+                    const $error = $(this);
+                    const fieldName = $error.data('field-error');
+                    const text = $error.text().trim();
+
+                    if (text !== '') {
+                        markContractCreateFieldInvalid(fieldName, true);
+                    }
+                });
+            }
+
+            function validateContractCreateForm() {
+                clearAllContractCreateFieldErrors();
+
+                let valid = true;
+                let firstInvalidField = null;
+
+                const userId = $('#user_id').val();
+                if (!userId || String(userId).trim() === '') {
+                    showContractCreateFieldError('user_id', 'Выберите ученика.');
+                    valid = false;
+                    firstInvalidField = firstInvalidField || 'user_id';
+                }
+
+                const mode = $('input[name="creation_mode"]:checked').val();
+
+                if (mode === 'pdf') {
+                    const pdfInput = document.getElementById('input_pdf');
+                    if (!pdfInput || !pdfInput.files || pdfInput.files.length === 0) {
+                        showContractCreateFieldError('pdf', 'Загрузите PDF-файл договора.');
+                        valid = false;
+                        firstInvalidField = firstInvalidField || 'pdf';
+                    }
+                } else if (mode === 'template' && hasContractTemplates) {
+                    const templateId = $('#contract_template_id').val();
+                    if (!templateId || String(templateId).trim() === '') {
+                        showContractCreateFieldError('contract_template_id', 'Выберите шаблон договора.');
+                        valid = false;
+                        firstInvalidField = firstInvalidField || 'contract_template_id';
+                    }
+                }
+
+                if (!valid && firstInvalidField) {
+                    if (firstInvalidField === 'user_id') {
+                        $('#user_id').select2('open');
+                    } else {
+                        const $input = getContractCreateFieldInput(firstInvalidField);
+                        if ($input.length) {
+                            $input.trigger('focus');
+                        }
+                    }
+                }
+
+                return valid;
+            }
 
             function destroyContractUserSelect2() {
                 const $userSelect = $('#user_id');
@@ -318,6 +429,8 @@
 
                 $userSelect.off('select2:select.contractCreate select2:clear.contractCreate');
                 $userSelect.on('select2:select.contractCreate', function (e) {
+                    clearContractCreateFieldError('user_id');
+
                     const d = e.params.data || {};
                     const $g = $('#group_id_select');
                     const $h = $('#group_id_hidden');
@@ -336,6 +449,8 @@
                 });
 
                 $userSelect.on('select2:clear.contractCreate', function () {
+                    clearContractCreateFieldError('user_id');
+
                     setParentFullNameDisplay('');
                     $('#group_id_select').empty().append(new Option('—', '', true, true));
                     $('#group_id_hidden').val('');
@@ -396,6 +511,11 @@
 
             function onSaveClick(e) {
                 e.preventDefault();
+
+                if (!validateContractCreateForm()) {
+                    return;
+                }
+
                 suppressCreateModalReset = true;
 
                 showConfirmDeleteModal(
@@ -452,9 +572,7 @@
                 }
 
                 form.reset();
-                form.querySelectorAll('.is-invalid').forEach(function (el) {
-                    el.classList.remove('is-invalid');
-                });
+                clearAllContractCreateFieldErrors();
                 form.querySelectorAll('.alert-balance').forEach(function (el) {
                     el.remove();
                 });
@@ -521,6 +639,7 @@
                     initContractUserSelect2();
                     applyPreselectedStudent();
                     toggleCreationMode();
+                    applyServerContractCreateFieldErrors();
                 });
 
                 createModalEl.addEventListener('hidden.bs.modal', function () {
@@ -536,7 +655,17 @@
                     stripCreateModalQueryParams();
                 });
 
-                $('input[name="creation_mode"]').on('change', toggleCreationMode);
+                $('input[name="creation_mode"]').on('change', function () {
+                    clearContractCreateFieldError('pdf');
+                    clearContractCreateFieldError('contract_template_id');
+                    toggleCreationMode();
+                });
+                $('#input_pdf').on('change', function () {
+                    clearContractCreateFieldError('pdf');
+                });
+                $('#contract_template_id').on('change', function () {
+                    clearContractCreateFieldError('contract_template_id');
+                });
                 $('#btn-save').on('click', onSaveClick);
 
                 if (shouldOpenCreateModal) {

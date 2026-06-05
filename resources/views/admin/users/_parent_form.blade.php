@@ -147,13 +147,15 @@
             <div class="col-12 col-md-6">
                 <div class="mb-3">
                     <label for="{{ $prefix }}-parent-phone" class="form-label">Телефон родителя</label>
-                    <input type="text"
-                           name="parent_phone"
-                           class="form-control js-parent-phone"
-                           id="{{ $prefix }}-parent-phone"
-                           data-parent-prefix="{{ $prefix }}"
-                           maxlength="32"
-                           value="{{ $parentPhone ?? '' }}">
+                    @include('includes.fields.phone-input', [
+                        'name' => 'parent_phone',
+                        'id' => $prefix . '-parent-phone',
+                        'value' => $parentPhone ?? '',
+                        'parentPhone' => true,
+                        'attributes' => [
+                            'data-parent-prefix' => $prefix,
+                        ],
+                    ])
                 </div>
             </div>
 
@@ -339,7 +341,7 @@
                     $(ids.passport).val(data.parent_passport || '');
                     $(ids.passportIssued).val(data.parent_passport_issued || '');
                     $(ids.address).val(data.parent_address || '');
-                    $(ids.phone).val(data.parent_phone || '');
+                    window.PhoneInputMask?.setValue(ids.phone, data.parent_phone || '');
                     $(ids.email).val(data.parent_email || '');
                 }
 

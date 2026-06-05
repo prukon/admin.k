@@ -226,7 +226,8 @@ class ContractTemplateToParentWorkflowFeatureTest extends ContractsFeatureTestCa
         $this->assertStringContainsString('Сформировать договор', $html);
         $this->assertStringContainsString('name="fields[parent_lastname]"', $html);
 
-        $this->actingAs($student)
+        $this->flushHeaders()
+            ->actingAs($student)
             ->withSession($this->studentDocumentsSession())
             ->post(route('account.documents.generate', $contract), [
                 'fields' => [

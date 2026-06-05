@@ -45,7 +45,10 @@
 
         <div class="mb-3">
             <label for="phone" class="form-label">Телефон</label>
-            <input type="tel" name="phone" id="phone" class="form-control" autocomplete="tel">
+            @include('includes.fields.phone-input', [
+                'name' => 'phone',
+                'id' => 'phone',
+            ])
             <div class="field-error" data-error-for="phone" style="display:none;"></div>
         </div>
 
@@ -198,5 +201,6 @@
     });
 })();
 </script>
+@include('includes.scripts.phone-inputmask', ['requireJquery' => true])
 </body>
 </html>

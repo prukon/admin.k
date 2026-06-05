@@ -40,6 +40,7 @@
     </main>
 </div>
 
+@include('includes.scripts.phone-inputmask', ['requireJquery' => true])
 @yield('scripts')
 
 </body>

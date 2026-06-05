@@ -32,7 +32,10 @@
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Новый номер телефона</label>
-                            <input type="tel" name="new_phone" class="form-control" placeholder="+7 999 111 22 33" required>
+                            @include('includes.fields.phone-input', [
+                                'name' => 'new_phone',
+                                'required' => true,
+                            ])
                             <small class="text-muted">Формат: 79XXXXXXXXX</small>
                         </div>
                         <div class="col-12">

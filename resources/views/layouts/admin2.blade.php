@@ -454,6 +454,8 @@
     </script>
 
 
+    @include('includes.scripts.phone-inputmask')
+
     @yield('scripts')
 
 

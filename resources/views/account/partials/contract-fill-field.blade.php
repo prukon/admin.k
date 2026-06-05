@@ -33,13 +33,22 @@
                value="{{ $value }}"
                max="{{ now()->format('Y-m-d') }}"
                {{ $required ? 'required' : '' }}>
+    @elseif($isPhoneField)
+        @include('includes.fields.phone-input', [
+            'name' => 'fields[' . $key . ']',
+            'value' => $rawValue,
+            'unmask' => true,
+            'contractFill' => true,
+            'required' => $required,
+            'class' => $errors->has('fields.' . $key) ? 'is-invalid' : '',
+        ])
     @else
         <input type="text"
                name="fields[{{ $key }}]"
-               class="form-control @if($isPhoneField) js-contract-fill-phone @endif @error('fields.' . $key) is-invalid @enderror"
+               class="form-control @error('fields.' . $key) is-invalid @enderror"
                value="{{ $value }}"
                {{ $required ? 'required' : '' }}
-               @if(!$isPhoneField) maxlength="2000" @endif>
+               maxlength="2000">
     @endif
     @error('fields.' . $key)
     <div class="invalid-feedback">{{ $message }}</div>

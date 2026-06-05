@@ -132,7 +132,11 @@
                         {{-- Телефон --}}
                         <div class="mb-3">
                             <label for="phone" class="form-label">Телефон</label>
-                            <input type="text" class="form-control" id="phone" name="phone" value="{{ old('phone') }}">
+                            @include('includes.fields.phone-input', [
+                                'name' => 'phone',
+                                'id' => 'phone',
+                                'value' => old('phone'),
+                            ])
                             <div class="text-danger error-phone"></div>
                         </div>
 
@@ -192,7 +196,11 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label for="ceo_phone" class="form-label">Телефон руководителя</label>
-                                    <input type="text" class="form-control" id="ceo_phone" name="ceo[phone]" maxlength="20" value="{{ old('ceo.phone') }}">
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'ceo[phone]',
+                                        'id' => 'ceo_phone',
+                                        'value' => old('ceo.phone'),
+                                    ])
                                     <div class="text-danger error-ceo.phone"></div>
                                 </div>
                             </div>
@@ -345,7 +353,10 @@
 
                         <div class="mb-3">
                             <label for="edit-phone" class="form-label">Телефон</label>
-                            <input type="text" name="phone" class="form-control" id="edit-phone">
+                            @include('includes.fields.phone-input', [
+                                'name' => 'phone',
+                                'id' => 'edit-phone',
+                            ])
                             <p class="text-danger" id="edit-phone-error"></p>
                         </div>
 
@@ -403,7 +414,10 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label for="edit-ceo_phone" class="form-label">Телефон руководителя</label>
-                                    <input type="text" name="ceo[phone]" class="form-control" id="edit-ceo_phone" maxlength="20">
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'ceo[phone]',
+                                        'id' => 'edit-ceo_phone',
+                                    ])
                                     <p class="text-danger" id="edit-ceo_phone-error"></p>
                                 </div>
                             </div>
@@ -641,7 +655,7 @@
                     $('#edit-city').val(response.city || '');
                     $('#edit-zip').val(response.zip || '');
                     $('#edit-address').val(response.address || '');
-                    $('#edit-phone').val(response.phone || '');
+                    window.PhoneInputMask?.setValue('#edit-phone', response.phone || '');
                     $('#edit-email').val(response.email || '');
                     $('#edit-website').val(response.website || '');
                     $('#edit-bank_name').val(response.bank_name || '');
@@ -657,7 +671,7 @@
                     $('#edit-ceo_lastName').val(ceo.lastName);
                     $('#edit-ceo_firstName').val(ceo.firstName);
                     $('#edit-ceo_middleName').val(ceo.middleName);
-                    $('#edit-ceo_phone').val(ceo.phone);
+                    window.PhoneInputMask?.setValue('#edit-ceo_phone', ceo.phone || '');
 
                     // очистка ошибок
                     $('#edit-partner-form p.text-danger').text('');

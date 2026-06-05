@@ -19,11 +19,6 @@
                 </div>
 
                 <div class="modal-body text-start contract-template-create-modal-body">
-                    <p class="text-muted small">
-                        Загрузите DOCX с плейсхолдерами вида <code>&#123;&#123;parent_full_name&#125;&#125;</code>.
-                        Список рекомендуемых переменных — в блоке ниже.
-                    </p>
-
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label" for="template-create-title">Название</label>
@@ -39,7 +34,7 @@
                             @enderror
                         </div>
 
-                        <div class="col-12">
+                        <div class="col-12 mb-3">
                             <label class="form-label" for="template-create-docx">Файл DOCX</label>
                             <input type="file"
                                    name="docx"
@@ -50,9 +45,9 @@
                             @error('docx')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                             @enderror
-                            <div class="form-text">
-                                Текст письма клиенту настраивается после сохранения — кнопка
-                                «Письмо» в таблице шаблонов.
+                            <div class="form-text text-muted small">
+                                Загрузите DOCX с плейсхолдерами вида <code>&#123;&#123;parent_full_name&#125;&#125;</code>.
+                                Список рекомендуемых переменных — ниже.
                             </div>
                         </div>
 

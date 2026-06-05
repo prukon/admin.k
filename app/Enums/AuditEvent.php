@@ -51,6 +51,7 @@ enum AuditEvent: string
     case ContractSignSentFailed = 'contract.sign_sent_failed';
     case ContractSmsOpened = 'contract.sms_opened';
     case ContractSigned = 'contract.signed';
+    case ContractPdfRegeneratedByClient = 'contract.pdf_regenerated_by_client';
     case ContractLegacyCreated = 'contract.legacy_created';
     case ContractLegacySmsToggleUpdated = 'contract.legacy_sms_toggle_updated';
     case ContractLegacyDeleted = 'contract.legacy_deleted';
@@ -128,6 +129,7 @@ enum AuditEvent: string
             self::ContractSignSentFailed => 'Первичная отправка (ошибка)',
             self::ContractSmsOpened => 'Получатель открыл СМС',
             self::ContractSigned => 'Договор подписан',
+            self::ContractPdfRegeneratedByClient => 'Перегенерация PDF родителем',
             self::ContractLegacyCreated => 'Создание договора',
             self::ContractLegacySmsToggleUpdated => 'Изменение отправки договора в SMS',
             self::ContractLegacyDeleted => 'Удаление договора',
@@ -234,6 +236,7 @@ enum AuditEvent: string
             self::ContractSignSentFailed,
             self::ContractSmsOpened,
             self::ContractSigned,
+            self::ContractPdfRegeneratedByClient,
             self::ContractLegacyCreated,
             self::ContractLegacySmsToggleUpdated,
             self::ContractLegacyDeleted => 'contract',
@@ -334,6 +337,7 @@ enum AuditEvent: string
             self::ContractSignSentFailed,
             self::ContractSmsOpened,
             self::ContractSigned,
+            self::ContractPdfRegeneratedByClient,
             self::ContractLegacyCreated,
             self::ContractLegacySmsToggleUpdated,
             self::ContractLegacyDeleted => 500,
@@ -417,6 +421,7 @@ enum AuditEvent: string
             self::ContractSignSentFailed => 514,
             self::ContractSmsOpened => 519,
             self::ContractSigned => 520,
+            self::ContractPdfRegeneratedByClient => 515,
             self::ContractLegacyCreated => 900,
             self::ContractLegacySmsToggleUpdated => 901,
             self::ContractLegacyDeleted => 902,
@@ -622,6 +627,7 @@ enum AuditEvent: string
             512 => self::ContractSignResentFailed,
             513 => self::ContractSignSentSuccess,
             514 => self::ContractSignSentFailed,
+            515 => self::ContractPdfRegeneratedByClient,
             519 => self::ContractSmsOpened,
             520 => self::ContractSigned,
 

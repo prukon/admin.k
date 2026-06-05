@@ -345,15 +345,14 @@
                         {{--<input type="text" class="form-control" id="signerPhone" placeholder="+7..."--}}
                                {{--value="{{ $student->phone ?? '' }}" required>--}}
 
-                        @php
-                            $raw = preg_replace('/\D+/', '', $student->phone ?? '');
-                            if (strlen($raw) === 11 && ($raw[0] === '7' || $raw[0] === '8')) $prefill = substr($raw, 1);
-                            elseif (strlen($raw) === 10) $prefill = $raw;
-                            else $prefill = '';
-                        @endphp
-
-                        <input type="text" class="form-control" id="signerPhone" placeholder="+7..."
-                               value="{{ $prefill }}" required>
+                        @include('includes.fields.phone-input', [
+                            'name' => 'signer_phone',
+                            'id' => 'signerPhone',
+                            'value' => $student->phone ?? '',
+                            'unmask' => true,
+                            'contractFill' => true,
+                            'required' => true,
+                        ])
 
                         <div id="signerPhoneErr" class="text-danger small mt-1 d-none"></div>
                     </div>
@@ -407,14 +406,6 @@
 
 @push('scripts')
 
-    <!-- Inputmask -->
-    <!-- Inputmask core -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.9/inputmask.min.js"
-            referrerpolicy="no-referrer"></script>
-    <!-- jQuery plugin wrapper -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.9/jquery.inputmask.min.js"
-            referrerpolicy="no-referrer"></script>
-
     <script>
         (function () {
             const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -422,16 +413,6 @@
             const emailModalEl = document.getElementById('emailModal');
             const bsSendModal = new bootstrap.Modal(sendModalEl);
             const bsEmailModal = new bootstrap.Modal(emailModalEl);
-
-
-            // если хочешь — можно сразу навесить и при загрузке страницы:
-            $('#signerPhone').inputmask({
-                mask: '+7 (999) 999-99-99',
-                showMaskOnHover: false,
-                autoUnmask: true,        // отправим «чистые» цифры
-                removeMaskOnSubmit: true,
-                placeholder: '_'
-            });
 
             // Открыть модал для отправки на подпись
             document.getElementById('openSendModal')?.addEventListener('click', function () {

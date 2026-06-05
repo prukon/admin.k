@@ -42,6 +42,7 @@ class AccountDocumentsController extends Controller
         ];
 
         $openFillContractId = $request->integer('fill');
+        $openFillMode = $request->string('mode')->toString() === 'edit' ? 'edit' : null;
 
         return view('account.index', [
             'activeTab' => 'myDocuments',
@@ -51,6 +52,7 @@ class AccountDocumentsController extends Controller
             'statusMap' => $statusMap,
             'currentStatus' => $status,
             'openFillContractId' => $openFillContractId > 0 ? $openFillContractId : null,
+            'openFillMode'       => $openFillMode,
         ]);
     }
 

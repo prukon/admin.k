@@ -85,7 +85,11 @@
                         {{-- Телефон --}}
                         <div class="mb-3">
                             <label for="phone" class="form-label">Телефон</label>
-                            <input type="text" class="form-control" id="phone" name="phone" value="{{ old('phone') }}">
+                            @include('includes.fields.phone-input', [
+                                'name' => 'phone',
+                                'id' => 'phone',
+                                'value' => old('phone'),
+                            ])
                             <div class="text-danger error-phone"></div>
                         </div>
 
@@ -149,7 +153,11 @@
                                 </div>
                                 <div class="col-md-4 mb-3">
                                     <label for="ceo_phone" class="form-label">Телефон руководителя</label>
-                                    <input type="text" class="form-control" id="ceo_phone" name="ceo[phone]" maxlength="20" value="{{ old('ceo.phone') }}">
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'ceo[phone]',
+                                        'id' => 'ceo_phone',
+                                        'value' => old('ceo.phone'),
+                                    ])
                                     <div class="text-danger error-ceo.phone"></div>
                                 </div>
                             </div>

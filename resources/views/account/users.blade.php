@@ -132,18 +132,12 @@
                 <label for="phone" class="form-label">Телефон</label>
 
                 <div class="input-group">
-                    <input
-                            type="tel"
-                            id="phone"
-                            name="phone"
-                            class="form-control"
-                            value="{{ old('phone', $user->phone) }}"
-                            placeholder="+7 (___) ___-__-__"
-                            {{-- Если номер подтверждён — ВСЕГДА дизейблим, иначе проверяем право --}}
-                            @if($isVerified) disabled aria-disabled="true"
-                            @elseif(!$canPhone) disabled aria-disabled="true"
-                            @endif
-                    >
+                    @include('includes.fields.phone-input', [
+                        'name' => 'phone',
+                        'id' => 'phone',
+                        'value' => old('phone', $user->phone),
+                        'disabled' => $isVerified || !$canPhone,
+                    ])
 
                     {{-- Кнопка подтверждения — скрыта, если номер уже подтверждён --}}
                     @if($canPhone && !$isVerified)
@@ -340,13 +334,13 @@
 
                 <div class="mb-3">
                     <label for="parent_phone" class="form-label">Телефон</label>
-                    <input type="text"
-                           id="parent_phone"
-                           name="parent_phone"
-                           class="form-control @error('parent_phone') is-invalid @enderror"
-                           maxlength="32"
-                           value="{{ old('parent_phone', $accountParentFields['parent_phone'] ?? '') }}"
-                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @include('includes.fields.phone-input', [
+                        'name' => 'parent_phone',
+                        'id' => 'parent_phone',
+                        'value' => old('parent_phone', $accountParentFields['parent_phone'] ?? ''),
+                        'disabled' => !$canEditAccountParent,
+                        'class' => $errors->has('parent_phone') ? 'is-invalid' : '',
+                    ])
                     @error('parent_phone')
                     <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -498,7 +492,7 @@
     </div>
 </div>
 
-@section('scripts')
+@push('scripts')
 
     <script>
         // 2fa: простая клиентская проверка телефона (оставлена как была)
@@ -651,14 +645,12 @@
         });
     </script>
 
-    <!-- Inputmask (маска телефона) -->
-    <script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/jquery.inputmask.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var $phone = $('#phone');
             var $verifyBtn = $('#verify-phone-btn');
-            var $icon = $('#phone-verified-icon');         // ИКОНКА - источник истины
-            var $status = $('#phone-verify-status');         // может отсутствовать
+            var $icon = $('#phone-verified-icon');
+            var $status = $('#phone-verify-status');
 
             var $codeModal = $('#phoneCodeModal');
             var $codeTarget = $('#code-target-phone');
@@ -667,29 +659,19 @@
             var $resend = $('#resend-code-btn');
             var $confirm = $('#confirm-code-btn');
 
-            // Маска ввода
-            $phone.inputmask('+7 (999) 999-99-99', {
-                showMaskOnHover: false,
-                clearIncomplete: false
-            });
-
-            function digits(s) {
-                return String(s || '').replace(/\D+/g, '');
+            function isComplete() {
+                return window.PhoneInputMask && window.PhoneInputMask.isComplete($phone);
             }
 
             function norm7(s) {
-                var d = digits(s);
-                if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1);
-                if (d.length === 10) d = '7' + d;
-                return d;
-            }
-
-            function isComplete() {
-                try {
-                    return $phone.inputmask('isComplete');
-                } catch (e) {
-                    return digits($phone.val()).length >= 11;
+                var d = String(s || '').replace(/\D+/g, '');
+                if (d.length === 11 && d[0] === '8') {
+                    d = '7' + d.slice(1);
                 }
+                if (d.length === 10) {
+                    d = '7' + d;
+                }
+                return d;
             }
 
             function prettyNow() {
@@ -843,4 +825,4 @@
 
 
 
-@endsection
+@endpush

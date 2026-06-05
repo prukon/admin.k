@@ -11,6 +11,8 @@ class ContractTemplatePrefillSources
     public const CHILD_LASTNAME     = 'child_lastname';
     public const CHILD_FIRSTNAME    = 'child_firstname';
     public const CHILD_BIRTHDAY     = 'child_birthday';
+    /** @deprecated Используйте {@see CHILD_FULL_NAME}. Оставлено для старых шаблонов и воркера. */
+    public const STUDENT_FULL_NAME  = 'child_full_name';
     public const STUDENT_PHONE      = 'student_phone';
     public const STUDENT_EMAIL      = 'student_email';
     public const PARENT_FULL_NAME   = 'parent_full_name';

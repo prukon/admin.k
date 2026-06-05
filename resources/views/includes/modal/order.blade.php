@@ -21,7 +21,7 @@
 
                     <div class="mb-3">
                         <label for="phone" class="form-label">Телефон</label>
-                        <input type="text" name="phone" id="phone" class="form-control" value="">
+                        @include('includes.fields.phone-input', ['name' => 'phone', 'id' => 'phone'])
                         <div class="invalid-feedback d-block" data-error-for="phone" style="display:none;"></div>
                     </div>
 {{-- 

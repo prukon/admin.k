@@ -64,7 +64,8 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
             ->json('html');
         $this->assertStringContainsString('Сформировать договор', $fillHtml);
 
-        $this->actingAs($this->user)
+        $this->flushHeaders()
+            ->actingAs($this->user)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->post(route('account.documents.generate', $contract), [
                 'fields' => [

@@ -102,7 +102,9 @@ class ContractPrefillResolver
         $parentFields = $student->parentFormFields();
 
         return match ($source) {
-            ContractTemplatePrefillSources::CHILD_FULL_NAME => $this->studentFullName($student),
+            ContractTemplatePrefillSources::CHILD_FULL_NAME,
+            ContractTemplatePrefillSources::STUDENT_FULL_NAME,
+            'student_full_name' => $this->studentFullName($student),
             ContractTemplatePrefillSources::CHILD_LASTNAME  => trim((string) ($student->lastname ?? '')),
             ContractTemplatePrefillSources::CHILD_FIRSTNAME => trim((string) ($student->name ?? '')),
             ContractTemplatePrefillSources::CHILD_BIRTHDAY  => $this->studentBirthday($student),

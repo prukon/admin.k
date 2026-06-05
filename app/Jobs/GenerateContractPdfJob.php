@@ -48,6 +48,15 @@ class GenerateContractPdfJob implements ShouldQueue
                 ?? 'Не удалось сформировать PDF. Обратитесь в организацию.';
 
             $pdfGeneration->failGeneration($this->contractId, (string) $message, $this->fieldInput, $this->authorId);
+        } catch (\Throwable $e) {
+            report($e);
+
+            $pdfGeneration->failGeneration(
+                $this->contractId,
+                self::userFacingGenerationError($e),
+                $this->fieldInput,
+                $this->authorId,
+            );
         }
     }
 
@@ -60,9 +69,28 @@ class GenerateContractPdfJob implements ShouldQueue
 
         app(ContractPdfGenerationService::class)->failGeneration(
             $this->contractId,
-            'Не удалось сформировать PDF. Обратитесь в организацию.',
+            self::userFacingGenerationError($e),
             $this->fieldInput,
             $this->authorId,
         );
+    }
+
+    private static function userFacingGenerationError(\Throwable $e): string
+    {
+        $message = trim($e->getMessage());
+        if ($message === '') {
+            return 'Не удалось сформировать PDF. Обратитесь в организацию.';
+        }
+
+        if (str_contains($message, 'Исходный DOCX не найден')
+            || str_contains($message, 'Файл шаблона DOCX не найден')) {
+            return 'Файл шаблона договора не найден на сервере. Обратитесь в организацию.';
+        }
+
+        if (str_contains($message, 'LibreOffice') || str_contains($message, 'конверт')) {
+            return 'Не удалось конвертировать договор в PDF. Обратитесь в организацию.';
+        }
+
+        return 'Не удалось сформировать PDF. Обратитесь в организацию.';
     }
 }

@@ -160,24 +160,16 @@
                             <div class="mb-3">
                                 <label for="edit-phone" class="form-label">Телефон</label>
 
-                                <script>
-                                    $(function () {
-                                        $('#edit-phone').inputmask("+7 (999) 999-99-99"); // <-- твоя маска
-                                    });
-                                </script>
-
-
                                 <div class="input-group">
-                                    <input
-                                            type="tel"
-                                            class="form-control"
-                                            id="edit-phone"
-                                            name="phone"
-                                            value="{{ old('phone', $user->phone) }}"
-                                            placeholder="+7 (XXX) XXX-XX-XX"
-                                            data-can-phone="{{ $canPhone ? 1 : 0 }}"
-                                            @unless($canPhone) disabled aria-disabled="true" @endunless
-                                    >
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'phone',
+                                        'id' => 'edit-phone',
+                                        'value' => old('phone', $user->phone),
+                                        'disabled' => !$canPhone,
+                                        'attributes' => [
+                                            'data-can-phone' => $canPhone ? 1 : 0,
+                                        ],
+                                    ])
 
                                     {{-- Индикатор статуса (галка/крест) --}}
                                     <span id="phone-verify-icon" class="input-group-text d-none">
@@ -367,8 +359,6 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/inputmask@5.0.8/dist/jquery.inputmask.min.js"></script>
-
 <script>
     // Отрисовка индикатора по значению select
     function renderContractIndicator() {
@@ -526,10 +516,6 @@
             const $status   = $('#phone-verify-status');
             const canPhone  = String($phone.data('can-phone')) === '1';
 
-            // Сброс прошлого состояния + маска
-            if ($phone.inputmask) { $phone.inputmask('remove'); }
-            $phone.inputmask("+7 (999) 999-99-99");
-
             $('#phone-edit-locked-note').remove();
             $iconWrap.addClass('d-none'); $icon.attr('class','');
             if ($status.length){ $status.addClass('d-none').text(''); }
@@ -684,7 +670,7 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-email').val(response.user.email);
-                        $('#edit-user-form #edit-phone').val(response.user.phone);
+                        window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Роли
@@ -799,7 +785,7 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-email').val(response.user.email);
-                        $('#edit-user-form #edit-phone').val(response.user.phone);
+                        window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Роли
@@ -994,9 +980,6 @@
             const canPhone = String($phone.data('can-phone')) === '1';
 
             $form[0]?.reset?.();
-
-            if ($phone.inputmask) { $phone.inputmask('remove'); }
-            $phone.inputmask("+7 (999) 999-99-99");
 
             $('#phone-verify-icon').addClass('d-none').find('i').attr('class','');
             $('#phone-verify-status').addClass('d-none').text('');

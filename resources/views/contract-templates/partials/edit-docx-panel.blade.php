@@ -43,6 +43,14 @@
         @error('docx')
         <div class="invalid-feedback d-block">{{ $message }}</div>
         @enderror
+
+        <div class="mt-3 mb-0">
+            @include('contract-templates.partials.variables-reference', [
+                'compact' => true,
+                'collapseAll' => true,
+                'accordionId' => 'editContractTemplateVariablesAccordion',
+            ])
+        </div>
     </div>
 </section>
 

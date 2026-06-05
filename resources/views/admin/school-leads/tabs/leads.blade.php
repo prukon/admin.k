@@ -968,10 +968,8 @@
 
                     var $phone = $('#create-phone');
                     if ($phone.length && !$phone.prop('disabled')) {
-                        $phone.val(rowData.parent_phone || rowData.phone || '');
-                        if ($phone.inputmask) {
-                            $phone.trigger('input');
-                        }
+                        var phoneValue = rowData.parent_phone || rowData.phone || '';
+                        window.PhoneInputMask?.setValue($phone, phoneValue);
                     }
 
                     $createUserForm.data('school-lead-prefill', {

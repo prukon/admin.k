@@ -822,10 +822,7 @@
 
                     var $phone = $('#create-phone');
                     if ($phone.length && !$phone.prop('disabled')) {
-                        $phone.val(rowData.phone || '');
-                        if ($phone.inputmask) {
-                            $phone.trigger('input');
-                        }
+                        window.PhoneInputMask?.setValue($phone, rowData.phone || '');
                     }
 
                     $createUserForm.data('success-handler', 'school-leads-table');

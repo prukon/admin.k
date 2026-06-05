@@ -31,7 +31,8 @@ class ContractTemplateVariablePresets
     public static function legacyFieldKeyMap(): array
     {
         return [
-            'child_birth_year' => ContractTemplatePrefillSources::CHILD_BIRTHDAY,
+            'child_birth_year'  => ContractTemplatePrefillSources::CHILD_BIRTHDAY,
+            'student_full_name' => ContractTemplatePrefillSources::CHILD_FULL_NAME,
         ];
     }
 

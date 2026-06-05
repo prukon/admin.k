@@ -6,6 +6,7 @@ use App\Models\Contract;
 use App\Models\ParentProfile;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\RuPhone;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -149,8 +150,10 @@ class ContractsParentAndAccessTest extends ContractsFeatureTestCase
         $this->assertStringContainsString('id="signerMiddlename"', $html);
         $this->assertStringContainsString('value="Козьмич"', $html);
         $this->assertStringContainsString('id="signerPhone"', $html);
-        // В value — 10 цифр без ведущей 7 (для inputmask +7 ...)
-        $this->assertStringContainsString('value="9990001122"', $html);
+        $this->assertStringContainsString(
+            'value="' . RuPhone::formatForInput('+79990001122') . '"',
+            $html
+        );
     }
 
     /** @test */

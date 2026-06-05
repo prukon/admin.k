@@ -89,7 +89,11 @@
 
                                 <div class="col-md-4">
                                     <label class="form-label">Телефон контакта</label>
-                                    <input name="phone" id="phone" class="form-control" type="tel" value="{{ $partner->phone }}">
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'phone',
+                                        'id' => 'phone',
+                                        'value' => $partner->phone,
+                                    ])
                                     <div class="form-text">API: <code>phones[0].phone</code> и <code>ceo.phone*</code>.</div>
                                 </div>
 
@@ -385,7 +389,11 @@
                                 {{-- Контакты / сайт --}}
                                 <div class="col-md-4">
                                     <label class="form-label">Телефон контакта</label>
-                                    <input name="phone" id="phone" class="form-control" type="tel" value="{{ $partner->phone }}">
+                                    @include('includes.fields.phone-input', [
+                                        'name' => 'phone',
+                                        'id' => 'phone',
+                                        'value' => $partner->phone,
+                                    ])
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">Сайт</label>

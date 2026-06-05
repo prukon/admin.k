@@ -27,7 +27,8 @@ class ContractTemplateEmailDefaultsTest extends TestCase
         }
 
         $this->assertStringContainsString('подготовлен договор', $body);
-        $this->assertStringContainsString('прямо в личном кабинете', $body);
+        $this->assertStringContainsString('<ol>', $body);
+        $this->assertStringContainsString('Подпишите договор прямо в личном кабинете', $body);
         $this->assertStringContainsString('Пожалуйста, заполните до', $body);
         $this->assertStringContainsString('С уважением', $body);
     }
