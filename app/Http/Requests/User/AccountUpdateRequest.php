@@ -90,11 +90,6 @@ class AccountUpdateRequest extends FormRequest
             $rules['team_id'] = ['sometimes','nullable','integer','exists:teams,id'];
         }
 
-        if ($this->user()->can('account.user.startDate.update')) {
-            $rules['start_date'] =  ['nullable','date','before_or_equal:today'];
-        }
-
-
         if ($this->user()->can('account.user.email.update')) {
             $rules['email'] = ['sometimes', 'nullable', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),
@@ -106,7 +101,7 @@ class AccountUpdateRequest extends FormRequest
         }
 
         if ($this->user()->can('account.user.parent.update')) {
-            $rules = array_merge($rules, $this->studentParentRules());
+            $rules = array_merge($rules, $this->accountStudentParentRules());
         }
 
         return $rules;

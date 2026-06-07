@@ -363,9 +363,10 @@
                     <div id="sendError" class="alert alert-danger d-none"></div>
                     <div id="sendSuccess" class="alert alert-success d-none"></div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer d-flex align-items-center gap-2">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" class="btn btn-success" id="sendSubmit">Отправить</button>
+                    <span id="sendCooldownTimer" class="text-muted small d-none"></span>
                 </div>
             </div>
         </div>
@@ -414,17 +415,76 @@
             const bsSendModal = new bootstrap.Modal(sendModalEl);
             const bsEmailModal = new bootstrap.Modal(emailModalEl);
 
-            // Открыть модал для отправки на подпись
-            document.getElementById('openSendModal')?.addEventListener('click', function () {
+            const sendSubmitBtn = document.getElementById('sendSubmit');
+            const sendCooldownTimer = document.getElementById('sendCooldownTimer');
+            const SMS_COOLDOWN_SEC = 30;
+            let sendInProgress = false;
+            let sendCooldownSec = 0;
+            let sendCooldownTimerId = null;
+
+            function renderSendSubmitState() {
+                if (!sendSubmitBtn) return;
+
+                if (sendInProgress) {
+                    sendSubmitBtn.disabled = true;
+                    sendSubmitBtn.textContent = 'Отправка…';
+                    if (sendCooldownTimer) {
+                        sendCooldownTimer.classList.add('d-none');
+                        sendCooldownTimer.textContent = '';
+                    }
+                    return;
+                }
+
+                if (sendCooldownSec > 0) {
+                    sendSubmitBtn.disabled = true;
+                    sendSubmitBtn.textContent = 'Отправить';
+                    if (sendCooldownTimer) {
+                        sendCooldownTimer.classList.remove('d-none');
+                        sendCooldownTimer.textContent = 'Повторная отправка через ' + sendCooldownSec + ' сек.';
+                    }
+                    return;
+                }
+
+                sendSubmitBtn.disabled = false;
+                sendSubmitBtn.textContent = 'Отправить';
+                if (sendCooldownTimer) {
+                    sendCooldownTimer.classList.add('d-none');
+                    sendCooldownTimer.textContent = '';
+                }
+            }
+
+            function startSendCooldown(seconds) {
+                sendCooldownSec = Math.max(0, parseInt(seconds, 10) || SMS_COOLDOWN_SEC);
+                clearInterval(sendCooldownTimerId);
+                renderSendSubmitState();
+                if (sendCooldownSec <= 0) return;
+
+                sendCooldownTimerId = setInterval(function () {
+                    sendCooldownSec--;
+                    if (sendCooldownSec <= 0) {
+                        clearInterval(sendCooldownTimerId);
+                        sendCooldownTimerId = null;
+                    }
+                    renderSendSubmitState();
+                }, 1000);
+            }
+
+            function resetSendModalAlerts() {
                 document.getElementById('sendError').classList.add('d-none');
                 document.getElementById('sendSuccess').classList.add('d-none');
+            }
+
+            // Открыть модал для отправки на подпись
+            document.getElementById('openSendModal')?.addEventListener('click', function () {
+                resetSendModalAlerts();
+                renderSendSubmitState();
                 bsSendModal.show();
             });
 
             // Повторная отправка — тот же модал
             document.getElementById('openResendModal')?.addEventListener('click', function () {
-                document.getElementById('sendError').classList.add('d-none');
-                document.getElementById('sendSuccess').classList.add('d-none');
+                resetSendModalAlerts();
+                renderSendSubmitState();
                 bsSendModal.show();
             });
 
@@ -456,19 +516,35 @@
 
             // Отправка на подпись (AJAX, прямой URL)
             $('#sendSubmit').on('click', function () {
+                if (sendInProgress || sendCooldownSec > 0) {
+                    return;
+                }
+
                 var contractId = $('#contractId').val();
+                sendInProgress = true;
+                renderSendSubmitState();
+
+                function onSendSuccess() {
+                    sendInProgress = false;
+                    startSendCooldown(SMS_COOLDOWN_SEC);
+                    showSuccessModal("Отправка сообщения", "СМС сообщение успешно отправлено.", 1);
+                }
+
+                function onSendFailure(resp) {
+                    sendInProgress = false;
+                    renderSendSubmitState();
+
+                    var json = resp && resp.responseJSON ? resp.responseJSON : (resp || {});
+                    if (json.code === 'sms_cooldown') {
+                        startSendCooldown(json.cooldown_sec || SMS_COOLDOWN_SEC);
+                    }
+
+                    var msg = json.message ? json.message : 'Ошибка.';
+                    $('#error-modal-message').text(msg);
+                    eroorRespone({responseJSON: json.message ? json : {message: msg}});
+                }
 
                 $.ajax({
-
-                    // type: 'POST',
-                    // url: '/contracts/' + contractId + '/send',
-                    // dataType: 'json',
-                    // headers: {'Accept': 'application/json'},
-                    // data: {
-                    //     _token: $('meta[name="csrf-token"]').attr('content'),
-                    //     signer_name: $('#signerName').val(),
-                    //     signer_phone: $('#signerPhone').val()
-                    //
                         type: 'POST',
                         url: '/client-contracts/' + contractId + '/send',
                         dataType: 'json',
@@ -480,46 +556,40 @@
                             signer_middlename: $('#signerMiddlename').val(),
                             signer_phone:      $('#signerPhone').val()
                             // ttl_hours не шлём (сервер подставит 72)
-
-
                     },
 
                     success: function (resp) {
-                        // Успех только если сервер явно сказал success:true
                         if (resp && resp.success === true) {
-                            showSuccessModal("Отправка сообщения", "СМС сообщение успешно отправлено.", 1);
+                            onSendSuccess();
                         } else {
-                            var msg = (resp && resp.message) ? resp.message : 'Ошибка.';
-                            $('#error-modal-message').text(msg);
-                            // подадим так, чтобы твой обработчик получил message внутри responseJSON
-                            eroorRespone({responseJSON: resp || {message: msg}});
+                            onSendFailure({responseJSON: resp || {message: 'Ошибка.'}});
                         }
                     },
 
                     error: function (xhr, textStatus, errorThrown) {
-                        // Страховка: если статус 200, но попали сюда (например, parsererror) — пробуем распарсить вручную
                         if (xhr && xhr.status === 200) {
                             try {
                                 var json = JSON.parse(xhr.responseText || '{}');
                                 if (json && json.success === true) {
-                                    showSuccessModal("Отправка сообщения", "СМС сообщение успешно отправлено.", 1);
+                                    onSendSuccess();
                                     return;
                                 }
-                                var msg200 = (json && json.message) ? json.message : 'Ошибка.';
-                                $('#error-modal-message').text(msg200);
-                                return eroorRespone({responseJSON: json || {message: msg200}});
+                                onSendFailure({responseJSON: json || {message: 'Ошибка.'}});
+                                return;
                             } catch (e) {
-                                // Если вообще не распарсилось, но статус 200 — считаем успехом (финальная защита)
-                                showSuccessModal("Отправка сообщения", "СМС сообщение успешно отправлено.", 1);
+                                onSendSuccess();
                                 return;
                             }
                         }
 
-                        var msg = (xhr && xhr.responseJSON && xhr.responseJSON.message)
-                            ? xhr.responseJSON.message
-                            : (errorThrown || 'Ошибка.');
-                        $('#error-modal-message').text(msg);
-                        eroorRespone(xhr);
+                        onSendFailure(xhr || {responseJSON: {message: errorThrown || 'Ошибка.'}});
+                    },
+
+                    complete: function () {
+                        if (sendInProgress) {
+                            sendInProgress = false;
+                            renderSendSubmitState();
+                        }
                     }
                 });
             });

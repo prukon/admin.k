@@ -30,7 +30,7 @@
 
 
     {{--Данные пользователя--}}
-    <div class="col-12 col-lg-6 user-data-wrap mb-3">
+    <div class="col-12 col-lg-10 user-data-wrap mb-3">
 
         {{--форма юзера--}}
         <form id='userUpdateForm' method="post">
@@ -38,26 +38,11 @@
             @csrf
             @method('patch')
 
-            {{-- Поле "Имя" --}}
-            @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
-            <div class="mb-3">
-                <label for="name" class="form-label">Имя ученика*</label>
-
-                <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror"
-                       value="{{ old('name', $user->name) }}"
-                       @unless($canEditName) disabled aria-disabled="true" @endunless >
-
-                @error('name')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-
-                @unless($canEditName)
-                    <div class="form-text text-muted mt-1">
-                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение имени
-                    </div>
-                @endunless
-            </div>
-
+            <div class="row g-3 mb-3 align-items-stretch">
+            <div class="col-12 @if(!empty($showAccountParentSection)) col-lg-6 @endif">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-semibold">Данные ученика</div>
+                <div class="card-body">
 
             {{-- Поле "Фамилия" --}}
             @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
@@ -77,6 +62,27 @@
                 @unless($canEditName)
                     <div class="form-text text-muted mt-1">
                         <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение фамилии
+                    </div>
+                @endunless
+            </div>
+
+
+            {{-- Поле "Имя" --}}
+            @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
+            <div class="mb-3">
+                <label for="name" class="form-label">Имя ученика*</label>
+
+                <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror"
+                       value="{{ old('name', $user->name) }}"
+                       @unless($canEditName) disabled aria-disabled="true" @endunless >
+
+                @error('name')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+
+                @unless($canEditName)
+                    <div class="form-text text-muted mt-1">
+                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение имени
                     </div>
                 @endunless
             </div>
@@ -243,13 +249,63 @@
                 @endcannot
             </div>
 
+            {{-- 2FA (SMS) --}}
+            @php
+                // глобальная настройка «Обязательная 2FA для администраторов»
+                $forceAdmin2fa = \App\Models\Setting::getBool('force_2fa_admins', false);
+                $isAdmin = (int)$user->role_id === 10;
+                $forcedForThisUser = $isAdmin && $forceAdmin2fa;
+                $isChecked = $forcedForThisUser ? true : (bool) old('two_factor_enabled', $user->two_factor_enabled);
+            @endphp
+            <div class="mb-3 mb-lg-0">
+                <label class="form-label d-block">Двухфакторная аутентификация (SMS)</label>
+
+                @if($forcedForThisUser)
+                    {{-- Глобально обязательно: отправляем значение как 1 даже если чекбокс disabled --}}
+                    <input type="hidden" name="two_factor_enabled" value="1">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="two_factor_enabled" checked disabled>
+                        <label class="form-check-label" for="two_factor_enabled">
+                            Включена (обязательна для администраторов)
+                        </label>
+                    </div>
+                    <small class="text-muted">Управляется общей настройкой «Обязательная 2FA для администраторов».
+                    </small>
+                @else
+                    {{-- Обычное управление чекбоксом. Чтобы «снятие» отправляло 0 — добавляем hidden. --}}
+                    <input type="hidden" name="two_factor_enabled" value="0">
+                    <div class="form-check">
+                        <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="two_factor_enabled"
+                                name="two_factor_enabled"
+                                value="1"
+                                {{ $isChecked ? 'checked' : '' }}
+                        >
+                        <label class="form-check-label" for="two_factor_enabled">
+                            {{ $isChecked ? 'Включена' : 'Выключена' }}
+                        </label>
+                    </div>
+                @endif
+
+                @error('two_factor_enabled')
+                <p class="text-danger">{{ $message }}</p>
+                @enderror
+            </div>
+
+                </div>
+            </div>
+            </div>
+
             @if(!empty($showAccountParentSection))
-                <hr class="my-4">
-                <h5 class="mb-3">Данные родителя</h5>
-                <p class="text-muted small mb-3">Подписант договора. Изменения применяются ко всем связанным ученикам.</p>
+            <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-semibold">Данные родителя</div>
+                <div class="card-body">
 
                 <div class="mb-3">
-                    <label for="parent_lastname" class="form-label">Фамилия родителя</label>
+                    <label for="parent_lastname" class="form-label">Фамилия родителя@if($canEditAccountParent)*@endif</label>
                     <input type="text"
                            id="parent_lastname"
                            name="parent_lastname"
@@ -263,7 +319,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="parent_firstname" class="form-label">Имя родителя</label>
+                    <label for="parent_firstname" class="form-label">Имя родителя@if($canEditAccountParent)*@endif</label>
                     <input type="text"
                            id="parent_firstname"
                            name="parent_firstname"
@@ -365,73 +421,10 @@
                         <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение данных родителя
                     </div>
                 @endunless
-            @endif
-
-            {{-- Поле "Дата начала занятий" --}}
-            <div class="mb-3">
-                <label for="start_date" class="form-label">Дата начала занятий</label>
-                <input
-                        type="date"
-                        id="start_date"
-                        name="start_date"
-                        class="form-control @error('start_date') is-invalid @enderror"
-                        value="{{ old('start_date', $user->start_date) }}"
-                        max="{{ date('2030-01-01') }}"
-                        @cannot('account.user.startDate.update') disabled aria-disabled="true" @endcannot
-                >
-                @error('start_date')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-                @cannot('account.user.startDate.update')
-                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                        даты начала занятий
-                    </div>
-                @endcannot
+                </div>
             </div>
-
-            {{-- 2FA (SMS) --}}
-            @php
-                // глобальная настройка «Обязательная 2FA для администраторов»
-                $forceAdmin2fa = \App\Models\Setting::getBool('force_2fa_admins', false);
-                $isAdmin = (int)$user->role_id === 10;
-                $forcedForThisUser = $isAdmin && $forceAdmin2fa;
-                $isChecked = $forcedForThisUser ? true : (bool) old('two_factor_enabled', $user->two_factor_enabled);
-            @endphp
-            <div class="mb-3">
-                <label class="form-label d-block">Двухфакторная аутентификация (SMS)</label>
-
-                @if($forcedForThisUser)
-                    {{-- Глобально обязательно: отправляем значение как 1 даже если чекбокс disabled --}}
-                    <input type="hidden" name="two_factor_enabled" value="1">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="two_factor_enabled" checked disabled>
-                        <label class="form-check-label" for="two_factor_enabled">
-                            Включена (обязательна для администраторов)
-                        </label>
-                    </div>
-                    <small class="text-muted">Управляется общей настройкой «Обязательная 2FA для администраторов».
-                    </small>
-                @else
-                    {{-- Обычное управление чекбоксом. Чтобы «снятие» отправляло 0 — добавляем hidden. --}}
-                    <input type="hidden" name="two_factor_enabled" value="0">
-                    <div class="form-check">
-                        <input
-                                class="form-check-input"
-                                type="checkbox"
-                                id="two_factor_enabled"
-                                name="two_factor_enabled"
-                                value="1"
-                                {{ $isChecked ? 'checked' : '' }}
-                        >
-                        <label class="form-check-label" for="two_factor_enabled">
-                            {{ $isChecked ? 'Включена' : 'Выключена' }}
-                        </label>
-                    </div>
-                @endif
-
-                @error('two_factor_enabled')
-                <p class="text-danger">{{ $message }}</p>
-                @enderror
+            </div>
+            @endif
             </div>
 
             {{-- Блок изменения пароля --}}
@@ -451,8 +444,6 @@
                     менее 8 символов
                 </div>
             </div>
-
-            <hr>
 
             {{-- Кнопки "Обновить" и "Изменить пароль" --}}
             <div class="button-group buttons-wrap mt-3">
@@ -597,7 +588,7 @@
                             data: formData,
                             headers: {'Accept': 'application/json'},
                             success: function () {
-                                showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлён.", 1);
+                                location.reload();
                             },
                             error: function (xhr) {
                                 // Laravel validation 422

@@ -28,6 +28,11 @@ class ContractPodpislonSendService
     {
         $authorId = $authorId ?? Auth::id();
 
+        $cooldown = ContractSmsCooldown::tryAcquire($contract->id);
+        if (!$cooldown['allowed']) {
+            return ContractSmsCooldown::blockedResponse($cooldown['remaining']);
+        }
+
         $signerFio = trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([
             $validated['signer_lastname'] ?? '',
             $validated['signer_firstname'] ?? '',
@@ -99,6 +104,8 @@ class ContractPodpislonSendService
                 'payload_json' => json_encode(['res' => $res, 'links' => $this->signingLinks($contract)], JSON_UNESCAPED_UNICODE),
             ]);
 
+            ContractSmsCooldown::release($contract->id);
+
             return [
                 'success' => false,
                 'message' => 'Провайдер не подтвердил отправку SMS.',
@@ -122,6 +129,8 @@ class ContractPodpislonSendService
                 'contract_id' => $contract->id,
                 'error'       => $e->getMessage(),
             ]);
+
+            ContractSmsCooldown::release($contract->id);
 
             return [
                 'success' => false,
@@ -178,6 +187,8 @@ class ContractPodpislonSendService
             $sr->status = 'failed';
             $sr->save();
 
+            ContractSmsCooldown::release($contract->id);
+
             return [
                 'success' => false,
                 'message' => 'Провайдер не подтвердил отправку SMS.',
@@ -186,6 +197,8 @@ class ContractPodpislonSendService
         } catch (\Throwable $e) {
             $sr->status = 'failed';
             $sr->save();
+
+            ContractSmsCooldown::release($contract->id);
 
             return ['success' => false, 'message' => $e->getMessage(), 'code' => 'resend_failed'];
         }

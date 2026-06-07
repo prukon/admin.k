@@ -141,8 +141,71 @@ class AccountParentProfileUpdateTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->get(route('account.user.edit'))
             ->assertOk()
+            ->assertSee('Данные ученика')
             ->assertSee('Данные родителя')
+            ->assertSee('Двухфакторная аутентификация (SMS)')
             ->assertSee('parent_lastname', false);
+    }
+
+    public function test_student_cannot_save_parent_phone_without_lastname_and_firstname(): void
+    {
+        $this->actingAs($this->user);
+        $this->assertNull($this->user->parent_id);
+
+        $payload = [
+            'name'         => $this->user->name,
+            'lastname'     => $this->user->lastname,
+            'parent_phone' => '79001112233',
+        ];
+
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed'      => true,
+        ])
+            ->withHeaders([
+                'Accept'           => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])
+            ->patchJson(route('account.user.update'), $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_lastname', 'parent_firstname']);
+
+        $this->user->refresh();
+        $this->assertNull($this->user->parent_id);
+    }
+
+    public function test_student_can_create_parent_with_names_and_phone(): void
+    {
+        $this->actingAs($this->user);
+        $this->assertNull($this->user->parent_id);
+
+        $payload = [
+            'name'             => $this->user->name,
+            'lastname'         => $this->user->lastname,
+            'parent_lastname'  => 'Петров',
+            'parent_firstname' => 'Пётр',
+            'parent_phone'     => '79001112233',
+        ];
+
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed'      => true,
+        ])
+            ->withHeaders([
+                'Accept'           => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])
+            ->patchJson(route('account.user.update'), $payload)
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->user->refresh();
+        $this->user->load('parentProfile');
+
+        $this->assertNotNull($this->user->parent_id);
+        $this->assertSame('Петров', $this->user->parentProfile?->lastname);
+        $this->assertSame('Пётр', $this->user->parentProfile?->firstname);
+        $this->assertSame('79001112233', $this->user->parentProfile?->phone);
     }
 
     private function revokePermissionFromRole(string $roleName, string $permissionName): void

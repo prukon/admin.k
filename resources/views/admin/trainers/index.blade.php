@@ -936,6 +936,13 @@
                     modalId: 'trainerCreateModal',
                     resetForm: true,
                 });
+                if (ok && typeof showSuccessModal === 'function') {
+                    showSuccessModal(
+                        'Создание тренера',
+                        data.message || 'Тренер успешно создан.',
+                        0
+                    );
+                }
             });
 
             document.addEventListener('click', async (event) => {

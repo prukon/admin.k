@@ -14,6 +14,7 @@ use App\Services\Audit\ContractAudit;
 use App\Models\Partner;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractPodpislonSendService;
+use App\Services\Contracts\ContractSmsCooldown;
 use App\Services\Signatures\Providers\PodpislonProvider;
 use App\Services\Signatures\SignatureProvider;
 use Illuminate\Support\Facades\Auth;
@@ -71,9 +72,20 @@ class ContractSigningController extends Controller
 
     private function resendInternal(Contract $contract, ContractSignRequest $sr, ?string $sid)
     {
+        $cooldown = ContractSmsCooldown::tryAcquire($contract->id);
+        if (!$cooldown['allowed']) {
+            $sr->delete();
+
+            return response()->json(
+                ContractSmsCooldown::blockedResponse($cooldown['remaining']),
+                422
+            );
+        }
+
         if ($contract->provider !== 'podpislon' || !$contract->provider_doc_id) {
             $sr->status = 'failed';
             $sr->save();
+            ContractSmsCooldown::release($contract->id);
 
             return response()->json([
                 'success' => false,
@@ -157,6 +169,8 @@ class ContractSigningController extends Controller
                 contract: $contract,
             );
 
+            ContractSmsCooldown::release($contract->id);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Провайдер не подтвердил отправку SMS.',
@@ -186,6 +200,8 @@ class ContractSigningController extends Controller
                 userId: (int) $contract->user_id,
                 contract: $contract,
             );
+
+            ContractSmsCooldown::release($contract->id);
 
             return response()->json([
                 'success' => false,

@@ -27,6 +27,34 @@ trait ValidatesStudentParent
     }
 
     /**
+     * @return list<string>
+     */
+    protected function studentParentInputKeys(): array
+    {
+        return [
+            'parent_lastname',
+            'parent_firstname',
+            'parent_middlename',
+            'parent_passport',
+            'parent_passport_issued',
+            'parent_address',
+            'parent_phone',
+            'parent_email',
+        ];
+    }
+
+    protected function hasFilledStudentParentInput(): bool
+    {
+        foreach ($this->studentParentInputKeys() as $key) {
+            if (filled($this->input($key))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function studentParentRules(): array
@@ -49,6 +77,23 @@ trait ValidatesStudentParent
             $rules['parent_id'][] = Rule::exists('parents', 'id')->where(
                 fn ($query) => $query->where('partner_id', $partnerId)
             );
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Правила родителя для личного кабинета: ФИО обязательны при заполнении любого поля блока.
+     *
+     * @return array<string, mixed>
+     */
+    protected function accountStudentParentRules(): array
+    {
+        $rules = $this->studentParentRules();
+
+        if ($this->hasFilledStudentParentInput()) {
+            $rules['parent_lastname'] = ['required', 'string', 'max:100'];
+            $rules['parent_firstname'] = ['required', 'string', 'max:100'];
         }
 
         return $rules;
@@ -80,8 +125,10 @@ trait ValidatesStudentParent
         return [
             'parent_id.integer' => 'Некорректный идентификатор родителя.',
             'parent_id.exists'  => 'Выбранный родитель не найден или недоступен.',
+            'parent_lastname.required' => 'Укажите фамилию родителя.',
             'parent_lastname.string'   => 'Поле «:attribute» должно быть строкой.',
             'parent_lastname.max'      => 'Поле «:attribute» не должно превышать :max символов.',
+            'parent_firstname.required'=> 'Укажите имя родителя.',
             'parent_firstname.string'  => 'Поле «:attribute» должно быть строкой.',
             'parent_firstname.max'     => 'Поле «:attribute» не должно превышать :max символов.',
             'parent_middlename.string' => 'Поле «:attribute» должно быть строкой.',
