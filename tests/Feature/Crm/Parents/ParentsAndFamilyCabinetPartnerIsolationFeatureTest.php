@@ -293,9 +293,10 @@ final class ParentsAndFamilyCabinetPartnerIsolationFeatureTest extends CrmTestCa
         $this->actingAs($this->user);
 
         $this->patchJson(route('account.user.update'), [
-            'name'            => $this->user->name,
-            'lastname'        => $this->user->lastname,
-            'parent_lastname' => 'Взлом',
+            'name'             => $this->user->name,
+            'lastname'         => $this->user->lastname,
+            'parent_lastname'  => 'Взлом',
+            'parent_firstname' => 'Родитель',
         ], $this->jsonHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['parent_lastname']);
@@ -320,9 +321,10 @@ final class ParentsAndFamilyCabinetPartnerIsolationFeatureTest extends CrmTestCa
             '2fa:passed'      => true,
         ])
             ->patchJson(route('account.user.update'), [
-                'name'            => $this->user->name,
-                'lastname'        => $this->user->lastname,
-                'parent_lastname' => 'После',
+                'name'             => $this->user->name,
+                'lastname'         => $this->user->lastname,
+                'parent_lastname'  => 'После',
+                'parent_firstname' => 'Партнёра',
             ], $this->jsonHeaders())
             ->assertOk();
 

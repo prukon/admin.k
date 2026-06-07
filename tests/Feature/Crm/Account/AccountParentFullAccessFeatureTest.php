@@ -130,9 +130,10 @@ final class AccountParentFullAccessFeatureTest extends CrmTestCase
         $tooLong = str_repeat('а', 101);
 
         $this->patchJson(route('account.user.update'), [
-            'name'            => $this->user->name,
-            'lastname'        => $this->user->lastname,
-            'parent_lastname' => $tooLong,
+            'name'             => $this->user->name,
+            'lastname'         => $this->user->lastname,
+            'parent_lastname'  => $tooLong,
+            'parent_firstname' => 'Тест',
         ], $this->jsonHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['parent_lastname']);
@@ -150,9 +151,10 @@ final class AccountParentFullAccessFeatureTest extends CrmTestCase
         $this->actingAs($this->user);
 
         $this->patchJson(route('account.user.update'), [
-            'name'            => $this->user->name,
-            'lastname'        => $this->user->lastname,
-            'parent_lastname' => 'Попытка',
+            'name'             => $this->user->name,
+            'lastname'         => $this->user->lastname,
+            'parent_lastname'  => 'Попытка',
+            'parent_firstname' => 'Родитель',
         ], $this->jsonHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['parent_lastname']);
@@ -196,9 +198,10 @@ final class AccountParentFullAccessFeatureTest extends CrmTestCase
             '2fa:passed'      => true,
         ])
             ->patchJson(route('account.user.update'), [
-                'name'            => $this->user->name,
-                'lastname'        => $this->user->lastname,
-                'parent_lastname' => 'После',
+                'name'             => $this->user->name,
+                'lastname'         => $this->user->lastname,
+                'parent_lastname'  => 'После',
+                'parent_firstname' => 'Смены',
             ], $this->jsonHeaders())
             ->assertOk();
 

@@ -78,6 +78,8 @@ final class ContractParentProfileSyncTest extends CrmTestCase
         $payload = [
             'name'                   => $this->user->name,
             'lastname'               => $this->user->lastname,
+            'parent_lastname'        => 'Иванов',
+            'parent_firstname'       => 'Иван',
             'parent_passport'        => '4010 999888',
             'parent_passport_issued' => 'ОВД, 01.02.2020',
             'parent_address'         => 'г. Казань, ул. Ленина, 5',
