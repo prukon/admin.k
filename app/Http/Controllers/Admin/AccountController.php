@@ -70,7 +70,7 @@ class AccountController extends AdminBaseController
     
         // Лучше для консистентности брать текущего юзера через currentUser()
         $user = $this->currentUser();
-        $user->loadMissing('parentProfile');
+        $user->loadMissing(['parentProfile', 'role']);
         $partners = $user->partner ? collect([$user->partner]) : collect();
         $currentUser = $user;
 

@@ -41,13 +41,13 @@
             <div class="row g-3 mb-3 align-items-stretch">
             <div class="col-12 @if(!empty($showAccountParentSection)) col-lg-6 @endif">
             <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold">Данные ученика</div>
+                <div class="card-header fw-semibold">{{ $user->role?->label ?? $user->role?->name ?? 'Пользователь' }}</div>
                 <div class="card-body">
 
             {{-- Поле "Фамилия" --}}
             @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
             <div class="mb-3">
-                <label for="lastname" class="form-label">Фамилия ученика*</label>
+                <label for="lastname" class="form-label">Фамилия*</label>
 
                 <input type="text" id="lastname" name="lastname"
                        class="form-control @error('lastname') is-invalid @enderror"
@@ -70,7 +70,7 @@
             {{-- Поле "Имя" --}}
             @php $canEditName = auth()->user()->can('account.user.name.update'); @endphp
             <div class="mb-3">
-                <label for="name" class="form-label">Имя ученика*</label>
+                <label for="name" class="form-label">Имя*</label>
 
                 <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror"
                        value="{{ old('name', $user->name) }}"
@@ -229,6 +229,7 @@
 
             @endif
 
+            @if($user->role?->name !== 'admin')
             {{-- Поле "Группа" --}}
             <div class="mb-3">
                 <label for="team" class="form-label">Группа</label>
@@ -248,6 +249,7 @@
                     </div>
                 @endcannot
             </div>
+            @endif
 
             {{-- 2FA (SMS) --}}
             @php

@@ -141,7 +141,7 @@ class AccountParentProfileUpdateTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->get(route('account.user.edit'))
             ->assertOk()
-            ->assertSee('Данные ученика')
+            ->assertSee('Пользователь')
             ->assertSee('Данные родителя')
             ->assertSee('Двухфакторная аутентификация (SMS)')
             ->assertSee('parent_lastname', false);
