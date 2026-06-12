@@ -45,9 +45,13 @@
 
   <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
-    На странице отчёта доступна кнопка <b>“Поля списка”</b> (иконка колонок).
+    На странице отчёта доступна кнопка <b>“Поля списка”</b> (dropdown «Колонки» в toolbar).
     Можно включать/выключать отображение колонок таблицы (включая “Действия”).
     Настройка сохраняется <b>для текущего пользователя</b>.
+    Таблица инициализируется через <code>KidsCrmDataTable.create('#payments-table', …)</code>
+    (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>).
+    Колонки маппятся функцией <code>buildPaymentsKidsColumns()</code> / <code>paymentsColumnPresetType()</code>:
+    <code>text</code>, <code>money</code>, <code>datetime</code>, <code>badge</code>, <code>icon</code> (<code>receipt</code>), <code>actions</code> (<code>refund_action</code> — кнопки на клиенте из полей <code>refund_*</code> в JSON).
   </div>
   <ul>
     <li><b>Где хранится</b>: таблица <code>user_table_settings</code></li>
@@ -116,9 +120,10 @@ net_to_partner   = gross - commission_total</pre>
     “Комиссия банка” → “Комиссия платформы” → “Комиссия” → “К выплате” → “Выплата”.
   </div>
 
-  <h2>5) Колонка “Чек” (онлайн‑чек)</h2>
+  <h2 id="receipt-column">5) Колонка “Чек” (онлайн‑чек)</h2>
   <div class="note">
     Колонка “Чек” в отчёте “Платежи” показывает онлайн‑чеки из <code>fiscal_receipts</code> и быстрый переход к ним.
+    В UI — тип пресета <code>icon</code> (<code>dt-col-icon</code>): клиентская функция <code>renderPaymentsReceiptCell()</code> собирает массив иконок и вызывает <code>KidsCrmDataTable.renderIcon()</code> (см. <a href="/docs/documentation/reusable-ui-partials#datatable-migration-2026-06">reusable-ui-partials §3.1</a>).
   </div>
   <ul>
     <li><b>Для T‑Bank:</b>
@@ -156,8 +161,14 @@ net_to_partner   = gross - commission_total</pre>
   <div class="note">
     В таблице есть 2 колонки, связанные с возвратами:
     <ul>
-      <li><b>Действия</b> (<code>refund_action</code>) — кнопка “Возврат” (может быть недоступна, если возврат запрещён правилами).
-        Для платежей T‑Bank в той же ячейке может отображаться кнопка <b>«История»</b> — см. раздел 7.</li>
+      <li><b>Действия</b> (<code>refund_action</code>) — тип пресета <code>actions</code>. HTML кнопок <b>не</b> приходит с сервера: <code>PaymentReportController</code> отдаёт мета-поля, кнопки собирает <code>renderPaymentsRefundActions()</code> в <code>payment.blade.php</code>:
+        <ul>
+          <li><code>refund_actions_available</code> — <code>true</code>, если для строки вообще показываются кнопки (T‑Bank / иные сценарии);</li>
+          <li><code>refund_disabled</code> — кнопка «Возврат» недоступна (та же логика, что 422 на API);</li>
+          <li><code>refund_disabled_title</code> — текст для <code>title</code> у disabled-кнопки;</li>
+          <li><code>refund_show_history</code> — показывать кнопку «История» (при <code>viewing.all.logs</code>).</li>
+        </ul>
+        Кнопка “Возврат” может быть недоступна, если возврат запрещён правилами. Для T‑Bank в той же ячейке — кнопка <b>«История»</b> (§8).</li>
       <li><b>Статус возврата</b> (<code>refund_status</code>) — текущий статус возврата (например, <code>pending</code>/<code>succeeded</code>/<code>failed</code>).
         Видимость колонки в UI и доступ к переключателю в «Поля списка» — только при <code>reports.additional.value.view</code> (раздел 3).</li>
     </ul>

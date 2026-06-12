@@ -71,16 +71,16 @@ class FiscalReceiptReportController extends AdminBaseController
                 return (string) ($receipt->partner->title ?? ($receipt->partner->name ?? ''));
             })
             ->editColumn('created_at', function (FiscalReceipt $receipt) {
-                return $this->formatDateTime($receipt->created_at);
+                return self::formatReportDateTime($receipt->created_at);
             })
             ->editColumn('queued_at', function (FiscalReceipt $receipt) {
-                return $this->formatDateTime($receipt->queued_at);
+                return self::formatReportDateTime($receipt->queued_at);
             })
             ->editColumn('processed_at', function (FiscalReceipt $receipt) {
-                return $this->formatDateTime($receipt->processed_at);
+                return self::formatReportDateTime($receipt->processed_at);
             })
             ->editColumn('failed_at', function (FiscalReceipt $receipt) {
-                return $this->formatDateTime($receipt->failed_at);
+                return self::formatReportDateTime($receipt->failed_at);
             })
             ->toJson();
     }
@@ -204,7 +204,10 @@ class FiscalReceiptReportController extends AdminBaseController
         }
     }
 
-    private function formatDateTime($value): string
+    /**
+     * Единый формат дат для JSON отчёта (рендер datetime — на фронте в KidsCrmDataTable).
+     */
+    private static function formatReportDateTime(mixed $value): string
     {
         if (! $value) {
             return '';

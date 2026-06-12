@@ -58,7 +58,7 @@ final class TbankPayoutsPageFeatureTest extends CrmTestCase
             ->assertSee('id="filter-source"', false)
             ->assertSee('id="columnsDropdown"', false)
             ->assertSee('id="payouts-table"', false)
-            ->assertSee('serverSide: true', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('/admin/tinkoff/payouts/data', false)
             ->assertSee('/admin/tinkoff/payouts/total', false);
     }

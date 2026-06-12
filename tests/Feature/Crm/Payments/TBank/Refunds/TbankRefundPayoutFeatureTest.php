@@ -179,9 +179,9 @@ class TbankRefundPayoutFeatureTest extends CrmTestCase
         $resp->assertOk();
         $row = collect($resp->json('data'))->firstWhere('id', $line['payment']->id);
         $this->assertNotNull($row);
-        $html = (string) ($row['refund_action'] ?? '');
-        $this->assertStringContainsString('disabled', $html);
-        $this->assertStringContainsString('Возврат запрещён', $html);
+        $this->assertTrue((bool) ($row['refund_actions_available'] ?? false));
+        $this->assertTrue((bool) ($row['refund_disabled'] ?? false));
+        $this->assertStringContainsString('Возврат запрещён', (string) ($row['refund_disabled_title'] ?? ''));
     }
 
     public function test_getPayments_refund_button_not_disabled_when_only_initiated_payout_without_bank_id(): void
@@ -203,8 +203,8 @@ class TbankRefundPayoutFeatureTest extends CrmTestCase
         $resp->assertOk();
         $row = collect($resp->json('data'))->firstWhere('id', $line['payment']->id);
         $this->assertNotNull($row);
-        $html = (string) ($row['refund_action'] ?? '');
-        $this->assertStringNotContainsString('disabled', $html);
+        $this->assertTrue((bool) ($row['refund_actions_available'] ?? false));
+        $this->assertFalse((bool) ($row['refund_disabled'] ?? true));
     }
 
     public function test_refund_cancels_all_initiated_payout_rows_for_same_tinkoff_payment(): void

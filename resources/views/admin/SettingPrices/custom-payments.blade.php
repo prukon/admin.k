@@ -16,7 +16,7 @@
                     <strong>Список дополнительных платежей</strong>
                 </div>
                 <div class="card-body">
-                    <table class="table table-bordered w-100" id="custom-payments-table">
+                    <table class="table table-bordered w-100 dt-columns-managed" id="custom-payments-table">
                         <thead>
                         <tr>
                             <th>ID</th>
@@ -90,7 +90,10 @@
     </div>
 </div>
 
-@push('scripts')
+    @push('scripts')
+    <script>
+        window.__kidsDatatableRu = @include('partials.datatables.ru');
+    </script>
     <script>
         (function ($) {
             function initCustomPaymentUserSelect2() {
@@ -128,6 +131,9 @@
                 initCustomPaymentUserSelect2();
             });
         })(window.jQuery);
+    </script>
+    <script>
+        window.__customPaymentsCanManualPaid = @json(auth()->user()?->can('setPrices.manualPaid.manage') ?? false);
     </script>
     @vite(['resources/js/setting-prices-custom-payments.js', 'resources/js/setting-prices-manual-paid-modal.js'])
 @endpush

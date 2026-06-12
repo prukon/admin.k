@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Models\Location;
-use App\Models\Payment;
 use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Models\UserTableSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +18,8 @@ use Yajra\DataTables\DataTables;
 
 class PaymentMonthlyReportController extends AdminBaseController
 {
+    private const TABLE_KEY = 'reports_payments_monthly';
+
     public function __construct(PartnerContext $partnerContext)
     {
         parent::__construct($partnerContext);
@@ -216,68 +218,55 @@ class PaymentMonthlyReportController extends AdminBaseController
         }
 
         try {
-            $start = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
+            Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
         } catch (\Exception $e) {
             abort(400, 'Некорректный формат месяца');
         }
 
-        $end = $start->copy()->endOfMonth();
+        $paymentsQuery = $this->buildMonthPaymentsQuery($request, $partnerId, $yearMonth, $mode);
 
-        $paymentsQuery = Payment::query()
-            ->with(['user.team'])
-            ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-            ->where('users.partner_id', $partnerId)
-            ->select('payments.*');
+        if ($request->has('draw')) {
+            $stats = DB::query()
+                ->fromSub(clone $paymentsQuery, 'monthly_payments')
+                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ), 0) as sum_total')
+                ->first();
 
-        $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
+            return DataTables::of($paymentsQuery)
+                ->addColumn('user_name', function ($row) {
+                    $full = trim(($row->user_lastname ?? '').' '.($row->user_firstname ?? ''));
+                    if ($full !== '') {
+                        return $full;
+                    }
 
-        if ($mode === 'subscription') {
-            // По месяцу абонемента: payment_month LIKE 'YYYY-MM-%'
-            $paymentsQuery
-                ->whereNotNull('payments.payment_month')
-                ->where('payments.payment_month', 'LIKE', $yearMonth . '-%');
-        } else {
-            // По дате операции
-            $paymentsQuery
-                ->whereBetween('payments.operation_date', [$start, $end]);
+                    return ! empty($row->payment_user_name) ? (string) $row->payment_user_name : 'Без пользователя';
+                })
+                ->addColumn('team_title', fn ($row) => $row->team_title ?: 'Без команды')
+                ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
+                ->editColumn('summ', fn ($row) => (float) $row->summ)
+                ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
+                ->with('meta_sum_total', (float) ($stats->sum_total ?? 0))
+                ->make(true);
         }
 
-        $payments = $paymentsQuery
-            ->orderBy('payments.operation_date', 'desc')
-            ->get();
+        $payments = (clone $paymentsQuery)->get();
 
-        $items = $payments->map(function (Payment $row) {
-            $userName = 'Без пользователя';
-
-            $user = $row->user;
-            if ($user) {
-                $full = trim(($user->lastname ?? '') . ' ' . ($user->name ?? ''));
-                if ($full !== '') {
-                    $userName = $full;
-                }
+        $items = $payments->map(function ($row) {
+            $userName = trim(($row->user_lastname ?? '').' '.($row->user_firstname ?? ''));
+            if ($userName === '' && ! empty($row->payment_user_name)) {
+                $userName = (string) $row->payment_user_name;
             }
-
-            if ($userName === 'Без пользователя' && ! empty($row->user_name)) {
-                $userName = (string) $row->user_name;
+            if ($userName === '') {
+                $userName = 'Без пользователя';
             }
-
-            $teamTitle = ($row->user && $row->user->team)
-                ? $row->user->team->title
-                : 'Без команды';
-
-            $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
-                ? 'tbank'
-                : 'robokassa';
 
             return [
                 'id'               => (int) $row->id,
                 'user_name'        => $userName,
-                'team_title'       => $teamTitle,
+                'team_title'       => $row->team_title ?: 'Без команды',
                 'summ'             => (float) $row->summ,
                 'payment_month'    => $row->payment_month,
                 'operation_date'   => $row->operation_date,
-                'payment_provider' => $provider,
+                'payment_provider' => $this->resolvePaymentProvider($row),
             ];
         })->all();
 
@@ -286,6 +275,99 @@ class PaymentMonthlyReportController extends AdminBaseController
             'mode'      => $mode,
             'payments'  => $items,
         ]);
+    }
+
+    public function getColumnsSettings()
+    {
+        $this->requirePartnerId();
+
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function saveColumnsSettings(Request $request)
+    {
+        $this->requirePartnerId();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $normalized = [];
+        foreach ((array) $data['columns'] as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[(string) $key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::TABLE_KEY,
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function buildMonthPaymentsQuery(Request $request, int $partnerId, string $yearMonth, string $mode)
+    {
+        $start = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $paymentsQuery = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->where('users.partner_id', $partnerId)
+            ->select(
+                'payments.id',
+                'payments.summ',
+                'payments.payment_month',
+                'payments.operation_date',
+                'payments.deal_id',
+                'payments.payment_id',
+                'payments.payment_status',
+                'payments.user_name as payment_user_name',
+                'users.name as user_firstname',
+                'users.lastname as user_lastname',
+                'teams.title as team_title'
+            );
+
+        $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
+
+        if ($mode === 'subscription') {
+            $paymentsQuery
+                ->whereNotNull('payments.payment_month')
+                ->where('payments.payment_month', 'LIKE', $yearMonth.'-%');
+        } else {
+            $paymentsQuery->whereBetween('payments.operation_date', [$start, $end]);
+        }
+
+        return $paymentsQuery->orderBy('payments.operation_date', 'desc');
+    }
+
+    private function resolvePaymentProvider(object $row): string
+    {
+        return (! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status))
+            ? 'tbank'
+            : 'robokassa';
     }
 
     /**

@@ -1563,7 +1563,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_status' => 'CONFIRMED',
         ]);
 
-        $fetchRefundActionHtml = function () use ($payment): string {
+        $fetchRefundActionRow = function () use ($payment): array {
             $response = $this
                 ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
                 ->get(route('payments.getPayments'));
@@ -1573,18 +1573,17 @@ class PaymentReportTest extends CrmTestCase
             $row = $data->firstWhere('id', $payment->id);
             $this->assertNotNull($row, 'Платёж должен быть в выдаче getPayments.');
 
-            return (string) ($row['refund_action'] ?? '');
+            return (array) $row;
         };
 
-        $htmlWithoutLogs = $fetchRefundActionHtml();
-        $this->assertStringNotContainsString('js-tbank-history-btn', $htmlWithoutLogs);
-        $this->assertStringNotContainsString('>История</button>', $htmlWithoutLogs);
+        $rowWithoutLogs = $fetchRefundActionRow();
+        $this->assertTrue((bool) ($rowWithoutLogs['refund_actions_available'] ?? false));
+        $this->assertFalse((bool) ($rowWithoutLogs['refund_show_history'] ?? true));
 
         $this->grantPermissionToCurrentUserRole('viewing.all.logs');
 
-        $htmlWithLogs = $fetchRefundActionHtml();
-        $this->assertStringContainsString('js-tbank-history-btn', $htmlWithLogs);
-        $this->assertStringContainsString('>История</button>', $htmlWithLogs);
+        $rowWithLogs = $fetchRefundActionRow();
+        $this->assertTrue((bool) ($rowWithLogs['refund_show_history'] ?? false));
     }
 
     /**

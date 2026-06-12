@@ -68,7 +68,7 @@
 
   <h2>6) UI отчёта «Платежи»</h2>
   <ul>
-    <li>Колонка <code>refund_action</code>: кнопка «Возврат» отключается по <b>той же логике</b>, что и серверный запрет: через <code>tinkoff_payments</code> → выплаты с непустым <code>tinkoff_payout_payment_id</code> и статусом не <code>REJECTED</code>.</li>
+    <li>Колонка <code>refund_action</code> (тип пресета <code>actions</code>): кнопка «Возврат» отключается по <b>той же логике</b>, что и серверный запрет: через <code>tinkoff_payments</code> → выплаты с непустым <code>tinkoff_payout_payment_id</code> и статусом не <code>REJECTED</code>. В JSON DataTables — поля <code>refund_disabled</code>, <code>refund_disabled_title</code>, <code>refund_actions_available</code>, <code>refund_show_history</code>; HTML кнопок на клиенте (<code>renderPaymentsRefundActions</code>).</li>
     <li>Только <code>INITIATED</code> без банковского id кнопку не блокирует.</li>
   </ul>
 

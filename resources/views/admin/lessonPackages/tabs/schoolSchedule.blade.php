@@ -643,13 +643,11 @@
                     });
                 });
 
-                // Красивые подсказки статуса (Bootstrap tooltip)
-                if (window.bootstrap && window.bootstrap.Tooltip) {
-                    document.querySelectorAll('#schoolCalGrid [data-bs-toggle="tooltip"]').forEach(function (el) {
-                        const existing = window.bootstrap.Tooltip.getInstance(el);
-                        if (existing) existing.dispose();
-                        new window.bootstrap.Tooltip(el);
-                    });
+                // Подсказки статуса занятия
+                var calGrid = document.getElementById('schoolCalGrid');
+                if (window.KidsCrmTooltip && calGrid) {
+                    KidsCrmTooltip.dispose(calGrid, { scopes: ['generic'] });
+                    KidsCrmTooltip.init(calGrid, { scopes: ['generic'] });
                 }
             }
 

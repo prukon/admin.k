@@ -56,63 +56,117 @@
             });
         }
 
-        var table = null;
-        if (window.$ && $.fn && $.fn.DataTable) {
-            table = $('#custom-payments-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: '/admin/setting-prices/custom-payments/data',
-                    type: 'GET'
+        var dtApi = null;
+        if (window.$ && window.KidsCrmDataTable && $.fn && $.fn.DataTable) {
+            dtApi = KidsCrmDataTable.create('#custom-payments-table', {
+                dataTable: {
+                    ajax: {
+                        url: '/admin/setting-prices/custom-payments/data',
+                        type: 'GET'
+                    },
+                    order: [[0, 'desc']],
+                    language: window.__kidsDatatableRu || {
+                        processing: 'Обработка...',
+                        search: '',
+                        searchPlaceholder: 'Поиск...',
+                        lengthMenu: 'Показать _MENU_',
+                        info: 'С _START_ до _END_ из _TOTAL_ записей',
+                        infoEmpty: 'С 0 до 0 из 0 записей',
+                        infoFiltered: '(отфильтровано из _MAX_ записей)',
+                        loadingRecords: 'Загрузка записей...',
+                        zeroRecords: 'Записи отсутствуют.',
+                        emptyTable: 'В таблице отсутствуют данные',
+                        paginate: { first: '', previous: '', next: '', last: '' },
+                        aria: {
+                            sortAscending: ': активировать для сортировки столбца по возрастанию',
+                            sortDescending: ': активировать для сортировки столбца по убыванию'
+                        }
+                    }
                 },
                 columns: [
-                    { data: 'id', name: 'id' },
-                    { data: 'user_name', name: 'user_name' },
-                    { data: 'period', name: 'period', orderable: false, searchable: false },
+                    { key: 'id', type: 'id' },
+                    { key: 'user_name', type: 'text', data: 'user_name' },
                     {
-                        data: 'amount',
-                        name: 'amount',
-                        render: function (data, type, row) {
-                            var v = parseInt(String(data || '0').replace(/[^\d]/g, ''), 10) || 0;
-                            if (type === 'display') {
-                                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' руб';
-                            }
-                            return v;
-                        }
+                        key: 'period',
+                        type: 'text',
+                        data: 'period',
+                        orderable: false,
+                        searchable: false,
                     },
+                    { key: 'amount', type: 'money', data: 'amount' },
                     {
+                        key: 'note',
+                        type: 'text',
                         data: 'note',
-                        name: 'note',
                         orderable: false,
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data || '';
                             }
-                            return (data == null || data === '') ? '—' : String(data);
-                        }
+                            if (data == null || data === '') {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            return window.KidsCrmTooltip.renderText(data);
+                        },
                     },
-                    { data: 'status', name: 'status', orderable: false, searchable: false },
-                    { data: 'actions', name: 'actions', orderable: false, searchable: false },
+                    {
+                        key: 'status',
+                        type: 'badge',
+                        data: 'status_label',
+                        name: 'status',
+                        className: 'dt-col-badge text-center',
+                        orderable: false,
+                        searchable: false,
+                        badgeKey: 'effective_is_paid',
+                        render: function (value, type, row) {
+                            if (type !== 'display') {
+                                return value || '';
+                            }
+
+                            var paid = !!row.effective_is_paid;
+                            var badgeClass = paid ? 'bg-success' : 'bg-secondary';
+                            var badgeText = value || (paid ? 'Оплачено' : 'Не оплачено');
+                            var infoIcon = '';
+
+                            if (row.is_manual_paid !== null && row.is_manual_paid !== undefined) {
+                                var note = row.manual_paid_note != null ? String(row.manual_paid_note).trim() : '';
+                                var hintTitle = note !== ''
+                                    ? note
+                                    : 'Комментарий к ручному изменению не заполнен.';
+                                infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" tabindex="0" '
+                                    + 'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                                    + 'title="' + hintTitle.replace(/"/g, '&quot;') + '" '
+                                    + 'aria-label="Комментарий к ручной отметке оплаты"></i>';
+                            }
+
+                            return '<div class="setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">'
+                                + '<div class="setting-prices-monthly-badge-wrap position-relative">'
+                                + '<span class="badge ' + badgeClass + '">' + badgeText + '</span>'
+                                + infoIcon
+                                + '</div>'
+                                + '</div>';
+                        },
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        className: 'text-nowrap',
+                        render: function (data, type, row) {
+                            if (type !== 'display' || !window.__customPaymentsCanManualPaid) {
+                                return '';
+                            }
+
+                            var paid = !!row.effective_is_paid;
+                            var id = String(row.id);
+                            var btnPaid = '<button type="button" class="btn btn-sm btn-outline-success me-1" data-custom-payment-action="mark_paid" data-id="'
+                                + id + '">Оплачено</button>';
+                            var btnUnpaid = '<button type="button" class="btn btn-sm btn-outline-secondary" data-custom-payment-action="mark_unpaid" data-id="'
+                                + id + '">Не оплачено</button>';
+
+                            return paid ? btnUnpaid : (btnPaid + btnUnpaid);
+                        },
+                    },
                 ],
-                order: [[0, 'desc']],
-                scrollX: true,
-                language: {
-                    processing: 'Обработка...',
-                    search: '',
-                    searchPlaceholder: 'Поиск...',
-                    lengthMenu: 'Показать _MENU_',
-                    info: 'С _START_ до _END_ из _TOTAL_ записей',
-                    infoEmpty: 'С 0 до 0 из 0 записей',
-                    infoFiltered: '(отфильтровано из _MAX_ записей)',
-                    loadingRecords: 'Загрузка записей...',
-                    zeroRecords: 'Записи отсутствуют.',
-                    emptyTable: 'В таблице отсутствуют данные',
-                    paginate: { first: '', previous: '', next: '', last: '' },
-                    aria: {
-                        sortAscending: ': активировать для сортировки столбца по возрастанию',
-                        sortDescending: ': активировать для сортировки столбца по убыванию'
-                    }
-                }
             });
         }
 
@@ -165,7 +219,9 @@
                         if (modalEl && window.bootstrap && bootstrap.Modal) {
                             bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                         }
-                        if (table) table.ajax.reload(null, false);
+                        if (dtApi) {
+                            dtApi.reload({ keepPage: true });
+                        }
                     })
                     .catch(function (err) {
                         toast(err && err.message ? err.message : 'Ошибка', true);
@@ -218,7 +274,9 @@
                         })
                         .then(function () {
                             toast('Статус оплаты обновлен.', false);
-                            if (table) table.ajax.reload(null, false);
+                            if (dtApi) {
+                                dtApi.reload({ keepPage: true });
+                            }
                         })
                         .catch(function (err) {
                             toast(err && err.message ? err.message : 'Ошибка', true);

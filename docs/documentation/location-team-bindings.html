@@ -81,7 +81,7 @@
     <li>Модалки create/edit: Select2 multiselect <code>team_ids[]</code> (группы партнёра), partial <code>partials.select2.teams-multiselect</code> — только при <code>locations.manage</code> и наличии групп.</li>
     <li><code>POST /admin/locations</code>, <code>PUT /admin/locations/{location}</code> — sync <code>team_ids</code> при <code>locations.view</code>.</li>
     <li><code>GET /admin/locations/{location}</code> — JSON с <code>team_ids</code>.</li>
-    <li>В <code>GET /admin/locations/data</code> при <code>locations.view</code> — поля <code>teams_label</code>, <code>teams_label_full</code>, <code>teams_titles</code> (tooltip через <code>partials.ui.hover-list-dropdown</code>).</li>
+    <li>В <code>GET /admin/locations/data</code> при <code>locations.view</code> — поля <code>teams_label</code>, <code>teams_label_full</code>, <code>teams_titles</code> (колонка <code>list</code> → <code>KidsCrmTooltip.renderList</code>).</li>
   </ul>
   <p>Подробнее: <a href="/docs/documentation/admin-locations">Локации (админка)</a>, UI-блоки: <a href="/docs/documentation/reusable-ui-partials">переиспользуемые partial'ы</a>.</p>
 

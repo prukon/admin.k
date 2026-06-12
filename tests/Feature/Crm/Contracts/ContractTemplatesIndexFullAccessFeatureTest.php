@@ -72,7 +72,8 @@ class ContractTemplatesIndexFullAccessFeatureTest extends ContractsFeatureTestCa
             ->assertViewIs('contract-templates.index')
             ->assertViewHas('activeTab', 'templates')
             ->assertViewHas('prefillSources')
-            ->assertViewHas('editTemplate', null);
+            ->assertViewHas('editTemplate', null)
+            ->assertSee('KidsCrmDataTable.create', false);
 
         $this->get(route('contract-templates.index', ['create' => 1]))
             ->assertOk()

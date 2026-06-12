@@ -79,6 +79,8 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="filter-reset"', $html);
 
         $this->assertStringContainsString('id="users-table"', $html);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $html);
+        $this->assertStringContainsString('js-dt-cell-ellipsis-tooltip', $html);
         $this->assertStringContainsString('id="createUserModal"', $html);
         $this->assertStringContainsString('id="fieldModal"', $html);
         $this->assertStringContainsString('id="historyModal"', $html);

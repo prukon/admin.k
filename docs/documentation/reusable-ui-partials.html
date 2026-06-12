@@ -16,6 +16,7 @@
     pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.45; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
     ul { margin: 8px 0 8px 20px; }
+    ol { margin: 8px 0 8px 20px; }
     .small { color: #555; font-size: 13px; }
     table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
     th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
@@ -29,8 +30,13 @@
   <div class="small">Файл: <code>/docs/documentation/reusable-ui-partials.html</code> · Blade: <code>resources/views/partials/</code></div>
 
   <div class="note">
-    Общие фрагменты интерфейса вынесены в partial'ы с директивой <code>@once</code> (стили/скрипты подключаются один раз на страницу через <code>@push('styles')</code> / <code>@push('scripts')</code>).
-    На новой странице достаточно <code>@include('…')</code> и вызова JS-API из inline-скрипта страницы.
+    В layout <code>layouts/admin2.blade.php</code> через Vite глобально подключены модули admin-списков:
+    <code>resources/css/kids-tooltip.css</code>,
+    <code>resources/css/datatables-columns.css</code>,
+    <code>resources/js/kids-tooltip.js</code>,
+    <code>resources/js/kids-datatable.js</code>.
+    На новой admin-странице с server-side таблицей достаточно вызвать <code>KidsCrmDataTable.create(...)</code> — отдельные <code>@include</code> для tooltip/DataTables JS не нужны.
+    Partial'ы с <code>@once</code> по-прежнему используются для HTML-фрагментов (иконка-подсказка, Select2) и документации в коде.
   </div>
 
   <h2>1) Шапка списка: toolbar + фильтры + «Поля списка»</h2>
@@ -74,68 +80,275 @@
     </thead>
     <tbody>
       <tr><td><code>/admin/locations</code></td><td><code>admin/locations/index.blade.php</code></td></tr>
-      <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
+      <tr><td><code>/admin/sport-types</code></td><td><code>admin/sport-types/index.blade.php</code></td></tr>
       <tr><td><code>/admin/teams</code></td><td><code>admin/team.blade.php</code></td></tr>
+      <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
       <tr><td><code>/admin/trainers</code></td><td><code>admin/trainers/index.blade.php</code></td></tr>
       <tr><td><code>/admin/school-leads</code></td><td><code>admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>)</td></tr>
-      <tr><td>Отчёты «Платежи», «Задолженности», LTV и др.</td><td><code>admin/report/*.blade.php</code></td></tr>
+      <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
+      <tr><td><code>/admin/settings/logs</code></td><td><code>admin/setting/logs.blade.php</code></td></tr>
+      <tr><td><code>/admin/settings/tbank-commissions</code></td><td><code>admin/setting/tbankCommissions.blade.php</code></td></tr>
+      <tr><td>Модалка «История изменений»</td><td><code>includes/logModal.blade.php</code> (users, teams, schedule, отчёты и др.)</td></tr>
     </tbody>
   </table>
   <p class="small">Исторически классы называются <code>payments-report-*</code> (первый эталон — отчёт «Платежи»), но CSS общий для всех списков.</p>
 
-  <h2>2) Hover-список в ячейке таблицы</h2>
-  <p>Partial: <code>resources/views/partials/ui/hover-list-dropdown.blade.php</code></p>
-  <p>Краткая подпись в ячейке + полный список пунктов в Bootstrap Tooltip при наведении. Стиль совпадает с подсказками «Установка цен → По месяцам» (<code>ulp-assignment-paid-tooltip</code>).</p>
+  <h2>2) Tooltip / hover (единый модуль)</h2>
+  <p>Файлы: <code>resources/js/kids-tooltip.js</code>, <code>resources/css/kids-tooltip.css</code>.</p>
+  <p>Единый Bootstrap Tooltip в стиле <code>ulp-assignment-paid-tooltip</code>: текст с ellipsis, списки в ячейках, иконки-подсказки в формах.</p>
 
-  <h3>Подключение</h3>
-  <pre><code>@include('partials.ui.hover-list-dropdown')</code></pre>
-
-  <h3>JS API (<code>window.KidsCrmHoverListDropdown</code>)</h3>
+  <h3>JS API (<code>window.KidsCrmTooltip</code>)</h3>
   <table>
     <thead>
       <tr><th>Метод</th><th>Назначение</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><code>renderCell(shortLabel, itemsArray)</code></td>
-        <td>HTML ячейки DataTables: <code>shortLabel</code> — текст в таблице; <code>itemsArray</code> — массив строк для списка в tooltip (если 0–1 пункт, tooltip не показывается).</td>
+        <td><code>renderText(text, options?)</code></td>
+        <td>Обрезанный текст (класс <code>dt-cell-ellipsis</code>). Tooltip и <code>cursor: help</code> включаются в <code>init</code> только если текст не помещается в ячейку (<code>scrollWidth &gt; clientWidth</code>). Пустое значение → «—».</td>
       </tr>
       <tr>
-        <td><code>init(rootElement)</code></td>
-        <td>Инициализация tooltip'ов внутри контейнера (обычно <code>#…-table</code> или <code>document</code>). Вызывать после <code>draw.dt</code>.</td>
+        <td><code>renderLink(text, { linkClass, extraAttrs, emptyHtml? })</code></td>
+        <td>Ссылка с ellipsis внутри; tooltip на <code>&lt;span&gt;</code>, чтобы не конфликтовать с <code>data-bs-toggle="modal"</code> на <code>&lt;a&gt;</code>.</td>
       </tr>
       <tr>
-        <td><code>dispose(rootElement)</code></td>
-        <td>Снять tooltip'ы перед перерисовкой (опционально).</td>
+        <td><code>renderList(shortLabel, itemsArray, options?)</code></td>
+        <td>Краткая подпись + список пунктов в HTML-tooltip. При 0–1 пункте tooltip не показывается (опция <code>minItemsForHover</code>).</td>
+      </tr>
+      <tr>
+        <td><code>init(root, { scopes? })</code></td>
+        <td>Инициализация tooltip'ов в контейнере. Scopes: <code>list</code>, <code>text</code>, <code>hint</code>, <code>manualPaid</code>, <code>generic</code> (по умолчанию — первые три: list, text, hint).</td>
+      </tr>
+      <tr>
+        <td><code>dispose(root, { scopes? })</code></td>
+        <td>Снять tooltip'ы (например, перед перерисовкой Select2).</td>
+      </tr>
+      <tr>
+        <td><code>bindDataTable(tableElement)</code></td>
+        <td>Подписка на <code>draw.dt</code> + init (после <code>requestAnimationFrame</code>, чтобы корректно определить обрезку текста). Вызывается автоматически из <code>KidsCrmDataTable.create</code>.</td>
+      </tr>
+      <tr>
+        <td><code>escapeHtml(text)</code></td>
+        <td>Экранирование для безопасного HTML.</td>
+      </tr>
+      <tr>
+        <td><code>decodeHtmlEntities(text)</code> / <code>normalizeDisplayText(text)</code></td>
+        <td>Снятие HTML-сущностей из JSON (Yajra DataTables экранирует текст в ответе). Перед <code>renderText</code> строка нормализуется, чтобы в ячейке не показывались литералы вроде <code>&amp;quot;</code>.</td>
       </tr>
     </tbody>
   </table>
+  <p>Пустые текстовые значения: <code>&lt;span class="dt-cell-empty text-muted"&gt;—&lt;/span&gt;</code> (единый прочерк во всех колонках типа <code>text</code>).</p>
 
-  <h3>Пример в колонке DataTables</h3>
-  <pre><code>columns: [{
-  data: 'teams_label',
-  render: function (data, type, row) {
-    if (window.KidsCrmHoverListDropdown) {
-      return KidsCrmHoverListDropdown.renderCell(data, row.teams_titles || []);
-    }
-    return data || '';
-  }
-}],
-…
-table.on('draw.dt', function () {
-  if (window.KidsCrmHoverListDropdown) {
-    KidsCrmHoverListDropdown.init(document.getElementById('locations-table'));
-  }
-});</code></pre>
+  <h3>Иконка-подсказка в форме</h3>
+  <p>Partial (только HTML): <code>resources/views/partials/ui/tooltip-hint.blade.php</code></p>
+  <pre><code>@include('partials.ui.tooltip-hint', [
+    'title' => 'Текст подсказки',
+    'placement' => 'top',
+])</code></pre>
+  <p>Инициализация hint'ов на DOMContentLoaded и при открытии модалок — через <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code> (глобально в <code>kids-tooltip.js</code>).</p>
+  <p>Scope <code>generic</code> — для элементов с <code>data-bs-toggle="tooltip"</code> и <code>data-bs-title</code> (или <code>title</code>), если tooltip создаётся вне пресета DataTable (например, на страницах расписания, в модалках цен).</p>
+  <p class="small"><b>Важно:</b> единственное место создания <code>new bootstrap.Tooltip(...)</code> в проекте — модуль <code>kids-tooltip.js</code>. На страницах не вызывать Bootstrap Tooltip напрямую.</p>
+  <p class="small">Исключение из правила «tooltip только при обрезке»: элементы с <code>js-dt-cell-ellipsis-tooltip</code>, но <b>без</b> класса <code>dt-cell-ellipsis</code> (например иконка договора в <code>/admin/users</code>) — tooltip с явным <code>data-bs-toggle="tooltip"</code> и <code>title</code> включается всегда.</p>
 
-  <h3>Где используется</h3>
+  <h2 id="kidscrm-datatable">3) DataTables: пресет <code>KidsCrmDataTable</code></h2>
+  <p>Файл: <code>resources/js/kids-datatable.js</code>. Документация в коде: <code>partials/datatables/kids-datatable.blade.php</code>.</p>
+  <p>Объединяет: декларативные колонки, ширины (<code>datatables-columns.css</code>), tooltip'ы, настройки видимости колонок (<code>columns-settings</code>).</p>
+
+  <h3>Пример</h3>
+  <pre><code>const dtApi = KidsCrmDataTable.create('#locations-table', {
+  columnsSettings: {
+    defaults: {
+      id: true,
+      name: true,
+      address: true,
+      teams_label: true,
+      is_enabled_label: true,
+      actions: true,
+    },
+    urls: {
+      get: '/admin/locations/columns-settings',
+      save: '/admin/locations/columns-settings',
+    },
+    csrfToken: '{{ csrf_token() }}',
+  },
+  dataTable: {
+    ajax: {
+      url: '/admin/locations/data',
+      type: 'GET',
+      data: function (d) {
+        d.name = $('#filter-name').val() || '';
+        d.status = $('#filter-status').val() || '';
+      },
+    },
+    order: [[1, 'asc']],
+    language: @include('partials.datatables.ru'),
+  },
+  columns: [
+    { key: 'id', type: 'id', data: 'id' },
+    { key: 'name', type: 'text', data: 'name' },
+    { key: 'address', type: 'text', data: 'address' },
+    { key: 'teams_label', type: 'list', data: 'teams_label', itemsKey: 'teams_titles', when: hasTeamOptions },
+    { key: 'is_enabled_label', type: 'badge', data: 'is_enabled_label', badgeKey: 'is_enabled', className: 'dt-col-badge text-center' },
+    { key: 'actions', type: 'actions', when: canManage, render: function (data, type, row) { return '…'; } },
+  ],
+});
+
+const table = dtApi.table;
+function reloadTable() {
+  dtApi.reload({ keepPage: true });
+}</code></pre>
+
+  <h3>Типы колонок (<code>columns[].type</code>)</h3>
+  <table>
+    <thead>
+      <tr><th>type</th><th>CSS-класс</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>dt-col-id</code></td><td>Узкая колонка № / id</td></tr>
+      <tr><td><code>rownum</code></td><td><code>dt-col-id</code></td><td>Порядковый номер строки (без <code>key</code> — не участвует в «Полях списка»)</td></tr>
+      <tr><td><code>sort</code></td><td><code>dt-col-sort</code></td><td>Число сортировки</td></tr>
+      <tr><td><code>text</code></td><td><code>dt-col-text</code></td><td>Текст + ellipsis; tooltip только при обрезке; пустое → <code>dt-cell-empty</code>. Опционально свой <code>render</code> (для display — <code>KidsCrmTooltip.renderText</code>).</td></tr>
+      <tr><td><code>text-long</code></td><td><code>dt-col-text</code></td><td><b>Устаревший алиас</b> — то же, что <code>text</code>. В новых таблицах используйте только <code>text</code>.</td></tr>
+      <tr><td><code>datetime</code></td><td><code>dt-col-text dt-col-text--wrap</code></td><td>Дата+время в две строки (<code>pay-cell-datetime</code>); пустое → прочерк. API: <code>KidsCrmDataTable.renderDateTime</code>.</td></tr>
+      <tr><td><code>inline-actions</code></td><td><code>dt-col-inline-actions</code></td><td>Кнопки «Показать» / «Копировать»; пустое → прочерк как у <code>text</code>. Опции <code>inlineActions.modalTitle</code>, <code>inlineActions.format</code> (<code>meta-pretty</code>).</td></tr>
+      <tr><td><code>list</code></td><td><code>dt-col-list</code></td><td>Краткая подпись + список в tooltip; опции <code>itemsKey</code>, <code>emptyHtml</code></td></tr>
+      <tr><td><code>badge</code></td><td><code>dt-col-badge</code></td><td>Badge статуса; опция <code>badgeKey</code> (поле row, по умолчанию <code>is_enabled</code>). Можно свой <code>render</code>.</td></tr>
+      <tr><td><code>count</code></td><td><code>dt-col-count</code></td><td>Число (счётчик групп и т.п.)</td></tr>
+      <tr><td><code>money</code></td><td><code>dt-col-count</code></td><td>Сумма с форматированием <code>ru-RU</code> + « руб» (число — по правому краю через <code>.dt-col-money-value</code>; пусто → «—» слева, как в <code>text</code>)</td></tr>
+      <tr><td><code>link</code></td><td><code>dt-col-text</code></td><td>Кликабельное название; опции <code>linkClass</code>, <code>linkAttrs(row)</code></td></tr>
+      <tr><td><code>image</code></td><td><code>dt-col-image</code></td><td>Аватар / превью: URL в <code>data</code>; опции <code>image.fallbackUrl</code> (или <code>fallbackUrl</code>), <code>image.size</code> (px, по умолчанию 32), <code>image.imgClass</code> (по умолчанию <code>rounded-circle</code>), <code>image.alt</code>. Пустое значение → fallback. API: <code>KidsCrmDataTable.renderImage</code>.</td></tr>
+      <tr><td><code>icon</code></td><td><code>dt-col-icon</code></td><td>Font Awesome / иконка-ссылка: массив в <code>data</code> или <code>row[itemsKey]</code> (<code>{ iconClass, href?, title, ariaLabel, linkClass?, color? }</code>). Несколько иконок — в <code>span.kids-dt-icon-group</code>. Свой <code>render</code> — для сложной логики (чеки в отчёте «Платежи»). API: <code>KidsCrmDataTable.renderIcon</code>.</td></tr>
+      <tr><td><code>inline-select</code></td><td><code>dt-col-inline-select</code></td><td>Badge + скрытый <code>&lt;select&gt;</code> для inline-редактирования статуса. Опции <code>inlineSelect</code>: <code>statusKey</code>, <code>labelKey</code>, <code>options[]</code>, <code>badgeClassFn</code>, <code>badgeSelector</code>, <code>selectSelector</code>. API: <code>KidsCrmDataTable.renderInlineSelect</code>.</td></tr>
+      <tr><td><code>actions</code></td><td><code>dt-col-actions</code></td><td>Колонка кнопок (edit/delete, возврат, договор и т.п.); обязателен <code>render</code></td></tr>
+      <tr><td><code>custom</code></td><td><code>dt-col-*</code> в <code>column.className</code></td><td>Обход пресета — только если нет подходящего типа. В новых таблицах предпочитайте <code>text</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>. Осталось в отчётах LTV и «Платежи по месяцам» — chevron раскрытия (<code>details-control</code>, §3.1).</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="datatable-migration-2026-06">3.1) Миграция <code>type: 'custom'</code> → пресет (июнь 2026)</h3>
+  <p>Цель — убрать ручной HTML в Yajra <code>rawColumns</code> и перенести рендер на клиент через типы пресета. Эталон без <code>custom</code> — отчёт «Платежные запросы» (<code>#payment-intents-table</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Страница / колонка</th><th>Было</th><th>Стало</th><th>Примечания</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Отчёт «Платежи» — <code>receipt</code></td>
+        <td><code>custom</code> (HTML иконок чеков)</td>
+        <td><code>icon</code></td>
+        <td>Клиент: <code>renderPaymentsReceiptCell()</code> → <code>KidsCrmDataTable.renderIcon()</code>. JSON: <code>receipt_url</code>, <code>return_receipt_url</code>, <code>has_*</code> — см. <a href="/docs/documentation/reports-payments#receipt-column">reports-payments §5</a>.</td>
+      </tr>
+      <tr>
+        <td>Отчёт «Платежи» — <code>refund_action</code></td>
+        <td><code>custom</code> (HTML кнопок в Yajra)</td>
+        <td><code>actions</code></td>
+        <td>Backend отдаёт поля <code>refund_actions_available</code>, <code>refund_disabled</code>, <code>refund_disabled_title</code>, <code>refund_show_history</code>; кнопки собирает <code>renderPaymentsRefundActions()</code> на клиенте.</td>
+      </tr>
+      <tr>
+        <td><code>/admin/users</code> — <code>contract</code></td>
+        <td><code>custom</code></td>
+        <td><code>icon</code> + свой <code>render</code></td>
+        <td>Иконка PDF, tooltip «Статус: …» всегда (не ellipsis). См. <a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>.</td>
+      </tr>
+      <tr>
+        <td><code>/admin/school-leads</code>, <code>/admin/partner-leads</code> — <code>status</code></td>
+        <td><code>custom</code> (badge + select)</td>
+        <td><code>inline-select</code></td>
+        <td>Опции статусов в JS; обработчики <code>.lead-status-badge</code> / <code>.lead-status-select</code> без изменений.</td>
+      </tr>
+      <tr>
+        <td><code>/admin/school-leads</code> — <code>contract</code></td>
+        <td><code>custom</code></td>
+        <td><code>actions</code></td>
+        <td>«Создать клиента» / ссылка на договор / «Создать договор» — см. <a href="/docs/documentation/school-leads-widget">school-leads-widget</a>.</td>
+      </tr>
+      <tr>
+        <td>LTV, «Платежи по месяцам» — chevron</td>
+        <td><code>custom</code></td>
+        <td><code>custom</code> (пока)</td>
+        <td>Колонка <code>details-control</code>; планируется тип <code>expand</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Тесты миграции: <code>tests/Feature/Crm/Reports/KidsCrmDataTableColumnsMigrationIter1Iter2Test.php</code> (в т.ч. сценарии iteration A–D);
+    функционал и доступ 200: <code>tests/Feature/Crm/Reports/KidsCrmDataTableAbcdFeatureTest.php</code>.</p>
+
+  <p>Условные колонки: <code>when: false</code> — колонка не попадает в таблицу (права, пустой справочник).</p>
+  <p>Ключ <code>key</code> совпадает с <code>data-column-key</code> в dropdown «Колонки» и с ключами в <code>columnsSettings.defaults</code> / API <code>columns-settings</code>.</p>
+
+  <h3>CSS ширин колонок</h3>
+  <p>Файл: <code>resources/css/datatables-columns.css</code>. Класс <code>dt-columns-managed</code> на <code>&lt;table&gt;</code> добавляется автоматически в <code>KidsCrmDataTable.create</code>.</p>
   <ul>
-    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — колонка «Группы» (<code>teams_label</code> + <code>teams_titles</code> из JSON <code>/admin/locations/data</code>).</li>
-    <li><a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — tooltip статуса договора в колонке «Договор» (inline <code>ulp-assignment-paid-tooltip</code>, без partial hover-list).</li>
+    <li><b>Режим:</b> <code>table-layout: auto</code>, таблица на 100% ширины карточки — колонки сужаются под короткий контент.</li>
+    <li><b>№ / actions:</b> <code>width: 1%</code> + <code>min-width</code> — узкие служебные колонки.</li>
+    <li><b>count / money / badge / sort / image / icon:</b> <code>width: 1%</code>, <code>white-space: nowrap</code> — по ширине значения; у <code>image</code> фиксированный размер через inline <code>width</code>/<code>height</code> на <code>&lt;img&gt;</code>. У <code>money</code> сумма выравнивается вправо через <code>.dt-col-money-value</code>; прочерк «—» — слева, как у <code>text</code>.</li>
+    <li><b>text / list / schedule:</b> <code>width: 1%</code> (shrink-to-content) + cap <code>--dt-col-ellipsis-max</code> (18rem) + ellipsis; полный текст — в tooltip через <code>KidsCrmTooltip</code> только если строка обрезана.</li>
+    <li><b>datetime:</b> класс <code>dt-col-text--wrap</code>, разметка <code>pay-cell-datetime</code> (стили в <code>admin-list-toolbar.css</code>).</li>
+    <li><b>inline-actions:</b> узкая колонка под две кнопки (<code>dt-col-inline-actions</code>).</li>
+    <li><b>details-control</b> (chevron в LTV / «Платежи по месяцам»): <code>width: 1%</code>, компактная кнопка <code>.details-control-btn</code>.</li>
+    <li><b>Вертикальное выравнивание:</b> <code>vertical-align: middle</code> на всех <code>th</code>/<code>td</code> managed-таблиц.</li>
   </ul>
-  <p class="small">Прямой аналог tooltip без partial — inline в <code>admin/SettingPrices/users.blade.php</code> и <code>admin/user.blade.php</code> (<code>ulp-assignment-paid-tooltip</code>); для списков с несколькими пунктами в подсказке предпочтителен partial hover-list.</p>
+  <p>Не задавайте inline <code>min-width</code> / <code>width</code> в <code>&lt;th&gt;</code> — ширина только через <code>dt-col-*</code> в определении колонок.</p>
 
-  <h2>3) Select2 multiselect групп</h2>
+  <h3>Горизонтальный скролл</h3>
+  <p>Поиск DataTables (<code>.dataTables_filter</code>) и блок «Показать N записей» остаются на ширине карточки и <b>не</b> уезжают при горизонтальном скролле.</p>
+  <ul>
+    <li>У <code>.dataTables_wrapper</code> — <code>overflow-x: visible</code>.</li>
+    <li>Скролл только у области таблицы: обёртка <code>.kids-dt-scroll-x</code> (добавляется в <code>init.dt</code> через <code>KidsCrmDataTable.ensureTableScrollHost</code>) или встроенный <code>.dataTables_scroll</code> при <code>scrollX</code> / <code>fixedColumns</code>.</li>
+  </ul>
+
+  <h3>API возвращаемого объекта</h3>
+  <table>
+    <thead>
+      <tr><th>Свойство / метод</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>table</code></td><td>Экземпляр jQuery DataTables</td></tr>
+      <tr><td><code>reload({ keepPage? })</code></td><td><code>ajax.reload</code>; <code>keepPage: true</code> — остаться на текущей странице</td></tr>
+      <tr><td><code>loadColumnsConfigFromServer()</code></td><td>Перечитать настройки колонок с сервера</td></tr>
+      <tr><td><code>applyVisibleColumns(config)</code></td><td>Применить видимость колонок вручную</td></tr>
+      <tr><td><code>getColumnsConfig()</code></td><td>Текущий объект видимости колонок</td></tr>
+      <tr><td><code>renderDateTime(value, type)</code></td><td>Рендер для типа <code>datetime</code> (две строки дата/время)</td></tr>
+      <tr><td><code>renderInlineActions(value, type, options)</code></td><td>Рендер для типа <code>inline-actions</code></td></tr>
+      <tr><td><code>renderImage(value, type, col)</code></td><td>Рендер для типа <code>image</code> (аватар, fallback, размер)</td></tr>
+      <tr><td><code>renderIcon(value, type, col, row)</code></td><td>Рендер для типа <code>icon</code> (иконки / icon-link)</td></tr>
+      <tr><td><code>renderInlineSelect(value, type, row, col)</code></td><td>Рендер для типа <code>inline-select</code> (badge + select)</td></tr>
+      <tr><td><code>ensureTableScrollHost(table, settings)</code></td><td>Обёртка горизонтального скролла (вызывается на <code>init.dt</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Пагинация: одна страница</h3>
+  <p>По умолчанию пресет в <code>drawCallback</code> скрывает только блок <code>.dataTables_paginate</code> (prev/next, номера страниц),
+    если <code>page.info().pages &lt;= 1</code>. Строки «Показано X–Y из Z» и выпадающий «Показать N записей» не скрываются.
+    При смене «Показать 10 / 20 / …» пересчёт выполняется на каждой отрисовке (например, 15 записей при 20 на странице — пагинация скрыта; при 10 на странице — видна).</p>
+  <p>Отключить на конкретной таблице: <code>dataTable: { hidePaginationWhenSinglePage: false }</code>.</p>
+
+  <h3>Эталонные страницы</h3>
+  <ul>
+    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — locations, list, badge, columns-settings, multiselect групп</li>
+    <li><code>/admin/sport-types</code> — sort, text, count, badge</li>
+    <li><a href="/docs/documentation/admin-users">/admin/users</a> — <code>image</code>, <code>link</code>, <code>badge</code>, <code>icon</code> (договор); 0 <code>custom</code></li>
+    <li><code>/admin/trainers</code> — <code>image</code>, <code>list</code>, <code>actions</code> (0 <code>custom</code>)</li>
+    <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (статус), <code>actions</code> (договор); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts, outgoing emails (<code>table_key</code> см. §9 там)</li>
+    <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
+    <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий</li>
+  </ul>
+
+  <h3>Модалка «История изменений» (<code>logModal</code>)</h3>
+  <p>Partial: <code>resources/views/includes/logModal.blade.php</code>. Подключается на страницах users, teams, schedule, отчётов и др.</p>
+  <ul>
+    <li>Таблица <code>#logsTable</code> — <code>KidsCrmDataTable.create</code> <b>без</b> блока <code>columnsSettings</code> (набор колонок фиксирован).</li>
+    <li>Инициализация отложенная: при первом <code>shown.bs.modal</code> на <code>#historyModal</code>, URL берётся из <code>window.showLogModal(routeName)</code>.</li>
+    <li>На вкладке «Настройки → Логи» — отдельная страница с полным набором фильтров (см. <a href="/docs/documentation/settings-logs">settings-logs</a>), не модалка.</li>
+  </ul>
+
+  <h3>Вложенные (дочерние) таблицы в отчётах</h3>
+  <p>В LTV и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки».
+    Backend поддерживает два формата одного endpoint: legacy JSON без <code>draw</code> и server-side DataTables с <code>draw</code> + <code>meta_payments_count</code> / <code>meta_sum_total</code> (см. <a href="/docs/documentation/reports-admin">reports-admin</a> §4–5).</p>
+
+  <h2>4) Select2 multiselect групп</h2>
   <p>Partial: <code>resources/views/partials/select2/teams-multiselect.blade.php</code></p>
   <p>Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, сводка «первая группа, ещё N шт.» при 3+ выбранных, dropdown не закрывается при клике в поиск.</p>
 
@@ -150,6 +363,7 @@ table.on('draw.dt', function () {
     &lt;option value="{{ $team->id }}"&gt;{{ $team->title }}&lt;/option&gt;
   @endforeach
 &lt;/select&gt;</code></pre>
+  <p>Обобщённый multiselect с hover-list в chip: <code>partials/select2/generic-multiselect.blade.php</code> (сводка 3+ значений через <code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>).</p>
   <p>Select2 подключается в layout <code>layouts/admin2.blade.php</code> (<code>select2.full.min.js</code> + bootstrap-5 theme).</p>
 
   <h3>JS API (<code>window.KidsCrmTeamsMultiselectSelect2</code>)</h3>
@@ -165,7 +379,7 @@ table.on('draw.dt', function () {
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — поля <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code> (только при <code>locations.manage</code> и непустом списке групп партнёра).</li>
   </ul>
 
-  <h2>4) Русификация Select2</h2>
+  <h2>5) Русификация Select2</h2>
   <p>Partial: <code>resources/views/partials/select2/ru.blade.php</code></p>
   <p>Возвращает объект локализации (не JSON-строку) для опции <code>language</code> при вызове <code>.select2({ … })</code>.</p>
 
@@ -174,42 +388,42 @@ table.on('draw.dt', function () {
   language: @include('partials.select2.ru')
 });</code></pre>
 
-  <p>Тексты: «Ничего не найдено», «Поиск…», «Введите ещё N символ(а/ов).», «Можно выбрать не более …» и т.д.</p>
-  <p>Partial <code>teams-multiselect</code> подключает эту локализацию автоматически. На других страницах — явный <code>@include('partials.select2.ru')</code> (отчёты, dashboard, договоры, абонементы, custom-payments и др.).</p>
+  <p>Partial <code>teams-multiselect</code> подключает локализацию автоматически. На других страницах — явный <code>@include('partials.select2.ru')</code>.</p>
 
-  <h2>5) Русификация DataTables</h2>
+  <h2>6) Русификация DataTables</h2>
   <p>Partial: <code>resources/views/partials/datatables/ru.blade.php</code></p>
-  <p>Возвращает JSON-объект для опции <code>language</code> jQuery DataTables.</p>
+  <p>Возвращает JSON-объект для опции <code>language</code> внутри <code>dataTable: { … }</code> при <code>KidsCrmDataTable.create</code> или при ручной инициализации DataTables.</p>
 
-  <pre><code>$('#my-table').DataTable({
+  <pre><code>dataTable: {
   serverSide: true,
   language: @include('partials.datatables.ru'),
   …
-});</code></pre>
+}</code></pre>
 
-  <p>Строки: «Обработка…», «Поиск…» (placeholder), «С _START_ до _END_ из _TOTAL_ записей», «Записи отсутствуют.», «В таблице отсутствуют данные», aria-подписи сортировки. Кнопки paginate (<code>first</code>/<code>previous</code>/…) — пустые строки (иконки/разметка задаются темой таблицы).</p>
-
-  <h3>Где используется</h3>
-  <ul>
-    <li><code>/admin/locations</code>, <code>/admin/trainers</code>, <code>/admin/setting/logs</code>, <code>contract-templates/index</code></li>
-    <li>вкладка назначений абонементов (<code>lessonPackages/tabs/assignments.blade.php</code>)</li>
-    <li>и другие server-side таблицы с тем же паттерном</li>
-  </ul>
-
-  <h2>6) Чек-лист при добавлении новой страницы</h2>
+  <h2>7) Чек-лист: новая admin-страница со server-side таблицей</h2>
   <ol>
-    <li>Подключить <code>admin-list-toolbar.css</code>, если нужна шапка как у отчётов/списков.</li>
-    <li>Для server-side таблицы — <code>language: @include('partials.datatables.ru')</code>.</li>
-    <li>Для Select2 — <code>language: @include('partials.select2.ru')</code> (layout admin2 уже грузит JS/CSS Select2).</li>
-    <li>Для колонки «много значений, коротко в ячейке» — <code>@include('partials.ui.hover-list-dropdown')</code> + <code>renderCell</code> / <code>init</code> на <code>draw.dt</code>.</li>
-    <li>Для multiselect групп в модалке — <code>@include('partials.select2.teams-multiselect')</code> + класс <code>js-teams-multiselect-select</code>.</li>
+    <li>Layout <code>admin2</code> — модули tooltip/DataTable уже подключены; после изменений JS/CSS выполнить <code>npm run build</code>.</li>
+    <li>Шапка списка — <code>@vite(['resources/css/admin-list-toolbar.css'])</code> + разметка toolbar (см. §1).</li>
+    <li>Таблица — <code>class="table … w-100 dt-columns-managed"</code> (класс <code>dt-columns-managed</code> можно не дублировать: пресет добавит сам).</li>
+    <li>Инициализация — <code>KidsCrmDataTable.create('#…-table', { columnsSettings, dataTable, columns })</code> (см. §3).</li>
+    <li>Dropdown «Колонки» — чекбоксы <code>class="column-toggle"</code> с <code>data-column-key</code>, совпадающим с <code>columns[].key</code>.</li>
+    <li>Backend — GET/POST <code>…/columns-settings</code> с объектом <code>columns</code> (как на locations / sport-types / teams).</li>
+    <li>Reload после фильтров — <code>dtApi.reload({ keepPage: true })</code>.</li>
+    <li>Для Select2 в модалках — partial multiselect + <code>@include('partials.select2.ru')</code> при необходимости.</li>
+    <li>Для иконки-подсказки в форме — <code>@include('partials.ui.tooltip-hint', …)</code> (§2).</li>
   </ol>
 
   <p class="small">
+    <strong>Страницы вне пресета</strong> (по состоянию на 2026‑06): журнал расписания <code>/schedule</code> — client-side DataTable в <code>schedule.js</code> (намеренно, без server-side);
+    личный отчёт ученика <code>/user/report/payment</code> — legacy inline DataTable. При миграции переводить на <code>KidsCrmDataTable</code> / <code>KidsCrmTooltip</code> по чек-листу §7.
+  </p>
+
+  <p class="small">
     <a href="/doc">← К оглавлению</a> ·
-    <a href="/docs/documentation/admin-locations">Локации (пример всех блоков)</a> ·
-    <a href="/docs/documentation/admin-users">Пользователи (toolbar)</a> ·
-    <a href="/docs/documentation/reports-payments">Отчёт «Платежи» (эталон toolbar)</a>
+    <a href="/docs/documentation/admin-locations">Локации (эталон)</a> ·
+    <a href="/docs/documentation/admin-teams">Группы</a> ·
+    <a href="/docs/documentation/reports-admin">Отчёты (админка)</a> ·
+    <a href="/docs/documentation/admin-users">Пользователи (toolbar)</a>
   </p>
 </div>
 </body>

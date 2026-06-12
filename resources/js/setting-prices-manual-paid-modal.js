@@ -69,17 +69,12 @@
      * @param {ParentNode|null} [root] область поиска; если нет — document
      */
     function initManualPaidBadgeTooltips(root) {
-        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+        if (!window.KidsCrmTooltip) {
             return;
         }
-        const base = root || document;
-        base.querySelectorAll('.ulp-paid-manual-hint[data-bs-toggle="tooltip"], .user-manual-info-icon[data-bs-toggle="tooltip"]').forEach(function (el) {
-            const existing = bootstrap.Tooltip.getInstance(el);
-            if (existing) {
-                existing.dispose();
-            }
-            new bootstrap.Tooltip(el);
-        });
+
+        window.KidsCrmTooltip.dispose(root, { scopes: ['manualPaid'] });
+        window.KidsCrmTooltip.init(root, { scopes: ['manualPaid'] });
     }
 
     window.initManualPaidBadgeTooltips = initManualPaidBadgeTooltips;

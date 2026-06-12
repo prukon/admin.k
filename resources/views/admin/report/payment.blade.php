@@ -417,7 +417,7 @@
     </form>
 </div>
 
-<table class="table table-bordered" id="payments-table">
+<table class="table table-bordered dt-columns-managed w-100" id="payments-table">
     <thead>
     <tr>
         <th>№</th>
@@ -749,36 +749,25 @@
             initPaymentsReportFilterSelect2($payFilterTeam);
             initPaymentsReportFilterSelect2($payFilterTrainer);
 
-            function paymentsReportColumnsMapWithLocation(baseMap) {
-                if (!canViewLocations) {
-                    return baseMap;
-                }
-                const out = {location: 3};
-                Object.keys(baseMap).forEach(function (key) {
-                    out[key] = baseMap[key] >= 3 ? baseMap[key] + 1 : baseMap[key];
-                });
-                return out;
-            }
-
             const defaultColumnsVisibility = {
-    user_name: true,
-    team_title: true,
-    location: canViewLocations,
-    summ: true,
-    payment_month: true,
-    operation_date: true,
-    payment_provider: true,
-    payment_method_label: true,
-    receipt: true,
-    commission_total: !canAdditional && canCommissionTotal,
-    payout_amount: canPayoutColumn,
-    net_to_partner: canAdditional,
-    bank_commission_acquiring: canAdditional,
-    bank_commission_payout: canAdditional,
-    platform_commission: canAdditional,
-    refund_status: canAdditional,
-    refund_action: true,
-    payout_date: true
+                user_name: true,
+                team_title: true,
+                location: canViewLocations,
+                summ: true,
+                payment_month: true,
+                operation_date: true,
+                payment_provider: true,
+                payment_method_label: true,
+                receipt: true,
+                commission_total: !canAdditional && canCommissionTotal,
+                payout_amount: canPayoutColumn,
+                net_to_partner: canAdditional,
+                bank_commission_acquiring: canAdditional,
+                bank_commission_payout: canAdditional,
+                platform_commission: canAdditional,
+                refund_status: canAdditional,
+                refund_action: true,
+                payout_date: true
             };
 
             const additionalColumnsKeys = [
@@ -789,205 +778,6 @@
                 'refund_status',
             ];
 
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            // Маппинг ключей на индексы колонок DataTables
-            // 0 – № (DT_RowIndex) всегда видна, не настраиваем
-            let columnsMap;
-            if (canAdditional) {
-                if (canPayoutColumn) {
-                    columnsMap = paymentsReportColumnsMapWithLocation({
-                        user_name: 1,
-                        team_title: 2,
-                        summ: 3,
-                        payment_month: 4,
-                        operation_date: 5,
-                        payment_provider: 6,
-                        payment_method_label: 7,
-                        receipt: 8,
-                        bank_commission_acquiring: 9,
-                        bank_commission_payout: 10,
-                        platform_commission: 11,
-                        net_to_partner: 12,
-                        payout_amount: 13,
-                        payout_date: 14,
-                        refund_action: 15,
-                        refund_status: 16
-                    });
-                } else {
-                    columnsMap = paymentsReportColumnsMapWithLocation({
-                        user_name: 1,
-                        team_title: 2,
-                        summ: 3,
-                        payment_month: 4,
-                        operation_date: 5,
-                        payment_provider: 6,
-                        payment_method_label: 7,
-                        receipt: 8,
-                        bank_commission_acquiring: 9,
-                        bank_commission_payout: 10,
-                        platform_commission: 11,
-                        net_to_partner: 12,
-                        payout_date: 13,
-                        refund_action: 14,
-                        refund_status: 15
-                    });
-                }
-            } else if (canCommissionTotal && canPayoutColumn) {
-                columnsMap = paymentsReportColumnsMapWithLocation({
-                    user_name: 1,
-                    team_title: 2,
-                    summ: 3,
-                    payment_month: 4,
-                    operation_date: 5,
-                    payment_provider: 6,
-                    payment_method_label: 7,
-                    receipt: 8,
-                    commission_total: 9,
-                    payout_amount: 10,
-                    payout_date: 11,
-                    refund_action: 12,
-                    refund_status: 13
-                });
-            } else if (canCommissionTotal && !canPayoutColumn) {
-                columnsMap = paymentsReportColumnsMapWithLocation({
-                    user_name: 1,
-                    team_title: 2,
-                    summ: 3,
-                    payment_month: 4,
-                    operation_date: 5,
-                    payment_provider: 6,
-                    payment_method_label: 7,
-                    receipt: 8,
-                    commission_total: 9,
-                    payout_date: 10,
-                    refund_action: 11,
-                    refund_status: 12
-                });
-            } else if (!canCommissionTotal && canPayoutColumn) {
-                columnsMap = paymentsReportColumnsMapWithLocation({
-                    user_name: 1,
-                    team_title: 2,
-                    summ: 3,
-                    payment_month: 4,
-                    operation_date: 5,
-                    payment_provider: 6,
-                    payment_method_label: 7,
-                    receipt: 8,
-                    payout_amount: 9,
-                    payout_date: 10,
-                    refund_action: 11,
-                    refund_status: 12
-                });
-            } else {
-                columnsMap = paymentsReportColumnsMapWithLocation({
-                    user_name: 1,
-                    team_title: 2,
-                    summ: 3,
-                    payment_month: 4,
-                    operation_date: 5,
-                    payment_provider: 6,
-                    payment_method_label: 7,
-                    receipt: 8,
-                    payout_date: 9,
-                    refund_action: 10,
-                    refund_status: 11
-                });
-            }
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function updateFixedColumns() {
-                // Если скрыли "Имя ученика" (колонка 1), лучше фиксировать только № (колонка 0),
-                // иначе FixedColumns может оставить "пустой" фиксированный столбец.
-                try {
-                    const keepLeft = toBool(currentColumnsConfig.user_name, true) ? 2 : 1;
-                    if (table && typeof table.fixedColumns === 'function') {
-                        const fc = table.fixedColumns();
-                        if (fc && typeof fc.leftColumns === 'function') {
-                            fc.leftColumns(keepLeft);
-                        }
-                    }
-                } catch (e) {
-                    // no-op
-                }
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-
-                    if (key === 'location' && !canViewLocations) {
-                        column.visible(false);
-                        return;
-                    }
-
-                    let isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-
-                    // Доступ к комиссиям, «к выплате», статусу возврата — только по праву reports.additional.value.view.
-                    if (!canAdditional && additionalColumnsKeys.indexOf(key) !== -1) {
-                        isVisible = false;
-                    }
-
-                    column.visible(isVisible);
-
-                    $('.payments-column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-
-                    if (!canAdditional && additionalColumnsKeys.indexOf(key) !== -1) {
-                        $('.payments-column-toggle[data-column-key="' + key + '"]').prop('disabled', true);
-                    }
-                });
-
-                updateFixedColumns();
-
-                try {
-                    table.columns.adjust();
-                } catch (e) {
-                    // no-op
-                }
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: '/admin/reports/payments/columns-settings',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            if (key === 'location' && !canViewLocations) {
-                                merged[key] = false;
-                                return;
-                            }
-                            merged[key] = toBool(
-                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
-            
 // Расширенная сетка колонок комиссий — при праве reports.additional.value.view (canAdditional)
 const columns = [
     {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
@@ -1115,55 +905,7 @@ columns.push(
         name: 'receipt',
         orderable: false,
         searchable: false,
-        render: function (data, type, row) {
-            if (type !== 'display') return row.has_receipt ? 1 : 0;
-
-            if (row.payment_provider !== 'tbank') {
-                return '<span title="Чек формируется у партнера в его онлайн-кассе"></span>';
-            }
-
-                var refundStatus = row.refund_status || '';
-                var returnReceiptUrl = row.return_receipt_url || '';
-                var returnReceiptStatus = row.return_receipt_status || '';
-
-                var incomeTitle = (row.has_receipt && row.receipt_url)
-                    ? 'Чек сформирован'
-                    : 'Чек не сформирован';
-
-                // Сообщение/подсказка, если возврат уже есть, но return-check ещё не сформирован.
-                if (refundStatus !== '' && !returnReceiptUrl) {
-                    if (returnReceiptStatus === 'error') {
-                        incomeTitle += '. Чек возврата: не сформирован (ошибка).';
-                    } else {
-                        incomeTitle += '. Чек возврата ожидается (CloudKassir).';
-                    }
-                }
-
-                var incomeHtml = '';
-                if (row.has_receipt && row.receipt_url) {
-                    incomeHtml =
-                        '<a href="' + row.receipt_url + '" target="_blank" rel="noopener noreferrer" title="' + incomeTitle + '" aria-label="Чек сформирован">' +
-                        '<i class="fas fa-receipt text-primary"></i>' +
-                        '</a>';
-                } else {
-                    incomeHtml =
-                        '<span title="' + incomeTitle + '" aria-label="Чек не сформирован">' +
-                        '<i class="fas fa-receipt text-secondary"></i>' +
-                        '</span>';
-                }
-
-                // Вторая иконка показывается только при наличии return receipt URL.
-                var returnHtml = '';
-                if (returnReceiptUrl) {
-                    returnHtml =
-                        '<a href="' + returnReceiptUrl + '" target="_blank" rel="noopener noreferrer" ' +
-                        'class="return-receipt-link" title="Чек возврата" aria-label="Чек возврата">' +
-                        '<i class="fas fa-receipt return-receipt-icon"></i>' +
-                        '</a>';
-                }
-
-                return '<span style="display:inline-flex; align-items:center; gap:8px;">' + incomeHtml + returnHtml + '</span>';
-        }
+        render: renderPaymentsReceiptCell,
     }
 );
 
@@ -1280,7 +1022,7 @@ columns.push(
             return $('<div/>').text(String(data)).html();
         }
     },
-    {data: 'refund_action', name: 'refund_action', orderable: false, searchable: false},
+    {data: null, name: 'refund_action', orderable: false, searchable: false},
     {
         data: 'refund_status',
         name: 'refund_status',
@@ -1295,58 +1037,297 @@ columns.push(
 );
 
 
-            var table = $('#payments-table').DataTable({
-    processing: true,
-    serverSide: true,
-    ajax: {
-        url: "{{ route('payments.getPayments') }}",
-        data: function (d) {
-            var f = paymentsReportFilterParams();
-            Object.keys(f).forEach(function (k) {
-                d[k] = f[k];
+
+            function paymentsColumnToggleKey(col) {
+                if (!col || !col.name) {
+                    return null;
+                }
+                if (col.name === 'location_title') {
+                    return 'location';
+                }
+                if (Object.prototype.hasOwnProperty.call(defaultColumnsVisibility, col.name)) {
+                    return col.name;
+                }
+                if (col.name === 'receipt') {
+                    return 'receipt';
+                }
+                return null;
+            }
+
+            function paymentsMergeColumnClass(existing, extra) {
+                const parts = String(existing || '').split(/\s+/).filter(Boolean);
+                String(extra || '').split(/\s+/).forEach(function (cls) {
+                    if (cls && parts.indexOf(cls) === -1) {
+                        parts.push(cls);
+                    }
+                });
+                return parts.join(' ');
+            }
+
+            function paymentsColumnClassName(col) {
+                const name = col && col.name ? col.name : '';
+                const base = col && col.className ? col.className : '';
+
+                if (name === 'refund_action') {
+                    return paymentsMergeColumnClass(base, 'dt-col-actions text-end');
+                }
+                if (name === 'receipt') {
+                    return paymentsMergeColumnClass(base, 'dt-col-icon text-center');
+                }
+                if (name === 'payment_provider' || name === 'refund_status') {
+                    return paymentsMergeColumnClass(base, 'dt-col-badge text-center');
+                }
+                if (name === 'operation_date') {
+                    return paymentsMergeColumnClass(base, 'dt-col-text dt-col-text--wrap');
+                }
+                if (name === 'summ'
+                    || name === 'commission_total'
+                    || name === 'bank_commission_acquiring'
+                    || name === 'bank_commission_payout'
+                    || name === 'platform_commission'
+                    || name === 'net_to_partner'
+                    || name === 'payout_amount') {
+                    return paymentsMergeColumnClass(base, 'dt-col-count text-end');
+                }
+                if (name === 'payment_month' || name === 'payout_date') {
+                    return paymentsMergeColumnClass(base, 'dt-col-count');
+                }
+
+                return paymentsMergeColumnClass(base, 'dt-col-text');
+            }
+
+            function renderPaymentsReceiptCell(data, type, row) {
+                if (type !== 'display') {
+                    return row.has_receipt ? 1 : 0;
+                }
+
+                if (row.payment_provider !== 'tbank') {
+                    return '<span title="Чек формируется у партнера в его онлайн-кассе"></span>';
+                }
+
+                var refundStatus = row.refund_status || '';
+                var returnReceiptUrl = row.return_receipt_url || '';
+                var returnReceiptStatus = row.return_receipt_status || '';
+                var esc = window.KidsCrmTooltip.escapeHtml;
+
+                var incomeTitle = (row.has_receipt && row.receipt_url)
+                    ? 'Чек сформирован'
+                    : 'Чек не сформирован';
+
+                if (refundStatus !== '' && !returnReceiptUrl) {
+                    if (returnReceiptStatus === 'error') {
+                        incomeTitle += '. Чек возврата: не сформирован (ошибка).';
+                    } else {
+                        incomeTitle += '. Чек возврата ожидается (CloudKassir).';
+                    }
+                }
+
+                var icons = [];
+                if (row.has_receipt && row.receipt_url) {
+                    icons.push({
+                        href: row.receipt_url,
+                        iconClass: 'fas fa-receipt text-primary',
+                        title: incomeTitle,
+                        ariaLabel: 'Чек сформирован',
+                    });
+                } else {
+                    icons.push({
+                        iconClass: 'fas fa-receipt text-secondary',
+                        title: incomeTitle,
+                        ariaLabel: 'Чек не сформирован',
+                    });
+                }
+
+                if (returnReceiptUrl) {
+                    icons.push({
+                        href: returnReceiptUrl,
+                        iconClass: 'fas fa-receipt return-receipt-icon',
+                        linkClass: 'return-receipt-link',
+                        title: 'Чек возврата',
+                        ariaLabel: 'Чек возврата',
+                    });
+                }
+
+                return window.KidsCrmDataTable.renderIcon(icons, type, { sortKey: 'has_receipt' }, row);
+            }
+
+            function renderPaymentsRefundActions(data, type, row) {
+                if (type !== 'display') {
+                    return '';
+                }
+
+                if (!row.refund_actions_available) {
+                    return '';
+                }
+
+                var esc = window.KidsCrmTooltip.escapeHtml;
+                var disabled = !!row.refund_disabled;
+                var title = row.refund_disabled_title || '';
+                var btnAttrs = [
+                    'type="button"',
+                    'class="btn btn-sm btn-outline-danger js-refund-btn"',
+                    'data-payment-id="' + esc(String(row.id)) + '"',
+                    'data-provider="tbank"',
+                    'data-amount="' + esc(String(row.summ ?? '')) + '"',
+                    'data-user="' + esc(String(row.user_name ?? '')) + '"',
+                    'data-month="' + esc(String(row.payment_month ?? '')) + '"',
+                ];
+
+                if (disabled) {
+                    btnAttrs.push('disabled');
+                }
+
+                var refundBtn = '<button ' + btnAttrs.join(' ') + '>Возврат</button>';
+                var historyBtn = '';
+
+                if (row.refund_show_history) {
+                    historyBtn = '<button type="button" class="btn btn-sm btn-outline-secondary ms-1 js-tbank-history-btn" '
+                        + 'data-payment-id="' + esc(String(row.id)) + '" '
+                        + 'data-deal-id="' + esc(String(row.deal_id ?? '')) + '" '
+                        + 'data-bank-payment-id="' + esc(String(row.payment_id ?? row.payment_number ?? '')) + '"'
+                        + '>История</button>';
+                }
+
+                if (disabled) {
+                    var wrapTitle = title !== '' ? title : 'Возврат недоступен';
+                    return '<span title="' + esc(wrapTitle) + '" style="cursor:not-allowed;">' + refundBtn + '</span>' + historyBtn;
+                }
+
+                return refundBtn + historyBtn;
+            }
+
+            function paymentsColumnPresetType(col) {
+                const name = col && col.name ? col.name : '';
+                if (name === 'receipt') {
+                    return 'icon';
+                }
+                if (name === 'refund_action') {
+                    return 'actions';
+                }
+                if (name === 'summ'
+                    || name === 'commission_total'
+                    || name === 'bank_commission_acquiring'
+                    || name === 'bank_commission_payout'
+                    || name === 'platform_commission'
+                    || name === 'net_to_partner'
+                    || name === 'payout_amount') {
+                    return 'money';
+                }
+                if (name === 'operation_date') {
+                    return 'datetime';
+                }
+                if (name === 'payment_provider' || name === 'refund_status') {
+                    return 'badge';
+                }
+
+                return 'text';
+            }
+
+            function paymentsColumnDataField(col) {
+                if (col.data !== null && col.data !== undefined) {
+                    return col.data;
+                }
+                if (col.name === 'user_name') {
+                    return 'user_name';
+                }
+
+                return col.name || undefined;
+            }
+
+            function buildPaymentsKidsColumns(rawColumns) {
+                const kids = [{ type: 'rownum' }];
+                rawColumns.slice(1).forEach(function (col) {
+                    const key = paymentsColumnToggleKey(col);
+                    const presetType = paymentsColumnPresetType(col);
+                    const className = paymentsColumnClassName(col);
+
+                    if (presetType === 'custom') {
+                        const customCol = Object.assign({}, col, { className: className });
+                        if (key) {
+                            kids.push({ key: key, type: 'custom', column: customCol });
+                        } else {
+                            kids.push({ type: 'custom', column: customCol });
+                        }
+                        return;
+                    }
+
+                    const kidCol = {
+                        type: presetType,
+                        data: paymentsColumnDataField(col),
+                        name: col.name,
+                        orderable: col.orderable,
+                        searchable: col.searchable,
+                        className: className,
+                    };
+                    if (col.name === 'refund_action') {
+                        kidCol.render = renderPaymentsRefundActions;
+                    } else if (col.render) {
+                        kidCol.render = col.render;
+                    }
+                    if (key) {
+                        kidCol.key = key;
+                    }
+                    kids.push(kidCol);
+                });
+
+                return kids;
+            }
+
+            function paymentsAfterApplyVisibleColumns() {
+                if (!canAdditional) {
+                    additionalColumnsKeys.forEach(function (key) {
+                        $('.payments-column-toggle[data-column-key="' + key + '"]').prop('disabled', true);
+                    });
+                }
+            }
+
+            var dtApi = KidsCrmDataTable.create('#payments-table', {
+                columnsSettings: {
+                    defaults: defaultColumnsVisibility,
+                    urls: {
+                        get: '/admin/reports/payments/columns-settings',
+                        save: '/admin/reports/payments/columns-settings'
+                    },
+                    toggleSelector: '.payments-column-toggle',
+                    csrfToken: '{{ csrf_token() }}',
+                    mergeColumnsConfig: function (merged) {
+                        if (!canViewLocations) {
+                            merged.location = false;
+                        }
+                        return merged;
+                    },
+                    resolveColumnVisible: function (key, isVisible) {
+                        if (key === 'location' && !canViewLocations) {
+                            return false;
+                        }
+                        if (!canAdditional && additionalColumnsKeys.indexOf(key) !== -1) {
+                            return false;
+                        }
+                        return isVisible;
+                    },
+                    afterApplyVisibleColumns: paymentsAfterApplyVisibleColumns
+                },
+                dataTable: {
+                    ajax: {
+                        url: "{{ route('payments.getPayments') }}",
+                        data: function (d) {
+                            var f = paymentsReportFilterParams();
+                            Object.keys(f).forEach(function (k) {
+                                d[k] = f[k];
+                            });
+                        }
+                    },
+                    order: [[paymentsReportDefaultOrderColumnIndex, 'desc']],
+                    language: @include('partials.datatables.ru')
+                },
+                columns: buildPaymentsKidsColumns(columns)
             });
-        }
-    },
-    columns: columns,
-    order: [[paymentsReportDefaultOrderColumnIndex, 'desc']], // По умолчанию: ближайшие платежи сверху (по дате)
-
-    scrollX: true,
-
-    fixedColumns: {
-        leftColumns: 2
-    },
-    language: {
-        "processing": "Обработка...",
-        "search": "",
-        "searchPlaceholder": "Поиск...",
-
-        "lengthMenu": "Показать _MENU_",
-        "info": "С _START_ до _END_ из _TOTAL_ записей",
-        "infoEmpty": "С 0 до 0 из 0 записей",
-        "infoFiltered": "(отфильтровано из _MAX_ записей)",
-        "loadingRecords": "Загрузка записей...",
-        "zeroRecords": "Записи отсутствуют.",
-        "emptyTable": "В таблице отсутствуют данные",
-        "paginate": {
-            "first": "",
-            "previous": "",
-            "next": "",
-            "last": ""
-        },
-        "aria": {
-            "sortAscending": ": активировать для сортировки столбца по возрастанию",
-            "sortDescending": ": активировать для сортировки столбца по убыванию"
-        }
-    }
-});
-
-            // после инициализации — подгружаем конфиг из БД
-            loadColumnsConfigFromServer();
+            var table = dtApi.table;
 
             $payFiltersForm.on('submit', function (e) {
                 e.preventDefault();
                 refreshPaymentsReportTotal();
-                table.ajax.reload();
+                dtApi.reload();
             });
 
             $('#paymentsReportFiltersResetBtn').on('click', function () {
@@ -1361,32 +1342,7 @@ columns.push(
                 }
                 $payFiltersForm.find('[name="bank_commission_acquiring_min"],[name="bank_commission_acquiring_max"],[name="bank_commission_payout_min"],[name="bank_commission_payout_max"]').val('');
                 refreshPaymentsReportTotal();
-                table.ajax.reload();
-            });
-
-            // --- Обработчик чекбоксов "Поля списка" ---
-            $('.payments-column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                // как в users: отправляем 1/0
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: '/admin/reports/payments/columns-settings',
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: currentColumnsConfig
-                    },
-                    success: function () {
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
+                dtApi.reload();
             });
 
             // handlers: refund modal
@@ -1461,7 +1417,7 @@ columns.push(
                     data: {comment: comment},
                     success: function (resp) {
                         refundModal.hide();
-                        table.ajax.reload(null, false);
+                        dtApi.reload({ keepPage: true });
                     },
                     error: function (xhr) {
                         var msg = 'Ошибка при создании возврата';

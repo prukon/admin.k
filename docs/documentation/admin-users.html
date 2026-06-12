@@ -214,8 +214,8 @@
     <li>Если у ученика <b>нет</b> договора текущего партнёра — ячейка <b>пустая</b> (иконка не выводится).</li>
     <li>Если договор есть — ссылка с иконкой <code>&lt;i class="fa-solid fa-file-pdf"&gt;</code> на <code>route('contracts.show', $id)</code>.</li>
     <li>Цвет иконки: при <code>status === 'signed'</code> — <code>#0d6efd</code>; для любого другого статуса — <code>#6c757d</code>.</li>
-    <li>При наведении — Bootstrap Tooltip с классом <code>ulp-assignment-paid-tooltip</code> (тот же брендированный стиль, что «Установка цен → По месяцам»); текст — <code>Статус: {status_label}</code> (например «Статус: Подписано», «Статус: Черновик»).</li>
-    <li>Tooltip инициализируется на <code>draw.dt</code> таблицы (<code>initUsersContractTooltips</code> в <code>admin/user.blade.php</code>).</li>
+    <li>При наведении — Bootstrap Tooltip с классом <code>ulp-assignment-paid-tooltip</code>; текст — <code>Статус: {status_label}</code> (например «Статус: Подписано», «Статус: Черновик»). Tooltip показывается <b>всегда</b> (иконка без класса <code>dt-cell-ellipsis</code>, не зависит от обрезки текста — см. <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §2</a>).</li>
+    <li>Колонка DataTables: тип <code>icon</code> (<code>className: dt-col-icon text-center</code>), свой <code>render</code> — <code>renderContractCell(row)</code> в <code>admin/user.blade.php</code>. Инициализация tooltip — через <code>KidsCrmTooltip.bindDataTable</code> на <code>draw.dt</code>.</li>
     <li>Колонка сортируется по статусу последнего договора (§2.3.5).</li>
   </ul>
 

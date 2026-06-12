@@ -117,7 +117,8 @@ final class SettingsLogsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('>Фильтры</span>', false)
             ->assertSee('id="settingsLogsTable"', false)
-            ->assertSee('id="settings-logs-filters"', false);
+            ->assertSee('id="settings-logs-filters"', false)
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_superadmin_index_shows_partner_filter_and_table_column(): void

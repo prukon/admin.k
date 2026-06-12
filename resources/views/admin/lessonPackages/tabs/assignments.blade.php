@@ -99,7 +99,7 @@
     @endcan
 
     <div class="table-responsive">
-        <table id="ulp-assignments-table" class="table table-sm table-striped table-bordered align-middle w-100" style="width:100%">
+        <table id="ulp-assignments-table" class="table table-sm table-striped table-bordered align-middle w-100 dt-columns-managed" style="width:100%">
             <thead>
             <tr>
                 <th class="d-none">ID</th>
@@ -286,88 +286,149 @@
     @can('lessonPackages.view')
         <script>
             $(function () {
-                function ulpEscapeHtml(s) {
-                    if (s == null || s === '') {
-                        return '';
-                    }
-                    return String(s)
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;')
-                        .replace(/'/g, '&#039;');
-                }
-
                 function ulpTextRender(data, type) {
                     if (type !== 'display' && type !== 'filter') {
                         return data != null ? data : '';
                     }
-                    return ulpEscapeHtml(data != null ? data : '');
+                    return window.KidsCrmTooltip.renderText(data != null ? data : '');
                 }
 
-                var assignmentsDataTable = $('#ulp-assignments-table').DataTable({
-                    processing: true,
-                    serverSide: true,
-                    pageLength: 20,
-                    lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
-                    searching: true,
-                    order: [[0, 'desc']],
-                    ajax: {
-                        url: @json(route('admin.lesson-packages.assignments.data')),
-                        type: 'GET'
-                    },
-                    drawCallback: function () {
-                        var tbl = document.getElementById('ulp-assignments-table');
-                        if (typeof window.initManualPaidBadgeTooltips === 'function') {
-                            window.initManualPaidBadgeTooltips(tbl || null);
-                        } else if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-                            (tbl || document).querySelectorAll('.ulp-paid-manual-hint[data-bs-toggle="tooltip"]').forEach(function (el) {
-                                var existing = bootstrap.Tooltip.getInstance(el);
-                                if (existing) {
-                                    existing.dispose();
-                                }
-                                new bootstrap.Tooltip(el);
-                            });
-                        }
+                function ulpPaidRender(data, type, row) {
+                    if (type !== 'display') {
+                        return row.effective_is_paid ? 1 : 0;
+                    }
+
+                    var paidInner = row.effective_is_paid
+                        ? '<span class="badge bg-success">да</span>'
+                        : '<span class="badge bg-secondary">нет</span>';
+                    if (row.is_manual_paid !== null && row.is_manual_paid !== undefined) {
+                        paidInner += '<div class="small text-muted mt-1">руч.</div>';
+                    }
+
+                    var manualNote = row.manual_paid_note != null ? String(row.manual_paid_note).trim() : '';
+                    if (row.is_manual_paid !== null && row.is_manual_paid !== undefined && manualNote !== '') {
+                        var tooltipPlain = 'Комментарий: ' + manualNote.replace(/\s+/g, ' ');
+                        var titleAttr = window.KidsCrmTooltip.escapeHtml(tooltipPlain);
+                        return '<span class="ulp-paid-manual-hint d-inline-block text-center" tabindex="0" '
+                            + 'aria-label="' + titleAttr + '" '
+                            + 'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                            + 'title="' + titleAttr + '">' + paidInner + '</span>';
+                    }
+
+                    return '<span class="d-inline-block text-center">' + paidInner + '</span>';
+                }
+
+                function ulpPayLinkRender(data, type, row) {
+                    if (type !== 'display') {
+                        return row.pay_link_available ? 1 : 0;
+                    }
+
+                    if (!row.pay_link_available) {
+                        return '<span class="text-muted small">—</span>';
+                    }
+
+                    return '<button type="button" class="btn btn-sm btn-outline-secondary js-ulp-copy-pay-link" '
+                        + 'data-assignment-id="' + window.KidsCrmTooltip.escapeHtml(String(row.id)) + '" '
+                        + 'aria-label="Скопировать ссылку на оплату через СБП" '
+                        + 'title="Скопировать ссылку на оплату через СБП">'
+                        + '<i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать</button>';
+                }
+
+                var dtApi = KidsCrmDataTable.create('#ulp-assignments-table', {
+                    dataTable: {
+                        pageLength: 20,
+                        lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
+                        searching: true,
+                        order: [[0, 'desc']],
+                        ajax: {
+                            url: @json(route('admin.lesson-packages.assignments.data')),
+                            type: 'GET'
+                        },
+                        language: @include('partials.datatables.ru'),
                     },
                     columns: [
-                        { data: 'id', name: 'id', visible: false, searchable: false },
-                        { data: 'student', name: 'student', className: 'text-start', render: ulpTextRender },
-                        { data: 'package_name', name: 'package', className: 'text-start', render: ulpTextRender },
-                        { data: 'type_label', name: 'type', className: 'text-center text-nowrap', render: ulpTextRender },
-                        { data: 'period', name: 'period', className: 'text-center text-nowrap', render: ulpTextRender },
-                        { data: 'fee', name: 'fee', className: 'text-center text-nowrap', render: ulpTextRender },
                         {
-                            data: 'paid_html',
-                            name: 'paid',
-                            className: 'text-center',
-                            render: function (d) {
-                                return d != null ? d : '';
-                            }
+                            key: 'id',
+                            type: 'id',
+                            data: 'id',
+                            name: 'id',
+                            visible: false,
+                            searchable: false,
                         },
-                        { data: 'balance', name: 'balance', className: 'text-center text-nowrap', render: ulpTextRender },
                         {
-                            data: 'pay_link_html',
+                            key: 'student',
+                            type: 'text',
+                            data: 'student',
+                            className: 'text-start',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'package_name',
+                            type: 'text',
+                            data: 'package_name',
+                            className: 'text-start',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'type_label',
+                            type: 'text',
+                            data: 'type_label',
+                            className: 'text-center text-nowrap',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'period',
+                            type: 'text',
+                            data: 'period',
+                            className: 'text-center text-nowrap',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'fee',
+                            type: 'text',
+                            data: 'fee',
+                            className: 'text-center text-nowrap',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'paid',
+                            type: 'badge',
+                            data: 'effective_is_paid',
+                            name: 'paid',
+                            className: 'dt-col-badge text-center',
+                            render: ulpPaidRender,
+                        },
+                        {
+                            key: 'balance',
+                            type: 'text',
+                            data: 'balance',
+                            className: 'text-center text-nowrap',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'pay_link',
+                            type: 'text',
+                            data: 'pay_link_available',
                             name: 'pay_link',
                             orderable: false,
                             searchable: false,
                             className: 'text-start text-nowrap',
-                            render: function (d) {
-                                return d != null ? d : '';
-                            }
+                            render: ulpPayLinkRender,
                         },
                         {
-                            data: 'actions_html',
-                            name: 'actions',
-                            orderable: false,
-                            searchable: false,
+                            key: 'actions',
+                            type: 'actions',
                             className: 'text-start text-nowrap',
-                            render: function (d) {
-                                return d != null ? d : '';
-                            }
-                        }
+                            render: function (data, type, row) {
+                                if (type !== 'display') {
+                                    return '';
+                                }
+
+                                return '<button type="button" class="btn btn-sm btn-outline-primary js-ulp-assignment-edit" '
+                                    + 'data-assignment-id="' + window.KidsCrmTooltip.escapeHtml(String(row.id)) + '">Изменить</button>';
+                            },
+                        },
                     ],
-                    language: @include('partials.datatables.ru')
                 });
 
                 const assignmentsBase = @json(rtrim(route('admin.lesson-packages.assignments'), '/'));
@@ -548,7 +609,7 @@
                         }
                         return;
                     }
-                    assignmentsDataTable.ajax.reload(null, false);
+                    dtApi.reload({ keepPage: true });
                     modal.hide();
                 });
 
@@ -564,7 +625,7 @@
                         window.alert((payload && payload.message) || 'Не удалось удалить.');
                         return;
                     }
-                    assignmentsDataTable.ajax.reload(null, false);
+                    dtApi.reload({ keepPage: true });
                     modal.hide();
                 });
 

@@ -452,7 +452,8 @@ class LtvReportTest extends CrmTestCase
 
         $this->get(route('reports.ltv'))
             ->assertOk()
-            ->assertSee('pay-ltv-filter-location', false);
+            ->assertSee('pay-ltv-filter-location', false)
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_ltv_total_respects_filter_location_id(): void

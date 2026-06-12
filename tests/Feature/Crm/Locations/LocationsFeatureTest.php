@@ -59,8 +59,7 @@ final class LocationsFeatureTest extends CrmTestCase
 
         $this->get(route('admin.locations.index'))
             ->assertOk()
-            ->assertSee('serverSide: true', false)
-            ->assertSee('pageLength: 10', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('js-location-edit', false);
     }
 

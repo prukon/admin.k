@@ -140,7 +140,7 @@
                         <button type="button" id="verify-phone-btn" class="btn btn-success">Подтвердить</button>
                     @else
                         <button type="button" id="verify-phone-btn" class="btn btn-success disabled pe-none"
-                                aria-disabled="true" tabindex="-1" data-bs-toggle="tooltip"
+                                aria-disabled="true" tabindex="-1" data-kids-tooltip-hint data-bs-toggle="tooltip"
                                 title="Нет прав на изменение телефона">
                             Подтвердить
                         </button>
@@ -168,13 +168,6 @@
                     </div>
                 @endunless
             </div>
-
-            @unless($canPhone)
-                <script>document.addEventListener('DOMContentLoaded', () => {
-                        const b = document.getElementById('verify-phone-btn');
-                        if (b) new bootstrap.Tooltip(b);
-                    });</script>
-            @endunless
 
             {{--<h5>Пользовательские поля</h5>--}}
             @if($fields->isNotEmpty())

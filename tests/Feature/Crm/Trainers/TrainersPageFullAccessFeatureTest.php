@@ -54,7 +54,8 @@ final class TrainersPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="trainers-table"', false)
             ->assertSee('trainerCreateModal', false)
             ->assertSee('trainersReportFiltersCollapse', false)
-            ->assertSee('trainersColumnsDropdown', false);
+            ->assertSee('trainersColumnsDropdown', false)
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_all_trainers_page_endpoints_return_200_for_user_with_trainers_view(): void
@@ -160,6 +161,7 @@ final class TrainersPageFullAccessFeatureTest extends CrmTestCase
         $this->assertNotNull($row);
         $this->assertArrayHasKey('avatar_url', $row);
         $this->assertArrayHasKey('teams_label', $row);
+        $this->assertArrayHasKey('teams_titles', $row);
         $this->assertArrayHasKey('default_base_salary', $row);
         $this->assertArrayHasKey('status_label', $row);
     }

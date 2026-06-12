@@ -68,15 +68,15 @@
                              aria-labelledby="columnsDropdownDebtReport">
                             <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
                             <div class="form-check">
-                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColName" data-column-index="1" checked>
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColName" data-column-key="user_name" checked>
                                 <label class="form-check-label" for="debtColName">Имя пользователя</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColMonth" data-column-index="2" checked>
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColMonth" data-column-key="month" checked>
                                 <label class="form-check-label" for="debtColMonth">Месяц</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColPrice" data-column-index="3" checked>
+                                <input class="form-check-input debt-column-toggle" type="checkbox" id="debtColPrice" data-column-key="price" checked>
                                 <label class="form-check-label" for="debtColPrice">Сумма</label>
                             </div>
                         </div>
@@ -158,7 +158,7 @@
     </form>
 </div>
 
-<table class="table table-bordered" id="debts-table">
+<table class="table table-bordered dt-columns-managed w-100" id="debts-table">
     <thead>
     <tr>
         <th>№</th>
@@ -171,18 +171,6 @@
 
 @section('scripts')
     <script type="text/javascript">
-        function formatDateToMonthYear(dateStr) {
-            if (String(dateStr || '').indexOf('—') !== -1) {
-                return dateStr;
-            }
-            var date = new Date(dateStr);
-            var months = [
-                'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-                'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-            ];
-            return months[date.getMonth()] + ' ' + date.getFullYear();
-        }
-
         $(function () {
             var canViewLocations = @json($canViewLocations);
             var $debtFiltersForm = $('#debt-report-filters');
@@ -344,83 +332,60 @@
                     });
             }
 
-            var table = $('#debts-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: "{{ route('debts.getDebts') }}",
-                    type: 'GET',
-                    data: function (d) {
-                        var extra = debtReportFilterParams();
-                        Object.keys(extra).forEach(function (key) {
-                            d[key] = extra[key];
-                        });
-                    }
+            var dtApi = KidsCrmDataTable.create('#debts-table', {
+                columnsSettings: {
+                    defaults: {
+                        user_name: true,
+                        month: true,
+                        price: true
+                    },
+                    urls: {
+                        get: @json(route('reports.debts.columns-settings.get')),
+                        save: @json(route('reports.debts.columns-settings.save'))
+                    },
+                    toggleSelector: '.debt-column-toggle',
+                    csrfToken: '{{ csrf_token() }}'
+                },
+                dataTable: {
+                    ajax: {
+                        url: "{{ route('debts.getDebts') }}",
+                        type: 'GET',
+                        data: function (d) {
+                            var extra = debtReportFilterParams();
+                            Object.keys(extra).forEach(function (key) {
+                                d[key] = extra[key];
+                            });
+                        }
+                    },
+                    order: [[2, 'asc']],
+                    language: @include('partials.datatables.ru')
                 },
                 columns: [
-                    {data: 'DT_RowIndex', name: 'DT_RowIndex'},
+                    { type: 'rownum' },
                     {
-                        data: null,
+                        key: 'user_name',
+                        type: 'text',
+                        data: 'user_name',
                         name: 'user_name',
                         render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return row.user_name || '';
+                            }
                             if (row.user_id) {
-                                return row.user_name;
+                                return row.user_name || '';
                             }
                             return row.user_name ? row.user_name : 'Без имени';
                         }
                     },
-                    {
-                        data: 'month',
-                        name: 'month',
-                        render: function (data, type, row) {
-                            return formatDateToMonthYear(row.month);
-                        }
-                    },
-                    {
-                        data: 'price',
-                        name: 'price',
-                        render: function (data, type, row) {
-                            if (type === 'display') {
-                                function formatNumber(number) {
-                                    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                                }
-                                var formattedPrice = formatNumber(row.price);
-                                return formattedPrice + ' руб';
-                            }
-                            return parseFloat(row.price);
-                        }
-                    }
-                ],
-                order: [[2, 'asc']],
-                scrollX: true,
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
-                    },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
-                }
+                    { key: 'month', type: 'text', data: 'month', name: 'month' },
+                    { key: 'price', type: 'money', data: 'price', name: 'price' }
+                ]
             });
 
             $debtFiltersForm.on('submit', function (e) {
                 e.preventDefault();
                 refreshDebtReportTotal();
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
             });
 
             $('#debtReportFiltersResetBtn').on('click', function () {
@@ -432,15 +397,7 @@
                     $('#pay-debt-filter-location').val('');
                 }
                 refreshDebtReportTotal();
-                table.ajax.reload();
-            });
-
-            $('.debt-column-toggle').on('change', function () {
-                var idx = parseInt($(this).data('column-index'), 10);
-                if (isNaN(idx)) {
-                    return;
-                }
-                table.column(idx).visible($(this).is(':checked'));
+                dtApi.reload();
             });
         });
     </script>

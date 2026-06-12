@@ -156,7 +156,7 @@
     </form>
 </div>
 
-<table class="table table-bordered" id="emails-table">
+<table class="table table-bordered dt-columns-managed w-100" id="emails-table">
     <thead>
     <tr>
         <th>№</th>
@@ -253,177 +253,117 @@ $(function () {
         });
     }
 
-    var defaultColumnsVisibility = {
-        id: true,
-        created_at: true,
-        sent_at: true,
-        status: true,
-        from_address: true,
-        to_summary: true,
-        subject: true,
-        mailable_short: true,
-        error_excerpt: true,
-        send_attempts: true,
-        actions: true
-    };
-
-    // 0 — № (DT_RowIndex), всегда виден; ниже карта индексов колонок
-    var columnsMap = {
-        id: 1,
-        created_at: 2,
-        sent_at: 3,
-        status: 4,
-        from_address: 5,
-        to_summary: 6,
-        subject: 7,
-        mailable_short: 8,
-        error_excerpt: 9,
-        send_attempts: 10,
-        actions: 11
-    };
-
-    var currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
-
-    function toBool(val, fallback) {
-        if (val === undefined || val === null) return fallback;
-        if (typeof val === 'boolean') return val;
-        if (typeof val === 'number') return val === 1;
-        if (typeof val === 'string') {
-            var v = val.toLowerCase().trim();
-            if (v === 'true' || v === '1') return true;
-            if (v === 'false' || v === '0') return false;
-        }
-        return fallback;
-    }
-
-    function applyVisibleColumns(config) {
-        Object.keys(columnsMap).forEach(function (key) {
-            var idx = columnsMap[key];
-            var col = table.column(idx);
-            var isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-            col.visible(isVisible);
-            $('.emails-column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-        });
-        try { table.columns.adjust(); } catch (e) { /* no-op */ }
-    }
-
-    function loadColumnsConfigFromServer() {
-        $.ajax({
-            url: '/admin/reports/emails/columns-settings',
-            type: 'GET',
-            dataType: 'json',
-            success: function (response) {
-                var merged = {};
-                Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                    merged[key] = toBool(
-                        response && Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                        defaultColumnsVisibility[key]
-                    );
-                });
-                currentColumnsConfig = merged;
-                applyVisibleColumns(currentColumnsConfig);
-            },
-            error: function () {
-                currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
-                applyVisibleColumns(currentColumnsConfig);
-            }
-        });
-    }
-
-    function escapeHtml(s) {
-        return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
-
     function statusBadge(s) {
         if (!s) return '';
         if (s === 'sent') return '<span class="badge bg-success">отправлено</span>';
         if (s === 'sending') return '<span class="badge bg-warning text-dark">в процессе</span>';
         if (s === 'failed') return '<span class="badge bg-danger">ошибка</span>';
-        return '<span class="badge bg-secondary">' + escapeHtml(s) + '</span>';
+        return '<span class="badge bg-secondary">' + KidsCrmTooltip.escapeHtml(s) + '</span>';
     }
 
-    var columns = [
-        {data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false},
-        {data: 'id', name: 'id'},
-        {data: 'created_at', name: 'created_at'},
-        {data: 'sent_at', name: 'sent_at'},
-        {
-            data: 'status', name: 'status',
-            render: function (data) { return statusBadge(data); }
+    var dtApi = KidsCrmDataTable.create('#emails-table', {
+        columnsSettings: {
+            defaults: {
+                id: true,
+                created_at: true,
+                sent_at: true,
+                status: true,
+                from_address: true,
+                to_summary: true,
+                subject: true,
+                mailable_short: true,
+                error_excerpt: true,
+                send_attempts: true,
+                actions: true
+            },
+            urls: {
+                get: '/admin/reports/emails/columns-settings',
+                save: '/admin/reports/emails/columns-settings'
+            },
+            toggleSelector: '.emails-column-toggle',
+            csrfToken: '{{ csrf_token() }}'
         },
-        {data: 'from_address', name: 'from_address'},
-        {
-            data: 'to_summary', name: 'to_summary',
-            render: function (data) { return escapeHtml(data); }
-        },
-        {
-            data: 'subject', name: 'subject',
-            render: function (data) { return escapeHtml(data); }
-        },
-        {
-            data: 'mailable_short', name: 'mailable_short',
-            render: function (data) { return escapeHtml(data); }
-        },
-        {
-            data: 'error_excerpt', name: 'error_excerpt',
-            orderable: false, searchable: false,
-            render: function (data) {
-                if (!data) return '';
-                return '<span class="text-danger">' + escapeHtml(data) + '</span>';
-            }
-        },
-        {data: 'send_attempts', name: 'send_attempts'},
-        {
-            data: 'show_url', name: 'actions',
-            orderable: false, searchable: false,
-            render: function (url, type, row) {
-                return '<a class="btn btn-sm btn-outline-primary" href="' + url + '" title="Открыть">Открыть</a>';
-            }
-        }
-    ];
-
-    var table = $('#emails-table').DataTable({
-        processing: true,
-        serverSide: true,
-        ajax: {
-            url: "{{ route('reports.emails.data') }}",
-            data: function (d) {
-                var f = getFilterParams();
-                Object.keys(f).forEach(function (k) {
-                    if (Array.isArray(f[k])) {
+        dataTable: {
+            ajax: {
+                url: "{{ route('reports.emails.data') }}",
+                data: function (d) {
+                    var f = getFilterParams();
+                    Object.keys(f).forEach(function (k) {
                         d[k] = f[k];
-                    } else {
-                        d[k] = f[k];
+                    });
+                }
+            },
+            order: [[2, 'desc']],
+            language: @include('partials.datatables.ru')
+        },
+        columns: [
+            { type: 'rownum' },
+            { key: 'id', type: 'id', data: 'id' },
+            { key: 'created_at', type: 'text', data: 'created_at', className: 'text-nowrap' },
+            { key: 'sent_at', type: 'text', data: 'sent_at', className: 'text-nowrap' },
+            {
+                key: 'status',
+                type: 'badge',
+                data: 'status',
+                name: 'status',
+                className: 'dt-col-badge text-center',
+                render: function (data, type) {
+                    if (type !== 'display') {
+                        return data || '';
                     }
-                });
+                    return statusBadge(data);
+                }
+            },
+            { key: 'from_address', type: 'text', data: 'from_address' },
+            {
+                key: 'to_summary',
+                type: 'text',
+                data: 'to_summary',
+                render: function (data, type) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return data != null ? data : '';
+                    }
+                    return KidsCrmTooltip.renderText(data);
+                }
+            },
+            { key: 'subject', type: 'text', data: 'subject' },
+            { key: 'mailable_short', type: 'text', data: 'mailable_short' },
+            {
+                key: 'error_excerpt',
+                type: 'text',
+                data: 'error_excerpt',
+                name: 'error_excerpt',
+                orderable: false,
+                searchable: false,
+                className: 'dt-col-text',
+                render: function (data, type) {
+                    if (type !== 'display') {
+                        return data || '';
+                    }
+                    if (!data) {
+                        return '';
+                    }
+                    return '<span class="text-danger">' + KidsCrmTooltip.escapeHtml(data) + '</span>';
+                }
+            },
+            { key: 'send_attempts', type: 'count', data: 'send_attempts' },
+            {
+                key: 'actions',
+                type: 'actions',
+                name: 'actions',
+                className: 'text-nowrap',
+                render: function (data, type, row) {
+                    var url = row.show_url || '';
+                    return '<a class="btn btn-sm btn-outline-primary" href="' + url + '" title="Открыть">Открыть</a>';
+                }
             }
-        },
-        columns: columns,
-        order: [[2, 'desc']],
-        scrollX: true,
-        language: {
-            "processing": "Обработка...",
-            "search": "",
-            "searchPlaceholder": "Поиск...",
-            "lengthMenu": "Показать _MENU_",
-            "info": "С _START_ до _END_ из _TOTAL_ записей",
-            "infoEmpty": "С 0 до 0 из 0 записей",
-            "infoFiltered": "(отфильтровано из _MAX_ записей)",
-            "loadingRecords": "Загрузка записей...",
-            "zeroRecords": "Записи отсутствуют.",
-            "emptyTable": "В таблице отсутствуют данные",
-            "paginate": {"first": "", "previous": "", "next": "", "last": ""}
-        }
+        ]
     });
-
-    loadColumnsConfigFromServer();
 
     $form.on('submit', function (e) {
         e.preventDefault();
         refreshTotals();
-        table.ajax.reload();
+        dtApi.reload();
     });
 
     $('#emailsReportFiltersResetBtn').on('click', function () {
@@ -431,23 +371,7 @@ $(function () {
         $('#em-filter-mailable').val(null).trigger('change');
         $('#em-filter-status').val(null).trigger('change');
         refreshTotals();
-        table.ajax.reload();
-    });
-
-    $('.emails-column-toggle').on('change', function () {
-        var key = $(this).data('column-key');
-        var checked = $(this).is(':checked');
-        currentColumnsConfig[key] = checked ? 1 : 0;
-        applyVisibleColumns(currentColumnsConfig);
-        $.ajax({
-            url: '/admin/reports/emails/columns-settings',
-            type: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                columns: currentColumnsConfig
-            },
-            error: function () { console.error('Не удалось сохранить настройки колонок'); }
-        });
+        dtApi.reload();
     });
 });
 </script>

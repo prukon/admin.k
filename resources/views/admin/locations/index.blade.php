@@ -155,7 +155,7 @@
         </div>
 
         <div class="table-responsive">
-            <table id="locations-table" class="table table-striped table-bordered align-middle w-100">
+            <table id="locations-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
                     <th>№</th>
@@ -300,7 +300,6 @@
 @endsection
 
 @if($teamOptions->isNotEmpty())
-    @include('partials.ui.hover-list-dropdown')
     @include('partials.select2.generic-multiselect')
 @endif
 
@@ -310,84 +309,6 @@
             const canManageLocations = @json(auth()->user()->can('locations.manage'));
             const hasTeamOptions = @json($teamOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
-
-            const defaultColumnsVisibility = {
-                id: true,
-                name: true,
-                address: true,
-                ...(hasTeamOptions ? { teams_label: true } : {}),
-                is_enabled_label: true,
-                ...(canManageLocations ? { actions: true } : {})
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = (function () {
-                const map = { id: 0, name: 1, address: 2 };
-                let idx = 3;
-                if (hasTeamOptions) {
-                    map.teams_label = idx++;
-                }
-                map.is_enabled_label = idx++;
-                if (canManageLocations) {
-                    map.actions = idx;
-                }
-                return map;
-            })();
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-
-                if (typeof val === 'boolean') return val;
-
-                if (typeof val === 'number') return val === 1;
-
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-
-                    column.visible(isVisible);
-
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: @json(route('admin.locations.columns-settings.get')),
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
 
             function locationsFilterParams() {
                 return {
@@ -415,103 +336,72 @@
                 }
             }
 
-            const dataTableColumns = [
-                {
-                    data: 'id',
-                    name: 'id',
-                    className: 'text-center',
-                    defaultContent: ''
+            const dtApi = KidsCrmDataTable.create('#locations-table', {
+                columnsSettings: {
+                    defaults: {
+                        id: true,
+                        name: true,
+                        address: true,
+                        ...(hasTeamOptions ? { teams_label: true } : {}),
+                        is_enabled_label: true,
+                        ...(canManageLocations ? { actions: true } : {}),
+                    },
+                    urls: {
+                        get: @json(route('admin.locations.columns-settings.get')),
+                        save: @json(route('admin.locations.columns-settings.save')),
+                    },
+                    csrfToken: '{{ csrf_token() }}',
                 },
-                {
-                    data: 'name',
-                    name: 'name',
-                    defaultContent: ''
-                },
-                {
-                    data: 'address',
-                    name: 'address',
-                    defaultContent: '',
-                    render: function (data) {
-                        return data ? data : '<span class="text-muted">—</span>';
-                    }
-                },
-                ...(hasTeamOptions ? [{
-                    data: 'teams_label',
-                    name: 'teams_label',
-                    defaultContent: '',
-                    render: function (data, type, row) {
-                        if (type !== 'display') {
-                            return data || '';
+                dataTable: {
+                    ajax: {
+                        url: @json(route('admin.locations.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            const params = locationsFilterParams();
+                            d.name = params.name;
+                            d.status = params.status;
                         }
-
-                        if (!data) {
-                            return '<span class="text-muted">—</span>';
-                        }
-
-                        if (window.KidsCrmHoverListDropdown) {
-                            return KidsCrmHoverListDropdown.renderCell(data, row.teams_titles || []);
-                        }
-
-                        return data;
-                    }
-                }] : []),
-                {
-                    data: 'is_enabled_label',
-                    name: 'is_enabled_label',
-                    className: 'text-center',
-                    defaultContent: '',
-                    render: function (data, type, row) {
-                        const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                        return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                    }
+                    },
+                    order: [[1, 'asc']],
+                    language: @include('partials.datatables.ru')
                 },
-                ...(canManageLocations ? [{
-                    data: null,
-                    name: 'actions',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-end',
-                    render: function (data, type, row) {
-                        return '<button type="button" ' +
-                            'class="btn btn-sm btn-outline-primary js-location-edit" ' +
-                            'data-id="' + row.id + '">' +
-                            'Редактировать' +
-                            '</button>';
-                    }
-                }] : [])
-            ];
-
-            const table = $('#locations-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: @json(route('admin.locations.data')),
-                    type: 'GET',
-                    data: function (d) {
-                        const params = locationsFilterParams();
-                        d.name = params.name;
-                        d.status = params.status;
-                    }
-                },
-                columns: dataTableColumns,
-                order: [[1, 'asc']],
-                scrollX: true,
-                language: @include('partials.datatables.ru')
+                columns: [
+                    { key: 'id', type: 'id', data: 'id' },
+                    { key: 'name', type: 'text', data: 'name' },
+                    { key: 'address', type: 'text-long', data: 'address' },
+                    {
+                        key: 'teams_label',
+                        type: 'list',
+                        data: 'teams_label',
+                        itemsKey: 'teams_titles',
+                        when: hasTeamOptions,
+                    },
+                    {
+                        key: 'is_enabled_label',
+                        type: 'badge',
+                        data: 'is_enabled_label',
+                        badgeKey: 'is_enabled',
+                        className: 'dt-col-badge text-center',
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        when: canManageLocations,
+                        render: function (data, type, row) {
+                            return '<button type="button" ' +
+                                'class="btn btn-sm btn-outline-primary js-location-edit" ' +
+                                'data-id="' + row.id + '">' +
+                                'Редактировать' +
+                                '</button>';
+                        }
+                    },
+                ],
             });
 
-            if (hasTeamOptions && window.KidsCrmHoverListDropdown) {
-                table.on('draw.dt', function () {
-                    KidsCrmHoverListDropdown.init(document.getElementById('locations-table'));
-                });
-            }
-
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
+            const table = dtApi.table;
 
             function reloadLocationsTable() {
-                table.ajax.reload(null, false);
+                dtApi.reload({ keepPage: true });
                 syncLocationsFiltersCollapseState();
             }
 
@@ -543,27 +433,6 @@
                     'aria-expanded',
                     $('#locationsReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
                 );
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: @json(route('admin.locations.columns-settings.save')),
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: currentColumnsConfig
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
             });
 
             @can('locations.manage')

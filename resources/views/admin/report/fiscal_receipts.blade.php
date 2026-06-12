@@ -117,12 +117,6 @@
         vertical-align: middle;
     }
 
-    .fiscal-payload-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
     .fiscal-payload-modal-pre {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         font-size: 0.8125rem;
@@ -239,7 +233,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-bordered" id="fiscal-receipts-table">
+    <table class="table table-bordered dt-columns-managed w-100" id="fiscal-receipts-table">
         <thead>
         <tr>
             <th>ID</th>
@@ -419,70 +413,6 @@
                     });
             }
 
-            var defaultColumnsVisibility = {
-                partner: true,
-                payment_intent_id: true,
-                payment_id: true,
-                external_id: true,
-                error: true,
-                request_payload: true,
-                response_payload: true,
-                webhook_payload: true
-            };
-            var currentColumnsConfig = {...defaultColumnsVisibility};
-            var columnsMap = {
-                partner: 1,
-                payment_intent_id: 2,
-                payment_id: 3,
-                external_id: 7,
-                error: 8,
-                request_payload: 9,
-                response_payload: 10,
-                webhook_payload: 11
-            };
-
-            function dtLanguageRu() {
-                return {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
-                    },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
-                };
-            }
-
-            function toBool(val, fallback) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    var v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function formatAmount(number) {
-                if (number === null || number === undefined || number === '') return '';
-                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            }
-
             function renderStatusBadge(status) {
                 if (!status) return '';
                 var s = String(status);
@@ -527,36 +457,6 @@
                 }
             }
 
-            function prettyJsonOrDecoded(decoded) {
-                try {
-                    return JSON.stringify(JSON.parse(decoded), null, 2);
-                } catch (e) {
-                    return decoded;
-                }
-            }
-
-            function renderDateTimeTwoLines(data, type) {
-                if (!data) return data;
-                if (type !== 'display') return data;
-                var date = new Date(data);
-                if (isNaN(date.getTime())) return data;
-                var day = ("0" + date.getDate()).slice(-2);
-                var month = ("0" + (date.getMonth() + 1)).slice(-2);
-                var year = date.getFullYear();
-                var hours = ("0" + date.getHours()).slice(-2);
-                var minutes = ("0" + date.getMinutes()).slice(-2);
-                var seconds = ("0" + date.getSeconds()).slice(-2);
-                var dateLine = day + '.' + month + '.' + year;
-                var timeLine = hours + ':' + minutes + ':' + seconds;
-                return (
-                    '<div class="pay-cell-datetime" role="text" aria-label="' +
-                    dateLine + ', ' + timeLine + '">' +
-                    '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
-                    '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
-                    '</div>'
-                );
-            }
-
             function flashCopyButton($btn) {
                 var origHtml = $btn.html();
                 $btn.prop('disabled', true).html('<i class="fas fa-check text-success" aria-hidden="true"></i>');
@@ -595,110 +495,83 @@
                 }
             }
 
-            /**
-             * Request / Response: в ячейке только кнопки; отформатированный JSON — в модалке и при копировании (скрытый span).
-             */
-            function renderJsonPayloadCell(payloadText, title) {
-                if (!payloadText) {
-                    return '<span class="text-muted">—</span>';
-                }
-
-                var decoded = decodeHtmlEntitiesSafe(String(payloadText)).trim();
-                var copyAndModalText = prettyJsonOrDecoded(decoded);
-                var safeCopy = $('<div/>').text(copyAndModalText).html();
-                var safeTitle = $('<div/>').text(title).html();
-
-                return (
-                    '<div class="fiscal-payload-actions fiscal-payload-cell" data-title="' + safeTitle + '">' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary js-show-fiscal-payload" title="Показать">' +
-                    '<i class="fas fa-eye" aria-hidden="true"></i>' +
-                    '<span class="visually-hidden">Показать</span>' +
-                    '</button>' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-fiscal-payload" title="Копировать">' +
-                    '<i class="fas fa-copy" aria-hidden="true"></i>' +
-                    '<span class="visually-hidden">Копировать</span>' +
-                    '</button>' +
-                    '<span class="fiscal-payload-full d-none">' + safeCopy + '</span>' +
-                    '</div>'
-                );
-            }
-
-            function renderPayloadActions(payloadText, title) {
-                if (!payloadText) {
-                    return '<span class="text-muted">—</span>';
-                }
-
-                var decoded = decodeHtmlEntitiesSafe(String(payloadText)).trim();
-                var safe = $('<div/>').text(decoded).html();
-
-                return (
-                    '<div class="fiscal-payload-actions fiscal-payload-cell" data-title="' + $('<div/>').text(title).html() + '">' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary js-show-fiscal-payload" title="Показать">' +
-                    '<i class="fas fa-eye" aria-hidden="true"></i>' +
-                    '<span class="visually-hidden">Показать</span>' +
-                    '</button>' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-fiscal-payload" title="Копировать">' +
-                    '<i class="fas fa-copy" aria-hidden="true"></i>' +
-                    '<span class="visually-hidden">Копировать</span>' +
-                    '</button>' +
-                    '<span class="fiscal-payload-full d-none">' + safe + '</span>' +
-                    '</div>'
-                );
-            }
-
-            var table = $('#fiscal-receipts-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: "{{ route('reports.fiscal-receipts.data') }}",
-                    data: function (d) {
-                        var extra = frFilterParams();
-                        Object.keys(extra).forEach(function (key) {
-                            d[key] = extra[key];
-                        });
-                    }
+            var dtApi = KidsCrmDataTable.create('#fiscal-receipts-table', {
+                columnsSettings: {
+                    defaults: {
+                        partner: true,
+                        payment_intent_id: true,
+                        payment_id: true,
+                        external_id: true,
+                        error: true,
+                        request_payload: true,
+                        response_payload: true,
+                        webhook_payload: true
+                    },
+                    urls: {
+                        get: '/admin/reports/fiscal-receipts/columns-settings',
+                        save: '/admin/reports/fiscal-receipts/columns-settings'
+                    },
+                    toggleSelector: '.fiscal-receipts-column-toggle',
+                    csrfToken: '{{ csrf_token() }}'
+                },
+                dataTable: {
+                    ajax: {
+                        url: "{{ route('reports.fiscal-receipts.data') }}",
+                        data: function (d) {
+                            var extra = frFilterParams();
+                            Object.keys(extra).forEach(function (key) {
+                                d[key] = extra[key];
+                            });
+                        }
+                    },
+                    order: [[0, 'desc']],
+                    fixedColumns: {leftColumns: 2},
+                    language: @include('partials.datatables.ru')
                 },
                 columns: [
-                    {data: 'id', name: 'id'},
+                    { key: 'id', type: 'id', data: 'id', name: 'id' },
                     {
-                        data: null,
+                        key: 'partner',
+                        type: 'text',
+                        data: 'partner_id',
                         name: 'partner_id',
+                        className: 'dt-col-text',
                         render: function (data, type, row) {
                             if (type !== 'display') {
                                 return row.partner_id || '';
                             }
-                            var title = row.partner_title ? ('<div class="small text-muted">' + $('<div/>').text(row.partner_title).html() + '</div>') : '';
+                            var title = row.partner_title
+                                ? ('<div class="small text-muted">' + $('<div/>').text(row.partner_title).html() + '</div>')
+                                : '';
                             return (row.partner_id || '') + title;
                         }
                     },
-                    {data: 'payment_intent_id', name: 'payment_intent_id'},
-                    {data: 'payment_id', name: 'payment_id'},
-                    {data: 'type', name: 'type'},
+                    { key: 'payment_intent_id', type: 'text', data: 'payment_intent_id', name: 'payment_intent_id' },
+                    { key: 'payment_id', type: 'text', data: 'payment_id', name: 'payment_id' },
+                    { key: 'type', type: 'text', data: 'type', name: 'type' },
                     {
+                        key: 'status',
+                        type: 'badge',
                         data: 'status',
                         name: 'status',
-                        render: function (data, type, row) {
-                            if (type !== 'display') return data || '';
+                        className: 'dt-col-badge text-center',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
                             return renderStatusBadge(data);
                         }
                     },
+                    { key: 'amount', type: 'money', data: 'amount', name: 'amount' },
+                    { key: 'external_id', type: 'text', data: 'external_id', name: 'external_id' },
                     {
-                        data: 'amount',
-                        name: 'amount',
-                        render: function (data, type, row) {
-                            if (type !== 'display') return data;
-                            if (data === null || data === undefined || data === '') return '';
-                            var n = Math.round(parseFloat(data));
-                            if (isNaN(n)) return '';
-                            return formatAmount(n) + ' руб';
-                        }
-                    },
-                    {data: 'external_id', name: 'external_id'},
-                    {
-                        data: null,
+                        key: 'error',
+                        type: 'text',
+                        data: 'error_message',
                         name: 'error_message',
                         orderable: false,
                         searchable: false,
+                        className: 'dt-col-text',
                         render: function (data, type, row) {
                             var code = row.error_code !== null && row.error_code !== undefined ? String(row.error_code) : '';
                             var msg = row.error_message ? String(row.error_message) : '';
@@ -706,148 +579,84 @@
                                 return (code + ' ' + msg).trim();
                             }
                             if (!code && !msg) {
-                                return '<span class="text-muted">—</span>';
+                                return '<span class="dt-cell-empty text-muted">—</span>';
                             }
                             var parts = [];
-                            if (code) parts.push('<span class="badge bg-danger">code: ' + $('<div/>').text(code).html() + '</span>');
-                            if (msg) parts.push('<div class="small mt-1">' + $('<div/>').text(msg).html() + '</div>');
+                            if (code) {
+                                parts.push('<span class="badge bg-danger">code: ' + $('<div/>').text(code).html() + '</span>');
+                            }
+                            if (msg) {
+                                parts.push('<div class="small mt-1">' + $('<div/>').text(msg).html() + '</div>');
+                            }
                             return parts.join('');
                         }
                     },
                     {
+                        key: 'request_payload',
+                        type: 'inline-actions',
                         data: 'request_payload',
                         name: 'request_payload',
                         orderable: false,
-                        render: function (data, type, row) {
-                            if (type !== 'display') return data || '';
-                            return renderJsonPayloadCell(data, 'Request Payload');
-                        }
+                        searchable: false,
+                        className: 'dt-col-inline-actions fiscal-payload-td',
+                        inlineActions: { modalTitle: 'Request Payload', format: 'meta-pretty' }
                     },
                     {
+                        key: 'response_payload',
+                        type: 'inline-actions',
                         data: 'response_payload',
                         name: 'response_payload',
                         orderable: false,
-                        render: function (data, type, row) {
-                            if (type !== 'display') return data || '';
-                            return renderJsonPayloadCell(data, 'Response Payload');
-                        }
+                        searchable: false,
+                        className: 'dt-col-inline-actions fiscal-payload-td',
+                        inlineActions: { modalTitle: 'Response Payload', format: 'meta-pretty' }
                     },
                     {
+                        key: 'webhook_payload',
+                        type: 'inline-actions',
                         data: 'webhook_payload',
                         name: 'webhook_payload',
                         orderable: false,
-                        render: function (data, type, row) {
-                            if (type !== 'display') return data || '';
-                            return renderPayloadActions(data, 'Webhook Payload');
-                        }
+                        searchable: false,
+                        className: 'dt-col-inline-actions fiscal-payload-td',
+                        inlineActions: { modalTitle: 'Webhook Payload' }
                     },
-                    {
-                        data: 'created_at',
-                        name: 'created_at',
-                        render: function (data, type, row) {
-                            return renderDateTimeTwoLines(data, type);
-                        }
-                    },
-                    {
-                        data: 'queued_at',
-                        name: 'queued_at',
-                        render: function (data, type, row) {
-                            return renderDateTimeTwoLines(data, type);
-                        }
-                    },
-                    {data: 'processed_at', name: 'processed_at'},
-                    {data: 'failed_at', name: 'failed_at'}
-                ],
-                order: [[0, 'desc']],
-                scrollX: true,
-                fixedColumns: {leftColumns: 2},
-                language: dtLanguageRu()
+                    { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at' },
+                    { key: 'queued_at', type: 'datetime', data: 'queued_at', name: 'queued_at' },
+                    { key: 'processed_at', type: 'datetime', data: 'processed_at', name: 'processed_at' },
+                    { key: 'failed_at', type: 'datetime', data: 'failed_at', name: 'failed_at' }
+                ]
             });
-
-            table.on('draw', function () {
-                $('#fiscal-receipts-table td:nth-child(10), ' +
-                  '#fiscal-receipts-table td:nth-child(11), ' +
-                  '#fiscal-receipts-table td:nth-child(12)').addClass('fiscal-payload-td');
-            });
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    var colIndex = columnsMap[key];
-                    var isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    table.column(colIndex).visible(isVisible, false);
-                    $('.fiscal-receipts-column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-                });
-                table.columns.adjust().draw(false);
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: '/admin/reports/fiscal-receipts/columns-settings',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        var merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
-            loadColumnsConfigFromServer();
-
-            $('.fiscal-receipts-column-toggle').on('change', function () {
-                var key = $(this).data('column-key');
-                var isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: '/admin/reports/fiscal-receipts/columns-settings',
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: currentColumnsConfig
-                    },
-                    success: function () {},
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
-            });
+            var table = dtApi.table;
 
             var payloadModalEl = document.getElementById('fiscalPayloadModal');
             var payloadModal = payloadModalEl && typeof bootstrap !== 'undefined'
                 ? bootstrap.Modal.getOrCreateInstance(payloadModalEl)
                 : null;
 
-            $('#fiscal-receipts-table').on('click', '.js-show-fiscal-payload', function (e) {
+            $('#fiscal-receipts-table').on('click', '.js-kids-dt-inline-actions-show', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                var $cell = $(this).closest('.fiscal-payload-cell');
-                var full = $cell.find('.fiscal-payload-full').text();
-                var title = $cell.data('title') || 'Payload';
-                $('#fiscalPayloadModalLabel').text(title);
-                $('#fiscalPayloadModal .fiscal-payload-modal-pre').text(formatPayloadPretty(full));
+                var $wrap = $(this).closest('.kids-dt-inline-actions');
+                var full = $wrap.find('.kids-dt-inline-actions__full').text();
+                if ($wrap.data('format') === 'meta-pretty') {
+                    full = formatPayloadPretty(full);
+                }
+                $('#fiscalPayloadModalLabel').text($wrap.data('modal-title') || 'Payload');
+                $('#fiscalPayloadModal .fiscal-payload-modal-pre').text(full);
                 if (payloadModal) {
                     payloadModal.show();
                 }
             });
 
-            $('#fiscal-receipts-table').on('click', '.js-copy-fiscal-payload', function (e) {
+            $('#fiscal-receipts-table').on('click', '.js-kids-dt-inline-actions-copy', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                var full = $(this).closest('.fiscal-payload-cell').find('.fiscal-payload-full').text();
+                var $wrap = $(this).closest('.kids-dt-inline-actions');
+                var full = $wrap.find('.kids-dt-inline-actions__full').text();
+                if ($wrap.data('format') === 'meta-pretty') {
+                    full = formatPayloadPretty(full);
+                }
                 copyTextToClipboard(full, $(this));
             });
 
@@ -860,14 +669,14 @@
             $form.on('submit', function (e) {
                 e.preventDefault();
                 refreshFiscalReceiptsTotal();
-                table.ajax.reload();
+                dtApi.reload();
             });
 
             $('#fiscalReceiptsResetBtn').on('click', function () {
                 $form[0].reset();
                 $frFilterPartner.val(null).trigger('change');
                 refreshFiscalReceiptsTotal();
-                table.ajax.reload();
+                dtApi.reload();
             });
         });
     </script>

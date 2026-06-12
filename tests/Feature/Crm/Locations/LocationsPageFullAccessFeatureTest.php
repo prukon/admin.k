@@ -45,8 +45,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('locationsReportFiltersCollapse', false)
             ->assertSee('locationsColumnsDropdown', false)
-            ->assertSee('serverSide: true', false)
-            ->assertSee('pageLength: 10', false);
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_all_locations_page_endpoints_return_200_for_admin_with_manage(): void
@@ -179,7 +178,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('showConfirmDeleteModal', false)
             ->assertSee('KidsCrmGenericMultiselectSelect2', false)
-            ->assertSee('KidsCrmHoverListDropdown.renderCell', false);
+            ->assertSee('KidsCrmDataTable.create', false);
 
         $this->getJson(route('admin.locations.data', [
             'draw' => 1,

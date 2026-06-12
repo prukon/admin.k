@@ -139,7 +139,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table id="trainers-table" class="table table-striped table-bordered align-middle w-100">
+                    <table id="trainers-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                         <thead>
                         <tr>
                             <th>№</th>
@@ -389,6 +389,7 @@
                                     @unless($canChangeTrainerPassword)
                                         aria-disabled="true"
                                         tabindex="-1"
+                                        data-kids-tooltip-hint
                                         data-bs-toggle="tooltip"
                                         title="Нет прав на изменение пароля"
                                     @endunless
@@ -422,92 +423,13 @@
             defaultAvatar: @json(asset('img/default-avatar.png')),
             storeUrl: @json(route('admin.trainers.store')),
             dataUrl: @json(route('admin.trainers.data')),
-            columnsSettingsUrl: @json(route('admin.trainers.columns-settings.get')),
             canChangePassword: @json($canChangeTrainerPassword ?? false),
         };
     </script>
     <script>
         $(document).ready(function () {
             const defaultAvatar = window.__trainerPageConfig.defaultAvatar;
-            const csrfToken = $('meta[name="csrf-token"]').attr('content');
             const defaultFilterStatus = 'active';
-
-            const defaultColumnsVisibility = {
-                avatar: true,
-                full_name: true,
-                teams_label: true,
-                email: true,
-                default_base_salary: true,
-                default_rate_per_training: true,
-                sort_order: true,
-                is_enabled: true,
-                actions: true,
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = {
-                avatar: 1,
-                full_name: 2,
-                teams_label: 3,
-                email: 4,
-                default_base_salary: 5,
-                default_rate_per_training: 6,
-                sort_order: 7,
-                is_enabled: 8,
-                actions: 9,
-            };
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    column.visible(isVisible);
-                    $('.column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-                });
-
-                try {
-                    table.columns.adjust();
-                } catch (e) {
-                    /* no-op */
-                }
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: window.__trainerPageConfig.columnsSettingsUrl,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
 
             function trainersFilterParams() {
                 return {
@@ -538,108 +460,99 @@
                 }
             }
 
-            const table = $('#trainers-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: window.__trainerPageConfig.dataUrl,
-                    type: 'GET',
-                    data: function (d) {
-                        const params = trainersFilterParams();
-                        d.name = params.name;
-                        d.team_id = params.team_id;
-                        d.status = params.status;
-                    }
+            const dtApi = KidsCrmDataTable.create('#trainers-table', {
+                columnsSettings: {
+                    defaults: {
+                        avatar: true,
+                        full_name: true,
+                        teams_label: true,
+                        email: true,
+                        default_base_salary: true,
+                        default_rate_per_training: true,
+                        sort_order: true,
+                        is_enabled: true,
+                        actions: true,
+                    },
+                    urls: {
+                        get: @json(route('admin.trainers.columns-settings.get')),
+                        save: @json(route('admin.trainers.columns-settings.save')),
+                    },
+                    csrfToken: $('meta[name="csrf-token"]').attr('content'),
+                },
+                dataTable: {
+                    ajax: {
+                        url: window.__trainerPageConfig.dataUrl,
+                        type: 'GET',
+                        data: function (d) {
+                            const params = trainersFilterParams();
+                            d.name = params.name;
+                            d.team_id = params.team_id;
+                            d.status = params.status;
+                        },
+                    },
+                    order: [[7, 'asc']],
+                    language: @include('partials.datatables.ru'),
                 },
                 columns: [
+                    { type: 'rownum' },
                     {
-                        data: null,
-                        name: 'rownum',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-center',
-                        render: function (data, type, row, meta) {
-                            return meta.row + meta.settings._iDisplayStart + 1;
-                        }
-                    },
-                    {
+                        key: 'avatar',
+                        type: 'image',
                         data: 'avatar_url',
                         name: 'avatar_url',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center',
-                        render: function (data) {
-                            const url = data || defaultAvatar;
-                            return '<img src="' + url + '" alt="" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">';
-                        }
+                        fallbackUrl: defaultAvatar,
                     },
+                    { key: 'full_name', type: 'text', data: 'full_name' },
                     {
-                        data: 'full_name',
-                        name: 'full_name',
-                        defaultContent: ''
-                    },
-                    {
+                        key: 'teams_label',
+                        type: 'list',
                         data: 'teams_label',
-                        name: 'teams_label',
+                        itemsKey: 'teams_titles',
                         orderable: false,
                         searchable: false,
-                        render: function (data) {
-                            return data ? data : '<span class="text-muted">—</span>';
-                        }
                     },
+                    { key: 'email', type: 'text', data: 'email' },
                     {
-                        data: 'email',
-                        name: 'email',
-                        defaultContent: ''
-                    },
-                    {
+                        key: 'default_base_salary',
+                        type: 'text',
                         data: 'default_base_salary',
-                        name: 'default_base_salary',
-                        className: 'text-end text-nowrap'
+                        className: 'dt-col-count text-end text-nowrap',
                     },
                     {
+                        key: 'default_rate_per_training',
+                        type: 'text',
                         data: 'default_rate_per_training',
-                        name: 'default_rate_per_training',
-                        className: 'text-end text-nowrap'
+                        className: 'dt-col-count text-end text-nowrap',
                     },
+                    { key: 'sort_order', type: 'sort', data: 'sort_order' },
                     {
-                        data: 'sort_order',
-                        name: 'sort_order',
-                        className: 'text-center'
-                    },
-                    {
+                        key: 'is_enabled',
+                        type: 'text',
                         data: 'status_label',
                         name: 'is_enabled',
-                        className: 'text-center'
+                        className: 'dt-col-badge text-center',
                     },
                     {
-                        data: null,
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-end',
+                        key: 'actions',
+                        type: 'actions',
                         render: function (data, type, row) {
                             return '<button type="button" class="btn btn-sm btn-outline-primary js-trainer-edit" data-id="' + row.id + '">Редактировать</button>';
-                        }
-                    }
+                        },
+                    },
                 ],
-                order: [[7, 'asc']],
-                scrollX: true,
-                language: @include('partials.datatables.ru')
             });
 
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
+            const table = dtApi.table;
 
             function reloadTrainersTable() {
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
                 syncTrainersFiltersCollapseState();
             }
 
             window.__reloadTrainersTable = function () {
-                table.ajax.reload(null, false);
+                dtApi.reload({ keepPage: true });
                 syncTrainersFiltersCollapseState();
             };
 
@@ -676,26 +589,6 @@
                 } catch (e) {
                     /* no-op */
                 }
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: window.__trainerPageConfig.columnsSettingsUrl,
-                    type: 'POST',
-                    data: {
-                        _token: csrfToken,
-                        columns: currentColumnsConfig
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
             });
         });
     </script>
@@ -921,13 +814,6 @@
             document.getElementById('trainerEditModal')?.addEventListener('hidden.bs.modal', function () {
                 resetTrainerPasswordUi();
             });
-
-            if (!window.__trainerPageConfig.canChangePassword) {
-                document.addEventListener('DOMContentLoaded', function () {
-                    const btn = document.getElementById('trainer-change-password-btn');
-                    if (btn) new bootstrap.Tooltip(btn);
-                });
-            }
 
             document.getElementById('trainerCreateSubmit')?.addEventListener('click', async () => {
                 clearErrors(createForm);

@@ -57,6 +57,8 @@
     <li><b>payable_id</b>: ссылка на <code>payables</code> (что именно оплачивается)</li>
     <li><b>status</b>: <code>pending</code> / <code>paid</code> / <code>failed</code></li>
     <li><b>out_sum</b>: ожидаемая сумма</li>
+    <li id="payment-date-field"><b>payment_date</b>: строковая метка платежа для провайдера (<code>Shp_paymentDate</code> у Robokassa), <b>не</b> тип <code>datetime</code> в БД. Примеры: <code>2026-06-01</code> (месячный абонемент), <code>Клубный взнос</code>, <code>Дополнительный платеж</code>, подпись абонемента lesson package. В отчёте «Платежные запросы» для UI форматируется в «месяц год» при распознавании даты (<code>PaymentIntentReportController::formatPaymentDateForReport</code>); факт оплаты — поле <code>paid_at</code>.</li>
+    <li><b>paid_at</b>: timestamp успешной оплаты (nullable)</li>
     <li><b>meta</b>: диагностика интеграции</li>
   </ul>
 

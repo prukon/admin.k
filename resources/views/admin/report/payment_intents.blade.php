@@ -222,59 +222,11 @@
 </div>
 
 <style>
-    .pay-cell-datetime {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.2rem;
-        padding: 0.15rem 0;
-        line-height: 1.25;
-        min-width: 5.5rem;
-    }
-
-    .pay-cell-datetime__date {
-        white-space: nowrap;
-    }
-
-    .pay-cell-datetime__time {
-        font-size: 0.8125rem;
-        font-variant-numeric: tabular-nums;
-        color: var(--bs-secondary-color, #6c757d);
-        white-space: nowrap;
-    }
-
-    #payment-intents-table th.payment-intent-meta-th,
-    #payment-intents-table td.payment-intent-meta-td,
-    #payment-intents-table th.payment-intent-client-ua-th,
-    #payment-intents-table td.payment-intent-client-ua-td {
-        width: 1%;
-        max-width: 5.5rem;
-        white-space: nowrap;
-        vertical-align: middle;
-    }
-
-    .payment-intent-meta-actions {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-
     .payment-intent-meta-modal-pre {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         font-size: 0.8125rem;
         white-space: pre-wrap;
         word-break: break-word;
-    }
-
-    /* Одинаковые правила для th и td — иначе при scrollX у DataTables разъезжаются ширины шапки и тела */
-    #payment-intents-table th.payment-intent-client-ref-th,
-    #payment-intents-table td.payment-intent-client-ref-td {
-        min-width: 6rem;
-        max-width: 12rem;
-        white-space: normal;
-        word-break: break-word;
-        vertical-align: middle;
-        font-size: 0.8125rem;
     }
 
     #payment-intents-table_wrapper .dataTables_scrollHead table,
@@ -310,7 +262,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-bordered" id="payment-intents-table">
+    <table class="table table-bordered dt-columns-managed w-100" id="payment-intents-table">
         <thead>
         <tr>
             <th>№</th>
@@ -327,10 +279,10 @@
             <th>Тип устройства</th>
             <th>ОС</th>
             <th>Браузер</th>
-            <th class="payment-intent-client-ua-th">User-Agent</th>
+            <th>User-Agent</th>
             <th>IP</th>
-            <th class="payment-intent-client-ref-th">Referrer</th>
-            <th class="payment-intent-meta-th">Мета</th>
+            <th>Referrer</th>
+            <th>Мета</th>
         </tr>
         </thead>
     </table>
@@ -529,14 +481,6 @@
                 };
             }
 
-            function formatNumber(number) {
-                if (number === null || number === undefined) return '';
-                return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            }
-
-            /**
-             * Снимает HTML-сущности (&quot; и т.д.), если meta пришла экранированной.
-             */
             function decodeHtmlEntitiesSafe(input) {
                 var s = String(input);
                 if (s.indexOf('&') === -1) {
@@ -551,7 +495,7 @@
                         .replace(/&quot;/g, '"')
                         .replace(/&#0*39;/g, "'")
                         .replace(/&lt;/g, '<')
-                        .replace(/&gt;/g, '>');
+                        .replace(/>/g, '>');
                     guard++;
                 } while (s !== prev && guard < 5);
                 return s;
@@ -567,44 +511,6 @@
                 }
             }
 
-            function renderPaymentMonth(data, type) {
-                if (!data) return data;
-                if (type !== 'display') return data;
-                if (/\d{4}-\d{2}-\d{2}/.test(data)) {
-                    var date = new Date(data);
-                    var monthNames = [
-                        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-                    ];
-                    var month = monthNames[date.getMonth()];
-                    var year = date.getFullYear();
-                    return month + ' ' + year;
-                }
-                return data;
-            }
-
-            function renderDateTimeTwoLines(data, type) {
-                if (!data) return data;
-                if (type !== 'display') return data;
-                var date = new Date(data);
-                if (isNaN(date.getTime())) return data;
-                var day = ("0" + date.getDate()).slice(-2);
-                var month = ("0" + (date.getMonth() + 1)).slice(-2);
-                var year = date.getFullYear();
-                var hours = ("0" + date.getHours()).slice(-2);
-                var minutes = ("0" + date.getMinutes()).slice(-2);
-                var seconds = ("0" + date.getSeconds()).slice(-2);
-                var dateLine = day + '.' + month + '.' + year;
-                var timeLine = hours + ':' + minutes + ':' + seconds;
-                return (
-                    '<div class="pay-cell-datetime" role="text" aria-label="' +
-                    dateLine + ', ' + timeLine + '">' +
-                    '<span class="pay-cell-datetime__date">' + dateLine + '</span>' +
-                    '<span class="pay-cell-datetime__time">' + timeLine + '</span>' +
-                    '</div>'
-                );
-            }
-
             function renderStatusBadge(status) {
                 if (!status) return '';
                 var s = String(status);
@@ -613,56 +519,6 @@
                 if (s === 'failed') return '<span class="badge bg-danger">ошибка</span>';
                 if (s === 'cancelled') return '<span class="badge bg-secondary">отменён</span>';
                 return '<span class="badge bg-light text-dark">' + $('<div/>').text(s).html() + '</span>';
-            }
-
-            function formatClientDeviceTypeLabel(code) {
-                if (!code) return '';
-                var c = String(code);
-                var map = {
-                    mobile: 'мобильное',
-                    tablet: 'планшет',
-                    desktop: 'ПК',
-                    bot: 'бот',
-                    unknown: 'неизвестно'
-                };
-                return map[c] || c;
-            }
-
-            function joinClientOsBrowserParts(family, version) {
-                var a = family ? String(family).trim() : '';
-                var b = version ? String(version).trim() : '';
-                if (a && b) {
-                    return a + ' ' + b;
-                }
-                return a || b || '';
-            }
-
-            function escapeHtmlAttr(s) {
-                return String(s)
-                    .replace(/&/g, '&amp;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-            }
-
-            function renderClientLongText(data, type, maxPreview) {
-                if (data === null || data === undefined) {
-                    data = '';
-                }
-                var text = String(data);
-                if (type !== 'display') {
-                    return text;
-                }
-                if (!text) {
-                    return '<span class="text-muted">—</span>';
-                }
-                var preview = text;
-                if (maxPreview && preview.length > maxPreview) {
-                    preview = preview.slice(0, maxPreview) + '…';
-                }
-                var safePreview = $('<div/>').text(preview).html();
-                return '<span title="' + escapeHtmlAttr(text) + '">' + safePreview + '</span>';
             }
 
             function flashCopyButton($btn) {
@@ -703,10 +559,37 @@
                 }
             }
 
-            var table = $('#payment-intents-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
+            var dtApi = KidsCrmDataTable.create('#payment-intents-table', {
+                columnsSettings: {
+                    defaults: {
+                        id: true,
+                        provider_inv_id: true,
+                        partner: true,
+                        user: true,
+                        provider: true,
+                        payment_method_webhook_label: true,
+                        status: true,
+                        out_sum: true,
+                        payment_date: true,
+                        created_at: true,
+                        paid_at: true,
+                        client_device_type: true,
+                        client_os: true,
+                        client_browser: true,
+                        client_user_agent: true,
+                        client_ip: true,
+                        client_referrer: true,
+                        meta: true
+                    },
+                    urls: {
+                        get: '/admin/reports/payment-intents/columns-settings',
+                        save: '/admin/reports/payment-intents/columns-settings'
+                    },
+                    toggleSelector: '.payment-intents-column-toggle',
+                    csrfToken: '{{ csrf_token() }}'
+                },
+                dataTable: {
+                    ajax: {
                     url: "{{ route('reports.payment-intents.data') }}",
                     data: function (d) {
                         var extra = piFilterParams();
@@ -715,42 +598,28 @@
                         });
                     }
                 },
-                columnDefs: [
-                    {targets: -1, className: 'payment-intent-meta-td'}
-                ],
-                initComplete: function () {
-                    this.api().columns.adjust();
-                },
-                drawCallback: function () {
-                    this.api().columns.adjust();
+                    columnDefs: [],
+                    initComplete: function () {
+                        this.api().columns.adjust();
+                    },
+                    drawCallback: function () {
+                        this.api().columns.adjust();
+                    },
+                    order: [[0, 'desc']],
+                    fixedColumns: {leftColumns: 2},
+                    language: @include('partials.datatables.ru')
                 },
                 columns: [
-                    {data: 'id', name: 'id'},
-                    {data: 'provider_inv_id', name: 'provider_inv_id'},
+                    { key: 'id', type: 'id', data: 'id', name: 'id' },
+                    { key: 'provider_inv_id', type: 'text', data: 'provider_inv_id', name: 'provider_inv_id' },
+                    { key: 'partner', type: 'text', data: 'partner_title', name: 'partner_title' },
+                    { key: 'user', type: 'text', data: 'user_name', name: 'user_name' },
                     {
-                        data: null,
-                        name: 'partner_id',
-                        orderable: false,
-                        searchable: false,
-                        render: function (data, type, row) {
-                            var title = row.partner_title ? ('<div class="small text-muted">' + row.partner_title + '</div>') : '';
-                            return (row.partner_id ? row.partner_id : '') + title;
-                        }
-                    },
-                    {
-                        data: null,
-                        name: 'user_id',
-                        orderable: false,
-                        searchable: false,
-                        render: function (data, type, row) {
-                            var name = row.user_name ? ('<div class="small text-muted">' + row.user_name + '</div>') : '';
-                            return (row.user_id ? row.user_id : '') + name;
-                        }
-                    },
-                    {
+                        key: 'provider',
+                        type: 'badge',
                         data: 'provider',
                         name: 'provider',
-                        render: function (data, type, row) {
+                        render: function (data, type) {
                             if (type !== 'display') {
                                 return data || '';
                             }
@@ -760,331 +629,85 @@
                             if (data === 'robokassa') {
                                 return '<span class="badge bg-secondary">Robokassa</span>';
                             }
-                            return data ? $('<div/>').text(data).html() : '';
-                        }
+                            return window.KidsCrmTooltip.renderText(data);
+                        },
                     },
                     {
+                        key: 'payment_method_webhook_label',
+                        type: 'text',
                         data: 'payment_method_webhook_label',
                         name: 'payment_method_webhook_label',
                         orderable: false,
                         searchable: false,
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return data || '';
-                            }
-                            if (!data) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            return $('<div/>').text(data).html();
-                        }
                     },
                     {
+                        key: 'status',
+                        type: 'badge',
                         data: 'status',
                         name: 'status',
-                        render: function (data, type, row) {
-                            if (type === 'display') return renderStatusBadge(data);
-                            return data;
-                        }
-                    },
-                    {
-                        data: 'out_sum',
-                        name: 'out_sum',
-                        render: function (data, type, row) {
+                        render: function (data, type) {
                             if (type === 'display') {
-                                if (data === null || data === undefined || data === '') return '';
-                                var n = Math.round(parseFloat(data));
-                                if (isNaN(n)) return '';
-                                return formatNumber(n) + ' руб';
+                                return renderStatusBadge(data);
                             }
                             return data;
-                        }
+                        },
                     },
+                    { key: 'out_sum', type: 'money', data: 'out_sum', name: 'out_sum' },
+                    { key: 'payment_date', type: 'text', data: 'payment_date', name: 'payment_date' },
+                    { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at' },
+                    { key: 'paid_at', type: 'datetime', data: 'paid_at', name: 'paid_at' },
+                    { key: 'client_device_type', type: 'text', data: 'client_device_type', name: 'client_device_type' },
+                    { key: 'client_os', type: 'text', data: 'client_os', name: 'client_os' },
+                    { key: 'client_browser', type: 'text', data: 'client_browser', name: 'client_browser' },
                     {
-                        data: 'payment_date',
-                        name: 'payment_date',
-                        render: function (data, type, row) {
-                            return renderPaymentMonth(data, type);
-                        }
-                    },
-                    {
-                        data: 'created_at',
-                        name: 'created_at',
-                        render: function (data, type, row) {
-                            return renderDateTimeTwoLines(data, type);
-                        }
-                    },
-                    {
-                        data: 'paid_at',
-                        name: 'paid_at',
-                        render: function (data, type, row) {
-                            return renderDateTimeTwoLines(data, type);
-                        }
-                    },
-                    {
-                        data: 'client_device_type',
-                        name: 'client_device_type',
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return data || '';
-                            }
-                            if (!data) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            return $('<div/>').text(formatClientDeviceTypeLabel(data)).html();
-                        }
-                    },
-                    {
-                        data: null,
-                        name: 'client_os_family',
-                        render: function (data, type, row) {
-                            var joined = joinClientOsBrowserParts(row.client_os_family, row.client_os_version);
-                            if (type !== 'display') {
-                                return joined;
-                            }
-                            if (!joined) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            return $('<div/>').text(joined).html();
-                        }
-                    },
-                    {
-                        data: null,
-                        name: 'client_browser_family',
-                        render: function (data, type, row) {
-                            var joined = joinClientOsBrowserParts(row.client_browser_family, row.client_browser_version);
-                            if (type !== 'display') {
-                                return joined;
-                            }
-                            if (!joined) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            return $('<div/>').text(joined).html();
-                        }
-                    },
-                    {
+                        key: 'client_user_agent',
+                        type: 'inline-actions',
                         data: 'client_user_agent',
                         name: 'client_user_agent',
-                        orderable: false,
-                        className: 'payment-intent-client-ua-td',
-                        render: function (data, type, row) {
-                            if (!data) {
-                                return '';
-                            }
-                            var text = String(data);
-                            if (type !== 'display') {
-                                return text;
-                            }
-                            var safe = $('<div/>').text(text).html();
-                            return (
-                                '<div class="payment-intent-meta-actions payment-intent-ua-cell">' +
-                                '<button type="button" class="btn btn-sm btn-outline-secondary js-show-payment-intent-ua" title="Показать">' +
-                                '<i class="fas fa-eye" aria-hidden="true"></i>' +
-                                '<span class="visually-hidden">Показать</span>' +
-                                '</button>' +
-                                '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-payment-intent-ua" title="Копировать">' +
-                                '<i class="fas fa-copy" aria-hidden="true"></i>' +
-                                '<span class="visually-hidden">Копировать</span>' +
-                                '</button>' +
-                                '<span class="payment-intent-ua-full d-none">' + safe + '</span>' +
-                                '</div>'
-                            );
-                        }
+                        inlineActions: { modalTitle: 'User-Agent' },
                     },
+                    { key: 'client_ip', type: 'text', data: 'client_ip', name: 'client_ip' },
+                    { key: 'client_referrer', type: 'text', data: 'client_referrer', name: 'client_referrer' },
                     {
-                        data: 'client_ip',
-                        name: 'client_ip',
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return data || '';
-                            }
-                            if (!data) {
-                                return '<span class="text-muted">—</span>';
-                            }
-                            return $('<div/>').text(String(data)).html();
-                        }
-                    },
-                    {
-                        data: 'client_referrer',
-                        name: 'client_referrer',
-                        className: 'payment-intent-client-ref-td',
-                        render: function (data, type, row) {
-                            return renderClientLongText(data, type, 80);
-                        }
-                    },
-                    {
+                        key: 'meta',
+                        type: 'inline-actions',
                         data: 'meta',
                         name: 'meta',
-                        orderable: false,
-                        render: function (data, type, row) {
-                            if (!data) return '';
-                            var text = String(data);
-                            if (type !== 'display') {
-                                return text;
-                            }
-                            var pretty = formatMetaPretty(text);
-                            var safe = $('<div/>').text(pretty).html();
-                            return (
-                                '<div class="payment-intent-meta-actions payment-intent-meta-cell">' +
-                                '<button type="button" class="btn btn-sm btn-outline-secondary js-show-payment-intent-meta" title="Показать">' +
-                                '<i class="fas fa-eye" aria-hidden="true"></i>' +
-                                '<span class="visually-hidden">Показать</span>' +
-                                '</button>' +
-                                '<button type="button" class="btn btn-sm btn-outline-secondary js-copy-payment-intent-meta" title="Копировать">' +
-                                '<i class="fas fa-copy" aria-hidden="true"></i>' +
-                                '<span class="visually-hidden">Копировать</span>' +
-                                '</button>' +
-                                '<span class="payment-intent-meta-full d-none">' + safe + '</span>' +
-                                '</div>'
-                            );
-                        }
-                    }
-                ],
-                order: [[0, 'desc']],
-                scrollX: true,
-                fixedColumns: {leftColumns: 2},
-                language: dtLanguageRu()
-            });
-
-            var defaultColumnsVisibility = {
-                id: true,
-                provider_inv_id: true,
-                partner: true,
-                user: true,
-                provider: true,
-                payment_method_webhook_label: true,
-                status: true,
-                out_sum: true,
-                payment_date: true,
-                created_at: true,
-                paid_at: true,
-                client_device_type: true,
-                client_os: true,
-                client_browser: true,
-                client_user_agent: true,
-                client_ip: true,
-                client_referrer: true,
-                meta: true
-            };
-
-            var columnsMap = {
-                id: 0,
-                provider_inv_id: 1,
-                partner: 2,
-                user: 3,
-                provider: 4,
-                payment_method_webhook_label: 5,
-                status: 6,
-                out_sum: 7,
-                payment_date: 8,
-                created_at: 9,
-                paid_at: 10,
-                client_device_type: 11,
-                client_os: 12,
-                client_browser: 13,
-                client_user_agent: 14,
-                client_ip: 15,
-                client_referrer: 16,
-                meta: 17
-            };
-
-            function toBool(val, fallback) {
-                if (fallback === undefined) fallback = true;
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    var v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function applyVisibleColumns(cfg) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    var idx = columnsMap[key];
-                    var visible = toBool(cfg[key], defaultColumnsVisibility[key]);
-                    table.column(idx).visible(visible, false);
-                    $('.payment-intents-column-toggle[data-column-key="' + key + '"]').prop('checked', visible);
-                });
-                table.columns.adjust().draw(false);
-            }
-
-            var currentColumnsConfig = $.extend({}, defaultColumnsVisibility);
-
-            $.get('/admin/reports/payment-intents/columns-settings')
-                .done(function (saved) {
-                    if (saved && typeof saved === 'object') {
-                        currentColumnsConfig = $.extend({}, defaultColumnsVisibility, saved);
-                    }
-                    applyVisibleColumns(currentColumnsConfig);
-                })
-                .fail(function () {
-                    applyVisibleColumns(currentColumnsConfig);
-                });
-
-            $('.payment-intents-column-toggle').on('change', function () {
-                var key = $(this).data('column-key');
-                var isChecked = $(this).is(':checked');
-                if (!key) return;
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: '/admin/reports/payment-intents/columns-settings',
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: currentColumnsConfig
+                        inlineActions: { modalTitle: 'Мета', format: 'meta-pretty' },
                     },
-                    success: function () {},
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
+                ]
             });
+            var table = dtApi.table;
 
             var metaModalEl = document.getElementById('paymentIntentMetaModal');
             var metaModal = metaModalEl && typeof bootstrap !== 'undefined'
                 ? bootstrap.Modal.getOrCreateInstance(metaModalEl)
                 : null;
 
-            $('#payment-intents-table').on('click', '.js-show-payment-intent-meta', function (e) {
+            $('#payment-intents-table').on('click', '.js-kids-dt-inline-actions-show', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                var full = $(this).closest('.payment-intent-meta-cell').find('.payment-intent-meta-full').text();
-                var $pre = $('#paymentIntentMetaModal .payment-intent-meta-modal-pre');
-                $('#paymentIntentMetaModalLabel').text('Мета');
-                $pre.text(formatMetaPretty(full));
-                if (metaModal) {
-                    metaModal.show();
+                var $wrap = $(this).closest('.kids-dt-inline-actions');
+                var full = $wrap.find('.kids-dt-inline-actions__full').text();
+                if ($wrap.data('format') === 'meta-pretty') {
+                    full = formatMetaPretty(full);
                 }
-            });
-
-            $('#payment-intents-table').on('click', '.js-show-payment-intent-ua', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var full = $(this).closest('.payment-intent-ua-cell').find('.payment-intent-ua-full').text();
                 var $pre = $('#paymentIntentMetaModal .payment-intent-meta-modal-pre');
-                $('#paymentIntentMetaModalLabel').text('User-Agent');
+                $('#paymentIntentMetaModalLabel').text($wrap.data('modal-title') || 'Содержимое');
                 $pre.text(full);
                 if (metaModal) {
                     metaModal.show();
                 }
             });
 
-            $('#payment-intents-table').on('click', '.js-copy-payment-intent-meta', function (e) {
+            $('#payment-intents-table').on('click', '.js-kids-dt-inline-actions-copy', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                var full = $(this).closest('.payment-intent-meta-cell').find('.payment-intent-meta-full').text();
-                copyTextToClipboard(full, $(this));
-            });
-
-            $('#payment-intents-table').on('click', '.js-copy-payment-intent-ua', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var full = $(this).closest('.payment-intent-ua-cell').find('.payment-intent-ua-full').text();
+                var $wrap = $(this).closest('.kids-dt-inline-actions');
+                var full = $wrap.find('.kids-dt-inline-actions__full').text();
+                if ($wrap.data('format') === 'meta-pretty') {
+                    full = formatMetaPretty(full);
+                }
                 copyTextToClipboard(full, $(this));
             });
 
@@ -1097,7 +720,7 @@
             $form.on('submit', function (e) {
                 e.preventDefault();
                 refreshPiTotal();
-                table.ajax.reload();
+                dtApi.reload();
             });
 
             $('#paymentIntentsResetBtn').on('click', function () {
@@ -1105,7 +728,7 @@
                 $piFilterPartner.val(null).trigger('change');
                 $piFilterUser.val(null).trigger('change');
                 refreshPiTotal();
-                table.ajax.reload();
+                dtApi.reload();
             });
         });
     </script>

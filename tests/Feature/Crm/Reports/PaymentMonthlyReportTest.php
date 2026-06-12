@@ -87,7 +87,8 @@ class PaymentMonthlyReportTest extends CrmTestCase
 
         $this->get(route('reports.payments.monthly'))
             ->assertOk()
-            ->assertSee('pay-monthly-filter-location', false);
+            ->assertSee('pay-monthly-filter-location', false)
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_payment_monthly_total_respects_filter_location_id(): void

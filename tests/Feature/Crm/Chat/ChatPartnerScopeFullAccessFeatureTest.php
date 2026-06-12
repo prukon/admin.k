@@ -20,6 +20,8 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
     {
         parent::setUp();
 
+        config(['broadcasting.default' => 'null']);
+
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed'      => true,

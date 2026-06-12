@@ -78,10 +78,9 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
 
         $this->get(route('admin.locations.index'))
             ->assertOk()
-            ->assertSee('KidsCrmHoverListDropdown', false)
-            ->assertSee('KidsCrmHoverListDropdown.renderCell', false)
-            ->assertSee('js-kids-hover-list-dropdown', false)
-            ->assertSee('kids-hover-list-dropdown__trigger', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee("type: 'list'", false)
+            ->assertSee('dt-columns-managed', false);
     }
 
     public function test_index_without_teams_omits_teams_column_and_partials(): void
@@ -96,7 +95,8 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
             ->assertDontSee('generic-multiselect-field', false)
             ->assertDontSee('id="locationCreateTeamIds"', false)
             ->assertDontSee('window.KidsCrmGenericMultiselectSelect2 = {', false)
-            ->assertDontSee('window.KidsCrmHoverListDropdown = {', false);
+            ->assertDontSee('window.KidsCrmHoverListDropdown = {', false)
+            ->assertDontSee('window.KidsCrmDataTableColumns = {', false);
     }
 
     public function test_index_view_only_renders_teams_column_but_not_manage_multiselect_modals(): void
@@ -111,7 +111,7 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertSee('id="colLocationTeams"', false)
-            ->assertSee('KidsCrmHoverListDropdown.renderCell', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertDontSee('id="locationCreateModal"', false)
             ->assertDontSee('id="locationCreateTeamIds"', false)
             ->assertDontSee('id="locationEditTeamIds"', false);

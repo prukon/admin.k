@@ -237,7 +237,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table id="users-table" class="table table-striped table-bordered align-middle w-100">
+                    <table id="users-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                         <thead>
                         <tr>
                             <th>№</th>
@@ -276,42 +276,6 @@
             const canViewContracts = @json((bool) $canViewContracts);
             const defaultFilterStatus = 'active';
 
-            const defaultColumnsVisibility = {
-                avatar: true,
-                name: true,
-                parent: true,
-                ...(canViewContracts ? {contract: true} : {}),
-                teams: true,
-                birthday: true,
-                email: true,
-                phone: true,
-                status_label: true,
-                actions: true
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = {
-                avatar: 1,
-                name: 2,
-                parent: 3,
-                ...(canViewContracts ? {contract: 4} : {}),
-                teams: canViewContracts ? 5 : 4,
-                birthday: canViewContracts ? 6 : 5,
-                email: canViewContracts ? 7 : 6,
-                phone: canViewContracts ? 8 : 7,
-                status_label: canViewContracts ? 9 : 8,
-                actions: canViewContracts ? 10 : 9
-            };
-
-            function escapeHtml(value) {
-                return String(value)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;');
-            }
-
             function renderContractCell(row) {
                 if (!row.latest_contract || !row.latest_contract.url) {
                     return '';
@@ -320,11 +284,12 @@
                 const contract = row.latest_contract;
                 const isSigned = contract.status === 'signed';
                 const iconColor = isSigned ? '#0d6efd' : '#6c757d';
-                const statusLabel = escapeHtml(contract.status_label || '');
+                const statusLabel = KidsCrmTooltip.escapeHtml(contract.status_label || '');
                 const tooltipText = 'Статус: ' + statusLabel;
+                const url = KidsCrmTooltip.escapeHtml(contract.url);
 
-                return '<a href="' + escapeHtml(contract.url) + '" '
-                    + 'class="users-contract-icon-link" '
+                return '<a href="' + url + '" '
+                    + 'class="users-contract-icon-link js-dt-cell-ellipsis-tooltip" '
                     + 'data-bs-toggle="tooltip" '
                     + 'data-bs-placement="top" '
                     + 'data-bs-custom-class="ulp-assignment-paid-tooltip" '
@@ -332,78 +297,6 @@
                     + 'aria-label="' + tooltipText + '">'
                     + '<i class="fa-solid fa-file-pdf" style="color:' + iconColor + ';"></i>'
                     + '</a>';
-            }
-
-            function initUsersContractTooltips() {
-                if (!canViewContracts || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
-                    return;
-                }
-
-                document.querySelectorAll('#users-table .users-contract-icon-link[data-bs-toggle="tooltip"]').forEach(function (el) {
-                    const existing = bootstrap.Tooltip.getInstance(el);
-                    if (existing) {
-                        existing.dispose();
-                    }
-
-                    new bootstrap.Tooltip(el, {
-                        customClass: 'ulp-assignment-paid-tooltip',
-                    });
-                });
-            }
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-
-                if (typeof val === 'boolean') return val;
-
-                if (typeof val === 'number') return val === 1;
-
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-
-                    column.visible(isVisible);
-
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: '/admin/users/columns-settings',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
             }
 
             function usersFilterParams() {
@@ -442,137 +335,123 @@
                 }
             }
 
-            const table = $('#users-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: '/admin/users/data',
-                    type: 'GET',
-                    data: function (d) {
-                        const params = usersFilterParams();
-                        d.name = params.name;
-                        d.team_id = params.team_id;
-                        d.status = params.status;
-                        if (canViewContracts) {
-                            d.contract = params.contract;
-                        }
-                    }
-                },
-
-                columns: [
-                    {
-                        data: null,
-                        name: 'rownum',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-center',
-                        render: function (data, type, row, meta) {
-                            return meta.row + meta.settings._iDisplayStart + 1;
-                        }
+            const dtApi = KidsCrmDataTable.create('#users-table', {
+                columnsSettings: {
+                    defaults: {
+                        avatar: true,
+                        name: true,
+                        parent: true,
+                        ...(canViewContracts ? { contract: true } : {}),
+                        teams: true,
+                        birthday: true,
+                        email: true,
+                        phone: true,
+                        status_label: true,
+                        actions: true,
                     },
+                    urls: {
+                        get: @json(route('admin.users.table-settings.get')),
+                        save: @json(route('admin.users.table-settings.save')),
+                    },
+                    csrfToken: '{{ csrf_token() }}',
+                },
+                dataTable: {
+                    ajax: {
+                        url: @json(route('admin.users.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            const params = usersFilterParams();
+                            d.name = params.name;
+                            d.team_id = params.team_id;
+                            d.status = params.status;
+                            if (canViewContracts) {
+                                d.contract = params.contract;
+                            }
+                        },
+                    },
+                    order: [[2, 'asc']],
+                    language: @include('partials.datatables.ru'),
+                },
+                columns: [
+                    { type: 'rownum' },
                     {
+                        key: 'avatar',
+                        type: 'image',
                         data: 'avatar',
                         name: 'avatar',
                         orderable: true,
                         searchable: false,
-                        className: 'text-center',
-                        render: function (data, type, row) {
-                            const url = data || '/img/default-avatar.png';
-                            return '<img src="' + url + '" alt="" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;">';
-                        }
+                        fallbackUrl: '/img/default-avatar.png',
                     },
                     {
+                        key: 'name',
+                        type: 'link',
                         data: 'name',
                         name: 'name',
-                        render: function (data, type, row) {
-                            return '<a href="javascript:void(0);" ' +
-                                'class="edit-user-link" ' +
-                                'data-id="' + row.id + '" ' +
-                                'data-bs-toggle="modal" ' +
-                                'data-bs-target="#editUserModal">' +
-                                data +
-                                '</a>';
-                        }
+                        className: 'dt-col-text',
+                        linkClass: 'edit-user-link',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#editUserModal"';
+                        },
                     },
-                    {data: 'parent', name: 'parent', defaultContent: ''},
+                    { key: 'parent', type: 'text', data: 'parent' },
                     ...(canViewContracts ? [{
+                        key: 'contract',
+                        type: 'icon',
                         data: 'latest_contract',
                         name: 'contract',
                         orderable: true,
                         searchable: false,
-                        className: 'text-center',
+                        className: 'dt-col-icon text-center',
                         defaultContent: '',
+                        sortKey: 'latest_contract',
                         render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
                             return renderContractCell(row);
-                        }
+                        },
                     }] : []),
-                    {data: 'teams', name: 'teams', defaultContent: ''},
-                    {data: 'birthday', name: 'birthday', defaultContent: ''},
-                    {data: 'email', name: 'email', defaultContent: ''},
-                    {data: 'phone', name: 'phone', defaultContent: ''},
+                    { key: 'teams', type: 'text', data: 'teams' },
+                    { key: 'birthday', type: 'text', data: 'birthday', className: 'dt-col-text text-nowrap' },
+                    { key: 'email', type: 'text', data: 'email' },
+                    { key: 'phone', type: 'text', data: 'phone', className: 'dt-col-text text-nowrap' },
                     {
+                        key: 'status_label',
+                        type: 'badge',
                         data: 'status_label',
                         name: 'status_label',
+                        className: 'dt-col-badge text-center',
                         render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
                             const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                            return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                        }
+                            return '<span class="badge ' + badgeClass + '">' + KidsCrmTooltip.escapeHtml(data || '') + '</span>';
+                        },
                     },
                     {
-                        data: null,
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-end',
+                        key: 'actions',
+                        type: 'actions',
                         render: function (data, type, row) {
-                            return '<button type="button" ' +
-                                'class="btn btn-sm btn-outline-primary edit-user-link" ' +
-                                'data-id="' + row.id + '" ' +
-                                'data-bs-toggle="modal" ' +
-                                'data-bs-target="#editUserModal">' +
-                                'Редактировать' +
-                                '</button>';
-                        }
-                    }
-                ],
-
-                order: [[2, 'asc']],
-                scrollX: true,
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
+                            return '<button type="button" '
+                                + 'class="btn btn-sm btn-outline-primary edit-user-link" '
+                                + 'data-id="' + row.id + '" '
+                                + 'data-bs-toggle="modal" '
+                                + 'data-bs-target="#editUserModal">'
+                                + 'Редактировать'
+                                + '</button>';
+                        },
                     },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
-                }
+                ],
             });
 
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
-
-            table.on('draw.dt', function () {
-                initUsersContractTooltips();
-            });
+            const table = dtApi.table;
 
             function reloadUsersTable() {
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
                 syncUsersFiltersCollapseState();
             }
 
@@ -606,27 +485,6 @@
                     'aria-expanded',
                     $('#usersReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
                 );
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: '/admin/users/columns-settings',
-                    type: 'POST',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: currentColumnsConfig
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
             });
 
             showLogModal("{{ route('logs.data.user') }}");

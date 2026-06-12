@@ -335,7 +335,8 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('Назначить')
             ->assertSee('ulp_user_id')
             ->assertSee('ulp_lesson_package_id')
-            ->assertSee('ulp-assignments-table');
+            ->assertSee('ulp-assignments-table')
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_store_assignment_creates_user_lesson_package_and_sets_remaining(): void

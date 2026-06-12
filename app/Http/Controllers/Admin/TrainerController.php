@@ -166,13 +166,15 @@ class TrainerController extends AdminBaseController
 
         $data = $trainers->map(function (TrainerProfile $profile) {
             $user = $profile->user;
-            $teamsLabel = $profile->teams->pluck('title')->implode(', ');
+            $teamTitles = $profile->teams->sortBy('title')->pluck('title')->values()->all();
+            $teamsLabels = $this->formatTeamsLabels($teamTitles);
 
             return [
                 'id'                          => $profile->id,
                 'avatar_url'                  => $this->avatarUrl($user),
                 'full_name'                   => $user?->full_name ?? '',
-                'teams_label'                 => $teamsLabel,
+                'teams_label'                 => $teamsLabels['teams_label'],
+                'teams_titles'                => $teamsLabels['teams_titles'],
                 'email'                       => $user?->email ?? '',
                 'default_base_salary'         => $this->formatSalaryRubles($profile->default_base_salary),
                 'default_rate_per_training'   => $this->formatSalaryRubles($profile->default_rate_per_training),
@@ -441,6 +443,40 @@ class TrainerController extends AdminBaseController
             'image' => $bigName,
             'image_crop' => $cropName,
         ]);
+    }
+
+    /**
+     * @param  list<string>  $titles
+     * @return array{teams_label: string, teams_label_full: string, teams_titles: list<string>}
+     */
+    private function formatTeamsLabels(array $titles): array
+    {
+        $titles = array_values(array_filter($titles, static fn ($title) => trim((string) $title) !== ''));
+        $count = count($titles);
+
+        if ($count === 0) {
+            return [
+                'teams_label' => '',
+                'teams_label_full' => '',
+                'teams_titles' => [],
+            ];
+        }
+
+        $full = implode(', ', $titles);
+
+        if ($count <= 2) {
+            return [
+                'teams_label' => $full,
+                'teams_label_full' => $full,
+                'teams_titles' => $titles,
+            ];
+        }
+
+        return [
+            'teams_label' => $titles[0] . ', еще ' . ($count - 1) . ' шт.',
+            'teams_label_full' => $full,
+            'teams_titles' => $titles,
+        ];
     }
 
     private function formatSalaryRubles(mixed $value): string

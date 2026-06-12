@@ -208,8 +208,8 @@
                 }
 
                 function renderSummaryWithHover(summary, texts) {
-                    if (window.KidsCrmHoverListDropdown) {
-                        return KidsCrmHoverListDropdown.renderCell(summary, texts, {
+                    if (window.KidsCrmTooltip) {
+                        return KidsCrmTooltip.renderList(summary, texts, {
                             minItemsForHover: 3
                         });
                     }
@@ -228,8 +228,8 @@
                         return $(this).text();
                     }).get();
 
-                    if (window.KidsCrmHoverListDropdown) {
-                        KidsCrmHoverListDropdown.dispose($container[0]);
+                    if (window.KidsCrmTooltip) {
+                        KidsCrmTooltip.dispose($container[0], { scopes: ['list'] });
                     }
 
                     $rendered.find('.kids-crm-generic-ms-summary').remove();
@@ -244,8 +244,8 @@
                             '</li>'
                         );
 
-                        if (window.KidsCrmHoverListDropdown) {
-                            KidsCrmHoverListDropdown.init($container[0]);
+                        if (window.KidsCrmTooltip) {
+                            KidsCrmTooltip.init($container[0], { scopes: ['list'] });
                         }
                     }
 

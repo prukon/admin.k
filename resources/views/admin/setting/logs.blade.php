@@ -141,9 +141,10 @@
 </div>
 
 <div class="table-responsive">
-    <table id="settingsLogsTable" class="display table table-striped w-100">
+    <table id="settingsLogsTable" class="table table-striped dt-columns-managed w-100">
         <thead>
         <tr>
+            <th>№</th>
             <th>ID</th>
             <th>Дата создания</th>
             @if($isLogsSuperadmin)
@@ -211,61 +212,80 @@
                 }
             }
 
-            var columns = [
-                {data: 'id', name: 'id'},
-                {data: 'created_at', name: 'created_at'}
-            ];
-            if (isLogsSuperadmin) {
-                columns.push({data: 'partner_title', name: 'partner_title'});
-            }
-            columns = columns.concat([
-                {data: 'action', name: 'action'},
-                {data: 'author', name: 'author'},
-                {data: 'target_label', name: 'target_label'},
+            var settingsLogsColumns = [
+                { type: 'rownum' },
+                { key: 'id', type: 'id', data: 'id' },
                 {
+                    key: 'created_at',
+                    type: 'text',
+                    data: 'created_at',
+                    name: 'created_at',
+                    className: 'text-nowrap'
+                }
+            ];
+
+            if (isLogsSuperadmin) {
+                settingsLogsColumns.push({
+                    key: 'partner_title',
+                    type: 'text',
+                    data: 'partner_title',
+                    name: 'partner_title'
+                });
+            }
+
+            settingsLogsColumns = settingsLogsColumns.concat([
+                { key: 'action', type: 'text', data: 'action', name: 'action' },
+                { key: 'author', type: 'text', data: 'author', name: 'author' },
+                { key: 'target_label', type: 'text', data: 'target_label', name: 'target_label' },
+                {
+                    key: 'description',
+                    type: 'text',
                     data: 'description',
                     name: 'description',
-                    render: function (data) {
+                    className: 'dt-col-text',
+                    render: function (data, type) {
                         if (!data) {
                             return '';
+                        }
+                        if (type !== 'display') {
+                            return data;
                         }
                         return String(data).replace(/\n/g, '<br>');
                     }
                 }
             ]);
 
-            var table = $('#settingsLogsTable').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: @json(route('settings.logs.data')),
-                    type: 'GET',
-                    data: function (d) {
-                        var params = settingsLogsFilterParams();
-                        d.created_from = params.created_from;
-                        d.created_to = params.created_to;
-                        d.filter_action = params.filter_action;
-                        d.filter_level = params.filter_level;
-                        d.filter_author = params.filter_author;
-                        d.filter_target_label = params.filter_target_label;
-                        d.hide_superadmin = params.hide_superadmin;
-                        d.hide_authorizations = params.hide_authorizations;
-                        d.hide_integrations = params.hide_integrations;
-                        if (isLogsSuperadmin) {
-                            d.filter_partner_id = params.filter_partner_id;
+            var dtApi = KidsCrmDataTable.create('#settingsLogsTable', {
+                dataTable: {
+                    pageLength: 10,
+                    lengthMenu: [10, 20, 50, 100],
+                    ajax: {
+                        url: @json(route('settings.logs.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            var params = settingsLogsFilterParams();
+                            d.created_from = params.created_from;
+                            d.created_to = params.created_to;
+                            d.filter_action = params.filter_action;
+                            d.filter_level = params.filter_level;
+                            d.filter_author = params.filter_author;
+                            d.filter_target_label = params.filter_target_label;
+                            d.hide_superadmin = params.hide_superadmin;
+                            d.hide_authorizations = params.hide_authorizations;
+                            d.hide_integrations = params.hide_integrations;
+                            if (isLogsSuperadmin) {
+                                d.filter_partner_id = params.filter_partner_id;
+                            }
                         }
-                    }
+                    },
+                    order: [[2, 'desc']],
+                    language: @include('partials.datatables.ru')
                 },
-                columns: columns,
-                order: [[1, 'desc']],
-                scrollX: true,
-                language: @include('partials.datatables.ru')
+                columns: settingsLogsColumns
             });
 
             $('#settingsLogsFiltersApply').on('click', function () {
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
                 syncSettingsLogsFiltersCollapseState();
             });
 
@@ -277,7 +297,7 @@
                 $('#settings-logs-filter-hide-superadmin').prop('checked', true);
                 $('#settings-logs-filter-hide-authorizations').prop('checked', false);
                 $('#settings-logs-filter-hide-integrations').prop('checked', false);
-                table.ajax.reload();
+                dtApi.reload();
                 syncSettingsLogsFiltersCollapseState();
             });
 

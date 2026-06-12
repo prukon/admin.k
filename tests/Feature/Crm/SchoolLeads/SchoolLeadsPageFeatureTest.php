@@ -78,6 +78,8 @@ final class SchoolLeadsPageFeatureTest extends CrmTestCase
             ->assertSee('id="sl-filter-status"', false)
             ->assertSee('js-generic-multiselect-select', false)
             ->assertSee('KidsCrmGenericMultiselectSelect2', false)
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('school-leads-column-toggle', false)
             ->assertSee('id="sl-filter-team"', false)
             ->assertSee('id="sl-filter-special-conditions"', false)
             ->assertSee('id="leads-table"', false);

@@ -142,7 +142,7 @@
     </li>
     <li><b>Фильтры</b> (collapse) — чекбоксы статусов, кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении чекбокса: только после «Применить». Сброс возвращает статусы <code>new</code> + <code>processing</code> и очищает локацию.</li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings.</li>
-    <li><b>Таблица</b> — server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.5–5.7).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.5–5.7). Колонки через пресет (<code>text</code>, <code>link</code>, <code>inline-select</code> для статуса, <code>actions</code> для договора и «Действия»); 0 <code>custom</code> (миграция — <a href="/docs/documentation/reusable-ui-partials#datatable-migration-2026-06">§3.1</a>). Тот же тип <code>inline-select</code> для статуса — в <code>/admin/partner-leads</code> (<code>partners/tabs/leads.blade.php</code>).</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>location</code> (только при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>.</p>
 

@@ -122,13 +122,7 @@ class TbankCommissionsController extends Controller
             ->take($length)
             ->get();
 
-        $csrf = csrf_token();
-        $data = $rules->map(function (TinkoffCommissionRule $rule) use ($maps, $csrf) {
-            $partnerCell = view('admin.setting.tbank_commissions._partner_cell', [
-                'r' => $rule,
-                'tbankConnectedByPartnerId' => $maps['tbankConnectedByPartnerId'],
-            ])->render();
-
+        $data = $rules->map(function (TinkoffCommissionRule $rule) use ($maps) {
             $acquiringPercent = (float) ($rule->acquiring_percent ?? 2.49);
             $acquiringMin = (float) ($rule->acquiring_min_fixed ?? 3.49);
             $payoutPercent = (float) ($rule->payout_percent ?? 0.10);
@@ -136,55 +130,45 @@ class TbankCommissionsController extends Controller
             $platformPercent = (float) ($rule->platform_percent ?? $rule->percent ?? 0);
             $platformMin = (float) ($rule->platform_min_fixed ?? $rule->min_fixed ?? 0.00);
 
-            $acquiringHtml = $this->formatCommissionPercentCell($acquiringPercent, $acquiringMin);
-            $payoutHtml = $this->formatCommissionPercentCell($payoutPercent, $payoutMin);
-            $platformHtml = $this->formatCommissionPercentCell($platformPercent, $platformMin);
-
             $partnerId = (int) ($rule->partner_id ?? 0);
-            if ($partnerId > 0) {
-                $autoOn = (bool) ($maps['autoPayoutByPartnerId'][$partnerId] ?? false);
-                $autoPayoutHtml = $autoOn
-                    ? '<span class="badge text-bg-success">да</span>'
-                    : '<span class="badge text-bg-secondary">нет</span>';
+            $partnerTitle = $partnerId > 0
+                ? (string) (optional($rule->partner)->title ?? ('#'.$partnerId))
+                : '(глобально)';
 
+            $autoPayoutEnabled = null;
+            $payouts30dCount = null;
+            $payouts30dUrl = null;
+            if ($partnerId > 0) {
+                $autoPayoutEnabled = (bool) ($maps['autoPayoutByPartnerId'][$partnerId] ?? false);
                 $statsRow = $maps['autoPayoutStatsByPartnerId']->get($partnerId);
-                $cnt = (int) (($statsRow['count'] ?? 0));
-                $payoutListUrl = e(url('/admin/tinkoff/payouts?partner_id=' . $partnerId . '&source=auto'));
-                $payouts30dHtml = '<a href="' . $payoutListUrl . '" class="link-primary fw-semibold" target="_blank" title="Выплаты (авто) за 30 дней">' . $cnt . '</a>';
-            } else {
-                $autoPayoutHtml = '—';
-                $payouts30dHtml = '—';
+                $payouts30dCount = (int) ($statsRow['count'] ?? 0);
+                $payouts30dUrl = url('/admin/tinkoff/payouts?partner_id='.$partnerId.'&source=auto');
             }
 
             $enabledOn = (bool) $rule->is_enabled;
-            $enabledHtml = $enabledOn
-                ? '<span class="badge text-bg-success">on</span>'
-                : '<span class="badge text-bg-secondary">off</span>';
-
-            $editUrl = e(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]));
-            $destroyUrl = e(route('admin.setting.tbankCommissions.destroy', ['id' => $rule->id]));
-
-            $actionsHtml = <<<HTML
-<div class="text-start text-nowrap">
-    <a class="btn btn-outline-primary btn-sm" href="{$editUrl}">Изменить</a>
-    <form action="{$destroyUrl}" method="post" class="d-inline-block ms-1" onsubmit="return confirm('Удалить правило?');">
-        <input type="hidden" name="_token" value="{$csrf}">
-        <input type="hidden" name="_method" value="DELETE">
-        <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
-    </form>
-</div>
-HTML;
 
             return [
-                'partner_cell' => $partnerCell,
+                'id' => (int) $rule->id,
+                'partner_title' => $partnerTitle,
+                'partner_id' => $partnerId > 0 ? $partnerId : null,
+                'tbank_keys_connected' => $partnerId > 0
+                    ? (bool) ($maps['tbankConnectedByPartnerId'][$partnerId] ?? false)
+                    : null,
                 'method' => $rule->method ?? '—',
-                'acquiring_html' => $acquiringHtml,
-                'payout_html' => $payoutHtml,
-                'platform_html' => $platformHtml,
-                'auto_payout_html' => $autoPayoutHtml,
-                'payouts_30d_html' => $payouts30dHtml,
-                'enabled_html' => $enabledHtml,
-                'actions_html' => $actionsHtml,
+                'acquiring_percent' => $acquiringPercent,
+                'acquiring_min_fixed' => $acquiringMin,
+                'payout_percent' => $payoutPercent,
+                'payout_min_fixed' => $payoutMin,
+                'platform_percent' => $platformPercent,
+                'platform_min_fixed' => $platformMin,
+                'auto_payout_enabled' => $autoPayoutEnabled,
+                'auto_payout_label' => $autoPayoutEnabled === null
+                    ? null
+                    : ($autoPayoutEnabled ? 'да' : 'нет'),
+                'payouts_30d_count' => $payouts30dCount,
+                'payouts_30d_url' => $payouts30dUrl,
+                'is_enabled' => $enabledOn,
+                'enabled_label' => $enabledOn ? 'on' : 'off',
             ];
         })->values()->all();
 
@@ -249,14 +233,6 @@ HTML;
             'tbankConnectedByPartnerId' => $tbankConnectedByPartnerId,
             'autoPayoutStatsByPartnerId' => $autoPayoutStatsByPartnerId,
         ];
-    }
-
-    private function formatCommissionPercentCell(float $percent, float $minFixed): string
-    {
-        $p = number_format($percent, 2, ',', ' ');
-        $m = number_format($minFixed, 2, ',', ' ');
-
-        return '<div>' . e($p) . '%</div><div class="text-muted small">мин ' . e($m) . ' ₽</div>';
     }
 
     /**

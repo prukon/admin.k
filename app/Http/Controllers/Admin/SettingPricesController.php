@@ -309,40 +309,18 @@ class SettingPricesController extends AdminBaseController
 
                 return $start !== '' ? $start : $end;
             })
-            ->addColumn('status', function ($row) {
-                $paid = (bool) $row->effective_is_paid;
-                $note = (string) ($row->manual_paid_note ?? '');
-                $title = $note !== '' ? e($note) : '';
-
-                $badgeClass = $paid ? 'bg-success' : 'bg-secondary';
-                $badgeText = $paid ? 'Оплачено' : 'Не оплачено';
-
-                $infoIcon = '';
-                if (($row->is_manual_paid ?? null) !== null) {
-                    $infoIcon = '<i class="fa fa-info-circle user-manual-info-icon" '
-                        .'title="'.$title.'" '
-                        .'aria-label="Комментарий к ручной отметке оплаты"></i>';
-                }
-
-                return '<div class="setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">'
-                    .'<div class="setting-prices-monthly-badge-wrap position-relative">'
-                    .'<span class="badge '.$badgeClass.'">'.$badgeText.'</span>'
-                    .$infoIcon
-                    .'</div>'
-                    .'</div>';
+            ->addColumn('status_label', function ($row) {
+                return (bool) $row->effective_is_paid ? 'Оплачено' : 'Не оплачено';
             })
-            ->addColumn('actions', function ($row) use ($request) {
-                $canManual = $request->user()?->can('setPrices.manualPaid.manage') ?? false;
-                if (! $canManual) {
-                    return '';
-                }
-
-                $paid = (bool) $row->effective_is_paid;
-                $btnPaid = '<button type="button" class="btn btn-sm btn-outline-success me-1" data-custom-payment-action="mark_paid" data-id="'.(int) $row->id.'">Оплачено</button>';
-                $btnUnpaid = '<button type="button" class="btn btn-sm btn-outline-secondary" data-custom-payment-action="mark_unpaid" data-id="'.(int) $row->id.'">Не оплачено</button>';
-                return $paid ? $btnUnpaid : ($btnPaid . $btnUnpaid);
+            ->addColumn('effective_is_paid', function ($row) {
+                return (bool) $row->effective_is_paid;
             })
-            ->rawColumns(['status', 'actions'])
+            ->addColumn('is_manual_paid', function ($row) {
+                return $row->is_manual_paid;
+            })
+            ->addColumn('manual_paid_note', function ($row) {
+                return (string) ($row->manual_paid_note ?? '');
+            })
             ->make(true);
     }
 

@@ -53,10 +53,10 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
         ]));
 
         $resp->assertOk();
-        $html = $resp->json('data.0.payouts_30d_html');
-        $this->assertIsString($html);
-        $this->assertStringContainsString('>1</a>', $html);
-        $this->assertStringContainsString('source=auto', $html);
+        $row = $resp->json('data.0');
+        $this->assertSame(1, $row['payouts_30d_count']);
+        $this->assertStringContainsString('source=auto', (string) $row['payouts_30d_url']);
+        $this->assertStringContainsString('partner_id='.$this->partner->id, (string) $row['payouts_30d_url']);
     }
 
     public function test_index_displays_zero_auto_payouts_when_none_for_partner(): void
@@ -87,9 +87,10 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
         ]));
 
         $resp->assertOk();
-        $html = $resp->json('data.0.payouts_30d_html');
-        $this->assertIsString($html);
-        $this->assertStringContainsString('>0</a>', $html);
+        $row = $resp->json('data.0');
+        $this->assertSame(0, $row['payouts_30d_count']);
+        $this->assertStringContainsString('source=auto', (string) $row['payouts_30d_url']);
+        $this->assertStringContainsString('partner_id='.$this->partner->id, (string) $row['payouts_30d_url']);
     }
 
     public function test_edit_displays_auto_payout_30d_stats_for_rule_partner(): void

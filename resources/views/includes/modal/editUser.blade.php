@@ -318,6 +318,7 @@
                                     @unless($canChange)
                                         aria-disabled="true"
                                     tabindex="-1"
+                                    data-kids-tooltip-hint
                                     data-bs-toggle="tooltip"
                                     title="Нет прав на изменение пароля"
                                     @endunless
@@ -329,17 +330,6 @@
                                 <div class="form-text text-muted mt-2">
                                     <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение пароля
                                 </div>
-                            @endunless
-
-
-                            @unless($canChange)
-                                <script>
-                                    // Tooltip изменения пароля
-                                    document.addEventListener('DOMContentLoaded', function () {
-                                        const btn = document.getElementById('change-password-btn');
-                                        if (btn) new bootstrap.Tooltip(btn);
-                                    });
-                                </script>
                             @endunless
 
                             <!-- Кнопка для сохранения данных -->

@@ -48,8 +48,7 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('partnersReportFiltersCollapse', false)
             ->assertSee('partnersColumnsDropdown', false)
-            ->assertSee('serverSide: true', false)
-            ->assertSee('pageLength: 10', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('>№<', false);
     }
 
@@ -146,6 +145,7 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.partner.index'))
             ->assertOk()
             ->assertSee('id="partners-table"', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('id="new-partner"', false)
             ->assertSee('edit-partner-link', false);
 
@@ -223,8 +223,8 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('partnersSectionTabs', false)
             ->assertSee('role="tab">Выплаты T‑Bank</a>', false)
             ->assertSee('id="payouts-table"', false)
-            ->assertSee('tbankPayoutsToolbarTotals', false)
-            ->assertSee('serverSide: true', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('tbankPayoutsToolbarTotals', false);
 
         $this->getJson('/admin/tinkoff/payouts/data?draw=1&start=0&length=10')
             ->assertOk()
@@ -285,7 +285,8 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('partnerLeadsFiltersCollapse', false)
             ->assertSee('columnsDropdownPartnerLeads', false)
             ->assertSee('id="leads-table"', false)
-            ->assertSee('serverSide: true', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('partner-leads-column-toggle', false);
 
         $this->getJson(route('admin.partner-leads.data', [
             'draw' => 1,

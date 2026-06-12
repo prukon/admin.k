@@ -1,0 +1,203 @@
+/**
+ * Admin DataTables: автоширина по контенту + единый cap для ellipsis-колонок.
+ * На <table> — dt-columns-managed; на ячейки — dt-col-* из KidsCrmDataTable.
+ *
+ * width: 1% — idiom для auto-layout: колонка сжимается по контенту, не забирает «лишнее» место таблицы.
+ */
+
+:root {
+    --dt-col-ellipsis-max: 18rem;
+}
+
+/* Горизонтальный скролл только у таблицы; length/filter/info/paginate остаются на ширине карточки. */
+.kids-dt-scroll-x {
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dataTables_wrapper > .dataTables_scroll {
+    overflow-x: auto;
+    width: 100%;
+    max-width: 100%;
+}
+
+.dataTables_wrapper .dataTables_length {
+    float: left;
+}
+
+.dataTables_wrapper .dataTables_filter {
+    float: right;
+    text-align: right;
+}
+
+.dataTables_wrapper::after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
+table.dataTable.dt-columns-managed,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed {
+    width: 100% !important;
+    table-layout: auto;
+}
+
+table.dataTable.dt-columns-managed th,
+table.dataTable.dt-columns-managed td,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td {
+    vertical-align: middle;
+}
+
+/* Узкие колонки: сжимаются по контенту. */
+table.dataTable.dt-columns-managed th.dt-col-id,
+table.dataTable.dt-columns-managed td.dt-col-id,
+table.dataTable.dt-columns-managed th.dt-col-sort,
+table.dataTable.dt-columns-managed td.dt-col-sort,
+table.dataTable.dt-columns-managed th.dt-col-count,
+table.dataTable.dt-columns-managed td.dt-col-count,
+table.dataTable.dt-columns-managed th.dt-col-badge,
+table.dataTable.dt-columns-managed td.dt-col-badge,
+table.dataTable.dt-columns-managed th.dt-col-actions,
+table.dataTable.dt-columns-managed td.dt-col-actions {
+    width: 1%;
+    white-space: nowrap;
+}
+
+table.dataTable.dt-columns-managed th.dt-col-id,
+table.dataTable.dt-columns-managed td.dt-col-id,
+table.dataTable.dt-columns-managed th.dt-col-image,
+table.dataTable.dt-columns-managed td.dt-col-image {
+    min-width: 2.75rem;
+}
+
+table.dataTable.dt-columns-managed th.dt-col-image,
+table.dataTable.dt-columns-managed td.dt-col-image,
+table.dataTable.dt-columns-managed th.dt-col-icon,
+table.dataTable.dt-columns-managed td.dt-col-icon {
+    width: 1%;
+    white-space: nowrap;
+    text-align: center;
+}
+
+table.dataTable.dt-columns-managed td.dt-col-image img,
+table.dataTable.dt-columns-managed td.dt-col-icon .kids-dt-icon-group,
+table.dataTable.dt-columns-managed td.dt-col-icon a,
+table.dataTable.dt-columns-managed td.dt-col-icon span {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+table.dataTable.dt-columns-managed th.dt-col-inline-select,
+table.dataTable.dt-columns-managed td.dt-col-inline-select {
+    width: 1%;
+    white-space: nowrap;
+}
+
+table.dataTable.dt-columns-managed th.dt-col-actions,
+table.dataTable.dt-columns-managed td.dt-col-actions {
+    min-width: 5.5rem;
+}
+
+table.dataTable.dt-columns-managed td.dt-col-count .dt-col-money-value {
+    display: block;
+    text-align: end;
+}
+
+/* Раскрытие вложенной строки (chevron): ширина по кнопке. */
+table.dataTable.dt-columns-managed th.details-control,
+table.dataTable.dt-columns-managed td.details-control {
+    width: 1%;
+    white-space: nowrap;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+table.dataTable.dt-columns-managed td.details-control .details-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+    padding: 0.15rem 0.35rem;
+    line-height: 1;
+}
+
+table.dataTable.dt-columns-managed td.details-control .details-control-btn .fa-solid {
+    font-size: 0.75rem;
+}
+
+/* Вложенные таблицы в child-row (LTV / платежи по месяцам): без «Показать по» и поиска. */
+.details-container .dataTables_length,
+.details-container .dataTables_filter {
+    display: none !important;
+}
+
+/* Колонки «показать / копировать» (User-Agent, meta JSON и т.п.). */
+table.dataTable.dt-columns-managed th.dt-col-inline-actions,
+table.dataTable.dt-columns-managed td.dt-col-inline-actions {
+    width: 1%;
+    white-space: nowrap;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+.kids-dt-inline-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.kids-dt-inline-actions .btn {
+    padding: 0.15rem 0.35rem;
+    line-height: 1;
+}
+
+/* Текстовые колонки: shrink-to-content + cap для ellipsis. */
+table.dataTable.dt-columns-managed th.dt-col-text,
+table.dataTable.dt-columns-managed td.dt-col-text,
+table.dataTable.dt-columns-managed th.dt-col-text-long,
+table.dataTable.dt-columns-managed td.dt-col-text-long,
+table.dataTable.dt-columns-managed th.dt-col-list,
+table.dataTable.dt-columns-managed td.dt-col-list,
+table.dataTable.dt-columns-managed th.dt-col-schedule,
+table.dataTable.dt-columns-managed td.dt-col-schedule,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th.dt-col-text,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td.dt-col-text,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th.dt-col-text-long,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td.dt-col-text-long,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th.dt-col-list,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td.dt-col-list,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th.dt-col-schedule,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td.dt-col-schedule,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th.dt-col-text,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td.dt-col-text,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th.dt-col-text-long,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td.dt-col-text-long,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th.dt-col-list,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td.dt-col-list,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th.dt-col-schedule,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td.dt-col-schedule {
+    width: 1%;
+    max-width: var(--dt-col-ellipsis-max);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Многострочные ячейки (например дата+время в отчёте «Платежи»). */
+table.dataTable.dt-columns-managed th.dt-col-text--wrap,
+table.dataTable.dt-columns-managed td.dt-col-text--wrap,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed th.dt-col-text--wrap,
+.dataTables_wrapper .dataTables_scrollHeadInner table.dt-columns-managed td.dt-col-text--wrap,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed th.dt-col-text--wrap,
+.dataTables_wrapper .dataTables_scrollBody table.dt-columns-managed td.dt-col-text--wrap {
+    width: 1%;
+    white-space: normal;
+    max-width: 9rem;
+}

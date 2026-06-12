@@ -172,7 +172,7 @@
         </div>
 
         <div class="table-responsive">
-            <table id="partners-table" class="table table-striped table-bordered align-middle w-100">
+            <table id="partners-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
                     <th>№</th>
@@ -198,32 +198,6 @@
         $(document).ready(function () {
             const defaultFilterStatus = 'active';
 
-            const defaultColumnsVisibility = {
-                order_by: true,
-                title: true,
-                organization_name: true,
-                tax_id: true,
-                email: true,
-                phone: true,
-                status_label: true,
-                actions: true,
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = {
-                order_by: 1,
-                title: 2,
-                organization_name: 3,
-                tax_id: 4,
-                email: 5,
-                phone: 6,
-                status_label: 7,
-                actions: 8,
-            };
-
-            const csrfToken = $('meta[name="csrf-token"]').attr('content');
-
             function escapeHtml(text) {
                 if (text === null || text === undefined) return '';
                 return String(text)
@@ -231,60 +205,6 @@
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;');
-            }
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-
-                if (typeof val === 'boolean') return val;
-
-                if (typeof val === 'number') return val === 1;
-
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-
-                    column.visible(isVisible);
-
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: @json(route('admin.partner.columns-settings.get')),
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
             }
 
             function partnersFilterParams() {
@@ -313,148 +233,104 @@
                 }
             }
 
+            const dtApi = KidsCrmDataTable.create('#partners-table', {
+                columnsSettings: {
+                    defaults: {
+                        order_by: true,
+                        title: true,
+                        organization_name: true,
+                        tax_id: true,
+                        email: true,
+                        phone: true,
+                        status_label: true,
+                        actions: true,
+                    },
+                    urls: {
+                        get: @json(route('admin.partner.columns-settings.get')),
+                        save: @json(route('admin.partner.columns-settings.save')),
+                    },
+                    csrfToken: $('meta[name="csrf-token"]').attr('content'),
+                },
+                dataTable: {
+                    ajax: {
+                        url: @json(route('admin.partner.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            const params = partnersFilterParams();
+                            d.title = params.title;
+                            d.status = params.status;
+                        },
+                    },
+                    order: [[1, 'asc']],
+                    language: @include('partials.datatables.ru'),
+                },
+                columns: [
+                    { type: 'rownum' },
+                    { key: 'order_by', type: 'sort', data: 'order_by' },
+                    {
+                        key: 'title',
+                        type: 'link',
+                        data: 'title',
+                        name: 'title',
+                        className: 'dt-col-text',
+                        linkClass: 'edit-partner-link',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '"';
+                        },
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
+                            const linkClass = 'edit-partner-link' + (row.is_enabled ? '' : ' text-danger');
+                            return window.KidsCrmTooltip.renderLink(data, {
+                                linkClass: linkClass,
+                                extraAttrs: 'data-id="' + row.id + '"',
+                            });
+                        },
+                    },
+                    {
+                        key: 'organization_name',
+                        type: 'text-long',
+                        data: 'organization_name',
+                    },
+                    {
+                        key: 'tax_id',
+                        type: 'text',
+                        data: 'tax_id',
+                        className: 'dt-col-text text-nowrap',
+                    },
+                    { key: 'email', type: 'text-long', data: 'email' },
+                    { key: 'phone', type: 'text', data: 'phone', className: 'dt-col-text text-nowrap' },
+                    {
+                        key: 'status_label',
+                        type: 'badge',
+                        data: 'status_label',
+                        badgeKey: 'is_enabled',
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        render: function (data, type, row) {
+                            return '<button type="button" '
+                                + 'class="btn btn-sm btn-outline-primary edit-partner-link" '
+                                + 'data-id="' + row.id + '">'
+                                + 'Редактировать'
+                                + '</button>';
+                        },
+                    },
+                ],
+            });
+
+            const table = dtApi.table;
+
             window.reloadPartnersTable = function () {
-                if ($.fn.DataTable.isDataTable('#partners-table')) {
-                    $('#partners-table').DataTable().ajax.reload(null, false);
-                }
+                dtApi.reload({ keepPage: true });
                 syncPartnersFiltersCollapseState();
             };
 
-            const dataTableColumns = [
-                {
-                    data: null,
-                    name: 'rownum',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-center',
-                    render: function (data, type, row, meta) {
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                {
-                    data: 'order_by',
-                    name: 'order_by',
-                    className: 'text-center',
-                    defaultContent: '',
-                },
-                {
-                    data: 'title',
-                    name: 'title',
-                    render: function (data, type, row) {
-                        const style = row.is_enabled ? '' : ' style="color: red;"';
-                        return '<a href="javascript:void(0);" ' +
-                            'class="edit-partner-link"' + style + ' ' +
-                            'data-id="' + row.id + '">' +
-                            escapeHtml(data) +
-                            '</a>';
-                    }
-                },
-                {
-                    data: 'organization_name',
-                    name: 'organization_name',
-                    defaultContent: '',
-                    render: function (data) {
-                        if (!data) return '<span class="text-muted">—</span>';
-                        return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
-                    }
-                },
-                {
-                    data: 'tax_id',
-                    name: 'tax_id',
-                    defaultContent: '',
-                    render: function (data) {
-                        if (!data) return '<span class="text-muted">—</span>';
-                        return escapeHtml(data);
-                    }
-                },
-                {
-                    data: 'email',
-                    name: 'email',
-                    defaultContent: '',
-                    render: function (data) {
-                        if (!data) return '<span class="text-muted">—</span>';
-                        return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
-                    }
-                },
-                {
-                    data: 'phone',
-                    name: 'phone',
-                    defaultContent: '',
-                    render: function (data) {
-                        if (!data) return '<span class="text-muted">—</span>';
-                        return escapeHtml(data);
-                    }
-                },
-                {
-                    data: 'status_label',
-                    name: 'status_label',
-                    render: function (data, type, row) {
-                        const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                        return '<span class="badge ' + badgeClass + '">' + escapeHtml(data) + '</span>';
-                    }
-                },
-                {
-                    data: null,
-                    name: 'actions',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-end',
-                    render: function (data, type, row) {
-                        return '<button type="button" ' +
-                            'class="btn btn-sm btn-outline-primary edit-partner-link" ' +
-                            'data-id="' + row.id + '">' +
-                            'Редактировать' +
-                            '</button>';
-                    }
-                }
-            ];
-
-            const table = $('#partners-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: @json(route('admin.partner.data')),
-                    type: 'GET',
-                    data: function (d) {
-                        const params = partnersFilterParams();
-                        d.title = params.title;
-                        d.status = params.status;
-                    }
-                },
-                columns: dataTableColumns,
-                order: [[1, 'asc']],
-                scrollX: true,
-                language: {
-                    processing: 'Обработка...',
-                    search: '',
-                    searchPlaceholder: 'Поиск...',
-                    lengthMenu: 'Показать _MENU_',
-                    info: 'С _START_ до _END_ из _TOTAL_ записей',
-                    infoEmpty: 'С 0 до 0 из 0 записей',
-                    infoFiltered: '(отфильтровано из _MAX_ записей)',
-                    loadingRecords: 'Загрузка записей...',
-                    zeroRecords: 'Записи отсутствуют.',
-                    emptyTable: 'В таблице отсутствуют данные',
-                    paginate: {
-                        first: '',
-                        previous: '',
-                        next: '',
-                        last: ''
-                    },
-                    aria: {
-                        sortAscending: ': активировать для сортировки столбца по возрастанию',
-                        sortDescending: ': активировать для сортировки столбца по убыванию'
-                    }
-                }
-            });
-
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
-
             function reloadPartnersTable() {
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
                 syncPartnersFiltersCollapseState();
             }
 
@@ -484,26 +360,6 @@
                     'aria-expanded',
                     $('#partnersReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
                 );
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: @json(route('admin.partner.columns-settings.save')),
-                    type: 'POST',
-                    data: {
-                        _token: csrfToken,
-                        columns: currentColumnsConfig
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
             });
 
             showLogModal(@json(route('logs.data.partner')));

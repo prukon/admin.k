@@ -150,7 +150,7 @@
     </form>
 </div>
 
-<table id="leads-table" class="table table-bordered table-striped align-middle w-100">
+    <table id="leads-table" class="table table-bordered table-striped align-middle w-100 dt-columns-managed">
     <thead>
         <tr>
             <th>№</th>
@@ -333,219 +333,155 @@
                 }
             }
 
-            function buildStatusOptionsHtml(selectedStatus) {
-                var statuses = [
-                    { value: '', label: '— не выбран —' },
-                    { value: 'new', label: 'Новый' },
-                    { value: 'processing', label: 'Обработка' },
-                    { value: 'sale', label: 'Продажа' },
-                    { value: 'rejected', label: 'Отказ' },
-                    { value: 'spam', label: 'Спам' }
-                ];
-                var html = '';
-                statuses.forEach(function (st) {
-                    var selected = (st.value === (selectedStatus || '')) ? ' selected' : '';
-                    html += '<option value="' + st.value + '"' + selected + '>' + st.label + '</option>';
-                });
-                return html;
-            }
-
-            var defaultColumnsVisibility = {
-                name: true,
-                phone: true,
-                email: true,
-                website: true,
-                message: true,
-                status: true,
-                comment: true,
-                actions: true
-            };
-
-            var currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
-
-            var columnsMap = {
-                name: 1,
-                phone: 2,
-                email: 3,
-                website: 4,
-                message: 5,
-                status: 6,
-                comment: 7,
-                actions: 8
-            };
-
-            function toBool(val, fallback) {
-                fallback = fallback !== undefined ? fallback : true;
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    var v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    var colIndex = columnsMap[key];
-                    var column = table.column(colIndex);
-                    var isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    column.visible(isVisible);
-                    $('.partner-leads-column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: @json(route('admin.partner-leads.columns-settings.get')),
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        var merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = Object.assign({}, defaultColumnsVisibility);
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
-            var dataTableColumns = [
-                { data: 'id', name: 'id' },
-                { data: 'name', name: 'name' },
-                { data: 'phone', name: 'phone' },
-                {
-                    data: 'email',
-                    name: 'email',
-                    render: function (data) {
-                        return data ? $('<div/>').text(data).html() : '—';
-                    }
-                },
-                {
-                    data: 'website',
-                    name: 'website',
-                    render: function (data) {
-                        if (!data) {
-                            return '—';
-                        }
-                        var short = data.length > 30 ? data.substring(0, 27) + '...' : data;
-                        return '<a href="' + data + '" target="_blank" rel="noopener">' + short + '</a>';
-                    }
-                },
-                {
-                    data: 'message',
-                    name: 'message',
-                    render: function (data) {
-                        return data ? $('<div/>').text(data).html() : '';
-                    }
-                },
-                {
-                    data: 'status_label',
-                    name: 'status',
-                    render: function (data, type, row) {
-                        var status = row.status;
-                        var label = row.status_label || '—';
-                        var badgeClass = getStatusBadgeClass(status);
-                        var optionsHtml = buildStatusOptionsHtml(status);
-                        return '' +
-                            '<div class="d-flex align-items-center gap-1">' +
-                            '<span class="badge ' + badgeClass + ' lead-status-badge" data-id="' + row.id + '" data-status="' + (status || '') + '">' + label + '</span>' +
-                            '<select class="form-select form-select-sm lead-status-select d-none" data-id="' + row.id + '">' + optionsHtml + '</select>' +
-                            '</div>';
-                    }
-                },
-                {
-                    data: 'comment',
-                    name: 'comment',
-                    render: function (data) {
-                        return data ? $('<div/>').text(data).html() : '';
-                    }
-                },
-                {
-                    data: null,
-                    orderable: false,
-                    searchable: false,
-                    render: function (data, type, row) {
-                        return '' +
-                            '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>' +
-                            '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
-                    }
-                }
+            const leadStatusInlineSelectOptions = [
+                { value: '', label: '— не выбран —' },
+                { value: 'new', label: 'Новый' },
+                { value: 'processing', label: 'Обработка' },
+                { value: 'sale', label: 'Продажа' },
+                { value: 'rejected', label: 'Отказ' },
+                { value: 'spam', label: 'Спам' },
             ];
 
-            var table = $('#leads-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: @json(route('admin.partner-leads.data')),
-                    type: 'GET',
-                    data: function (d) {
-                        d.statuses = appliedFilters.statuses;
+            var dtApi = KidsCrmDataTable.create('#leads-table', {
+                columnsSettings: {
+                    defaults: {
+                        name: true,
+                        phone: true,
+                        email: true,
+                        website: true,
+                        message: true,
+                        status: true,
+                        comment: true,
+                        actions: true,
                     },
-                    dataSrc: function (json) {
-                        updatePartnerLeadsStats(json.stats);
-                        return json.data;
-                    }
+                    toggleSelector: '.partner-leads-column-toggle',
+                    urls: {
+                        get: @json(route('admin.partner-leads.columns-settings.get')),
+                        save: @json(route('admin.partner-leads.columns-settings.save')),
+                    },
+                    csrfToken: csrfToken,
                 },
-                columns: dataTableColumns,
-                order: [[0, 'desc']],
-                scrollX: true,
-                language: {
-                    processing: 'Загрузка...',
-                    search: 'Поиск:',
-                    lengthMenu: 'Показать _MENU_ записей',
-                    info: 'Показаны _START_–_END_ из _TOTAL_',
-                    infoEmpty: 'Нет записей',
-                    infoFiltered: '(отфильтровано из _MAX_ записей)',
-                    loadingRecords: 'Загрузка...',
-                    zeroRecords: 'Совпадений не найдено',
-                    emptyTable: 'Данные отсутствуют',
-                    paginate: {
-                        first: 'Первая',
-                        previous: 'Предыдущая',
-                        next: 'Следующая',
-                        last: 'Последняя'
-                    }
-                }
+                dataTable: {
+                    ajax: {
+                        url: @json(route('admin.partner-leads.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            d.statuses = appliedFilters.statuses;
+                        },
+                        dataSrc: function (json) {
+                            updatePartnerLeadsStats(json.stats);
+                            return json.data;
+                        },
+                    },
+                    order: [[0, 'desc']],
+                    language: @include('partials.datatables.ru'),
+                },
+                columns: [
+                    { type: 'id', data: 'id', name: 'id' },
+                    { key: 'name', type: 'text', data: 'name', name: 'name' },
+                    { key: 'phone', type: 'text', data: 'phone', name: 'phone', className: 'dt-col-text text-nowrap' },
+                    {
+                        key: 'email',
+                        type: 'text',
+                        data: 'email',
+                        name: 'email',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return data ? $('<div/>').text(data).html() : '—';
+                        },
+                    },
+                    {
+                        key: 'website',
+                        type: 'link',
+                        data: 'website',
+                        name: 'website',
+                        className: 'dt-col-text',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            if (!data) {
+                                return '<span class="dt-cell-empty text-muted">—</span>';
+                            }
+
+                            var short = data.length > 30 ? data.substring(0, 27) + '...' : data;
+                            return '<a href="' + $('<div/>').text(data).html() + '" target="_blank" rel="noopener">'
+                                + $('<div/>').text(short).html()
+                                + '</a>';
+                        },
+                    },
+                    {
+                        key: 'message',
+                        type: 'text',
+                        data: 'message',
+                        name: 'message',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return data ? $('<div/>').text(data).html() : '';
+                        },
+                    },
+                    {
+                        key: 'status',
+                        type: 'inline-select',
+                        data: 'status_label',
+                        name: 'status',
+                        className: 'dt-col-inline-select',
+                        inlineSelect: {
+                            statusKey: 'status',
+                            labelKey: 'status_label',
+                            rowIdKey: 'id',
+                            badgeSelector: 'lead-status-badge',
+                            selectSelector: 'lead-status-select',
+                            badgeExtraClass: '',
+                            selectExtraClass: 'form-select form-select-sm d-none',
+                            badgeClassFn: getStatusBadgeClass,
+                            options: leadStatusInlineSelectOptions,
+                        },
+                    },
+                    {
+                        key: 'comment',
+                        type: 'text-long',
+                        data: 'comment',
+                        name: 'comment',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return data ? $('<div/>').text(data).html() : '';
+                        },
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        render: function (data, type, row) {
+                            return '' +
+                                '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>' +
+                                '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
+                        },
+                    },
+                ],
             });
 
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
+            var table = dtApi.table;
 
             $filtersForm.on('submit', function (e) {
                 e.preventDefault();
                 appliedFilters = readFiltersFromForm();
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
             });
 
             $('#partnerLeadsFiltersResetBtn').on('click', function () {
                 resetFiltersFormToDefault();
                 appliedFilters = readFiltersFromForm();
-                table.ajax.reload();
-            });
-
-            $('.partner-leads-column-toggle').on('change', function () {
-                var key = $(this).data('column-key');
-                currentColumnsConfig[key] = $(this).is(':checked') ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-                $.ajax({
-                    url: @json(route('admin.partner-leads.columns-settings.save')),
-                    type: 'POST',
-                    data: { _token: csrfToken, columns: currentColumnsConfig },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
+                dtApi.reload({ keepPage: true });
             });
 
             $('#leads-table').on('click', '.edit-lead', function () {
@@ -571,7 +507,7 @@
                     },
                     success: function (response) {
                         $('#editLeadSuccess').removeClass('d-none').text(response.message || 'Сохранено.');
-                        table.ajax.reload(null, false);
+                        dtApi.reload({ keepPage: true });
                         showToast(response.message || 'Изменения сохранены.', 'success');
                         setTimeout(function () { editLeadModal.hide(); }, 600);
                     },
@@ -612,7 +548,7 @@
                         $select.addClass('d-none');
                         $badge.removeClass('d-none');
                         showToast(response.message || 'Статус обновлён.', 'success');
-                        table.ajax.reload(null, false);
+                        dtApi.reload({ keepPage: true });
                     },
                     error: function (xhr) {
                         var message = 'Ошибка обновления статуса.';
@@ -654,7 +590,7 @@
                     success: function (response) {
                         deleteLeadModal.hide();
                         leadIdToDelete = null;
-                        table.ajax.reload(null, false);
+                        dtApi.reload({ keepPage: true });
                         showToast(response.message || 'Заявка удалена.', 'success');
                     },
                     error: function () {

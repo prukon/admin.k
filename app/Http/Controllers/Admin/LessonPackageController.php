@@ -539,37 +539,11 @@ final class LessonPackageController extends AdminBaseController
             default => 'Абонемент',
         };
 
-        $paidInner = $a->effective_is_paid
-            ? '<span class="badge bg-success">да</span>'
-            : '<span class="badge bg-secondary">нет</span>';
-        if ($a->is_manual_paid !== null) {
-            $paidInner .= '<div class="small text-muted mt-1">руч.</div>';
-        }
-
         $manualNote = trim((string) ($a->manual_paid_note ?? ''));
-        if ($a->is_manual_paid !== null && $manualNote !== '') {
-            $tooltipPlain = 'Комментарий: '.preg_replace('/\s+/u', ' ', $manualNote);
-            $titleAttr = htmlspecialchars($tooltipPlain, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            $paidHtml = '<span class="ulp-paid-manual-hint d-inline-block text-center" tabindex="0" '
-                .'aria-label="'.$titleAttr.'" '
-                .'data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" '
-                .'title="'.$titleAttr.'">'.$paidInner.'</span>';
-        } else {
-            $paidHtml = '<span class="d-inline-block text-center">'.$paidInner.'</span>';
-        }
-
         $id = (int) $a->id;
-        if ($ulpPublicPayTbankReady && ! $a->effective_is_paid && (float) ($a->fee_amount ?? 0) >= 10.0) {
-            $payLinkHtml = '<button type="button" class="btn btn-sm btn-outline-secondary js-ulp-copy-pay-link" '
-                .'data-assignment-id="'.$id.'" aria-label="Скопировать ссылку на оплату через СБП" '
-                .'title="Скопировать ссылку на оплату через СБП">'
-                .'<i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать</button>';
-        } else {
-            $payLinkHtml = '<span class="text-muted small">—</span>';
-        }
-
-        $actionsHtml = '<button type="button" class="btn btn-sm btn-outline-primary js-ulp-assignment-edit" '
-            .'data-assignment-id="'.$id.'">Изменить</button>';
+        $payLinkAvailable = $ulpPublicPayTbankReady
+            && ! $a->effective_is_paid
+            && (float) ($a->fee_amount ?? 0) >= 10.0;
 
         $feeInt = (int) round((float) ($a->fee_amount ?? 0));
         $feeDisplay = number_format($feeInt, 0, '.', ',').' руб';
@@ -580,11 +554,12 @@ final class LessonPackageController extends AdminBaseController
             'package_name' => (string) ($a->lessonPackage->name ?? '—'),
             'period' => $period,
             'fee' => $feeDisplay,
-            'paid_html' => $paidHtml,
+            'effective_is_paid' => (bool) $a->effective_is_paid,
+            'is_manual_paid' => $a->is_manual_paid,
+            'manual_paid_note' => $manualNote,
             'balance' => $a->lessons_remaining.' / '.$a->lessons_total,
             'type_label' => $typeLabel,
-            'pay_link_html' => $payLinkHtml,
-            'actions_html' => $actionsHtml,
+            'pay_link_available' => $payLinkAvailable,
         ];
     }
 

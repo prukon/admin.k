@@ -1,0 +1,93 @@
+/**
+ * Единые стили подсказок Kids CRM (Bootstrap Tooltip).
+ * Подключается глобально в layouts/admin2 через Vite.
+ */
+
+/* Базовый tooltip (текст, иконки-подсказки, ellipsis в таблицах) */
+.tooltip.ulp-assignment-paid-tooltip .tooltip-inner {
+    max-width: min(22rem, 85vw);
+    text-align: left;
+    white-space: pre-wrap;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+
+/* Tooltip со списком пунктов */
+.tooltip.kids-hover-list-tooltip .tooltip-inner,
+.tooltip.ulp-assignment-paid-tooltip.kids-hover-list-tooltip .tooltip-inner {
+    max-width: min(22rem, 85vw);
+    text-align: left;
+    white-space: normal;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+}
+
+.kids-hover-list-tooltip__list {
+    margin: 0;
+    padding-left: 1.1rem;
+    text-align: left;
+}
+
+.kids-hover-list-tooltip__list li {
+    margin-bottom: 0.15rem;
+}
+
+.kids-hover-list-tooltip__list li:last-child {
+    margin-bottom: 0;
+}
+
+/* Hover-список: триггер в ячейке таблицы / Select2 */
+.kids-hover-list-dropdown__trigger {
+    cursor: help;
+    border-bottom: 1px dotted rgba(33, 37, 41, 0.45);
+}
+
+/* Иконка-подсказка в формах */
+.kids-tooltip-hint {
+    cursor: help;
+    color: #6c757d;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.kids-tooltip-hint:focus {
+    outline: none;
+}
+
+/* Ручная отметка оплаты (абонементы, установка цен) */
+.ulp-paid-manual-hint {
+    cursor: help;
+    border-bottom: 1px dotted rgba(33, 37, 41, 0.45);
+}
+
+/* Ellipsis + tooltip в ячейках DataTables */
+.dt-cell-empty {
+    display: inline;
+    line-height: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.dt-cell-ellipsis {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.dt-cell-ellipsis.dt-cell-ellipsis--truncated {
+    cursor: help;
+}
+
+a .dt-cell-ellipsis {
+    cursor: pointer;
+}
+
+a.dt-cell-ellipsis {
+    color: inherit;
+}
+
+a.dt-cell-ellipsis:hover {
+    color: var(--bs-link-color, #0d6efd);
+}

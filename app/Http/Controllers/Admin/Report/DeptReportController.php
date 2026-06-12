@@ -16,9 +16,12 @@ use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
+use App\Models\UserTableSetting;
 
 class DeptReportController extends AdminBaseController
 {
+    private const TABLE_KEY = 'reports_debts';
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamLocationAvailabilityService $teamLocationAvailability,
@@ -185,12 +188,59 @@ class DeptReportController extends AdminBaseController
 
             return DataTables::of($base)
                 ->addIndexColumn()
-                ->addColumn('month', fn ($row) => $row->month)
+                ->editColumn('month', fn ($row) => self::formatMonthForDebtReport($row->month))
                 ->addColumn('price', fn ($row) => (float) $row->price)
                 ->make(true);
         }
 
         abort(404);
+    }
+
+    public function getColumnsSettings()
+    {
+        $this->requirePartnerId();
+
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function saveColumnsSettings(Request $request)
+    {
+        $this->requirePartnerId();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $normalized = [];
+        foreach ((array) $data['columns'] as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[(string) $key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::TABLE_KEY,
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -415,6 +465,50 @@ class DeptReportController extends AdminBaseController
             'id' => $profile->id,
             'text' => $text !== '' ? $text : '—',
         ];
+    }
+
+    /**
+     * Человекочитаемый месяц для отчёта задолженностей: YYYY-MM-DD → «Январь 2026».
+     * Периоды «дата — дата» и прочие строки возвращаются как есть.
+     */
+    private static function formatMonthForDebtReport(mixed $value): string
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+
+        if (str_contains($raw, ' — ')) {
+            return $raw;
+        }
+
+        if (! preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $raw, $matches)) {
+            return $raw;
+        }
+
+        $month = (int) $matches[2];
+        $year = (int) $matches[1];
+
+        if ($month < 1 || $month > 12) {
+            return $raw;
+        }
+
+        static $monthNames = [
+            1 => 'Январь',
+            2 => 'Февраль',
+            3 => 'Март',
+            4 => 'Апрель',
+            5 => 'Май',
+            6 => 'Июнь',
+            7 => 'Июль',
+            8 => 'Август',
+            9 => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+
+        return $monthNames[$month].' '.$year;
     }
 
     public function formatedDate($month)

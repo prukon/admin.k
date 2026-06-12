@@ -121,7 +121,7 @@
         </div>
 
         <div class="table-responsive">
-            <table id="sport-types-table" class="table table-striped table-bordered align-middle w-100">
+            <table id="sport-types-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
                     <th>Сортировка</th>
@@ -236,69 +236,6 @@
             const canManageSportTypes = @json(auth()->user()->can('sport_types.manage'));
             const defaultFilterStatus = 'active';
 
-            const defaultColumnsVisibility = {
-                sort: true,
-                name: true,
-                teams_count: true,
-                is_enabled_label: true,
-                ...(canManageSportTypes ? { actions: true } : {})
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = (function () {
-                const map = { sort: 0, name: 1, teams_count: 2, is_enabled_label: 3 };
-                if (canManageSportTypes) {
-                    map.actions = 4;
-                }
-                return map;
-            })();
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    column.visible(isVisible);
-                    $('.column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: @json(route('admin.sport-types.columns-settings.get')),
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
             function sportTypesFilterParams() {
                 return {
                     name: $('#filter-name').val() || '',
@@ -306,65 +243,60 @@
                 };
             }
 
-            const dataTableColumns = [
-                { data: 'sort', name: 'sort', className: 'text-center', defaultContent: '' },
-                { data: 'name', name: 'name', defaultContent: '' },
-                {
-                    data: 'teams_count',
-                    name: 'teams_count',
-                    className: 'text-center',
-                    defaultContent: '0',
-                    render: function (data) {
-                        return data || 0;
-                    }
+            const dtApi = KidsCrmDataTable.create('#sport-types-table', {
+                columnsSettings: {
+                    defaults: {
+                        sort: true,
+                        name: true,
+                        teams_count: true,
+                        is_enabled_label: true,
+                        ...(canManageSportTypes ? { actions: true } : {}),
+                    },
+                    urls: {
+                        get: @json(route('admin.sport-types.columns-settings.get')),
+                        save: @json(route('admin.sport-types.columns-settings.save')),
+                    },
+                    csrfToken: '{{ csrf_token() }}',
                 },
-                {
-                    data: 'is_enabled_label',
-                    name: 'is_enabled_label',
-                    className: 'text-center',
-                    defaultContent: '',
-                    render: function (data, type, row) {
-                        const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                        return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                    }
+                dataTable: {
+                    ajax: {
+                        url: @json(route('admin.sport-types.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            const params = sportTypesFilterParams();
+                            d.name = params.name;
+                            d.status = params.status;
+                        }
+                    },
+                    order: [[1, 'asc']],
+                    language: @include('partials.datatables.ru')
                 },
-                ...(canManageSportTypes ? [{
-                    data: null,
-                    name: 'actions',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-end',
-                    render: function (data, type, row) {
-                        return '<button type="button" class="btn btn-sm btn-outline-primary js-sport-type-edit" data-id="' + row.id + '">Редактировать</button>';
-                    }
-                }] : [])
-            ];
-
-            const table = $('#sport-types-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: @json(route('admin.sport-types.data')),
-                    type: 'GET',
-                    data: function (d) {
-                        const params = sportTypesFilterParams();
-                        d.name = params.name;
-                        d.status = params.status;
-                    }
-                },
-                columns: dataTableColumns,
-                order: [[1, 'asc']],
-                scrollX: true,
-                language: @include('partials.datatables.ru')
+                columns: [
+                    { key: 'sort', type: 'sort', data: 'sort' },
+                    { key: 'name', type: 'text-long', data: 'name' },
+                    { key: 'teams_count', type: 'count', data: 'teams_count' },
+                    {
+                        key: 'is_enabled_label',
+                        type: 'badge',
+                        data: 'is_enabled_label',
+                        badgeKey: 'is_enabled',
+                        className: 'dt-col-badge text-center',
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        when: canManageSportTypes,
+                        render: function (data, type, row) {
+                            return '<button type="button" class="btn btn-sm btn-outline-primary js-sport-type-edit" data-id="' + row.id + '">Редактировать</button>';
+                        }
+                    },
+                ],
             });
 
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
+            const table = dtApi.table;
 
             function reloadSportTypesTable() {
-                table.ajax.reload(null, false);
+                dtApi.reload({ keepPage: true });
             }
 
             $('#filter-apply').on('click', reloadSportTypesTable);
@@ -379,17 +311,6 @@
             });
             $('#filter-name').on('keyup', function (e) {
                 if (e.key === 'Enter') reloadSportTypesTable();
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                currentColumnsConfig[key] = $(this).is(':checked') ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-                $.ajax({
-                    url: @json(route('admin.sport-types.columns-settings.save')),
-                    type: 'POST',
-                    data: { _token: '{{ csrf_token() }}', columns: currentColumnsConfig }
-                });
             });
 
             @can('sport_types.manage')

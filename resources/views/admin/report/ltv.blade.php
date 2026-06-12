@@ -68,31 +68,31 @@
                              aria-labelledby="columnsDropdownLtvReport">
                             <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColName" data-column-index="1" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColName" data-column-key="user_name" checked>
                                 <label class="form-check-label" for="ltvColName">ФИО</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColTeam" data-column-index="2" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColTeam" data-column-key="team_title" checked>
                                 <label class="form-check-label" for="ltvColTeam">Группа</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColSum" data-column-index="3" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColSum" data-column-key="total_price" checked>
                                 <label class="form-check-label" for="ltvColSum">Сумма</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColCount" data-column-index="4" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColCount" data-column-key="payment_count" checked>
                                 <label class="form-check-label" for="ltvColCount">Кол-во платежей</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColFirst" data-column-index="5" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColFirst" data-column-key="first_payment_date" checked>
                                 <label class="form-check-label" for="ltvColFirst">Перв. платёж</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColLast" data-column-index="6" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColLast" data-column-key="last_payment_date" checked>
                                 <label class="form-check-label" for="ltvColLast">Посл. платёж</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColStatus" data-column-index="7" checked>
+                                <input class="form-check-input ltv-column-toggle" type="checkbox" id="ltvColStatus" data-column-key="is_enabled" checked>
                                 <label class="form-check-label" for="ltvColStatus">Статус</label>
                             </div>
                         </div>
@@ -193,7 +193,7 @@
     </form>
 </div>
 
-<table class="table table-bordered" id="ltv-table">
+<table class="table table-bordered dt-columns-managed w-100" id="ltv-table">
     <thead>
         <tr>
             <th style="width: 60px;"></th>
@@ -375,149 +375,32 @@
             initPaymentsReportFilterSelect2($ltvFilterTeam);
             initPaymentsReportFilterSelect2($ltvFilterTrainer);
 
-            var ltvTable = $('#ltv-table').DataTable({
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: '/admin/reports/ltv/data',
-                    type: 'GET',
-                    data: function (d) {
-                        var extra = ltvReportFilterParams();
-                        Object.keys(extra).forEach(function (key) {
-                            d[key] = extra[key];
-                        });
-                    }
-                },
-                columns: [{
-                        data: null,
-                        className: 'details-control text-center',
-                        orderable: false,
-                        searchable: false,
-                        defaultContent: '<button type="button" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-chevron-down"></i></button>'
-                    },
-                    {
-                        data: 'user_name',
-                        name: 'user_name'
-                    },
-                    {
-                        data: 'team_title',
-                        name: 'team_title'
-                    },
-                    {
-                        data: 'total_price',
-                        name: 'total_price',
-                        render: function(data, type, row) {
-                            if (type === 'display') {
-                                var num = parseFloat(data || 0);
-                                return num.toLocaleString('ru-RU') + ' руб';
-                            }
-                            return data;
-                        }
-                    },
-                    {
-                        data: 'payment_count',
-                        name: 'payment_count'
-                    },
-                    {
-                        data: 'first_payment_date',
-                        name: 'first_payment_date',
-                        render: function(data, type, row) {
-                            if (!data) return '';
-                            var d = new Date(data);
-                            if (isNaN(d.getTime())) {
-                                return data;
-                            }
-                            var day = ("0" + d.getDate()).slice(-2);
-                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
-                            var year = d.getFullYear();
-                            return day + '.' + month + '.' + year;
-                        }
-                    },
-                    {
-                        data: 'last_payment_date',
-                        name: 'last_payment_date',
-                        render: function(data, type, row) {
-                            if (!data) return '';
-                            var d = new Date(data);
-                            if (isNaN(d.getTime())) {
-                                return data;
-                            }
-                            var day = ("0" + d.getDate()).slice(-2);
-                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
-                            var year = d.getFullYear();
-                            return day + '.' + month + '.' + year;
-                        }
-                    },
-                    {
-                        data: 'is_enabled',
-                        name: 'is_enabled',
-                        render: function(data, type, row) {
-                            if (data) {
-                                return '<span class="badge bg-success">Активен</span>';
-                            }
-                            return '<span class="badge bg-secondary">Отключен</span>';
-                        }
-                    },
-                    {
-                        data: 'user_id',
-                        name: 'user_id',
-                        visible: false,
-                        searchable: false
-                    }
-                ],
-                order: [
-                    [3, 'desc']
-                ],
-                scrollX: true,
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
-                    },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
+            function formatLtvDate(data) {
+                if (!data) {
+                    return '';
                 }
-            });
-
-            $ltvFiltersForm.on('submit', function (e) {
-                e.preventDefault();
-                refreshLtvReportTotal();
-                ltvTable.ajax.reload();
-            });
-
-            $('#ltvReportFiltersResetBtn').on('click', function () {
-                $ltvFiltersForm[0].reset();
-                $ltvFilterUser.val(null).trigger('change');
-                $ltvFilterTeam.val(null).trigger('change');
-                $ltvFilterTrainer.val(null).trigger('change');
-                if (canViewLocations) {
-                    $('#pay-ltv-filter-location').val('');
+                var d = new Date(data);
+                if (isNaN(d.getTime())) {
+                    return data;
                 }
-                refreshLtvReportTotal();
-                ltvTable.ajax.reload();
-            });
+                var day = ('0' + d.getDate()).slice(-2);
+                var month = ('0' + (d.getMonth() + 1)).slice(-2);
+                var year = d.getFullYear();
+                return day + '.' + month + '.' + year;
+            }
 
-            $('.ltv-column-toggle').on('change', function () {
-                var idx = parseInt($(this).data('column-index'), 10);
-                if (isNaN(idx)) {
-                    return;
+            var ltvDetailTables = {};
+            var ltvDetailMeta = {};
+
+            function destroyLtvDetailTable(userId) {
+                var tableId = 'ltv-user-payments-' + userId;
+                if (ltvDetailTables[userId]) {
+                    ltvDetailTables[userId].destroy();
+                    delete ltvDetailTables[userId];
                 }
-                ltvTable.column(idx).visible($(this).is(':checked'));
-            });
+                delete ltvDetailMeta[userId];
+                $('#' + tableId).remove();
+            }
 
             function formatSubscriptionMonth(raw) {
                 if (!raw) return '';
@@ -532,113 +415,277 @@
                 var monthNum = parseInt(parts[1], 10);
 
                 var monthNames = {
-                    1: 'Январь',
-                    2: 'Февраль',
-                    3: 'Март',
-                    4: 'Апрель',
-                    5: 'Май',
-                    6: 'Июнь',
-                    7: 'Июль',
-                    8: 'Август',
-                    9: 'Сентябрь',
-                    10: 'Октябрь',
-                    11: 'Ноябрь',
-                    12: 'Декабрь'
+                    1: 'Январь', 2: 'Февраль', 3: 'Март', 4: 'Апрель',
+                    5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
+                    9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
                 };
 
-                var monthName = monthNames[monthNum] || parts[1];
-
-                return monthName + ' ' + year;
+                return (monthNames[monthNum] || parts[1]) + ' ' + year;
             }
 
-            function buildDetailsHtml(payments, userName, teamTitle) {
+            function formatOperationDateTime(raw) {
+                if (!raw) {
+                    return '';
+                }
+                var d = new Date(raw);
+                if (isNaN(d.getTime())) {
+                    return raw;
+                }
+                var day = ('0' + d.getDate()).slice(-2);
+                var month = ('0' + (d.getMonth() + 1)).slice(-2);
+                var year = d.getFullYear();
+                var hours = ('0' + d.getHours()).slice(-2);
+                var minutes = ('0' + d.getMinutes()).slice(-2);
+                return day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes;
+            }
+
+            function renderPaymentProviderBadge(provider) {
+                if (provider === 'tbank') {
+                    return '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
+                }
+                if (provider === 'robokassa') {
+                    return '<span class="badge bg-secondary">Robokassa</span>';
+                }
+                return provider || '';
+            }
+
+            function updateLtvDetailSummary(userId) {
+                var meta = ltvDetailMeta[userId] || {};
+                var $summary = $('#ltv-detail-summary-' + userId);
+                if (!$summary.length) {
+                    return;
+                }
+                var count = meta.payments_count || 0;
+                var sum = (meta.sum_total || 0).toLocaleString('ru-RU');
+                $summary.html('Всего платежей: <b>' + count + '</b>, на сумму <b>' + sum + ' руб</b>');
+            }
+
+            function initLtvUserPaymentsDetailTable(userId) {
+                var tableId = 'ltv-user-payments-' + userId;
+
+                return $('#' + tableId).DataTable({
+                    processing: true,
+                    serverSide: true,
+                    autoWidth: false,
+                    dom: 'rtip',
+                    pageLength: 10,
+                    lengthMenu: [10, 20, 50, 100],
+                    ajax: {
+                        url: '/admin/reports/ltv/' + userId + '/payments',
+                        type: 'GET',
+                        data: function (d) {
+                            var extra = ltvReportFilterParams();
+                            Object.keys(extra).forEach(function (key) {
+                                d[key] = extra[key];
+                            });
+                        },
+                        dataSrc: function (json) {
+                            ltvDetailMeta[userId] = {
+                                payments_count: json.meta_payments_count || 0,
+                                sum_total: json.meta_sum_total || 0
+                            };
+                            updateLtvDetailSummary(userId);
+                            return json.data || [];
+                        }
+                    },
+                    columns: [
+                        {
+                            data: 'operation_date',
+                            name: 'operation_date',
+                            render: function (data, type) {
+                                if (type !== 'display') {
+                                    return data || '';
+                                }
+                                return formatOperationDateTime(data);
+                            }
+                        },
+                        {
+                            data: 'summ',
+                            name: 'summ',
+                            className: 'text-end',
+                            render: function (data, type) {
+                                if (type !== 'display') {
+                                    return data;
+                                }
+                                return (parseFloat(data || 0)).toLocaleString('ru-RU') + ' руб';
+                            }
+                        },
+                        {
+                            data: 'payment_month',
+                            name: 'payment_month',
+                            render: function (data, type) {
+                                if (type !== 'display') {
+                                    return data || '';
+                                }
+                                return formatSubscriptionMonth(data);
+                            }
+                        },
+                        {
+                            data: 'payment_provider',
+                            name: 'payment_provider',
+                            orderable: false,
+                            searchable: false,
+                            render: function (data, type) {
+                                if (type !== 'display') {
+                                    return data || '';
+                                }
+                                return renderPaymentProviderBadge(data);
+                            }
+                        }
+                    ],
+                    order: [[0, 'desc']],
+                    language: @include('partials.datatables.ru')
+                });
+            }
+
+            function buildLtvDetailContainerHtml(userId, userName, teamTitle) {
                 var safeUserName = userName || 'Без имени';
                 var safeTeam = teamTitle || 'Без команды';
 
-                if (!payments || !payments.length) {
-                    return '' +
-                        '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
-                        '  <div class="fw-bold mb-2">' +
-                        '    Платежи ученика: ' + safeUserName + ' (' + safeTeam + ')' +
-                        '  </div>' +
-                        '  <div class="text-muted small">У этого ученика ещё нет платежей.</div>' +
-                        '</div>';
-                }
-
-                var totalSum = payments.reduce(function(acc, p) {
-                    return acc + (parseFloat(p.summ || 0) || 0);
-                }, 0);
-                var totalSumFormatted = totalSum.toLocaleString('ru-RU');
-
-                var html = '' +
-                    '<div class="p-3 details-container bg-light border-start border-3 border-secondary">' +
+                return '' +
+                    '<div class="p-3 details-container bg-light border-start border-3 border-secondary" id="ltv-detail-wrap-' + userId + '">' +
                     '  <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">' +
-                    '    <div class="fw-bold">' +
-                    '      Платежи ученика: ' + safeUserName + ' (' + safeTeam + ')' +
-                    '    </div>' +
-                    '    <div class="small text-muted">' +
-                    '      Всего платежей: <b>' + payments.length + '</b>, на сумму <b>' + totalSumFormatted +
-                    ' руб</b>' +
-                    '    </div>' +
+                    '    <div class="fw-bold">Платежи ученика: ' + safeUserName + ' (' + safeTeam + ')</div>' +
+                    '    <div class="small text-muted" id="ltv-detail-summary-' + userId + '"></div>' +
                     '  </div>' +
-                    '  <div class="table-responsive">' +
-                    '    <table class="table table-sm table-bordered mb-0 align-middle">' +
-                    '      <thead class="table-light small">' +
-                    '        <tr>' +
-                    '          <th style="width: 220px;">Дата и время платежа</th>' +
-                    '          <th style="width: 130px;">Сумма</th>' +
-                    '          <th style="width: 160px;">Месяц абонемента</th>' +
-                    '          <th style="width: 120px;">Провайдер</th>' +
-                    '        </tr>' +
-                    '      </thead>' +
-                    '      <tbody>';
-
-                payments.forEach(function(p) {
-                    var amount = (parseFloat(p.summ || 0)).toLocaleString('ru-RU') + ' руб';
-
-                    var providerLabel = '';
-                    if (p.payment_provider === 'tbank') {
-                        providerLabel = '<span class="badge" style="background-color:#ffdd2d !important; color:black !important;">T-Bank</span>';
-                    } else if (p.payment_provider === 'robokassa') {
-                        providerLabel = '<span class="badge bg-secondary">Robokassa</span>';
-                    } else {
-                        providerLabel = p.payment_provider || '';
-                    }
-
-                    var opDate = '';
-                    if (p.operation_date) {
-                        var d = new Date(p.operation_date);
-                        if (!isNaN(d.getTime())) {
-                            var day = ("0" + d.getDate()).slice(-2);
-                            var month = ("0" + (d.getMonth() + 1)).slice(-2);
-                            var year = d.getFullYear();
-                            var hours = ("0" + d.getHours()).slice(-2);
-                            var minutes = ("0" + d.getMinutes()).slice(-2);
-                            opDate = day + '.' + month + '.' + year + ' / ' + hours + ':' + minutes;
-                        } else {
-                            opDate = p.operation_date;
-                        }
-                    }
-
-                    var monthLabel = formatSubscriptionMonth(p.payment_month);
-
-                    html += '' +
-                        '<tr>' +
-                        '  <td>' + opDate + '</td>' +
-                        '  <td class="text-end">' + amount + '</td>' +
-                        '  <td>' + monthLabel + '</td>' +
-                        '  <td>' + providerLabel + '</td>' +
-                        '</tr>';
-                });
-
-                html += '' +
-                    '      </tbody>' +
-                    '    </table>' +
-                    '  </div>' +
+                    '  <table class="table table-sm table-bordered mb-0 align-middle w-100" id="ltv-user-payments-' + userId + '">' +
+                    '    <thead class="table-light small">' +
+                    '      <tr>' +
+                    '        <th>Дата и время платежа</th>' +
+                    '        <th class="text-end">Сумма</th>' +
+                    '        <th>Месяц абонемента</th>' +
+                    '        <th>Провайдер</th>' +
+                    '      </tr>' +
+                    '    </thead>' +
+                    '  </table>' +
                     '</div>';
-
-                return html;
             }
+
+            var dtApi = KidsCrmDataTable.create('#ltv-table', {
+                columnsSettings: {
+                    defaults: {
+                        user_name: true,
+                        team_title: true,
+                        total_price: true,
+                        payment_count: true,
+                        first_payment_date: true,
+                        last_payment_date: true,
+                        is_enabled: true
+                    },
+                    urls: {
+                        get: @json(route('reports.ltv.columns-settings.get')),
+                        save: @json(route('reports.ltv.columns-settings.save'))
+                    },
+                    toggleSelector: '.ltv-column-toggle',
+                    csrfToken: '{{ csrf_token() }}'
+                },
+                dataTable: {
+                    ajax: {
+                        url: @json(route('reports.ltv.data')),
+                        type: 'GET',
+                        data: function (d) {
+                            var extra = ltvReportFilterParams();
+                            Object.keys(extra).forEach(function (key) {
+                                d[key] = extra[key];
+                            });
+                        }
+                    },
+                    order: [[3, 'desc']],
+                    language: @include('partials.datatables.ru')
+                },
+                columns: [
+                    {
+                        type: 'custom',
+                        column: {
+                            data: null,
+                            className: 'details-control text-center',
+                            orderable: false,
+                            searchable: false,
+                            defaultContent: '<button type="button" class="btn btn-sm btn-outline-secondary details-control-btn" aria-label="Развернуть"><i class="fa-solid fa-chevron-down"></i></button>'
+                        }
+                    },
+                    { key: 'user_name', type: 'text', data: 'user_name', name: 'user_name' },
+                    { key: 'team_title', type: 'text', data: 'team_title', name: 'team_title' },
+                    { key: 'total_price', type: 'money', data: 'total_price', name: 'total_price' },
+                    { key: 'payment_count', type: 'count', data: 'payment_count', name: 'payment_count' },
+                    {
+                        key: 'first_payment_date',
+                        type: 'datetime',
+                        data: 'first_payment_date',
+                        name: 'first_payment_date',
+                        className: 'dt-col-text dt-col-text--wrap',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return formatLtvDate(data);
+                        }
+                    },
+                    {
+                        key: 'last_payment_date',
+                        type: 'datetime',
+                        data: 'last_payment_date',
+                        name: 'last_payment_date',
+                        className: 'dt-col-text dt-col-text--wrap',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+                            return formatLtvDate(data);
+                        }
+                    },
+                    {
+                        key: 'is_enabled',
+                        type: 'badge',
+                        data: 'is_enabled',
+                        name: 'is_enabled',
+                        className: 'dt-col-badge text-center',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data;
+                            }
+                            if (data) {
+                                return '<span class="badge bg-success">Активен</span>';
+                            }
+                            return '<span class="badge bg-secondary">Отключен</span>';
+                        }
+                    },
+                    {
+                        key: 'user_id',
+                        type: 'id',
+                        data: 'user_id',
+                        name: 'user_id',
+                        visible: false,
+                        searchable: false
+                    }
+                ]
+            });
+
+            var ltvTable = dtApi.table;
+
+            $ltvFiltersForm.on('submit', function (e) {
+                e.preventDefault();
+                refreshLtvReportTotal();
+                Object.keys(ltvDetailTables).forEach(function (userId) {
+                    destroyLtvDetailTable(userId);
+                });
+                dtApi.reload({ keepPage: true });
+            });
+
+            $('#ltvReportFiltersResetBtn').on('click', function () {
+                $ltvFiltersForm[0].reset();
+                $ltvFilterUser.val(null).trigger('change');
+                $ltvFilterTeam.val(null).trigger('change');
+                $ltvFilterTrainer.val(null).trigger('change');
+                if (canViewLocations) {
+                    $('#pay-ltv-filter-location').val('');
+                }
+                Object.keys(ltvDetailTables).forEach(function (userId) {
+                    destroyLtvDetailTable(userId);
+                });
+                refreshLtvReportTotal();
+                dtApi.reload();
+            });
 
             $('#ltv-table tbody').on('click', 'td.details-control button', function(e) {
                 e.stopPropagation();
@@ -648,6 +695,10 @@
                 var row = ltvTable.row(tr);
 
                 if (row.child.isShown()) {
+                    var hideData = row.data();
+                    if (hideData && hideData.user_id) {
+                        destroyLtvDetailTable(hideData.user_id);
+                    }
                     row.child.hide();
                     tr.removeClass('shown');
                     btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
@@ -659,32 +710,11 @@
                 var userName = data.user_name;
                 var teamTitle = data.team_title;
 
-                row.child('<div class="p-3 details-container">Загрузка...</div>').show();
+                row.child(buildLtvDetailContainerHtml(userId, userName, teamTitle)).show();
                 tr.addClass('shown');
                 btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
 
-                $.ajax({
-                    url: '/admin/reports/ltv/' + userId + '/payments',
-                    type: 'GET',
-                    dataType: 'json',
-                    data: ltvReportFilterParams(),
-                    success: function(resp) {
-                        var html = buildDetailsHtml(resp.payments || [], userName, teamTitle);
-                        tr.next('tr').find('div.details-container').replaceWith(html);
-                    },
-                    error: function() {
-                        var errorHtml = '' +
-                            '<div class="p-3 details-container">' +
-                            '  <div class="fw-bold mb-2">' +
-                            '    Платежи ученика: ' + (userName || 'Без имени') +
-                            (teamTitle ? ' (' + teamTitle + ')' : '') +
-                            '  </div>' +
-                            '  <div class="text-danger">Ошибка загрузки данных.</div>' +
-                            '</div>';
-
-                        tr.next('tr').find('div.details-container').replaceWith(errorHtml);
-                    }
-                });
+                ltvDetailTables[userId] = initLtvUserPaymentsDetailTable(userId);
             });
 
         });

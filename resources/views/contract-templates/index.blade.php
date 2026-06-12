@@ -117,7 +117,7 @@
                 @endif
 
                 <div class="table-responsive">
-                    <table id="contract-templates-table" class="table table-striped table-bordered table-sm align-middle w-100">
+                    <table id="contract-templates-table" class="table table-striped table-bordered table-sm align-middle w-100 dt-columns-managed">
                         <thead>
                         <tr>
                             <th>№</th>
@@ -143,10 +143,6 @@
 @push('scripts')
     <script>
         $(document).ready(function () {
-            const csrfToken = $('meta[name="csrf-token"]').attr('content');
-            const columnsSettingsGetUrl = @json(route('contract-templates.columns-settings.get'));
-            const columnsSettingsSaveUrl = @json(route('contract-templates.columns-settings.save'));
-
             const shouldOpenCreateModal = @json($shouldOpenCreateModal);
             const shouldOpenEditModal = @json($shouldOpenEditModal);
             const createModalEl = document.getElementById('createContractTemplateModal');
@@ -182,99 +178,74 @@
                 }
             });
 
-            const defaultColumnsVisibility = {
-                id: true,
-                title: true,
-                version: true,
-                fields_count: true,
-                status_label: true,
-                actions: true,
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = {
-                id: 0,
-                title: 1,
-                version: 2,
-                fields_count: 3,
-                status_label: 4,
-                actions: 5,
-            };
-
             const statusBadgeClass = {
                 archived: 'bg-secondary',
                 active: 'bg-success',
                 no_version: 'bg-warning text-dark',
             };
 
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            const table = $('#contract-templates-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 20,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: @json(route('contract-templates.data')),
-                    type: 'GET',
+            KidsCrmDataTable.create('#contract-templates-table', {
+                columnsSettings: {
+                    defaults: {
+                        id: true,
+                        title: true,
+                        version: true,
+                        fields_count: true,
+                        status_label: true,
+                        actions: true,
+                    },
+                    urls: {
+                        get: @json(route('contract-templates.columns-settings.get')),
+                        save: @json(route('contract-templates.columns-settings.save')),
+                    },
+                    csrfToken: $('meta[name="csrf-token"]').attr('content'),
+                },
+                dataTable: {
+                    pageLength: 20,
+                    lengthMenu: [10, 20, 50, 100],
+                    ajax: {
+                        url: @json(route('contract-templates.data')),
+                        type: 'GET',
+                    },
+                    order: [[0, 'desc']],
+                    language: @include('partials.datatables.ru'),
                 },
                 columns: [
+                    { key: 'id', type: 'id', data: 'id' },
+                    { key: 'title', type: 'text', data: 'title' },
                     {
-                        data: 'id',
-                        name: 'id',
-                        className: 'text-center',
-                        defaultContent: '',
-                    },
-                    {
-                        data: 'title',
-                        name: 'title',
-                        defaultContent: '',
-                    },
-                    {
+                        key: 'version',
+                        type: 'count',
                         data: 'version',
-                        name: 'version',
-                        className: 'text-center',
-                        defaultContent: '',
-                        render: function (data) {
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
                             return data != null ? data : '—';
                         },
                     },
+                    { key: 'fields_count', type: 'count', data: 'fields_count' },
                     {
-                        data: 'fields_count',
-                        name: 'fields_count',
-                        className: 'text-center',
-                        defaultContent: '0',
-                    },
-                    {
+                        key: 'status_label',
+                        type: 'badge',
                         data: 'status_label',
                         name: 'status_label',
-                        className: 'text-center',
-                        defaultContent: '',
+                        className: 'dt-col-badge text-center',
                         render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
                             const badgeClass = statusBadgeClass[row.status_key] || 'bg-secondary';
                             return '<span class="badge ' + badgeClass + '">' + data + '</span>';
                         },
                     },
                     {
-                        data: 'edit_url',
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-end',
-                        defaultContent: '',
+                        key: 'actions',
+                        type: 'actions',
                         render: function (data, type, row) {
-                            const editBtn = '<a href="' + data + '" class="btn btn-sm btn-outline-primary">Изменить</a>';
+                            const editBtn = '<a href="' + row.edit_url + '" class="btn btn-sm btn-outline-primary">Изменить</a>';
                             const emailBtn = '<button type="button"'
                                 + ' class="btn btn-sm btn-outline-secondary js-contract-template-edit-email"'
                                 + ' data-template-id="' + row.id + '"'
@@ -287,66 +258,6 @@
                         },
                     },
                 ],
-                order: [[0, 'desc']],
-                language: @include('partials.datatables.ru')
-            });
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-
-                    table.column(colIndex).visible(isVisible);
-
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: columnsSettingsGetUrl,
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                Object.prototype.hasOwnProperty.call(response, key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: columnsSettingsSaveUrl,
-                    type: 'POST',
-                    data: {
-                        _token: csrfToken,
-                        columns: currentColumnsConfig,
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    },
-                });
             });
         });
     </script>

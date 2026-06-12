@@ -68,8 +68,8 @@
                     button.setAttribute('aria-expanded', 'false');
                 });
 
-                if (typeof window.initKidsCrmTooltipHints === 'function') {
-                    window.initKidsCrmTooltipHints(document.getElementById('editContractTemplateModal'));
+                if (window.KidsCrmTooltip) {
+                    KidsCrmTooltip.init(document.getElementById('editContractTemplateModal'), { scopes: ['hint'] });
                 }
             });
         </script>

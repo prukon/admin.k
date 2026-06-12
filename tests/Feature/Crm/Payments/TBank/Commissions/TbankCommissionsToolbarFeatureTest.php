@@ -47,9 +47,9 @@ final class TbankCommissionsToolbarFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="tbankPayoutSettingsModal"', $html);
         $this->assertStringContainsString('id="tbankCommissionCreateModal"', $html);
         $this->assertStringContainsString('id="tbank-commissions-table"', $html);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $html);
         $this->assertStringContainsString('id="tbankCommissionsFiltersCollapse"', $html);
         $this->assertStringContainsString('id="tbank-commissions-filters-form"', $html);
-        $this->assertStringContainsString('serverSide: true', $html);
 
         $this->assertStringNotContainsString('btn btn-primary btn-sm', $html);
 

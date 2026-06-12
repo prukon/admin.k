@@ -57,7 +57,7 @@ final class SportTypesFeatureTest extends CrmTestCase
 
         $this->get(route('admin.sport-types.index'))
             ->assertOk()
-            ->assertSee('serverSide: true', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('js-sport-type-edit', false)
             ->assertSee('id="new-sport-type"', false);
     }

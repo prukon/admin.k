@@ -94,7 +94,10 @@
     <li><b>Шапка</b> в стиле отчёта «Платежи» / «Комиссии Т‑Банк»: карточка <code>payments-report-*</code>, CSS
       <code>resources/css/admin-list-toolbar.css</code> (подключается через Vite на вкладке).</li>
     <li><b>Кнопка «Фильтры»</b> — сворачиваемая панель с полями фильтрации и кнопками «Применить» / «Сброс» (перезагрузка DataTables без перезагрузки страницы).</li>
-    <li><b>Таблица</b> — server-side DataTables, по умолчанию <b>10</b> строк на странице, сортировка по умолчанию: «Дата создания» по убыванию.</li>
+    <li><b>Таблица</b> — server-side DataTables через <code>KidsCrmDataTable.create('#settingsLogsTable', …)</code>
+      (без <code>columnsSettings</code> — фиксированный набор колонок), по умолчанию <b>10</b> строк на странице,
+      сортировка по умолчанию: «Дата создания» по убыванию. См. также
+      <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>.</li>
   </ul>
 
   <h3>3.1 Колонки таблицы</h3>
@@ -233,7 +236,8 @@
   </ul>
 
   <h3>5.1 Модалки «История» на других экранах</h3>
-  <p>Тот же билдер с категорией <code>AuditEvent</code> (фильтр <code>whereIn(event, …)</code>):</p>
+  <p>Partial <code>includes/logModal.blade.php</code>: таблица <code>#logsTable</code> — <code>KidsCrmDataTable.create</code> без columns-settings (см. <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>).
+    Тот же билдер <code>BuildsLogTable</code> с категорией <code>AuditEvent</code> (фильтр <code>whereIn(event, …)</code>):</p>
   <ul>
     <li>пользователи — <code>GET /admin/user/logs-data</code> (<code>user</code>);</li>
     <li>группы — <code>GET /admin/teams/logs-data</code> (<code>team</code>);</li>
@@ -253,7 +257,7 @@
   <h2>7) Автотесты</h2>
   <ul>
     <li><code>tests/Feature/Crm/Settings/SettingsLogsPageAccessAndFunctionalityFeatureTest.php</code> — доступ (403/200), smoke 200 всех комбинаций фильтров, UI-контролы.</li>
-    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — partner-scope, изоляция партнёров, детальные сценарии фильтров.</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — partner-scope, изоляция партнёров, детальные сценарии фильтров, UI (<code>KidsCrmDataTable.create</code> на вкладке).</li>
     <li><code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code> — event-only поведение через HTTP.</li>
     <li><code>tests/Feature/Crm/Settings/SettingsControllerTest.php</code> — права на маршруты логов, partner-scope.</li>
     <li><code>tests/Unit/Support/AuditLogQueryScopesTest.php</code>, <code>tests/Unit/Services/Audit/AuditLoggerTest.php</code>.</li>

@@ -141,7 +141,7 @@ final class PartnersSectionTabsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="tbankPayoutsFiltersCollapse"', $html);
         $this->assertStringContainsString('id="tbank-payouts-filters"', $html);
         $this->assertStringContainsString('id="payouts-table"', $html);
-        $this->assertStringContainsString('serverSide: true', $html);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $html);
         $this->assertStringNotContainsString('id="partners-table"', $html);
         $this->assertStringNotContainsString('id="leads-table"', $html);
     }

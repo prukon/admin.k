@@ -139,7 +139,7 @@ class PartnerControllerTest extends CrmTestCase
             ->assertSee('Партнеры', escape: false)
             ->assertSee('partnersSectionTabs', false)
             ->assertSee('id="partners-table"', false)
-            ->assertSee('serverSide: true', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('>№<', false);
     }
 

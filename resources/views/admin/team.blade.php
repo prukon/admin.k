@@ -292,7 +292,7 @@
         </div>
 
         <div class="table-responsive">
-            <table id="teams-table" class="table table-striped table-bordered align-middle w-100">
+            <table id="teams-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
                     <th>№</th>
@@ -333,7 +333,6 @@
     @include('includes.modal.createTeam')
     @include('includes.modal.editTeam')
     @include('includes.logModal')
-    @include('partials.ui.hover-list-dropdown')
     @can('locations.view')
         @if($locationOptions->isNotEmpty())
             @include('partials.select2.generic-multiselect')
@@ -353,104 +352,25 @@
             const canViewAddress = @json(auth()->user()->can('groups.address.view'));
             const defaultFilterStatus = 'active';
 
-            const defaultColumnsVisibility = {
-                order_by: true,
-                title: true,
-                ...(canViewTrainingBase ? { training_base: true } : {}),
-                ...(canViewAddress ? { address: true } : {}),
-                ...(canViewTrainers ? { trainer_label: true } : {}),
-                ...(canViewLocations ? { locations_label: true } : {}),
-                ...(canViewSportTypes ? { sport_type_label: true } : {}),
-                ...(canViewSchedule ? { weekdays_label: true } : {}),
-                month_price: true,
-                status_label: true,
-                actions: true
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            const columnsMap = (function () {
-                const map = { order_by: 1, title: 2 };
-                let idx = 3;
-                if (canViewTrainingBase) {
-                    map.training_base = idx++;
-                }
-                if (canViewAddress) {
-                    map.address = idx++;
-                }
-                if (canViewTrainers) {
-                    map.trainer_label = idx++;
-                }
-                if (canViewLocations) {
-                    map.locations_label = idx++;
-                }
-                if (canViewSportTypes) {
-                    map.sport_type_label = idx++;
-                }
-                if (canViewSchedule) {
-                    map.weekdays_label = idx++;
-                }
-                map.month_price = idx++;
-                map.status_label = idx++;
-                map.actions = idx;
-                return map;
-            })();
-
-            const csrfToken = $('meta[name="csrf-token"]').attr('content');
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-
-                if (typeof val === 'boolean') return val;
-
-                if (typeof val === 'number') return val === 1;
-
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-
-                return fallback;
+            function escapeHtml(text) {
+                return KidsCrmTooltip.escapeHtml(text);
             }
 
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
+            function renderTeamWeekdayBadges(row) {
+                const items = Array.isArray(row.weekdays_items) ? row.weekdays_items : [];
+                if (!items.length) {
+                    return '<span class="text-muted">—</span>';
+                }
 
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
+                const fullTitle = row.weekdays_label ? escapeHtml(row.weekdays_label) : '';
+                const badges = items.map(function (item) {
+                    const short = escapeHtml(item.short || '');
+                    return '<span class="team-weekday-badge">' + short + '</span>';
+                }).join('');
 
-                    column.visible(isVisible);
-
-                    $('.column-toggle[data-column-key="' + key + '"]')
-                        .prop('checked', isVisible);
-                });
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: '/admin/teams/columns-settings',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
-                    },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
+                return '<div class="team-weekdays-badges"' +
+                    (fullTitle ? ' title="' + fullTitle + '"' : '') +
+                    '>' + badges + '</div>';
             }
 
             function teamsFilterParams() {
@@ -486,274 +406,118 @@
                 }
             }
 
-            const trainerColumn = {
-                data: 'trainer_label',
-                name: 'trainer_label',
-                orderable: true,
-                searchable: false,
-                render: function (data) {
-                    if (!data) {
-                        return '<span class="text-muted">—</span>';
-                    }
-                    return '<span title="' + data + '">' + data + '</span>';
-                }
-            };
-
-            function escapeHtml(text) {
-                return String(text)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;');
-            }
-
-            function renderTeamWeekdayBadges(row) {
-                const items = Array.isArray(row.weekdays_items) ? row.weekdays_items : [];
-                if (!items.length) {
-                    return '<span class="text-muted">—</span>';
-                }
-
-                const fullTitle = row.weekdays_label ? escapeHtml(row.weekdays_label) : '';
-                const badges = items.map(function (item) {
-                    const short = escapeHtml(item.short || '');
-                    return '<span class="team-weekday-badge">' + short + '</span>';
-                }).join('');
-
-                return '<div class="team-weekdays-badges"' +
-                    (fullTitle ? ' title="' + fullTitle + '"' : '') +
-                    '>' + badges + '</div>';
-            }
-
-            const scheduleColumn = {
-                data: 'weekdays_label',
-                name: 'weekdays_label',
-                orderable: false,
-                searchable: false,
-                render: function (data, type, row) {
-                    if (type === 'sort' || type === 'filter') {
-                        return data || '';
-                    }
-                    return renderTeamWeekdayBadges(row);
-                }
-            };
-
-            const locationsColumn = {
-                data: 'locations_label',
-                name: 'locations_label',
-                orderable: true,
-                searchable: false,
-                render: function (data, type, row) {
-                    if (type !== 'display') {
-                        return data || '';
-                    }
-
-                    if (!data) {
-                        return '<span class="text-muted">Все</span>';
-                    }
-
-                    if (window.KidsCrmHoverListDropdown) {
-                        return KidsCrmHoverListDropdown.renderCell(data, row.locations_names || []);
-                    }
-
-                    return data;
-                }
-            };
-
-            const sportTypeColumn = {
-                data: 'sport_type_label',
-                name: 'sport_type_label',
-                orderable: true,
-                searchable: false,
-                render: function (data) {
-                    if (!data) {
-                        return '<span class="text-muted">—</span>';
-                    }
-                    return data;
-                }
-            };
-
-            const trainingBaseColumn = {
-                data: 'training_base',
-                name: 'training_base',
-                orderable: true,
-                searchable: false,
-                render: function (data) {
-                    if (!data) {
-                        return '<span class="text-muted">—</span>';
-                    }
-                    return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
-                }
-            };
-
-            const addressColumn = {
-                data: 'address',
-                name: 'address',
-                orderable: true,
-                searchable: false,
-                render: function (data) {
-                    if (!data) {
-                        return '<span class="text-muted">—</span>';
-                    }
-                    return '<span title="' + escapeHtml(data) + '">' + escapeHtml(data) + '</span>';
-                }
-            };
-
-            const monthPriceColumn = {
-                data: 'month_price',
-                name: 'month_price',
-                orderable: true,
-                searchable: false,
-                className: 'text-end',
-                render: function (data, type) {
-                    if (data === null || data === undefined || data === '') {
-                        if (type === 'sort' || type === 'filter') {
-                            return '';
-                        }
-                        return '<span class="text-muted">—</span>';
-                    }
-
-                    const value = parseInt(data, 10);
-                    if (Number.isNaN(value)) {
-                        return type === 'display' ? '<span class="text-muted">—</span>' : '';
-                    }
-
-                    if (type === 'sort' || type === 'filter') {
-                        return value;
-                    }
-
-                    return value.toLocaleString('ru-RU') + ' руб';
-                }
-            };
-
-            const dataTableColumns = [
-                {
-                    data: null,
-                    name: 'rownum',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-center',
-                    render: function (data, type, row, meta) {
-                        return meta.row + meta.settings._iDisplayStart + 1;
-                    }
-                },
-                {
-                    data: 'order_by',
-                    name: 'order_by',
-                    className: 'text-center',
-                    defaultContent: '',
-                    render: function (data, type, row) {
-                        return data !== null && data !== undefined && data !== '' ? data : '';
-                    }
-                },
-                {
-                    data: 'title',
-                    name: 'title',
-                    render: function (data, type, row) {
-                        return '<a href="javascript:void(0);" ' +
-                            'class="edit-team-link" ' +
-                            'data-id="' + row.id + '" ' +
-                            'data-bs-toggle="modal" ' +
-                            'data-bs-target="#editTeamModal">' +
-                            data +
-                            '</a>';
-                    }
-                },
-                ...(canViewTrainingBase ? [trainingBaseColumn] : []),
-                ...(canViewAddress ? [addressColumn] : []),
-                ...(canViewTrainers ? [trainerColumn] : []),
-                ...(canViewLocations ? [locationsColumn] : []),
-                ...(canViewSportTypes ? [sportTypeColumn] : []),
-                ...(canViewSchedule ? [scheduleColumn] : []),
-                monthPriceColumn,
-                {
-                    data: 'status_label',
-                    name: 'status_label',
-                    render: function (data, type, row) {
-                        const badgeClass = row.is_enabled ? 'bg-success' : 'bg-secondary';
-                        return '<span class="badge ' + badgeClass + '">' + data + '</span>';
-                    }
-                },
-                {
-                    data: null,
-                    name: 'actions',
-                    orderable: false,
-                    searchable: false,
-                    className: 'text-end',
-                    render: function (data, type, row) {
-                        return '<button type="button" ' +
-                            'class="btn btn-sm btn-outline-primary edit-team-link" ' +
-                            'data-id="' + row.id + '" ' +
-                            'data-bs-toggle="modal" ' +
-                            'data-bs-target="#editTeamModal">' +
-                            'Редактировать' +
-                            '</button>';
-                    }
-                }
-            ];
-
-            const table = $('#teams-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                ajax: {
-                    url: '/admin/teams/data',
-                    type: 'GET',
-                    data: function (d) {
-                        const params = teamsFilterParams();
-                        d.title = params.title;
-                        d.status = params.status;
-                        if (canViewTrainers) {
-                            d.trainer_profile_id = params.trainer_profile_id;
-                        }
-                        if (canViewLocations) {
-                            d.location_id = params.location_id;
-                        }
-                        if (canViewSportTypes) {
-                            d.sport_type_id = params.sport_type_id;
-                        }
-                    }
-                },
-
-                columns: dataTableColumns,
-
-                order: [[1, 'asc']],
-                scrollX: true,
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
+            const dtApi = KidsCrmDataTable.create('#teams-table', {
+                columnsSettings: {
+                    defaults: {
+                        order_by: true,
+                        title: true,
+                        ...(canViewTrainingBase ? { training_base: true } : {}),
+                        ...(canViewAddress ? { address: true } : {}),
+                        ...(canViewTrainers ? { trainer_label: true } : {}),
+                        ...(canViewLocations ? { locations_label: true } : {}),
+                        ...(canViewSportTypes ? { sport_type_label: true } : {}),
+                        ...(canViewSchedule ? { weekdays_label: true } : {}),
+                        month_price: true,
+                        status_label: true,
+                        actions: true,
                     },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
-                }
+                    urls: {
+                        get: '/admin/teams/columns-settings',
+                        save: '/admin/teams/columns-settings',
+                    },
+                    csrfToken: $('meta[name="csrf-token"]').attr('content'),
+                },
+                dataTable: {
+                    ajax: {
+                        url: '/admin/teams/data',
+                        type: 'GET',
+                        data: function (d) {
+                            const params = teamsFilterParams();
+                            d.title = params.title;
+                            d.status = params.status;
+                            if (canViewTrainers) {
+                                d.trainer_profile_id = params.trainer_profile_id;
+                            }
+                            if (canViewLocations) {
+                                d.location_id = params.location_id;
+                            }
+                            if (canViewSportTypes) {
+                                d.sport_type_id = params.sport_type_id;
+                            }
+                        }
+                    },
+                    order: [[1, 'asc']],
+                    language: @include('partials.datatables.ru')
+                },
+                columns: [
+                    { type: 'rownum' },
+                    { key: 'order_by', type: 'sort', data: 'order_by' },
+                    {
+                        key: 'title',
+                        type: 'link',
+                        data: 'title',
+                        linkClass: 'edit-team-link',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#editTeamModal"';
+                        },
+                    },
+                    { key: 'training_base', type: 'text', data: 'training_base', when: canViewTrainingBase, searchable: false },
+                    { key: 'address', type: 'text', data: 'address', when: canViewAddress, searchable: false },
+                    { key: 'trainer_label', type: 'text', data: 'trainer_label', when: canViewTrainers, searchable: false },
+                    {
+                        key: 'locations_label',
+                        type: 'list',
+                        data: 'locations_label',
+                        itemsKey: 'locations_names',
+                        when: canViewLocations,
+                        searchable: false,
+                        emptyHtml: '<span class="text-muted">Все</span>',
+                    },
+                    { key: 'sport_type_label', type: 'text', data: 'sport_type_label', when: canViewSportTypes, searchable: false },
+                    {
+                        key: 'weekdays_label',
+                        type: 'list',
+                        data: 'weekdays_label',
+                        name: 'weekdays_label',
+                        when: canViewSchedule,
+                        className: 'dt-col-schedule',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type === 'sort' || type === 'filter') {
+                                return data || '';
+                            }
+                            return renderTeamWeekdayBadges(row);
+                        },
+                    },
+                    { key: 'month_price', type: 'money', data: 'month_price', searchable: false },
+                    {
+                        key: 'status_label',
+                        type: 'badge',
+                        data: 'status_label',
+                        badgeKey: 'is_enabled',
+                        className: 'dt-col-badge',
+                    },
+                    {
+                        key: 'actions',
+                        type: 'actions',
+                        render: function (data, type, row) {
+                            return '<button type="button" ' +
+                                'class="btn btn-sm btn-outline-primary edit-team-link" ' +
+                                'data-id="' + row.id + '" ' +
+                                'data-bs-toggle="modal" ' +
+                                'data-bs-target="#editTeamModal">' +
+                                'Редактировать' +
+                                '</button>';
+                        },
+                    },
+                ],
             });
 
-            if (canViewLocations && window.KidsCrmHoverListDropdown) {
-                table.on('draw.dt', function () {
-                    KidsCrmHoverListDropdown.init(document.getElementById('teams-table'));
-                });
-            }
-
-            loadColumnsConfigFromServer();
-            table.columns.adjust();
+            const table = dtApi.table;
 
             function reloadTeamsTable() {
-                table.ajax.reload();
+                dtApi.reload();
                 syncTeamsFiltersCollapseState();
             }
 
@@ -792,27 +556,6 @@
                     'aria-expanded',
                     $('#teamsReportFiltersCollapse').hasClass('show') ? 'true' : 'false'
                 );
-            });
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const isChecked = $(this).is(':checked');
-
-                currentColumnsConfig[key] = isChecked ? 1 : 0;
-
-                applyVisibleColumns(currentColumnsConfig);
-
-                $.ajax({
-                    url: '/admin/teams/columns-settings',
-                    type: 'POST',
-                    data: {
-                        _token: csrfToken,
-                        columns: currentColumnsConfig
-                    },
-                    error: function () {
-                        console.error('Не удалось сохранить настройки колонок');
-                    }
-                });
             });
 
             showLogModal("{{ route('logs.data.team') }}");

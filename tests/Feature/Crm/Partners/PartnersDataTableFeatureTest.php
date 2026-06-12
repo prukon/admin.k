@@ -38,8 +38,7 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             ->assertSee('partnersColumnsDropdown', false)
             ->assertSee('filter-title', false)
             ->assertSee('filter-status', false)
-            ->assertSee('serverSide: true', false)
-            ->assertSee('pageLength: 10', false)
+            ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('reloadPartnersTable', false)
             ->assertSee('>№<', false)
             ->assertSee('option value="active" selected', false);

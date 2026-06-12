@@ -76,7 +76,14 @@
     <link rel="stylesheet" href="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.css">
     <script src="https://unpkg.com/cropperjs@1.6.1/dist/cropper.min.js"></script>
 
-    @vite(['resources/sass/app.scss', 'resources/css/style.css'])
+    @vite([
+        'resources/sass/app.scss',
+        'resources/css/style.css',
+        'resources/css/datatables-columns.css',
+        'resources/css/kids-tooltip.css',
+        'resources/js/kids-tooltip.js',
+        'resources/js/kids-datatable.js',
+    ])
 
 
 

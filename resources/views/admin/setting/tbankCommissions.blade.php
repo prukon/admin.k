@@ -154,7 +154,7 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-sm table-bordered align-middle w-100" id="tbank-commissions-table" style="width:100%">
+            <table class="table table-sm table-bordered align-middle dt-columns-managed w-100" id="tbank-commissions-table">
                 <thead class="table-light">
                 <tr>
                     <th data-priority="1">№</th>
@@ -238,54 +238,223 @@
         <script type="text/javascript">
             $(function () {
                 var $form = $('#tbank-commissions-filters-form');
-                var table = $('#tbank-commissions-table').DataTable({
-                    processing: true,
-                    serverSide: true,
-                    pageLength: 20,
-                    lengthMenu: [10, 20, 50, 100],
-                    order: [[1, 'asc']],
-                    searching: true,
-                    ajax: {
-                        url: @json(route('admin.setting.tbankCommissions.data')),
-                        type: 'GET',
-                        data: function (d) {
-                            d.filter_partner_id = $form.find('[name="filter_partner_id"]').val() || '';
-                            d.filter_method = $form.find('[name="filter_method"]').val() || '';
+                var tbankCommissionRoutes = {
+                    edit: @json(route('admin.setting.tbankCommissions.edit', ['id' => '__ID__'])),
+                    destroy: @json(route('admin.setting.tbankCommissions.destroy', ['id' => '__ID__'])),
+                    csrf: @json(csrf_token())
+                };
+
+                function tbankCommissionUrl(template, id) {
+                    return String(template).replace('__ID__', String(id));
+                }
+
+                function renderTbankCommissionPercentCell(percentKey, minKey) {
+                    return function (value, type, row) {
+                        if (type === 'sort' || type === 'filter') {
+                            return row[percentKey] != null ? row[percentKey] : '';
                         }
-                    },
-                    columns: [
-                        {
-                            data: null,
-                            name: 'rownum',
-                            orderable: false,
-                            searchable: false,
-                            className: 'text-center',
-                            render: function (data, type, row, meta) {
-                                return meta.row + meta.settings._iDisplayStart + 1;
+                        if (type !== 'display') {
+                            return value != null ? value : '';
+                        }
+
+                        var percent = Number(row[percentKey] || 0);
+                        var minFixed = Number(row[minKey] || 0);
+                        var percentText = percent.toLocaleString('ru-RU', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                        var minText = minFixed.toLocaleString('ru-RU', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+
+                        return '<div>' + percentText + '%</div>'
+                            + '<div class="text-muted small">мин ' + minText + ' ₽</div>';
+                    };
+                }
+
+                function renderTbankPartnerCell(value, type, row) {
+                    if (type !== 'display') {
+                        return value || '';
+                    }
+
+                    var html = '<div>' + window.KidsCrmTooltip.escapeHtml(value || '') + '</div>';
+                    if (row.partner_id && row.tbank_keys_connected === false) {
+                        html += '<div class="small mt-1"><span class="badge text-bg-warning">ключи?</span></div>';
+                    }
+
+                    return html;
+                }
+
+                function renderTbankOptionalBadge(label, enabledKey, successClass, secondaryClass) {
+                    return function (value, type, row) {
+                        if (row[enabledKey] === null || row[enabledKey] === undefined) {
+                            if (type === 'display') {
+                                return '<span class="dt-cell-empty text-muted">—</span>';
+                            }
+                            return '';
+                        }
+
+                        if (type !== 'display') {
+                            return value || '';
+                        }
+
+                        var badgeClass = row[enabledKey] ? successClass : secondaryClass;
+                        return '<span class="badge ' + badgeClass + '">' + window.KidsCrmTooltip.escapeHtml(value || '') + '</span>';
+                    };
+                }
+
+                function renderTbankPayouts30d(value, type, row) {
+                    if (row.payouts_30d_count === null || row.payouts_30d_count === undefined) {
+                        if (type === 'display') {
+                            return '<span class="dt-cell-empty text-muted">—</span>';
+                        }
+                        return '';
+                    }
+
+                    if (type !== 'display') {
+                        return row.payouts_30d_count;
+                    }
+
+                    var url = row.payouts_30d_url || '';
+                    var count = String(row.payouts_30d_count);
+                    if (!url) {
+                        return count;
+                    }
+
+                    return '<a href="' + window.KidsCrmTooltip.escapeHtml(url) + '"'
+                        + ' class="link-primary fw-semibold" target="_blank"'
+                        + ' title="Выплаты (авто) за 30 дней">' + count + '</a>';
+                }
+
+                var dtApi = KidsCrmDataTable.create('#tbank-commissions-table', {
+                    dataTable: {
+                        pageLength: 20,
+                        lengthMenu: [10, 20, 50, 100],
+                        order: [[1, 'asc']],
+                        searching: true,
+                        ajax: {
+                            url: @json(route('admin.setting.tbankCommissions.data')),
+                            type: 'GET',
+                            data: function (d) {
+                                d.filter_partner_id = $form.find('[name="filter_partner_id"]').val() || '';
+                                d.filter_method = $form.find('[name="filter_method"]').val() || '';
                             }
                         },
-                        {data: 'partner_cell', name: 'partner_title', orderable: true, searchable: true},
-                        {data: 'method', name: 'method', orderable: true, searchable: true},
-                        {data: 'acquiring_html', name: 'acquiring_percent', orderable: true, searchable: true},
-                        {data: 'payout_html', name: 'payout_percent', orderable: true, searchable: true},
-                        {data: 'platform_html', name: 'platform_percent', orderable: true, searchable: true},
-                        {data: 'auto_payout_html', name: 'auto_payout', orderable: false, searchable: false, className: 'text-center'},
-                        {data: 'payouts_30d_html', name: 'payouts_30d', orderable: false, searchable: false, className: 'text-center'},
-                        {data: 'enabled_html', name: 'is_enabled', orderable: true, searchable: false, className: 'text-center'},
-                        {data: 'actions_html', name: 'actions', orderable: false, searchable: false, className: 'text-start'}
-                    ],
-                    language: @include('partials.datatables.ru')
+                        language: @include('partials.datatables.ru')
+                    },
+                    columns: [
+                        { type: 'rownum' },
+                        {
+                            key: 'partner_title',
+                            type: 'text',
+                            data: 'partner_title',
+                            name: 'partner_title',
+                            className: 'dt-col-text',
+                            render: renderTbankPartnerCell,
+                        },
+                        { key: 'method', type: 'text', data: 'method', name: 'method' },
+                        {
+                            key: 'acquiring_percent',
+                            type: 'text',
+                            data: 'acquiring_percent',
+                            name: 'acquiring_percent',
+                            className: 'dt-col-text',
+                            render: renderTbankCommissionPercentCell('acquiring_percent', 'acquiring_min_fixed'),
+                        },
+                        {
+                            key: 'payout_percent',
+                            type: 'text',
+                            data: 'payout_percent',
+                            name: 'payout_percent',
+                            className: 'dt-col-text',
+                            render: renderTbankCommissionPercentCell('payout_percent', 'payout_min_fixed'),
+                        },
+                        {
+                            key: 'platform_percent',
+                            type: 'text',
+                            data: 'platform_percent',
+                            name: 'platform_percent',
+                            className: 'dt-col-text',
+                            render: renderTbankCommissionPercentCell('platform_percent', 'platform_min_fixed'),
+                        },
+                        {
+                            key: 'auto_payout',
+                            type: 'badge',
+                            data: 'auto_payout_label',
+                            name: 'auto_payout',
+                            className: 'dt-col-badge text-center',
+                            orderable: false,
+                            searchable: false,
+                            render: renderTbankOptionalBadge(
+                                'auto_payout_label',
+                                'auto_payout_enabled',
+                                'text-bg-success',
+                                'text-bg-secondary'
+                            ),
+                        },
+                        {
+                            key: 'payouts_30d',
+                            type: 'text',
+                            data: 'payouts_30d_count',
+                            name: 'payouts_30d',
+                            className: 'dt-col-count text-center',
+                            orderable: false,
+                            searchable: false,
+                            render: renderTbankPayouts30d,
+                        },
+                        {
+                            key: 'is_enabled',
+                            type: 'badge',
+                            data: 'enabled_label',
+                            name: 'is_enabled',
+                            className: 'dt-col-badge text-center',
+                            badgeKey: 'is_enabled',
+                            searchable: false,
+                            render: function (value, type, row) {
+                                if (type !== 'display') {
+                                    return value || '';
+                                }
+                                var badgeClass = row.is_enabled ? 'text-bg-success' : 'text-bg-secondary';
+                                return '<span class="badge ' + badgeClass + '">'
+                                    + window.KidsCrmTooltip.escapeHtml(value || '') + '</span>';
+                            },
+                        },
+                        {
+                            key: 'actions',
+                            type: 'actions',
+                            className: 'dt-col-actions text-start',
+                            render: function (data, type, row) {
+                                if (type !== 'display') {
+                                    return '';
+                                }
+
+                                var editUrl = tbankCommissionUrl(tbankCommissionRoutes.edit, row.id);
+                                var destroyUrl = tbankCommissionUrl(tbankCommissionRoutes.destroy, row.id);
+
+                                return ''
+                                    + '<div class="text-start text-nowrap">'
+                                    + '<a class="btn btn-outline-primary btn-sm" href="' + window.KidsCrmTooltip.escapeHtml(editUrl) + '">Изменить</a>'
+                                    + '<form action="' + window.KidsCrmTooltip.escapeHtml(destroyUrl) + '" method="post" class="d-inline-block ms-1" onsubmit="return confirm(\'Удалить правило?\');">'
+                                    + '<input type="hidden" name="_token" value="' + window.KidsCrmTooltip.escapeHtml(tbankCommissionRoutes.csrf) + '">'
+                                    + '<input type="hidden" name="_method" value="DELETE">'
+                                    + '<button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>'
+                                    + '</form>'
+                                    + '</div>';
+                            },
+                        },
+                    ]
                 });
 
                 $form.on('submit', function (e) {
                     e.preventDefault();
-                    table.ajax.reload();
+                    dtApi.reload({ keepPage: true });
                 });
 
                 $('#tbank-commissions-filters-reset').on('click', function () {
                     $form.find('[name="filter_partner_id"]').val('');
                     $form.find('[name="filter_method"]').val('');
-                    table.ajax.reload();
+                    dtApi.reload();
                 });
             });
 

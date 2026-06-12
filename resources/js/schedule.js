@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (isSystem) {
                         let hint = document.createElement('i');
                         hint.className = 'fas fa-question-circle ms-1';
+                        hint.setAttribute('data-kids-tooltip-hint', '1');
                         hint.setAttribute('data-bs-toggle', 'tooltip');
                         hint.setAttribute('title', 'Системный статус. Нельзя изменить или удалить');
                         tdName.appendChild(document.createTextNode(' '));
@@ -150,11 +151,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     statusesTableBody.appendChild(tr);
                 });
 
-                // Инициализируем Bootstrap Tooltip
-                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl);
-                });
+                if (window.KidsCrmTooltip) {
+                    KidsCrmTooltip.init(statusesTableBody, { scopes: ['hint'] });
+                }
             })
             .catch(err => console.error(err));
     }
@@ -333,6 +332,13 @@ document.addEventListener('DOMContentLoaded', function () {
             infoEmpty: "",
         }
     });
+
+    if (window.KidsCrmTooltip) {
+        var scheduleTableEl = document.getElementById('schedule-table');
+        if (scheduleTableEl) {
+            KidsCrmTooltip.bindDataTable(scheduleTableEl);
+        }
+    }
 
     $('#table-search').on('keyup', function () {
         table.search(this.value).draw();

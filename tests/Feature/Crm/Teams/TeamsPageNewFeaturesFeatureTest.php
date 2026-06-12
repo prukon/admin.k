@@ -221,8 +221,9 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
 
         $this->get(route('admin.team.index'))
             ->assertOk()
-            ->assertSee('KidsCrmHoverListDropdown', false)
-            ->assertSee('KidsCrmHoverListDropdown.renderCell', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee("type: 'list'", false)
+            ->assertSee("type: 'money'", false);
     }
 
     public function test_index_renders_weekdays_checkboxes_with_schedule_view(): void

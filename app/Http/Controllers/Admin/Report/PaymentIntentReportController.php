@@ -99,6 +99,18 @@ class PaymentIntentReportController extends AdminBaseController
             ->addColumn('user_name', function (PaymentIntent $intent) {
                 return (string) ($intent->user->full_name ?? ($intent->user->name ?? ''));
             })
+            ->addColumn('client_os', function (PaymentIntent $intent) {
+                return self::joinClientContextParts(
+                    $intent->client_os_family,
+                    $intent->client_os_version
+                );
+            })
+            ->addColumn('client_browser', function (PaymentIntent $intent) {
+                return self::joinClientContextParts(
+                    $intent->client_browser_family,
+                    $intent->client_browser_version
+                );
+            })
             ->addColumn('payment_method_webhook_label', function (PaymentIntent $intent) {
                 return $this->paymentIntentMethodLabel($intent->payment_method_webhook);
             })
@@ -108,6 +120,17 @@ class PaymentIntentReportController extends AdminBaseController
             ->editColumn('paid_at', function (PaymentIntent $intent) {
                 return $intent->paid_at ? $intent->paid_at->format('Y-m-d H:i:s') : '';
             })
+            ->editColumn('payment_date', function (PaymentIntent $intent) {
+                return self::formatPaymentDateForReport($intent->payment_date);
+            })
+            ->rawColumns([
+                'partner_title',
+                'user_name',
+                'client_os',
+                'client_browser',
+                'payment_method_webhook_label',
+                'payment_date',
+            ])
             ->toJson();
     }
 
@@ -363,5 +386,57 @@ class PaymentIntentReportController extends AdminBaseController
             'id' => $u->id,
             'text' => $text !== '' ? $text : '—',
         ];
+    }
+
+    private static function joinClientContextParts(?string $family, ?string $version): string
+    {
+        $a = trim((string) ($family ?? ''));
+        $b = trim((string) ($version ?? ''));
+
+        if ($a !== '' && $b !== '') {
+            return $a.' '.$b;
+        }
+
+        return $a !== '' ? $a : $b;
+    }
+
+    /**
+     * Человекочитаемый «оплаченный месяц» для отчёта: YYYY-MM-DD → «март 2026».
+     * Произвольные строки (например «Клубный взнос») возвращаются как есть.
+     */
+    private static function formatPaymentDateForReport(?string $value): string
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+
+        if (! preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[ T]\d{2}:\d{2}:\d{2})?$/', $raw, $matches)) {
+            return $raw;
+        }
+
+        $month = (int) $matches[2];
+        $year = (int) $matches[1];
+
+        if ($month < 1 || $month > 12) {
+            return $raw;
+        }
+
+        static $monthNames = [
+            1 => 'январь',
+            2 => 'февраль',
+            3 => 'март',
+            4 => 'апрель',
+            5 => 'май',
+            6 => 'июнь',
+            7 => 'июль',
+            8 => 'август',
+            9 => 'сентябрь',
+            10 => 'октябрь',
+            11 => 'ноябрь',
+            12 => 'декабрь',
+        ];
+
+        return $monthNames[$month].' '.$year;
     }
 }

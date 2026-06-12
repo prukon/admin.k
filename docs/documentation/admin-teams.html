@@ -93,7 +93,7 @@
       </tr>
       <tr>
         <td>Таблица</td>
-        <td>Колонка «Стоимость»: число форматируется на клиенте как <code>1&nbsp;046 руб</code> (<code>toLocaleString('ru-RU')</code> + суффикс « руб»). Пусто → «—». Сортировка по <code>columns[*].name = month_price</code>.</td>
+        <td>Колонка «Стоимость»: тип пресета <code>money</code> (<code>KidsCrmDataTable</code>, ключ <code>month_price</code>). Число — <code>1&nbsp;046 руб</code> (<code>toLocaleString('ru-RU')</code> + « руб»), выравнивание вправо через <code>.dt-col-money-value</code>. Пусто → «—» слева (как в колонках <code>text</code>). Сортировка по <code>columns[*].name = month_price</code>.</td>
       </tr>
       <tr>
         <td>Модалки create / edit</td>

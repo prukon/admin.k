@@ -314,7 +314,7 @@
         </style>
 
         <div class="table-responsive">
-            <table id="payouts-table" class="table table-striped table-bordered align-middle w-100">
+            <table id="payouts-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
                     <th>№</th>
@@ -580,253 +580,160 @@
                     });
             }
 
-            const defaultColumnsVisibility = {
-                id: true,
-                status: true,
-                source: true,
-                partner: true,
-                payer: true,
-                initiator: true,
-                payment: true,
-                provider_inv_id: true,
-                deal_id: true,
-                gross: true,
-                bank_accept_fee: true,
-                bank_payout_fee: true,
-                platform_fee: true,
-                net: true,
-                when_to_run: true,
-                created_at: true,
-                completed_at: true,
-                tinkoff_payout_payment_id: true,
-                actions: true
-            };
-
-            let currentColumnsConfig = {...defaultColumnsVisibility};
-
-            // 0 – нумерация (всегда видна)
-            const columnsMap = {
-                id: 1,
-                status: 2,
-                source: 3,
-                partner: 4,
-                payer: 5,
-                initiator: 6,
-                payment: 7,
-                provider_inv_id: 8,
-                deal_id: 9,
-                gross: 10,
-                bank_accept_fee: 11,
-                bank_payout_fee: 12,
-                platform_fee: 13,
-                net: 14,
-                when_to_run: 15,
-                created_at: 16,
-                completed_at: 17,
-                tinkoff_payout_payment_id: 18,
-                actions: 19
-            };
-
-            function toBool(val, fallback = true) {
-                if (val === undefined || val === null) return fallback;
-                if (typeof val === 'boolean') return val;
-                if (typeof val === 'number') return val === 1;
-                if (typeof val === 'string') {
-                    const v = val.toLowerCase().trim();
-                    if (v === 'true' || v === '1') return true;
-                    if (v === 'false' || v === '0') return false;
-                }
-                return fallback;
-            }
-
-            // --- DataTables ---
-            const table = $('#payouts-table').DataTable({
-                processing: true,
-                serverSide: true,
-                pageLength: 10,
-                lengthMenu: [10, 20, 50, 100],
-                order: [[1, 'desc']],
-                ajax: {
-                    url: '/admin/tinkoff/payouts/data',
-                    type: 'GET',
-                    data: function (d) {
-                        var extra = filterParams();
-                        Object.keys(extra).forEach(function (k) {
-                            d[k] = extra[k];
-                        });
-                    }
-                },
-                language: {
-                    "processing": "Обработка...",
-                    "search": "",
-                    "searchPlaceholder": "Поиск...",
-                    "lengthMenu": "Показать _MENU_",
-                    "info": "С _START_ до _END_ из _TOTAL_ записей",
-                    "infoEmpty": "С 0 до 0 из 0 записей",
-                    "infoFiltered": "(отфильтровано из _MAX_ записей)",
-                    "loadingRecords": "Загрузка записей...",
-                    "zeroRecords": "Записи отсутствуют.",
-                    "emptyTable": "В таблице отсутствуют данные",
-                    "paginate": {
-                        "first": "",
-                        "previous": "",
-                        "next": "",
-                        "last": ""
+            const dtApi = KidsCrmDataTable.create('#payouts-table', {
+                columnsSettings: {
+                    defaults: {
+                        id: true,
+                        status: true,
+                        source: true,
+                        partner: true,
+                        payer: true,
+                        initiator: true,
+                        payment: true,
+                        provider_inv_id: true,
+                        deal_id: true,
+                        gross: true,
+                        bank_accept_fee: true,
+                        bank_payout_fee: true,
+                        platform_fee: true,
+                        net: true,
+                        when_to_run: true,
+                        created_at: true,
+                        completed_at: true,
+                        tinkoff_payout_payment_id: true,
+                        actions: true,
                     },
-                    "aria": {
-                        "sortAscending": ": активировать для сортировки столбца по возрастанию",
-                        "sortDescending": ": активировать для сортировки столбца по убыванию"
-                    }
+                    urls: {
+                        get: '/admin/tinkoff/payouts/columns-settings',
+                        save: '/admin/tinkoff/payouts/columns-settings',
+                    },
+                    csrfToken: '{{ csrf_token() }}',
+                },
+                dataTable: {
+                    order: [[1, 'desc']],
+                    ajax: {
+                        url: '/admin/tinkoff/payouts/data',
+                        type: 'GET',
+                        data: function (d) {
+                            var extra = filterParams();
+                            Object.keys(extra).forEach(function (k) {
+                                d[k] = extra[k];
+                            });
+                        },
+                    },
+                    language: @include('partials.datatables.ru'),
                 },
                 columns: [
+                    { type: 'rownum' },
+                    { key: 'id', type: 'id', data: 'id' },
                     {
-                        data: null,
-                        name: 'rownum',
-                        orderable: false,
-                        searchable: false,
-                        className: 'text-center',
-                        render: function (data, type, row, meta) {
-                            return meta.row + meta.settings._iDisplayStart + 1;
-                        }
-                    },
-                    {data: 'id', name: 'id', className: 'text-center'},
-                    {
+                        key: 'status',
+                        type: 'badge',
                         data: 'status',
                         name: 'status',
-                        render: function (data) {
-                            let cls = 'bg-secondary';
+                        className: 'dt-col-badge text-center',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
+                            var cls = 'bg-secondary';
                             if (data === 'COMPLETED') cls = 'bg-success';
                             if (data === 'REJECTED') cls = 'bg-danger';
                             return '<span class="badge ' + cls + '">' + data + '</span>';
-                        }
+                        },
                     },
                     {
+                        key: 'source',
+                        type: 'badge',
                         data: 'source',
                         name: 'source',
-                        render: function (data) {
-                            const label = data || '—';
+                        className: 'dt-col-badge text-center',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
+                            var label = data || '—';
                             return '<span class="badge bg-light text-dark border">' + label + '</span>';
-                        }
+                        },
                     },
-                    {data: 'partner', name: 'partner', defaultContent: ''},
-                    {data: 'payer', name: 'payer', defaultContent: ''},
-                    {data: 'initiator', name: 'initiator', defaultContent: ''},
+                    { key: 'partner', type: 'text', data: 'partner', name: 'partner' },
+                    { key: 'payer', type: 'text', data: 'payer', name: 'payer' },
+                    { key: 'initiator', type: 'text', data: 'initiator', name: 'initiator' },
                     {
+                        key: 'payment',
+                        type: 'link',
                         data: 'payment_id',
                         name: 'payment_id',
-                        className: 'text-center',
-                        render: function (data) {
-                            if (!data) return '—';
-                            return '<a href="/admin/tinkoff/payments/' + data + '" target="_blank">#' + data + '</a>';
-                        }
+                        className: 'dt-col-id text-center',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return row.payment_id || '';
+                            }
+
+                            if (!row.payment_id) {
+                                return '<span class="dt-cell-empty text-muted">—</span>';
+                            }
+
+                            return '<a href="/admin/tinkoff/payments/' + row.payment_id + '" target="_blank">#' + row.payment_id + '</a>';
+                        },
                     },
                     {
+                        key: 'provider_inv_id',
+                        type: 'text',
                         data: 'provider_inv_id',
                         name: 'provider_inv_id',
-                        className: 'text-center tabular-nums',
-                        defaultContent: '—'
+                        className: 'dt-col-count text-center tabular-nums',
                     },
-                    {data: 'deal_id', name: 'deal_id', defaultContent: ''},
-                    {data: 'gross', name: 'gross', className: 'text-end', defaultContent: ''},
-                    {data: 'bank_accept_fee', name: 'bank_accept_fee', className: 'text-end', defaultContent: ''},
-                    {data: 'bank_payout_fee', name: 'bank_payout_fee', className: 'text-end', defaultContent: ''},
-                    {data: 'platform_fee', name: 'platform_fee', className: 'text-end', defaultContent: ''},
-                    {data: 'net', name: 'net', className: 'text-end', defaultContent: ''},
+                    { key: 'deal_id', type: 'text', data: 'deal_id', name: 'deal_id' },
+                    { key: 'gross', type: 'text', data: 'gross', name: 'gross', className: 'dt-col-count text-end' },
+                    { key: 'bank_accept_fee', type: 'text', data: 'bank_accept_fee', name: 'bank_accept_fee', className: 'dt-col-count text-end' },
+                    { key: 'bank_payout_fee', type: 'text', data: 'bank_payout_fee', name: 'bank_payout_fee', className: 'dt-col-count text-end' },
+                    { key: 'platform_fee', type: 'text', data: 'platform_fee', name: 'platform_fee', className: 'dt-col-count text-end' },
+                    { key: 'net', type: 'text', data: 'net', name: 'net', className: 'dt-col-count text-end' },
                     {
+                        key: 'when_to_run',
+                        type: 'datetime',
                         data: 'when_to_run',
                         name: 'when_to_run',
-                        className: 'text-nowrap',
-                        defaultContent: '',
-                        render: renderPayoutListDatetime
+                        className: 'dt-col-text dt-col-text--wrap',
+                        render: renderPayoutListDatetime,
                     },
                     {
+                        key: 'created_at',
+                        type: 'datetime',
                         data: 'created_at',
                         name: 'created_at',
-                        className: 'text-nowrap',
-                        defaultContent: '',
-                        render: renderPayoutListDatetime
+                        className: 'dt-col-text dt-col-text--wrap',
+                        render: renderPayoutListDatetime,
                     },
                     {
+                        key: 'completed_at',
+                        type: 'datetime',
                         data: 'completed_at',
                         name: 'completed_at',
-                        className: 'text-nowrap',
-                        defaultContent: '',
-                        render: renderPayoutListDatetime
+                        className: 'dt-col-text dt-col-text--wrap',
+                        render: renderPayoutListDatetime,
                     },
-                    {data: 'tinkoff_payout_payment_id', name: 'tinkoff_payout_payment_id', defaultContent: ''},
+                    { key: 'tinkoff_payout_payment_id', type: 'text', data: 'tinkoff_payout_payment_id', name: 'tinkoff_payout_payment_id' },
                     {
-                        data: null,
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false,
+                        key: 'actions',
+                        type: 'actions',
                         className: 'text-end text-nowrap',
                         render: function (data, type, row) {
                             return '<a class="btn btn-sm btn-outline-primary" href="/admin/tinkoff/payouts/' + row.id + '">Карточка</a>';
-                        }
-                    }
-                ]
-            });
-
-            function applyVisibleColumns(config) {
-                Object.keys(columnsMap).forEach(function (key) {
-                    const colIndex = columnsMap[key];
-                    const column = table.column(colIndex);
-                    const isVisible = toBool(config[key], defaultColumnsVisibility[key]);
-                    column.visible(isVisible, false);
-                    $('.column-toggle[data-column-key="' + key + '"]').prop('checked', isVisible);
-                });
-                table.columns.adjust().draw(false);
-            }
-
-            function loadColumnsConfigFromServer() {
-                $.ajax({
-                    url: '/admin/tinkoff/payouts/columns-settings',
-                    type: 'GET',
-                    dataType: 'json',
-                    success: function (response) {
-                        const merged = {};
-                        Object.keys(defaultColumnsVisibility).forEach(function (key) {
-                            merged[key] = toBool(
-                                response.hasOwnProperty(key) ? response[key] : defaultColumnsVisibility[key],
-                                defaultColumnsVisibility[key]
-                            );
-                        });
-                        currentColumnsConfig = merged;
-                        applyVisibleColumns(currentColumnsConfig);
+                        },
                     },
-                    error: function () {
-                        currentColumnsConfig = {...defaultColumnsVisibility};
-                        applyVisibleColumns(currentColumnsConfig);
-                    }
-                });
-            }
-
-            function saveColumnsConfigToServer(config) {
-                $.ajax({
-                    url: '/admin/tinkoff/payouts/columns-settings',
-                    type: 'POST',
-                    dataType: 'json',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        columns: config
-                    }
-                });
-            }
-
-            loadColumnsConfigFromServer();
-
-            $('.column-toggle').on('change', function () {
-                const key = $(this).data('column-key');
-                const val = $(this).is(':checked');
-                currentColumnsConfig[key] = val;
-                applyVisibleColumns(currentColumnsConfig);
-                saveColumnsConfigToServer(currentColumnsConfig);
+                ],
             });
+
+            const table = dtApi.table;
 
             $filtersForm.on('submit', function (e) {
                 e.preventDefault();
                 refreshTotal();
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
             });
 
             $('#filter-reset').on('click', function () {
@@ -853,7 +760,7 @@
                 $('#filter-tinkoff-payment-id').val('');
                 $('#filter-payout-payment-id').val('');
                 refreshTotal();
-                table.ajax.reload();
+                dtApi.reload({ keepPage: true });
             });
         });
     </script>

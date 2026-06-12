@@ -203,7 +203,7 @@ class DeptReportTest extends CrmTestCase
         $this->assertCount(2, $data);
 
         $months = collect($data)->pluck('month')->sort()->values()->all();
-        $this->assertSame(['2025-12-01', '2026-01-01'], $months);
+        $this->assertSame(['Декабрь 2025', 'Январь 2026'], $months);
     }
 
     /**
@@ -437,7 +437,8 @@ class DeptReportTest extends CrmTestCase
 
         $this->get(route('debts'))
             ->assertOk()
-            ->assertSee('pay-debt-filter-location', false);
+            ->assertSee('pay-debt-filter-location', false)
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_debts_total_respects_filter_location_id(): void

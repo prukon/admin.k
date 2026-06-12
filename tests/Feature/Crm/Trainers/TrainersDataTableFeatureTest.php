@@ -62,7 +62,7 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
             'title' => 'Группа для фильтра',
         ]);
 
-        $this->get(route('admin.trainers.index'))
+        $html = $this->get(route('admin.trainers.index'))
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('id="trainers-table"', false)
@@ -71,9 +71,19 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
             ->assertSee('filter-team', false)
             ->assertSee('filter-status', false)
             ->assertSee('value="active" selected', false)
-            ->assertSee('pageLength: 10', false)
             ->assertSee('defaultFilterStatus = \'active\'', false)
-            ->assertSee('Группа для фильтра', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee("type: 'list'", false)
+            ->assertSee('teams_titles', false)
+            ->assertDontSee('scrollX: true', false)
+            ->assertSee('Группа для фильтра', false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            "/key:\s*'avatar'[\s\S]{0,120}?type:\s*'image'/",
+            $html
+        );
+        $this->assertStringNotContainsString("type: 'custom'", $html);
     }
 
     public function test_data_returns_expected_row_structure(): void
@@ -354,5 +364,38 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
             ->assertJsonPath('avatar', false)
             ->assertJsonPath('full_name', true)
             ->assertJsonPath('email', false);
+    }
+
+    public function test_data_teams_label_includes_titles_for_hover_list(): void
+    {
+        $this->grantTrainersView();
+
+        $profile = $this->createTrainerProfile([
+            'email' => 'teams-hover-' . uniqid('', true) . '@example.test',
+        ]);
+
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Alpha Team']);
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Beta Team']);
+        $teamC = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Gamma Team']);
+
+        foreach ([$teamA->id, $teamB->id, $teamC->id] as $teamId) {
+            DB::table('team_trainer')->insert([
+                'partner_id' => $this->partner->id,
+                'team_id' => $teamId,
+                'trainer_profile_id' => $profile->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $row = collect($this->getJson(route('admin.trainers.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+        ]))->assertOk()->json('data'))->firstWhere('id', $profile->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame('Alpha Team, еще 2 шт.', $row['teams_label']);
+        $this->assertSame(['Alpha Team', 'Beta Team', 'Gamma Team'], $row['teams_titles']);
     }
 }

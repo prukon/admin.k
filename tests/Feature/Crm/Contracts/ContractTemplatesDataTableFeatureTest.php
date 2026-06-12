@@ -194,7 +194,8 @@ class ContractTemplatesDataTableFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contract-templates-table"', false)
             ->assertSee('<th>№</th>', false)
             ->assertSee('data-column-key="title"', false)
-            ->assertSee('columnsSettingsGetUrl', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('columnsSettings:', false);
     }
 
     /** @test */

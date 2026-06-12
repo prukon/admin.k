@@ -69,7 +69,8 @@ final class PartnerLeadsPageFeatureTest extends CrmTestCase
             ->assertSee('id="plFilterStatusProcessing"', false)
             ->assertSee('id="columnsDropdownPartnerLeads"', false)
             ->assertSee('id="leads-table"', false)
-            ->assertSee('serverSide: true', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('partner-leads-column-toggle', false);
     }
 
     public function test_datatable_stats_are_global_and_ignore_table_filters(): void

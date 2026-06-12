@@ -47,8 +47,7 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('sportTypesReportFiltersCollapse', false)
             ->assertSee('sportTypesColumnsDropdown', false)
-            ->assertSee('serverSide: true', false)
-            ->assertSee('pageLength: 10', false);
+            ->assertSee('KidsCrmDataTable.create', false);
     }
 
     public function test_all_sport_types_page_endpoints_return_200_for_admin_with_manage(): void

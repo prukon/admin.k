@@ -460,6 +460,147 @@ SQL;
     }
 
     /**
+     * @return array{
+     *     refund_actions_available: bool,
+     *     refund_disabled: bool,
+     *     refund_disabled_title: string,
+     *     refund_show_history: bool
+     * }
+     */
+    /**
+     * @param  array<int, array<string, mixed>>  $cache
+     * @return array{
+     *     refund_actions_available: bool,
+     *     refund_disabled: bool,
+     *     refund_disabled_title: string,
+     *     refund_show_history: bool
+     * }
+     */
+    private function cachedRefundActionMeta(Payment $row, int $partnerId, bool $canViewTbankHistory, array &$cache): array
+    {
+        $rowId = (int) $row->id;
+        if (! array_key_exists($rowId, $cache)) {
+            $cache[$rowId] = $this->buildRefundActionMeta($row, $partnerId, $canViewTbankHistory);
+        }
+
+        return $cache[$rowId];
+    }
+
+    private function buildRefundActionMeta(Payment $row, int $partnerId, bool $canViewTbankHistory): array
+    {
+        $provider = (! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status))
+            ? 'tbank'
+            : 'robokassa';
+
+        if ($provider === 'robokassa') {
+            return [
+                'refund_actions_available' => false,
+                'refund_disabled' => false,
+                'refund_disabled_title' => '',
+                'refund_show_history' => false,
+            ];
+        }
+
+        $tbankIntent = null;
+        $pidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
+            ? (string) $row->payment_id
+            : '';
+
+        if ($pidStr === '' || ! ctype_digit($pidStr)) {
+            $pidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
+                ? (string) $row->payment_number
+                : '';
+        }
+
+        if ($pidStr !== '' && ctype_digit($pidStr)) {
+            $tbankIntent = PaymentIntent::query()
+                ->where('provider', 'tbank')
+                ->where('partner_id', (int) $partnerId)
+                ->where(function ($q) use ($pidStr) {
+                    $pid = (int) $pidStr;
+                    $q->where('provider_inv_id', $pid)
+                        ->orWhere('tbank_payment_id', $pid);
+                })
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $disabled = false;
+        $title = '';
+
+        if ($this->paymentRowHasBlockingRefund($row)) {
+            $disabled = true;
+            $attrs = $row->getAttributes();
+            $st = (array_key_exists('latest_refund_status', $attrs) && $attrs['latest_refund_status'] !== null && $attrs['latest_refund_status'] !== '')
+                ? (string) $attrs['latest_refund_status']
+                : (string) (Refund::query()
+                    ->where('payment_id', $row->id)
+                    ->orderByDesc('id')
+                    ->value('status') ?? '');
+            $title = $st === 'pending'
+                ? 'Возврат уже в обработке'
+                : 'Платёж уже возвращён';
+        }
+
+        if (! $disabled) {
+            if (! $tbankIntent) {
+                $disabled = true;
+                $title = 'Нет данных T-Bank (intent не найден)';
+            } elseif ((string) $tbankIntent->status !== 'paid') {
+                $disabled = true;
+                $title = 'Платёж не в статусе paid';
+            }
+        }
+
+        if (! $disabled && $tbankIntent) {
+            $tpPidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
+                ? (string) $row->payment_id
+                : '';
+            if ($tpPidStr === '' || ! ctype_digit($tpPidStr)) {
+                $tpPidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
+                    ? (string) $row->payment_number
+                    : '';
+            }
+            if ($tpPidStr !== '' && ctype_digit($tpPidStr)) {
+                $tinkoffRowIds = TinkoffPayment::query()
+                    ->where('partner_id', (int) $partnerId)
+                    ->where('tinkoff_payment_id', $tpPidStr)
+                    ->pluck('id');
+                $tbOrderId = trim((string) ($tbankIntent->tbank_order_id ?? ''));
+                if ($tbOrderId !== '') {
+                    $tinkoffRowIds = $tinkoffRowIds->merge(
+                        TinkoffPayment::query()
+                            ->where('partner_id', (int) $partnerId)
+                            ->where('order_id', $tbOrderId)
+                            ->pluck('id')
+                    );
+                }
+                $tinkoffRowIds = $tinkoffRowIds->unique()->filter()->values()->all();
+                if ($tinkoffRowIds !== []) {
+                    $hasBlockingPayout = TinkoffPayout::query()
+                        ->where('partner_id', (int) $partnerId)
+                        ->whereIn('payment_id', $tinkoffRowIds)
+                        ->whereNotIn('status', ['REJECTED'])
+                        ->whereNotNull('tinkoff_payout_payment_id')
+                        ->where('tinkoff_payout_payment_id', '!=', '')
+                        ->exists();
+                    if ($hasBlockingPayout) {
+                        $disabled = true;
+                        $title = 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId).';
+                    }
+                }
+            }
+        }
+
+        return [
+            'refund_actions_available' => true,
+            'refund_disabled' => $disabled,
+            'refund_disabled_title' => $disabled ? ($title !== '' ? $title : 'Возврат недоступен') : '',
+            'refund_show_history' => $canViewTbankHistory,
+        ];
+    }
+
+    /**
      * Успешная выплата по deal_id (как для payout_amount в отчёте).
      */
     private function paymentRowHasCompletedTbankPayout(Payment $row, int $partnerId): bool
@@ -639,6 +780,7 @@ SQL;
         $canCommissionTotal = $authUser?->can('reports.payments.commission_total.view') ?? false;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
+        $refundActionMetaCache = [];
 
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
@@ -1052,145 +1194,25 @@ SQL;
 
                 return $refund ? (string) $refund->status : '';
             })
-            ->addColumn('refund_action', function (Payment $row) use ($partnerId, $canViewTbankHistory) {
-                // Определяем провайдера
-                $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
-                    ? 'tbank'
-                    : 'robokassa';
+            ->addColumn('refund_actions_available', function (Payment $row) use ($partnerId, $canViewTbankHistory, &$refundActionMetaCache) {
+                $meta = $this->cachedRefundActionMeta($row, $partnerId, $canViewTbankHistory, $refundActionMetaCache);
 
-                // В отчёте возврат только для T-Bank (Robokassa — без кнопки в UI)
-                if ($provider === 'robokassa') {
-                    return '';
-                }
+                return $meta['refund_actions_available'];
+            })
+            ->addColumn('refund_disabled', function (Payment $row) use ($partnerId, $canViewTbankHistory, &$refundActionMetaCache) {
+                $meta = $this->cachedRefundActionMeta($row, $partnerId, $canViewTbankHistory, $refundActionMetaCache);
 
-                $tbankIntent = null;
-                $pidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
-                    ? (string) $row->payment_id
-                    : '';
+                return $meta['refund_disabled'];
+            })
+            ->addColumn('refund_disabled_title', function (Payment $row) use ($partnerId, $canViewTbankHistory, &$refundActionMetaCache) {
+                $meta = $this->cachedRefundActionMeta($row, $partnerId, $canViewTbankHistory, $refundActionMetaCache);
 
-                if ($pidStr === '' || !ctype_digit($pidStr)) {
-                    $pidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
-                        ? (string) $row->payment_number
-                        : '';
-                }
+                return $meta['refund_disabled_title'];
+            })
+            ->addColumn('refund_show_history', function (Payment $row) use ($partnerId, $canViewTbankHistory, &$refundActionMetaCache) {
+                $meta = $this->cachedRefundActionMeta($row, $partnerId, $canViewTbankHistory, $refundActionMetaCache);
 
-                if ($pidStr !== '' && ctype_digit($pidStr)) {
-                    $tbankIntent = PaymentIntent::query()
-                        ->where('provider', 'tbank')
-                        ->where('partner_id', (int) $partnerId)
-                        ->where(function ($q) use ($pidStr) {
-                            $pid = (int) $pidStr;
-                            $q->where('provider_inv_id', $pid)
-                                ->orWhere('tbank_payment_id', $pid);
-                        })
-                        ->orderByDesc('id')
-                        ->first();
-                }
-
-                $intent = $tbankIntent;
-
-                $disabled = false;
-                $title = '';
-
-                if ($this->paymentRowHasBlockingRefund($row)) {
-                    $disabled = true;
-                    $attrs = $row->getAttributes();
-                    $st = (array_key_exists('latest_refund_status', $attrs) && $attrs['latest_refund_status'] !== null && $attrs['latest_refund_status'] !== '')
-                        ? (string) $attrs['latest_refund_status']
-                        : (string) (Refund::query()
-                            ->where('payment_id', $row->id)
-                            ->orderByDesc('id')
-                            ->value('status') ?? '');
-                    $title = $st === 'pending'
-                        ? 'Возврат уже в обработке'
-                        : 'Платёж уже возвращён';
-                }
-
-                if (! $disabled) {
-                    if (! $intent) {
-                        $disabled = true;
-                        $title = 'Нет данных T-Bank (intent не найден)';
-                    } elseif ((string) $intent->status !== 'paid') {
-                        $disabled = true;
-                        $title = 'Платёж не в статусе paid';
-                    }
-                }
-
-                // T-Bank: запрет возврата, если по этой оплате выплата уже ушла в банк (только через tinkoff_payments).
-                if (! $disabled && $tbankIntent) {
-                    $tpPidStr = (is_string($row->payment_id) || is_numeric($row->payment_id))
-                        ? (string) $row->payment_id
-                        : '';
-                    if ($tpPidStr === '' || !ctype_digit($tpPidStr)) {
-                        $tpPidStr = (is_string($row->payment_number) || is_numeric($row->payment_number))
-                            ? (string) $row->payment_number
-                            : '';
-                    }
-                    if ($tpPidStr !== '' && ctype_digit($tpPidStr)) {
-                        $tinkoffRowIds = TinkoffPayment::query()
-                            ->where('partner_id', (int) $partnerId)
-                            ->where('tinkoff_payment_id', $tpPidStr)
-                            ->pluck('id');
-                        $tbOrderId = trim((string) ($tbankIntent->tbank_order_id ?? ''));
-                        if ($tbOrderId !== '') {
-                            $tinkoffRowIds = $tinkoffRowIds->merge(
-                                TinkoffPayment::query()
-                                    ->where('partner_id', (int) $partnerId)
-                                    ->where('order_id', $tbOrderId)
-                                    ->pluck('id')
-                            );
-                        }
-                        $tinkoffRowIds = $tinkoffRowIds->unique()->filter()->values()->all();
-                        if ($tinkoffRowIds !== []) {
-                            $hasBlockingPayout = TinkoffPayout::query()
-                                ->where('partner_id', (int) $partnerId)
-                                ->whereIn('payment_id', $tinkoffRowIds)
-                                ->whereNotIn('status', ['REJECTED'])
-                                ->whereNotNull('tinkoff_payout_payment_id')
-                                ->where('tinkoff_payout_payment_id', '!=', '')
-                                ->exists();
-                            if ($hasBlockingPayout) {
-                                $disabled = true;
-                                $title = 'Возврат запрещён: выплата уже отправлена в банк (есть PaymentId).';
-                            }
-                        }
-                    }
-                }
-
-                $amount = (float) $row->summ;
-
-                $btnAttrs = [
-                    'type="button"',
-                    'class="btn btn-sm btn-outline-danger js-refund-btn"',
-                    'data-payment-id="' . (int) $row->id . '"',
-                    'data-provider="tbank"',
-                    'data-amount="' . e((string) $amount) . '"',
-                    'data-user="' . e((string) ($row->user_name ?? '')) . '"',
-                    'data-month="' . e((string) ($row->payment_month ?? '')) . '"',
-                ];
-
-                if ($disabled) {
-                    $btnAttrs[] = 'disabled';
-                }
-
-                $buttonHtml = '<button ' . implode(' ', $btnAttrs) . '>Возврат</button>';
-
-                $historyButtonHtml = '';
-                if ($canViewTbankHistory) {
-                    $historyButtonHtml =
-                        '<button type="button" class="btn btn-sm btn-outline-secondary ms-1 js-tbank-history-btn" ' .
-                        'data-payment-id="' . (int) $row->id . '" ' .
-                        'data-deal-id="' . e((string) ($row->deal_id ?? '')) . '" ' .
-                        'data-bank-payment-id="' . e((string) ($row->payment_id ?? $row->payment_number ?? '')) . '"' .
-                        '>История</button>';
-                }
-
-                if ($disabled) {
-                    $wrapTitle = $title !== '' ? $title : 'Возврат недоступен';
-                    return '<span title="' . e($wrapTitle) . '" style="cursor:not-allowed;">' . $buttonHtml . '</span>' . $historyButtonHtml;
-                }
-
-                return $buttonHtml . $historyButtonHtml;
+                return $meta['refund_show_history'];
             })
             ->addColumn('payout_date', function (Payment $row) {
                 $attrs = $row->getAttributes();
@@ -1204,7 +1226,6 @@ SQL;
 
                 return Carbon::parse($v)->format('d.m.Y H:i');
             })
-            ->rawColumns(['refund_action'])
             ->make(true);
     }
 

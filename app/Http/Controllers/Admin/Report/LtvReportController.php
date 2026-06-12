@@ -12,10 +12,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\UserTableSetting;
 use Yajra\DataTables\DataTables;
 
 class LtvReportController extends AdminBaseController
 {
+    private const TABLE_KEY = 'reports_ltv';
+
     public function __construct(PartnerContext $partnerContext)
     {
         parent::__construct($partnerContext);
@@ -176,6 +179,94 @@ class LtvReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
+        $payments = $this->buildLtvUserPaymentsQuery($request, $partnerId, $userId);
+
+        if ($request->has('draw')) {
+            $stats = DB::query()
+                ->fromSub(clone $payments, 'ltv_user_payments')
+                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ), 0) as sum_total')
+                ->first();
+
+            return DataTables::of($payments)
+                ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
+                ->editColumn('summ', fn ($row) => (float) $row->summ)
+                ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
+                ->with('meta_sum_total', (float) ($stats->sum_total ?? 0))
+                ->make(true);
+        }
+
+        $paymentRows = (clone $payments)->get();
+
+        $items = $paymentRows->map(function ($row) {
+            return [
+                'id'               => (int) $row->id,
+                'user_name'        => $row->user_name ?: 'Без имени',
+                'team_title'       => $row->team_title ?: 'Без команды',
+                'summ'             => (float) $row->summ,
+                'payment_month'    => $row->payment_month,
+                'operation_date'   => $row->operation_date,
+                'payment_provider' => $this->resolvePaymentProvider($row),
+            ];
+        })->all();
+
+        return response()->json([
+            'user_id'  => $userId,
+            'payments' => $items,
+        ]);
+    }
+
+    public function getColumnsSettings()
+    {
+        $this->requirePartnerId();
+
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function saveColumnsSettings(Request $request)
+    {
+        $this->requirePartnerId();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $normalized = [];
+        foreach ((array) $data['columns'] as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[(string) $key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::TABLE_KEY,
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function buildLtvUserPaymentsQuery(Request $request, int $partnerId, int $userId)
+    {
         $payments = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
@@ -185,7 +276,8 @@ class LtvReportController extends AdminBaseController
 
         $this->applyLtvReportFilters($payments, $request, $partnerId, true);
 
-        $paymentRows = $payments->selectRaw("
+        return $payments
+            ->selectRaw("
                 payments.id,
                 payments.summ,
                 payments.payment_month,
@@ -197,29 +289,14 @@ class LtvReportController extends AdminBaseController
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
                 teams.title as team_title
             ")
-            ->orderBy('payments.operation_date', 'desc')
-            ->get();
+            ->orderBy('payments.operation_date', 'desc');
+    }
 
-        $items = $paymentRows->map(function ($row) {
-            $provider = (!empty($row->deal_id) || !empty($row->payment_id) || !empty($row->payment_status))
-                ? 'tbank'
-                : 'robokassa';
-
-            return [
-                'id'               => (int) $row->id,
-                'user_name'        => $row->user_name ?: 'Без имени',
-                'team_title'       => $row->team_title ?: 'Без команды',
-                'summ'             => (float) $row->summ,
-                'payment_month'    => $row->payment_month,
-                'operation_date'   => $row->operation_date,
-                'payment_provider' => $provider,
-            ];
-        })->all();
-
-        return response()->json([
-            'user_id'  => $userId,
-            'payments' => $items,
-        ]);
+    private function resolvePaymentProvider(object $row): string
+    {
+        return (! empty($row->deal_id) || ! empty($row->payment_id) || ! empty($row->payment_status))
+            ? 'tbank'
+            : 'robokassa';
     }
 
     /**

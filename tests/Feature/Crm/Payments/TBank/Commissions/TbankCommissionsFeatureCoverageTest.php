@@ -47,21 +47,23 @@ class TbankCommissionsFeatureCoverageTest extends CrmTestCase
             'recordsFiltered',
             'data' => [
                 [
-                    'partner_cell',
+                    'id',
+                    'partner_title',
                     'method',
-                    'acquiring_html',
-                    'payout_html',
-                    'platform_html',
-                    'auto_payout_html',
-                    'payouts_30d_html',
-                    'enabled_html',
-                    'actions_html',
+                    'acquiring_percent',
+                    'payout_percent',
+                    'platform_percent',
+                    'auto_payout_enabled',
+                    'payouts_30d_count',
+                    'is_enabled',
+                    'enabled_label',
                 ],
             ],
         ]);
 
         $row = $resp->json('data.0');
-        $this->assertStringContainsString('Изменить', $row['actions_html']);
+        $this->assertIsInt($row['id']);
+        $this->assertArrayHasKey('partner_title', $row);
     }
 
     public function test_data_respects_filter_partner_id(): void
@@ -111,8 +113,8 @@ class TbankCommissionsFeatureCoverageTest extends CrmTestCase
 
         $resp->assertOk();
         $row = $resp->json('data.0');
-        $this->assertSame('—', $row['auto_payout_html']);
-        $this->assertSame('—', $row['payouts_30d_html']);
+        $this->assertNull($row['auto_payout_enabled']);
+        $this->assertNull($row['payouts_30d_count']);
     }
 
     public function test_data_search_by_method_value_returns_row(): void

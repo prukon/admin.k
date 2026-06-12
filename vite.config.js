@@ -18,12 +18,16 @@ export default defineConfig({
                 'resources/css/blog.css',
                 'resources/css/user.css',
                 'resources/css/admin-list-toolbar.css',
+                'resources/css/datatables-columns.css',
+                'resources/css/kids-tooltip.css',
 
 
                 'resources/js/common-scripts.js', //выпил
                 'resources/js/general-scripts.js',//выпил
 
                 'resources/js/scripts.js',
+                'resources/js/kids-tooltip.js',
+                'resources/js/kids-datatable.js',
                 // 'resources/js/bootstrap.js',
                 'resources/js/schedule.js',
                 'resources/js/trainer-workload.js',
