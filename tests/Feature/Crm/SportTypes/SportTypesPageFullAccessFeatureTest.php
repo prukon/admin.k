@@ -43,6 +43,9 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.sport-types.index'))
             ->assertOk()
             ->assertViewIs('admin.sport-types.index')
+            ->assertSee('Справочники', false)
+            ->assertSee('id="directoriesSectionTabs"', false)
+            ->assertSee('>Виды спорта</a>', false)
             ->assertSee('id="sport-types-table"', false)
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('sportTypesReportFiltersCollapse', false)
@@ -129,6 +132,7 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.sport-types.index'))
             ->assertOk()
+            ->assertSee('id="directoriesSectionTabs"', false)
             ->assertDontSee('id="new-sport-type"', false)
             ->assertDontSee('sportTypeCreateModal', false);
 
@@ -172,6 +176,7 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.sport-types.index'))
             ->assertOk()
+            ->assertSee('id="directoriesSectionTabs"', false)
             ->assertSee('id="new-sport-type"', false)
             ->assertSee('sportTypeEditModal', false)
             ->assertSee('id="sportTypeDeleteBtn"', false);

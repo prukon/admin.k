@@ -27,7 +27,9 @@
   <div class="small">Файл: <code>/docs/documentation/admin-locations.html</code> · обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · районы: <a href="/docs/documentation/admin-districts">admin-districts</a> · привязка к группам: <a href="/docs/documentation/location-team-bindings">location_team</a></div>
 
   <div class="note">
-    <b>UI «Объект»</b> = модель <code>Location</code> (таблица <code>locations</code>). Раздел в меню: <b>«Справочники» → вкладка «Объекты»</b>.<br>
+    <b>UI «Объект»</b> = модель <code>Location</code> (таблица <code>locations</code>). Раздел в меню: вкладка <b>«Объекты»</b> (вторая; общий partial, <code>$activeTab = 'objects'</code>). Заголовок страницы — «Справочники».<br>
+    <strong>Сайдбар:</strong> при единственном <code>locations.view</code> пункт меню — <b>«Объекты»</b>; при 2+ правах справочников — <b>«Справочники»</b> (<a href="/docs/documentation/directories-hierarchy#1-1">DirectoriesMenu</a>). Отдельного пункта «Объекты» в сайдбаре нет.<br>
+    Порядок вкладок: <b>Группы → Объекты → Районы → Виды спорта</b>.<br>
     Маршруты — под <code>middleware('can:locations.view')</code>. Создание/изменение/удаление — дополнительно <code>locations.manage</code>.
   </div>
 

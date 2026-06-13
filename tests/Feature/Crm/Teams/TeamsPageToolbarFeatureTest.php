@@ -30,7 +30,9 @@ final class TeamsPageToolbarFeatureTest extends CrmTestCase
             ->assertViewHas(['weekdays', 'trainerOptions'])
             ->getContent();
 
-        $this->assertStringContainsString('>Группы</h4>', $html);
+        $this->assertStringContainsString('>Справочники</h4>', $html);
+        $this->assertStringContainsString('id="directoriesSectionTabs"', $html);
+        $this->assertStringContainsString('>Группы</a>', $html);
         $this->assertStringContainsString('>Группы</h1>', $html);
         $this->assertStringContainsString('payments-report-surface', $html);
         $this->assertStringContainsString('admin-list-toolbar', $html);

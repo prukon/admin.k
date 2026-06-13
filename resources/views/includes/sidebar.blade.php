@@ -109,35 +109,18 @@
             </li>
         @endcan
 
-        {{--Группы--}}
-        @can('groups.view')
-            <li class="nav-item">
-                <a href="/admin/teams" class="nav-link">
-                    <i class="nav-icon fa-solid fa-layer-group"></i>
-                    <p>Группы<span class="badge badge-info right">{{ $allTeamsCount}}</span></p>
-                </a>
-            </li>
-        @endcan
+        {{--Группы — вкладка в «Справочники»--}}
 
-       {{--Справочники--}}
-        @canany(['districts.view', 'locations.view'])
+       {{--Справочники / один справочник по правам--}}
+        @php($directoriesMenu = \App\Support\DirectoriesMenu::forUser(auth()->user()))
+        @if($directoriesMenu !== null)
             <li class="nav-item">
-                <a href="{{ auth()->user()->can('districts.view') ? route('admin.districts.index') : route('admin.locations.index') }}" class="nav-link">
+                <a href="{{ $directoriesMenu['url'] }}" class="nav-link">
                     <i class="nav-icon fa-solid fa-book"></i>
-                    <p>Справочники</p>
+                    <p>{{ $directoriesMenu['label'] }}</p>
                 </a>
             </li>
-        @endcanany
-
-        {{--Виды спорта--}}
-        @can('sport_types.view')
-            <li class="nav-item">
-                <a href="/admin/sport-types" class="nav-link">
-                    <i class="nav-icon fa-solid fa-medal"></i>
-                    <p>Виды спорта</p>
-                </a>
-            </li>
-        @endcan
+        @endif
           
         {{--Договоры--}}
         @can('contracts.view')

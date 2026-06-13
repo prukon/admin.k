@@ -28,7 +28,7 @@
 
   <div class="note">
     <b>Глоссарий UI:</b> в интерфейсе «Район» = модель <code>District</code>, «Объект» = модель <code>Location</code>.<br>
-    Пункт меню CRM: <b>«Справочники»</b> (виден при <code>districts.view</code> или <code>locations.view</code>). Вкладки: <b>Районы</b> · <b>Объекты</b>.<br>
+    Пункт сайдбара справочников (виден при <code>districts.view</code>, <code>locations.view</code>, <code>groups.view</code> или <code>sport_types.view</code>): при единственном <code>districts.view</code> подпись <b>«Районы»</b>, при 2+ правах — <b>«Справочники»</b> (<code>DirectoriesMenu</code>). Вкладка «Районы» — <b>третья</b>: Группы → Объекты → Районы → Виды спорта (<code>$activeTab = 'districts'</code>). URL пункта меню — первая доступная вкладка по приоритету: группы → объекты → районы → виды спорта.<br>
     Все маршруты раздела — под <code>middleware('can:districts.view')</code>. Право <code>districts.view</code> покрывает просмотр и CRUD (отдельного <code>manage</code> нет).
   </div>
 

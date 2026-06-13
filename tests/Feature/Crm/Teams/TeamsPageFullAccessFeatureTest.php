@@ -27,6 +27,9 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->get('/admin/teams')
             ->assertOk()
             ->assertViewIs('admin.team')
+            ->assertSee('Справочники', false)
+            ->assertSee('id="directoriesSectionTabs"', false)
+            ->assertSee('>Группы</a>', false)
             ->assertViewHas(['weekdays', 'trainerOptions']);
     }
 
@@ -97,6 +100,7 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.team.index'))
             ->assertOk()
             ->assertViewIs('admin.team')
+            ->assertSee('id="directoriesSectionTabs"', false)
             ->assertViewHas(['weekdays', 'trainerOptions']);
 
         $this->getJson('/admin/teams/data?draw=1&start=0&length=10')->assertOk();

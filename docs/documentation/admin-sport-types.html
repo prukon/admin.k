@@ -31,11 +31,28 @@
 
   <div class="note">
     Справочник <strong>«Вид спорта»</strong> на уровне партнёра. Один вид спорта может быть привязан к <strong>нескольким группам</strong> (<code>teams</code>); у группы поле <code>sport_type_id</code> <b>необязательно</b> (nullable).<br>
-    Пункт меню «Виды спорта» в сайдбаре — при праве <code>sport_types.view</code> (<code>@can</code> в <code>sidebar.blade.php</code>, Gate в <code>AuthServiceProvider</code>).<br>
-    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:sport_types.view')</code>. Создание, изменение и удаление — дополнительно <code>sport_types.manage</code> (middleware на POST/PUT/DELETE и <code>authorize()</code> в FormRequest).
+    В CRM страница входит в раздел <b>«Справочники»</b> — вкладка <b>«Виды спорта»</b> (четвёртая; <code>/admin/sport-types</code>, <code>$activeTab = 'sport-types'</code>). Заголовок страницы — «Справочники».<br>
+    <strong>Сайдбар:</strong> при единственном <code>sport_types.view</code> пункт меню — <b>«Виды спорта»</b>; при 2+ правах справочников — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Отдельного второго пункта «Виды спорта» в сайдбаре нет.<br>
+    Пункт виден при любом из прав <code>districts.view</code>, <code>locations.view</code>, <code>groups.view</code>, <code>sport_types.view</code>. URL — первая доступная вкладка: группы → объекты → районы → виды спорта.<br>
+    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:sport_types.view')</code>. Создание, изменение и удаление — дополнительно <code>sport_types.manage</code> (middleware на POST/PUT/DELETE и <code>authorize()</code> в FormRequest). Обзор раздела «Справочники»: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.
   </div>
 
-  <h2>1) Модель данных</h2>
+  <h2>1) Раздел «Справочники» и вкладки</h2>
+  <p>Общий partial вкладок: <code>resources/views/admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). Подключается на всех четырёх страницах справочников. Порядок вкладок: <b>Группы → Объекты → Районы → Виды спорта</b>.</p>
+  <table>
+    <thead>
+      <tr><th>Страница</th><th>URL</th><th>Заголовок раздела</th><th>Заголовок toolbar</th><th><code>$activeTab</code></th><th>Вкладка видна при</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Группы</td><td><code>/admin/teams</code></td><td>Справочники</td><td>Группы</td><td><code>groups</code></td><td><code>groups.view</code></td></tr>
+      <tr><td>Объекты</td><td><code>/admin/locations</code></td><td>Справочники</td><td>Объекты</td><td><code>objects</code></td><td><code>locations.view</code></td></tr>
+      <tr><td>Районы</td><td><code>/admin/districts</code></td><td>Справочники</td><td>Районы</td><td><code>districts</code></td><td><code>districts.view</code></td></tr>
+      <tr><td>Виды спорта</td><td><code>/admin/sport-types</code></td><td>Справочники</td><td>Виды спорта</td><td><code>sport-types</code></td><td><code>sport_types.view</code></td></tr>
+    </tbody>
+  </table>
+  <p>На каждой странице отображаются <b>только те вкладки</b>, на которые у пользователя есть право. Доступ к URL вкладки без соответствующего permission → <b>403</b>. Подпись пункта сайдбара (имя справочника или «Справочники») — см. <a href="/docs/documentation/directories-hierarchy#1-1">directories-hierarchy §1.1</a>.</p>
+
+  <h2>2) Модель данных</h2>
   <p>Миграции:</p>
   <ul>
     <li><code>2026_05_29_120000_create_sport_types_table.php</code> — таблица <code>sport_types</code>;</li>
@@ -64,7 +81,7 @@
     </tbody>
   </table>
 
-  <h2>2) Права доступа</h2>
+  <h2>3) Права доступа</h2>
   <table>
     <thead>
       <tr><th>Permission</th><th>Описание</th><th>Что открывает</th></tr>
@@ -72,8 +89,8 @@
     <tbody>
       <tr>
         <td><code>sport_types.view</code></td>
-        <td>Страница «Виды спорта»</td>
-        <td>Меню, index, data, show, columns-settings; на <code>/admin/teams</code> — колонка, фильтр, селект в модалках (см. <a href="/docs/documentation/admin-teams#sport-types-view">admin-teams</a>)</td>
+        <td>Страница «Виды спорта» (вкладка в «Справочники»)</td>
+        <td>Вкладка и CRUD-страница <code>/admin/sport-types</code>; при единственном праве справочников — пункт сайдбара «Виды спорта» (<code>DirectoriesMenu</code>); на <code>/admin/teams</code> — колонка, фильтр, селект в модалках (см. <a href="/docs/documentation/admin-teams#sport-types-view">admin-teams</a>)</td>
       </tr>
       <tr>
         <td><code>sport_types.manage</code></td>
@@ -85,7 +102,7 @@
   <p>Без <code>sport_types.view</code> — <b>403</b> на все эндпоинты раздела; для гостя — редирект/401. При только <code>sport_types.view</code> страница и чтение доступны, мутации возвращают <b>403</b>.</p>
   <p>Права <code>sport_types.view</code> и <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>, роль <code>admin</code>) — включаются вручную в матрице прав. Миграция <code>2026_05_29_120003</code> только добавляет записи в <code>permissions</code>, без автоназначения <code>permission_role</code>. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
-  <h2>3) Эндпоинты раздела</h2>
+  <h2>4) Эндпоинты раздела</h2>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Право</th><th>Назначение</th></tr>
@@ -103,8 +120,8 @@
   </table>
   <p class="small">Изоляция по партнёру: <code>PartnerContext</code> / <code>current_partner</code>. Чужой <code>sportType</code> → <b>404</b> на show/update/destroy.</p>
 
-  <h2>4) Интерфейс страницы</h2>
-  <p>View: <code>resources/views/admin/sport-types/index.blade.php</code>. Общий toolbar — <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a>, CSS <code>admin-list-toolbar.css</code>.</p>
+  <h2>5) Интерфейс страницы</h2>
+  <p>View: <code>resources/views/admin/sport-types/index.blade.php</code>. Заголовок раздела — «Справочники», ниже — <code>@include('admin.directories._section_tabs')</code>. Общий toolbar — <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a>, CSS <code>admin-list-toolbar.css</code>.</p>
   <ul>
     <li><b>Toolbar</b> — «Добавить» (<code>sport_types.manage</code>), «Фильтры», «Колонки».</li>
     <li><b>Фильтры</b> (collapse): <code>name</code> (название/описание/id), <code>status</code> — active/inactive; плюс глобальный поиск DataTables.</li>
@@ -114,7 +131,7 @@
     <li><b>Уникальность</b> — <code>(partner_id, name)</code>; дубликат → 422 «Вид спорта с таким названием уже существует».</li>
   </ul>
 
-  <h2>5) Связь с группами (<code>teams</code>)</h2>
+  <h2>6) Связь с группами (<code>teams</code>)</h2>
   <p>Привязка выполняется на странице <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a>, а не в справочнике видов спорта:</p>
   <ul>
     <li>В модалках create/edit группы — селект <code>sport_type_id</code> (только активные виды спорта партнёра), если у пользователя есть <code>sport_types.view</code> и в справочнике есть записи.</li>
@@ -126,7 +143,7 @@
     Вид спорта группы и локация группы — <b>независимые</b> измерения. Локации по-прежнему управляются через <code>location_team</code> (<a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>). Вид спорта не заменяет район/локацию на лендинге.
   </div>
 
-  <h2>6) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
+  <h2>7) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
   <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
   <ul>
     <li><code>GET /lead/{landingSlug}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
@@ -134,7 +151,7 @@
     <li>Если справочник видов спорта пуст — блок на форме не рендерится, поведение как раньше (только район и услуга).</li>
   </ul>
 
-  <h2>7) Ключевые файлы</h2>
+  <h2>8) Ключевые файлы</h2>
   <ul>
     <li><code>app/Models/SportType.php</code></li>
     <li><code>app/Http/Controllers/Admin/SportTypeController.php</code></li>
@@ -142,15 +159,25 @@
     <li><code>app/Http/Requests/Admin/StoreSportTypeRequest.php</code>, <code>UpdateSportTypeRequest.php</code></li>
     <li><code>app/Rules/PartnerSportTypeId.php</code></li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>sport_types.view</code>, <code>sport_types.manage</code></li>
-    <li><code>resources/views/includes/sidebar.blade.php</code> — пункт «Виды спорта»</li>
+    <li><code>resources/views/admin/sport-types/index.blade.php</code></li>
+    <li><code>resources/views/admin/directories/_section_tabs.blade.php</code> — вкладки раздела «Справочники»</li>
+    <li><code>app/Support/DirectoriesMenu.php</code> — подпись и URL пункта сайдбара</li>
+    <li><code>resources/views/includes/sidebar.blade.php</code> — вызов <code>DirectoriesMenu::forUser()</code></li>
     <li><code>database/factories/SportTypeFactory.php</code></li>
   </ul>
 
-  <h2>8) Автотесты</h2>
+  <h2>9) Автотесты</h2>
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesFeatureTest.php</code> — CRUD, partner scope, права, destroy → null у teams.</li>
-      <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — smoke 200 всех эндпоинтов; 403 без прав; guest.</li>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — smoke 200 всех эндпоинтов; UI раздела «Справочники»; 403 без прав; guest.</li>
+      <li><code>tests/Feature/Crm/Directories/SportTypesDirectoriesIntegrationFeatureTest.php</code> — вкладки, сайдбар, приоритет ссылки, полный доступ 200/403.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesMenuFeatureTest.php</code> — подпись «Виды спорта» / «Справочники», URL, data providers.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSinglePermissionFullAccessFeatureTest.php</code> — единственный справочник: endpoint'ы → 200/403, подпись сайдбара.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSmokeFeatureTest.php</code> — меню и вкладки при комбинациях <code>districts.view</code> / <code>locations.view</code> / <code>groups.view</code> / <code>sport_types.view</code>.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSectionIntegrationFeatureTest.php</code> — порядок вкладок, приоритет сайдбара.</li>
+      <li><code>tests/Feature/Crm/Directories/TeamsDirectoriesIntegrationFeatureTest.php</code> — интеграция «Группы», full access 200.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — все endpoint'ы справочников (группы, районы, объекты, виды спорта) → 200.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — привязка к группам, фильтр, reject foreign/disabled sport type.</li>
       <li><code>tests/Feature/Public/SchoolLeadLandingSportTypeFeatureTest.php</code> — лендинг: UI, teams API, submit, валидация.</li>
     </ul>
@@ -159,6 +186,7 @@
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/directories-hierarchy">Справочники (обзор)</a> ·
     <a href="/docs/documentation/admin-teams#sport-types-view">Группы (вид спорта)</a> ·
     <a href="/docs/documentation/school-leads-landing">Страница заявки</a> ·
     <a href="/docs/documentation/partners-permissions">Права партнёра</a>

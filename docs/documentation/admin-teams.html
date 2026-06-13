@@ -30,7 +30,9 @@
   <div class="small">Файл: <code>/docs/documentation/admin-teams.html</code> · страница CRM: <code>GET /admin/teams</code></div>
 
   <div class="note">
-    Раздел <strong>«Группы»</strong> в боковом меню ведёт на <code>GET /admin/teams</code> (<code>admin.team.index</code>).<br>
+    Страница входит в раздел CRM <strong>«Справочники»</strong> — вкладка <strong>«Группы»</strong> (первая в порядке вкладок; <code>/admin/teams</code>, <code>admin.team.index</code>, <code>$activeTab = 'groups'</code>). Обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.<br>
+    <strong>Сайдбар:</strong> при единственном праве <code>groups.view</code> пункт меню называется <b>«Группы»</b>; при двух и более правах справочников — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Отдельного второго пункта «Группы» в сайдбаре нет.<br>
+    Порядок вкладок на всех страницах справочников: <b>Группы → Объекты → Районы → Виды спорта</b> (partial <code>admin/directories/_section_tabs.blade.php</code>).<br>
     <strong>Доступ к странице и ко всем эндпоинтам раздела</strong> — одно право <code>groups.view</code> (middleware <code>can:groups.view</code> в <code>routes/web.php</code>). Без него — <b>403</b>; для гостя — редирект/401.<br>
     Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
     Поля «Тренировочная база» и «Адрес» — см. <a href="#groups-training-base-address">§5.2</a>.
@@ -385,7 +387,9 @@
 
   <h2>9) Представления и код</h2>
   <ul>
-    <li><code>resources/views/admin/team.blade.php</code> — таблица, «Поля списка», DataTables, колонки (в т.ч. <code>training_base</code>, <code>address</code> при правах).</li>
+    <li><code>resources/views/admin/team.blade.php</code> — заголовок «Справочники», вкладки (<code>@include('admin.directories._section_tabs')</code>), toolbar «Группы», таблица, «Поля списка», DataTables.</li>
+    <li><code>resources/views/admin/directories/_section_tabs.blade.php</code> — общие вкладки раздела «Справочники».</li>
+    <li><code>resources/views/includes/sidebar.blade.php</code> — пункт справочников через <code>DirectoriesMenu::forUser()</code> (приоритет URL: группы → объекты → районы → виды спорта).</li>
     <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки (в т.ч. <code>month_price</code>, <code>training_base</code>, <code>address</code>).</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — <code>index</code>, <code>data</code>, CRUD, отсечение полей по правам.</li>
     <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
@@ -396,12 +400,18 @@
     <li><code>database/migrations/2026_05_29_140000_add_training_base_and_address_to_teams_table.php</code> — <code>training_base</code>, <code>address</code>;</li>
     <li><code>database/migrations/2026_05_29_140001_add_groups_training_base_and_address_permissions.php</code> — permissions.</li>
     <li><code>database/seeders/PermissionSeeder.php</code> — те же имена прав.</li>
+    <li><code>app/Support/DirectoriesMenu.php</code> — подпись и URL пункта сайдбара.</li>
     <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>, <code>LocationTeamSyncService</code>.</li>
   </ul>
 
   <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesMenuFeatureTest.php</code> — подпись сайдбара «Группы» / «Справочники», URL, data providers.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSinglePermissionFullAccessFeatureTest.php</code> — только <code>groups.view</code>: все endpoint'ы → 200, сайдбар «Группы», чужие справочники → 403.</li>
+      <li><code>tests/Feature/Crm/Directories/TeamsDirectoriesIntegrationFeatureTest.php</code> — вкладка «Группы», сайдбар, порядок вкладок, full access 200/403.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSectionIntegrationFeatureTest.php</code> — порядок вкладок, приоритет сайдбара, отсутствие отдельных пунктов меню.</li>
+      <li><code>tests/Feature/Crm/Directories/DirectoriesSmokeFeatureTest.php</code> — подпись сайдбара и вкладки при комбинациях прав.</li>
       <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>

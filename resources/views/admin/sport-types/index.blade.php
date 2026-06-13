@@ -1,6 +1,7 @@
 @extends('layouts.admin2')
 
 @php
+    $activeTab = 'sport-types';
     $sportTypesHasActiveFilters = false;
 @endphp
 
@@ -8,7 +9,9 @@
     @vite(['resources/css/admin-list-toolbar.css'])
 
     <div class="main-content text-start">
-        <h4 class="pt-3 pb-3 text-start">Виды спорта</h4>
+        <h4 class="pt-3 pb-3 text-start">Справочники</h4>
+
+        @include('admin.directories._section_tabs')
 
         <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3">
             <div class="card-body px-3 py-3">
