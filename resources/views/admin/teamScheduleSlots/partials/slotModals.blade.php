@@ -49,12 +49,12 @@
 
                     @can('locations.view')
                         <div class="mb-2">
-                            <label class="form-label mb-1 small">Локация</label>
+                            <label class="form-label mb-1 small">Объект</label>
                             <select class="form-control form-control-sm js-slot-location-select" name="location_id">
                                 @forelse($locations as $l)
                                     <option value="{{ $l->id }}" @if($loop->first) selected @endif>{{ $l->name }}</option>
                                 @empty
-                                    <option value="">Нет локаций</option>
+                                    <option value="">Нет объектов</option>
                                 @endforelse
                             </select>
                             <div class="invalid-feedback d-block" data-error-for="location_id"></div>
@@ -137,7 +137,7 @@
 
                     @can('locations.view')
                         <div class="mb-2">
-                            <label class="form-label mb-1 small">Локация</label>
+                            <label class="form-label mb-1 small">Объект</label>
                             <select class="form-control form-control-sm js-slot-location-select" name="location_id">
                                 <option value="">—</option>
                                 @foreach($locations as $l)

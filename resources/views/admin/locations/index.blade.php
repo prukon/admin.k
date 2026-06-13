@@ -1,6 +1,7 @@
 @extends('layouts.admin2')
 
 @php
+    $activeTab = 'objects';
     $locationsHasActiveFilters = false;
 @endphp
 
@@ -8,12 +9,14 @@
     @vite(['resources/css/admin-list-toolbar.css'])
 
     <div class="main-content text-start">
-        <h4 class="pt-3 pb-3 text-start">Локации</h4>
+        <h4 class="pt-3 pb-3 text-start">Справочники</h4>
+
+        @include('admin.directories._section_tabs')
 
         <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3">
             <div class="card-body px-3 py-3">
                 <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
-                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Локации</h1>
+                    <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Объекты</h1>
                     <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
                         @can('locations.manage')
                             <button id="new-location"
@@ -83,6 +86,15 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
+                                           data-column-key="district_name"
+                                           id="colLocationDistrict"
+                                           checked>
+                                    <label class="form-check-label" for="colLocationDistrict">Район</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
                                            data-column-key="address"
                                            id="colLocationAddress"
                                            checked>
@@ -137,10 +149,21 @@
                                placeholder="Поиск по названию, адресу">
                     </div>
 
-                    <div class="col-12 col-md-4">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-district">Район</label>
+                        <select id="filter-district" class="form-select">
+                            <option value="">Все районы</option>
+                            <option value="none">Без района</option>
+                            @foreach($districtOptions as $district)
+                                <option value="{{ $district->id }}">{{ $district->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-status">Статус</label>
                         <select id="filter-status" class="form-select">
-                            <option value="">Все локации</option>
+                            <option value="">Все объекты</option>
                             <option value="active" selected>Только активные</option>
                             <option value="inactive">Только неактивные</option>
                         </select>
@@ -160,6 +183,7 @@
                 <tr>
                     <th>№</th>
                     <th>Название</th>
+                    <th>Район</th>
                     <th>Адрес</th>
                     @if($teamOptions->isNotEmpty())
                     <th>Группы</th>
@@ -181,7 +205,7 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Добавить локацию</h5>
+                        <h5 class="modal-title">Добавить объект</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -191,6 +215,16 @@
                                 <label class="form-label">Название*</label>
                                 <input class="form-control" name="name" />
                                 <div class="invalid-feedback" data-error-for="name"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Район</label>
+                                <select class="form-control" name="district_id">
+                                    <option value="">— Без района —</option>
+                                    @foreach($districtOptions as $district)
+                                        <option value="{{ $district->id }}">{{ $district->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Адрес</label>
@@ -240,7 +274,7 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Редактировать локацию</h5>
+                        <h5 class="modal-title">Редактировать объект</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -252,6 +286,16 @@
                                 <label class="form-label">Название*</label>
                                 <input class="form-control" name="name" />
                                 <div class="invalid-feedback" data-error-for="name"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Район</label>
+                                <select class="form-control" name="district_id">
+                                    <option value="">— Без района —</option>
+                                    @foreach($districtOptions as $district)
+                                        <option value="{{ $district->id }}">{{ $district->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Адрес</label>
@@ -313,13 +357,16 @@
             function locationsFilterParams() {
                 return {
                     name: $('#filter-name').val() || '',
-                    status: $('#filter-status').val() || ''
+                    status: $('#filter-status').val() || '',
+                    district_id: $('#filter-district').val() || '',
                 };
             }
 
             function locationsHasNonDefaultFilters() {
                 const params = locationsFilterParams();
-                return params.name !== '' || params.status !== defaultFilterStatus;
+                return params.name !== ''
+                    || params.status !== defaultFilterStatus
+                    || params.district_id !== '';
             }
 
             function syncLocationsFiltersCollapseState() {
@@ -341,6 +388,7 @@
                     defaults: {
                         id: true,
                         name: true,
+                        district_name: true,
                         address: true,
                         ...(hasTeamOptions ? { teams_label: true } : {}),
                         is_enabled_label: true,
@@ -360,6 +408,7 @@
                             const params = locationsFilterParams();
                             d.name = params.name;
                             d.status = params.status;
+                            d.district_id = params.district_id;
                         }
                     },
                     order: [[1, 'asc']],
@@ -368,6 +417,7 @@
                 columns: [
                     { key: 'id', type: 'id', data: 'id' },
                     { key: 'name', type: 'text', data: 'name' },
+                    { key: 'district_name', type: 'text', data: 'district_name' },
                     { key: 'address', type: 'text-long', data: 'address' },
                     {
                         key: 'teams_label',
@@ -418,6 +468,7 @@
 
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
+                $('#filter-district').val('');
                 $('#filter-status').val(defaultFilterStatus);
                 reloadLocationsTable();
             });
@@ -527,6 +578,10 @@
                 const data = await res.json();
                 editForm.querySelector('[name="id"]').value = data.id;
                 editForm.querySelector('[name="name"]').value = data.name || '';
+                const districtSelect = editForm.querySelector('[name="district_id"]');
+                if (districtSelect) {
+                    districtSelect.value = data.district_id ? String(data.district_id) : '';
+                }
                 editForm.querySelector('[name="address"]').value = data.address || '';
                 editForm.querySelector('[name="description"]').value = data.description || '';
                 editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
@@ -557,11 +612,11 @@
 
                 const locationName = (editForm.querySelector('[name="name"]').value || '').trim();
                 const messageText = locationName !== ''
-                    ? 'Вы уверены, что хотите удалить локацию «' + locationName + '»?'
-                    : 'Вы уверены, что хотите удалить локацию?';
+                    ? 'Вы уверены, что хотите удалить объект «' + locationName + '»?'
+                    : 'Вы уверены, что хотите удалить объект?';
 
                 showConfirmDeleteModal(
-                    'Удаление локации',
+                    'Удаление объекта',
                     messageText,
                     function () {
                         const confirmEl = document.getElementById('confirmDeleteModal');
@@ -581,11 +636,11 @@
                                 reloadLocationsTable();
 
                                 if (typeof showSuccessModal === 'function') {
-                                    showSuccessModal('Удаление локации', 'Локация успешно удалена.', 0);
+                                    showSuccessModal('Удаление объекта', 'Объект успешно удалён.', 0);
                                 }
                             },
                             error: function (xhr) {
-                                const msg = xhr.responseJSON?.message || 'Произошла ошибка при удалении локации.';
+                                const msg = xhr.responseJSON?.message || 'Произошла ошибка при удалении объекта.';
                                 if (typeof showErrorModal === 'function') {
                                     showErrorModal('Ошибка', msg, 1);
                                 } else if ($('#errorModal').length) {

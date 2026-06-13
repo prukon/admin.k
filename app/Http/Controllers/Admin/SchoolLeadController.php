@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\SchoolLeadStatus;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\UpdateSchoolLeadRequest;
+use App\Models\District;
 use App\Models\Location;
 use App\Models\Role;
 use App\Models\SchoolLead;
@@ -22,6 +23,7 @@ class SchoolLeadController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerContext();
         $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        $canViewDistricts = Auth::user()?->can('districts.view') ?? false;
         $canCreateUserFromLead = Auth::user()?->can('users.view') ?? false;
         $canViewContracts      = Auth::user()?->can('contracts.view') ?? false;
 
@@ -34,6 +36,16 @@ class SchoolLeadController extends AdminBaseController
                 ->get();
         }
 
+        $activeDistricts = collect();
+        if ($canViewDistricts) {
+            $activeDistricts = District::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
         $filterTeams = Team::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
@@ -44,9 +56,11 @@ class SchoolLeadController extends AdminBaseController
 
         $viewData = [
             'canViewLocations'        => $canViewLocations,
+            'canViewDistricts'        => $canViewDistricts,
             'canCreateUserFromLead'   => $canCreateUserFromLead,
             'canViewContracts'        => $canViewContracts,
             'activeLocations'         => $activeLocations,
+            'activeDistricts'         => $activeDistricts,
             'filterTeams'             => $filterTeams,
             'schoolLeadStatusOptions' => collect(SchoolLeadStatus::cases())
                 ->map(fn (SchoolLeadStatus $status) => [
@@ -88,6 +102,7 @@ class SchoolLeadController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerContext();
         $canViewLocations = Auth::user()?->can('locations.view') ?? false;
+        $canViewDistricts = Auth::user()?->can('districts.view') ?? false;
         $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
 
         $baseQuery = SchoolLead::query()
@@ -95,6 +110,12 @@ class SchoolLeadController extends AdminBaseController
             ->whereNull('school_leads.deleted_at')
             ->leftJoin('teams', 'teams.id', '=', 'school_leads.team_id')
             ->select('school_leads.*', 'teams.title as team_title');
+
+        if ($canViewDistricts) {
+            $baseQuery
+                ->leftJoin('districts', 'districts.id', '=', 'school_leads.district_id')
+                ->addSelect('districts.name as district_name');
+        }
 
         if ($canViewLocations) {
             $baseQuery
@@ -109,6 +130,15 @@ class SchoolLeadController extends AdminBaseController
             $statuses = array_filter((array) $request->input('statuses', []));
             if (!empty($statuses)) {
                 $query->whereIn('school_leads.status', $statuses);
+            }
+        }
+
+        if ($canViewDistricts && $request->filled('district_id')) {
+            $districtFilter = $request->input('district_id');
+            if ($districtFilter === 'none') {
+                $query->whereNull('school_leads.district_id');
+            } else {
+                $query->where('school_leads.district_id', $districtFilter);
             }
         }
 
@@ -141,7 +171,7 @@ class SchoolLeadController extends AdminBaseController
         if ($request->filled('search.value')) {
             $search = $request->input('search.value');
 
-            $query->where(function ($q) use ($search, $canViewLocations) {
+            $query->where(function ($q) use ($search, $canViewLocations, $canViewDistricts) {
                 $q->where('school_leads.name', 'like', "%{$search}%")
                     ->orWhere('school_leads.phone', 'like', "%{$search}%")
                     ->orWhere('school_leads.parent_lastname', 'like', "%{$search}%")
@@ -162,6 +192,10 @@ class SchoolLeadController extends AdminBaseController
                     ->orWhere('teams.title', 'like', "%{$search}%")
                     ->orWhereRaw('DATE_FORMAT(school_leads.created_at, "%d.%m.%Y %H:%i") like ?', ["%{$search}%"])
                     ->orWhereRaw('DATE_FORMAT(school_leads.child_birthday, "%d.%m.%Y") like ?', ["%{$search}%"]);
+
+                if ($canViewDistricts) {
+                    $q->orWhere('districts.name', 'like', "%{$search}%");
+                }
 
                 if ($canViewLocations) {
                     $q->orWhere('locations.name', 'like', "%{$search}%");
@@ -197,6 +231,8 @@ class SchoolLeadController extends AdminBaseController
                     $query->orderBy('school_leads.' . $columnName, $dir);
                 } elseif ($columnName === 'team_title') {
                     $query->orderBy('teams.title', $dir);
+                } elseif ($canViewDistricts && $columnName === 'district_name') {
+                    $query->orderBy('districts.name', $dir);
                 } elseif ($canViewLocations && $columnName === 'location_name') {
                     $query->orderBy('locations.name', $dir);
                 }
@@ -230,6 +266,7 @@ class SchoolLeadController extends AdminBaseController
             'stats'           => $this->buildPartnerLeadStats($partnerId),
             'data'            => $data->map(function (SchoolLead $item) use (
                 $canViewLocations,
+                $canViewDistricts,
                 $canViewContracts,
                 $latestContractsByUser,
                 $contractLookup
@@ -283,6 +320,11 @@ class SchoolLeadController extends AdminBaseController
                     'created_at'             => $item->created_at?->format('d.m.Y H:i'),
                 ];
 
+                if ($canViewDistricts) {
+                    $row['district_id']   = $item->district_id;
+                    $row['district_name'] = $item->district_name ?? null;
+                }
+
                 if ($canViewLocations) {
                     $row['location_id']   = $item->location_id;
                     $row['location_name'] = $item->location_name ?? null;
@@ -326,12 +368,16 @@ class SchoolLeadController extends AdminBaseController
             $schoolLead->comment = $data['comment'];
         }
 
+        if (array_key_exists('district_id', $data)) {
+            $schoolLead->district_id = $data['district_id'];
+        }
+
         if (array_key_exists('location_id', $data)) {
             $schoolLead->location_id = $data['location_id'];
         }
 
         $schoolLead->save();
-        $schoolLead->load('location');
+        $schoolLead->load('district', 'location');
 
         $response = [
             'message'      => 'Изменения сохранены.',
@@ -341,6 +387,11 @@ class SchoolLeadController extends AdminBaseController
                 : null,
             'comment'      => $schoolLead->comment,
         ];
+
+        if ($request->user()?->can('districts.view')) {
+            $response['district_id']   = $schoolLead->district_id;
+            $response['district_name'] = $schoolLead->district?->name;
+        }
 
         if ($request->user()?->can('locations.view')) {
             $response['location_id']   = $schoolLead->location_id;

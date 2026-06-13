@@ -30,12 +30,12 @@
                 </div>
                 @can('locations.view')
                     <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
-                        <label class="school-cal__toolbar-k text-muted mb-0 text-nowrap" for="schoolCalLocation">Локация</label>
+                        <label class="school-cal__toolbar-k text-muted mb-0 text-nowrap" for="schoolCalLocation">Объект</label>
                         <select class="form-select form-select-sm flex-grow-1" id="schoolCalLocation" @if($locations->isEmpty()) disabled @endif style="min-width: 8rem; max-width: 18rem">
                             @forelse ($locations as $loc)
                                 <option value="{{ $loc->id }}" @if($loop->first) selected @endif>{{ $loc->name }}</option>
                             @empty
-                                <option value="">Нет локаций</option>
+                                <option value="">Нет объектов</option>
                             @endforelse
                         </select>
                     </div>
@@ -123,7 +123,7 @@
                         @can('locations.view')
                         <div class="school-cal-slot-summary__meta small mt-3 pt-2 border-top border-light">
                             <div class="d-flex gap-2 justify-content-between">
-                                <span class="text-muted flex-shrink-0">Локация</span>
+                                <span class="text-muted flex-shrink-0">Объект</span>
                                 <span class="text-end text-break" id="schoolCalSlotSummaryLoc">—</span>
                             </div>
                         </div>

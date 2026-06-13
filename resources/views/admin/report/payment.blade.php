@@ -130,7 +130,7 @@
                        data-column-key="location"
                        id="payColLocation"
                        checked>
-                <label class="form-check-label" for="payColLocation">Локация</label>
+                <label class="form-check-label" for="payColLocation">Объект</label>
             </div>
             @endif
 
@@ -331,10 +331,10 @@
             @endif
             @if($canViewLocations)
             <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-filter-location">Локация</label>
+                <label class="form-label" for="pay-filter-location">Объект</label>
                 <select class="form-select" id="pay-filter-location" name="filter_location_id">
-                    <option value="">Все локации</option>
-                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без локации</option>
+                    <option value="">Все объекты</option>
+                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
                     @foreach($activeLocations as $location)
                         <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
                             {{ $location->name }}
@@ -424,7 +424,7 @@
         <th>ФИО</th>
         <th>Группа</th>
         @if($canViewLocations)
-            <th>Локация</th>
+            <th>Объект</th>
         @endif
         <th>Сумма платежа</th>
         <th>Оплаченный месяц</th>
@@ -799,7 +799,7 @@ if (canViewLocations) {
             if (type !== 'display') {
                 return data || '';
             }
-            return data ? data : 'Без локации';
+            return data ? data : 'Без объекта';
         }
     });
 }

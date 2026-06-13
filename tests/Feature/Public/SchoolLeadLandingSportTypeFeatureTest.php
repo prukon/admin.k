@@ -36,7 +36,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
     {
         $html = $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertOk()
-            ->assertSee('Район и услуга', false)
+            ->assertSee('Район, объект и услуга', false)
             ->getContent();
 
         $this->assertStringNotContainsString('id="sport_type_id"', $html);

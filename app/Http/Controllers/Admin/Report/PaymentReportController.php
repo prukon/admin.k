@@ -816,12 +816,12 @@ SQL;
                 if (array_key_exists('payment_location_name', $attrs)) {
                     $name = trim((string) ($attrs['payment_location_name'] ?? ''));
 
-                    return $name !== '' ? $name : 'Без локации';
+                    return $name !== '' ? $name : 'Без объекта';
                 }
 
                 $name = trim((string) ($row->location?->name ?? ''));
 
-                return $name !== '' ? $name : 'Без локации';
+                return $name !== '' ? $name : 'Без объекта';
             })
             ->addColumn('summ', function (Payment $row) {
                 return (float) $row->summ;

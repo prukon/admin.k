@@ -111,17 +111,17 @@
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
                     <div class="mb-3 generic-multiselect-field">
-                        <label class="form-label" for="createTeamLocationIds">Локации</label>
+                        <label class="form-label" for="createTeamLocationIds">Объекты</label>
                         <select id="createTeamLocationIds"
                                 name="location_ids[]"
                                 class="form-select js-generic-multiselect-select"
                                 multiple
-                                data-placeholder="Выберите локации">
+                                data-placeholder="Выберите объекты">
                             @foreach($locationOptions as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Если не выбрано ни одной локации, группа доступна во всех локациях.</div>
+                        <div class="form-text">Если не выбрано ни одного объекта, группа доступна во всех объектах.</div>
                         <div class="invalid-feedback d-block" data-error-for="location_ids" id="location_ids-error"></div>
                     </div>
                     @endif

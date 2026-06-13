@@ -158,7 +158,7 @@
                                            data-column-key="locations_label"
                                            id="colLocations"
                                            checked>
-                                    <label class="form-check-label" for="colLocations">Локации</label>
+                                    <label class="form-check-label" for="colLocations">Объекты</label>
                                 </div>
                                 @endif
                                 @endcan
@@ -247,10 +247,10 @@
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
                     <div class="col-12 col-md-3">
-                        <label class="form-label" for="filter-location">Локация</label>
+                        <label class="form-label" for="filter-location">Объект</label>
                         <select id="filter-location" class="form-select">
-                            <option value="">Все локации</option>
-                            <option value="none">Без привязки к локациям</option>
+                            <option value="">Все объекты</option>
+                            <option value="none">Без привязки к объектам</option>
                             @foreach($locationOptions as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
@@ -309,7 +309,7 @@
                     @endcan
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <th>Локации</th>
+                    <th>Объекты</th>
                     @endif
                     @endcan
                     @can('sport_types.view')

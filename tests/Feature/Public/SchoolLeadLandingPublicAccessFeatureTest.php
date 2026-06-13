@@ -36,6 +36,14 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
             ->assertOk()
             ->assertViewIs('landing.partner-lead');
 
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $slug,
+            'district_id' => $this->landingDistrict->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['data'])
+            ->assertJsonPath('data.0.id', $this->landingLocation->id);
+
         $this->getJson(route('lead.teams', [
             'landingSlug'  => $slug,
             'location_id' => $this->landingLocation->id,
@@ -73,6 +81,14 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
         $this->get(route('lead.show', ['landingSlug' => $slug]))
             ->assertOk()
             ->assertViewIs('landing.partner-lead');
+
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $slug,
+            'district_id' => $this->landingDistrict->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['data'])
+            ->assertJsonPath('data.0.id', $this->landingLocation->id);
 
         $this->getJson(route('lead.teams', [
             'landingSlug'  => $slug,
@@ -156,6 +172,11 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
 
         $this->get(route('lead.show', ['landingSlug' => $slug]))->assertNotFound();
 
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $slug,
+            'district_id' => $this->landingDistrict->id,
+        ]))->assertNotFound();
+
         $this->getJson(route('lead.teams', [
             'landingSlug'  => $slug,
             'location_id' => $this->landingLocation->id,
@@ -181,6 +202,11 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
 
         $this->get(route('lead.show', ['landingSlug' => 'raduga-test']))->assertNotFound();
 
+        $this->getJson(route('lead.locations', [
+            'landingSlug'  => 'raduga-test',
+            'district_id' => $this->landingDistrict->id,
+        ]))->assertNotFound();
+
         $this->getJson(route('lead.teams', [
             'landingSlug'  => 'raduga-test',
             'location_id' => $this->landingLocation->id,
@@ -200,7 +226,7 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
 
     public function test_all_public_landing_routes_are_registered_without_auth_middleware(): void
     {
-        $routeNames = ['lead.show', 'lead.teams', 'lead.team-info', 'lead.submit'];
+        $routeNames = ['lead.show', 'lead.locations', 'lead.teams', 'lead.team-info', 'lead.submit'];
 
         foreach ($routeNames as $routeName) {
             $route = Route::getRoutes()->getByName($routeName);
@@ -216,7 +242,7 @@ final class SchoolLeadLandingPublicAccessFeatureTest extends TestCase
 
     public function test_public_landing_routes_do_not_require_two_factor(): void
     {
-        foreach (['lead.show', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
+        foreach (['lead.show', 'lead.locations', 'lead.teams', 'lead.team-info', 'lead.submit'] as $routeName) {
             $route = Route::getRoutes()->getByName($routeName);
             $this->assertNotNull($route);
             $middleware = $route->gatherMiddleware();

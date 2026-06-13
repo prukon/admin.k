@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Локации (админка) — /admin/locations</title>
+  <title>Объекты (админка) — /admin/locations</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -23,14 +23,12 @@
 <body>
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
-  <h1>Локации (админка): <code>/admin/locations</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-locations.html</code> · привязка к группам: <a href="/docs/documentation/location-team-bindings">location_team</a> · переиспользуемые UI: <a href="/docs/documentation/reusable-ui-partials">partial'ы</a></div>
+  <h1>Объекты (админка): <code>/admin/locations</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-locations.html</code> · обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · районы: <a href="/docs/documentation/admin-districts">admin-districts</a> · привязка к группам: <a href="/docs/documentation/location-team-bindings">location_team</a></div>
 
   <div class="note">
-    Справочник филиалов/залов партнёра. Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:locations.view')</code>.
-    Без <code>locations.view</code> — <b>403</b> на index, data, show, store, update, delete.<br>
-    Создание, изменение и удаление записей — дополнительно <code>locations.manage</code> (middleware на POST/PUT/DELETE).
-    При только <code>locations.view</code> страница и чтение доступны, модалки create/edit и кнопка «Добавить» скрыты.
+    <b>UI «Объект»</b> = модель <code>Location</code> (таблица <code>locations</code>). Раздел в меню: <b>«Справочники» → вкладка «Объекты»</b>.<br>
+    Маршруты — под <code>middleware('can:locations.view')</code>. Создание/изменение/удаление — дополнительно <code>locations.manage</code>.
   </div>
 
   <h2>1) Эндпоинты</h2>
@@ -43,73 +41,55 @@
       <tr><td>GET</td><td><code>/admin/locations/data</code></td><td><code>locations.view</code></td><td>JSON таблицы</td></tr>
       <tr><td>GET</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Настройки колонок</td></tr>
       <tr><td>POST</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Сохранение колонок</td></tr>
-      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание (+ <code>team_ids</code>)</td></tr>
-      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление (+ sync <code>team_ids</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание</td></tr>
+      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление</td></tr>
       <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление (cascade pivot)</td></tr>
     </tbody>
   </table>
 
-  <h2>2) Интерфейс страницы</h2>
-  <p>View: <code>resources/views/admin/locations/index.blade.php</code>. Общие блоки описаны в <a href="/docs/documentation/reusable-ui-partials">Переиспользование UI-блоков</a>.</p>
+  <h2>2) Поле «Район» (<code>district_id</code>)</h2>
   <ul>
-    <li><b>Toolbar</b> — карточка <code>payments-report-surface</code>, кнопки «Добавить» (<code>locations.manage</code>), «Фильтры», «Колонки»; CSS <code>admin-list-toolbar.css</code> (как у <code>/admin/users</code> и отчётов).</li>
-    <li><b>Фильтры</b> (collapse): <code>name</code> (название/адрес), <code>status</code> — active/inactive; плюс глобальный поиск DataTables.</li>
-    <li><b>DataTables</b> — server-side через <code>KidsCrmDataTable.create</code>, <code>pageLength: 10</code>, русификация: <code>@include('partials.datatables.ru')</code>.</li>
-    <li><b>Колонка «Группы»</b> — только если у партнёра есть хотя бы одна группа (<code>$teamOptions</code> не пуст). Тип колонки <code>list</code> в <code>KidsCrmDataTable.create</code>: краткая подпись в ячейке, полный список — в Bootstrap tooltip через <code>KidsCrmTooltip.renderList</code>; привязка tooltip — <code>bindDataTable</code> (событие <code>draw.dt</code>).</li>
-    <li><b>Модалки create/edit</b> — при <code>locations.manage</code> и непустом <code>$teamOptions</code>: multiselect <code>team_ids[]</code> на Select2 (<code>@include('partials.select2.teams-multiselect')</code>, поля <code>#locationCreateTeamIds</code>, <code>#locationEditTeamIds</code>). Ошибки валидации <code>team_ids</code> подсвечиваются через <code>KidsCrmTeamsMultiselectSelect2.markInvalid</code>.</li>
-    <li><b>Удаление</b> — кнопка <code>#locationDeleteBtn</code> в edit-модалке, подтверждение через общий <code>showConfirmDeleteModal</code>.</li>
+    <li><code>district_id</code> — nullable; select «Район» в create/edit (список активных районов партнёра, сортировка <code>sort_order</code> → <code>name</code>).</li>
+    <li>Колонка «Район» и фильтр в таблице объектов.</li>
+    <li>Уникальность имени: <code>unique(partner_id, district_id_unique_bucket, name)</code>, где <code>district_id_unique_bucket = COALESCE(district_id, 0)</code>.</li>
+    <li>Объекты без района не попадают на лендинг заявки (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>).</li>
   </ul>
 
-  <h2>3) Привязка групп (<code>team_ids</code>)</h2>
-  <p>В модалках create/edit (только при <code>locations.manage</code> и наличии групп у партнёра) — multiselect <code>team_ids[]</code> (все группы партнёра из <code>Team::where(partner_id)</code>, сортировка по <code>title</code>).</p>
+  <h2>3) Интерфейс страницы</h2>
+  <p>View: <code>resources/views/admin/locations/index.blade.php</code>, вкладки справочников — <code>admin/directories/_section_tabs.blade.php</code>.</p>
   <ul>
-    <li>Создание/обновление: <code>LocationTeamSyncService::syncTeamsForLocation</code> — полная замена списка.</li>
-    <li>Валидация <code>team_ids.*</code> — только id групп текущего партнёра (<code>StoreLocationRequest</code> / <code>UpdateLocationRequest</code>); чужой id → 422 «Выберите группу из списка текущего партнёра».</li>
-    <li><code>GET …/locations/{id}</code> возвращает <code>team_ids: number[]</code> при <code>locations.view</code>.</li>
-    <li>В контроллере есть дополнительная проверка: без <code>locations.view</code> sync <code>team_ids</code> не выполняется (на практике store/update недоступны без view из‑за middleware группы маршрутов).</li>
-  </ul>
-  <p>Обратная сторона (привязка локаций к группе) — <a href="/docs/documentation/admin-teams#locations-view">/admin/teams</a>, поле <code>location_ids</code>.</p>
-
-  <h2>4) Таблица и <code>/admin/locations/data</code></h2>
-  <ul>
-    <li>Фильтры запроса: <code>name</code>, <code>status</code> (active/inactive), поиск DataTables (<code>search.value</code>); при одновременной передаче приоритет у панельного <code>name</code>.</li>
-    <li>При <code>locations.view</code> в каждой строке JSON:
-      <ul>
-        <li><code>teams_label</code> — краткая подпись для таблицы;</li>
-        <li><code>teams_label_full</code> — полный список названий через запятую;</li>
-        <li><code>teams_titles</code> — массив названий (отсортирован по <code>title</code> группы) для tooltip.</li>
-      </ul>
-      Правила <code>teams_label</code>: 0 групп — пусто; 1–2 — все названия; 3+ — «Первая группа, еще N шт.» (N = всего − 1).
-    </li>
-    <li>Без групп у локации: <code>teams_label</code> / <code>teams_label_full</code> — пустые строки, <code>teams_titles</code> — <code>[]</code>.</li>
-    <li>Колонки в «Поля списка»: <code>id</code>, <code>name</code>, <code>address</code>, <code>teams_label</code> (если есть группы у партнёра), <code>is_enabled_label</code>, <code>actions</code> (при <code>locations.manage</code>).</li>
+    <li><b>Toolbar</b> — «Добавить», «Фильтры», «Колонки».</li>
+    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id).</li>
+    <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком.</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> при <code>locations.manage</code>.</li>
   </ul>
 
-  <h2>5) Связанные сущности (не путать)</h2>
+  <h2>4) Привязка групп (<code>team_ids</code>)</h2>
+  <p>Sync через <code>LocationTeamSyncService::syncTeamsForLocation</code>. Обратная сторона — <code>location_ids</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>.</p>
+
+  <h2>5) Связанные сущности</h2>
   <ul>
-    <li><code>school_leads.location_id</code> — локация <b>заявки</b>, не ученика.</li>
-    <li><code>team_schedule_slots.location_id</code> — локация <b>слота</b> расписания.</li>
+    <li><code>school_leads.location_id</code> и <code>school_leads.district_id</code> — заявка (UI «Объект» / «Район»).</li>
+    <li><code>team_schedule_slots.location_id</code> — слот расписания.</li>
     <li><code>payments.location_id</code> — снимок в журнале оплат.</li>
   </ul>
 
   <h2>6) Код и тесты</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/LocationController.php</code> — <code>formatTeamsLabels()</code>, data/show/store/update</li>
-    <li><code>app/Http/Requests/Admin/StoreLocationRequest.php</code>, <code>UpdateLocationRequest.php</code></li>
-    <li><code>resources/views/admin/locations/index.blade.php</code></li>
-    <li><code>resources/js/kids-datatable.js</code>, <code>resources/js/kids-tooltip.js</code>, <code>partials/select2/teams-multiselect.blade.php</code></li>
-    <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — smoke 200 / 403, CRUD с <code>team_ids</code></li>
-    <li><code>tests/Feature/Crm/Locations/LocationsTeamsUiFeatureTest.php</code> — UI partial'ы, <code>teams_label</code>/<code>teams_titles</code>, валидация <code>team_ids</code></li>
-    <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — CRUD, валидация, изоляция партнёра</li>
-    <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code> — pivot sync, усечение подписи 3+ групп</li>
+    <li><code>app/Http/Controllers/Admin/LocationController.php</code></li>
+    <li><code>app/Http/Requests/Admin/Concerns/LocationFieldRules.php</code></li>
+    <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
+    <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district payloads</li>
+    <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — сквозной доступ справочников</li>
   </ul>
+  <p class="small">Полный перечень тестов иерархии — <a href="/docs/documentation/directories-hierarchy#9">directories-hierarchy §9</a>.</p>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·
-    <a href="/docs/documentation/reusable-ui-partials">Переиспользование UI</a> ·
-    <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·
-    <a href="/docs/documentation/admin-teams">Группы</a>
+    <a href="/docs/documentation/directories-hierarchy">Обзор иерархии</a> ·
+    <a href="/docs/documentation/admin-districts">Районы</a> ·
+    <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>
   </p>
 </div>
 </body>

@@ -68,6 +68,7 @@ class SchoolLeadFactory extends Factory
         return [
             'partner_id' => Partner::factory(),
             'partner_widget_id' => null,
+            'district_id' => null,
             'location_id' => null,
             'name' => $this->faker->randomElement(self::FIRST_NAMES),
             'phone' => '+7 9' . $this->faker->numerify('## ###-##-##'),

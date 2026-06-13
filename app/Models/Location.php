@@ -18,12 +18,18 @@ class Location extends Model
 
     protected $casts = [
         'partner_id' => 'int',
+        'district_id' => 'int',
         'is_enabled' => 'bool',
     ];
 
     public function partner(): BelongsTo
     {
         return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_id');
     }
 
     public function teamScheduleSlots(): HasMany

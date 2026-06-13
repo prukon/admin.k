@@ -1,5 +1,6 @@
 @php
     $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+    $canViewDistricts = $canViewDistricts ?? (auth()->user() && auth()->user()->can('districts.view'));
     $canCreateUserFromLead = $canCreateUserFromLead ?? (auth()->user() && auth()->user()->can('users.view'));
     $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
     $canShowLeadClientColumn = $canViewContracts || $canCreateUserFromLead;
@@ -103,10 +104,16 @@
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_birthday" id="slColChildBirthday" checked>
                                     <label class="form-check-label" for="slColChildBirthday">Дата рождения</label>
                                 </div>
+                                @if ($canViewDistricts)
+                                    <div class="form-check">
+                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="district" id="slColDistrict" checked>
+                                        <label class="form-check-label" for="slColDistrict">Район</label>
+                                    </div>
+                                @endif
                                 @if ($canViewLocations)
                                     <div class="form-check">
                                         <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="location" id="slColLocation" checked>
-                                        <label class="form-check-label" for="slColLocation">Локация</label>
+                                        <label class="form-check-label" for="slColLocation">Объект</label>
                                     </div>
                                 @endif
                                 <div class="form-check">
@@ -165,12 +172,25 @@
                     </div>
                 </div>
 
+                @if ($canViewDistricts)
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="sl-filter-district">Район</label>
+                        <select class="form-select" id="sl-filter-district" name="district_id">
+                            <option value="">Все районы</option>
+                            <option value="none">Без района</option>
+                            @foreach ($activeDistricts as $district)
+                                <option value="{{ $district->id }}">{{ $district->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+
                 @if ($canViewLocations)
                     <div class="col-12 col-md-3">
-                        <label class="form-label" for="sl-filter-location">Локация</label>
+                        <label class="form-label" for="sl-filter-location">Объект</label>
                         <select class="form-select" id="sl-filter-location" name="location_id">
-                            <option value="">Все локации</option>
-                            <option value="none">Без локации</option>
+                            <option value="">Все объекты</option>
+                            <option value="none">Без объекта</option>
                             @foreach ($activeLocations as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
@@ -213,8 +233,11 @@
                 <th>Email родителя</th>
                 <th>ФИО ребенка</th>
                 <th>Дата рождения</th>
+                @if ($canViewDistricts)
+                    <th>Район</th>
+                @endif
                 @if ($canViewLocations)
-                    <th>Локация</th>
+                    <th>Объект</th>
                 @endif
                 <th>Секция</th>
                 <th>Особые условия</th>
@@ -254,11 +277,23 @@
                             <option value="spam">Спам</option>
                         </select>
                     </div>
+                    @if ($canViewDistricts)
+                        <div class="mb-3">
+                            <label for="leadDistrict" class="form-label">Район</label>
+                            <select id="leadDistrict" class="form-select">
+                                <option value="">— не выбран —</option>
+                                @foreach ($activeDistricts as $district)
+                                    <option value="{{ $district->id }}">{{ $district->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="invalid-feedback" id="leadDistrictError"></div>
+                        </div>
+                    @endif
                     @if ($canViewLocations)
                         <div class="mb-3">
-                            <label for="leadLocation" class="form-label">Локация</label>
+                            <label for="leadLocation" class="form-label">Объект</label>
                             <select id="leadLocation" class="form-select">
-                                <option value="">— не выбрана —</option>
+                                <option value="">— не выбран —</option>
                                 @foreach ($activeLocations as $location)
                                     <option value="{{ $location->id }}">{{ $location->name }}</option>
                                 @endforeach
@@ -318,6 +353,7 @@
         $(document).ready(function() {
             var csrfToken = $('meta[name="csrf-token"]').attr('content');
             var canViewLocations = @json($canViewLocations);
+            var canViewDistricts = @json($canViewDistricts);
             var canCreateUserFromLead = @json($canCreateUserFromLead);
             var canViewContracts = @json($canViewContracts);
             var canShowLeadClientColumn = @json($canShowLeadClientColumn);
@@ -338,6 +374,7 @@
 
             var defaultStatusFilters = ['new', 'processing'];
             var $statusFilter = $('#sl-filter-status');
+            var $districtFilter = $('#sl-filter-district');
             var $locationFilter = $('#sl-filter-location');
             var $teamFilter = $('#sl-filter-team');
             var $specialConditionsFilter = $('#sl-filter-special-conditions');
@@ -351,6 +388,10 @@
 
             function readFiltersFromForm() {
                 var statuses = $statusFilter.length ? ($statusFilter.val() || []) : [];
+                var districtId = '';
+                if (canViewDistricts && $districtFilter.length) {
+                    districtId = $districtFilter.val() || '';
+                }
                 var locationId = '';
                 if (canViewLocations && $locationFilter.length) {
                     locationId = $locationFilter.val() || '';
@@ -360,6 +401,7 @@
 
                 return {
                     statuses: statuses,
+                    district_id: districtId,
                     location_id: locationId,
                     team_id: teamId,
                     has_special_conditions: hasSpecialConditions ? 1 : 0
@@ -402,6 +444,9 @@
                     KidsCrmGenericMultiselectSelect2.setValues($statusFilter, defaultStatusFilters);
                 } else if ($statusFilter.length) {
                     $statusFilter.val(defaultStatusFilters).trigger('change');
+                }
+                if (canViewDistricts && $districtFilter.length) {
+                    $districtFilter.val('');
                 }
                 if (canViewLocations && $locationFilter.length) {
                     $locationFilter.val('');
@@ -483,6 +528,7 @@
                         parent_email: true,
                         child_full_name: true,
                         child_birthday: true,
+                        district: canViewDistricts,
                         team_title: true,
                         child_flags: true,
                         location: canViewLocations,
@@ -506,6 +552,9 @@
                         type: 'GET',
                         data: function (d) {
                             d.statuses = appliedFilters.statuses;
+                            if (canViewDistricts) {
+                                d.district_id = appliedFilters.district_id;
+                            }
                             if (canViewLocations) {
                                 d.location_id = appliedFilters.location_id;
                             }
@@ -582,6 +631,20 @@
                         data: 'child_birthday',
                         name: 'child_birthday',
                         className: 'dt-col-text text-nowrap',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
+                        },
+                    },
+                    {
+                        key: 'district',
+                        type: 'text',
+                        data: 'district_name',
+                        name: 'district_name',
+                        when: canViewDistricts,
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data != null ? data : '';
@@ -769,6 +832,10 @@
                 $('#editLeadId').val(rowData.id);
                 $('#leadStatus').val(rowData.status || '');
                 $('#leadComment').val(rowData.comment || '');
+                if (canViewDistricts) {
+                    $('#leadDistrict').val(rowData.district_id || '').removeClass('is-invalid');
+                    $('#leadDistrictError').text('');
+                }
                 if (canViewLocations) {
                     $('#leadLocation').val(rowData.location_id || '').removeClass('is-invalid');
                     $('#leadLocationError').text('');
@@ -780,10 +847,17 @@
             $('#saveLeadBtn').on('click', function() {
                 var id = $('#editLeadId').val();
                 var payload = { status: $('#leadStatus').val(), comment: $('#leadComment').val() };
+                if (canViewDistricts) {
+                    payload.district_id = $('#leadDistrict').val();
+                }
                 if (canViewLocations) {
                     payload.location_id = $('#leadLocation').val();
                 }
                 $('#editLeadError, #editLeadSuccess').addClass('d-none').text('');
+                if (canViewDistricts) {
+                    $('#leadDistrict').removeClass('is-invalid');
+                    $('#leadDistrictError').text('');
+                }
                 if (canViewLocations) {
                     $('#leadLocation').removeClass('is-invalid');
                     $('#leadLocationError').text('');
@@ -803,6 +877,10 @@
                         var message = 'Ошибка сохранения.';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             message = xhr.responseJSON.message;
+                        }
+                        if (canViewDistricts && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.district_id) {
+                            $('#leadDistrict').addClass('is-invalid');
+                            $('#leadDistrictError').text(xhr.responseJSON.errors.district_id[0]);
                         }
                         if (canViewLocations && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.location_id) {
                             $('#leadLocation').addClass('is-invalid');

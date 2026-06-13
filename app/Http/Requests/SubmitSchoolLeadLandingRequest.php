@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Location;
 use App\Models\PartnerWidget;
 use App\Models\Team;
 use App\Services\TeamLocationAvailabilityService;
@@ -58,20 +59,32 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
         if ($this->has('location_id') && $this->input('location_id') === '') {
             $this->merge(['location_id' => null]);
         }
+
+        if ($this->has('district_id') && $this->input('district_id') === '') {
+            $this->merge(['district_id' => null]);
+        }
     }
 
     public function rules(): array
     {
         $partnerId = $this->partnerId();
 
+        $districtRule = ['required', 'integer'];
         $locationRule = ['required', 'integer'];
         $teamRule = ['nullable', 'integer'];
 
         if ($partnerId) {
-            $locationRule[] = Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
+            $districtRule[] = Rule::exists('districts', 'id')->where(function ($query) use ($partnerId) {
                 $query->where('partner_id', $partnerId)
                     ->where('is_enabled', true);
             });
+
+            $locationRule[] = Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
+                $query->where('partner_id', $partnerId)
+                    ->where('is_enabled', true)
+                    ->whereNotNull('district_id');
+            });
+
             $teamRule[] = Rule::exists('teams', 'id')->where(function ($query) use ($partnerId) {
                 $query->where('partner_id', $partnerId)
                     ->where('is_enabled', true);
@@ -94,6 +107,7 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'is_on_medical_register' => ['boolean'],
             'is_with_disability'     => ['boolean'],
 
+            'district_id'            => $districtRule,
             'location_id'            => $locationRule,
             'team_id'                => $teamRule,
             'needs_contact_help'     => ['boolean'],
@@ -127,7 +141,8 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'is_individual_traits'   => 'Индивидуальные особенности воспитанника',
             'is_on_medical_register' => 'Учёт у медицинских специалистов',
             'is_with_disability'     => 'Наличие инвалидности',
-            'location_id'            => 'Район',
+            'district_id'            => 'Район',
+            'location_id'            => 'Объект',
             'team_id'                => 'Услуга',
             'needs_contact_help'     => 'Связаться для выбора секции',
             'comment'                => 'Комментарий',
@@ -152,8 +167,10 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'child_birthday.required'    => 'Укажите дату рождения ребёнка.',
             'child_birthday.date'        => 'Некорректная дата рождения ребёнка.',
             'child_birthday.before'      => 'Дата рождения ребёнка должна быть в прошлом.',
-            'location_id.required'       => 'Выберите район.',
-            'location_id.exists'         => 'Выбранный район недоступен.',
+            'district_id.required'       => 'Выберите район.',
+            'district_id.exists'         => 'Выбранный район недоступен.',
+            'location_id.required'       => 'Выберите объект.',
+            'location_id.exists'         => 'Выбранный объект недоступен.',
             'team_id.exists'             => 'Выбранная услуга недоступна.',
             'consent_accepted.required'  => 'Необходимо согласие на обработку персональных данных.',
             'consent_accepted.accepted'  => 'Необходимо согласие на обработку персональных данных.',
@@ -172,7 +189,26 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             }
 
             $partnerId = $this->partnerId();
-            if (!$partnerId || !$this->filled('team_id') || !$this->filled('location_id')) {
+            if (!$partnerId || !$this->filled('district_id') || !$this->filled('location_id')) {
+                return;
+            }
+
+            $location = Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->whereNotNull('district_id')
+                ->whereKey((int) $this->input('location_id'))
+                ->first();
+
+            if ($location === null) {
+                return;
+            }
+
+            if ((int) $location->district_id !== (int) $this->input('district_id')) {
+                $v->errors()->add('location_id', 'Выбранный объект не относится к выбранному району.');
+            }
+
+            if (!$this->filled('team_id')) {
                 return;
             }
 
@@ -186,7 +222,7 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             }
 
             $message = app(TeamLocationAvailabilityService::class)
-                ->assertTeamAllowedAtLocation($team, (int) $this->input('location_id'));
+                ->assertTeamAllowedAtLocation($team, (int) $location->id);
 
             if ($message !== null) {
                 $v->errors()->add('team_id', $message);

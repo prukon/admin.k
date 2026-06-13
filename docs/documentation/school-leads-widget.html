@@ -27,7 +27,7 @@
 <body>
 <div class="wrap">
   <h1>Заявки с сайта: виджет (iframe) и CRM</h1>
-  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="/doc">/doc</a> · см. также <a href="/docs/documentation/school-leads-landing">страница заявки партнёра (лендинг)</a></div>
+  <div class="small">Файл: <code>/docs/documentation/school-leads-widget.html</code> · оглавление: <a href="/doc">/doc</a> · иерархия: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · см. также <a href="/docs/documentation/school-leads-landing">страница заявки партнёра (лендинг)</a></div>
 
   <div class="note">
     <b>Назначение:</b> сбор заявок клиентов школы в CRM (<code>school_leads</code>) двумя публичными каналами:
@@ -140,11 +140,11 @@
       </ul>
       При первой загрузке значения из <code>leadStats</code> (контроллер). При каждом ответе <code>GET …/data</code> поле <code>stats</code> в JSON обновляет счётчики на клиенте.
     </li>
-    <li><b>Фильтры</b> (collapse) — чекбоксы статусов, кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении чекбокса: только после «Применить». Сброс возвращает статусы <code>new</code> + <code>processing</code> и очищает локацию.</li>
+    <li><b>Фильтры</b> (collapse) — чекбоксы статусов, кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении чекбокса: только после «Применить». Сброс возвращает статусы <code>new</code> + <code>processing</code> и очищает фильтры объекта и района (если видны).</li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings.</li>
     <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.5–5.7). Колонки через пресет (<code>text</code>, <code>link</code>, <code>inline-select</code> для статуса, <code>actions</code> для договора и «Действия»); 0 <code>custom</code> (миграция — <a href="/docs/documentation/reusable-ui-partials#datatable-migration-2026-06">§3.1</a>). Тот же тип <code>inline-select</code> для статуса — в <code>/admin/partner-leads</code> (<code>partners/tabs/leads.blade.php</code>).</li>
   </ul>
-  <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>location</code> (только при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>.</p>
+  <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
@@ -154,9 +154,10 @@
     <tbody>
       <tr><td><code>draw</code>, <code>start</code>, <code>length</code></td><td>Стандарт DataTables</td></tr>
       <tr><td><code>statuses[]</code></td><td>Массив статусов для фильтра таблицы. Если ключ передан, но после фильтрации массив пуст — условие по статусу не накладывается</td></tr>
-      <tr><td><code>location_id</code></td><td>Только при <code>locations.view</code>: пусто / не передано — все локации; <code>none</code> — только без локации; числовой id — заявки этой локации партнёра</td></tr>
-      <tr><td><code>search[value]</code></td><td>Глобальный поиск: имя, телефон, комментарий, статус, UTM, URL, referrer, дата создания; при <code>locations.view</code> — также имя локации</td></tr>
-      <tr><td><code>order</code>, <code>columns</code></td><td>Сортировка; при <code>locations.view</code> поддерживается <code>location_name</code></td></tr>
+      <tr><td><code>district_id</code></td><td>Только при <code>districts.view</code>: пусто — все; <code>none</code> — без района; числовой id — заявки этого района партнёра</td></tr>
+      <tr><td><code>location_id</code></td><td>Только при <code>locations.view</code>: пусто — все объекты; <code>none</code> — без объекта; числовой id — заявки этого объекта партнёра</td></tr>
+      <tr><td><code>search[value]</code></td><td>Глобальный поиск: имя, телефон, комментарий, статус, UTM, URL, referrer, дата создания; при <code>districts.view</code> — имя района; при <code>locations.view</code> — имя объекта</td></tr>
+      <tr><td><code>order</code>, <code>columns</code></td><td>Сортировка; при <code>districts.view</code> — <code>district_name</code>; при <code>locations.view</code> — <code>location_name</code></td></tr>
     </tbody>
   </table>
   <p>Ответ JSON (фрагмент):</p>
@@ -175,6 +176,8 @@
       "page_url": "https://...",
       "location_id": 5,
       "location_name": "Филиал",
+      "district_id": 2,
+      "district_name": "Центральный",
       "user_id": null
     },
     {
@@ -196,24 +199,26 @@
   ]
 }</code></pre>
   <p class="small">
+    Поля <code>district_id</code> / <code>district_name</code> — только при <code>districts.view</code>.
     Поля <code>location_id</code> / <code>location_name</code> — только при <code>locations.view</code>.
     Поля <code>user_id</code>, <code>create_contract_url</code>, <code>latest_contract</code> — см. §5.5–5.7 (зависят от прав и состояния лида).
     <code>stats</code> всегда по всему партнёру, независимо от фильтров таблицы.
   </p>
 
-  <h3>5.3) Локации</h3>
+  <h3>5.3) Район и объект</h3>
   <ul>
-    <li>Миграция <code>2026_05_19_160000_add_location_id_to_school_leads_table.php</code> — nullable FK на <code>locations</code>.</li>
-    <li>Заявки из <b>виджета</b> — <code>location_id = null</code>, <code>source = widget</code>; локацию назначают в CRM (модалка редактирования).</li>
-    <li>Заявки со <b>страницы заявки</b> — <code>location_id</code>, опционально <code>sport_type_id</code> и <code>team_id</code> приходят из формы; см. <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</li>
-    <li>При <code>locations.view</code>: столбец «Локация», обычный <code>&lt;select&gt;</code> в фильтре («Все локации» / «Без локации» / активные локации партнёра), поле в модалке. Отключённые и чужие локации недоступны; назначить их через API → 422.</li>
-    <li>Без <code>locations.view</code>: UI локации скрыт; <code>location_id</code> в data и update игнорируется.</li>
+    <li>Миграции: <code>2026_05_19_160000_add_location_id_to_school_leads_table.php</code>, <code>2026_06_13_100002_add_district_id_to_school_leads_table.php</code>.</li>
+    <li>Заявки из <b>виджета</b> — <code>location_id = null</code>, <code>district_id = null</code>, <code>source = widget</code>; район и объект назначают в CRM.</li>
+    <li>Заявки со <b>страницы заявки</b> — <code>district_id</code> и <code>location_id</code> из формы; см. <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</li>
+    <li>При <code>districts.view</code>: столбец «Район», фильтр («Все районы» / «Без района» / активные районы), поле в модалке редактирования.</li>
+    <li>При <code>locations.view</code>: столбец «Объект», фильтр («Все объекты» / «Без объекта» / активные объекты), поле в модалке. Объект должен соответствовать выбранному району; иначе 422.</li>
+    <li>Без соответствующего права: UI скрыт; поле в data/update игнорируется.</li>
   </ul>
-  <p class="small">Локация в заявках — отдельное поле <code>school_leads.location_id</code>; в карточке ученика локации нет (см. <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>).</p>
+  <p class="small">Район и объект заявки — поля <code>school_leads.district_id</code> и <code>school_leads.location_id</code>; в карточке ученика объекта нет (см. <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>).</p>
 
   <h3>5.4) Статусы и редактирование</h3>
   <p>Статусы: enum <code>App\Enums\SchoolLeadStatus</code> — <code>new</code>, <code>processing</code>, <code>sale</code>, <code>rejected</code>, <code>spam</code>.</p>
-  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>status</code>, <code>comment</code>, опционально <code>location_id</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
+  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>status</code>, <code>comment</code>, опционально <code>district_id</code>, <code>location_id</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
 
   <h3>5.5) Колонка «Договор» и права на UI</h3>
   <p>Отдельная колонка таблицы «Договор» показывается, если у пользователя есть <code>users.view</code> <b>или</b> <code>contracts.view</code> (в Blade: <code>canShowLeadClientColumn</code>).</p>
@@ -264,7 +269,7 @@
   </div>
   <ul>
     <li>Модалка — общий partial <code>resources/views/includes/modal/createUser.blade.php</code> (как на <a href="/docs/documentation/admin-users">/admin/users</a>), подключается на странице заявок при <code>users.view</code>.</li>
-    <li>При открытии из строки лида подставляются: <b>имя</b> (всё поле <code>name</code> заявки в «Имя ученика») и <b>телефон</b> (контакт в <code>users.phone</code>). Локация заявки (<code>school_leads.location_id</code>) в ученика <b>не переносится</b>. Фамилию и блок «Данные родителя» оператор заполняет вручную — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
+    <li>При открытии из строки лида подставляются: <b>имя</b> (всё поле <code>name</code> заявки в «Имя ученика») и <b>телефон</b> (контакт в <code>users.phone</code>). Объект заявки (<code>school_leads.location_id</code>) и район (<code>district_id</code>) в ученика <b>не переносятся</b>. Фамилию и блок «Данные родителя» оператор заполняет вручную — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
     <li>Скрытое поле формы: <code>school_lead_id</code>. Submit → <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>), не отдельный маршрут заявок.</li>
     <li>Валидация: опциональный <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена. Иначе 422 (<code>school_lead_id.exists</code>).</li>
     <li>После успешного <code>store</code> в транзакции: <code>school_leads.user_id = {новый user id}</code>. Таблица заявок перезагружается без полной перезагрузки страницы.</li>
@@ -288,7 +293,8 @@
       <tr><td>Гость</td><td>302 / 401 / 403 / 419 на все маршруты §5</td></tr>
       <tr><td>Пользователь без <code>schoolLeads.view</code></td><td><b>403</b> на все маршруты §5</td></tr>
       <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, update, delete (в пределах своего партнёра)</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле локации в UI и API</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>districts.view</code></td><td>Дополнительно: фильтр/столбец/поле «Район» в UI и API (<code>district_id</code>)</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле «Объект» в UI и API (<code>location_id</code>)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: модалка «Создать клиента», <code>POST /admin/users</code> с <code>school_lead_id</code> → 200</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; переход <code>GET /client-contracts/create?user_id=</code> → redirect, index с модалкой → <b>200</b></td></tr>
       <tr><td>Только <code>users.view</code> без <code>contracts.view</code></td><td>Колонка «Договор» видна (для «Создать клиента»), но полей договора в JSON нет</td></tr>
@@ -336,8 +342,8 @@
   <h2>7) Уведомления о новой заявке</h2>
   <p>После успешного submit (<code>POST /widget/…/submit</code> или <code>POST /lead/…/submit</code>) вызывается <code>SchoolLeadNotificationService</code>:</p>
   <ul>
-    <li><b>Email</b> — всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>. Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>.</li>
-    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>. Для <code>source = landing</code> сообщение дополнено данными ребёнка, района и услуги.</li>
+    <li><b>Email</b> — всем пользователям с ролью <code>admin</code> текущего партнёра (с email) + email организации из <code>partners.email</code>. Mailable: <code>App\Mail\NewSchoolLeadSubmission</code>; для лендинга с заполненными полями — строки «Район», «Объект», «Услуга» в теле письма.</li>
+    <li><b>Telegram</b> — в <code>partners.school_leads_telegram_chat_id</code>, если заполнен. Бот: <code>TELEGRAM_BOT_TOKEN</code>. Для <code>source = landing</code> сообщение дополнено данными ребёнка, района, объекта и услуги.</li>
   </ul>
   <p class="small">B2B-лиды по-прежнему используют глобальный <code>TELEGRAM_CHAT_ID</code> в <code>LandingPageController</code> — это другой канал.</p>
 
@@ -388,7 +394,9 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>
     <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры, колонки, пагинация</li>
-    <li><code>SchoolLeadLocationFeatureTest.php</code> — локации: UI, фильтр, сортировка, update, columns-settings</li>
+    <li><code>SchoolLeadLocationFeatureTest.php</code> — объекты: UI, фильтр, сортировка, update, columns-settings</li>
+    <li><code>SchoolLeadDistrictFeatureTest.php</code> — районы: UI, фильтр, сортировка, update, email/Telegram</li>
+    <li><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code> — full access заявок с районом и объектом → 200</li>
     <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD, статусы, anti-leak</li>
     <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>
     <li><code>SchoolLeadLandingAdminAccessFeatureTest.php</code> — вкладка «Страница заявки»</li>

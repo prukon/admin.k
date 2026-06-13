@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Enums\SchoolLeadSource;
 use App\Enums\SchoolLeadStatus;
 use App\Http\Requests\SubmitSchoolLeadLandingRequest;
+use App\Models\District;
 use App\Models\Location;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
@@ -33,10 +34,44 @@ final class SchoolLeadLandingService
     /**
      * @return Collection<int, array{id: int, name: string}>
      */
-    public function locationsForWidget(PartnerWidget $widget): Collection
+    public function districtsForWidget(PartnerWidget $widget): Collection
     {
-        return Location::query()
+        return District::query()
             ->where('partner_id', $widget->partner_id)
+            ->where('is_enabled', true)
+            ->whereHas('locations', function ($query) {
+                $query->where('is_enabled', true)
+                    ->whereNotNull('district_id');
+            })
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (District $district) => [
+                'id'   => (int) $district->id,
+                'name' => (string) $district->name,
+            ]);
+    }
+
+    /**
+     * @return Collection<int, array{id: int, name: string}>
+     */
+    public function locationsForDistrict(PartnerWidget $widget, int $districtId): Collection
+    {
+        $partnerId = (int) $widget->partner_id;
+
+        $districtExists = District::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->whereKey($districtId)
+            ->exists();
+
+        if (! $districtExists) {
+            return collect();
+        }
+
+        return Location::query()
+            ->where('partner_id', $partnerId)
+            ->where('district_id', $districtId)
             ->where('is_enabled', true)
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -56,6 +91,7 @@ final class SchoolLeadLandingService
         $locationExists = Location::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
+            ->whereNotNull('district_id')
             ->whereKey($locationId)
             ->exists();
 
@@ -88,6 +124,7 @@ final class SchoolLeadLandingService
         $locationExists = Location::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
+            ->whereNotNull('district_id')
             ->whereKey($locationId)
             ->exists();
 
@@ -239,6 +276,7 @@ final class SchoolLeadLandingService
             'is_on_medical_register' => $request->boolean('is_on_medical_register'),
             'is_with_disability'     => $request->boolean('is_with_disability'),
             'location_id'            => (int) $request->input('location_id'),
+            'district_id'            => (int) $request->input('district_id'),
             'sport_type_id'          => $sportTypeId,
             'team_id'                => $teamId,
             'needs_contact_help'     => $request->boolean('needs_contact_help'),

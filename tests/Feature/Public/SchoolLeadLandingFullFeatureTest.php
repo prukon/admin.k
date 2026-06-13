@@ -3,6 +3,7 @@
 namespace Tests\Feature\Public;
 
 use App\Enums\SchoolLeadSource;
+use App\Models\District;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PartnerWidget;
@@ -43,10 +44,11 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertSee('Детская школа «Радуга»', false)
             ->assertSee('Законный представитель', false)
             ->assertSee('Ребёнок', false)
-            ->assertSee('Район и услуга', false)
+            ->assertSee('Район, объект и услуга', false)
             ->assertSee('Центральный', false)
             ->assertSee('raduga-test', false)
             ->assertSee('id="leadForm"', false)
+            ->assertSee('id="district_id"', false)
             ->assertSee('id="location_id"', false)
             ->assertSee('id="team_id"', false);
     }
@@ -77,6 +79,15 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_locations_returns_404_for_unknown_landing_slug(): void
+    {
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => 'unknown-landing-page',
+            'district_id' => $this->landingDistrict->id,
+        ]))
+            ->assertNotFound();
+    }
+
     public function test_teams_returns_404_for_unknown_landing_slug(): void
     {
         $this->getJson(route('lead.teams', [
@@ -97,6 +108,57 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_locations_returns_422_without_district_id(): void
+    {
+        $this->getJson(route('lead.locations', ['landingSlug' => $this->landingWidget->landing_slug]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['district_id']);
+    }
+
+    public function test_locations_returns_empty_for_foreign_partner_district(): void
+    {
+        $foreignPartner = Partner::factory()->create();
+        $foreignDistrict = District::factory()->forPartner((int) $foreignPartner->id)->create([
+            'name' => 'Чужой район',
+        ]);
+
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+            'district_id' => $foreignDistrict->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data', []);
+    }
+
+    public function test_locations_endpoint_returns_locations_for_district(): void
+    {
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+            'district_id' => $this->landingDistrict->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $this->landingLocation->id)
+            ->assertJsonPath('data.0.name', 'Школа «Радуга»');
+    }
+
+    public function test_locations_excludes_objects_without_district(): void
+    {
+        Location::query()->create([
+            'partner_id' => $this->landingPartner->id,
+            'district_id' => null,
+            'name'       => 'Без района',
+            'is_enabled' => true,
+        ]);
+
+        $this->getJson(route('lead.locations', [
+            'landingSlug' => $this->landingWidget->landing_slug,
+            'district_id' => $this->landingDistrict->id,
+        ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->landingLocation->id);
+    }
+
     public function test_teams_returns_422_without_location_id(): void
     {
         $this->getJson(route('lead.teams', ['landingSlug' => $this->landingWidget->landing_slug]))
@@ -108,9 +170,10 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
     {
         $foreignPartner = Partner::factory()->create();
         $foreignLocation = Location::query()->create([
-            'partner_id' => $foreignPartner->id,
-            'name'       => 'Чужой район',
-            'is_enabled' => true,
+            'partner_id'  => $foreignPartner->id,
+            'district_id' => District::factory()->forPartner((int) $foreignPartner->id)->create()->id,
+            'name'        => 'Чужой объект',
+            'is_enabled'  => true,
         ]);
 
         $this->getJson(route('lead.teams', [
@@ -121,12 +184,14 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertJsonPath('data', []);
     }
 
-    public function test_show_lists_only_enabled_locations(): void
+    public function test_show_lists_only_enabled_districts_with_enabled_locations(): void
     {
-        Location::query()->create([
-            'partner_id' => $this->landingPartner->id,
-            'name'       => 'Скрытый район',
-            'is_enabled' => false,
+        District::factory()->forPartner((int) $this->landingPartner->id)->disabled()->create([
+            'name' => 'Скрытый район',
+        ]);
+
+        District::factory()->forPartner((int) $this->landingPartner->id)->create([
+            'name' => 'Пустой район',
         ]);
 
         $html = $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
@@ -135,6 +200,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
         $this->assertStringContainsString('Центральный', $html);
         $this->assertStringNotContainsString('Скрытый район', $html);
+        $this->assertStringNotContainsString('Пустой район', $html);
     }
 
     public function test_teams_endpoint_returns_teams_for_location(): void
@@ -262,6 +328,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'parent_lastname'        => 'Иванов',
             'parent_email'           => 'parent@example.com',
             'child_firstname'        => 'Пётр',
+            'district_id'            => $this->landingDistrict->id,
             'location_id'            => $this->landingLocation->id,
             'team_id'                => $this->landingTeam->id,
             'needs_contact_help'     => 0,
@@ -324,6 +391,21 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         ]);
     }
 
+    public function test_submit_requires_district(): void
+    {
+        $this->fakeRecaptchaSuccess();
+
+        $payload = $this->validLandingPayload();
+        unset($payload['district_id']);
+
+        $this->postJson(
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
+            $payload
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['district_id']);
+    }
+
     public function test_submit_requires_location(): void
     {
         $this->fakeRecaptchaSuccess();
@@ -344,10 +426,12 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         $this->fakeRecaptchaSuccess();
 
         $foreignPartner = Partner::factory()->create();
+        $foreignDistrict = District::factory()->forPartner((int) $foreignPartner->id)->create();
         $foreignLocation = Location::query()->create([
-            'partner_id' => $foreignPartner->id,
-            'name'       => 'Чужой',
-            'is_enabled' => true,
+            'partner_id'  => $foreignPartner->id,
+            'district_id' => $foreignDistrict->id,
+            'name'        => 'Чужой',
+            'is_enabled'  => true,
         ]);
 
         $payload = $this->validLandingPayload([
@@ -362,14 +446,74 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertJsonValidationErrors(['location_id']);
     }
 
+    public function test_submit_rejects_location_without_district(): void
+    {
+        $this->fakeRecaptchaSuccess();
+
+        $locationWithoutDistrict = Location::query()->create([
+            'partner_id' => $this->landingPartner->id,
+            'name'       => 'Без района',
+            'is_enabled' => true,
+        ]);
+
+        $payload = $this->validLandingPayload([
+            'location_id' => $locationWithoutDistrict->id,
+        ]);
+
+        $this->postJson(
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
+            $payload
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['location_id']);
+    }
+
+    public function test_submit_rejects_location_from_another_district(): void
+    {
+        $this->fakeRecaptchaSuccess();
+
+        $otherDistrict = District::factory()->forPartner((int) $this->landingPartner->id)->create([
+            'name' => 'Северный',
+        ]);
+
+        $otherLocation = Location::query()->create([
+            'partner_id'  => $this->landingPartner->id,
+            'district_id' => $otherDistrict->id,
+            'name'        => 'Северная школа',
+            'is_enabled'  => true,
+        ]);
+
+        app(LocationTeamSyncService::class)->syncTeamsForLocation(
+            $otherLocation,
+            [(int) $this->landingTeam->id],
+        );
+
+        $payload = $this->validLandingPayload([
+            'district_id' => $this->landingDistrict->id,
+            'location_id' => $otherLocation->id,
+        ]);
+
+        $this->postJson(
+            route('lead.submit', ['landingSlug' => $this->landingWidget->landing_slug]),
+            $payload
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['location_id']);
+    }
+
     public function test_submit_rejects_team_not_available_at_location(): void
     {
         $this->fakeRecaptchaSuccess();
 
+        $otherDistrict = District::factory()->forPartner((int) $this->landingPartner->id)->create([
+            'name' => 'Северный',
+        ]);
+
         $otherLocation = Location::query()->create([
-            'partner_id' => $this->landingPartner->id,
-            'name'       => 'Северный',
-            'is_enabled' => true,
+            'partner_id'  => $this->landingPartner->id,
+            'district_id' => $otherDistrict->id,
+            'name'        => 'Северная школа',
+            'is_enabled'  => true,
         ]);
 
         $otherTeam = Team::factory()->create([
@@ -384,6 +528,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
         );
 
         $payload = $this->validLandingPayload([
+            'district_id' => $this->landingDistrict->id,
             'location_id' => $this->landingLocation->id,
             'team_id'     => $otherTeam->id,
         ]);

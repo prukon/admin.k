@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Справочники: иерархия Район → Объект → Группа</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Справочники: иерархия «Район → Объект → Группа»</h1>
+  <div class="small">Файл: <code>/docs/documentation/directories-hierarchy.html</code> · детали: <a href="/docs/documentation/admin-districts">районы</a>, <a href="/docs/documentation/admin-locations">объекты</a>, <a href="/docs/documentation/school-leads-landing">лендинг</a>, <a href="/docs/documentation/school-leads-widget">CRM заявки</a></div>
+
+  <div class="note">
+    <b>Глоссарий UI (единый по проекту):</b><br>
+    «<b>Район</b>» = модель <code>District</code>, таблица <code>districts</code>.<br>
+    «<b>Объект</b>» = модель <code>Location</code>, таблица <code>locations</code> (в старой документации могло быть «локация» — в UI CRM с 2026-06 заменено на «Объект»).<br>
+    «<b>Группа</b>» / «Услуга» = модель <code>Team</code> (секция на лендинге).<br>
+    Меню CRM: пункт <b>«Справочники»</b> → вкладки <b>Районы</b> · <b>Объекты</b>.
+  </div>
+
+  <h2>1) Зачем и общая схема</h2>
+  <p>Партнёр (школа) может иметь несколько районов города; в каждом районе — один или несколько объектов (филиалы, залы); к объектам привязаны группы (секции). Родитель на странице заявки выбирает цепочку <b>район → объект → услуга</b>; оператор в CRM видит те же поля в заявке.</p>
+  <pre><code>districts (Район)
+    └── locations.district_id (Объект, nullable в CRM)
+            └── location_team → teams (Группа)
+                    └── school_leads.team_id (из лендинга)
+
+school_leads.district_id + school_leads.location_id — снимок на момент заявки</code></pre>
+
+  <h2>2) Меню, права и доступ к страницам</h2>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>UI / маршруты</th><th>Примечание</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>districts.view</code></td>
+        <td><code>/admin/districts</code>, все CRUD endpoint'ы районов</td>
+        <td>Один permission на просмотр и изменение (отдельного <code>manage</code> нет). В базовых правах роли <code>admin</code> (<code>config/role_base_permissions.php</code>). Флаг <code>is_visible = 0</code> — в UI ролей может быть скрыт.</td>
+      </tr>
+      <tr>
+        <td><code>locations.view</code></td>
+        <td><code>/admin/locations</code>, read API объектов</td>
+        <td>Без <code>locations.manage</code> — только просмотр, без кнопок создания/редактирования.</td>
+      </tr>
+      <tr>
+        <td><code>locations.manage</code></td>
+        <td>POST/PUT/DELETE объектов</td>
+        <td>Дополнительно к <code>locations.view</code>.</td>
+      </tr>
+      <tr>
+        <td><code>groups.view</code></td>
+        <td><code>/admin/teams</code></td>
+        <td>Группы и pivot <code>location_team</code> — см. <a href="/docs/documentation/admin-teams">admin-teams</a>.</td>
+      </tr>
+      <tr>
+        <td><code>schoolLeads.view</code> + <code>districts.view</code></td>
+        <td>Колонка/фильтр «Район» в <code>/admin/school-leads</code></td>
+        <td>Независимо от <code>locations.view</code>.</td>
+      </tr>
+      <tr>
+        <td><code>schoolLeads.view</code> + <code>locations.view</code></td>
+        <td>Колонка/фильтр «Объект» в заявках</td>
+        <td>Update: объект должен соответствовать району заявки.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p><b>Сайдбар «Справочники»:</b> виден, если есть <code>districts.view</code> или <code>locations.view</code>. Ссылка ведёт на районы (если есть <code>districts.view</code>), иначе на объекты. Вкладки на страницах: каждая вкладка — по своему permission (<code>_section_tabs.blade.php</code>).</p>
+
+  <h2>3) База данных и связи</h2>
+  <table>
+    <thead>
+      <tr><th>Таблица / поле</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>districts</code></td><td><code>partner_id</code>, <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>. Уникальность: <code>unique(partner_id, name)</code>. <b>Hard delete</b> (без soft delete).</td></tr>
+      <tr><td><code>locations.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>restrictOnDelete</code>. Объект без района допустим в CRM, но <b>не показывается на лендинге</b>.</td></tr>
+      <tr><td><code>locations</code> имя</td><td><code>unique(partner_id, district_id_unique_bucket, name)</code>, bucket = <code>COALESCE(district_id, 0)</code> (MySQL).</td></tr>
+      <tr><td><code>school_leads.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>nullOnDelete</code> (при удалении района поле обнуляется).</td></tr>
+      <tr><td><code>school_leads.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>.</td></tr>
+      <tr><td><code>location_team</code></td><td>Объект ↔ группа — см. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
+    </tbody>
+  </table>
+  <p>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>100001_add_district_id_to_locations_table.php</code>, <code>100002_add_district_id_to_school_leads_table.php</code>, <code>110000_add_districts_permissions.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code>.</p>
+
+  <h2>4) CRM: справочники</h2>
+  <h3>4.1) Районы — <code>/admin/districts</code></h3>
+  <p>Подробно: <a href="/docs/documentation/admin-districts">admin-districts.html</a>.</p>
+  <ul>
+    <li>DataTables: поиск по имени/id, фильтр active/inactive, сортировка (sort_order, locations_count, is_enabled).</li>
+    <li>Удаление: 422, если есть объекты с <code>district_id</code> этого района (включая отключённые). Иначе — hard delete.</li>
+  </ul>
+
+  <h3>4.2) Объекты — <code>/admin/locations</code></h3>
+  <p>Подробно: <a href="/docs/documentation/admin-locations">admin-locations.html</a>.</p>
+  <ul>
+    <li>Select «Район» в create/edit — только <b>активные</b> районы (<code>is_enabled = true</code>).</li>
+    <li>Колонка и фильтр «Район» в таблице; фильтр «Без района» (<code>district_id=none</code>).</li>
+    <li>Сортировка по <code>district_name</code> (join к <code>districts</code>).</li>
+    <li>Multiselect групп (<code>team_ids</code>) при <code>locations.manage</code>.</li>
+  </ul>
+
+  <h2>5) Публичный лендинг — каскад выбора</h2>
+  <p>Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
+  <ol>
+    <li><b>Район</b> — активные районы с ≥1 активным объектом с заполненным <code>district_id</code>.</li>
+    <li><b>Объект</b> — <code>GET /lead/{slug}/locations?district_id=</code> (только enabled, с district_id).</li>
+    <li><b>Услуга</b> — <code>GET /lead/{slug}/teams?location_id=</code> (группы объекта через <code>TeamLocationAvailabilityService</code>).</li>
+    <li><b>Submit</b> — обязательны <code>district_id</code> и <code>location_id</code>; cross-check: объект принадлежит району; partner scope по slug.</li>
+  </ol>
+  <div class="warn">
+    <b>AJAX vs submit:</b> для чужого или неактивного <code>district_id</code> endpoint <code>/locations</code> возвращает <b>200 и пустой массив</b> (не 422). Ошибки partner scope на submit — <b>422</b> с текстами под полями.
+  </div>
+
+  <h2>6) CRM: заявки с сайта</h2>
+  <p>Подробно: <a href="/docs/documentation/school-leads-widget#5-3">school-leads-widget §5.3</a>.</p>
+  <ul>
+    <li>Виджет iframe (<code>source=widget</code>) — район и объект обычно <code>null</code>; назначают вручную в CRM.</li>
+    <li>Лендинг (<code>source=landing</code>) — <code>district_id</code> и <code>location_id</code> из формы.</li>
+    <li><code>GET /admin/school-leads/data</code>: параметры <code>district_id</code>, <code>location_id</code> (значение <code>none</code> — без района/объекта); поиск по имени района/объекта при соответствующих правах.</li>
+    <li><code>PUT /admin/school-leads/{id}</code> — <code>UpdateSchoolLeadRequest</code>: нельзя назначить отключённый район/объект; объект должен соответствовать району.</li>
+    <li>Уведомления: email (<code>emails/new_school_lead.blade.php</code>) и Telegram — для лендинга включают район и объект.</li>
+  </ul>
+
+  <h2>7) Связанные разделы (без district_id, но в той же цепочке)</h2>
+  <ul>
+    <li><a href="/docs/documentation/admin-teams">Группы</a> — привязка к объектам через <code>location_ids</code> / pivot.</li>
+    <li><a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a> — расписание, отчёты.</li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a> — фильтр по объекту (<code>filter_location_id</code>); в UI отчётов термин «Локация» может сохраняться исторически — имеется в виду объект (<code>Location</code>).</li>
+  </ul>
+
+  <h2>8) Ключевые файлы</h2>
+  <ul>
+    <li>Контроллеры: <code>DistrictController</code>, <code>LocationController</code>, <code>SchoolLeadController</code>, <code>SchoolLeadLandingController</code></li>
+    <li>Requests: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code>, <code>LocationFieldRules</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code></li>
+    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>LocationTeamSyncService</code>, <code>SchoolLeadNotificationService</code></li>
+    <li>Views: <code>admin/districts/index.blade.php</code>, <code>admin/locations/index.blade.php</code>, <code>admin/directories/_section_tabs.blade.php</code>, <code>landing/partner-lead.blade.php</code>, <code>admin/school-leads/tabs/leads.blade.php</code></li>
+    <li>Sidebar: <code>resources/views/includes/sidebar.blade.php</code></li>
+  </ul>
+
+  <h2 id="9">9) Автотесты</h2>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Directories/ \
+  tests/Feature/Crm/Districts/ \
+  tests/Feature/Crm/Locations/ \
+  tests/Feature/Crm/SchoolLeads/SchoolLeadDistrictFeatureTest.php \
+  tests/Feature/Crm/SchoolLeads/SchoolLeadsDistrictPageFullAccessFeatureTest.php \
+  tests/Feature/Public/SchoolLeadLanding*</code></pre>
+  <table>
+    <thead>
+      <tr><th>Файл</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>DirectoriesSmokeFeatureTest.php</code></td><td>Меню «Справочники», вкладки, комбинации прав</td></tr>
+      <tr><td><code>DirectoriesPageFullAccessFeatureTest.php</code></td><td>Все endpoint'ы районов и объектов → 200 (admin и актор с правами)</td></tr>
+      <tr><td><code>DistrictsFeatureTest.php</code></td><td>CRUD районов, partner scope, unique name, hard delete</td></tr>
+      <tr><td><code>DistrictsPageFullAccessFeatureTest.php</code></td><td>Full access + 403 без <code>districts.view</code></td></tr>
+      <tr><td><code>DistrictHierarchyFeatureTest.php</code></td><td>Сортировки, связь с заявками, лендинг, disabled district</td></tr>
+      <tr><td><code>DistrictLocationLandingIntegrationFeatureTest.php</code></td><td>E2E: район → объект → лендинг → CRM</td></tr>
+      <tr><td><code>LocationsFeatureTest.php</code></td><td>Объекты с <code>district_id</code>, фильтры, unique per district</td></tr>
+      <tr><td><code>LocationsPageFullAccessFeatureTest.php</code></td><td>Full access объектов + district payloads</td></tr>
+      <tr><td><code>SchoolLeadDistrictFeatureTest.php</code></td><td>CRM UI/data/update, email/Telegram с районом</td></tr>
+      <tr><td><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code></td><td>Заявки: все endpoint'ы с районом/объектом → 200</td></tr>
+      <tr><td><code>SchoolLeadLandingFullFeatureTest.php</code></td><td>Каскад и валидация на лендинге</td></tr>
+      <tr><td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td><td>Публичный доступ, в т.ч. <code>/locations?district_id=</code></td></tr>
+    </tbody>
+  </table>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-districts">Районы</a> ·
+    <a href="/docs/documentation/admin-locations">Объекты</a> ·
+    <a href="/docs/documentation/school-leads-landing">Лендинг</a> ·
+    <a href="/docs/documentation/school-leads-widget">Заявки CRM</a>
+  </p>
+</div>
+</body>
+</html>

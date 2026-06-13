@@ -28,15 +28,35 @@ class SchoolLeadLandingController extends Controller
             abort(404);
         }
 
-        $locations = $this->landing->locationsForWidget($widget);
+        $districts = $this->landing->districtsForWidget($widget);
 
         return view('landing.partner-lead', [
             'partner'          => $partner,
-            'locations'        => $locations,
+            'districts'        => $districts,
             'recaptchaSiteKey' => config('services.recaptcha.site_key'),
             'submitUrl'        => route('lead.submit', ['landingSlug' => $landingSlug]),
+            'locationsUrl'     => route('lead.locations', ['landingSlug' => $landingSlug]),
             'teamsUrl'         => route('lead.teams', ['landingSlug' => $landingSlug]),
             'teamInfoUrl'      => route('lead.team-info', ['landingSlug' => $landingSlug]),
+        ]);
+    }
+
+    public function locations(Request $request, string $landingSlug): JsonResponse
+    {
+        $widget = $this->landing->resolveActiveWidget($landingSlug);
+
+        $districtId = (int) $request->query('district_id', 0);
+        if ($districtId <= 0) {
+            return response()->json([
+                'message' => 'Укажите район.',
+                'errors'  => ['district_id' => ['Укажите район.']],
+            ], 422);
+        }
+
+        $locations = $this->landing->locationsForDistrict($widget, $districtId);
+
+        return response()->json([
+            'data' => $locations->values(),
         ]);
     }
 
@@ -49,8 +69,8 @@ class SchoolLeadLandingController extends Controller
 
         if ($locationId <= 0) {
             return response()->json([
-                'message' => 'Укажите район.',
-                'errors'  => ['location_id' => ['Укажите район.']],
+                'message' => 'Укажите объект.',
+                'errors'  => ['location_id' => ['Укажите объект.']],
             ], 422);
         }
 
@@ -78,8 +98,8 @@ class SchoolLeadLandingController extends Controller
         $locationId = (int) $request->query('location_id', 0);
         if ($locationId <= 0) {
             return response()->json([
-                'message' => 'Укажите район.',
-                'errors'  => ['location_id' => ['Укажите район.']],
+                'message' => 'Укажите объект.',
+                'errors'  => ['location_id' => ['Укажите объект.']],
             ], 422);
         }
 
@@ -103,7 +123,7 @@ class SchoolLeadLandingController extends Controller
 
         try {
             $schoolLead = $this->landing->createFromRequest($request, $widget);
-            $schoolLead->loadMissing('location', 'team');
+            $schoolLead->loadMissing('district', 'location', 'team');
             $this->notifications->notify($schoolLead);
 
             return response()->json([

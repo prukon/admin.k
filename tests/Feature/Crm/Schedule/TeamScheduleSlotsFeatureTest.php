@@ -140,7 +140,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
             'date_end' => '',
             'is_enabled' => 1,
         ])->assertStatus(422)
-            ->assertJsonPath('errors.weekday.0', 'В этой локации слот пересекается по времени с уже существующим занятием');
+            ->assertJsonPath('errors.weekday.0', 'В этом объекте слот пересекается по времени с уже существующим занятием');
     }
 
     public function test_store_allows_same_time_different_locations(): void
@@ -726,7 +726,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
             'apply_changes_from' => '2026-06-01',
             'is_enabled' => 1,
         ])->assertStatus(422)
-            ->assertJsonPath('errors.weekday.0', 'В этой локации слот пересекается по времени с уже существующим занятием');
+            ->assertJsonPath('errors.weekday.0', 'В этом объекте слот пересекается по времени с уже существующим занятием');
     }
 
     public function test_show_ok_with_view_permission(): void
@@ -1067,7 +1067,7 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
             'apply_changes_from' => '2026-06-01',
             'is_enabled' => 1,
         ])->assertStatus(422)
-            ->assertJsonPath('errors.weekday.0', 'В этой локации слот пересекается по времени с уже существующим занятием');
+            ->assertJsonPath('errors.weekday.0', 'В этом объекте слот пересекается по времени с уже существующим занятием');
     }
 
     public function test_destroy_not_found_for_foreign_partner_slot(): void

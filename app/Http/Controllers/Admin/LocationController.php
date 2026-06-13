@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StoreLocationRequest;
 use App\Http\Requests\Admin\UpdateLocationRequest;
+use App\Models\District;
 use App\Models\Location;
 use App\Models\Team;
 use App\Services\LocationTeamSyncService;
@@ -32,7 +33,16 @@ class LocationController extends AdminBaseController
                 ->get(['id', 'title'])
             : collect();
 
-        return view('admin.locations.index', compact('teamOptions'));
+        $districtOptions = auth()->user()?->can('locations.view')
+            ? District::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
+        return view('admin.locations.index', compact('teamOptions', 'districtOptions'));
     }
 
     public function data(Request $request)
@@ -40,15 +50,16 @@ class LocationController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $validated = $request->validate([
-            'name'   => 'nullable|string',
-            'status' => 'nullable|string',
-            'draw'   => 'nullable|integer',
-            'start'  => 'nullable|integer',
-            'length' => 'nullable|integer',
+            'name'        => 'nullable|string',
+            'status'      => 'nullable|string',
+            'district_id' => 'nullable|string',
+            'draw'        => 'nullable|integer',
+            'start'       => 'nullable|integer',
+            'length'      => 'nullable|integer',
         ]);
 
         $baseQuery = Location::query()
-            ->where('partner_id', $partnerId);
+            ->where('locations.partner_id', $partnerId);
 
         $nameSearch = trim((string) ($validated['name'] ?? ''));
         if ($nameSearch === '' && $request->filled('search.value')) {
@@ -76,6 +87,13 @@ class LocationController extends AdminBaseController
             }
         }
 
+        $districtFilter = trim((string) ($validated['district_id'] ?? ''));
+        if ($districtFilter === 'none') {
+            $baseQuery->whereNull('district_id');
+        } elseif ($districtFilter !== '' && ctype_digit($districtFilter)) {
+            $baseQuery->where('district_id', (int) $districtFilter);
+        }
+
         $totalRecords = Location::where('partner_id', $partnerId)->count();
         $recordsFiltered = (clone $baseQuery)->count();
 
@@ -90,6 +108,13 @@ class LocationController extends AdminBaseController
         switch ($orderColumnName) {
             case 'id':
                 $baseQuery->orderBy('id', $orderDir);
+                break;
+            case 'district_name':
+                $baseQuery
+                    ->leftJoin('districts as location_districts_sort', 'locations.district_id', '=', 'location_districts_sort.id')
+                    ->orderBy('location_districts_sort.name', $orderDir)
+                    ->orderBy('locations.name', 'asc')
+                    ->select('locations.*');
                 break;
             case 'address':
                 $baseQuery->orderBy('address', $orderDir)
@@ -113,7 +138,7 @@ class LocationController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocationsPivot = $filterActor?->can('locations.view') ?? false;
 
-        $with = [];
+        $with = ['district'];
         if ($canViewLocationsPivot) {
             $with[] = 'teams';
         }
@@ -139,6 +164,8 @@ class LocationController extends AdminBaseController
             return [
                 'id'                => $location->id,
                 'name'              => $location->name,
+                'district_id'       => $location->district_id,
+                'district_name'     => $location->district?->name ?? '',
                 'address'           => $location->address ?? '',
                 'teams_label'       => $teamsLabels['teams_label'],
                 'teams_label_full'  => $teamsLabels['teams_label_full'],
@@ -170,6 +197,7 @@ class LocationController extends AdminBaseController
 
         $data['partner_id'] = $partnerId;
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? true);
+        $data['district_id'] = isset($data['district_id']) ? (int) $data['district_id'] : null;
 
         try {
             $location = Location::create($data);
@@ -183,7 +211,7 @@ class LocationController extends AdminBaseController
                 return response()->json([
                     'message' => 'Ошибка сохранения',
                     'errors' => [
-                        'name' => ['Локация с таким названием уже существует'],
+                        'name' => ['Объект с таким названием уже существует в выбранном районе'],
                     ],
                 ], 422);
             }
@@ -196,7 +224,7 @@ class LocationController extends AdminBaseController
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Локация создана',
+                'message' => 'Объект создан',
                 'location' => $location,
             ]);
         }
@@ -212,7 +240,7 @@ class LocationController extends AdminBaseController
             abort(404);
         }
 
-        $with = [];
+        $with = ['district'];
         if (auth()->user()?->can('locations.view')) {
             $with[] = 'teams';
         }
@@ -222,6 +250,7 @@ class LocationController extends AdminBaseController
         $payload = [
             'id' => $location->id,
             'name' => $location->name,
+            'district_id' => $location->district_id,
             'address' => $location->address,
             'description' => $location->description,
             'is_enabled' => (int) $location->is_enabled,
@@ -248,6 +277,9 @@ class LocationController extends AdminBaseController
         unset($data['team_ids']);
 
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? false);
+        $data['district_id'] = array_key_exists('district_id', $data)
+            ? ($data['district_id'] !== null ? (int) $data['district_id'] : null)
+            : $location->district_id;
 
         try {
             $location->update($data);
@@ -261,7 +293,7 @@ class LocationController extends AdminBaseController
                 return response()->json([
                     'message' => 'Ошибка сохранения',
                     'errors' => [
-                        'name' => ['Локация с таким названием уже существует'],
+                        'name' => ['Объект с таким названием уже существует в выбранном районе'],
                     ],
                 ], 422);
             }
@@ -272,7 +304,7 @@ class LocationController extends AdminBaseController
             ], 422);
         }
 
-        return response()->json(['message' => 'Локация обновлена']);
+        return response()->json(['message' => 'Объект обновлён']);
     }
 
     public function destroy(Request $request, Location $location)
@@ -287,7 +319,7 @@ class LocationController extends AdminBaseController
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Локация удалена',
+                'message' => 'Объект удалён',
                 'success' => true,
             ]);
         }

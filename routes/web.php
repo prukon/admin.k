@@ -166,6 +166,9 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/lead/{landingSlug}', [\App\Http\Controllers\SchoolLeadLandingController::class, 'show'])
         ->name('lead.show')
         ->where('landingSlug', $landingSlugPattern);
+    Route::get('/lead/{landingSlug}/locations', [\App\Http\Controllers\SchoolLeadLandingController::class, 'locations'])
+        ->name('lead.locations')
+        ->where('landingSlug', $landingSlugPattern);
     Route::get('/lead/{landingSlug}/teams', [\App\Http\Controllers\SchoolLeadLandingController::class, 'teams'])
         ->name('lead.teams')
         ->where('landingSlug', $landingSlugPattern);
@@ -547,7 +550,23 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.trainers.destroy');
     });
 
-    // Локации
+    // Справочники: районы
+    Route::middleware('can:districts.view')->group(function () {
+        Route::get('admin/districts', [\App\Http\Controllers\Admin\DistrictController::class, 'index'])->name('admin.districts.index');
+        Route::get('admin/districts/data', [\App\Http\Controllers\Admin\DistrictController::class, 'data'])->name('admin.districts.data');
+        Route::get('admin/districts/columns-settings', [\App\Http\Controllers\Admin\DistrictColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.districts.columns-settings.get');
+        Route::post('admin/districts/columns-settings', [\App\Http\Controllers\Admin\DistrictColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.districts.columns-settings.save');
+        Route::get('admin/districts/{district}', [\App\Http\Controllers\Admin\DistrictController::class, 'show'])->whereNumber('district')->name('admin.districts.show');
+        Route::post('admin/districts', [\App\Http\Controllers\Admin\DistrictController::class, 'store'])->name('admin.districts.store');
+        Route::put('admin/districts/{district}', [\App\Http\Controllers\Admin\DistrictController::class, 'update'])
+            ->whereNumber('district')
+            ->name('admin.districts.update');
+        Route::delete('admin/districts/{district}', [\App\Http\Controllers\Admin\DistrictController::class, 'destroy'])
+            ->whereNumber('district')
+            ->name('admin.districts.destroy');
+    });
+
+    // Справочники: объекты (локации)
     Route::middleware('can:locations.view')->group(function () {
         Route::get('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'index'])->name('admin.locations.index');
         Route::get('admin/locations/data', [\App\Http\Controllers\Admin\LocationController::class, 'data'])->name('admin.locations.data');

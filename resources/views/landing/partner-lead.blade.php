@@ -140,6 +140,9 @@
         #teamSelect:disabled {
             background-color: #f8f9fa;
         }
+        #locationSelect:disabled {
+            background-color: #f8f9fa;
+        }
         .team-info-block {
             display: none;
             margin-top: 1.25rem;
@@ -297,22 +300,29 @@
                 </div>
             </div>
 
-            <h2 class="section-title">Район и услуга</h2>
+            <h2 class="section-title">Район, объект и услуга</h2>
             <div class="row g-3">
-                <div class="col-md-6">
-                    <label for="location_id" class="form-label">Район <span class="required-mark">*</span></label>
-                    <select name="location_id" id="location_id" class="form-select">
+                <div class="col-md-4">
+                    <label for="district_id" class="form-label">Район <span class="required-mark">*</span></label>
+                    <select name="district_id" id="district_id" class="form-select">
                         <option value="">— Выберите район —</option>
-                        @foreach ($locations as $location)
-                            <option value="{{ $location['id'] }}">{{ $location['name'] }}</option>
+                        @foreach ($districts as $district)
+                            <option value="{{ $district['id'] }}">{{ $district['name'] }}</option>
                         @endforeach
+                    </select>
+                    <div class="field-error" data-error-for="district_id" style="display:none;"></div>
+                </div>
+                <div class="col-md-4">
+                    <label for="location_id" class="form-label">Объект <span class="required-mark">*</span></label>
+                    <select name="location_id" id="location_id" class="form-select" disabled>
+                        <option value="">— Сначала выберите район —</option>
                     </select>
                     <div class="field-error" data-error-for="location_id" style="display:none;"></div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="team_id" class="form-label">Услуга</label>
                     <select name="team_id" id="team_id" class="form-select" disabled>
-                        <option value="">— Сначала выберите район —</option>
+                        <option value="">— Сначала выберите объект —</option>
                     </select>
                     <div class="field-error" data-error-for="team_id" style="display:none;"></div>
                 </div>
@@ -369,10 +379,12 @@
     var submitBtn = document.getElementById('submitBtn');
     var successMessage = document.getElementById('successMessage');
     var successBackBtn = document.getElementById('successBackBtn');
+    var districtSelect = document.getElementById('district_id');
     var locationSelect = document.getElementById('location_id');
     var teamSelect = document.getElementById('team_id');
     var needsContactHelp = document.getElementById('needs_contact_help');
     var submitUrl = @json($submitUrl);
+    var locationsUrl = @json($locationsUrl);
     var teamsUrl = @json($teamsUrl);
     var teamInfoUrl = @json($teamInfoUrl);
     var recaptchaSiteKey = @json($recaptchaSiteKey);
@@ -408,6 +420,15 @@
                 el.style.display = 'block';
             }
         });
+    }
+
+    function resetLocationSelect(message) {
+        locationSelect.innerHTML = '';
+        var opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = message || '— Выберите объект —';
+        locationSelect.appendChild(opt);
+        resetTeamSelect('— Сначала выберите объект —');
     }
 
     function resetTeamSelect(message) {
@@ -489,13 +510,25 @@
             });
     }
 
+    function updateLocationSelectState() {
+        var hasDistrict = districtSelect.value !== '';
+
+        if (!hasDistrict) {
+            locationSelect.disabled = true;
+            resetLocationSelect('— Сначала выберите район —');
+            return;
+        }
+
+        locationSelect.disabled = false;
+    }
+
     function updateTeamSelectState() {
         var hasLocation = locationSelect.value !== '';
         var helpChecked = needsContactHelp.checked;
 
         if (!hasLocation) {
             teamSelect.disabled = true;
-            resetTeamSelect('— Сначала выберите район —');
+            resetTeamSelect('— Сначала выберите объект —');
             return;
         }
 
@@ -507,6 +540,41 @@
         }
 
         teamSelect.disabled = false;
+    }
+
+    function loadLocations() {
+        var districtId = districtSelect.value;
+        updateLocationSelectState();
+
+        if (!districtId) {
+            return;
+        }
+
+        resetLocationSelect('Загрузка…');
+        locationSelect.disabled = true;
+
+        fetch(locationsUrl + '?district_id=' + encodeURIComponent(districtId), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
+            .then(function (result) {
+                resetLocationSelect('— Выберите объект —');
+                if (result.ok && result.json.data) {
+                    result.json.data.forEach(function (location) {
+                        var opt = document.createElement('option');
+                        opt.value = location.id;
+                        opt.textContent = location.name;
+                        locationSelect.appendChild(opt);
+                    });
+                }
+                updateLocationSelectState();
+                updateTeamSelectState();
+            })
+            .catch(function () {
+                resetLocationSelect('Не удалось загрузить объекты');
+                updateLocationSelectState();
+                updateTeamSelectState();
+            });
     }
 
     function loadTeams() {
@@ -597,6 +665,7 @@
     }
 
     fillTrackingFields();
+    updateLocationSelectState();
     updateTeamSelectState();
 
     if (successBackBtn) {
@@ -605,6 +674,7 @@
         });
     }
 
+    districtSelect.addEventListener('change', loadLocations);
     locationSelect.addEventListener('change', loadTeams);
     needsContactHelp.addEventListener('change', function () {
         loadTeams();

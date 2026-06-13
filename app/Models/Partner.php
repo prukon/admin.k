@@ -212,6 +212,16 @@ class Partner extends Model
         return $this->hasMany(SchoolLead::class);
     }
 
+    public function districts()
+    {
+        return $this->hasMany(District::class, 'partner_id');
+    }
+
+    public function locations()
+    {
+        return $this->hasMany(Location::class, 'partner_id');
+    }
+
     public function parentProfiles()
     {
         return $this->hasMany(ParentProfile::class, 'partner_id');

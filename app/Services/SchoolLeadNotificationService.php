@@ -110,7 +110,10 @@ class SchoolLeadNotificationService
             if ($schoolLead->child_birthday) {
                 $lines[] = '🎂 ' . $schoolLead->child_birthday->format('d.m.Y');
             }
-            $schoolLead->loadMissing('location', 'team');
+            $schoolLead->loadMissing('district', 'location', 'team');
+            if ($schoolLead->district?->name) {
+                $lines[] = "🗺 {$schoolLead->district->name}";
+            }
             if ($schoolLead->location?->name) {
                 $lines[] = "📍 {$schoolLead->location->name}";
             }

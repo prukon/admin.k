@@ -149,10 +149,10 @@
             @endif
             @if($canViewLocations)
             <div class="col-12 col-md-3">
-                <label class="form-label" for="pay-ltv-filter-location">Локация</label>
+                <label class="form-label" for="pay-ltv-filter-location">Объект</label>
                 <select class="form-select" id="pay-ltv-filter-location" name="filter_location_id">
-                    <option value="">Все локации</option>
-                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без локации</option>
+                    <option value="">Все объекты</option>
+                    <option value="none" {{ (string) $payFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
                     @foreach($activeLocations as $location)
                         <option value="{{ $location->id }}" {{ (string) $payFilterLocation === (string) $location->id ? 'selected' : '' }}>
                             {{ $location->name }}

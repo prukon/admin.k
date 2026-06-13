@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\SchoolLeadStatus;
+use App\Models\District;
 use App\Models\Location;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,6 +18,14 @@ class UpdateSchoolLeadRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->user()?->can('districts.view')) {
+            if ($this->has('district_id') && $this->input('district_id') === '') {
+                $this->merge(['district_id' => null]);
+            }
+        } else {
+            $this->offsetUnset('district_id');
+        }
+
         if ($this->user()?->can('locations.view')) {
             if ($this->has('location_id') && $this->input('location_id') === '') {
                 $this->merge(['location_id' => null]);
@@ -41,6 +50,10 @@ class UpdateSchoolLeadRequest extends FormRequest
             ],
         ];
 
+        if ($this->user()?->can('districts.view')) {
+            $rules['district_id'] = ['sometimes', 'nullable', 'integer'];
+        }
+
         if ($this->user()?->can('locations.view')) {
             $rules['location_id'] = ['sometimes', 'nullable', 'integer'];
         }
@@ -51,41 +64,93 @@ class UpdateSchoolLeadRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $afterValidator) {
-            if (!$this->user()?->can('locations.view') || !$this->has('location_id')) {
-                return;
-            }
-
-            $locationId = $this->input('location_id');
-            if ($locationId === null || $locationId === '') {
-                return;
-            }
-
             $partnerId = app(PartnerContext::class)->partnerId();
             if (!$partnerId) {
-                $afterValidator->errors()->add('location_id', 'Текущий партнёр не определён.');
-
                 return;
             }
 
-            $location = Location::query()
-                ->where('id', $locationId)
-                ->where('partner_id', $partnerId)
-                ->first();
+            $district = null;
+            if ($this->user()?->can('districts.view') && $this->filled('district_id')) {
+                $district = District::query()
+                    ->where('id', $this->input('district_id'))
+                    ->where('partner_id', $partnerId)
+                    ->first();
 
-            if (!$location) {
-                $afterValidator->errors()->add(
-                    'location_id',
-                    'Выбранная локация не существует или принадлежит другому партнёру.'
-                );
+                if (!$district) {
+                    $afterValidator->errors()->add(
+                        'district_id',
+                        'Выбранный район не существует или принадлежит другому партнёру.'
+                    );
 
-                return;
+                    return;
+                }
+
+                if (!$district->is_enabled) {
+                    $afterValidator->errors()->add(
+                        'district_id',
+                        'Нельзя назначить отключённый район.'
+                    );
+                }
             }
 
-            if (!$location->is_enabled) {
-                $afterValidator->errors()->add(
-                    'location_id',
-                    'Нельзя назначить отключённую локацию.'
-                );
+            $location = null;
+            if ($this->user()?->can('locations.view') && $this->filled('location_id')) {
+                $location = Location::query()
+                    ->where('id', $this->input('location_id'))
+                    ->where('partner_id', $partnerId)
+                    ->first();
+
+                if (!$location) {
+                    $afterValidator->errors()->add(
+                        'location_id',
+                        'Выбранный объект не существует или принадлежит другому партнёру.'
+                    );
+
+                    return;
+                }
+
+                if (!$location->is_enabled) {
+                    $afterValidator->errors()->add(
+                        'location_id',
+                        'Нельзя назначить отключённый объект.'
+                    );
+                }
+            }
+
+            if ($district !== null && $location !== null) {
+                if ((int) $location->district_id !== (int) $district->id) {
+                    $afterValidator->errors()->add(
+                        'location_id',
+                        'Выбранный объект не относится к выбранному району.'
+                    );
+                }
+            } elseif ($district !== null && !$this->has('location_id')) {
+                $lead = $this->route('schoolLead');
+                $locationId = $lead?->location_id;
+
+                if ($locationId) {
+                    $existingLocation = Location::query()
+                        ->where('partner_id', $partnerId)
+                        ->whereKey($locationId)
+                        ->first();
+
+                    if ($existingLocation && (int) $existingLocation->district_id !== (int) $district->id) {
+                        $afterValidator->errors()->add(
+                            'district_id',
+                            'Текущий объект заявки не относится к выбранному району.'
+                        );
+                    }
+                }
+            } elseif ($location !== null && !$this->has('district_id')) {
+                $lead = $this->route('schoolLead');
+                $districtId = $lead?->district_id;
+
+                if ($districtId && (int) $location->district_id !== (int) $districtId) {
+                    $afterValidator->errors()->add(
+                        'location_id',
+                        'Выбранный объект не относится к району заявки.'
+                    );
+                }
             }
         });
     }
@@ -95,16 +160,18 @@ class UpdateSchoolLeadRequest extends FormRequest
         return [
             'status'      => 'Статус',
             'comment'     => 'Комментарий',
-            'location_id' => 'Локация',
+            'district_id' => 'Район',
+            'location_id' => 'Объект',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'status.in'         => 'Недопустимый статус.',
-            'comment.max'       => 'Комментарий слишком длинный.',
-            'location_id.integer' => 'Поле «Локация» должно быть числом (ID локации).',
+            'status.in'           => 'Недопустимый статус.',
+            'comment.max'         => 'Комментарий слишком длинный.',
+            'district_id.integer' => 'Поле «Район» должно быть числом (ID района).',
+            'location_id.integer' => 'Поле «Объект» должно быть числом (ID объекта).',
         ];
     }
 }

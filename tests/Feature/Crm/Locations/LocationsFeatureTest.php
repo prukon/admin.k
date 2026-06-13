@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Locations;
 
+use App\Models\District;
 use App\Models\Location;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -46,7 +47,8 @@ final class LocationsFeatureTest extends CrmTestCase
 
         $this->get(route('admin.locations.index'))
             ->assertOk()
-            ->assertSee('Локации')
+            ->assertSee('Справочники')
+            ->assertSee('Объекты')
             ->assertSee('id="locations-table"', false)
             ->assertDontSee('locationCreateModal', false)
             ->assertDontSee('id="locationCreateSubmit"', false);
@@ -61,6 +63,19 @@ final class LocationsFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('js-location-edit', false);
+    }
+
+    public function test_index_district_select_lists_only_enabled_districts(): void
+    {
+        $this->grantPermission('locations.view');
+
+        District::factory()->forPartner($this->partner->id)->create(['name' => 'Активный район']);
+        District::factory()->forPartner($this->partner->id)->disabled()->create(['name' => 'Отключённый район']);
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('Активный район', false)
+            ->assertDontSee('Отключённый район', false);
     }
 
     public function test_data_denied_without_view_permission(): void
@@ -127,6 +142,7 @@ final class LocationsFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('locationsReportFiltersCollapse', false)
             ->assertSee('filter-name', false)
+            ->assertSee('filter-district', false)
             ->assertSee('filter-status', false)
             ->assertSee('locationsColumnsDropdown', false)
             ->assertSee('id="new-location"', false);
@@ -182,6 +198,8 @@ final class LocationsFeatureTest extends CrmTestCase
         $this->assertSame([
             'id',
             'name',
+            'district_id',
+            'district_name',
             'address',
             'teams_label',
             'teams_label_full',
@@ -189,6 +207,8 @@ final class LocationsFeatureTest extends CrmTestCase
             'is_enabled',
             'is_enabled_label',
         ], array_keys($row));
+        $this->assertNull($row['district_id']);
+        $this->assertSame('', $row['district_name']);
         $this->assertSame('', $row['teams_label']);
         $this->assertSame('', $row['teams_label_full']);
         $this->assertSame([], $row['teams_titles']);
@@ -510,7 +530,150 @@ final class LocationsFeatureTest extends CrmTestCase
             'name' => 'Кабинет 1',
             'is_enabled' => 1,
         ])->assertStatus(422)
-            ->assertJsonPath('errors.name.0', 'Локация с таким названием уже существует');
+            ->assertJsonPath('errors.name.0', 'Объект с таким названием уже существует в выбранном районе');
+    }
+
+    public function test_store_allows_same_name_in_different_districts(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $districtA = District::factory()->forPartner($this->partner->id)->create(['name' => 'Кудрово']);
+        $districtB = District::factory()->forPartner($this->partner->id)->create(['name' => 'Мурино']);
+
+        Location::factory()->forDistrict($districtA)->create(['name' => 'Школа №2']);
+
+        $this->postJson(route('admin.locations.store'), [
+            'name' => 'Школа №2',
+            'district_id' => $districtB->id,
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('locations', [
+            'partner_id' => $this->partner->id,
+            'district_id' => $districtB->id,
+            'name' => 'Школа №2',
+        ]);
+    }
+
+    public function test_store_rejects_duplicate_name_within_same_district(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Кудрово']);
+
+        Location::factory()->forDistrict($district)->create(['name' => 'Школа №2']);
+
+        $this->postJson(route('admin.locations.store'), [
+            'name' => 'Школа №2',
+            'district_id' => $district->id,
+            'is_enabled' => 1,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.name.0', 'Объект с таким названием уже существует в выбранном районе');
+    }
+
+    public function test_store_rejects_foreign_partner_district_id(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $foreignDistrict = District::factory()->forPartner($this->foreignPartner->id)->create();
+
+        $this->postJson(route('admin.locations.store'), [
+            'name' => 'Объект 1',
+            'district_id' => $foreignDistrict->id,
+            'is_enabled' => 1,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.district_id.0', 'Выберите район из списка текущего партнёра');
+    }
+
+    public function test_data_filters_by_district_id(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Кудрово']);
+
+        $inDistrict = Location::factory()->forDistrict($district)->create(['name' => 'In district']);
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Without district',
+            'district_id' => null,
+        ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'district_id' => (string) $district->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $inDistrict->id)
+            ->assertJsonPath('data.0.district_name', 'Кудрово');
+    }
+
+    public function test_data_filters_objects_without_district(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $district = District::factory()->forPartner($this->partner->id)->create();
+        Location::factory()->forDistrict($district)->create(['name' => 'With district']);
+        $without = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Without district',
+            'district_id' => null,
+        ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'district_id' => 'none',
+        ]))
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('data.0.id', $without->id)
+            ->assertJsonPath('data.0.district_name', '');
+    }
+
+    public function test_show_returns_district_id(): void
+    {
+        $this->grantPermission('locations.view');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Мурино']);
+        $loc = Location::factory()->forDistrict($district)->create(['name' => 'Школа 22']);
+
+        $this->getJson(route('admin.locations.show', $loc->id))
+            ->assertOk()
+            ->assertJsonPath('district_id', $district->id)
+            ->assertJsonPath('name', 'Школа 22');
+    }
+
+    public function test_update_sets_district_id(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Кудрово']);
+        $loc = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект',
+            'district_id' => null,
+        ]);
+
+        $this->putJson(route('admin.locations.update', $loc->id), [
+            'name' => 'Объект',
+            'district_id' => $district->id,
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('locations', [
+            'id' => $loc->id,
+            'district_id' => $district->id,
+        ]);
     }
 
     public function test_show_returns_404_for_foreign_partner_location(): void
@@ -606,7 +769,7 @@ final class LocationsFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.locations.destroy', $loc->id))
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Локация удалена');
+            ->assertJsonPath('message', 'Объект удалён');
 
         $this->assertDatabaseMissing('locations', [
             'id' => $loc->id,

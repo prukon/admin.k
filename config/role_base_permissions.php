@@ -41,6 +41,7 @@ return [
             'scheduleSlots.table',
             'lessonPackages.view',
             'lessonPackages.manualPaid.manage',
+            'districts.view',
             'locations.view',
             'locations.manage',
             'trainers.view',

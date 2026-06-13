@@ -1,8 +1,24 @@
+@php
+    $schoolLead->loadMissing('district', 'location', 'team');
+@endphp
+
 <h2>Новая заявка с сайта</h2>
 
 <p><strong>Организация:</strong> {{ $partnerTitle }}</p>
 <p><strong>Имя:</strong> {{ $schoolLead->name }}</p>
 <p><strong>Телефон:</strong> {{ $schoolLead->phone }}</p>
+
+@if($schoolLead->district?->name)
+    <p><strong>Район:</strong> {{ $schoolLead->district->name }}</p>
+@endif
+
+@if($schoolLead->location?->name)
+    <p><strong>Объект:</strong> {{ $schoolLead->location->name }}</p>
+@endif
+
+@if($schoolLead->team?->title)
+    <p><strong>Услуга:</strong> {{ $schoolLead->team->title }}</p>
+@endif
 
 @if($schoolLead->utm_source || $schoolLead->utm_campaign)
     <p><strong>UTM:</strong>

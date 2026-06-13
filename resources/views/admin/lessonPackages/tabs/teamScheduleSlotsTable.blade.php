@@ -9,7 +9,7 @@
                     <th style="width: 140px">Время</th>
                     <th>Группа</th>
                     @can('locations.view')
-                        <th style="width: 220px">Локация</th>
+                        <th style="width: 220px">Объект</th>
                     @endcan
                     <th style="width: 230px">Период</th>
                     @can('scheduleSlots.manage')

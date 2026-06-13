@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Locations;
 
+use App\Models\District;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\User;
@@ -214,7 +215,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->deleteJson(route('admin.locations.destroy', $toDelete->id))
             ->assertOk()
-            ->assertJsonPath('message', 'Локация удалена');
+            ->assertJsonPath('message', 'Объект удалён');
     }
 
     public function test_locations_index_returns_403_without_locations_view(): void
@@ -316,6 +317,61 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
         $this->getJson(route('admin.locations.show', $createdId))
             ->assertOk()
             ->assertJsonPath('team_ids', []);
+
+        $this->deleteJson(route('admin.locations.destroy', $createdId))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
+
+    public function test_all_locations_endpoints_with_district_payloads_return_200(): void
+    {
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Full access district']);
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('id="filter-district"', false);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw'        => 1,
+            'start'       => 0,
+            'length'      => 10,
+            'district_id' => (string) $district->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'draw',
+                'recordsTotal',
+                'recordsFiltered',
+                'data',
+            ]);
+
+        $create = $this->postJson(route('admin.locations.store'), [
+            'name'        => 'Object with district FA',
+            'district_id' => $district->id,
+            'is_enabled'  => 1,
+        ])->assertOk();
+
+        $createdId = (int) ($create->json('location.id') ?? 0);
+        $this->assertGreaterThan(0, $createdId);
+
+        $this->getJson(route('admin.locations.show', $createdId))
+            ->assertOk()
+            ->assertJsonPath('district_id', $district->id);
+
+        $this->putJson(route('admin.locations.update', $createdId), [
+            'name'        => 'Object with district FA updated',
+            'district_id' => $district->id,
+            'is_enabled'  => 1,
+        ])->assertOk();
+
+        $this->getJson(route('admin.locations.data', [
+            'draw'        => 1,
+            'start'       => 0,
+            'length'      => 10,
+            'district_id' => 'none',
+            'order'       => [['column' => 0, 'dir' => 'asc']],
+            'columns'     => [['name' => 'district_name']],
+        ]))->assertOk();
 
         $this->deleteJson(route('admin.locations.destroy', $createdId))
             ->assertOk()

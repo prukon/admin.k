@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Public\Concerns;
 
+use App\Models\District;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PartnerWidget;
@@ -26,6 +27,8 @@ trait ProvidesSchoolLeadLandingFixtures
 
     protected PartnerWidget $landingWidget;
 
+    protected District $landingDistrict;
+
     protected Location $landingLocation;
 
     protected Team $landingTeam;
@@ -47,10 +50,15 @@ trait ProvidesSchoolLeadLandingFixtures
         $this->landingWidget->update(['landing_slug' => 'raduga-test']);
         $this->landingWidget->refresh();
 
+        $this->landingDistrict = District::factory()->forPartner((int) $this->landingPartner->id)->create([
+            'name' => 'Центральный',
+        ]);
+
         $this->landingLocation = Location::query()->create([
-            'partner_id' => $this->landingPartner->id,
-            'name'       => 'Центральный',
-            'is_enabled' => true,
+            'partner_id'  => $this->landingPartner->id,
+            'district_id' => $this->landingDistrict->id,
+            'name'        => 'Школа «Радуга»',
+            'is_enabled'  => true,
         ]);
 
         $this->landingTeam = Team::factory()->create([
@@ -101,6 +109,7 @@ trait ProvidesSchoolLeadLandingFixtures
             'child_firstname'   => 'Пётр',
             'child_middlename'  => 'Иванович',
             'child_birthday'    => '2018-05-10',
+            'district_id'       => $this->landingDistrict->id,
             'location_id'       => $this->landingLocation->id,
             'team_id'           => $this->landingTeam->id,
             'consent_accepted'  => '1',

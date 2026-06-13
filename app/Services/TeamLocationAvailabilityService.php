@@ -46,7 +46,7 @@ final class TeamLocationAvailabilityService
             return null;
         }
 
-        return 'Выбранная группа недоступна для этой локации.';
+        return 'Выбранная группа недоступна для этого объекта.';
     }
 
     /**

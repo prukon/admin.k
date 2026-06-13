@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Районы (админка) — /admin/districts</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Районы (админка): <code>/admin/districts</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-districts.html</code> · обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · объекты: <a href="/docs/documentation/admin-locations">admin-locations</a> · лендинг: <a href="/docs/documentation/school-leads-landing">school-leads-landing</a></div>
+
+  <div class="note">
+    <b>Глоссарий UI:</b> в интерфейсе «Район» = модель <code>District</code>, «Объект» = модель <code>Location</code>.<br>
+    Пункт меню CRM: <b>«Справочники»</b> (виден при <code>districts.view</code> или <code>locations.view</code>). Вкладки: <b>Районы</b> · <b>Объекты</b>.<br>
+    Все маршруты раздела — под <code>middleware('can:districts.view')</code>. Право <code>districts.view</code> покрывает просмотр и CRUD (отдельного <code>manage</code> нет).
+  </div>
+
+  <h2>1) Эндпоинты</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/districts</code></td><td>HTML, DataTables</td></tr>
+      <tr><td>GET</td><td><code>/admin/districts/data</code></td><td>JSON таблицы</td></tr>
+      <tr><td>GET</td><td><code>/admin/districts/columns-settings</code></td><td>Настройки колонок</td></tr>
+      <tr><td>POST</td><td><code>/admin/districts/columns-settings</code></td><td>Сохранение колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/districts/{district}</code></td><td>JSON карточки</td></tr>
+      <tr><td>POST</td><td><code>/admin/districts</code></td><td>Создание</td></tr>
+      <tr><td>PUT</td><td><code>/admin/districts/{district}</code></td><td>Обновление</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/districts/{district}</code></td><td>Удаление (hard delete)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2) Модель и БД</h2>
+  <ul>
+    <li>Таблица <code>districts</code>: <code>partner_id</code>, <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>.</li>
+    <li>Уникальность: <code>unique(partner_id, name)</code> — после удаления имя можно использовать снова.</li>
+    <li>Связь: <code>District hasMany Location</code> (<code>locations.district_id</code> nullable).</li>
+  </ul>
+
+  <h2>3) Интерфейс</h2>
+  <p>View: <code>resources/views/admin/districts/index.blade.php</code>, вкладки: <code>admin/directories/_section_tabs.blade.php</code>.</p>
+  <ul>
+    <li>Поля формы: <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>.</li>
+    <li>Колонка «Объектов» — <code>locations_count</code> (withCount).</li>
+    <li>Фильтры: название/id, статус active/inactive.</li>
+    <li>Сортировка по умолчанию: <code>sort_order</code>, затем <code>name</code>.</li>
+  </ul>
+
+  <h2>4) Удаление</h2>
+  <ul>
+    <li>Если к району привязан хотя бы один объект (<code>locations.district_id</code>, включая отключённые) — <b>422</b>: «Нельзя удалить район: к нему привязаны объекты».</li>
+    <li>Без объектов — удаление из БД (hard delete). У заявок <code>school_leads.district_id</code> обнуляется (<code>nullOnDelete</code>).</li>
+  </ul>
+
+  <h2>5) Лендинг и заявки</h2>
+  <ul>
+    <li>На лендинге родитель выбирает район → объект → услугу (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>).</li>
+    <li>Объекты без <code>district_id</code> на лендинге <b>не показываются</b>.</li>
+    <li>В <code>school_leads</code> сохраняются и <code>district_id</code>, и <code>location_id</code> (история заявки).</li>
+    <li>В CRM заявок: колонка/фильтр «Район» при <code>districts.view</code>; «Объект» — при <code>locations.view</code>.</li>
+  </ul>
+
+  <h2>6) Код и тесты</h2>
+  <ul>
+    <li><code>app/Http/Controllers/Admin/DistrictController.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreDistrictRequest.php</code>, <code>UpdateDistrictRequest.php</code></li>
+    <li><code>app/Models/District.php</code></li>
+    <li>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code></li>
+    <li>Право: <code>districts.view</code> — seeder + <code>Gate</code> в <code>AuthServiceProvider</code>, базовое для admin в <code>role_base_permissions.php</code></li>
+  </ul>
+  <p>Автотесты (полный список — <a href="/docs/documentation/directories-hierarchy#9">directories-hierarchy §9</a>):</p>
+  <ul>
+    <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictHierarchyFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictLocationLandingIntegrationFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Directories/DirectoriesSmokeFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadDistrictFeatureTest.php</code></li>
+  </ul>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/directories-hierarchy">Обзор иерархии</a> ·
+    <a href="/docs/documentation/admin-locations">Объекты</a> ·
+    <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>
+  </p>
+</div>
+</body>
+</html>

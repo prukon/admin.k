@@ -119,15 +119,15 @@
             </li>
         @endcan
 
-       {{--Локации--}}
-        @can('locations.view')
+       {{--Справочники--}}
+        @canany(['districts.view', 'locations.view'])
             <li class="nav-item">
-                <a href="/admin/locations" class="nav-link">
-                    <i class="nav-icon fa-solid fa-location-dot"></i>
-                    <p>Локации</p>
+                <a href="{{ auth()->user()->can('districts.view') ? route('admin.districts.index') : route('admin.locations.index') }}" class="nav-link">
+                    <i class="nav-icon fa-solid fa-book"></i>
+                    <p>Справочники</p>
                 </a>
             </li>
-        @endcan
+        @endcanany
 
         {{--Виды спорта--}}
         @can('sport_types.view')

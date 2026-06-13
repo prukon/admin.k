@@ -533,7 +533,7 @@ class TeamScheduleSlotController extends AdminBaseController
         }
 
         return [
-            'weekday' => ['В этой локации слот пересекается по времени с уже существующим занятием'],
+            'weekday' => ['В этом объекте слот пересекается по времени с уже существующим занятием'],
         ];
     }
 }
