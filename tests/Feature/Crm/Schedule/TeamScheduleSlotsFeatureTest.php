@@ -88,8 +88,11 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $location = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+        ]);
 
         $this->postJson(route('admin.team-schedule-slots.store'), [
             'team_id' => $team->id,
@@ -148,10 +151,16 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
-        $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
         $locA = Location::factory()->create(['partner_id' => $this->partner->id]);
         $locB = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $teamA = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $locA->id,
+        ]);
+        $teamB = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $locB->id,
+        ]);
 
         TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,
@@ -688,8 +697,11 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $loc = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $loc->id,
+        ]);
 
         TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,
@@ -930,9 +942,12 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $locA = Location::factory()->create(['partner_id' => $this->partner->id]);
         $locB = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $locB->id,
+        ]);
 
         $slot = TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,
@@ -1029,8 +1044,11 @@ final class TeamScheduleSlotsFeatureTest extends CrmTestCase
         $this->grantPermission('scheduleSlots.view');
         $this->grantPermission('scheduleSlots.manage');
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $loc = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $loc->id,
+        ]);
 
         TeamScheduleSlot::query()->create([
             'partner_id' => $this->partner->id,

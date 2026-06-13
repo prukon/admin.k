@@ -89,8 +89,8 @@ class ContractTemplateEmailFeatureTest extends ContractsFeatureTestCase
     {
         $this->get(route('contract-templates.index'))
             ->assertOk()
+            ->assertSee('js-contract-template-edit-link', false)
             ->assertSee('js-contract-template-edit-email', false)
-            ->assertSee("btn-outline-primary\">Изменить</a>", false)
             ->assertSee("aria-label=\"Письмо клиенту\">", false)
             ->assertSee("+ 'Письмо'", false);
     }

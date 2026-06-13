@@ -417,20 +417,26 @@ final class SchoolScheduleLocationFilterFeatureTest extends CrmTestCase
                 'week' => self::WEEK_MONDAY,
                 'location_id' => $location->id,
             ])),
-            fn () => $this->postJson(route('admin.team-schedule-slots.store'), [
-                'team_id' => Team::factory()->create(['partner_id' => $this->partner->id])->id,
-                'location_id' => 'none',
-                'weekday' => 1,
-                'time_start' => '09:00',
-                'time_end' => '10:00',
-                'date_start' => '2026-01-01',
-                'is_enabled' => 1,
-            ]),
         ];
 
         foreach ($calls as $call) {
             $call()->assertForbidden();
         }
+
+        $teamWithoutObject = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => null,
+        ]);
+
+        $this->postJson(route('admin.team-schedule-slots.store'), [
+            'team_id' => $teamWithoutObject->id,
+            'location_id' => 'none',
+            'weekday' => 1,
+            'time_start' => '09:00',
+            'time_end' => '10:00',
+            'date_start' => '2026-01-01',
+            'is_enabled' => 1,
+        ])->assertOk();
     }
 
     public function test_guest_cannot_access_school_schedule_location_endpoints(): void
