@@ -108,8 +108,8 @@
         <td>Обрезанный текст (класс <code>dt-cell-ellipsis</code>). Tooltip и <code>cursor: help</code> включаются в <code>init</code> только если текст не помещается в ячейку (<code>scrollWidth &gt; clientWidth</code>). Пустое значение → «—».</td>
       </tr>
       <tr>
-        <td><code>renderLink(text, { linkClass, extraAttrs, emptyHtml? })</code></td>
-        <td>Ссылка с ellipsis внутри; tooltip на <code>&lt;span&gt;</code>, чтобы не конфликтовать с <code>data-bs-toggle="modal"</code> на <code>&lt;a&gt;</code>.</td>
+        <td><code>renderLink(text, { linkClass, extraAttrs, href?, emptyHtml? })</code></td>
+        <td>Ссылка с ellipsis внутри; tooltip на <code>&lt;span&gt;</code>, чтобы не конфликтовать с <code>data-bs-toggle="modal"</code> на <code>&lt;a&gt;</code>. Опция <code>href</code> — реальный URL или <code>javascript:void(0);</code> (по умолчанию), если переход обрабатывается JS (модалка, delegated click). Стили ссылок в ячейке — <code>kids-tooltip.css</code> (синий цвет, подчёркивание).</td>
       </tr>
       <tr>
         <td><code>renderList(shortLabel, itemsArray, options?)</code></td>
@@ -197,6 +197,7 @@ const table = dtApi.table;
 function reloadTable() {
   dtApi.reload({ keepPage: true });
 }</code></pre>
+  <p class="small">На странице объектов колонка <code>name</code> — <code>type: 'link'</code> при <code>locations.manage</code> (см. <a href="#datatable-clickable-names">§3.2</a>); в примере выше — упрощённый <code>text</code>.</p>
 
   <h3>Типы колонок (<code>columns[].type</code>)</h3>
   <table>
@@ -215,7 +216,7 @@ function reloadTable() {
       <tr><td><code>badge</code></td><td><code>dt-col-badge</code></td><td>Badge статуса; опция <code>badgeKey</code> (поле row, по умолчанию <code>is_enabled</code>). Можно свой <code>render</code>.</td></tr>
       <tr><td><code>count</code></td><td><code>dt-col-count</code></td><td>Число (счётчик групп и т.п.)</td></tr>
       <tr><td><code>money</code></td><td><code>dt-col-count</code></td><td>Сумма с форматированием <code>ru-RU</code> + « руб» (число — по правому краю через <code>.dt-col-money-value</code>; пусто → «—» слева, как в <code>text</code>)</td></tr>
-      <tr><td><code>link</code></td><td><code>dt-col-text</code></td><td>Кликабельное название; опции <code>linkClass</code>, <code>linkAttrs(row)</code></td></tr>
+      <tr><td><code>link</code></td><td><code>dt-col-text</code></td><td>Кликабельное название; опции <code>linkClass</code>, <code>linkAttrs(row)</code>, <code>href(row)</code>, <code>navigate: true</code> (добавляет <code>js-dt-nav-link</code> и <code>data-href</code>). См. <a href="#datatable-clickable-names">§3.2</a>.</td></tr>
       <tr><td><code>image</code></td><td><code>dt-col-image</code></td><td>Аватар / превью: URL в <code>data</code>; опции <code>image.fallbackUrl</code> (или <code>fallbackUrl</code>), <code>image.size</code> (px, по умолчанию 32), <code>image.imgClass</code> (по умолчанию <code>rounded-circle</code>), <code>image.alt</code>. Пустое значение → fallback. API: <code>KidsCrmDataTable.renderImage</code>.</td></tr>
       <tr><td><code>icon</code></td><td><code>dt-col-icon</code></td><td>Font Awesome / иконка-ссылка: массив в <code>data</code> или <code>row[itemsKey]</code> (<code>{ iconClass, href?, title, ariaLabel, linkClass?, color? }</code>). Несколько иконок — в <code>span.kids-dt-icon-group</code>. Свой <code>render</code> — для сложной логики (чеки в отчёте «Платежи»). API: <code>KidsCrmDataTable.renderIcon</code>.</td></tr>
       <tr><td><code>inline-select</code></td><td><code>dt-col-inline-select</code></td><td>Badge + скрытый <code>&lt;select&gt;</code> для inline-редактирования статуса. Опции <code>inlineSelect</code>: <code>statusKey</code>, <code>labelKey</code>, <code>options[]</code>, <code>badgeClassFn</code>, <code>badgeSelector</code>, <code>selectSelector</code>. API: <code>KidsCrmDataTable.renderInlineSelect</code>.</td></tr>
@@ -272,6 +273,79 @@ function reloadTable() {
   <p class="small">Тесты миграции: <code>tests/Feature/Crm/Reports/KidsCrmDataTableColumnsMigrationIter1Iter2Test.php</code> (в т.ч. сценарии iteration A–D);
     функционал и доступ 200: <code>tests/Feature/Crm/Reports/KidsCrmDataTableAbcdFeatureTest.php</code>.</p>
 
+  <h3 id="datatable-clickable-names">3.2) Кликабельные названия в таблицах (единый паттерн, июнь 2026)</h3>
+  <p>На admin-страницах с <code>KidsCrmDataTable</code> колонка «название» / «имя» / «ФИО» оформляется как <code>type: 'link'</code> через <code>KidsCrmTooltip.renderLink</code>. Визуально — синяя подчёркнутая ссылка с ellipsis и tooltip при обрезке (<code>resources/css/kids-tooltip.css</code>, селектор <code>td.dt-col-text &gt; a:not(.btn)</code>).</p>
+  <p>Два сценария поведения по клику:</p>
+  <table>
+    <thead>
+      <tr><th>Сценарий</th><th>Колонка</th><th>CSS-класс</th><th>Действие по клику</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Модалка редактирования</b> (без перезагрузки страницы)</td>
+        <td><code>type: 'link'</code> + <code>linkClass</code> + <code>linkAttrs(row)</code></td>
+        <td>Свой класс (<code>js-district-edit</code>, <code>edit-team-link</code>, <code>edit-lead</code> …)</td>
+        <td>Delegated handler на странице: AJAX → JSON → открыть Bootstrap-модалку. Атрибуты строки — обычно <code>data-id</code> или <code>data-template-id</code>.</td>
+      </tr>
+      <tr>
+        <td><b>Переход на другую страницу</b></td>
+        <td><code>type: 'link'</code> + <code>navigate: true</code> и <code>href(row)</code> <b>или</b> ручной <code>linkAttrs</code> с <code>data-href</code></td>
+        <td><code>js-dt-nav-link</code> (добавляется пресетом при <code>navigate</code> или вручную)</td>
+        <td><code>KidsCrmDataTable.bindNavLinks(tableElement)</code> — <code>preventDefault</code> + <code>window.location.assign(href)</code>. URL берётся из <code>data-href</code> или из <code>href</code>, если это не <code>javascript:void(0);</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4>Пример: модалка (районы)</h4>
+  <pre><code>{
+  key: 'name',
+  type: 'link',
+  data: 'name',
+  className: 'dt-col-text',
+  linkClass: 'js-district-edit',
+  linkAttrs: function (row) {
+    return 'data-id="' + row.id + '"';
+  },
+}</code></pre>
+  <p class="small">На той же странице — обработчик <code>$(document).on('click', '.js-district-edit', …)</code> → <code>GET /admin/districts/{id}</code> (JSON) → модалка edit.</p>
+
+  <h4>Пример: навигация (договоры)</h4>
+  <pre><code>{
+  key: 'user_name',
+  type: 'link',
+  data: 'user_name',
+  linkClass: 'js-dt-nav-link',
+  linkAttrs: function (row) {
+    return 'data-href="/client-contracts/' + row.id + '"';
+  },
+}
+// после KidsCrmDataTable.create:
+KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code></pre>
+  <p class="small">Альтернатива без ручного <code>data-href</code>: <code>navigate: true</code>, <code>href: function (row) { return '/client-contracts/' + row.id; }</code> — пресет сам добавит <code>js-dt-nav-link</code>.</p>
+
+  <h4>Условная ссылка (только при праве manage)</h4>
+  <p>Если редактирование недоступно, колонка остаётся <code>type: 'text'</code> (или <code>text-long</code>) — без класса-обработчика. Пример: объекты (<code>locations.manage</code>), виды спорта (<code>sport_types.manage</code>).</p>
+
+  <h4>Где уже применено</h4>
+  <table>
+    <thead>
+      <tr><th>Страница</th><th>Колонка</th><th>Класс / поведение</th><th>Документация</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/admin/districts</code></td><td><code>name</code></td><td><code>js-district-edit</code> → модалка</td><td><a href="/docs/documentation/admin-districts">admin-districts</a></td></tr>
+      <tr><td><code>/admin/locations</code></td><td><code>name</code></td><td><code>js-location-edit</code> при <code>locations.manage</code></td><td><a href="/docs/documentation/admin-locations">admin-locations</a></td></tr>
+      <tr><td><code>/admin/sport-types</code></td><td><code>name</code></td><td><code>js-sport-type-edit</code> при <code>sport_types.manage</code></td><td><a href="/docs/documentation/admin-sport-types">admin-sport-types</a></td></tr>
+      <tr><td><code>/admin/teams</code></td><td><code>title</code></td><td><code>edit-team-link</code> → модалка (<code>GET …/edit</code> JSON)</td><td><a href="/docs/documentation/admin-teams">admin-teams</a></td></tr>
+      <tr><td><code>/admin/school-leads</code></td><td><code>name</code> (родитель)</td><td><code>edit-lead</code> → модалка заявки</td><td><a href="/docs/documentation/school-leads-widget">school-leads-widget</a></td></tr>
+      <tr><td><code>/client-contracts</code></td><td><code>user_name</code></td><td><code>js-dt-nav-link</code> → карточка договора</td><td><a href="/docs/documentation/contracts#contracts-list-table">contracts §4.1</a></td></tr>
+      <tr><td><code>/client-contract-templates</code></td><td><code>title</code></td><td><code>js-contract-template-edit-link</code> → AJAX-модалка (<code>GET …/edit</code> JSON)</td><td><a href="/docs/documentation/contract-templates#template-edit-from-table">contract-templates §5.5</a></td></tr>
+      <tr><td><code>/admin/users</code></td><td>ФИО</td><td><code>edit-user-link</code> → модалка (эталон до унификации справочников)</td><td><a href="/docs/documentation/admin-users">admin-users</a></td></tr>
+    </tbody>
+  </table>
+  <p class="small"><b>Шаблоны договоров:</b> клик по названию и кнопка «Изменить» в колонке «Действия» вызывают один и тот же <code>openEditModal(id)</code> без полной перезагрузки (<code>contract-templates/partials/edit-modal-init.blade.php</code>). Deep-link <code>?edit={id}</code> по-прежнему открывает модалку при загрузке страницы.</p>
+  <p class="small"><b>API пресета:</b> <code>KidsCrmDataTable.bindNavLinks(tableElement)</code> экспортируется из <code>kids-datatable.js</code>; вызывается явно на странице (не внутри <code>create()</code>), один раз на <code>&lt;table&gt;</code> (идемпотентно через <code>data-dt-nav-links-bound</code>).</p>
+  <p class="small"><b>Тесты:</b> сквозной UI/API — <code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code>; контроль доступа 200/403 — <code>*PageFullAccessFeatureTest</code>, <code>ContractsDocumentsSectionFullAccessFeatureTest</code>, <code>ContractTemplateEditModalFeatureTest</code> (маркеры <code>linkClass</code> в HTML, JSON edit/show).</p>
+
   <p>Условные колонки: <code>when: false</code> — колонка не попадает в таблицу (права, пустой справочник).</p>
   <p>Ключ <code>key</code> совпадает с <code>data-column-key</code> в dropdown «Колонки» и с ключами в <code>columnsSettings.defaults</code> / API <code>columns-settings</code>.</p>
 
@@ -313,6 +387,7 @@ function reloadTable() {
       <tr><td><code>renderIcon(value, type, col, row)</code></td><td>Рендер для типа <code>icon</code> (иконки / icon-link)</td></tr>
       <tr><td><code>renderInlineSelect(value, type, row, col)</code></td><td>Рендер для типа <code>inline-select</code> (badge + select)</td></tr>
       <tr><td><code>ensureTableScrollHost(table, settings)</code></td><td>Обёртка горизонтального скролла (вызывается на <code>init.dt</code>)</td></tr>
+      <tr><td><code>bindNavLinks(tableElement)</code></td><td>Delegated click по <code>.js-dt-nav-link</code> → переход по <code>data-href</code> / <code>href</code> (см. <a href="#datatable-clickable-names">§3.2</a>)</td></tr>
     </tbody>
   </table>
 
@@ -409,6 +484,7 @@ function reloadTable() {
     <li>Dropdown «Колонки» — чекбоксы <code>class="column-toggle"</code> с <code>data-column-key</code>, совпадающим с <code>columns[].key</code>.</li>
     <li>Backend — GET/POST <code>…/columns-settings</code> с объектом <code>columns</code> (как на locations / sport-types / teams).</li>
     <li>Reload после фильтров — <code>dtApi.reload({ keepPage: true })</code>.</li>
+    <li>Кликабельное название — <code>type: 'link'</code> + handler модалки или <code>bindNavLinks</code> (см. <a href="#datatable-clickable-names">§3.2</a>).</li>
     <li>Для Select2 в модалках — partial multiselect + <code>@include('partials.select2.ru')</code> при необходимости.</li>
     <li>Для иконки-подсказки в форме — <code>@include('partials.ui.tooltip-hint', …)</code> (§2).</li>
   </ol>

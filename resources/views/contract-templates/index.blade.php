@@ -117,7 +117,7 @@
                 @endif
 
                 <div class="table-responsive">
-                    <table id="contract-templates-table" class="table table-striped table-bordered table-sm align-middle w-100 dt-columns-managed">
+                    <table id="contract-templates-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                         <thead>
                         <tr>
                             <th>№</th>
@@ -141,16 +141,14 @@
 @endsection
 
 @push('scripts')
+    @include('contract-templates.partials.edit-modal-init', ['shouldOpenEditModal' => $shouldOpenEditModal])
+
     <script>
         $(document).ready(function () {
             const shouldOpenCreateModal = @json($shouldOpenCreateModal);
-            const shouldOpenEditModal = @json($shouldOpenEditModal);
             const createModalEl = document.getElementById('createContractTemplateModal');
-            const editModalEl = document.getElementById('editContractTemplateModal');
 
-            if (shouldOpenEditModal && editModalEl) {
-                bootstrap.Modal.getOrCreateInstance(editModalEl).show();
-            } else if (shouldOpenCreateModal && createModalEl) {
+            if (shouldOpenCreateModal && createModalEl) {
                 bootstrap.Modal.getOrCreateInstance(createModalEl).show();
             }
 
@@ -168,14 +166,6 @@
                 form.querySelectorAll('.is-invalid').forEach(function (el) {
                     el.classList.remove('is-invalid');
                 });
-            });
-
-            editModalEl?.addEventListener('hidden.bs.modal', function () {
-                if (window.location.search.includes('edit=')) {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('edit');
-                    window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
-                }
             });
 
             const statusBadgeClass = {
@@ -212,7 +202,16 @@
                 },
                 columns: [
                     { key: 'id', type: 'id', data: 'id' },
-                    { key: 'title', type: 'text', data: 'title' },
+                    {
+                        key: 'title',
+                        type: 'link',
+                        data: 'title',
+                        className: 'dt-col-text',
+                        linkClass: 'js-contract-template-edit-link',
+                        linkAttrs: function (row) {
+                            return 'data-template-id="' + row.id + '"';
+                        },
+                    },
                     {
                         key: 'version',
                         type: 'count',
@@ -245,7 +244,7 @@
                         key: 'actions',
                         type: 'actions',
                         render: function (data, type, row) {
-                            const editBtn = '<a href="' + row.edit_url + '" class="btn btn-sm btn-outline-primary">Изменить</a>';
+                            const editBtn = '<a href="#" class="btn btn-sm btn-outline-primary js-contract-template-edit-link" data-template-id="' + row.id + '">Изменить</a>';
                             const emailBtn = '<button type="button"'
                                 + ' class="btn btn-sm btn-outline-secondary js-contract-template-edit-email"'
                                 + ' data-template-id="' + row.id + '"'

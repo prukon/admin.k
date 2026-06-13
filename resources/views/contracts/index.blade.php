@@ -290,7 +290,16 @@
                 },
                 columns: [
                     { type: 'rownum' },
-                    { key: 'user_name', type: 'text', data: 'user_name' },
+                    {
+                        key: 'user_name',
+                        type: 'link',
+                        data: 'user_name',
+                        className: 'dt-col-text',
+                        linkClass: 'js-dt-nav-link',
+                        linkAttrs: function (row) {
+                            return 'data-href="/client-contracts/' + row.id + '"';
+                        },
+                    },
                     { key: 'user_lastname', type: 'text', data: 'user_lastname' },
                     { key: 'team_title', type: 'text', data: 'team_title' },
                     { key: 'user_phone', type: 'text', data: 'user_phone' },
@@ -322,6 +331,32 @@
                     },
                 ],
             });
+
+            const contractsTableEl = document.getElementById('contracts-table');
+            if (contractsTableEl) {
+                if (window.KidsCrmDataTable && typeof window.KidsCrmDataTable.bindNavLinks === 'function') {
+                    window.KidsCrmDataTable.bindNavLinks(contractsTableEl);
+                } else {
+                    contractsTableEl.addEventListener('click', function (event) {
+                        const link = event.target.closest('.js-dt-nav-link');
+                        if (!link) {
+                            return;
+                        }
+
+                        const dataHref = link.getAttribute('data-href');
+                        const rawHref = link.getAttribute('href');
+                        const href = dataHref
+                            || (rawHref && rawHref !== 'javascript:void(0);' && rawHref !== '#' ? rawHref : null);
+
+                        if (!href) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        window.location.assign(href);
+                    });
+                }
+            }
 
             function reloadContractsTable() {
                 dtApi.reload({ keepPage: true });

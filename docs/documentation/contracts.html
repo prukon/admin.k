@@ -134,6 +134,16 @@
     <li>Файлы: диск <code>local</code>, <code>storage/app/</code> + относительный путь из БД.</li>
   </ul>
 
+  <h2 id="contracts-list-table">4.1) Таблица списка договоров</h2>
+  <p>View: <code>resources/views/contracts/index.blade.php</code>, таблица <code>#contracts-table</code>, пресет <code>KidsCrmDataTable</code>.</p>
+  <ul>
+    <li>Колонка «Имя» (<code>user_name</code>) — <code>type: 'link'</code>, класс <code>js-dt-nav-link</code>, атрибут <code>data-href="/client-contracts/{id}"</code>; клик открывает карточку договора (<code>GET /client-contracts/{id}</code>).</li>
+    <li>После инициализации таблицы вызывается <code>KidsCrmDataTable.bindNavLinks(contractsTableEl)</code> (с inline fallback в blade).</li>
+    <li>Колонка «Действия» — кнопка «Подробнее» с обычным <code>href</code> (дублирует переход).</li>
+    <li>Backend <code>GET /client-contracts/data</code> отдаёт поле <code>id</code> в каждой строке (нужно для <code>data-href</code>).</li>
+  </ul>
+  <p class="small">Общий паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</p>
+
   <h2 id="contract-create-modal">5) Модалка «Создать договор»</h2>
   <div class="note">
     Отдельной страницы создания нет: форма в модалке <code>#createContractModal</code> на <code>GET /client-contracts</code>
@@ -244,7 +254,8 @@
     <p><b>Раздел «Документы» (вкладки + шаблоны):</b></p>
     <ul>
       <li><code>ContractsDocumentsSectionUiFeatureTest.php</code></li>
-      <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — email.show, update-email, index?email=</li>
+      <li><code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API, маркеры <code>js-dt-nav-link</code>, поля <code>id</code>/<code>user_name</code> в data</li>
+      <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя в списке договоров + show 200</li>
     </ul>
     <p><b>Шаблоны и E2E:</b> см. <a href="/docs/documentation/contract-templates#10-feature-тесты">contract-templates §10</a>.
     <b>Кабинет:</b> <a href="/docs/documentation/account-contract-fill#7-feature-тесты">account-contract-fill §7</a>.</p>

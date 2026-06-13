@@ -91,3 +91,13 @@ a.dt-cell-ellipsis {
 a.dt-cell-ellipsis:hover {
     color: var(--bs-link-color, #0d6efd);
 }
+
+/* Кликабельное название в DataTables (KidsCrmTooltip.renderLink, type: link) */
+table.dataTable.dt-columns-managed td.dt-col-text > a:not(.btn) {
+    color: var(--bs-link-color, #0d6efd);
+    text-decoration: underline;
+}
+
+table.dataTable.dt-columns-managed td.dt-col-text > a:not(.btn):hover {
+    color: var(--bs-link-hover-color, #0a58ca);
+}

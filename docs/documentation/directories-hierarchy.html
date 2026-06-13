@@ -167,7 +167,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <p>Подробно: <a href="/docs/documentation/admin-teams">admin-teams.html</a>.</p>
   <ul>
     <li>Первая вкладка раздела «Справочники»; URL без изменений (<code>/admin/teams</code>).</li>
-    <li>DataTables, фильтры, модалки create/edit, привязка объектов и тренеров — см. admin-teams.</li>
+    <li>DataTables, фильтры, модалки create/edit, привязка объектов и тренеров — см. admin-teams. Клик по названию группы — модалка edit (<code>edit-team-link</code>).</li>
     <li>Право <code>groups.view</code> обязательно для доступа к странице и всем её endpoint'ам.</li>
   </ul>
 
@@ -272,6 +272,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code></td><td>Заявки: все endpoint'ы с районом/объектом → 200</td></tr>
       <tr><td><code>SchoolLeadLandingFullFeatureTest.php</code></td><td>Каскад и валидация на лендинге</td></tr>
       <tr><td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td><td>Публичный доступ, в т.ч. <code>/locations?district_id=</code></td></tr>
+      <tr><td><code>DataTableClickableNameLinksFeatureTest.php</code> (Ui)</td><td>Кликабельные названия справочников + связанные JSON endpoint'ы (districts, locations, sport-types, teams, school-leads)</td></tr>
     </tbody>
   </table>
 

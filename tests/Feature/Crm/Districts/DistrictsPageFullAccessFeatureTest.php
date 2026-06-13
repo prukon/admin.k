@@ -50,7 +50,8 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
             ->assertViewIs('admin.districts.index')
             ->assertSee('id="districts-table"', false)
             ->assertSee('id="directoriesSectionTabs"', false)
-            ->assertSee('KidsCrmDataTable.create', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee("linkClass: 'js-district-edit'", false);
     }
 
     public function test_all_districts_page_endpoints_return_200_for_admin(): void

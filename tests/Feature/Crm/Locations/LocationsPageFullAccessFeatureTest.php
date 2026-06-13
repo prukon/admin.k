@@ -179,7 +179,8 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('showConfirmDeleteModal', false)
             ->assertSee('KidsCrmGenericMultiselectSelect2', false)
-            ->assertSee('KidsCrmDataTable.create', false);
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee("linkClass: 'js-location-edit'", false);
 
         $this->getJson(route('admin.locations.data', [
             'draw' => 1,

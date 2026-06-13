@@ -575,15 +575,24 @@
                     { type: 'id', data: 'id', name: 'id' },
                     {
                         key: 'name',
-                        type: 'text',
+                        type: 'link',
                         data: 'parent_full_name',
                         name: 'name',
-                        render: function (data, type) {
+                        className: 'dt-col-text',
+                        linkClass: 'edit-lead',
+                        render: function (data, type, row) {
                             if (type !== 'display') {
                                 return data != null ? data : '';
                             }
 
-                            return renderOptionalText(data);
+                            if (!data) {
+                                return '—';
+                            }
+
+                            return window.KidsCrmTooltip.renderLink(data, {
+                                linkClass: 'edit-lead',
+                                extraAttrs: 'data-id="' + row.id + '"',
+                            });
                         },
                     },
                     {

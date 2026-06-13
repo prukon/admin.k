@@ -261,8 +261,12 @@
 
             const linkClass = String(options.linkClass || '').trim();
             const extraAttrs = options.extraAttrs || '';
+            const hrefOption = options.href;
+            const href = (hrefOption != null && String(hrefOption).trim() !== '')
+                ? String(hrefOption)
+                : 'javascript:void(0);';
 
-            return '<a href="javascript:void(0);" class="' + escapeHtml(linkClass) + '" ' + extraAttrs + '>'
+            return '<a href="' + escapeHtml(href) + '" class="' + escapeHtml(linkClass) + '" ' + extraAttrs + '>'
                 + inner
                 + '</a>';
         },

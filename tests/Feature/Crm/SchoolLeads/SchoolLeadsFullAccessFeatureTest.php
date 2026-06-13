@@ -146,6 +146,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'leads')
             ->assertSee('Заявки с сайта', false)
             ->assertSee('payments-report-title', false)
+            ->assertSee("linkClass: 'edit-lead'", false)
             ->assertDontSee('id="sl-filter-location"', false);
 
         $this->getJson(route('admin.school-leads.data', [

@@ -63,6 +63,7 @@
     <li>Колонка «Объектов» — <code>locations_count</code> (withCount).</li>
     <li>Фильтры: название/id, статус active/inactive.</li>
     <li>Сортировка по умолчанию: <code>sort_order</code>, затем <code>name</code>.</li>
+    <li><b>Колонка «Название»</b> — <code>type: 'link'</code>, класс <code>js-district-edit</code>; клик открывает модалку редактирования (AJAX <code>GET /admin/districts/{id}</code>). Паттерн — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
   <h2>4) Удаление</h2>
@@ -91,6 +92,7 @@
   <ul>
     <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное название + JSON show</li>
     <li><code>tests/Feature/Crm/Districts/DistrictHierarchyFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictLocationLandingIntegrationFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesSmokeFeatureTest.php</code></li>

@@ -57,6 +57,8 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         $this->get(route('contract-templates.create'))->assertStatus(403);
         $this->get(route('contract-templates.edit', $template))->assertStatus(403);
 
+        $this->getJson(route('contract-templates.edit', $template))->assertStatus(403);
+
         $this->getJson(route('contracts.data', ['draw' => 1]))->assertStatus(403);
         $this->getJson(route('contracts.columns-settings.get'))->assertStatus(403);
         $this->postJson(route('contracts.columns-settings.save'), [
@@ -94,7 +96,9 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         $this->get(route('contracts.index'))
             ->assertOk()
             ->assertViewIs('contracts.index')
-            ->assertViewHas(['allTeams', 'activeTab']);
+            ->assertViewHas(['allTeams', 'activeTab'])
+            ->assertSee("linkClass: 'js-dt-nav-link'", false)
+            ->assertSee('bindNavLinks', false);
     }
 
     /** @test */
@@ -103,7 +107,9 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         $this->get(route('contract-templates.index'))
             ->assertOk()
             ->assertViewIs('contract-templates.index')
-            ->assertViewHas(['prefillSources', 'editTemplate', 'editFields', 'activeTab']);
+            ->assertViewHas(['prefillSources', 'editTemplate', 'editFields', 'activeTab'])
+            ->assertSee('id="editContractTemplateModal"', false)
+            ->assertSee("linkClass: 'js-contract-template-edit-link'", false);
     }
 
     /** @test */
@@ -143,6 +149,10 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
             ->assertRedirect(route('contract-templates.index', ['edit' => $template->id]));
         $this->get(route('contract-templates.index', ['edit' => $template->id]))->assertOk();
 
+        $this->getJson(route('contract-templates.edit', $template))
+            ->assertOk()
+            ->assertJsonStructure(['id', 'title', 'update_url', 'html']);
+
         $this->getJson(route('contract-templates.data', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->getJson(route('contract-templates.columns-settings.get'))->assertOk();
         $this->postJson(route('contract-templates.columns-settings.save'), [
@@ -156,7 +166,12 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
             ],
         ])->assertOk();
 
-        $this->getJson(route('contracts.data', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
+        $json = $this->getJson(route('contracts.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->json();
+        $this->assertNotEmpty($json['data']);
+        $this->assertArrayHasKey('id', $json['data'][0]);
+        $this->assertArrayHasKey('user_name', $json['data'][0]);
         $this->getJson(route('contracts.data', [
             'draw'         => 1,
             'search_value' => 'Access',

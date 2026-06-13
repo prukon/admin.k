@@ -49,7 +49,7 @@
     <thead><tr><th>Query</th><th>Действие</th></tr></thead>
     <tbody>
       <tr><td><code>?create=1</code></td><td>Открыть модалку «Создать шаблон» (<code>#createContractTemplateModal</code>)</td></tr>
-      <tr><td><code>?edit={template_id}</code></td><td>Открыть модалку редактирования (<code>#editContractTemplateModal</code>)</td></tr>
+      <tr><td><code>?edit={template_id}</code></td><td>Открыть модалку редактирования (<code>#editContractTemplateModal</code>) при загрузке страницы (deep-link). Клик по названию в таблице — тот же результат <b>без</b> перезагрузки (AJAX, см. <a href="#template-edit-from-table">§5.5</a>)</td></tr>
       <tr><td><code>?email={template_id}</code></td><td>Открыть модалку email (<code>#editTemplateEmailModal</code>)</td></tr>
     </tbody>
   </table>
@@ -74,7 +74,7 @@
       <tr><td>GET/POST</td><td><code>…/columns-settings</code></td><td>Настройки колонок</td></tr>
       <tr><td>GET</td><td><code>/client-contract-templates/create</code></td><td>Redirect на index с <code>?create=1</code></td></tr>
       <tr><td>POST</td><td><code>/client-contract-templates</code></td><td>Создание шаблона + первая версия DOCX</td></tr>
-      <tr><td>GET</td><td><code>…/{template}/edit</code></td><td>Redirect на index с <code>?edit=</code> или JSON для модалки</td></tr>
+      <tr><td>GET</td><td><code>…/{template}/edit</code></td><td>Без AJAX — redirect на index с <code>?edit=</code>; с <code>Accept: application/json</code> / <code>X-Requested-With: XMLHttpRequest</code> — JSON: <code>html</code>, <code>update_url</code>, <code>title</code> для модалки</td></tr>
       <tr><td>PUT</td><td><code>…/{template}</code></td><td>Обновление названия, полей; при новом DOCX — новая версия</td></tr>
       <tr><td>GET</td><td><code>…/{template}/download-docx</code></td><td>Скачивание текущего DOCX</td></tr>
       <tr><td>GET</td><td><code>…/{template}/email</code></td><td>JSON: subject, body, placeholders, <code>update_url</code></td></tr>
@@ -122,6 +122,15 @@
     Таблица полей шаблона использует id <code>contract-template-fields-table</code> (не <code>fields-table</code>), чтобы не конфликтовать с глобальными стилями модалки полей CRM.
     Горизонтальный скролл и чекбоксы «Обяз.» синхронизированы через CSS в <code>fields-editor.blade.php</code>.
   </div>
+
+  <h3 id="template-edit-from-table">5.5) Редактирование из таблицы (без перезагрузки)</h3>
+  <p>Колонка «Название» (<code>title</code>) в DataTables — <code>type: 'link'</code>, класс <code>js-contract-template-edit-link</code>, атрибут <code>data-template-id</code>. Кнопка «Изменить» в колонке «Действия» использует тот же класс.</p>
+  <ul>
+    <li>JS: <code>resources/views/contract-templates/partials/edit-modal-init.blade.php</code> — функция <code>openEditModal(templateId)</code>: показ модалки → <code>fetch GET …/{id}/edit</code> (JSON) → вставка <code>html</code> в форму, <code>form.action = update_url</code>.</li>
+    <li>Контроллер: <code>ContractTemplateController@edit</code> — для non-AJAX redirect на <code>?edit=</code> (обратная совместимость закладок); для AJAX — JSON без redirect.</li>
+    <li>Модалка всегда в DOM (<code>edit-modal.blade.php</code>): состояния loading / error / форма.</li>
+    <li>Паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
+  </ul>
 
   <h2>6) Переменные DOCX и <code>fields_schema</code></h2>
   <p>Единый формат ключей: <code>snake_case</code>, например <code>{{parent_full_name}}</code>.
@@ -183,6 +192,8 @@
       <li><code>ContractTemplatesStoreUpdateFeatureTest.php</code> — валидация store/update, DOCX, поля, версии</li>
       <li><code>ContractTemplatesEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
       <li><code>ContractTemplatesModalsUiFeatureTest.php</code> — модалки create/edit на index</li>
+      <li><code>ContractTemplateEditModalFeatureTest.php</code> — AJAX edit JSON, deep-link <code>?edit=</code>, 403 без <code>contracts.view</code></li>
+      <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — <code>js-contract-template-edit-link</code> + edit JSON 200</li>
       <li><code>ContractTemplateEmailModalFeatureTest.php</code> — модалка email, update-email</li>
       <li><code>ContractTemplateEmailFeatureTest.php</code>, <code>ContractInvitationEmailFeatureTest.php</code> — содержимое письма</li>
       <li><code>ContractTemplateFillSortOrderFeatureTest.php</code> — право fillSortOrder, сохранение порядка</li>

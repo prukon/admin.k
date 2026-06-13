@@ -261,6 +261,33 @@
             + '</div>';
     }
 
+    function bindNavLinks(tableElement) {
+        if (!tableElement || tableElement.dataset.dtNavLinksBound === '1') {
+            return;
+        }
+
+        tableElement.dataset.dtNavLinksBound = '1';
+
+        tableElement.addEventListener('click', function (event) {
+            const link = event.target.closest('.js-dt-nav-link');
+            if (!link) {
+                return;
+            }
+
+            const dataHref = link.getAttribute('data-href');
+            const rawHref = link.getAttribute('href');
+            const href = dataHref
+                || (rawHref && rawHref !== 'javascript:void(0);' && rawHref !== '#' ? rawHref : null);
+
+            if (!href || href === 'javascript:void(0);' || href === '#') {
+                return;
+            }
+
+            event.preventDefault();
+            window.location.assign(href);
+        });
+    }
+
     function applyPresetColumnOptions(def, col) {
         if (!def) {
             return def;
@@ -500,13 +527,24 @@
                             return value || '';
                         }
 
-                        const extraAttrs = typeof col.linkAttrs === 'function'
+                        const extraAttrsRaw = typeof col.linkAttrs === 'function'
                             ? col.linkAttrs(row)
                             : (col.linkAttrs || '');
+                        const hrefValue = typeof col.href === 'function'
+                            ? col.href(row)
+                            : col.href;
+                        let linkClass = String(col.linkClass || '').trim();
+                        let extraAttrs = extraAttrsRaw;
+
+                        if (col.navigate && hrefValue) {
+                            linkClass = (linkClass + ' js-dt-nav-link').trim();
+                            extraAttrs += ' data-href="' + window.KidsCrmTooltip.escapeHtml(String(hrefValue)) + '"';
+                        }
 
                         return window.KidsCrmTooltip.renderLink(value, {
-                            linkClass: col.linkClass || '',
+                            linkClass: linkClass,
                             extraAttrs: extraAttrs,
+                            href: hrefValue,
                         });
                     },
                 };
@@ -783,6 +821,7 @@
 
     window.KidsCrmDataTable = {
         create: create,
+        bindNavLinks: bindNavLinks,
         toBool: toBool,
         buildColumnDefinition: buildColumnDefinition,
         renderDateTime: renderDateTime,

@@ -266,7 +266,16 @@
                 },
                 columns: [
                     { key: 'sort_order', type: 'sort', data: 'sort_order' },
-                    { key: 'name', type: 'text-long', data: 'name' },
+                    {
+                        key: 'name',
+                        type: 'link',
+                        data: 'name',
+                        className: 'dt-col-text',
+                        linkClass: 'js-district-edit',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '"';
+                        },
+                    },
                     { key: 'locations_count', type: 'count', data: 'locations_count' },
                     {
                         key: 'is_enabled_label',

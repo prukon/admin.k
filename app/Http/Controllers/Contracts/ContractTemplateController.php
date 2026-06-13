@@ -208,9 +208,28 @@ class ContractTemplateController extends Controller
             ->with('success', 'Шаблон «' . $template->title . '» создан.');
     }
 
-    public function edit(ContractTemplate $template)
+    public function edit(Request $request, ContractTemplate $template)
     {
-        return redirect()->route('contract-templates.index', ['edit' => $template->id]);
+        if (!$request->ajax() && !$request->expectsJson()) {
+            return redirect()->route('contract-templates.index', ['edit' => $template->id]);
+        }
+
+        $template->load('currentVersion');
+
+        $editFields = ContractTemplateVariablePresets::enrichSchema(
+            $template->currentVersion?->fields_schema ?? [],
+        );
+
+        return response()->json([
+            'id'          => $template->id,
+            'title'       => $template->title,
+            'update_url'  => route('contract-templates.update', $template),
+            'html'        => view('contract-templates.partials.edit-form', [
+                'template'       => $template,
+                'fields'         => $editFields,
+                'prefillSources' => ContractTemplatePrefillSources::labels(),
+            ])->render(),
+        ]);
     }
 
     public function update(UpdateContractTemplateRequest $request, ContractTemplate $template)

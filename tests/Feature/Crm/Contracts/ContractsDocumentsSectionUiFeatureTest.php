@@ -28,6 +28,8 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contractsColumnsDropdown"', false)
             ->assertSee('id="contracts-table"', false)
             ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('js-dt-nav-link', false)
+            ->assertSee('data-href="/client-contracts/', false)
             ->assertSee('<th>№</th>', false);
     }
 
@@ -50,7 +52,9 @@ class ContractsDocumentsSectionUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('id="contract-templates-table"', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('<th>№</th>', false)
-            ->assertDontSee('id="editContractTemplateModal"', false);
+            ->assertSee('id="editContractTemplateModal"', false)
+            ->assertSee('js-contract-template-edit-link', false)
+            ->assertSee('data-edit-show-url-template', false);
     }
 
     /** @test */

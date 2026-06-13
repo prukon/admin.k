@@ -120,6 +120,11 @@ class ContractTemplatesEndpointsAccessFeatureTest extends ContractsFeatureTestCa
         $this->getJson(route('contract-templates.email.show', $template))
             ->assertOk()
             ->assertJsonPath('id', $template->id);
+
+        $this->getJson(route('contract-templates.edit', $template))
+            ->assertOk()
+            ->assertJsonPath('id', $template->id)
+            ->assertJsonStructure(['title', 'update_url', 'html']);
     }
 
     /** @test */

@@ -129,6 +129,7 @@
     <li><b>Колонки</b> (настраиваемые): <code>sort</code>, <code>name</code>, <code>teams_count</code> (число связанных групп), <code>is_enabled_label</code>, <code>actions</code> (при <code>sport_types.manage</code>).</li>
     <li><b>Модалки create/edit</b> — поля: <code>name</code>, <code>description</code>, <code>sort</code>, <code>is_enabled</code>. Ошибки валидации — JSON 422, тексты на русском под полями.</li>
     <li><b>Уникальность</b> — <code>(partner_id, name)</code>; дубликат → 422 «Вид спорта с таким названием уже существует».</li>
+    <li><b>Колонка «Название»</b> — при <code>sport_types.manage</code> тип <code>link</code> (<code>js-sport-type-edit</code>); только <code>sport_types.view</code> — <code>text-long</code> без ссылки. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
   <h2>6) Связь с группами (<code>teams</code>)</h2>

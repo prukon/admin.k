@@ -276,7 +276,18 @@
                 },
                 columns: [
                     { key: 'sort', type: 'sort', data: 'sort' },
-                    { key: 'name', type: 'text-long', data: 'name' },
+                    {
+                        key: 'name',
+                        type: canManageSportTypes ? 'link' : 'text-long',
+                        data: 'name',
+                        className: 'dt-col-text',
+                        ...(canManageSportTypes ? {
+                            linkClass: 'js-sport-type-edit',
+                            linkAttrs: function (row) {
+                                return 'data-id="' + row.id + '"';
+                            },
+                        } : {}),
+                    },
                     { key: 'teams_count', type: 'count', data: 'teams_count' },
                     {
                         key: 'is_enabled_label',

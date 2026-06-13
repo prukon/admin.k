@@ -22,7 +22,7 @@ class DocumentationController extends Controller
         'settings-logs'               => 'Настройки → Логи: вкладка my_logs, фильтры event/level, доступ, SUPERADMIN_ALL_OR_FILTER',
         'reports-payments'            => 'Отчёт «Платежи» (админка): таблица, «Поля списка», права (доп. колонки, история T‑Bank)',
         'reports-admin'               => 'Отчёты (админка): KidsCrmDataTable, columns-settings, детализация, фильтры, AJAX/суммы',
-        'reusable-ui-partials'        => 'Переиспользование UI: KidsCrmTooltip / KidsCrmDataTable (icon, inline-select, миграция custom), toolbar, logModal, Select2',
+        'reusable-ui-partials'        => 'Переиспользование UI: KidsCrmTooltip / KidsCrmDataTable (link, bindNavLinks, icon, inline-select, миграция custom), toolbar, logModal, Select2',
         'tbank'                       => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM',
         'tbank-admin-payouts'          => 'T‑Bank: админка выплат (список, DataTables, карточка, права tbank.payouts.manage)',
         'tbank-refunds-payout-cancel'   => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)',

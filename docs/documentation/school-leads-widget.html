@@ -143,6 +143,7 @@
     <li><b>Фильтры</b> (collapse) — чекбоксы статусов, кнопки «Применить» / «Сброс». Фильтры <b>не</b> применяются при изменении чекбокса: только после «Применить». Сброс возвращает статусы <code>new</code> + <code>processing</code> и очищает фильтры объекта и района (если видны).</li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings.</li>
     <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.5–5.7). Колонки через пресет (<code>text</code>, <code>link</code>, <code>inline-select</code> для статуса, <code>actions</code> для договора и «Действия»); 0 <code>custom</code> (миграция — <a href="/docs/documentation/reusable-ui-partials#datatable-migration-2026-06">§3.1</a>). Тот же тип <code>inline-select</code> для статуса — в <code>/admin/partner-leads</code> (<code>partners/tabs/leads.blade.php</code>).</li>
+    <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку редактирования заявки (как кнопка «Изменить»). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
 
@@ -389,7 +390,8 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
   <p><b>CRM: заявки и виджет</b></p>
   <ul>
     <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>
-    <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — гость/403, endpoint’ы при <code>schoolLeads.view</code>; workflow с <code>users.view</code> + <code>contracts.view</code></li>
+    <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — гость/403, endpoint’ы при <code>schoolLeads.view</code>; workflow с <code>users.view</code> + <code>contracts.view</code>; маркер <code>edit-lead</code> в HTML</li>
+    <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя родителя + update JSON</li>
     <li><code>SchoolLeadCreateUserFeatureTest.php</code> — модалка, <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>

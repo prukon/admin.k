@@ -416,7 +416,18 @@
                 },
                 columns: [
                     { key: 'id', type: 'id', data: 'id' },
-                    { key: 'name', type: 'text', data: 'name' },
+                    {
+                        key: 'name',
+                        type: canManageLocations ? 'link' : 'text',
+                        data: 'name',
+                        className: 'dt-col-text',
+                        ...(canManageLocations ? {
+                            linkClass: 'js-location-edit',
+                            linkAttrs: function (row) {
+                                return 'data-id="' + row.id + '"';
+                            },
+                        } : {}),
+                    },
                     { key: 'district_name', type: 'text', data: 'district_name' },
                     { key: 'address', type: 'text-long', data: 'address' },
                     {

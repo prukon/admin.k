@@ -30,7 +30,8 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('Справочники', false)
             ->assertSee('id="directoriesSectionTabs"', false)
             ->assertSee('>Группы</a>', false)
-            ->assertViewHas(['weekdays', 'trainerOptions']);
+            ->assertViewHas(['weekdays', 'trainerOptions'])
+            ->assertSee("linkClass: 'edit-team-link'", false);
     }
 
     public function test_all_teams_page_endpoints_return_200_for_user_with_groups_view(): void

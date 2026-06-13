@@ -48,7 +48,8 @@ final class DistrictsFeatureTest extends CrmTestCase
             ->assertSee('Справочники')
             ->assertSee('Районы')
             ->assertSee('id="districts-table"', false)
-            ->assertSee('id="new-district"', false);
+            ->assertSee('id="new-district"', false)
+            ->assertSee("linkClass: 'js-district-edit'", false);
     }
 
     public function test_index_shows_objects_tab_when_locations_view_allowed(): void

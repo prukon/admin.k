@@ -64,7 +64,7 @@
   <ol>
     <li><code>#</code> (rownum) — всегда видима</li>
     <li>Сортировка (<code>order_by</code>)</li>
-    <li>Название (<code>title</code>) — ссылка на модалку редактирования</li>
+    <li>Название (<code>title</code>) — ссылка (<code>edit-team-link</code>) на модалку редактирования; AJAX <code>GET /admin/team/{id}/edit</code> (JSON). Паттерн — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a></li>
     <li><strong>Тренировочная база</strong> (<code>training_base</code>) — только при <code>groups.training_base.view</code></li>
     <li><strong>Адрес</strong> (<code>address</code>) — только при <code>groups.address.view</code></li>
     <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>

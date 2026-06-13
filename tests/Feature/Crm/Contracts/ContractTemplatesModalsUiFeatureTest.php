@@ -20,7 +20,9 @@ class ContractTemplatesModalsUiFeatureTest extends ContractsFeatureTestCase
             ->assertSee('name="docx"', false)
             ->assertSee('contract-template-variables-reference', false)
             ->assertSee('shouldOpenCreateModal = false', false)
-            ->assertSee('shouldOpenEditModal = false', false);
+            ->assertSee('shouldOpenEditModal = false', false)
+            ->assertSee('id="editContractTemplateModal"', false)
+            ->assertSee('data-edit-show-url-template', false);
     }
 
     /** @test */
