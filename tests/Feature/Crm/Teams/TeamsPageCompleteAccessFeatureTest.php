@@ -30,8 +30,6 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
     {
         foreach ([
             'groups.view',
-            'groups.training_base.view',
-            'groups.address.view',
             'locations.view',
             'schedule.view',
             'trainers.view',
@@ -104,8 +102,6 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'columns' => [
                 'order_by'        => true,
                 'title'           => true,
-                'training_base'   => true,
-                'address'         => true,
                 'trainer_label'   => true,
                 'locations_label' => true,
                 'weekdays_label'  => true,
@@ -123,27 +119,17 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'partner_id'    => $this->partner->id,
             'title'         => 'Complete access team',
             'order_by'      => 4,
-            'training_base' => 'Complete base',
-            'address'       => 'Complete address',
+            'location_id'   => $location->id,
         ]);
-        $team->weekdays()->sync($weekdayIds);
 
-        DB::table('location_team')->insert([
-            'partner_id'  => $this->partner->id,
-            'location_id' => $location->id,
-            'team_id'     => $team->id,
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
+        $team->weekdays()->sync($weekdayIds);
 
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))
             ->assertOk()
             ->assertJsonStructure([
-                'id', 'title', 'month_price', 'location_ids', 'team_weekdays', 'sport_type_id',
-                'training_base', 'address',
+                'id', 'title', 'month_price', 'location_id', 'team_weekdays', 'sport_type_id',
             ])
-            ->assertJsonPath('training_base', 'Complete base')
-            ->assertJsonPath('address', 'Complete address');
+            ->assertJsonPath('location_id', $location->id);
 
         $store = $this->postJson(route('admin.team.store'), [
             'title'                    => 'Created complete access',
@@ -151,11 +137,9 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'month_price'              => 4000,
             'order_by'                 => 8,
             'is_enabled'               => 1,
-            'location_ids'             => [$location->id],
+            'location_id'              => $location->id,
             'weekdays'                 => $weekdayIds,
             'sport_type_id'            => $sportType->id,
-            'training_base'            => 'Created base',
-            'address'                  => 'Created address',
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk();
 
@@ -167,10 +151,8 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
             'month_price'              => 5000,
             'order_by'                 => $team->order_by,
             'is_enabled'               => (int) $team->is_enabled,
-            'location_ids'             => [],
+            'location_id'              => '',
             'weekdays'                 => $weekdayIds,
-            'training_base'            => 'Updated base',
-            'address'                  => 'Updated address',
         ])->assertOk();
 
         $json = $this->getJson('/admin/teams/data?draw=1&start=0&length=100&title=Complete')
@@ -180,10 +162,6 @@ final class TeamsPageCompleteAccessFeatureTest extends CrmTestCase
         $row = collect($json['data'] ?? [])->firstWhere('id', $team->id);
         $this->assertNotNull($row);
         $this->assertArrayHasKey('month_price', $row);
-        $this->assertArrayHasKey('training_base', $row);
-        $this->assertArrayHasKey('address', $row);
-        $this->assertSame('Updated base', $row['training_base']);
-        $this->assertSame('Updated address', $row['address']);
         $this->assertArrayHasKey('weekdays_items', $row);
         $this->assertArrayHasKey('locations_names', $row);
 

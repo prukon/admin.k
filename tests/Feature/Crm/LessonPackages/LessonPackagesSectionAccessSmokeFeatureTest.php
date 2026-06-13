@@ -125,6 +125,11 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'location_id' => $loc->id,
         ]))->assertOk();
 
+        $this->getJson(route('admin.lesson-packages.school-schedule.week', [
+            'week' => self::WEEK_MONDAY,
+            'location_id' => 'none',
+        ]))->assertOk();
+
         $this->getJson(route('admin.lesson-packages.school-schedule.view-settings'))
             ->assertOk()
             ->assertJsonStructure(['view_start_min', 'view_end_min']);

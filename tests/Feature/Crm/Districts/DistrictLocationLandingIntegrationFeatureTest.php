@@ -6,7 +6,7 @@ use App\Models\District;
 use App\Models\Location;
 use App\Models\SchoolLead;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -64,7 +64,7 @@ final class DistrictLocationLandingIntegrationFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
-        app(LocationTeamSyncService::class)->syncTeamsForLocation($location, [(int) $team->id]);
+        app(TeamLocationSyncService::class)->syncTeamsForLocation($location, [(int) $team->id]);
 
         $this->get(route('lead.show', ['landingSlug' => $slug]))
             ->assertOk()

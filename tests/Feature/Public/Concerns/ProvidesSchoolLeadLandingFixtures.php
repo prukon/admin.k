@@ -7,7 +7,7 @@ use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PartnerWidget;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use App\Services\PartnerWidgetService;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
@@ -67,7 +67,7 @@ trait ProvidesSchoolLeadLandingFixtures
             'is_enabled' => true,
         ]);
 
-        app(LocationTeamSyncService::class)->syncTeamsForLocation(
+        app(TeamLocationSyncService::class)->syncTeamsForLocation(
             $this->landingLocation,
             [(int) $this->landingTeam->id],
         );

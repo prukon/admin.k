@@ -24,6 +24,11 @@ class UpdateTeamScheduleSlotRequest extends FormRequest
             $this->merge(['apply_changes_from' => $this->input('date_start')]);
         }
 
+        $locationId = $this->input('location_id');
+        if ($locationId === '' || $locationId === 'none') {
+            $this->merge(['location_id' => null]);
+        }
+
         $slot = $this->route('slot');
         if ($slot instanceof TeamScheduleSlot) {
             $slotStart = Carbon::parse((string) $slot->date_start)->format('Y-m-d');

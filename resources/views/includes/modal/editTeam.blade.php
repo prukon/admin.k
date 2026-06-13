@@ -19,22 +19,6 @@
                         <div class="invalid-feedback" id="edit-title-error"></div>
                     </div>
 
-                    @can('groups.training_base.view')
-                    <div class="mb-3">
-                        <label for="edit-training-base" class="form-label">Тренировочная база</label>
-                        <input type="text" name="training_base" class="form-control" id="edit-training-base">
-                        <div class="invalid-feedback" id="edit-training-base-error"></div>
-                    </div>
-                    @endcan
-
-                    @can('groups.address.view')
-                    <div class="mb-3">
-                        <label for="edit-address" class="form-label">Адрес</label>
-                        <input type="text" name="address" class="form-control" id="edit-address">
-                        <div class="invalid-feedback" id="edit-address-error"></div>
-                    </div>
-                    @endcan
-
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -73,19 +57,18 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3 generic-multiselect-field">
-                        <label class="form-label" for="editTeamLocationIds">Объекты</label>
-                        <select id="editTeamLocationIds"
-                                name="location_ids[]"
-                                class="form-select js-generic-multiselect-select"
-                                multiple
-                                data-placeholder="Выберите объекты">
+                    <div class="mb-3">
+                        <label class="form-label" for="edit-location-id">Объект</label>
+                        <select id="edit-location-id"
+                                name="location_id"
+                                class="form-select">
+                            <option value="">— Не выбран —</option>
                             @foreach($locationOptions as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Если не выбрано ни одного объекта, группа доступна во всех объектах.</div>
-                        <div class="invalid-feedback d-block" data-error-for="location_ids" id="edit-location_ids-error"></div>
+                        <div class="form-text">Группа без объекта не показывается на лендинге заявки.</div>
+                        <div class="invalid-feedback d-block" data-error-for="location_id" id="edit-location_id-error"></div>
                     </div>
                     @endif
                     @endcan
@@ -148,13 +131,6 @@
 
         const canViewTeamSchedule = @json(auth()->user()->can('schedule.view'));
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
-        const $editTeamLocationsSelect = $('#editTeamLocationIds');
-
-        if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
-            KidsCrmGenericMultiselectSelect2.init($editTeamLocationsSelect, {
-                dropdownParent: $('#editTeamModal')
-            });
-        }
 
         /**
          * Открытие модалки редактирования:
@@ -171,12 +147,6 @@
                     // Основные поля
                     $('#edit-team-id').val(response.id);
                     $('#edit-title').val(response.title);
-                    if ($('#edit-training-base').length) {
-                        $('#edit-training-base').val(response.training_base ?? '');
-                    }
-                    if ($('#edit-address').length) {
-                        $('#edit-address').val(response.address ?? '');
-                    }
                     $('#edit-default_duration_minutes').val(response.default_duration_minutes ?? '');
                     $('#edit-month_price').val(response.month_price ?? '');
                     $('#edit-order_by').val(response.order_by ?? '');
@@ -190,11 +160,10 @@
                         $('#edit-sport-type-id').val(response.sport_type_id ?? '');
                     }
 
-                    if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
-                        KidsCrmGenericMultiselectSelect2.setValues($editTeamLocationsSelect, response.location_ids || []);
-                        KidsCrmGenericMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
+                    if ($('#edit-location-id').length) {
+                        $('#edit-location-id').val(response.location_id ?? '');
                     }
-                    $('#edit-location_ids-error').text('');
+                    $('#edit-location_id-error').text('');
 
                     // Расписание: чекбоксы дней недели
                     if (canViewTeamSchedule && $('#edit-weekdays').length) {
@@ -244,10 +213,6 @@
             // Сброс ошибок
             $('#edit-title').removeClass('is-invalid');
             $('#edit-title-error').text('');
-            $('#edit-training-base').removeClass('is-invalid');
-            $('#edit-training-base-error').text('');
-            $('#edit-address').removeClass('is-invalid');
-            $('#edit-address-error').text('');
             $('#edit-default_duration_minutes').removeClass('is-invalid');
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-month_price').removeClass('is-invalid');
@@ -256,10 +221,8 @@
             $('#edit-trainer-profile-id-error').text('');
             $('#edit-sport-type-id').removeClass('is-invalid');
             $('#edit-sport-type-id-error').text('');
-            $('#edit-location_ids-error').text('');
-            if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.clearInvalid($editTeamLocationsSelect);
-            }
+            $('#edit-location_id-error').text('');
+            $('#edit-location-id').removeClass('is-invalid');
 
             $.ajax({
                 url: `/admin/team/${teamId}`,
@@ -280,14 +243,6 @@
                             $('#edit-title').addClass('is-invalid');
                             $('#edit-title-error').text(errors.title[0]);
                         }
-                        if (errors.training_base && errors.training_base.length) {
-                            $('#edit-training-base').addClass('is-invalid');
-                            $('#edit-training-base-error').text(errors.training_base[0]);
-                        }
-                        if (errors.address && errors.address.length) {
-                            $('#edit-address').addClass('is-invalid');
-                            $('#edit-address-error').text(errors.address[0]);
-                        }
                         if (errors.default_duration_minutes && errors.default_duration_minutes.length) {
                             $('#edit-default_duration_minutes').addClass('is-invalid');
                             $('#edit-default_duration_minutes-error').text(errors.default_duration_minutes[0]);
@@ -304,11 +259,9 @@
                             $('#edit-sport-type-id').addClass('is-invalid');
                             $('#edit-sport-type-id-error').text(errors.sport_type_id[0]);
                         }
-                        if (errors.location_ids && errors.location_ids.length) {
-                            $('#edit-location_ids-error').text(errors.location_ids[0]);
-                            if ($editTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
-                                KidsCrmGenericMultiselectSelect2.markInvalid($editTeamLocationsSelect);
-                            }
+                        if (errors.location_id && errors.location_id.length) {
+                            $('#edit-location-id').addClass('is-invalid');
+                            $('#edit-location_id-error').text(errors.location_id[0]);
                         }
                         return;
                     }

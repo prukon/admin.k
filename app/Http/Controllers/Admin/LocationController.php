@@ -8,7 +8,7 @@ use App\Http\Requests\Admin\UpdateLocationRequest;
 use App\Models\District;
 use App\Models\Location;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use App\Services\PartnerContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ class LocationController extends AdminBaseController
 {
     public function __construct(
         PartnerContext $partnerContext,
-        private readonly LocationTeamSyncService $locationTeamSync,
+        private readonly TeamLocationSyncService $teamLocationSync,
     ) {
         parent::__construct($partnerContext);
     }
@@ -203,7 +203,7 @@ class LocationController extends AdminBaseController
             $location = Location::create($data);
 
             if (is_array($teamIds)) {
-                $this->locationTeamSync->syncTeamsForLocation($location, $teamIds);
+                $this->teamLocationSync->syncTeamsForLocation($location, $teamIds);
             }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null; // MySQL error code
@@ -285,7 +285,7 @@ class LocationController extends AdminBaseController
             $location->update($data);
 
             if ($syncTeams) {
-                $this->locationTeamSync->syncTeamsForLocation($location, $teamIds);
+                $this->teamLocationSync->syncTeamsForLocation($location, $teamIds);
             }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null; // MySQL error code

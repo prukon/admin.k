@@ -76,7 +76,7 @@
   <p>Партнёр (школа) может иметь несколько районов города; в каждом районе — один или несколько объектов (филиалы, залы); к объектам привязаны группы (секции). Родитель на странице заявки выбирает цепочку <b>район → объект → услуга</b>; оператор в CRM видит те же поля в заявке.</p>
   <pre><code>districts (Район)
     └── locations.district_id (Объект, nullable в CRM)
-            └── location_team → teams (Группа)
+            └── teams.location_id (Группа, nullable)
                     └── school_leads.team_id (из лендинга)
 
 school_leads.district_id + school_leads.location_id — снимок на момент заявки</code></pre>
@@ -115,7 +115,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr>
         <td><code>groups.view</code></td>
         <td><code>/admin/teams</code>, CRUD и data групп</td>
-        <td>Вкладка «Группы» в «Справочники»; pivot <code>location_team</code> — см. <a href="/docs/documentation/admin-teams">admin-teams</a>. В базовых правах роли <code>admin</code>.</td>
+        <td>Вкладка «Группы» в «Справочники»; поле <code>teams.location_id</code> — см. <a href="/docs/documentation/admin-teams">admin-teams</a>. В базовых правах роли <code>admin</code>.</td>
       </tr>
       <tr>
         <td><code>schoolLeads.view</code> + <code>districts.view</code></td>
@@ -156,7 +156,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>locations</code> имя</td><td><code>unique(partner_id, district_id_unique_bucket, name)</code>, bucket = <code>COALESCE(district_id, 0)</code> (MySQL).</td></tr>
       <tr><td><code>school_leads.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>nullOnDelete</code> (при удалении района поле обнуляется).</td></tr>
       <tr><td><code>school_leads.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>.</td></tr>
-      <tr><td><code>location_team</code></td><td>Объект ↔ группа — см. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
+      <tr><td><code>teams.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>. Одна группа — один объект — см. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
       <tr><td><code>sport_types</code></td><td>Плоский справочник партнёра; <code>teams.sport_type_id</code> (nullable), <code>school_leads.sport_type_id</code> — см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>.</td></tr>
     </tbody>
   </table>
@@ -221,7 +221,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <h2>8) Связанные разделы (без district_id, но в той же цепочке)</h2>
   <ul>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта</a> — плоский справочник; не заменяет район/объект на лендинге.</li>
-    <li><a href="/docs/documentation/admin-teams">Группы</a> — привязка к объектам через <code>location_ids</code> / pivot; опционально <code>sport_type_id</code>.</li>
+    <li><a href="/docs/documentation/admin-teams">Группы</a> — необязательная привязка к объекту через <code>location_id</code>; опционально <code>sport_type_id</code>.</li>
     <li><a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a> — расписание, отчёты.</li>
     <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a> — фильтр по объекту (<code>filter_location_id</code>); в UI отчётов термин «Локация» может сохраняться исторически — имеется в виду объект (<code>Location</code>).</li>
   </ul>
@@ -230,7 +230,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li>Контроллеры: <code>TeamController</code>, <code>DistrictController</code>, <code>LocationController</code>, <code>SportTypeController</code>, <code>SchoolLeadController</code>, <code>SchoolLeadLandingController</code></li>
     <li>Requests: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code>, <code>LocationFieldRules</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code></li>
-    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>LocationTeamSyncService</code>, <code>SchoolLeadNotificationService</code></li>
+    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationSyncService</code>, <code>TeamLocationAvailabilityService</code>, <code>SchoolLeadNotificationService</code></li>
     <li>Views: <code>admin/districts/index.blade.php</code>, <code>admin/locations/index.blade.php</code>, <code>admin/team.blade.php</code>, <code>admin/sport-types/index.blade.php</code>, <code>admin/directories/_section_tabs.blade.php</code>, <code>landing/partner-lead.blade.php</code>, <code>admin/school-leads/tabs/leads.blade.php</code></li>
     <li>Sidebar: <code>resources/views/includes/sidebar.blade.php</code>, <code>App\Support\DirectoriesMenu</code></li>
   </ul>

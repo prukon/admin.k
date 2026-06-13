@@ -38,13 +38,7 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
 
     private function attachTeamToLocation(Team $team, Location $location): void
     {
-        DB::table('location_team')->insert([
-            'partner_id' => $this->partner->id,
-            'location_id' => $location->id,
-            'team_id' => $team->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $team->update(['location_id' => $location->id]);
     }
 
     public function test_index_renders_teams_multiselect_assets_when_teams_exist_and_manage_allowed(): void

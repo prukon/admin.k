@@ -5,7 +5,7 @@ namespace Tests\Feature\Public;
 use App\Models\SchoolLead;
 use App\Models\SportType;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\Feature\Public\Concerns\ProvidesSchoolLeadLandingFixtures;
@@ -57,7 +57,7 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
             'sport_type_id' => $otherSport->id,
         ]);
 
-        app(LocationTeamSyncService::class)->syncTeamsForLocation(
+        app(TeamLocationSyncService::class)->syncTeamsForLocation(
             $this->landingLocation,
             [(int) $this->landingTeam->id, (int) $otherTeam->id],
         );
@@ -78,8 +78,8 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
             'team_id' => $this->landingTeam->id,
         ]))
             ->assertOk()
-            ->assertJsonPath('data.rows.2.label', 'Вид спорта')
-            ->assertJsonPath('data.rows.2.value', 'Плавание вид');
+            ->assertJsonPath('data.rows.1.label', 'Вид спорта')
+            ->assertJsonPath('data.rows.1.value', 'Плавание вид');
     }
 
     public function test_submit_stores_sport_type_id_from_selected_team(): void

@@ -42,13 +42,7 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
 
     private function attachTeamToLocation(Team $team, Location $location): void
     {
-        DB::table('location_team')->insert([
-            'partner_id'  => $this->partner->id,
-            'location_id' => $location->id,
-            'team_id'     => $team->id,
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ]);
+        $team->update(['location_id' => $location->id]);
     }
 
     public function test_data_returns_weekdays_items_with_short_titles(): void
@@ -86,34 +80,21 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_data_locations_label_truncates_when_more_than_two_locations(): void
+    public function test_data_locations_label_shows_object_name(): void
     {
         $this->grantPermission('locations.view');
 
-        $locA = Location::factory()->create([
+        $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'name'       => 'Альфа зал',
             'is_enabled' => true,
         ]);
-        $locB = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Бета зал',
-            'is_enabled' => true,
-        ]);
-        $locC = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Гамма зал',
-            'is_enabled' => true,
-        ]);
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title'      => 'Many locations team',
+            'title'      => 'Team with object',
+            'location_id' => $location->id,
         ]);
-
-        foreach ([$locA, $locB, $locC] as $location) {
-            $this->attachTeamToLocation($team, $location);
-        }
 
         $row = collect(
             $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
@@ -122,32 +103,20 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         )->firstWhere('id', $team->id);
 
         $this->assertNotNull($row);
-        $this->assertSame('Альфа зал, еще 2 шт.', $row['locations_label']);
-        $this->assertSame('Альфа зал, Бета зал, Гамма зал', $row['locations_label_full']);
-        $this->assertSame(['Альфа зал', 'Бета зал', 'Гамма зал'], $row['locations_names']);
+        $this->assertSame('Альфа зал', $row['locations_label']);
+        $this->assertSame('Альфа зал', $row['locations_label_full']);
+        $this->assertSame(['Альфа зал'], $row['locations_names']);
     }
 
-    public function test_data_locations_label_shows_full_list_for_two_locations(): void
+    public function test_data_locations_label_empty_when_team_has_no_object(): void
     {
         $this->grantPermission('locations.view');
 
-        $locA = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Зал один',
-            'is_enabled' => true,
-        ]);
-        $locB = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Зал два',
-            'is_enabled' => true,
-        ]);
-
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title'      => 'Two locations team',
+            'title'      => 'Team without object',
+            'location_id' => null,
         ]);
-        $this->attachTeamToLocation($team, $locA);
-        $this->attachTeamToLocation($team, $locB);
 
         $row = collect(
             $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
@@ -156,9 +125,9 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         )->firstWhere('id', $team->id);
 
         $this->assertNotNull($row);
-        $this->assertSame('Зал два, Зал один', $row['locations_label']);
-        $this->assertSame('Зал два, Зал один', $row['locations_label_full']);
-        $this->assertSame(['Зал два', 'Зал один'], $row['locations_names']);
+        $this->assertSame('', $row['locations_label']);
+        $this->assertSame('', $row['locations_label_full']);
+        $this->assertSame([], $row['locations_names']);
     }
 
     public function test_data_without_locations_view_returns_empty_location_fields(): void
@@ -187,26 +156,23 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         $this->assertSame([], $row['locations_names']);
     }
 
-    public function test_index_renders_locations_multiselect_assets_when_locations_view(): void
+    public function test_index_renders_location_select_when_locations_view(): void
     {
         $this->grantPermission('locations.view');
 
         Location::factory()->create([
             'partner_id' => $this->partner->id,
-            'name'       => 'Локация для multiselect',
+            'name'       => 'Локация для select',
             'is_enabled' => true,
         ]);
 
         $this->get(route('admin.team.index'))
             ->assertOk()
             ->assertViewHas('locationOptions')
-            ->assertSee('id="createTeamLocationIds"', false)
-            ->assertSee('id="editTeamLocationIds"', false)
-            ->assertSee('js-generic-multiselect-select', false)
-            ->assertSee('generic-multiselect-field', false)
-            ->assertSee('KidsCrmGenericMultiselectSelect2', false)
-            ->assertSee('KidsCrmMultiselectChipStyles', false)
-            ->assertSee('kids-crm-ms-chip', false);
+            ->assertSee('id="location_id"', false)
+            ->assertSee('id="edit-location-id"', false)
+            ->assertDontSee('id="createTeamLocationIds"', false)
+            ->assertDontSee('id="editTeamLocationIds"', false);
     }
 
     public function test_index_renders_hover_list_for_locations_column(): void
@@ -239,7 +205,7 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
             ->assertSee('Понедельник', false);
     }
 
-    public function test_store_and_edit_with_location_ids_via_multiselect_field(): void
+    public function test_store_and_edit_with_location_id_field(): void
     {
         $this->grantPermission('locations.view');
 
@@ -249,24 +215,24 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         ]);
 
         $store = $this->postJson(route('admin.team.store'), [
-            'title'                    => 'Team with loc multiselect',
+            'title'                    => 'Team with object',
             'default_duration_minutes' => 60,
             'order_by'                 => 1,
             'is_enabled'               => 1,
-            'location_ids'             => [$loc->id],
+            'location_id'              => $loc->id,
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk();
 
         $teamId = (int) $store->json('team.id');
 
-        $this->assertDatabaseHas('location_team', [
-            'team_id'     => $teamId,
+        $this->assertDatabaseHas('teams', [
+            'id'          => $teamId,
             'location_id' => $loc->id,
             'partner_id'  => $this->partner->id,
         ]);
 
         $this->getJson(route('admin.team.edit', ['id' => $teamId]))
             ->assertOk()
-            ->assertJsonPath('location_ids', [$loc->id]);
+            ->assertJsonPath('location_id', $loc->id);
     }
 }

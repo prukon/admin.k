@@ -51,9 +51,8 @@ class TeamScheduleSlotController extends AdminBaseController
 
         $teams = Team::query()
             ->where('partner_id', $partnerId)
-            ->with('locations:id')
             ->orderBy('title')
-            ->get(['id', 'title']);
+            ->get(['id', 'title', 'location_id']);
 
         $locations = Location::query()
             ->where('partner_id', $partnerId)

@@ -120,26 +120,14 @@ class TeamController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocations = $filterActor?->can('locations.view') ?? false;
         $canViewSportTypes = $filterActor?->can('sport_types.view') ?? false;
-        $canViewTrainingBase = $filterActor?->can('groups.training_base.view') ?? false;
-        $canViewAddress = $filterActor?->can('groups.address.view') ?? false;
 
-        // фильтр: локация
+        // фильтр: объект
         $locationFilter = $validated['location_id'] ?? null;
         if ($canViewLocations && $locationFilter !== null && $locationFilter !== '') {
             if ($locationFilter === 'none') {
-                $baseQuery->whereDoesntHave('locations', function ($q) use ($partnerId) {
-                    $q->where('location_team.partner_id', $partnerId);
-                });
+                $baseQuery->whereNull('teams.location_id');
             } elseif (ctype_digit((string) $locationFilter)) {
-                $locId = (int) $locationFilter;
-                $baseQuery->where(function ($q) use ($partnerId, $locId) {
-                    $q->whereDoesntHave('locations', function ($lq) use ($partnerId) {
-                        $lq->where('location_team.partner_id', $partnerId);
-                    })->orWhereHas('locations', function ($lq) use ($partnerId, $locId) {
-                        $lq->where('location_team.partner_id', $partnerId)
-                            ->where('locations.id', $locId);
-                    });
-                });
+                $baseQuery->where('teams.location_id', (int) $locationFilter);
             }
         }
 
@@ -200,23 +188,9 @@ class TeamController extends AdminBaseController
                     $baseQuery->orderBy('teams.title', $orderDir);
                     break;
 
-                case 'training_base':
-                    $baseQuery->orderBy('teams.training_base', $orderDir)
-                        ->orderBy('teams.title', 'asc');
-                    break;
-
-                case 'address':
-                    $baseQuery->orderBy('teams.address', $orderDir)
-                        ->orderBy('teams.title', 'asc');
-                    break;
-
                 case 'locations_label':
                     $baseQuery
-                        ->leftJoin('location_team', function ($join) use ($partnerId) {
-                            $join->on('location_team.team_id', '=', 'teams.id')
-                                ->where('location_team.partner_id', '=', $partnerId);
-                        })
-                        ->leftJoin('locations', 'locations.id', '=', 'location_team.location_id')
+                        ->leftJoin('locations', 'locations.id', '=', 'teams.location_id')
                         ->select('teams.*')
                         ->orderBy('locations.name', $orderDir)
                         ->orderBy('teams.title', 'asc');
@@ -272,7 +246,7 @@ class TeamController extends AdminBaseController
 
         $with = ['weekdays', 'trainerProfiles.user'];
         if ($canViewLocations) {
-            $with[] = 'locations';
+            $with[] = 'location';
         }
         if ($canViewSportTypes) {
             $with[] = 'sportType';
@@ -284,7 +258,7 @@ class TeamController extends AdminBaseController
             ->take($length)
             ->get();
 
-        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes, $canViewTrainingBase, $canViewAddress) {
+        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
             $weekdaysItems = [];
@@ -307,30 +281,22 @@ class TeamController extends AdminBaseController
                 $trainerLabel = $trainerProfile?->user?->full_name ?? '';
             }
 
-            $locationsLabels = [
-                'locations_label'      => '',
-                'locations_label_full' => '',
-                'locations_names'      => [],
-            ];
-            if ($canViewLocations && $team->relationLoaded('locations')) {
-                $locationsLabels = $this->formatLocationsLabels(
-                    $team->locations->sortBy('name')->pluck('name')->values()->all()
-                );
+            $locationName = '';
+            if ($canViewLocations && $team->relationLoaded('location') && $team->location) {
+                $locationName = (string) $team->location->name;
             }
 
             return [
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
                 'title'          => $team->title,
-                'training_base'  => $canViewTrainingBase ? ($team->training_base ?? '') : '',
-                'address'        => $canViewAddress ? ($team->address ?? '') : '',
                 'sport_type_label' => ($canViewSportTypes && $team->relationLoaded('sportType'))
                     ? ($team->sportType?->name ?? '')
                     : '',
                 'trainer_label'  => $trainerLabel,
-                'locations_label'      => $locationsLabels['locations_label'],
-                'locations_label_full' => $locationsLabels['locations_label_full'],
-                'locations_names'      => $locationsLabels['locations_names'],
+                'locations_label'      => $locationName,
+                'locations_label_full' => $locationName,
+                'locations_names'      => $locationName !== '' ? [$locationName] : [],
                 'weekdays_label'  => $weekdaysLabel,
                 'weekdays_items'  => $weekdaysItems,
                 'month_price'     => $team->month_price,
@@ -357,19 +323,11 @@ class TeamController extends AdminBaseController
         }
 
         if (! $request->user()->can('locations.view')) {
-            unset($data['location_ids']);
+            unset($data['location_id']);
         }
 
         if (! $request->user()->can('sport_types.view')) {
             unset($data['sport_type_id']);
-        }
-
-        if (! $request->user()->can('groups.training_base.view')) {
-            unset($data['training_base']);
-        }
-
-        if (! $request->user()->can('groups.address.view')) {
-            unset($data['address']);
         }
 
         $team = $this->service->storeWithLogging($data, $authorId);
@@ -394,7 +352,7 @@ class TeamController extends AdminBaseController
 
         $with = ['weekdays', 'trainerProfiles.user'];
         if (auth()->user()?->can('locations.view')) {
-            $with[] = 'locations';
+            $with[] = 'location';
         }
         if (auth()->user()?->can('sport_types.view')) {
             $with[] = 'sportType';
@@ -421,19 +379,11 @@ class TeamController extends AdminBaseController
         ];
 
         if (auth()->user()?->can('locations.view')) {
-            $payload['location_ids'] = $team->locations->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+            $payload['location_id'] = $team->location_id ? (int) $team->location_id : null;
         }
 
         if (auth()->user()?->can('sport_types.view')) {
             $payload['sport_type_id'] = $team->sport_type_id ? (int) $team->sport_type_id : null;
-        }
-
-        if (auth()->user()?->can('groups.training_base.view')) {
-            $payload['training_base'] = $team->training_base;
-        }
-
-        if (auth()->user()?->can('groups.address.view')) {
-            $payload['address'] = $team->address;
         }
 
         return response()->json($payload);
@@ -462,19 +412,11 @@ class TeamController extends AdminBaseController
         }
 
         if (! $request->user()->can('locations.view')) {
-            unset($data['location_ids']);
+            unset($data['location_id']);
         }
 
         if (! $request->user()->can('sport_types.view')) {
             unset($data['sport_type_id']);
-        }
-
-        if (! $request->user()->can('groups.training_base.view')) {
-            unset($data['training_base']);
-        }
-
-        if (! $request->user()->can('groups.address.view')) {
-            unset($data['address']);
         }
 
         // Попытка загрузить команду по ID и партнёру
@@ -672,39 +614,5 @@ class TeamController extends AdminBaseController
     public function log(FilterRequest $request)
     {
         return $this->buildLogDataTable('team');
-    }
-
-    /**
-     * @param  list<string>  $names
-     * @return array{locations_label: string, locations_label_full: string, locations_names: list<string>}
-     */
-    private function formatLocationsLabels(array $names): array
-    {
-        $names = array_values(array_filter($names, static fn ($name) => trim((string) $name) !== ''));
-        $count = count($names);
-
-        if ($count === 0) {
-            return [
-                'locations_label'      => '',
-                'locations_label_full' => '',
-                'locations_names'      => [],
-            ];
-        }
-
-        $full = implode(', ', $names);
-
-        if ($count <= 2) {
-            return [
-                'locations_label'      => $full,
-                'locations_label_full' => $full,
-                'locations_names'      => $names,
-            ];
-        }
-
-        return [
-            'locations_label'      => $names[0] . ', еще ' . ($count - 1) . ' шт.',
-            'locations_label_full' => $full,
-            'locations_names'      => $names,
-        ];
     }
 }

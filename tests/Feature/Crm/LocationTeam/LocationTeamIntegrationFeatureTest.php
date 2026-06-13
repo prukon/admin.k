@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Бизнес-логика pivot location_team, фильтры и удаление users.location_id.
+ * Бизнес-логика teams.location_id, фильтры и удаление users.location_id.
  */
 final class LocationTeamIntegrationFeatureTest extends CrmTestCase
 {
@@ -44,13 +44,7 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
 
     private function attachTeamToLocation(Team $team, Location $location): void
     {
-        DB::table('location_team')->insert([
-            'partner_id' => $this->partner->id,
-            'location_id' => $location->id,
-            'team_id' => $team->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $team->update(['location_id' => $location->id]);
     }
 
     public function test_users_table_has_no_location_id_column(): void
@@ -73,15 +67,12 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
 
         $response->assertOk();
 
-        $locationId = (int) Location::query()
-            ->where('partner_id', $this->partner->id)
-            ->where('name', 'Локация с группами')
-            ->value('id');
-
-        $this->assertDatabaseHas('location_team', [
-            'location_id' => $locationId,
-            'team_id' => $team->id,
-            'partner_id' => $this->partner->id,
+        $this->assertDatabaseHas('teams', [
+            'id' => $team->id,
+            'location_id' => Location::query()
+                ->where('partner_id', $this->partner->id)
+                ->where('name', 'Локация с группами')
+                ->value('id'),
         ]);
     }
 
@@ -114,13 +105,13 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
             'team_ids' => [$teamB->id],
         ])->assertOk();
 
-        $this->assertDatabaseMissing('location_team', [
-            'location_id' => $location->id,
-            'team_id' => $teamA->id,
+        $this->assertDatabaseHas('teams', [
+            'id' => $teamA->id,
+            'location_id' => null,
         ]);
-        $this->assertDatabaseHas('location_team', [
+        $this->assertDatabaseHas('teams', [
+            'id' => $teamB->id,
             'location_id' => $location->id,
-            'team_id' => $teamB->id,
         ]);
     }
 
@@ -183,7 +174,7 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
         $this->assertSame(['Группа А', 'Группа Б', 'Группа В'], $row['teams_titles'] ?? null);
     }
 
-    public function test_team_store_without_locations_view_ignores_location_ids(): void
+    public function test_team_store_without_locations_view_ignores_location_id(): void
     {
         $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
         $this->grantGroupsViewForUser($actor);
@@ -194,38 +185,43 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
         $response = $this->postJson(route('admin.team.store'), [
             'title' => 'Без права локаций',
             'is_enabled' => 1,
-            'location_ids' => [$loc->id],
+            'location_id' => $loc->id,
         ], ['X-Requested-With' => 'XMLHttpRequest']);
 
         $response->assertOk();
 
         $teamId = (int) $response->json('team.id');
-        $this->assertDatabaseMissing('location_team', ['team_id' => $teamId]);
+        $this->assertDatabaseHas('teams', [
+            'id' => $teamId,
+            'location_id' => null,
+        ]);
     }
 
-    public function test_team_edit_without_locations_view_omits_location_ids(): void
+    public function test_team_edit_without_locations_view_omits_location_id(): void
     {
         $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
         $this->grantGroupsViewForUser($actor);
         $this->actingAs($actor);
 
         $loc = Location::factory()->create(['partner_id' => $this->partner->id]);
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $this->attachTeamToLocation($team, $loc);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $loc->id,
+        ]);
 
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))
             ->assertOk()
-            ->assertJsonMissing(['location_ids']);
+            ->assertJsonMissing(['location_id']);
     }
 
-    public function test_teams_data_location_filter_none_returns_only_universal_teams(): void
+    public function test_teams_data_location_filter_none_returns_only_teams_without_object(): void
     {
         $this->grantPermission('locations.view');
         $this->grantPermission('groups.view');
 
         $loc = Location::factory()->create(['partner_id' => $this->partner->id]);
         $bound = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Привязанная']);
-        $universal = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Универсальная']);
+        $withoutObject = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Без объекта']);
         $this->attachTeamToLocation($bound, $loc);
 
         $titles = collect(
@@ -234,11 +230,11 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
                 ->json('data')
         )->pluck('title')->all();
 
-        $this->assertContains('Универсальная', $titles);
+        $this->assertContains('Без объекта', $titles);
         $this->assertNotContains('Привязанная', $titles);
     }
 
-    public function test_deleting_location_cascades_pivot_rows(): void
+    public function test_deleting_location_nulls_team_location_id(): void
     {
         $this->grantPermission('locations.view');
         $this->grantPermission('locations.manage');
@@ -250,13 +246,13 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.locations.destroy', $location))
             ->assertOk();
 
-        $this->assertDatabaseMissing('location_team', [
-            'location_id' => $location->id,
-            'team_id' => $team->id,
+        $this->assertDatabaseHas('teams', [
+            'id' => $team->id,
+            'location_id' => null,
         ]);
     }
 
-    public function test_soft_deleting_team_via_api_does_not_remove_pivot_rows(): void
+    public function test_soft_deleting_team_keeps_location_id(): void
     {
         $this->grantPermission('groups.view');
 
@@ -267,23 +263,9 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.team.delete', ['team' => $team->id]))->assertOk();
 
         $this->assertSoftDeleted('teams', ['id' => $team->id]);
-        $this->assertDatabaseHas('location_team', [
+        $this->assertDatabaseHas('teams', [
+            'id' => $team->id,
             'location_id' => $location->id,
-            'team_id' => $team->id,
-        ]);
-    }
-
-    public function test_force_deleting_team_removes_pivot_rows(): void
-    {
-        $location = Location::factory()->create(['partner_id' => $this->partner->id]);
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        $this->attachTeamToLocation($team, $location);
-
-        $team->forceDelete();
-
-        $this->assertDatabaseMissing('location_team', [
-            'location_id' => $location->id,
-            'team_id' => $team->id,
         ]);
     }
 
@@ -321,17 +303,17 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['team_id']);
     }
 
-    public function test_debts_filter_includes_student_with_universal_team_at_location(): void
+    public function test_debts_filter_excludes_student_with_team_without_object_at_location(): void
     {
         Carbon::setTestNow('2026-03-10');
         $this->grantPermission('locations.view');
         $this->grantPermission('reports.view');
 
         $loc = Location::factory()->create(['partner_id' => $this->partner->id, 'is_enabled' => true]);
-        $universalTeam = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamWithoutObject = Team::factory()->create(['partner_id' => $this->partner->id, 'location_id' => null]);
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
-            'team_id' => $universalTeam->id,
+            'team_id' => $teamWithoutObject->id,
             'is_enabled' => 1,
         ]);
 
@@ -353,7 +335,7 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
             ->json();
 
         $userIds = collect($json['data'] ?? [])->pluck('user_id')->unique()->values()->all();
-        $this->assertContains($student->id, $userIds);
+        $this->assertNotContains($student->id, $userIds);
 
         Carbon::setTestNow();
     }

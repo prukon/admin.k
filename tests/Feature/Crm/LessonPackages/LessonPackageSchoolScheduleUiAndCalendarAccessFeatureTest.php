@@ -59,6 +59,7 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
     {
         $this->grantPermission('lessonPackages.view');
         $this->grantPermission('locations.view');
+        $this->grantPermission('scheduleSlots.manage');
 
         $html = $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()
@@ -68,8 +69,80 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
         $this->assertStringContainsString('id="schoolCalSlotSummaryWhen"', $html);
         $this->assertStringContainsString('school-cal-slot-summary__when', $html);
         $this->assertStringContainsString('id="schoolCalLocation"', $html);
+        $this->assertStringContainsString('>Все</option>', $html);
+        $this->assertStringContainsString('value="none"', $html);
+        $this->assertStringContainsString('Без объекта</option>', $html);
         $this->assertStringContainsString('id="schoolCalSlotSummaryLoc"', $html);
         $this->assertStringNotContainsString('id="schoolCalSlotSummaryTeam"', $html);
+
+        $createFormPos = strpos($html, 'id="slotCreateForm"');
+        $this->assertNotFalse($createFormPos);
+        $createFormHtml = substr($html, $createFormPos, 4000);
+        $locationPos = strpos($createFormHtml, 'js-slot-location-select');
+        $teamSelectPos = strpos($createFormHtml, 'js-slot-team-select');
+        $this->assertNotFalse($locationPos);
+        $this->assertNotFalse($teamSelectPos);
+        $this->assertLessThan($teamSelectPos, $locationPos, 'В модалке «Добавить слот» объект должен быть выше группы');
+    }
+
+    public function test_week_json_location_filter_none_returns_only_slots_without_object(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('locations.view');
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $teamWithLocation = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+        ]);
+
+        $teamWithoutLocation = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => null,
+        ]);
+
+        TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamWithLocation->id,
+            'location_id' => $location->id,
+            'weekday' => 1,
+            'time_start' => '10:00',
+            'time_end' => '11:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamWithoutLocation->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '12:00',
+            'time_end' => '13:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $all = $this->getJson(route('admin.lesson-packages.school-schedule.week', [
+            'week' => self::WEEK_MONDAY,
+        ]))->assertOk()->json('occurrences');
+
+        $none = $this->getJson(route('admin.lesson-packages.school-schedule.week', [
+            'week' => self::WEEK_MONDAY,
+            'location_id' => 'none',
+        ]))->assertOk()->json('occurrences');
+
+        $this->assertGreaterThanOrEqual(2, count($all));
+        $this->assertNotEmpty($none);
+        foreach ($none as $occurrence) {
+            $this->assertNull($occurrence['location_id']);
+        }
     }
 
     public function test_slot_modal_and_toolbar_hide_location_markup_without_locations_view(): void
@@ -125,6 +198,33 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
         $this->assertSame('Группа для заголовка модалки', $first['team_title']);
     }
 
+    public function test_school_schedule_page_loads_with_teams_bound_to_locations(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('locations.view');
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Календарь объект',
+            'is_enabled' => true,
+        ]);
+
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа с объектом',
+            'location_id' => $location->id,
+        ]);
+
+        $response = $this->get(route('admin.lesson-packages.school-schedule'))
+            ->assertOk()
+            ->assertViewHas('teams');
+
+        $teams = $response->viewData('teams');
+        $bound = $teams->firstWhere('title', 'Группа с объектом');
+        $this->assertNotNull($bound);
+        $this->assertSame($location->id, (int) $bound->location_id);
+    }
+
     public function test_school_schedule_page_team_schedule_tab_and_all_calendar_read_endpoints_return_200(): void
     {
         $this->grantPermission('lessonPackages.view');
@@ -161,6 +261,11 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
         $this->getJson(route('admin.lesson-packages.school-schedule.week', [
             'week' => self::WEEK_MONDAY,
             'location_id' => $loc->id,
+        ]))->assertOk();
+
+        $this->getJson(route('admin.lesson-packages.school-schedule.week', [
+            'week' => self::WEEK_MONDAY,
+            'location_id' => 'none',
         ]))->assertOk();
 
         $studentId = $this->user->id;

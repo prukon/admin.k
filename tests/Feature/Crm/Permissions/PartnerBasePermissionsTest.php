@@ -41,8 +41,6 @@ class PartnerBasePermissionsTest extends CrmTestCase
         foreach ([
             'sport_types.view',
             'sport_types.manage',
-            'groups.training_base.view',
-            'groups.address.view',
         ] as $permissionName) {
             $this->assertNotContains($permissionName, $adminPerms, "Permission {$permissionName} must not be auto-assigned");
         }

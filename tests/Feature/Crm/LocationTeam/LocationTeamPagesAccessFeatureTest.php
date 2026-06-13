@@ -113,21 +113,21 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             'default_duration_minutes' => 60,
             'order_by' => 1,
             'is_enabled' => 1,
-            'location_ids' => [$location->id],
+            'location_id' => $location->id,
         ], ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
 
         $teamId = (int) $store->json('team.id');
 
         $this->getJson(route('admin.team.edit', ['id' => $teamId]))
             ->assertOk()
-            ->assertJsonPath('location_ids', [$location->id]);
+            ->assertJsonPath('location_id', $location->id);
 
         $this->patchJson(route('admin.team.update', ['id' => $teamId]), [
             'title' => 'Pivot access team updated',
             'default_duration_minutes' => 60,
             'order_by' => 1,
             'is_enabled' => 1,
-            'location_ids' => [],
+            'location_id' => '',
         ])->assertOk();
 
         $this->deleteJson(route('admin.team.delete', ['team' => $teamId]))->assertOk();
@@ -205,7 +205,10 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             'location_id' => $location->id,
         ]))->assertOk();
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'location_id' => $location->id,
+        ]);
 
         $this->postJson(route('admin.team-schedule-slots.store'), [
             'team_id' => $team->id,
@@ -261,7 +264,7 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.locations.index')),
             fn () => $this->getJson(route('admin.locations.data', ['draw' => 1])),
             fn () => $this->postJson(route('admin.team.store'), [
-                'title' => 'x', 'is_enabled' => 1, 'location_ids' => [$location->id],
+                'title' => 'x', 'is_enabled' => 1, 'location_id' => $location->id,
             ]),
             fn () => $this->postJson(route('admin.locations.store'), [
                 'name' => 'x', 'is_enabled' => 1, 'team_ids' => [$team->id],

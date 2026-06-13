@@ -24,7 +24,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Объекты (админка): <code>/admin/locations</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-locations.html</code> · обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · районы: <a href="/docs/documentation/admin-districts">admin-districts</a> · привязка к группам: <a href="/docs/documentation/location-team-bindings">location_team</a></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-locations.html</code> · обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a> · районы: <a href="/docs/documentation/admin-districts">admin-districts</a> · привязка к группам: <a href="/docs/documentation/location-team-bindings">teams.location_id</a></div>
 
   <div class="note">
     <b>UI «Объект»</b> = модель <code>Location</code> (таблица <code>locations</code>). Раздел в меню: вкладка <b>«Объекты»</b> (вторая; общий partial, <code>$activeTab = 'objects'</code>). Заголовок страницы — «Справочники».<br>
@@ -46,7 +46,7 @@
       <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание</td></tr>
       <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление</td></tr>
-      <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление (cascade pivot)</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление объекта; у групп с этим <code>location_id</code> — <code>null</code></td></tr>
     </tbody>
   </table>
 
@@ -69,7 +69,7 @@
   </ul>
 
   <h2>4) Привязка групп (<code>team_ids</code>)</h2>
-  <p>Sync через <code>LocationTeamSyncService::syncTeamsForLocation</code>. Обратная сторона — <code>location_ids</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>.</p>
+  <p>Sync через <code>TeamLocationSyncService::syncTeamsForLocation</code>: выбранным группам проставляется <code>teams.location_id</code> текущего объекта; снятым — <code>null</code>. Обратная сторона — select <code>location_id</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
 
   <h2>5) Связанные сущности</h2>
   <ul>
@@ -84,6 +84,7 @@
     <li><code>app/Http/Requests/Admin/Concerns/LocationFieldRules.php</code></li>
     <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
     <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district payloads</li>
+    <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code>, <code>LocationTeamPagesAccessFeatureTest.php</code> — sync <code>team_ids</code>, smoke 200</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — сквозной доступ справочников</li>
   </ul>
   <p class="small">Полный перечень тестов иерархии — <a href="/docs/documentation/directories-hierarchy#9">directories-hierarchy §9</a>.</p>

@@ -150,6 +150,11 @@ final class SchoolLeadLandingService
             return null;
         }
 
+        $location = Location::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($locationId)
+            ->first(['address']);
+
         $weekdaysCount = $team->weekdays->count();
         $scheduleLabel = $team->weekdays
             ->pluck('title')
@@ -159,8 +164,7 @@ final class SchoolLeadLandingService
         return [
             'title' => (string) $team->title,
             'rows'  => [
-                ['label' => 'Тренировочная база', 'value' => $this->displayValue($team->training_base)],
-                ['label' => 'Адрес', 'value' => $this->displayValue($team->address)],
+                ['label' => 'Адрес', 'value' => $this->displayValue($location?->address)],
                 ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
                 ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price)],
                 ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : '—'],

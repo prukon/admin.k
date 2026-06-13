@@ -46,7 +46,7 @@ final class TeamScheduleCalendarService
      *     }>,
      * }>
      */
-    public function occurrencesForWeek(int $partnerId, CarbonImmutable $weekMonday, ?int $locationId): array
+    public function occurrencesForWeek(int $partnerId, CarbonImmutable $weekMonday, ?string $locationFilter): array
     {
         $weekMonday = $weekMonday->startOfDay();
         $weekSunday = $weekMonday->addDays(6);
@@ -61,8 +61,13 @@ final class TeamScheduleCalendarService
             ->whereDate('date_start', '<=', $rangeEnd)
             ->whereDate('date_end', '>=', $rangeStart);
 
-        if ($locationId !== null && $locationId > 0) {
-            $query->where('location_id', $locationId);
+        if ($locationFilter === 'none') {
+            $query->whereNull('location_id');
+        } elseif ($locationFilter !== null && $locationFilter !== '' && ctype_digit($locationFilter)) {
+            $locationId = (int) $locationFilter;
+            if ($locationId > 0) {
+                $query->where('location_id', $locationId);
+            }
         }
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, TeamScheduleSlot> $slots */

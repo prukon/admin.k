@@ -24,30 +24,6 @@
                         </div>
                     </div>
 
-                    @can('groups.training_base.view')
-                    <div class="mb-3">
-                        <label for="training_base" class="form-label">Тренировочная база</label>
-                        <input type="text"
-                               name="training_base"
-                               class="form-control"
-                               id="training_base"
-                               value="{{ old('training_base') }}">
-                        <div id="training_base-error" class="invalid-feedback"></div>
-                    </div>
-                    @endcan
-
-                    @can('groups.address.view')
-                    <div class="mb-3">
-                        <label for="address" class="form-label">Адрес</label>
-                        <input type="text"
-                               name="address"
-                               class="form-control"
-                               id="address"
-                               value="{{ old('address') }}">
-                        <div id="address-error" class="invalid-feedback"></div>
-                    </div>
-                    @endcan
-
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -110,19 +86,16 @@
 
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <div class="mb-3 generic-multiselect-field">
-                        <label class="form-label" for="createTeamLocationIds">Объекты</label>
-                        <select id="createTeamLocationIds"
-                                name="location_ids[]"
-                                class="form-select js-generic-multiselect-select"
-                                multiple
-                                data-placeholder="Выберите объекты">
+                    <div class="mb-3">
+                        <label class="form-label" for="location_id">Объект</label>
+                        <select name="location_id" class="form-select" id="location_id">
+                            <option value="">— Не выбран —</option>
                             @foreach($locationOptions as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Если не выбрано ни одного объекта, группа доступна во всех объектах.</div>
-                        <div class="invalid-feedback d-block" data-error-for="location_ids" id="location_ids-error"></div>
+                        <div class="form-text">Группа без объекта не показывается на лендинге заявки.</div>
+                        <div class="invalid-feedback d-block" data-error-for="location_id" id="location_id-error"></div>
                     </div>
                     @endif
                     @endcan
@@ -174,43 +147,23 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const createTeamLocationsEl = document.getElementById('createTeamLocationIds');
-        const $createTeamLocationsSelect = (createTeamLocationsEl && window.jQuery)
-            ? window.jQuery(createTeamLocationsEl)
-            : null;
-
-        if ($createTeamLocationsSelect && $createTeamLocationsSelect.length && window.KidsCrmGenericMultiselectSelect2) {
-            KidsCrmGenericMultiselectSelect2.init($createTeamLocationsSelect, {
-                dropdownParent: window.jQuery('#createTeamModal')
-            });
-        }
-
-        function clearCreateTeamLocationErrors() {
-            const locationIdsError = document.getElementById('location_ids-error');
-            if (locationIdsError) {
-                locationIdsError.textContent = '';
-            }
-            if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.clearInvalid($createTeamLocationsSelect);
-            }
-        }
-
         function createTeam() {
             const teamForm = document.getElementById('teamForm');
             teamForm.addEventListener('submit', function (e) {
-                e.preventDefault();  // Останавливаем стандартную отправку формы
+                e.preventDefault();
 
-                clearCreateTeamLocationErrors();
+                const locationIdError = document.getElementById('location_id-error');
+                const locationIdInput = document.getElementById('location_id');
+                if (locationIdError) locationIdError.textContent = '';
+                if (locationIdInput) locationIdInput.classList.remove('is-invalid');
 
-                // Собираем данные формы
                 const formData = new FormData(teamForm);
 
-                // Отправка данных с использованием AJAX
                 fetch(teamForm.action, {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest',  // Обозначаем, что это AJAX-запрос
+                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
                     }
                 })
@@ -218,7 +171,6 @@
                         return response.json().then(data => ({ ok: response.ok, status: response.status, data }));
                     })
                     .then(({ ok, status, data }) => {
-                        // Сброс ошибок
                         const titleInput = document.getElementById('title');
                         const titleError = document.getElementById('title-error');
                         titleInput.classList.remove('is-invalid');
@@ -246,22 +198,6 @@
                                 if (monthPriceInput) monthPriceInput.classList.add('is-invalid');
                                 if (monthPriceError) monthPriceError.textContent = errors.month_price[0];
                             }
-                            const trainingBaseInput = document.getElementById('training_base');
-                            const trainingBaseError = document.getElementById('training_base-error');
-                            if (trainingBaseInput) trainingBaseInput.classList.remove('is-invalid');
-                            if (trainingBaseError) trainingBaseError.textContent = '';
-                            if (errors.training_base?.length) {
-                                if (trainingBaseInput) trainingBaseInput.classList.add('is-invalid');
-                                if (trainingBaseError) trainingBaseError.textContent = errors.training_base[0];
-                            }
-                            const addressInput = document.getElementById('address');
-                            const addressError = document.getElementById('address-error');
-                            if (addressInput) addressInput.classList.remove('is-invalid');
-                            if (addressError) addressError.textContent = '';
-                            if (errors.address?.length) {
-                                if (addressInput) addressInput.classList.add('is-invalid');
-                                if (addressError) addressError.textContent = errors.address[0];
-                            }
                             const trainerInput = document.getElementById('trainer_profile_id');
                             const trainerError = document.getElementById('trainer_profile_id-error');
                             if (trainerInput) trainerInput.classList.remove('is-invalid');
@@ -278,15 +214,9 @@
                                 if (sportTypeInput) sportTypeInput.classList.add('is-invalid');
                                 if (sportTypeError) sportTypeError.textContent = errors.sport_type_id[0];
                             }
-                            const locationIdsError = document.getElementById('location_ids-error');
-                            const locationMessage = errors.location_ids?.[0]
-                                || errors['location_ids.0']?.[0]
-                                || null;
-                            if (locationMessage && locationIdsError) {
-                                locationIdsError.textContent = locationMessage;
-                                if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
-                                    KidsCrmGenericMultiselectSelect2.markInvalid($createTeamLocationsSelect);
-                                }
+                            if (errors.location_id?.length) {
+                                if (locationIdInput) locationIdInput.classList.add('is-invalid');
+                                if (locationIdError) locationIdError.textContent = errors.location_id[0];
                             }
                             return;
                         }
@@ -297,9 +227,6 @@
 
                         if (data.message) {
                             teamForm.reset();
-                            if ($createTeamLocationsSelect && window.KidsCrmGenericMultiselectSelect2) {
-                                KidsCrmGenericMultiselectSelect2.reset($createTeamLocationsSelect);
-                            }
                             showSuccessModal("Создание группы", "Группа успешно создана.", 1);
                         } else {
                             throw new Error('Произошла ошибка при создании группы.');
@@ -309,8 +236,6 @@
                         $('#errorModal').modal('show');
                     });
             });
-
-
         }
         createTeam();
     });

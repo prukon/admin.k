@@ -5,7 +5,7 @@ namespace App\Models;
 use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
@@ -21,6 +21,7 @@ class Team extends Model
     protected $casts = [
         'is_enabled' => 'bool',
         'partner_id' => 'int',
+        'location_id' => 'int',
         'sport_type_id' => 'int',
         'default_duration_minutes' => 'int',
         'month_price' => 'int',
@@ -68,13 +69,8 @@ class Team extends Model
         )->withTimestamps()->withPivot('partner_id');
     }
 
-    public function locations(): BelongsToMany
+    public function location(): BelongsTo
     {
-        return $this->belongsToMany(
-            Location::class,
-            'location_team',
-            'team_id',
-            'location_id',
-        )->withTimestamps()->withPivot('partner_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 }

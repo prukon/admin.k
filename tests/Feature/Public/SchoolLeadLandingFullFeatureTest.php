@@ -10,7 +10,7 @@ use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
 use App\Models\SportType;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use App\Services\PartnerWidgetService;
 use Database\Seeders\WeekdaysSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -225,9 +225,9 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'is_enabled' => true,
         ]);
 
+        $this->landingLocation->update(['address' => 'ул. Спортивная, 5']);
+
         $this->landingTeam->update([
-            'training_base'            => 'СК Олимп',
-            'address'                  => 'ул. Спортивная, 5',
             'sport_type_id'            => $sportType->id,
             'month_price'              => 4500,
             'default_duration_minutes' => 90,
@@ -244,16 +244,16 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.title', 'Плавание')
-            ->assertJsonPath('data.rows.0.label', 'Тренировочная база')
-            ->assertJsonPath('data.rows.0.value', 'СК Олимп')
-            ->assertJsonPath('data.rows.1.value', 'ул. Спортивная, 5')
-            ->assertJsonPath('data.rows.2.value', 'Плавание')
-            ->assertJsonPath('data.rows.3.value', '4 500 ₽')
-            ->assertJsonPath('data.rows.4.value', '3')
-            ->assertJsonPath('data.rows.5.value', '12')
-            ->assertJsonPath('data.rows.6.value', '1 ч 30 мин')
-            ->assertJsonPath('data.rows.7.value', '12.01.2026 — 30.06.2026')
-            ->assertJsonPath('data.rows.8.value', 'Понедельник, Среда, Пятница');
+            ->assertJsonPath('data.rows.0.label', 'Адрес')
+            ->assertJsonPath('data.rows.0.value', 'ул. Спортивная, 5')
+            ->assertJsonPath('data.rows.1.label', 'Вид спорта')
+            ->assertJsonPath('data.rows.1.value', 'Плавание')
+            ->assertJsonPath('data.rows.2.value', '4 500 ₽')
+            ->assertJsonPath('data.rows.3.value', '3')
+            ->assertJsonPath('data.rows.4.value', '12')
+            ->assertJsonPath('data.rows.5.value', '1 ч 30 мин')
+            ->assertJsonPath('data.rows.6.value', '12.01.2026 — 30.06.2026')
+            ->assertJsonPath('data.rows.7.value', 'Понедельник, Среда, Пятница');
 
         Carbon::setTestNow();
     }
@@ -270,7 +270,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'team_id'     => $this->landingTeam->id,
         ]))
             ->assertOk()
-            ->assertJsonPath('data.rows.7.value', '01.09.2026 — 30.06.2027');
+            ->assertJsonPath('data.rows.6.value', '01.09.2026 — 30.06.2027');
 
         Carbon::setTestNow();
     }
@@ -483,7 +483,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'is_enabled'  => true,
         ]);
 
-        app(LocationTeamSyncService::class)->syncTeamsForLocation(
+        app(TeamLocationSyncService::class)->syncTeamsForLocation(
             $otherLocation,
             [(int) $this->landingTeam->id],
         );
@@ -522,7 +522,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             'is_enabled' => true,
         ]);
 
-        app(LocationTeamSyncService::class)->syncTeamsForLocation(
+        app(TeamLocationSyncService::class)->syncTeamsForLocation(
             $otherLocation,
             [(int) $otherTeam->id],
         );

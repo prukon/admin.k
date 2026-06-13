@@ -20,12 +20,8 @@ class UpdateRequest extends FormRequest
             $this->merge(['trainer_profile_id' => null]);
         }
 
-        if ($this->user()?->can('locations.view')) {
-            if (! $this->has('location_ids')) {
-                $this->merge(['location_ids' => []]);
-            } elseif (! is_array($this->input('location_ids'))) {
-                $this->merge(['location_ids' => []]);
-            }
+        if ($this->user()?->can('locations.view') && $this->has('location_id') && $this->input('location_id') === '') {
+            $this->merge(['location_id' => null]);
         }
 
         if ($this->has('sport_type_id') && $this->input('sport_type_id') === '') {
@@ -34,14 +30,6 @@ class UpdateRequest extends FormRequest
 
         if ($this->has('month_price') && $this->input('month_price') === '') {
             $this->merge(['month_price' => null]);
-        }
-
-        if ($this->has('training_base') && $this->input('training_base') === '') {
-            $this->merge(['training_base' => null]);
-        }
-
-        if ($this->has('address') && $this->input('address') === '') {
-            $this->merge(['address' => null]);
         }
     }
 
@@ -71,8 +59,8 @@ class UpdateRequest extends FormRequest
 
         if ($this->user()?->can('locations.view')) {
             $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
-            $rules['location_ids'] = ['nullable', 'array'];
-            $rules['location_ids.*'] = [
+            $rules['location_id'] = [
+                'nullable',
                 'integer',
                 'min:1',
                 Rule::exists('locations', 'id')->where(function ($query) use ($partnerId) {
@@ -92,14 +80,6 @@ class UpdateRequest extends FormRequest
             ];
         }
 
-        if ($this->user()?->can('groups.training_base.view')) {
-            $rules['training_base'] = 'nullable|string|max:255';
-        }
-
-        if ($this->user()?->can('groups.address.view')) {
-            $rules['address'] = 'nullable|string|max:255';
-        }
-
         return $rules;
     }
 
@@ -108,12 +88,9 @@ class UpdateRequest extends FormRequest
         return [
             'title' => 'название группы',
             'trainer_profile_id' => 'тренер',
-            'location_ids' => 'объекты',
-            'location_ids.*' => 'объект',
+            'location_id' => 'объект',
             'sport_type_id' => 'вид спорта',
             'month_price' => 'стоимость в месяц',
-            'training_base' => 'тренировочная база',
-            'address' => 'адрес',
         ];
     }
 
@@ -128,13 +105,8 @@ class UpdateRequest extends FormRequest
             'month_price.integer' => 'Стоимость в месяц должна быть целым числом рублей',
             'month_price.min' => 'Стоимость в месяц не может быть отрицательной',
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
-            'location_ids.array' => 'Некорректный список объектов',
-            'location_ids.*.exists' => 'Выберите объект из списка текущего партнёра',
+            'location_id.exists' => 'Выберите объект из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
-            'training_base.string' => 'Тренировочная база должна быть текстом',
-            'training_base.max' => 'Тренировочная база не длиннее 255 символов',
-            'address.string' => 'Адрес должен быть текстом',
-            'address.max' => 'Адрес не длиннее 255 символов',
         ];
     }
 }

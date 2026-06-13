@@ -35,31 +35,28 @@
             <div class="modal-body px-3">
                 <form id="slotCreateForm" data-date-end-max="{{ $tssDateEndMax }}">
                     @csrf
+
+                    @can('locations.view')
+                        <div class="mb-2">
+                            <label class="form-label mb-1 small">Объект</label>
+                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
+                                @include('admin.lessonPackages.partials.locationFilterOptions', ['locationFilterSelected' => ''])
+                            </select>
+                            <div class="invalid-feedback d-block" data-error-for="location_id"></div>
+                        </div>
+                    @endcan
+
                     <div class="mb-2">
                         <label class="form-label mb-1 small">Группа*</label>
                         <select class="form-control form-control-sm js-slot-team-select" name="team_id" required>
                             <option value="">—</option>
                             @foreach($teams as $t)
                                 <option value="{{ $t->id }}"
-                                        data-location-ids="{{ $t->relationLoaded('locations') ? $t->locations->pluck('id')->implode(',') : '' }}">{{ $t->title }}</option>
+                                        data-location-id="{{ $t->location_id ?? '' }}">{{ $t->title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback d-block" data-error-for="team_id"></div>
                     </div>
-
-                    @can('locations.view')
-                        <div class="mb-2">
-                            <label class="form-label mb-1 small">Объект</label>
-                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
-                                @forelse($locations as $l)
-                                    <option value="{{ $l->id }}" @if($loop->first) selected @endif>{{ $l->name }}</option>
-                                @empty
-                                    <option value="">Нет объектов</option>
-                                @endforelse
-                            </select>
-                            <div class="invalid-feedback d-block" data-error-for="location_id"></div>
-                        </div>
-                    @endcan
 
                     <div class="mb-2">
                         <label class="form-label mb-1 small">День недели*</label>
@@ -123,30 +120,27 @@
                     @method('put')
                     <input type="hidden" name="id" />
 
+                    @can('locations.view')
+                        <div class="mb-2">
+                            <label class="form-label mb-1 small">Объект</label>
+                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
+                                @include('admin.lessonPackages.partials.locationFilterOptions', ['locationFilterSelected' => 'none'])
+                            </select>
+                            <div class="invalid-feedback d-block" data-error-for="location_id"></div>
+                        </div>
+                    @endcan
+
                     <div class="mb-2">
                         <label class="form-label mb-1 small">Группа*</label>
                         <select class="form-control form-control-sm js-slot-team-select" name="team_id" required>
                             <option value="">—</option>
                             @foreach($teams as $t)
                                 <option value="{{ $t->id }}"
-                                        data-location-ids="{{ $t->relationLoaded('locations') ? $t->locations->pluck('id')->implode(',') : '' }}">{{ $t->title }}</option>
+                                        data-location-id="{{ $t->location_id ?? '' }}">{{ $t->title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback d-block" data-error-for="team_id"></div>
                     </div>
-
-                    @can('locations.view')
-                        <div class="mb-2">
-                            <label class="form-label mb-1 small">Объект</label>
-                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
-                                <option value="">—</option>
-                                @foreach($locations as $l)
-                                    <option value="{{ $l->id }}">{{ $l->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback d-block" data-error-for="location_id"></div>
-                        </div>
-                    @endcan
 
                     <div class="mb-2">
                         <label class="form-label mb-1 small">День недели*</label>
@@ -234,7 +228,7 @@
 
                 function filterTeamSelectForLocation(teamSelect, locationId) {
                     if (!teamSelect) return;
-                    const locId = locationId ? String(locationId) : '';
+                    const locId = locationId != null ? String(locationId) : '';
                     const current = teamSelect.value;
                     let hasCurrent = false;
                     Array.from(teamSelect.options).forEach(function (opt) {
@@ -243,8 +237,15 @@
                             opt.disabled = false;
                             return;
                         }
-                        const ids = (opt.getAttribute('data-location-ids') || '').trim();
-                        const allowed = ids === '' || locId === '' || ids.split(',').filter(Boolean).includes(locId);
+                        const teamLocationId = (opt.getAttribute('data-location-id') || '').trim();
+                        let allowed;
+                        if (locId === '' || locId === 'all') {
+                            allowed = true;
+                        } else if (locId === 'none') {
+                            allowed = teamLocationId === '';
+                        } else {
+                            allowed = teamLocationId !== '' && teamLocationId === locId;
+                        }
                         opt.hidden = !allowed;
                         opt.disabled = !allowed;
                         if (allowed && opt.value === current) {
@@ -490,10 +491,11 @@
                         const data = await res.json().catch(() => ({}));
                         editForm.querySelector('[name="id"]').value = data.id;
                         const locSel = editForm.querySelector('[name="location_id"]');
-                        if (locSel) locSel.value = data.location_id ? String(data.location_id) : '';
+                        if (locSel) {
+                            locSel.value = data.location_id ? String(data.location_id) : 'none';
+                        }
                         applySlotFormTeamFilter(editForm);
                         editForm.querySelector('[name="team_id"]').value = String(data.team_id ?? '');
-                        applySlotFormTeamFilter(editForm);
                         editForm.querySelector('[name="weekday"]').value = String(data.weekday ?? '');
                         syncEditWeekday(data.weekday);
                         editForm.querySelector('[name="time_start"]').value = data.time_start || '';
@@ -626,6 +628,7 @@
                                 }
                             }
                         }
+                        applySlotFormTeamFilter(form);
                         form.querySelector('[name="team_id"]').value = '';
                         form.querySelector('[name="date_start"]')?.dispatchEvent(new Event('change'));
                         const modalEl = document.getElementById('slotCreateModal');

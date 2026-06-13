@@ -34,19 +34,86 @@
   <h2>Данные недели для сетки</h2>
   <p>Фронт подгружает слоты через <code>GET /admin/lesson-packages/school-schedule/week</code> (параметры <code>week</code>, опционально <code>location_id</code>).
     Каждый элемент массива <code>occurrences</code> содержит, среди прочего, поле <code>team_title</code> — название группы (команды) для отображения в ячейке и в UI.</p>
+  <table>
+    <thead>
+      <tr><th>Параметр <code>location_id</code></th><th>Значение в UI</th><th>Фильтрация слотов (<code>TeamScheduleCalendarService</code>)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>не передан или пустая строка</td>
+        <td><strong>Все</strong></td>
+        <td>Все активные слоты партнёра на неделе</td>
+      </tr>
+      <tr>
+        <td><code>none</code></td>
+        <td><strong>Без объекта</strong></td>
+        <td>Только <code>team_schedule_slots.location_id IS NULL</code></td>
+      </tr>
+      <tr>
+        <td>числовой id объекта</td>
+        <td>Название объекта из справочника</td>
+        <td>Только слоты с <code>team_schedule_slots.location_id = id</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Парсинг параметра — <code>LessonPackageController::schoolScheduleWeek</code>. Конвенция <code>none</code> совпадает с фильтрами групп на <code>/admin/teams</code> и отчётами (<code>filter_location_id</code>).</p>
 
-  <h2>Фильтр «Локация» в тулбаре</h2>
-  <p>Блок с выбором локации (<code>id="schoolCalLocation"</code>) рендерится только при наличии права <code>locations.view</code> (директива Blade <code>@can('locations.view')</code>).
-    У базовой роли admin в конфиге <code>config/role_base_permissions.php</code> это право включено; у кастомных ролей его можно отозвать — тогда фильтр не показывается, но календарь по-прежнему доступен при <code>lessonPackages.view</code> (все слоты партнёра без фильтра по локации).</p>
-  <p class="small">Привязка групп к локациям (<code>location_team</code>) и правила «универсальной» группы — <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</p>
+  <h2>Загрузка страницы календаря</h2>
+  <p>Контроллер <code>LessonPackageController::schoolSchedule</code> передаёт во view:</p>
+  <ul>
+    <li><code>teams</code> — все группы партнёра с полями <code>id</code>, <code>title</code>, <code>location_id</code> (FK на объект, не pivot);</li>
+    <li><code>locations</code> — активные объекты партнёра (<code>id</code>, <code>name</code>) для фильтра при <code>locations.view</code>.</li>
+  </ul>
+  <p class="small">Связь many-to-many <code>Team::locations()</code> не используется — одна группа привязана к одному объекту. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
+
+  <h2 id="location-filter">Фильтр «Объект» в тулбаре календаря</h2>
+  <p>Блок с выбором объекта (<code>id="schoolCalLocation"</code>, подпись «Объект») рендерится только при наличии права <code>locations.view</code> (директива Blade <code>@can('locations.view')</code>).
+    У базовой роли admin в конфиге <code>config/role_base_permissions.php</code> это право включено; у кастомных ролей его можно отозвать — тогда фильтр не показывается, но календарь по-прежнему доступен при <code>lessonPackages.view</code> (все слоты партнёра без фильтра по объекту).</p>
+  <p>Опции селекта (partial <code>admin/lessonPackages/partials/locationFilterOptions.blade.php</code>):</p>
+  <ul>
+    <li><strong>Все</strong> — <code>value=""</code>, выбрано по умолчанию; при загрузке недели параметр <code>location_id</code> в query не передаётся;</li>
+    <li><strong>Без объекта</strong> — <code>value="none"</code>; запрос <code>…/week?location_id=none</code>;</li>
+    <li>далее — активные объекты партнёра (<code>locations.is_enabled = true</code>), сортировка по названию.</li>
+  </ul>
+  <p>При смене фильтра вызывается <code>loadWeek()</code> (перезагрузка сетки). Значение тулбара также подставляется в модалку «Добавить слот» при клике по пустой ячейке календаря.</p>
+  <p class="small">Привязка групп к объектам (<code>teams.location_id</code>) — <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>. Группа без объекта на лендинг не попадает; в слотах такая группа допустима (см. модалку ниже).</p>
 
   <h2 id="schedule-slot-modals">Модалки создания/редактирования слота расписания</h2>
-  <p>На вкладке «Расписание школы» (и в таблице слотов групп) подключается <code>admin.teamScheduleSlots.partials.slotModals</code>. Право на изменение слотов — <code>scheduleSlots.manage</code>.</p>
+  <p>На вкладке «Расписание школы» (и в таблице слотов групп) подключается <code>admin.teamScheduleSlots.partials.slotModals</code>. Создание/изменение — права <code>scheduleSlots.view</code> + <code>scheduleSlots.manage</code> (маршруты <code>POST/PUT admin/team-schedule-slots</code>).</p>
+
+  <h3>Порядок полей и селект «Объект»</h3>
+  <p>При <code>locations.view</code> в модалках create/edit поля идут в порядке: <strong>Объект</strong> → <strong>Группа</strong> → день недели → время → период. Те же опции, что в тулбаре календаря (<code>locationFilterOptions</code>): «Все», «Без объекта», список объектов.</p>
+  <p>Клиентская фильтрация групп — <code>filterTeamSelectForLocation</code> (класс <code>.js-slot-location-select</code> / <code>.js-slot-team-select</code>, атрибут <code>data-location-id</code> у option группы):</p>
+  <table>
+    <thead>
+      <tr><th>Выбранный объект в модалке</th><th>Группы в селекте <code>team_id</code></th><th>Сохраняемый <code>location_id</code> слота</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Все</strong> (<code>value=""</code>)</td>
+        <td>Все группы партнёра</td>
+        <td><code>null</code> (пустая строка в форме)</td>
+      </tr>
+      <tr>
+        <td><strong>Без объекта</strong> (<code>value="none"</code>)</td>
+        <td>Только группы с <code>teams.location_id IS NULL</code></td>
+        <td><code>null</code> (<code>none</code> и <code>""</code> нормализуются в Request)</td>
+      </tr>
+      <tr>
+        <td>Конкретный объект (id)</td>
+        <td>Группы с <code>teams.location_id = id</code></td>
+        <td>Числовой id объекта</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Нормализация перед валидацией: <code>StoreTeamScheduleSlotRequest</code> / <code>UpdateTeamScheduleSlotRequest</code> — <code>location_id</code> равный <code>''</code> или <code>'none'</code> → <code>null</code>.</p>
+
+  <h3>Серверная проверка пары группа + объект слота</h3>
   <ul>
-    <li>В селекте группы (<code>team_id</code>) у каждой <code>&lt;option&gt;</code> атрибут <code>data-location-ids</code> — JSON id локаций из <code>location_team</code>; пустой массив = группа доступна во всех локациях.</li>
-    <li>При смене локации слота (<code>location_id</code>) клиент вызывает <code>filterTeamSelectForLocation</code>: скрываются группы, не подходящие к выбранной локации; если текущая группа стала недоступна — сброс выбора.</li>
-    <li>Сервер: <code>POST/PUT /admin/team-schedule-slots</code> — <code>TeamScheduleSlotController::assertTeamAllowedAtLocation</code>; несовместимая пара группа+локация → <b>422</b>, текст ошибки на поле <code>team_id</code>.</li>
+    <li><code>TeamLocationAvailabilityService::assertTeamAllowedAtLocation</code> — при заданном <code>location_id</code> слота группа должна иметь тот же <code>teams.location_id</code>; группа без объекта при ненулевом объекте слота → <b>422</b> на <code>team_id</code>;</li>
+    <li>при <code>location_id = null</code> у слота ограничений по объекту группы нет (но для «Без объекта» UI показывает только группы без объекта).</li>
   </ul>
+  <p>При открытии edit JSON слота с <code>location_id = null</code> в селекте выбирается «Без объекта» (<code>none</code>).</p>
 
   <h2>Модалка сведений о слоте</h2>
   <p>Контейнер: <code>#schoolCalSlotModal</code>. При открытии слота данные подставляются из выбранного occurrence на клиенте.</p>
@@ -217,13 +284,17 @@
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a></p>
 
   <h2>Тесты</h2>
-  <p>Разметка модалки и фильтра локации, <code>team_title</code> в JSON недели, ответы <code>200</code>/<code>403</code> — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>.
-    Фильтр групп в модалке слота и валидация пары группа+локация — <code>tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
-    Доступ к поверхности календаря и основным эндпоинтам — <code>tests/Feature/Crm/Schedule/SchoolScheduleCalendarAccessFeatureTest.php</code>.
+  <p><strong>Фильтр «Объект» и модалка слота:</strong> <code>tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php</code> — week API (<code>location_id</code> пусто / <code>none</code> / id), store с <code>location_id=none</code>, разметка «Все»/«Без объекта», порядок полей в create, smoke 200, 403/гость.</p>
+  <p>Разметка модалки просмотра слота, <code>team_title</code> в JSON недели, загрузка страницы с группами <code>location_id</code>, read-API — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>, <code>LessonPackagesSectionAccessSmokeFeatureTest.php</code>.
+    Фильтр групп и валидация пары группа+объект — <code>TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
+    Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
-    статусы и баланс в JSON — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные сценарии — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
+    статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>.
-    Общие требования к тестам — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
+    Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code></pre>
 </div>
 </body>
 </html>

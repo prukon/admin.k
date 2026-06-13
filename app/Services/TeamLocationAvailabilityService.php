@@ -7,13 +7,11 @@ namespace App\Services;
 use App\Models\Team;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Facades\DB;
 
 final class TeamLocationAvailabilityService
 {
     /**
-     * Группа доступна в локации, если у неё нет привязок к локациям
-     * или есть привязка к указанной локации.
+     * Группа доступна в объекте, если у неё задан location_id и он совпадает.
      * При $locationId = null ограничений нет.
      */
     public function isTeamAllowedAtLocation(Team $team, ?int $locationId): bool
@@ -22,22 +20,11 @@ final class TeamLocationAvailabilityService
             return true;
         }
 
-        $partnerId = (int) $team->partner_id;
-
-        $boundCount = (int) DB::table('location_team')
-            ->where('team_id', $team->id)
-            ->where('partner_id', $partnerId)
-            ->count();
-
-        if ($boundCount === 0) {
-            return true;
+        if ($team->location_id === null) {
+            return false;
         }
 
-        return DB::table('location_team')
-            ->where('team_id', $team->id)
-            ->where('partner_id', $partnerId)
-            ->where('location_id', $locationId)
-            ->exists();
+        return (int) $team->location_id === $locationId;
     }
 
     public function assertTeamAllowedAtLocation(Team $team, ?int $locationId): ?string
@@ -59,14 +46,11 @@ final class TeamLocationAvailabilityService
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($locationId) {
-            $q->whereDoesntHave('locations')
-                ->orWhereHas('locations', fn (Builder $lq) => $lq->where('locations.id', $locationId));
-        });
+        return $query->where('teams.location_id', $locationId);
     }
 
     /**
-     * Фильтр задолженностей (Query Builder по users) по локации через группу.
+     * Фильтр задолженностей (Query Builder по users) по объекту через группу.
      *
      * @param  QueryBuilder  $query
      */
@@ -79,7 +63,12 @@ final class TeamLocationAvailabilityService
         if ($filterLocationId === 'none') {
             $query->where(function ($q) use ($partnerId) {
                 $q->whereNull('users.team_id')
-                    ->orWhereIn('users.team_id', $this->universalTeamIdsSubquery($partnerId));
+                    ->orWhereIn('users.team_id', function (QueryBuilder $sub) use ($partnerId) {
+                        $sub->select('teams.id')
+                            ->from('teams')
+                            ->where('teams.partner_id', $partnerId)
+                            ->whereNull('teams.location_id');
+                    });
             });
 
             return;
@@ -94,50 +83,11 @@ final class TeamLocationAvailabilityService
             return;
         }
 
-        $query->whereIn('users.team_id', $this->teamIdsAvailableAtLocationSubquery($partnerId, $locationId));
-    }
-
-    /**
-     * @return \Closure(QueryBuilder): void
-     */
-    private function teamIdsAvailableAtLocationSubquery(int $partnerId, int $locationId): \Closure
-    {
-        return function (QueryBuilder $sub) use ($partnerId, $locationId) {
+        $query->whereIn('users.team_id', function (QueryBuilder $sub) use ($partnerId, $locationId) {
             $sub->select('teams.id')
                 ->from('teams')
                 ->where('teams.partner_id', $partnerId)
-                ->where(function (QueryBuilder $q) use ($partnerId, $locationId) {
-                    $q->whereNotExists(function (QueryBuilder $ex) use ($partnerId) {
-                        $ex->select(DB::raw('1'))
-                            ->from('location_team')
-                            ->whereColumn('location_team.team_id', 'teams.id')
-                            ->where('location_team.partner_id', $partnerId);
-                    })->orWhereExists(function (QueryBuilder $ex) use ($partnerId, $locationId) {
-                        $ex->select(DB::raw('1'))
-                            ->from('location_team')
-                            ->whereColumn('location_team.team_id', 'teams.id')
-                            ->where('location_team.partner_id', $partnerId)
-                            ->where('location_team.location_id', $locationId);
-                    });
-                });
-        };
-    }
-
-    /**
-     * @return \Closure(QueryBuilder): void
-     */
-    private function universalTeamIdsSubquery(int $partnerId): \Closure
-    {
-        return function (QueryBuilder $sub) use ($partnerId) {
-            $sub->select('teams.id')
-                ->from('teams')
-                ->where('teams.partner_id', $partnerId)
-                ->whereNotExists(function (QueryBuilder $ex) use ($partnerId) {
-                    $ex->select(DB::raw('1'))
-                        ->from('location_team')
-                        ->whereColumn('location_team.team_id', 'teams.id')
-                        ->where('location_team.partner_id', $partnerId);
-                });
-        };
+                ->where('teams.location_id', $locationId);
+        });
     }
 }

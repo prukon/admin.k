@@ -120,28 +120,6 @@
                                     <label class="form-check-label" for="colTitle">Название</label>
                                 </div>
 
-                                @can('groups.training_base.view')
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="training_base"
-                                           id="colTrainingBase"
-                                           checked>
-                                    <label class="form-check-label" for="colTrainingBase">Тренировочная база</label>
-                                </div>
-                                @endcan
-
-                                @can('groups.address.view')
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="address"
-                                           id="colAddress"
-                                           checked>
-                                    <label class="form-check-label" for="colAddress">Адрес</label>
-                                </div>
-                                @endcan
-
                                 @can('trainers.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -161,7 +139,7 @@
                                            data-column-key="locations_label"
                                            id="colLocations"
                                            checked>
-                                    <label class="form-check-label" for="colLocations">Объекты</label>
+                                    <label class="form-check-label" for="colLocations">Объект</label>
                                 </div>
                                 @endif
                                 @endcan
@@ -301,18 +279,12 @@
                     <th>№</th>
                     <th>Сортировка</th>
                     <th>Название</th>
-                    @can('groups.training_base.view')
-                    <th>Тренировочная база</th>
-                    @endcan
-                    @can('groups.address.view')
-                    <th>Адрес</th>
-                    @endcan
                     @can('trainers.view')
                     <th>Тренер</th>
                     @endcan
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
-                    <th>Объекты</th>
+                    <th>Объект</th>
                     @endif
                     @endcan
                     @can('sport_types.view')
@@ -336,11 +308,6 @@
     @include('includes.modal.createTeam')
     @include('includes.modal.editTeam')
     @include('includes.logModal')
-    @can('locations.view')
-        @if($locationOptions->isNotEmpty())
-            @include('partials.select2.generic-multiselect')
-        @endif
-    @endcan
 @endsection
 
 @push('scripts')
@@ -351,8 +318,6 @@
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
             const canViewLocations = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
             const canViewSportTypes = @json(auth()->user()->can('sport_types.view') && $sportTypeOptions->isNotEmpty());
-            const canViewTrainingBase = @json(auth()->user()->can('groups.training_base.view'));
-            const canViewAddress = @json(auth()->user()->can('groups.address.view'));
             const defaultFilterStatus = 'active';
 
             function escapeHtml(text) {
@@ -414,8 +379,6 @@
                     defaults: {
                         order_by: true,
                         title: true,
-                        ...(canViewTrainingBase ? { training_base: true } : {}),
-                        ...(canViewAddress ? { address: true } : {}),
                         ...(canViewTrainers ? { trainer_label: true } : {}),
                         ...(canViewLocations ? { locations_label: true } : {}),
                         ...(canViewSportTypes ? { sport_type_label: true } : {}),
@@ -464,8 +427,6 @@
                             return 'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#editTeamModal"';
                         },
                     },
-                    { key: 'training_base', type: 'text', data: 'training_base', when: canViewTrainingBase, searchable: false },
-                    { key: 'address', type: 'text', data: 'address', when: canViewAddress, searchable: false },
                     { key: 'trainer_label', type: 'text', data: 'trainer_label', when: canViewTrainers, searchable: false },
                     {
                         key: 'locations_label',
@@ -474,7 +435,7 @@
                         itemsKey: 'locations_names',
                         when: canViewLocations,
                         searchable: false,
-                        emptyHtml: '<span class="text-muted">Все</span>',
+                        emptyHtml: '<span class="text-muted">—</span>',
                     },
                     { key: 'sport_type_label', type: 'text', data: 'sport_type_label', when: canViewSportTypes, searchable: false },
                     {

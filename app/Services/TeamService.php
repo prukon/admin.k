@@ -22,7 +22,7 @@ class TeamService
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
-        private readonly LocationTeamSyncService $locationTeamSync,
+        private readonly TeamLocationSyncService $teamLocationSync,
         private readonly AuditLogger $auditLogger,
     ) {
         $this->partnerContext = $partnerContext;
@@ -52,9 +52,15 @@ class TeamService
             : null;
         unset($data['trainer_profile_id']);
 
-        $locationsProvided = array_key_exists('location_ids', $data);
-        $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
-        unset($data['location_ids']);
+        $locationProvided = array_key_exists('location_id', $data);
+        $locationId = $locationProvided
+            ? $this->teamLocationSync->resolveLocationIdForTeam((int) $partnerId, $data['location_id'] ?? null)
+            : null;
+        unset($data['location_id']);
+
+        if ($locationProvided) {
+            $data['location_id'] = $locationId;
+        }
 
         if (array_key_exists('sport_type_id', $data)) {
             $data['sport_type_id'] = $this->resolveSportTypeIdForPartner(
@@ -75,10 +81,6 @@ class TeamService
             $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
         }
 
-        if ($locationsProvided) {
-            $this->locationTeamSync->syncLocationsForTeam($team, $locationIds);
-        }
-
         return $team; // Возвращаем созданную команду
     }
 
@@ -96,12 +98,19 @@ class TeamService
             : null;
         unset($data['trainer_profile_id']);
 
-        $locationsProvided = array_key_exists('location_ids', $data);
-        $locationIds = $locationsProvided ? (array) ($data['location_ids'] ?? []) : [];
-        unset($data['location_ids']);
+        $partnerId = (int) ($team->partner_id ?? $this->partnerContext->partnerId() ?? 0);
+
+        $locationProvided = array_key_exists('location_id', $data);
+        $locationId = $locationProvided
+            ? $this->teamLocationSync->resolveLocationIdForTeam($partnerId, $data['location_id'] ?? null)
+            : null;
+        unset($data['location_id']);
+
+        if ($locationProvided) {
+            $data['location_id'] = $locationId;
+        }
 
         if (array_key_exists('sport_type_id', $data)) {
-            $partnerId = (int) ($team->partner_id ?? $this->partnerContext->partnerId() ?? 0);
             $data['sport_type_id'] = $this->resolveSportTypeIdForPartner(
                 $partnerId,
                 $data['sport_type_id'] !== null && $data['sport_type_id'] !== ''
@@ -117,9 +126,6 @@ class TeamService
             }
             if ($trainerProvided) {
                 $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
-            }
-            if ($locationsProvided) {
-                $this->locationTeamSync->syncLocationsForTeam($team, $locationIds);
             }
         } else {
             throw new \Exception("Ошибка: команда не обновлена или team_id не существует.");

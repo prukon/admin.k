@@ -80,9 +80,8 @@ final class LessonPackageController extends AdminBaseController
 
         $teams = Team::query()
             ->where('partner_id', $partnerId)
-            ->with('locations:id')
             ->orderBy('title')
-            ->get(['id', 'title']);
+            ->get(['id', 'title', 'location_id']);
 
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
         $schoolCalendarOccurrenceStatuses = LessonOccurrenceStatus::query()
@@ -115,12 +114,16 @@ final class LessonPackageController extends AdminBaseController
             : CarbonImmutable::now()->startOfWeek(Carbon::MONDAY)->startOfDay();
 
         $locationRaw = $request->query('location_id');
-        $locationId = ($locationRaw !== null && $locationRaw !== '') ? (int) $locationRaw : null;
-        if ($locationId === 0) {
-            $locationId = null;
+        $locationFilter = null;
+        if ($locationRaw !== null && $locationRaw !== '') {
+            if ((string) $locationRaw === 'none') {
+                $locationFilter = 'none';
+            } elseif (ctype_digit((string) $locationRaw)) {
+                $locationFilter = (string) (int) $locationRaw;
+            }
         }
 
-        $occurrences = $calendarService->occurrencesForWeek($partnerId, $weekMonday, $locationId);
+        $occurrences = $calendarService->occurrencesForWeek($partnerId, $weekMonday, $locationFilter);
 
         return response()->json([
             'week_start' => $weekMonday->toDateString(),

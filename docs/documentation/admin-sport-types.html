@@ -141,7 +141,7 @@
     <li>Валидация: <code>App\Rules\PartnerSportTypeId</code> — id должен принадлежать текущему партнёру и иметь <code>is_enabled = true</code>. Дополнительная проверка в <code>TeamService::resolveSportTypeIdForPartner()</code>.</li>
   </ul>
   <div class="warn">
-    Вид спорта группы и локация группы — <b>независимые</b> измерения. Локации по-прежнему управляются через <code>location_team</code> (<a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>). Вид спорта не заменяет район/локацию на лендинге.
+    Вид спорта группы и объект группы — <b>независимые</b> измерения. Объект задаётся полем <code>teams.location_id</code> (<a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>). Вид спорта не заменяет район/объект на лендинге.
   </div>
 
   <h2>7) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>

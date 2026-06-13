@@ -34,8 +34,8 @@
     <strong>Сайдбар:</strong> при единственном праве <code>groups.view</code> пункт меню называется <b>«Группы»</b>; при двух и более правах справочников — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Отдельного второго пункта «Группы» в сайдбаре нет.<br>
     Порядок вкладок на всех страницах справочников: <b>Группы → Объекты → Районы → Виды спорта</b> (partial <code>admin/directories/_section_tabs.blade.php</code>).<br>
     <strong>Доступ к странице и ко всем эндпоинтам раздела</strong> — одно право <code>groups.view</code> (middleware <code>can:groups.view</code> в <code>routes/web.php</code>). Без него — <b>403</b>; для гостя — редирект/401.<br>
-    Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
-    Поля «Тренировочная база» и «Адрес» — см. <a href="#groups-training-base-address">§5.2</a>.
+    Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
+    Поле «Тренировочная база» (<code>teams.training_base</code>) и право <code>groups.training_base.view</code> удалены миграцией <code>2026_06_13_150000_drop_training_base_from_teams.php</code>.
   </div>
 
   <h2>1) Эндпоинты раздела (все под <code>groups.view</code>)</h2>
@@ -65,10 +65,8 @@
     <li><code>#</code> (rownum) — всегда видима</li>
     <li>Сортировка (<code>order_by</code>)</li>
     <li>Название (<code>title</code>) — ссылка (<code>edit-team-link</code>) на модалку редактирования; AJAX <code>GET /admin/team/{id}/edit</code> (JSON). Паттерн — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a></li>
-    <li><strong>Тренировочная база</strong> (<code>training_base</code>) — только при <code>groups.training_base.view</code></li>
-    <li><strong>Адрес</strong> (<code>address</code>) — только при <code>groups.address.view</code></li>
     <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>
-    <li><strong>Локации</strong> (<code>locations_label</code>) — только при <code>locations.view</code> и непустом справочнике локаций</li>
+    <li><strong>Объект</strong> (<code>locations_label</code>) — только при <code>locations.view</code> и непустом справочнике объектов</li>
     <li><strong>Вид спорта</strong> (<code>sport_type_label</code>) — только при <code>sport_types.view</code> и непустом справочнике видов спорта</li>
     <li><strong>Расписание</strong> (<code>weekdays_label</code>) — только при <code>schedule.view</code></li>
     <li><strong>Стоимость</strong> (<code>month_price</code>) — всегда (см. <a href="#month-price">§2.1</a>)</li>
@@ -76,7 +74,7 @@
     <li>Действия (<code>actions</code>)</li>
   </ol>
 
-  <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>training_base</code>, <code>address</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>sport_type_label</code>, <code>weekdays_label</code>, <code>month_price</code>, <code>status_label</code>, <code>actions</code> (опциональные ключи появляются в UI только при соответствующем праве или наличии справочника).</p>
+  <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>sport_type_label</code>, <code>weekdays_label</code>, <code>month_price</code>, <code>status_label</code>, <code>actions</code> (опциональные ключи появляются в UI только при соответствующем праве или наличии справочника).</p>
 
   <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price</code>)</h3>
   <p>Необязательная месячная стоимость группы в <strong>целых рублях</strong> (без копеек). Доступна всем пользователям с правом <code>groups.view</code>; отдельного permission не требуется.</p>
@@ -200,8 +198,8 @@
     </tbody>
   </table>
 
-  <h2 id="locations-view">5) Право <code>locations.view</code> — локации группы</h2>
-  <p>Permission справочника <a href="/docs/documentation/admin-locations">локаций</a>. На странице групп управляет привязкой к локациям (pivot <code>location_team</code>) и фильтром таблицы. Общая логика: <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</p>
+  <h2 id="locations-view">5) Право <code>locations.view</code> — объект группы</h2>
+  <p>Permission справочника <a href="/docs/documentation/admin-locations">объектов</a>. На странице групп управляет полем <code>teams.location_id</code> (один объект на группу) и фильтром таблицы. Общая логика: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
 
   <table>
     <thead>
@@ -214,28 +212,28 @@
     <tbody>
       <tr>
         <td>Модалки create/edit</td>
-        <td>Блок чекбоксов <code>location_ids[]</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
-        <td>Чекбоксы активных локаций партнёра; пустой список при update снимает все привязки.</td>
+        <td>Селект <code>location_id</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
+        <td>Select «Объект» — активные объекты партнёра; пустое значение — группа без объекта.</td>
       </tr>
       <tr>
         <td>Фильтр таблицы</td>
-        <td>Селект «Локация» скрыт (<code>#filter-location</code>).</td>
-        <td>Пусто — все группы; <code>none</code> — только без привязок к локациям; id — группы, доступные в этой локации (привязанные + универсальные).</td>
+        <td>Селект «Объект» скрыт (<code>#filter-location</code>).</td>
+        <td>Пусто — все группы; <code>none</code> — только с <code>location_id IS NULL</code>; id — группы этого объекта.</td>
       </tr>
       <tr>
-        <td>Колонка «Локации»</td>
+        <td>Колонка «Объект»</td>
         <td>Нет в таблице и в «Поля списка».</td>
-        <td><code>locations_label</code> в JSON data; ключ <code>locations_label</code> в columns-settings.</td>
+        <td><code>locations_label</code> — название объекта или «—»; ключ в columns-settings.</td>
       </tr>
       <tr>
         <td><code>GET /admin/team/{id}/edit</code></td>
-        <td>Без ключа <code>location_ids</code>.</td>
-        <td>Массив <code>location_ids</code>.</td>
+        <td>Без ключа <code>location_id</code>.</td>
+        <td>Числовой <code>location_id</code> или <code>null</code>.</td>
       </tr>
     </tbody>
   </table>
 
-  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>location_ids</code>, <code>location_ids.*</code> exists у <code>locations</code> текущего партнёра (только при <code>locations.view</code> в rules).</p>
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>location_id</code> nullable, exists у <code>locations</code> текущего партнёра (rules только при <code>locations.view</code>); ошибки на русском под полем.</p>
 
   <h2 id="sport-types-view">5.1) Право <code>sport_types.view</code> — вид спорта группы</h2>
   <p>Permission справочника <a href="/docs/documentation/admin-sport-types">видов спорта</a> (<code>/admin/sport-types</code>). На странице групп управляет необязательной привязкой группы к виду спорта и фильтром таблицы.</p>
@@ -274,89 +272,15 @@
 
   <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>sport_type_id</code> через <code>PartnerSportTypeId</code> (только при <code>sport_types.view</code> в rules): id должен принадлежать партнёру и быть активным (<code>is_enabled</code>). Дополнительная проверка — <code>TeamService::resolveSportTypeIdForPartner()</code>. Права <code>sport_types.view</code> / <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>).</p>
 
-  <h2 id="groups-training-base-address">5.2) Права <code>groups.training_base.view</code> и <code>groups.address.view</code></h2>
-  <p>Необязательные текстовые поля группы в БД: <code>teams.training_base</code> («Тренировочная база»), <code>teams.address</code> («Адрес») — <code>string</code>, <code>nullable</code>, до 255 символов. В оплатах, расписании, отчётах и лендингах <strong>не используются</strong> — только список групп и модалки create/edit на <code>/admin/teams</code>.</p>
-
+  <h2 id="removed-legacy-fields">5.2) Удалённые поля (история)</h2>
   <div class="warn">
-    Не путать <code>teams.address</code> с <code>locations.address</code> (адрес <a href="/docs/documentation/admin-locations">локации</a> в справочнике) — это разные сущности и разные permissions.
+    Следующие возможности <strong>сняты</strong> и в текущей версии CRM отсутствуют:
+    <ul>
+      <li><code>teams.address</code>, право <code>groups.address.view</code> — миграция <code>2026_06_13_140000_refactor_team_location_and_drop_address.php</code>. Адрес только у объекта (<code>locations.address</code>); на лендинге в <code>team-info</code> строка «Адрес» берётся из выбранного объекта.</li>
+      <li><code>teams.training_base</code>, право <code>groups.training_base.view</code> — миграция <code>2026_06_13_150000_drop_training_base_from_teams.php</code>. Поле не выводится в таблице, модалках и на лендинге.</li>
+      <li>Pivot <code>location_team</code> (many-to-many) заменён на <code>teams.location_id</code> — см. <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</li>
+    </ul>
   </div>
-
-  <p>Миграции:</p>
-  <ul>
-    <li><code>2026_05_29_140000_add_training_base_and_address_to_teams_table.php</code> — колонки в <code>teams</code>;</li>
-    <li><code>2026_05_29_140001_add_groups_training_base_and_address_permissions.php</code> — права в <code>permissions</code> (без автоназначения ролям).</li>
-  </ul>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Permission</th>
-        <th>Описание в справочнике</th>
-        <th>Что открывает на <code>/admin/teams</code></th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>groups.training_base.view</code></td>
-        <td>Группы: поле «Тренировочная база»</td>
-        <td>Колонка таблицы, пункт в «Поля списка», input в модалках; ключ <code>training_base</code> в API</td>
-      </tr>
-      <tr>
-        <td><code>groups.address.view</code></td>
-        <td>Группы: поле «Адрес»</td>
-        <td>Колонка таблицы, пункт в «Поля списка», input в модалках; ключ <code>address</code> в API</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p>Gate: <code>AuthServiceProvider</code> — <code>groups.training_base.view</code>, <code>groups.address.view</code> (через <code>User::hasPermission</code>).</p>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Элемент</th>
-        <th>Без соответствующего права</th>
-        <th>С правом</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Модалки create / edit</td>
-        <td>Input скрыт (<code>@can</code>); ключ удаляется в <code>TeamController</code> до <code>TeamService</code>.</td>
-        <td>Поля после «Название»; ошибки 422 под полем (<code>training_base-error</code>, <code>address-error</code>).</td>
-      </tr>
-      <tr>
-        <td>Колонки таблицы</td>
-        <td>Нет в thead и в «Поля списка» (<code>canViewTrainingBase</code> / <code>canViewAddress</code> в JS).</td>
-        <td>После «Название», до «Тренер» (если есть <code>trainers.view</code>).</td>
-      </tr>
-      <tr>
-        <td>JSON <code>GET /admin/teams/data</code></td>
-        <td>Ключи <code>training_base</code> / <code>address</code> в строке есть, значение — пустая строка <code>''</code> (данные не раскрываются).</td>
-        <td>Текст из БД или <code>''</code>; пусто в ячейке → «—» на клиенте.</td>
-      </tr>
-      <tr>
-        <td>JSON <code>GET /admin/team/{id}/edit</code></td>
-        <td>Ключ отсутствует в ответе.</td>
-        <td>Строка или <code>null</code>.</td>
-      </tr>
-      <tr>
-        <td>Сортировка DataTables</td>
-        <td>—</td>
-        <td><code>columns[*].name = training_base</code> или <code>address</code> → <code>ORDER BY teams.training_base</code> / <code>teams.address</code>.</td>
-      </tr>
-      <tr>
-        <td>Фильтры таблицы</td>
-        <td colspan="2">Отдельных фильтров по этим полям <strong>нет</strong> (в отличие от локации / вида спорта). Поиск по названию группы — как у всех строк.</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>nullable|string|max:255</code> только при наличии права в <code>rules()</code>; <code>attributes()</code> и <code>messages()</code> на русском; пустая строка в <code>prepareForValidation</code> → <code>null</code>. Права <strong>не входят</strong> в <code>config/role_base_permissions.php</code> для роли <code>admin</code> у новых партнёров — назначение только вручную в матрице прав.</p>
-
-  <h3>5.2.1) Доступ к разделу при включённых полях</h3>
-  <p>Страница и все эндпоинты из §1 по-прежнему требуют <code>groups.view</code>. Права <code>groups.training_base.view</code> / <code>groups.address.view</code> <strong>не дают</strong> доступ к <code>/admin/teams</code> без <code>groups.view</code> (попытка → <b>403</b>). При только <code>groups.view</code> раздел открыт (200), но поля базы/адреса скрыты и не сохраняются.</p>
-  <p>Smoke-тесты доступа: <code>TeamsPageTrainingBaseAddressAccessFeatureTest</code>, <code>TeamsPageCompleteAccessFeatureTest</code> (полный набор прав).</p>
 
   <h2>6) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
   <div class="note">
@@ -369,17 +293,17 @@
   <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
     <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>trainer_profile_id</code> (id или <code>none</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
-    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>locations</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
-    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>training_base</code> (при <code>groups.training_base.view</code>), <code>address</code> (при <code>groups.address.view</code>), <code>trainer_label</code>, <code>locations_label</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
-    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>training_base</code>, <code>address</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>location_team</code> → <code>locations</code>), <code>month_price</code>, <code>status_label</code>.</li>
-    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_ids</code> / <code>sport_type_id</code> / <code>training_base</code> / <code>address</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.2). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
+    <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>location</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
+    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_label_full</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
+    <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>locations</code> по <code>teams.location_id</code>), <code>month_price</code>, <code>status_label</code>.</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_id</code> / <code>sport_type_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.1). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
   </ul>
 
   <h2>8) Базовые роли и конфиг</h2>
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code>:</p>
   <ul>
     <li><code>groups.view</code> — есть (доступ к разделу групп);</li>
-    <li><code>sport_types.view</code>, <code>sport_types.manage</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code> — <strong>нет</strong> (включаются вручную в матрице прав партнёра);</li>
+    <li><code>sport_types.view</code>, <code>sport_types.manage</code> — <strong>нет</strong> (включаются вручную в матрице прав партнёра);</li>
     <li><code>trainers.view</code> — есть (колонка «Тренер» и селект в модалках у типового админа);</li>
     <li><code>schedule.view</code> — <strong>закомментировано</strong> (колонка «Расписание» и дни в модалках нужно включать в матрице прав партнёра).</li>
   </ul>
@@ -390,18 +314,15 @@
     <li><code>resources/views/admin/team.blade.php</code> — заголовок «Справочники», вкладки (<code>@include('admin.directories._section_tabs')</code>), toolbar «Группы», таблица, «Поля списка», DataTables.</li>
     <li><code>resources/views/admin/directories/_section_tabs.blade.php</code> — общие вкладки раздела «Справочники».</li>
     <li><code>resources/views/includes/sidebar.blade.php</code> — пункт справочников через <code>DirectoriesMenu::forUser()</code> (приоритет URL: группы → объекты → районы → виды спорта).</li>
-    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки (в т.ч. <code>month_price</code>, <code>training_base</code>, <code>address</code>).</li>
+    <li><code>resources/views/includes/modal/createTeam.blade.php</code>, <code>editTeam.blade.php</code> — модалки (в т.ч. <code>month_price</code>, <code>location_id</code>).</li>
     <li><code>app/Http/Controllers/Admin/TeamController.php</code> — <code>index</code>, <code>data</code>, CRUD, отсечение полей по правам.</li>
     <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
     <li><code>app/Http/Requests/Team/StoreRequest.php</code>, <code>UpdateRequest.php</code> — валидация всех полей группы по правам.</li>
-    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>groups.view</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code>.</li>
-    <li><code>app/Models/Team.php</code> — cast <code>month_price</code> → int; <code>training_base</code> / <code>address</code> — строки (<code>$guarded = []</code>).</li>
-    <li><code>database/migrations/2026_05_29_130000_add_month_price_to_teams_table.php</code> — <code>month_price</code>;</li>
-    <li><code>database/migrations/2026_05_29_140000_add_training_base_and_address_to_teams_table.php</code> — <code>training_base</code>, <code>address</code>;</li>
-    <li><code>database/migrations/2026_05_29_140001_add_groups_training_base_and_address_permissions.php</code> — permissions.</li>
-    <li><code>database/seeders/PermissionSeeder.php</code> — те же имена прав.</li>
-    <li><code>app/Support/DirectoriesMenu.php</code> — подпись и URL пункта сайдбара.</li>
-    <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>, <code>LocationTeamSyncService</code>.</li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>groups.view</code>.</li>
+    <li><code>app/Models/Team.php</code> — cast <code>month_price</code> → int; связь <code>location()</code> (BelongsTo).</li>
+    <li><code>database/migrations/2026_06_13_140000_refactor_team_location_and_drop_address.php</code> — <code>teams.location_id</code>, удаление pivot и <code>teams.address</code>;</li>
+    <li><code>database/migrations/2026_06_13_150000_drop_training_base_from_teams.php</code> — удаление <code>teams.training_base</code> и <code>groups.training_base.view</code>;</li>
+    <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>, <code>TeamLocationSyncService.php</code>.</li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -415,8 +336,8 @@
       <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
-      <li><code>tests/Feature/Crm/Teams/TeamsTrainingBaseAddressFeatureTest.php</code> — <code>groups.training_base.view</code>, <code>groups.address.view</code>: UI, CRUD, валидация, сортировка, columns-settings, отсечение без права.</li>
-      <li><code>tests/Feature/Crm/Teams/TeamsPageTrainingBaseAddressAccessFeatureTest.php</code> — доступ к разделу и всем эндпоинтам (200 / 403 / гость).</li>
+      <li><code>tests/Feature/Crm/Teams/TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code> — <code>location_id</code>, sync, лендинг, school-schedule, smoke 200; схема без <code>training_base</code>.</li>
+      <li><code>tests/Feature/Crm/LocationTeam/</code> — интеграция объектов и групп, долги, доступ к страницам.</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code>, <code>TeamsPageCompleteAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code>, дни недели в модалках.</li>
@@ -425,18 +346,12 @@
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_id</code>, sync <code>team_trainer</code>.</li>
       <li><code>tests/Feature/Crm/Teams/TeamControllerTest.php</code> — CRUD, фильтры, изоляция партнёра.</li>
       <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
-      <li><code>tests/Feature/Crm/Teams/LocationTeamPivotFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code> — pivot локаций.</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
-  tests/Feature/Crm/Teams/TeamsTrainingBaseAddressFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamsPageTrainingBaseAddressAccessFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamsPageCompleteAccessFeatureTest.php \
-  tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code></pre>
+  tests/Feature/Crm/Teams/TeamLocationBindingFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamLocationFullAccessFeatureTest.php \
+  tests/Feature/Crm/Teams/TeamsPageCompleteAccessFeatureTest.php</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

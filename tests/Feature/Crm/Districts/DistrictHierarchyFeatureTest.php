@@ -6,7 +6,7 @@ use App\Models\District;
 use App\Models\Location;
 use App\Models\SchoolLead;
 use App\Models\Team;
-use App\Services\LocationTeamSyncService;
+use App\Services\TeamLocationSyncService;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -257,7 +257,7 @@ final class DistrictHierarchyFeatureTest extends CrmTestCase
             'title'      => 'Лендинг-услуга',
             'is_enabled' => true,
         ]);
-        app(LocationTeamSyncService::class)->syncTeamsForLocation($location, [(int) $team->id]);
+        app(TeamLocationSyncService::class)->syncTeamsForLocation($location, [(int) $team->id]);
 
         $this->get(route('lead.show', ['landingSlug' => $slug]))->assertOk();
 

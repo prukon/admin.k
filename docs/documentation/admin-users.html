@@ -380,8 +380,8 @@
   <h2 id="user-location">3) Локация ученика</h2>
   <div class="note">
     Поле <code>users.location_id</code> удалено (миграция <code>2026_05_28_110000_drop_location_id_from_users_table</code>).
-    Локация ученика в CRM определяется через группу (<code>users.team_id</code>) и привязки группы к локациям
-    (<code>location_team</code> на <code>/admin/teams</code> и <code>/admin/locations</code>).
+    Локация ученика в CRM определяется через группу (<code>users.team_id</code>) и поле <code>teams.location_id</code>
+    (<code>/admin/teams</code> и sync <code>team_ids</code> на <code>/admin/locations</code>).
     В расписании школы локация задаётся в слоте (<code>team_schedule_slots.location_id</code>).
   </div>
   <p>

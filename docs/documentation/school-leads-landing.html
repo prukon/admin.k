@@ -149,9 +149,10 @@
   <ol>
     <li><b>Район</b> (<code>district_id</code>) — обязателен. Список активных районов партнёра, у которых есть хотя бы один активный объект с заполненным <code>district_id</code>; сортировка <code>sort_order</code>, <code>name</code>.</li>
     <li><b>Объект</b> (<code>location_id</code>) — обязателен. Подгружается AJAX после выбора района: <code>GET /lead/{slug}/locations?district_id=</code>. Только <code>locations</code> с <code>district_id</code> и <code>is_enabled = true</code>. Объекты без района на лендинге не показываются.</li>
-    <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Подгружается после выбора объекта: <code>GET /lead/{slug}/teams?location_id=</code>; фильтр через <code>TeamLocationAvailabilityService</code>.</li>
+    <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Подгружается после выбора объекта: <code>GET /lead/{slug}/teams?location_id=</code> — только группы с <code>teams.location_id</code>, равным выбранному объекту (<code>TeamLocationAvailabilityService</code>). Группы без объекта на лендинг не попадают.</li>
   </ol>
   <ul>
+    <li>Блок «Детали услуги» (<code>GET …/team-info</code>): строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы. Поле «Тренировочная база» (<code>teams.training_base</code>) снято — в ответе только актуальные строки деталей услуги.</li>
     <li>Чекбокс <code>needs_contact_help</code> — «Не могу определиться с секцией…»: при включении <code>team_id</code> сбрасывается и не обязателен.</li>
     <li>Submit: объект должен принадлежать выбранному району; иначе 422 на <code>location_id</code>.</li>
   </ul>

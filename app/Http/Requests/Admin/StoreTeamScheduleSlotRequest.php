@@ -18,6 +18,11 @@ class StoreTeamScheduleSlotRequest extends FormRequest
         if ($this->input('date_end') === null || $this->input('date_end') === '') {
             $this->merge(['date_end' => '9999-12-31']);
         }
+
+        $locationId = $this->input('location_id');
+        if ($locationId === '' || $locationId === 'none') {
+            $this->merge(['location_id' => null]);
+        }
     }
 
     public function rules(): array

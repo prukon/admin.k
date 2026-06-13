@@ -67,7 +67,7 @@
     <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
     <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
     <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
-    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности» фильтрует по группе ученика и <code>location_team</code>, не по <code>payments.location_id</code>.</li>
+    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности» фильтрует по <code>users.team_id</code> → <code>teams.location_id</code>, не по <code>payments.location_id</code>.</li>
   </ul>
 
   <h3><code>users_prices</code> (состояние оплат по месяцам)</h3>

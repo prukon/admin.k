@@ -100,8 +100,8 @@
       <tr>
         <td>Задолженности</td>
         <td><code>/admin/reports/debts</code></td>
-        <td>Группа ученика + <code>location_team</code></td>
-        <td>Локация через <code>users.team_id</code>: группа привязана к локации или без привязок (доступна везде)</td>
+        <td>Группа ученика → <code>teams.location_id</code></td>
+        <td>Локация через <code>users.team_id</code>: группа привязана к объекту L или без объекта (<code>location_id IS NULL</code>)</td>
         <td><code>pay-debt-filter-location</code></td>
       </tr>
     </tbody>
@@ -110,9 +110,9 @@
     <li>Запись <code>payments.location_id</code> при первой фиксации оплаты — <a href="/docs/documentation/payments">payments.html</a>, колонка и фильтр — <a href="/docs/documentation/reports-payments">reports-payments.html</a>.</li>
     <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
     <li>Снимок <code>payments.location_id</code> задаётся только при первом создании платежа (если передан явно), см. <a href="/docs/documentation/payments">payments.html</a>.</li>
-    <li>Привязка группы к локациям: <code>/admin/teams</code>, <code>/admin/locations</code> (pivot <code>location_team</code>). Обзор: <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a>.</li>
-    <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики с <code>users.team_id IS NULL</code> <i>или</i> с «универсальной» группой (нет строк в <code>location_team</code> для этой группы). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
-    <li><b>Задолженности — конкретная локация L:</b> ученик попадает, если его группа привязана к L в <code>location_team</code> или универсальна; ученик без группы в выборку по L <b>не</b> входит.</li>
+    <li>Привязка группы к объекту: <code>teams.location_id</code> на <code>/admin/teams</code> и sync <code>team_ids</code> на <code>/admin/locations</code>. Обзор: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</li>
+    <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики с <code>users.team_id IS NULL</code> <i>или</i> с группой без объекта (<code>teams.location_id IS NULL</code>). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
+    <li><b>Задолженности — конкретный объект L:</b> ученик попадает, если <code>teams.location_id = L</code> у его группы; ученик без группы в выборку по L <b>не</b> входит.</li>
   </ul>
 
   <h2 id="trainer-filter">2.2) Фильтр по тренеру в отчётах</h2>
@@ -175,7 +175,7 @@
     </li>
   </ul>
   <div class="note">
-    Фильтр локации — §2.1: через группу ученика (<code>users.team_id</code> и <code>location_team</code>).
+    Фильтр локации — §2.1: через группу ученика (<code>users.team_id</code> → <code>teams.location_id</code>).
     Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
   </div>
 

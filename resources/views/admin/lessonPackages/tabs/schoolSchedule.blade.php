@@ -31,12 +31,8 @@
                 @can('locations.view')
                     <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
                         <label class="school-cal__toolbar-k text-muted mb-0 text-nowrap" for="schoolCalLocation">Объект</label>
-                        <select class="form-select form-select-sm flex-grow-1" id="schoolCalLocation" @if($locations->isEmpty()) disabled @endif style="min-width: 8rem; max-width: 18rem">
-                            @forelse ($locations as $loc)
-                                <option value="{{ $loc->id }}" @if($loop->first) selected @endif>{{ $loc->name }}</option>
-                            @empty
-                                <option value="">Нет объектов</option>
-                            @endforelse
+                        <select class="form-select form-select-sm flex-grow-1" id="schoolCalLocation" style="min-width: 8rem; max-width: 18rem">
+                            @include('admin.lessonPackages.partials.locationFilterOptions', ['locationFilterSelected' => ''])
                         </select>
                     </div>
                 @endcan
@@ -2030,13 +2026,19 @@
                     const te = form.querySelector('[name="time_end"]');
                     if (te) te.value = o.timeEnd;
                 }
-                if (o.locationId != null && o.locationId !== '') {
-                    const sel = form.querySelector('[name="location_id"]');
-                    if (sel) {
-                        const v = String(o.locationId);
-                        if ([].some.call(sel.options, function (opt) { return opt.value === v; })) {
-                            sel.value = v;
-                        }
+                const locSel = form.querySelector('[name="location_id"]');
+                if (locSel) {
+                    let v = '';
+                    if (o.locationId != null && o.locationId !== '') {
+                        v = String(o.locationId);
+                    } else {
+                        const toolbarLoc = document.getElementById('schoolCalLocation');
+                        v = toolbarLoc ? toolbarLoc.value : '';
+                    }
+                    if ([].some.call(locSel.options, function (opt) { return opt.value === v; })) {
+                        locSel.value = v;
+                    } else {
+                        locSel.value = '';
                     }
                 }
                 if (typeof window.applySlotFormTeamFilter === 'function') {
@@ -2044,9 +2046,6 @@
                 }
                 const teamSel = form.querySelector('[name="team_id"]');
                 if (teamSel) teamSel.value = '';
-                if (typeof window.applySlotFormTeamFilter === 'function') {
-                    window.applySlotFormTeamFilter(form);
-                }
                 form.querySelector('[name="date_start"]')?.dispatchEvent(new Event('change', { bubbles: true }));
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }
