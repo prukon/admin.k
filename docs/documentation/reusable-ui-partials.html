@@ -88,7 +88,7 @@
       <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
       <tr><td><code>/admin/settings/logs</code></td><td><code>admin/setting/logs.blade.php</code></td></tr>
       <tr><td><code>/admin/settings/tbank-commissions</code></td><td><code>admin/setting/tbankCommissions.blade.php</code></td></tr>
-      <tr><td>Модалка «История изменений»</td><td><code>includes/logModal.blade.php</code> (users, teams, schedule, отчёты и др.)</td></tr>
+      <tr><td>Модалка «История изменений»</td><td><code>includes/logModal.blade.php</code> — договоры, шаблоны, справочники, заявки, users, teams, schedule, отчёты (<a href="#logmodal">§ logModal</a>)</td></tr>
     </tbody>
   </table>
   <p class="small">Исторически классы называются <code>payments-report-*</code> (первый эталон — отчёт «Платежи»), но CSS общий для всех списков.</p>
@@ -411,8 +411,8 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий</li>
   </ul>
 
-  <h3>Модалка «История изменений» (<code>logModal</code>)</h3>
-  <p>Partial: <code>resources/views/includes/logModal.blade.php</code>. Подключается на страницах users, teams, schedule, отчётов и др.</p>
+  <h3 id="logmodal">Модалка «История изменений» (<code>logModal</code>)</h3>
+  <p>Partial: <code>resources/views/includes/logModal.blade.php</code>. Подключается на страницах users, teams, schedule, договоров, справочников, заявок, отчётов и др. Кнопка в toolbar — иконка <code>fa-clock-rotate-left</code>, при открытии <code>showLogModal(url)</code> загружает <code>GET …/logs-data</code> (см. <a href="/docs/documentation/audit-my-logs">audit-my-logs §5.1</a>).</p>
   <ul>
     <li>Таблица <code>#logsTable</code> — <code>KidsCrmDataTable.create</code> <b>без</b> блока <code>columnsSettings</code> (набор колонок фиксирован).</li>
     <li>Инициализация отложенная: при первом <code>shown.bs.modal</code> на <code>#historyModal</code>, URL берётся из <code>window.showLogModal(routeName)</code>.</li>

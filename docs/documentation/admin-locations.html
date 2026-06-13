@@ -43,9 +43,10 @@
       <tr><td>GET</td><td><code>/admin/locations/data</code></td><td><code>locations.view</code></td><td>JSON таблицы</td></tr>
       <tr><td>GET</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Настройки колонок</td></tr>
       <tr><td>POST</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Сохранение колонок</td></tr>
-      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>, <code>admin_user_id</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание</td></tr>
-      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление</td></tr>
+      <tr><td>GET</td><td><code>/admin/locations/logs-data</code></td><td><code>locations.view</code></td><td>JSON модалки «История изменений» (категория <code>location</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>, <code>admin_user_ids</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание; тело: <code>name</code>, <code>district_id</code>, <code>admin_user_ids[]</code>, <code>team_ids[]</code>, …</td></tr>
+      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление; <code>admin_user_ids[]</code> — полная замена списка админов</td></tr>
       <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление объекта; у групп с этим <code>location_id</code> — <code>null</code></td></tr>
     </tbody>
   </table>
@@ -58,44 +59,104 @@
     <li>Объекты без района не попадают на лендинг заявки (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>).</li>
   </ul>
 
-  <h2>3) Поле «Администратор» (<code>admin_user_id</code>)</h2>
+  <h2>3) Поле «Администратор» (<code>admin_user_ids[]</code>)</h2>
+  <div class="note">
+    <b>Модель связи:</b> many-to-many через pivot <code>location_admin_user</code>. Раньше использовалась колонка <code>locations.admin_user_id</code> (0..1 админ на объект) — она <b>удалена</b> миграцией <code>2026_06_13_170000_create_location_admin_user_table.php</code>; существующие значения перенесены в pivot одной строкой на объект. Обратной совместимости API по полю <code>admin_user_id</code> нет.
+  </div>
   <ul>
-    <li>Колонка <code>locations.admin_user_id</code> — nullable FK → <code>users.id</code>, <code>nullOnDelete</code> (миграция <code>2026_06_13_160000_add_admin_user_id_to_locations_table.php</code>).</li>
-    <li>Допустимы только <b>активные</b> пользователи текущего партнёра с системной ролью <code>admin</code> (<code>App\Support\PartnerAdminUserOptions</code>).</li>
-    <li>Один администратор может быть назначен на <b>несколько</b> объектов; у объекта — <b>не более одного</b> администратора. Объект может быть без администратора.</li>
-    <li>Select «Администратор» в модалках create/edit — только при <code>locations.manage</code>; пустое значение → <code>null</code>.</li>
-    <li>Колонка «Администратор» (<code>admin_user_label</code>) и фильтр таблицы — при <code>locations.view</code> (значения: все / «Без администратора» (<code>none</code>) / id). Сортировка — join к <code>users</code> по ФИО.</li>
-    <li>JSON <code>GET /admin/locations/data</code>: ключи <code>admin_user_id</code>, <code>admin_user_label</code> (ФИО или пустая строка).</li>
-    <li>Модель: <code>Location::adminUser()</code>, <code>User::managedLocations()</code>.</li>
-    <li>Валидация: <code>LocationFieldRules</code> — <code>admin_user_id</code> nullable, exists у <code>users</code> партнёра с ролью <code>admin</code>; ошибки под полем «Администратор».</li>
+    <li>Pivot <code>location_admin_user</code> — M2M между <code>locations</code> и <code>users</code>. Колонки: <code>id</code>, <code>partner_id</code>, <code>location_id</code>, <code>user_id</code>, <code>timestamps</code>; <code>unique(location_id, user_id)</code>; <code>cascadeOnDelete</code> на FK к <code>partners</code>, <code>locations</code>, <code>users</code>.</li>
+    <li>Допустимы только <b>активные</b> (<code>is_enabled = 1</code>) пользователи текущего партнёра с системной ролью <code>admin</code> (<code>App\Support\PartnerAdminUserOptions</code>). Не более <b>5</b> администраторов на объект.</li>
+    <li>Один администратор может быть назначен на <b>несколько</b> объектов; у объекта — <b>от 0 до 5</b> администраторов.</li>
+    <li>Multiselect «Администратор» (<code>admin_user_ids[]</code>) в модалках create/edit — только при <code>locations.manage</code>; пустой выбор → объект без администраторов (при update отправляется <code>admin_user_ids: []</code> — полная замена списка).</li>
+    <li>Колонка «Администратор» (<code>admin_user_label</code>, тип DataTables <code>list</code>, <code>itemsKey: admin_user_names</code>) и фильтр таблицы — при <code>locations.view</code>. Фильтр: все / «Без администратора» (<code>none</code>) / id пользователя. Сокращение «X, еще N шт.» при 3+ ФИО; tooltip — полный список (<code>admin_user_label_full</code>). Сортировка — по минимальному ФИО среди администраторов объекта (подзапрос к pivot + <code>users</code>).</li>
+    <li>Модель: <code>Location::adminUsers()</code> (<code>belongsToMany</code>), <code>User::managedLocations()</code> (<code>belongsToMany</code>). Sync: <code>LocationAdminUsersSyncService::syncAdminsForLocation</code> — полная замена списка; невалидные id (чужой партнёр, не admin, выключен) отбрасываются на уровне сервиса после валидации Request.</li>
+    <li>Валидация: <code>LocationFieldRules</code> — <code>admin_user_ids</code> nullable array, max 5; <code>admin_user_ids.*</code> — integer, exists у <code>users</code> партнёра с ролью <code>admin</code> и <code>is_enabled = 1</code>. Сообщения: «Можно назначить не более 5 администраторов», «Выберите администратора из списка текущего партнёра» — под полем «Администратор».</li>
+    <li>При удалении объекта или пользователя строки pivot удаляются каскадом. Назначение администраторов <b>не влияет</b> на права доступа к CRM и не ограничивает видимость объектов для текущего пользователя — только справочник и фильтры (см. также фильтр «Администратор» на <a href="/docs/documentation/admin-teams">/admin/teams</a>).</li>
   </ul>
+
+  <h3>3.1) API: тела запросов и ответы</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>Поля запроса (админы)</th><th>Ответ / data</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>POST /admin/locations</code></td>
+        <td><code>admin_user_ids[]</code> — необязательный массив id (0..5). Отсутствие или <code>[]</code> → объект без админов.</td>
+        <td><code>{ message, location }</code> — в <code>location</code> нет вложенного списка админов; после create pivot заполняется sync-сервисом.</td>
+      </tr>
+      <tr>
+        <td><code>PUT /admin/locations/{id}</code></td>
+        <td><code>admin_user_ids[]</code> — полная замена: только переданные id остаются в pivot. <code>[]</code> снимает всех админов.</td>
+        <td><code>{ message }</code></td>
+      </tr>
+      <tr>
+        <td><code>GET /admin/locations/{id}</code></td>
+        <td>—</td>
+        <td><code>admin_user_ids: number[]</code> — отсортированы по загрузке связи; также <code>district_id</code>, <code>team_ids</code> (при <code>locations.view</code>).</td>
+      </tr>
+      <tr>
+        <td><code>GET /admin/locations/data</code></td>
+        <td>Фильтр: <code>admin_user_id</code> — id админа или <code>none</code> (объекты без ни одной строки в pivot). <i>Имя параметра в фильтре — единственное число</i>; в формах create/edit — <code>admin_user_ids[]</code>.</td>
+        <td>На каждую строку: <code>admin_user_ids</code>, <code>admin_user_label</code>, <code>admin_user_label_full</code>, <code>admin_user_names</code> (массив ФИО по возрастанию <code>lastname</code>, <code>name</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.2) Доступ к функционалу администраторов</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что доступно</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>locations.view</code></td><td>Колонка «Администратор», фильтр <code>#filter-admin</code>, ключ <code>admin_user_label</code> в columns-settings, поля <code>admin_user_*</code> в JSON <code>/data</code> и <code>admin_user_ids</code> в <code>show</code>. Multiselect в модалках <b>не</b> показывается.</td></tr>
+      <tr><td><code>locations.manage</code></td><td>Дополнительно: multiselect <code>admin_user_ids[]</code> в create/edit, POST/PUT с назначением админов. Требуется также <code>locations.view</code> для доступа к разделу.</td></tr>
+      <tr><td>без <code>locations.view</code></td><td>Страница и все endpoint'ы раздела — <b>403</b>.</td></tr>
+      <tr><td>гость</td><td><b>302 / 401 / 403</b> на все endpoint'ы.</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Smoke 200 всех endpoint'ов с M2M-админами: <code>LocationAdminUsersPageFullAccessFeatureTest</code>, <code>LocationsPageFullAccessFeatureTest::test_all_locations_endpoints_with_admin_user_payloads_return_200</code>.</p>
 
   <h2>4) Интерфейс страницы</h2>
   <p>View: <code>resources/views/admin/locations/index.blade.php</code>, вкладки справочников — <code>admin/directories/_section_tabs.blade.php</code>.</p>
   <ul>
-    <li><b>Toolbar</b> — «Добавить», «Фильтры», «Колонки».</li>
-    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» / id).</li>
+    <li><b>Toolbar</b> — «Добавить» (при <code>locations.manage</code>), «История», «Фильтры», «Колонки».</li>
+    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).</li>
     <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
-    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и select <code>admin_user_id</code> при <code>locations.manage</code>.</li>
+    <li><b>Колонка «Администратор»</b> — тип <code>list</code>, тот же паттерн сокращения, что у «Группы».</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code>.</li>
     <li><b>Колонка «Название»</b> — при <code>locations.manage</code> тип <code>link</code> (<code>js-location-edit</code>, модалка edit); без manage — обычный <code>text</code>. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
-  <h2>5) Привязка групп (<code>team_ids</code>)</h2>
+  <h2>5) Аудит (<code>my_logs</code>)</h2>
+  <p>Запись — через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). События: <code>location.created</code>, <code>location.updated</code>, <code>location.deleted</code> (категория <code>location</code>).</p>
+  <ul>
+    <li><b>create</b> — снимок всех полей: название, район, адрес, описание, активность, администраторы, группы.</li>
+    <li><b>update</b> — diff «старое → новое» по тем же полям; лог только при наличии изменений; группы — только если выполнялся sync <code>team_ids</code>.</li>
+    <li><b>delete</b> — «Объект удалён: {name}. ID: {id}.» (<code>level = security</code>).</li>
+    <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar → модалка <code>includes.logModal</code>, DataTables <code>GET /admin/locations/logs-data</code> (<code>route('logs.data.location')</code>).</li>
+  </ul>
+
+  <h2>6) Привязка групп (<code>team_ids</code>)</h2>
   <p>Sync через <code>TeamLocationSyncService::syncTeamsForLocation</code>: выбранным группам проставляется <code>teams.location_id</code> текущего объекта; снятым — <code>null</code>. Обратная сторона — select <code>location_id</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
 
-  <h2>6) Связанные сущности</h2>
+  <h2>7) Связанные сущности</h2>
   <ul>
     <li><code>school_leads.location_id</code> и <code>school_leads.district_id</code> — заявка (UI «Объект» / «Район»).</li>
     <li><code>team_schedule_slots.location_id</code> — слот расписания.</li>
     <li><code>payments.location_id</code> — снимок в журнале оплат.</li>
   </ul>
 
-  <h2>7) Код и тесты</h2>
+  <h2>8) Код и тесты</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/LocationController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/LocationController.php</code> — CRUD, <code>log()</code>, запись аудита</li>
     <li><code>app/Http/Requests/Admin/Concerns/LocationFieldRules.php</code></li>
     <li><code>app/Support/PartnerAdminUserOptions.php</code></li>
-    <li><code>tests/Feature/Crm/Locations/LocationAdminUserFeatureTest.php</code> — CRUD, фильтр, колонка, валидация <code>admin_user_id</code></li>
+    <li><code>app/Services/LocationAdminUsersSyncService.php</code></li>
+    <li><code>tests/Feature/Crm/Locations/LocationsAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit, diff полей, запись в logs-data</li>
+    <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>locations.view</code> / <code>locations.manage</code></li>
+    <li><code>tests/Feature/Crm/Locations/LocationAdminUserFeatureTest.php</code> — CRUD, фильтр, колонка, валидация <code>admin_user_ids</code>, лимит 5, сокращение label, сортировка, cascade</li>
+    <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 всех endpoint'ов с M2M-админами, контроль доступа view/manage/guest</li>
     <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
     <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district и admin payloads (все endpoint'ы → 200)</li>
     <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code>, <code>LocationTeamPagesAccessFeatureTest.php</code> — sync <code>team_ids</code>, smoke 200</li>

@@ -145,11 +145,11 @@ class TeamController extends AdminBaseController
             if ($adminFilter === 'none') {
                 $baseQuery->where(function ($q) {
                     $q->whereNull('teams.location_id')
-                        ->orWhereHas('location', fn ($lq) => $lq->whereNull('admin_user_id'));
+                        ->orWhereHas('location', fn ($lq) => $lq->whereDoesntHave('adminUsers'));
                 });
             } elseif (ctype_digit((string) $adminFilter)) {
                 $adminId = (int) $adminFilter;
-                $baseQuery->whereHas('location', fn ($lq) => $lq->where('admin_user_id', $adminId));
+                $baseQuery->whereHas('location', fn ($lq) => $lq->whereHas('adminUsers', fn ($uq) => $uq->where('users.id', $adminId)));
             }
         }
 

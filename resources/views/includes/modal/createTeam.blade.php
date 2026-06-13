@@ -24,6 +24,21 @@
                         </div>
                     </div>
 
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label class="form-label" for="location_id">Объект</label>
+                        <select name="location_id" class="form-select" id="location_id">
+                            <option value="">— Не выбран —</option>
+                            @foreach($locationOptions as $location)
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback d-block" data-error-for="location_id" id="location_id-error"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -40,7 +55,13 @@
                     @endcan
 
                     <div class="mb-3">
-                        <label for="default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
+                        <label for="default_duration_minutes" class="form-label">
+                            Длительность по умолчанию (мин)
+                            @include('partials.ui.tooltip-hint', [
+                                'title' => 'Длительность указывается на сайте',
+                                'placement' => 'top',
+                            ])
+                        </label>
                         <input type="number"
                                min="1"
                                max="600"
@@ -69,6 +90,19 @@
                         <div id="month_price-error" class="invalid-feedback"></div>
                     </div>
 
+                    @can('trainers.view')
+                    <div class="mb-3">
+                        <label for="trainer_profile_id" class="form-label">Тренер</label>
+                        <select name="trainer_profile_id" class="form-select" id="trainer_profile_id">
+                            <option value="">Без тренера</option>
+                            @foreach($trainerOptions as $trainer)
+                                <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
+                            @endforeach
+                        </select>
+                        <div id="trainer_profile_id-error" class="invalid-feedback"></div>
+                    </div>
+                    @endcan
+
                     @can('schedule.view')
                     <div class="mb-3">
                         <div class="form-group">
@@ -87,35 +121,6 @@
                             <p class="text-danger">{{ 'Укажите дни недели' }}</p>
                             @enderror
                         </div>
-                    </div>
-                    @endcan
-
-                    @can('locations.view')
-                    @if($locationOptions->isNotEmpty())
-                    <div class="mb-3">
-                        <label class="form-label" for="location_id">Объект</label>
-                        <select name="location_id" class="form-select" id="location_id">
-                            <option value="">— Не выбран —</option>
-                            @foreach($locationOptions as $location)
-                                <option value="{{ $location->id }}">{{ $location->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="form-text">Группа без объекта не показывается на лендинге заявки.</div>
-                        <div class="invalid-feedback d-block" data-error-for="location_id" id="location_id-error"></div>
-                    </div>
-                    @endif
-                    @endcan
-
-                    @can('trainers.view')
-                    <div class="mb-3">
-                        <label for="trainer_profile_id" class="form-label">Тренер</label>
-                        <select name="trainer_profile_id" class="form-select" id="trainer_profile_id">
-                            <option value="">Без тренера</option>
-                            @foreach($trainerOptions as $trainer)
-                                <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
-                            @endforeach
-                        </select>
-                        <div id="trainer_profile_id-error" class="invalid-feedback"></div>
                     </div>
                     @endcan
 

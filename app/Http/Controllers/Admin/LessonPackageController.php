@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\SetManualUserLessonPackagePaidRequest;
 use App\Http\Requests\Admin\StoreLessonPackageRequest;
 use App\Http\Requests\Admin\StoreUserLessonPackageRequest;
 use App\Http\Requests\Admin\UpdateUserLessonPackageAssignmentRequest;
+use App\Http\Requests\LessonPackage\FilterRequest;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\Location;
@@ -22,6 +23,7 @@ use App\Services\Payments\UserLessonPackagePublicPayService;
 use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
+use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
@@ -35,6 +37,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class LessonPackageController extends AdminBaseController
 {
+    use BuildsLogTable;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly SchoolCalendarAssignmentEligibilityService $schoolCalendarAssignmentEligibility,
@@ -102,6 +106,11 @@ final class LessonPackageController extends AdminBaseController
             'schoolCalendarOccurrenceStatuses' => $schoolCalendarOccurrenceStatuses,
             'schoolScheduleViewSettings' => $schoolScheduleViewSettings,
         ]);
+    }
+
+    public function schoolScheduleLogs(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('schedule');
     }
 
     public function schoolScheduleWeek(Request $request, TeamScheduleCalendarService $calendarService): JsonResponse

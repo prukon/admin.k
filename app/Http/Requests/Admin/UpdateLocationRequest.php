@@ -25,6 +25,12 @@ class UpdateLocationRequest extends FormRequest
                 $this->merge(['team_ids' => []]);
             }
         }
+
+        if (! $this->has('admin_user_ids')) {
+            $this->merge(['admin_user_ids' => []]);
+        } elseif (! is_array($this->input('admin_user_ids'))) {
+            $this->merge(['admin_user_ids' => []]);
+        }
     }
 
     public function rules(): array

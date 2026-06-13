@@ -50,6 +50,17 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
                                 data-bs-toggle="collapse"
@@ -348,9 +359,13 @@
     </div>
 </div>
 
+@include('includes.logModal')
+
 @section('scripts')
     <script>
         $(document).ready(function() {
+            showLogModal(@json(route('logs.data.school-lead')));
+
             var csrfToken = $('meta[name="csrf-token"]').attr('content');
             var canViewLocations = @json($canViewLocations);
             var canViewDistricts = @json($canViewDistricts);

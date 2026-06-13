@@ -49,7 +49,7 @@
   <ul>
     <li><b>Значение</b> — канонический <code>event</code>, например <code>user.updated</code>, <code>schedule.user_range_updated</code>.</li>
     <li><b>Уровень</b> — <code>AuditLevel</code>: <code>info</code> (изменения в CRM), <code>security</code> (входы), <code>integration</code> (платежи, webhook, подписание).</li>
-    <li><b>Категория</b> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
+    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
     <li><b>Методы <code>legacyType()</code> / <code>legacyAction()</code> / <code>fromLegacy()</code></b> — только для миграций backfill и unit-тестов реестра, не для HTTP/UI.</li>
   </ul>
   <p>Примеры событий расписания (вместо старых «type=6, action=60» в документации):</p>
@@ -107,12 +107,87 @@
       <tr><td><a href="/docs/documentation/settings-logs">Настройки → Логи</a></td><td><code>GET /admin/settings/logs-data</code></td><td>все события</td><td><code>viewing.all.logs</code></td></tr>
       <tr><td>Пользователи → История</td><td><code>GET /admin/user/logs-data</code></td><td><code>user</code></td><td><code>users.view</code></td></tr>
       <tr><td>Группы → История</td><td><code>GET /admin/teams/logs-data</code></td><td><code>team</code></td><td><code>groups.view</code></td></tr>
-      <tr><td>Расписание → История</td><td><code>GET /schedule/logs-data</code></td><td><code>schedule</code></td><td><code>schedule.view</code></td></tr>
+      <tr><td>Объекты → История</td><td><code>GET /admin/locations/logs-data</code></td><td><code>location</code></td><td><code>locations.view</code></td></tr>
+      <tr><td>Районы → История</td><td><code>GET /admin/districts/logs-data</code></td><td><code>district</code></td><td><code>districts.view</code></td></tr>
+      <tr><td>Виды спорта → История</td><td><code>GET /admin/sport-types/logs-data</code></td><td><code>sport_type</code></td><td><code>sport_types.view</code></td></tr>
+      <tr><td>Заявки с сайта → История</td><td><code>GET /admin/school-leads/logs-data</code></td><td><code>school_lead</code></td><td><code>schoolLeads.view</code></td></tr>
+      <tr><td>Шаблоны договоров → История</td><td><code>GET /client-contract-templates/logs-data</code></td><td><code>contract_template</code></td><td><code>contracts.view</code></td></tr>
+      <tr><td>Договоры → История</td><td><code>GET /client-contracts/logs-data</code></td><td><code>contract</code></td><td><code>contracts.view</code></td></tr>
+      <tr><td>Расписание школы → История</td><td><code>GET /admin/lesson-packages/school-schedule/logs-data</code></td><td><code>schedule</code></td><td><code>lessonPackages.view</code></td></tr>
+      <tr><td>Журнал расписания → История</td><td><code>GET /schedule/logs-data</code></td><td><code>schedule</code></td><td><code>schedule.view</code></td></tr>
       <tr><td>Цены → История</td><td><code>GET /admin/setting-prices/logs-data</code></td><td><code>pricing</code></td><td><code>setPrices.view</code></td></tr>
       <tr><td>Права и роли → История</td><td><code>GET /admin/setting/rules/logs-data</code></td><td><code>role</code></td><td><code>settings.roles.view</code></td></tr>
       <tr><td>Партнёры → История</td><td><code>GET /admin/partner/logs-data</code></td><td><code>partner</code></td><td><code>partner.view</code></td></tr>
     </tbody>
   </table>
+
+  <h2>5.1) Единый паттерн UI «История»</h2>
+  <div class="note">
+    На страницах разделов CRM (см. таблицу ниже) используется один и тот же UX:
+    toolbar → кнопка с иконкой <code>fa-clock-rotate-left</code> и подписью «История» (на узких экранах — только иконка)
+    → Bootstrap-модалка <code>#historyModal</code> из <code>includes/logModal.blade.php</code>
+    → при открытии вызывается <code>showLogModal(url)</code> с URL <code>GET …/logs-data</code>.
+    Контроллер подключает трейт <code>BuildsLogTable</code> и метод <code>log()</code> / <code>schoolScheduleLogs()</code>:
+    JSON DataTables с колонками дата, автор, действие (<code>eventLabel</code>), описание; фильтр по категории через
+    <code>applyCategoryScope()</code> — только события одного домена, без legacy <code>type</code>/<code>action</code>.
+  </div>
+  <ul>
+    <li><b>Права</b> — endpoint <code>logs-data</code> находится в той же middleware-группе, что и index страницы (например <code>contracts.view</code>, <code>districts.view</code>). Без права — 403; гость — 302/401.</li>
+    <li><b>Partner-scope</b> — строки только текущего партнёра (<code>partner_id</code> из <code>current_partner</code>).</li>
+    <li><b>Запись без изменений</b> — для update-событий лог не пишется, если diff пустой (справочники, шаблоны, заявки).</li>
+    <li><b>Удаление</b> — события delete обычно с <code>level = security</code>; при блокировке удаления (422) лог не создаётся.</li>
+  </ul>
+
+  <h2>5.2) Страницы с аудитом (детализация, 2026-06)</h2>
+  <p>Разделы, где добавлена модалка «История» и покрытие feature-тестами. Подробные сценарии — в документации каждого раздела.</p>
+  <table>
+    <thead><tr><th>Страница</th><th>Route logs-data</th><th>События (<code>event</code>)</th><th>Feature-тесты аудита / доступа</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><a href="/docs/documentation/contracts">/client-contracts</a></td>
+        <td><code>logs.data.contract</code></td>
+        <td><code>contract.created</code>, <code>contract.revoked</code>, <code>contract.email_sent</code>, <code>contract.sign_*</code>, …</td>
+        <td><code>ContractsAuditLogsFeatureTest</code>, <code>ContractsPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/contract-templates">/client-contract-templates</a></td>
+        <td><code>logs.data.contract-template</code></td>
+        <td><code>contract_template.created</code>, <code>contract_template.updated</code>, <code>contract_template.email_updated</code></td>
+        <td><code>ContractTemplatesAuditLogsFeatureTest</code>, <code>ContractTemplatesIndexFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a></td>
+        <td><code>logs.data.school-lead</code></td>
+        <td><code>school_lead.updated</code>, <code>school_lead.deleted</code> (создание с лендинга не логируется)</td>
+        <td><code>SchoolLeadsAuditLogsFeatureTest</code>, <code>SchoolLeadsPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/school-schedule-calendar">/admin/lesson-packages/school-schedule</a></td>
+        <td><code>logs.data.school-schedule</code></td>
+        <td><code>schedule.trial_registered</code>, <code>schedule.flexible_linked</code>, <code>schedule.fixed_linked</code>, <code>schedule.single_lesson_registered</code>, <code>schedule.occurrence_status_set</code>, отмены, <code>schedule.slot_*</code>, …</td>
+        <td><code>SchoolScheduleAuditLogsFeatureTest</code>, <code>SchoolSchedulePageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/admin-locations">/admin/locations</a></td>
+        <td><code>logs.data.location</code></td>
+        <td><code>location.created</code>, <code>location.updated</code>, <code>location.deleted</code></td>
+        <td><code>LocationsAuditLogsFeatureTest</code>, <code>LocationsPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/admin-districts">/admin/districts</a></td>
+        <td><code>logs.data.district</code></td>
+        <td><code>district.created</code>, <code>district.updated</code>, <code>district.deleted</code></td>
+        <td><code>DistrictsAuditLogsFeatureTest</code>, <code>DistrictsPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/admin-sport-types">/admin/sport-types</a></td>
+        <td><code>logs.data.sport-type</code></td>
+        <td><code>sport_type.created</code>, <code>sport_type.updated</code>, <code>sport_type.deleted</code></td>
+        <td><code>SportTypesAuditLogsFeatureTest</code>, <code>SportTypesPageFullAccessFeatureTest</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Фильтрация категорий в HTTP — <code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code> (по одному тесту на каждую категорию из таблицы выше).</p>
 
   <h2>6) Миграции БД (справочно)</h2>
   <ul>
@@ -123,6 +198,7 @@
   </ul>
 
   <h2>7) Автотесты</h2>
+  <h3>7.1) Общие (ядро аудита)</h3>
   <ul>
     <li><code>tests/Unit/Support/AuditLogQueryScopesTest.php</code> — scope-фильтры по <code>event</code>/<code>level</code>.</li>
     <li><code>tests/Unit/Services/Audit/AuditLoggerTest.php</code> — запись и подписи.</li>
@@ -131,12 +207,29 @@
     <li><code>tests/Feature/Crm/Settings/SettingsLogsPageAccessAndFunctionalityFeatureTest.php</code> — доступ к вкладке «Логи», smoke 200 всех фильтров.</li>
     <li><code>tests/Feature/Crm/Settings/SettingsLogsPageFullAccessFeatureTest.php</code> — расширенные сценарии partner-scope и UI.</li>
   </ul>
+  <h3>7.2) Аудит по страницам (см. §5.2)</h3>
+  <ul>
+    <li><code>ContractsAuditLogsFeatureTest</code> + <code>ContractsPageFullAccessFeatureTest</code></li>
+    <li><code>ContractTemplatesAuditLogsFeatureTest</code> + <code>ContractTemplatesIndexFullAccessFeatureTest</code> + <code>ContractTemplatesEndpointsAccessFeatureTest</code></li>
+    <li><code>SchoolLeadsAuditLogsFeatureTest</code> + <code>SchoolLeadsPageFullAccessFeatureTest</code></li>
+    <li><code>SchoolScheduleAuditLogsFeatureTest</code> + <code>SchoolSchedulePageFullAccessFeatureTest</code></li>
+    <li><code>LocationsAuditLogsFeatureTest</code> + <code>LocationsPageFullAccessFeatureTest</code></li>
+    <li><code>DistrictsAuditLogsFeatureTest</code> + <code>DistrictsPageFullAccessFeatureTest</code></li>
+    <li><code>SportTypesAuditLogsFeatureTest</code> + <code>SportTypesPageFullAccessFeatureTest</code></li>
+  </ul>
+  <p class="small">Типовой сценарий в <code>*AuditLogsFeatureTest</code>: logs-data 200/403, UI «История», запись при mutation, diff полей, наличие записи в ответе logs-data. В <code>*PageFullAccessFeatureTest</code>: гость/403, 200 всех endpoint'ов раздела при нужном permission.</p>
 
   <h2>8) Связанные разделы</h2>
   <ul>
+    <li><a href="/doc">Оглавление документации</a> — таблица «История изменений на страницах CRM»</li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи (UI, права, фильтры)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials#logmodal">reusable-ui-partials — модалка logModal</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Partner-scope (эталон — вкладка логов)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи» и <code>viewing.all.logs</code> для истории T‑Bank</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи» и <code>viewing.all.logs</code> для истории T‑Bank</a> (отдельный от <code>my_logs</code> таймлайн платежа)</li>
+    <li><a href="/docs/documentation/contracts">Договоры</a> · <a href="/docs/documentation/contract-templates">Шаблоны</a> ·
+      <a href="/docs/documentation/school-leads-widget">Заявки</a> · <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> ·
+      <a href="/docs/documentation/admin-locations">Объекты</a> · <a href="/docs/documentation/admin-districts">Районы</a> ·
+      <a href="/docs/documentation/admin-sport-types">Виды спорта</a></li>
   </ul>
 
   <p class="small"><a href="/doc">← К оглавлению</a></p>

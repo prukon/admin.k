@@ -6,6 +6,7 @@ namespace Tests\Feature\Crm\Teams;
 
 use App\Models\District;
 use App\Models\Location;
+use App\Services\LocationAdminUsersSyncService;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
@@ -110,7 +111,6 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
             'name' => 'Full access object',
             'address' => 'ул. Полная, 1',
             'is_enabled' => true,
-            'admin_user_id' => null,
         ]);
 
         $team = Team::factory()->create([
@@ -127,7 +127,8 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
             'role_id' => $adminRoleId,
             'is_enabled' => 1,
         ]);
-        $location->update(['admin_user_id' => $admin->id]);
+        $location->refresh();
+        app(LocationAdminUsersSyncService::class)->syncAdminsForLocation($location, [$admin->id]);
 
         $teamDataUrls = [
             '/admin/teams/data?draw=1&start=0&length=10',

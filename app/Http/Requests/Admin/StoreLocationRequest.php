@@ -21,6 +21,10 @@ class StoreLocationRequest extends FormRequest
         if ($this->has('team_ids') && ! is_array($this->input('team_ids'))) {
             $this->merge(['team_ids' => []]);
         }
+
+        if ($this->has('admin_user_ids') && ! is_array($this->input('admin_user_ids'))) {
+            $this->merge(['admin_user_ids' => []]);
+        }
     }
 
     public function rules(): array

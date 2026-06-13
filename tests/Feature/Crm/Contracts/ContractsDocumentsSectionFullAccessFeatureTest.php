@@ -36,8 +36,10 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
 
         $this->getJson(route('contracts.data', ['draw' => 1]))->assertStatus(401);
         $this->getJson(route('contracts.columns-settings.get'))->assertStatus(401);
+        $this->getJson(route('logs.data.contract', ['draw' => 1]))->assertStatus(401);
         $this->getJson(route('contract-templates.data', ['draw' => 1]))->assertStatus(401);
         $this->getJson(route('contract-templates.columns-settings.get'))->assertStatus(401);
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertStatus(401);
     }
 
     /** @test */
@@ -61,11 +63,13 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
 
         $this->getJson(route('contracts.data', ['draw' => 1]))->assertStatus(403);
         $this->getJson(route('contracts.columns-settings.get'))->assertStatus(403);
+        $this->getJson(route('logs.data.contract', ['draw' => 1]))->assertStatus(403);
         $this->postJson(route('contracts.columns-settings.save'), [
             'columns' => ['user_name' => true],
         ])->assertStatus(403);
         $this->getJson(route('contract-templates.data', ['draw' => 1]))->assertStatus(403);
         $this->getJson(route('contract-templates.columns-settings.get'))->assertStatus(403);
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertStatus(403);
         $this->postJson(route('contract-templates.columns-settings.save'), [
             'columns' => ['title' => true],
         ])->assertStatus(403);
@@ -109,6 +113,9 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
             ->assertViewIs('contract-templates.index')
             ->assertViewHas(['prefillSources', 'editTemplate', 'editFields', 'activeTab'])
             ->assertSee('id="editContractTemplateModal"', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
             ->assertSee("linkClass: 'js-contract-template-edit-link'", false);
     }
 
@@ -155,6 +162,7 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
 
         $this->getJson(route('contract-templates.data', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->getJson(route('contract-templates.columns-settings.get'))->assertOk();
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->postJson(route('contract-templates.columns-settings.save'), [
             'columns' => [
                 'id'           => true,
@@ -180,6 +188,7 @@ class ContractsDocumentsSectionFullAccessFeatureTest extends ContractsFeatureTes
         ]))->assertOk();
 
         $this->getJson(route('contracts.columns-settings.get'))->assertOk();
+        $this->getJson(route('logs.data.contract', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->postJson(route('contracts.columns-settings.save'), [
             'columns' => [
                 'user_name'    => true,

@@ -146,8 +146,15 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'leads')
             ->assertSee('Заявки с сайта', false)
             ->assertSee('payments-report-title', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
             ->assertSee("linkClass: 'edit-lead'", false)
             ->assertDontSee('id="sl-filter-location"', false);
+
+        $this->getJson(route('logs.data.school-lead', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->getJson(route('admin.school-leads.data', [
             'draw'     => 1,
@@ -200,7 +207,11 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="sl-filter-location"', false)
             ->assertSee('Доступная локация', false)
-            ->assertSee('id="leadLocation"', false);
+            ->assertSee('id="leadLocation"', false)
+            ->assertSee('historyModal', false);
+
+        $this->getJson(route('logs.data.school-lead', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
 
         $this->getJson(route('admin.school-leads.data', [
             'draw'        => 1,
@@ -548,6 +559,10 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'GET',
                 'url'    => route('admin.school-leads.columns-settings.get'),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('logs.data.school-lead', ['draw' => 1, 'start' => 0, 'length' => 10]),
             ],
             [
                 'method' => 'POST',

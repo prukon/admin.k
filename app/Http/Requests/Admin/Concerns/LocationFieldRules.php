@@ -15,8 +15,8 @@ trait LocationFieldRules
             $this->merge(['district_id' => null]);
         }
 
-        if ($this->has('admin_user_id') && $this->input('admin_user_id') === '') {
-            $this->merge(['admin_user_id' => null]);
+        if ($this->has('admin_user_ids') && ! is_array($this->input('admin_user_ids'))) {
+            $this->merge(['admin_user_ids' => []]);
         }
     }
 
@@ -64,8 +64,8 @@ trait LocationFieldRules
             'address' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
             'is_enabled' => ['nullable', 'boolean'],
-            'admin_user_id' => [
-                'nullable',
+            'admin_user_ids' => ['nullable', 'array', 'max:5'],
+            'admin_user_ids.*' => [
                 'integer',
                 'min:1',
                 $this->partnerSystemAdminUserExistsRule($partnerId),
@@ -96,7 +96,8 @@ trait LocationFieldRules
         return [
             'name' => 'название',
             'district_id' => 'район',
-            'admin_user_id' => 'администратор',
+            'admin_user_ids' => 'администратор',
+            'admin_user_ids.*' => 'администратор',
             'team_ids' => 'группы',
             'team_ids.*' => 'группа',
         ];
@@ -111,7 +112,9 @@ trait LocationFieldRules
             'name.required' => 'Введите название',
             'name.unique' => 'Объект с таким названием уже существует в выбранном районе',
             'district_id.exists' => 'Выберите район из списка текущего партнёра',
-            'admin_user_id.exists' => 'Выберите администратора из списка текущего партнёра',
+            'admin_user_ids.array' => 'Некорректный список администраторов',
+            'admin_user_ids.max' => 'Можно назначить не более 5 администраторов',
+            'admin_user_ids.*.exists' => 'Выберите администратора из списка текущего партнёра',
             'team_ids.array' => 'Некорректный список групп',
             'team_ids.*.exists' => 'Выберите группу из списка текущего партнёра',
         ];

@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Directories;
 
 use App\Models\District;
 use App\Models\Location;
+use App\Models\Role;
 use App\Models\SportType;
 use App\Models\Team;
 use App\Models\User;
@@ -22,6 +23,8 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
     private SportType $sportType;
 
     private Team $team;
+
+    private User $partnerAdmin;
 
     protected function setUp(): void
     {
@@ -54,6 +57,14 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'title'      => 'Single perm team',
             'order_by'   => 1,
+        ]);
+
+        $this->partnerAdmin = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => (int) Role::query()->where('name', 'admin')->value('id'),
+            'is_enabled' => 1,
+            'name' => 'Single',
+            'lastname' => 'Admin',
         ]);
     }
 
@@ -352,6 +363,10 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.districts.columns-settings.get'),
             ],
             [
+                'method' => 'GET',
+                'url'    => route('logs.data.district', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
                 'method' => 'POST',
                 'url'    => route('admin.districts.columns-settings.save'),
                 'data'   => ['columns' => ['name' => true]],
@@ -410,12 +425,34 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
+                'url'    => route('admin.locations.data', [
+                    'draw' => 1,
+                    'start' => 0,
+                    'length' => 10,
+                    'admin_user_id' => $this->partnerAdmin->id,
+                ]),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('admin.locations.data', [
+                    'draw' => 1,
+                    'start' => 0,
+                    'length' => 10,
+                    'admin_user_id' => 'none',
+                ]),
+            ],
+            [
+                'method' => 'GET',
                 'url'    => route('admin.locations.columns-settings.get'),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10]),
             ],
             [
                 'method' => 'POST',
                 'url'    => route('admin.locations.columns-settings.save'),
-                'data'   => ['columns' => ['name' => true]],
+                'data'   => ['columns' => ['name' => true, 'admin_user_label' => true]],
             ],
             [
                 'method' => 'GET',
@@ -441,6 +478,7 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
                 'data'   => [
                     'name'        => 'Created single perm object',
                     'district_id' => $this->district->id,
+                    'admin_user_ids' => [$this->partnerAdmin->id],
                     'is_enabled'  => 1,
                 ],
             ],
@@ -450,6 +488,7 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
                 'data'   => [
                     'name'        => 'Updated single perm object',
                     'district_id' => $this->district->id,
+                    'admin_user_ids' => [],
                     'is_enabled'  => 1,
                 ],
             ],
@@ -494,6 +533,10 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'GET',
                 'url'    => route('admin.sport-types.columns-settings.get'),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10]),
             ],
             [
                 'method' => 'POST',

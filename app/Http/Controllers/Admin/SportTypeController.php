@@ -2,18 +2,28 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StoreSportTypeRequest;
 use App\Http\Requests\Admin\UpdateSportTypeRequest;
+use App\Http\Requests\SportType\FilterRequest;
 use App\Models\SportType;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
+use App\Support\BuildsLogTable;
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class SportTypeController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    use BuildsLogTable;
+
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -131,6 +141,15 @@ class SportTypeController extends AdminBaseController
 
         try {
             $sportType = SportType::create($data);
+
+            $this->auditLogger->record(
+                AuditEvent::SportTypeCreated,
+                AuditContext::make($this->formatSportTypeSnapshotDescription($sportType))
+                    ->withTarget($sportType, $sportType->name)
+                    ->withAuthorId($request->user()?->id)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
             if ((int) $code === 1062) {
@@ -183,12 +202,29 @@ class SportTypeController extends AdminBaseController
             abort(404);
         }
 
+        $beforeSnapshot = $this->sportTypeAuditSnapshot($sportType);
+
         $data = $request->validated();
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? false);
         $data['sort'] = (int) ($data['sort'] ?? 0);
 
         try {
             $sportType->update($data);
+            $sportType->refresh();
+
+            $changes = $this->diffSportTypeAuditSnapshots(
+                $beforeSnapshot,
+                $this->sportTypeAuditSnapshot($sportType),
+            );
+
+            if ($changes !== []) {
+                $this->auditLogger->record(
+                    AuditEvent::SportTypeUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withTarget($sportType, $sportType->name)
+                        ->withCreatedAt(now())
+                );
+            }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
             if ((int) $code === 1062) {
@@ -217,6 +253,13 @@ class SportTypeController extends AdminBaseController
             abort(404);
         }
 
+        $this->auditLogger->record(
+            AuditEvent::SportTypeDeleted,
+            AuditContext::make("Вид спорта удалён: {$sportType->name}. ID: {$sportType->id}.")
+                ->withTarget($sportType, $sportType->name)
+                ->withCreatedAt(now())
+        );
+
         $sportType->delete();
 
         if ($request->ajax() || $request->expectsJson()) {
@@ -227,5 +270,67 @@ class SportTypeController extends AdminBaseController
         }
 
         return redirect()->route('admin.sport-types.index');
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('sport_type');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function sportTypeAuditSnapshot(SportType $sportType): array
+    {
+        return [
+            'name' => (string) ($sportType->name ?? ''),
+            'description' => $this->auditTextValue($sportType->description, 'не указано'),
+            'sort' => (string) ($sportType->sort ?? 0),
+            'is_enabled' => $sportType->is_enabled ? 'Да' : 'Нет',
+        ];
+    }
+
+    private function formatSportTypeSnapshotDescription(SportType $sportType): string
+    {
+        $snapshot = $this->sportTypeAuditSnapshot($sportType);
+
+        return implode("\n", [
+            "Название: {$snapshot['name']}",
+            "Описание: {$snapshot['description']}",
+            "Сортировка: {$snapshot['sort']}",
+            "Активность: {$snapshot['is_enabled']}",
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffSportTypeAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'name' => 'Название',
+            'description' => 'Описание',
+            'sort' => 'Сортировка',
+            'is_enabled' => 'Активность',
+        ];
+
+        $changes = [];
+
+        foreach ($labels as $key => $label) {
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
+    }
+
+    private function auditTextValue(mixed $value, string $emptyLabel): string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : $emptyLabel;
     }
 }

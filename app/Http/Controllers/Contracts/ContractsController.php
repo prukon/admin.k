@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Contracts;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractCheckBalanceRequest;
 use App\Http\Requests\Contracts\ContractStoreRequest;
+use App\Http\Requests\Contracts\FilterRequest;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
 use App\Models\Partner;
@@ -12,6 +13,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractCreationService;
+use App\Support\BuildsLogTable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,8 @@ use Illuminate\Validation\ValidationException;
 
 class ContractsController extends Controller
 {
+    use BuildsLogTable;
+
     public function __construct(
         private readonly ContractCreationService $creationService,
         private readonly ContractBillingService $billing,
@@ -263,5 +267,10 @@ class ContractsController extends Controller
             'balance' => (float)$balance,
             'fee'     => $fee,
         ], 422);
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('contract');
     }
 }

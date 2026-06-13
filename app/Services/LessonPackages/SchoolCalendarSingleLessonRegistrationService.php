@@ -57,6 +57,10 @@ final class SchoolCalendarSingleLessonRegistrationService
         if (isset($data['user_lesson_package_id']) && (int) $data['user_lesson_package_id'] > 0) {
             $ulp = $this->resolveBindableUlp($partnerId, $userId, (int) $data['user_lesson_package_id']);
             $this->bindUlpToSlot($partnerId, $ulp, $slot, $occurrence, $createdBy);
+            $ulp->loadMissing('user');
+            if ($ulp->user !== null) {
+                $this->logSingleLessonRegistered($partnerId, $ulp->user, $slot, $occurrence, (int) $ulp->id, $createdBy);
+            }
 
             return;
         }
@@ -67,8 +71,9 @@ final class SchoolCalendarSingleLessonRegistrationService
 
         $template = $this->resolveSingleLessonTemplate($partnerId, (int) $data['lesson_package_id']);
         $feeAmount = round((float) ($data['fee_amount'] ?? 0), 2);
+        $createdUlpId = null;
 
-        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmount, $slot, $occurrence, $createdBy): void {
+        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmount, $slot, $occurrence, $createdBy, &$createdUlpId): void {
             /** @var UserLessonPackage $ulp */
             $ulp = UserLessonPackage::query()->create([
                 'user_id' => $userId,
@@ -83,7 +88,48 @@ final class SchoolCalendarSingleLessonRegistrationService
             ]);
 
             $this->bindUlpToSlot($partnerId, $ulp, $slot, $occurrence, $createdBy, false);
+            $createdUlpId = (int) $ulp->id;
         });
+
+        /** @var User|null $user */
+        $user = User::query()->whereKey($userId)->first();
+        if ($user !== null) {
+            $this->logSingleLessonRegistered($partnerId, $user, $slot, $occurrence, $createdUlpId, $createdBy);
+        }
+    }
+
+    private function logSingleLessonRegistered(
+        int $partnerId,
+        User $user,
+        TeamScheduleSlot $slot,
+        CarbonImmutable $occurrence,
+        ?int $ulpId,
+        ?int $authorId,
+    ): void {
+        $userLabel = trim(($user->lastname ?? '').' '.($user->name ?? ''));
+        if ($userLabel === '') {
+            $userLabel = 'Ученик #'.$user->id;
+        }
+
+        $slot->loadMissing('team:id,title');
+        $teamTitle = (string) ($slot->team?->title ?? '');
+        $timeStart = substr((string) ($slot->time_start ?? ''), 0, 5);
+        $timeEnd = substr((string) ($slot->time_end ?? ''), 0, 5);
+        $timeLabel = trim($timeStart.($timeStart && $timeEnd ? '–' : '').$timeEnd);
+        $context = implode('; ', array_filter([
+            $ulpId !== null ? 'назначение #'.$ulpId : null,
+            $teamTitle !== '' ? 'группа: '.$teamTitle : null,
+            'дата: '.$occurrence->toDateString(),
+            $timeLabel !== '' ? $timeLabel : null,
+        ]));
+
+        $this->auditLogger->record(
+            AuditEvent::ScheduleSingleLessonRegistered,
+            AuditContext::make('Разовое занятие; ученик: '.$userLabel.'; '.$context)
+                ->withAuthorId($authorId)
+                ->withPartnerId($partnerId)
+                ->withUserId((int) $user->id)
+        );
     }
 
     public function bindUlpToSlot(

@@ -120,6 +120,7 @@
       <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON для DataTables (см. §5.2)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>school_leads_index</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости колонок (<code>columns</code> — объект ключ → bool)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Статус, комментарий; при <code>locations.view</code> — <code>location_id</code> (<code>UpdateSchoolLeadRequest</code>)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Soft delete</td></tr>
     </tbody>
@@ -132,7 +133,7 @@
   <h3>5.1) Интерфейс страницы списка</h3>
   <p class="small">View списка заявок: <code>resources/views/admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>), стили toolbar — <code>resources/css/admin-list-toolbar.css</code> (см. <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a> и отчёт <a href="/docs/documentation/reports-payments">«Платежи»</a>).</p>
   <ul>
-    <li><b>Toolbar</b> — заголовок «Заявки с сайта», счётчики по всему партнёру (не зависят от фильтров таблицы):
+    <li><b>Toolbar</b> — заголовок «Заявки с сайта», счётчики по всему партнёру (не зависят от фильтров таблицы), кнопка «История»:
       <ul>
         <li><b>Новых</b> — заявки со статусом <code>new</code>;</li>
         <li><b>В обработке</b> — <code>processing</code>;</li>
@@ -146,6 +147,14 @@
     <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку редактирования заявки (как кнопка «Изменить»). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
+
+  <h3 id="school-leads-audit">5.1.1) Аудит (<code>my_logs</code>)</h3>
+  <p>Запись — через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). События: <code>school_lead.updated</code>, <code>school_lead.deleted</code> (категория <code>school_lead</code>). Создание заявки с лендинга/виджета в CRM-лог не пишется — только действия на вкладке «Заявки».</p>
+  <ul>
+    <li><b>update</b> — diff «старое → новое» по статусу, комментарию, району, объекту; лог только при изменениях.</li>
+    <li><b>delete</b> — «Заявка удалена: Заявка #{id}: {ФИО}.» (<code>level = security</code>, soft delete).</li>
+    <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar → <code>GET /admin/school-leads/logs-data</code> (<code>route('logs.data.school-lead')</code>), модалка <code>includes.logModal</code>.</li>
+  </ul>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
@@ -389,8 +398,10 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
   </ul>
   <p><b>CRM: заявки и виджет</b></p>
   <ul>
+    <li><code>SchoolLeadsAuditLogsFeatureTest.php</code> — endpoint «История», update/delete audit, diff полей, запись в logs-data</li>
+    <li><code>SchoolLeadsPageFullAccessFeatureTest.php</code> — гость/403, 200 для endpoint'ов вкладки «Заявки» при <code>schoolLeads.view</code></li>
     <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>
-    <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — гость/403, endpoint’ы при <code>schoolLeads.view</code>; workflow с <code>users.view</code> + <code>contracts.view</code>; маркер <code>edit-lead</code> в HTML</li>
+    <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — расширенный доступ (локации, workflow с <code>users.view</code> + <code>contracts.view</code>); маркер <code>edit-lead</code> в HTML</li>
     <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя родителя + update JSON</li>
     <li><code>SchoolLeadCreateUserFeatureTest.php</code> — модалка, <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>

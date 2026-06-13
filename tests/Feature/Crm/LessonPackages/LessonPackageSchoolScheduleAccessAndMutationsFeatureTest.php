@@ -74,6 +74,8 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
             ->assertSee('singleLessonRegistrationStore', false)
             ->assertSee('Привязать гибкий абонемент', false)
             ->assertSee('Привязать фиксированный абонемент', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('fa-clock-rotate-left', false)
             ->assertDontSee('Изменить занятие', false);
     }
 

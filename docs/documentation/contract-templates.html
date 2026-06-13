@@ -79,6 +79,7 @@
       <tr><td>GET</td><td><code>…/{template}/download-docx</code></td><td>Скачивание текущего DOCX</td></tr>
       <tr><td>GET</td><td><code>…/{template}/email</code></td><td>JSON: subject, body, placeholders, <code>update_url</code></td></tr>
       <tr><td>PUT</td><td><code>…/{template}/email</code></td><td>Обновление email <b>только</b> текущей версии (отдельно от PUT шаблона)</td></tr>
+      <tr><td>GET</td><td><code>/client-contract-templates/logs-data</code> (<code>logs.data.contract-template</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract_template</code>)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts</code> + <code>creation_mode=template</code></td><td>Создание договора «форма клиенту»</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/revoke</code></td><td>В <code>awaiting_client_fill</code> — отзыв + возврат 70&nbsp;₽</td></tr>
     </tbody>
@@ -90,6 +91,15 @@
   </div>
 
   <h2>5) Модалки шаблонов</h2>
+
+  <h3 id="contract-templates-audit">5.0) Аудит (<code>my_logs</code>)</h3>
+  <p>Запись — через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). События: <code>contract_template.created</code>, <code>contract_template.updated</code>, <code>contract_template.email_updated</code> (категория <code>contract_template</code>).</p>
+  <ul>
+    <li><b>created</b> — при <code>POST /client-contract-templates</code>: id, название, версия, число полей.</li>
+    <li><b>updated</b> — diff по названию, статусу архива, версии DOCX и каждому полю схемы (подпись, обязательность, prefill, порядок); запись только при изменениях.</li>
+    <li><b>email_updated</b> — отдельное событие при <code>PUT …/email</code>: diff темы и тела письма (тело — краткий текст без HTML).</li>
+    <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar вкладки «Шаблоны» → модалка <code>includes.logModal</code> → <code>GET /client-contract-templates/logs-data</code>.</li>
+  </ul>
 
   <h3>5.1) Создание (<code>#createContractTemplateModal</code>)</h3>
   <ul>
@@ -188,6 +198,7 @@
   <div class="note">
     <p><b>Шаблоны и CRM:</b></p>
     <ul>
+      <li><code>ContractTemplatesAuditLogsFeatureTest.php</code> — endpoint «История», create/update/email audit, diff полей, запись в logs-data</li>
       <li><code>ContractTemplatesCrudFeatureTest.php</code> — базовый CRUD</li>
       <li><code>ContractTemplatesStoreUpdateFeatureTest.php</code> — валидация store/update, DOCX, поля, версии</li>
       <li><code>ContractTemplatesEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>

@@ -163,6 +163,7 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             'name' => 'Pivot access location',
             'is_enabled' => 1,
             'team_ids' => [$team->id],
+            'admin_user_ids' => [],
         ])->assertOk();
 
         $location = Location::query()
@@ -178,6 +179,7 @@ final class LocationTeamPagesAccessFeatureTest extends CrmTestCase
             'name' => 'Pivot access location updated',
             'is_enabled' => 1,
             'team_ids' => [],
+            'admin_user_ids' => [],
         ])->assertOk();
 
         $this->deleteJson(route('admin.locations.destroy', $location))

@@ -50,6 +50,7 @@
       <tr><td>GET</td><td><code>/client-contracts/user-group</code></td><td>AJAX: группы выбранного ученика</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/data</code></td><td>DataTables: строки списка договоров</td></tr>
       <tr><td>GET/POST</td><td><code>/client-contracts/columns-settings</code></td><td>Настройки колонок таблицы</td></tr>
+      <tr><td>GET</td><td><code>/client-contracts/logs-data</code> (<code>logs.data.contract</code>)</td><td>JSON для модалки «История» (аудит <code>my_logs</code>, категория <code>contract</code>)</td></tr>
       <tr><td>GET</td><td><code>/client-contracts/{contract}</code></td><td>Карточка договора (основная информация, действия, история)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/send</code></td><td>Первая отправка на подпись (SMS)</td></tr>
       <tr><td>POST</td><td><code>/client-contracts/{contract}/resend</code></td><td>Повторная отправка</td></tr>
@@ -71,6 +72,21 @@
       <tr><td>Авторизован, нет <code>contracts.view</code></td><td>403</td></tr>
       <tr><td>Авторизован, есть <code>contracts.view</code></td><td>200 на index (в т.ч. <code>?create=1</code>, <code>?user_id=</code>), data, columns-settings, users-search, user-group, check-balance, show (свой партнёр), download при наличии файла, send-email (с валидным телом)</td></tr>
       <tr><td>Чужой партнёр (<code>{contract}</code>)</td><td>403 (middleware <code>contract.partner</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="contracts-audit">1.2) Аудит (<code>my_logs</code>)</h3>
+  <p>Запись — через <code>ContractAudit</code> / <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). Категория <code>contract</code>. UI: кнопка «История» (иконка <code>fa-clock-rotate-left</code>) на вкладке «Договоры» → модалка <code>includes.logModal</code> → <code>GET /client-contracts/logs-data</code> (<code>logs.data.contract</code>).</p>
+  <table>
+    <thead><tr><th>Событие</th><th>Когда</th></tr></thead>
+    <tbody>
+      <tr><td><code>contract.created</code></td><td>Создание договора (PDF или template)</td></tr>
+      <tr><td><code>contract.sign_request_created</code></td><td>Создан запрос на подпись (первая отправка)</td></tr>
+      <tr><td><code>contract.sign_sent_success</code> / <code>…_failed</code></td><td>Результат первичной SMS-отправки</td></tr>
+      <tr><td><code>contract.sign_resent_success</code> / <code>…_failed</code></td><td>Повторная отправка SMS</td></tr>
+      <tr><td><code>contract.revoked</code></td><td>Отзыв (<code>POST …/revoke</code>), с указанием возврата 70&nbsp;₽</td></tr>
+      <tr><td><code>contract.email_sent</code></td><td>Отправка PDF на email (<code>POST …/send-email</code>)</td></tr>
+      <tr><td><code>contract.signed</code>, <code>contract.sms_opened</code>, …</td><td>Webhook / синхронизация / кабинет родителя</td></tr>
     </tbody>
   </table>
 
@@ -241,6 +257,8 @@
   <div class="note">
     <p><b>Модалка создания и карточка:</b></p>
     <ul>
+      <li><code>ContractsAuditLogsFeatureTest.php</code> — endpoint «История», created/revoke/email/send/resend audit, logs-data</li>
+      <li><code>ContractsPageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов <code>/client-contracts</code> при <code>contracts.view</code></li>
       <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF</li>
       <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
       <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>

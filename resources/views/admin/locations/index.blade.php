@@ -31,6 +31,17 @@
                             </button>
                         @endcan
 
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
                                 data-bs-toggle="collapse"
@@ -223,7 +234,7 @@
     @can('locations.manage')
         {{-- Create --}}
         <div class="modal fade" id="locationCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить объект</h5>
@@ -247,26 +258,6 @@
                                 </select>
                                 <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Администратор</label>
-                                <select class="form-control" name="admin_user_id">
-                                    <option value="">— Без администратора —</option>
-                                    @foreach($adminOptions as $admin)
-                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
-                                    @endforeach
-                                </select>
-                                <div class="invalid-feedback" data-error-for="admin_user_id"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Адрес</label>
-                                <input class="form-control" name="address" />
-                                <div class="invalid-feedback" data-error-for="address"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Описание</label>
-                                <input class="form-control" name="description" />
-                                <div class="invalid-feedback" data-error-for="description"></div>
-                            </div>
                             @if($teamOptions->isNotEmpty())
                             <div class="mb-3 generic-multiselect-field">
                                 <label class="form-label" for="locationCreateTeamIds">Группы</label>
@@ -282,6 +273,29 @@
                                 <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
                             </div>
                             @endif
+                            <div class="mb-3 generic-multiselect-field">
+                                <label class="form-label" for="locationCreateAdminUserIds">Администратор</label>
+                                <select id="locationCreateAdminUserIds"
+                                        name="admin_user_ids[]"
+                                        class="form-select js-generic-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите администраторов">
+                                    @foreach($adminOptions as $admin)
+                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="admin_user_ids"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Адрес</label>
+                                <input class="form-control" name="address" />
+                                <div class="invalid-feedback" data-error-for="address"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Описание</label>
+                                <input class="form-control" name="description" />
+                                <div class="invalid-feedback" data-error-for="description"></div>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Активна</label>
                                 <select class="form-control" name="is_enabled">
@@ -302,7 +316,7 @@
 
         {{-- Edit --}}
         <div class="modal fade" id="locationEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать объект</h5>
@@ -328,26 +342,6 @@
                                 </select>
                                 <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Администратор</label>
-                                <select class="form-control" name="admin_user_id">
-                                    <option value="">— Без администратора —</option>
-                                    @foreach($adminOptions as $admin)
-                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
-                                    @endforeach
-                                </select>
-                                <div class="invalid-feedback" data-error-for="admin_user_id"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Адрес</label>
-                                <input class="form-control" name="address" />
-                                <div class="invalid-feedback" data-error-for="address"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Описание</label>
-                                <input class="form-control" name="description" />
-                                <div class="invalid-feedback" data-error-for="description"></div>
-                            </div>
                             @if($teamOptions->isNotEmpty())
                             <div class="mb-3 generic-multiselect-field">
                                 <label class="form-label" for="locationEditTeamIds">Группы</label>
@@ -363,6 +357,29 @@
                                 <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
                             </div>
                             @endif
+                            <div class="mb-3 generic-multiselect-field">
+                                <label class="form-label" for="locationEditAdminUserIds">Администратор</label>
+                                <select id="locationEditAdminUserIds"
+                                        name="admin_user_ids[]"
+                                        class="form-select js-generic-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите администраторов">
+                                    @foreach($adminOptions as $admin)
+                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="admin_user_ids"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Адрес</label>
+                                <input class="form-control" name="address" />
+                                <div class="invalid-feedback" data-error-for="address"></div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Описание</label>
+                                <input class="form-control" name="description" />
+                                <div class="invalid-feedback" data-error-for="description"></div>
+                            </div>
                             <div class="mb-3">
                                 <label class="form-label">Активна</label>
                                 <select class="form-control" name="is_enabled">
@@ -382,9 +399,11 @@
             </div>
         </div>
     @endcan
+
+    @include('includes.logModal')
 @endsection
 
-@if($teamOptions->isNotEmpty())
+@if($teamOptions->isNotEmpty() || $adminOptions->isNotEmpty())
     @include('partials.select2.generic-multiselect')
 @endif
 
@@ -393,6 +412,8 @@
         $(document).ready(function () {
             const canManageLocations = @json(auth()->user()->can('locations.manage'));
             const hasTeamOptions = @json($teamOptions->isNotEmpty());
+            const hasAdminOptions = @json($adminOptions->isNotEmpty());
+            const hasMultiselectFields = hasTeamOptions || hasAdminOptions;
             const defaultFilterStatus = 'active';
 
             function locationsFilterParams() {
@@ -474,7 +495,12 @@
                         } : {}),
                     },
                     { key: 'district_name', type: 'text', data: 'district_name' },
-                    { key: 'admin_user_label', type: 'text', data: 'admin_user_label' },
+                    {
+                        key: 'admin_user_label',
+                        type: 'list',
+                        data: 'admin_user_label',
+                        itemsKey: 'admin_user_names',
+                    },
                     { key: 'address', type: 'text-long', data: 'address' },
                     {
                         key: 'teams_label',
@@ -600,14 +626,26 @@
             const editForm = document.getElementById('locationEditForm');
             const $createTeamsSelect = $('#locationCreateTeamIds');
             const $editTeamsSelect = $('#locationEditTeamIds');
+            const $createAdminsSelect = $('#locationCreateAdminUserIds');
+            const $editAdminsSelect = $('#locationEditAdminUserIds');
 
-            if (hasTeamOptions && window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.init($createTeamsSelect, {
-                    dropdownParent: $('#locationCreateModal')
-                });
-                KidsCrmGenericMultiselectSelect2.init($editTeamsSelect, {
-                    dropdownParent: $('#locationEditModal')
-                });
+            if (hasMultiselectFields && window.KidsCrmGenericMultiselectSelect2) {
+                if (hasTeamOptions) {
+                    KidsCrmGenericMultiselectSelect2.init($createTeamsSelect, {
+                        dropdownParent: $('#locationCreateModal')
+                    });
+                    KidsCrmGenericMultiselectSelect2.init($editTeamsSelect, {
+                        dropdownParent: $('#locationEditModal')
+                    });
+                }
+                if (hasAdminOptions) {
+                    KidsCrmGenericMultiselectSelect2.init($createAdminsSelect, {
+                        dropdownParent: $('#locationCreateModal')
+                    });
+                    KidsCrmGenericMultiselectSelect2.init($editAdminsSelect, {
+                        dropdownParent: $('#locationEditModal')
+                    });
+                }
             }
 
             document.getElementById('locationCreateSubmit')?.addEventListener('click', async () => {
@@ -620,7 +658,12 @@
                 if (ok) {
                     createForm.reset();
                     if (window.KidsCrmGenericMultiselectSelect2) {
-                        KidsCrmGenericMultiselectSelect2.reset($createTeamsSelect);
+                        if (hasTeamOptions) {
+                            KidsCrmGenericMultiselectSelect2.reset($createTeamsSelect);
+                        }
+                        if (hasAdminOptions) {
+                            KidsCrmGenericMultiselectSelect2.reset($createAdminsSelect);
+                        }
                     }
                     bootstrap.Modal.getInstance(document.getElementById('locationCreateModal'))?.hide();
                     reloadLocationsTable();
@@ -640,9 +683,8 @@
                 if (districtSelect) {
                     districtSelect.value = data.district_id ? String(data.district_id) : '';
                 }
-                const adminSelect = editForm.querySelector('[name="admin_user_id"]');
-                if (adminSelect) {
-                    adminSelect.value = data.admin_user_id ? String(data.admin_user_id) : '';
+                if (window.KidsCrmGenericMultiselectSelect2 && hasAdminOptions) {
+                    KidsCrmGenericMultiselectSelect2.setValues($editAdminsSelect, data.admin_user_ids || []);
                 }
                 editForm.querySelector('[name="address"]').value = data.address || '';
                 editForm.querySelector('[name="description"]').value = data.description || '';
@@ -719,6 +761,8 @@
                 deleteLocation();
             });
             @endcan
+
+            showLogModal(@json(route('logs.data.location')));
         });
     </script>
 @endpush

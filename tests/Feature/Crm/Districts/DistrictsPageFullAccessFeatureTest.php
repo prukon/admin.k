@@ -50,6 +50,9 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
             ->assertViewIs('admin.districts.index')
             ->assertSee('id="districts-table"', false)
             ->assertSee('id="directoriesSectionTabs"', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee("linkClass: 'js-district-edit'", false);
     }
@@ -83,6 +86,10 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
         ]))->assertOk();
 
         $this->getJson(route('admin.districts.columns-settings.get'))->assertOk();
+
+        $this->getJson(route('logs.data.district', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->postJson(route('admin.districts.columns-settings.save'), [
             'columns' => [
@@ -201,6 +208,9 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.districts.columns-settings.get'))->assertOk();
 
+        $this->getJson(route('logs.data.district', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
+
         $this->postJson(route('admin.districts.columns-settings.save'), [
             'columns' => ['name' => true],
         ])->assertOk();
@@ -282,14 +292,24 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.districts.destroy', $this->district->id))->assertStatus(403);
     }
 
+    public function test_logs_data_returns_403_without_districts_view(): void
+    {
+        $actor = $this->createUserWithoutPermission('districts.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('logs.data.district', ['draw' => 1]))->assertStatus(403);
+    }
+
     public function test_all_district_routes_require_auth(): void
     {
-        auth()->logout();
+        Auth::logout();
 
         $calls = [
             fn () => $this->get(route('admin.districts.index')),
             fn () => $this->getJson(route('admin.districts.data', ['draw' => 1])),
             fn () => $this->getJson(route('admin.districts.columns-settings.get')),
+            fn () => $this->getJson(route('logs.data.district', ['draw' => 1, 'start' => 0, 'length' => 10])),
             fn () => $this->postJson(route('admin.districts.columns-settings.save'), ['columns' => ['name' => true]]),
             fn () => $this->getJson(route('admin.districts.show', $this->district->id)),
             fn () => $this->postJson(route('admin.districts.store'), ['name' => 'Guest', 'is_enabled' => 1]),

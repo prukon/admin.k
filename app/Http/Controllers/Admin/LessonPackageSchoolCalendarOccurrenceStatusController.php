@@ -13,6 +13,9 @@ use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Enums\AuditEvent;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\SchoolScheduleTrialLessonConsumptionAdjuster;
 use App\Services\UserLessonPackageConsumptionAdjuster;
@@ -21,8 +24,10 @@ use Illuminate\Support\Facades\DB;
 
 final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -200,6 +205,24 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
                 'errors' => ['lesson_occurrence_status_id' => [$e->getMessage()]],
             ], 422);
         }
+
+        $userLabel = $user ? trim(($user->lastname ?? '').' '.($user->name ?? '')) : ('Ученик #'.$userId);
+        if ($userLabel === '') {
+            $userLabel = 'Ученик #'.$userId;
+        }
+
+        $this->auditLogger->record(
+            AuditEvent::ScheduleOccurrenceStatusSet,
+            AuditContext::make(
+                'Статус занятия: '.$status->title
+                    .'; ученик: '.$userLabel
+                    .'; дата: '.$occurrenceDate
+                    .($savedUlpId !== null ? '; назначение #'.$savedUlpId : '; пробное занятие')
+            )
+                ->withAuthorId(auth()->id())
+                ->withPartnerId($partnerId)
+                ->withUserId($userId)
+        );
 
         $event->load(['lessonOccurrenceStatus:id,code,title,color,icon']);
 

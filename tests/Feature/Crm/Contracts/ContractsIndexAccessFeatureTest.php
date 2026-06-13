@@ -65,6 +65,7 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
         $this->getJson(route('contracts.users.search', ['q' => 'test']))->assertStatus(403);
         $this->getJson(route('contracts.user.group', ['user_id' => $student->id]))->assertStatus(403);
         $this->postJson('/client-contracts/check-balance')->assertStatus(403);
+        $this->getJson(route('logs.data.contract', ['draw' => 1]))->assertStatus(403);
     }
 
     /** @test */
@@ -152,6 +153,12 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
         ]))->assertOk();
 
         $this->getJson(route('contracts.columns-settings.get'))->assertOk();
+
+        $this->getJson(route('logs.data.contract', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))->assertOk();
 
         $this->postJson(route('contracts.columns-settings.save'), [
             'columns' => [

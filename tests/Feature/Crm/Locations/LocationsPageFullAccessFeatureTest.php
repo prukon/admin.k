@@ -46,6 +46,9 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('locationsReportFiltersCollapse', false)
             ->assertSee('locationsColumnsDropdown', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
             ->assertSee('KidsCrmDataTable.create', false);
     }
 
@@ -70,6 +73,10 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
         ]))->assertOk();
 
         $this->getJson(route('admin.locations.columns-settings.get'))->assertOk();
+
+        $this->getJson(route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->postJson(route('admin.locations.columns-settings.save'), [
             'columns' => [
@@ -134,6 +141,9 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.locations.columns-settings.get'))->assertOk();
 
+        $this->getJson(route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
+
         $this->postJson(route('admin.locations.columns-settings.save'), [
             'columns' => ['id' => true, 'name' => true],
         ])->assertOk();
@@ -178,6 +188,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('locationEditModal', false)
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('showConfirmDeleteModal', false)
+            ->assertSee('historyModal', false)
             ->assertSee('KidsCrmGenericMultiselectSelect2', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee("linkClass: 'js-location-edit'", false);
@@ -189,6 +200,9 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             'name' => 'Manage',
             'status' => 'active',
         ]))->assertOk();
+
+        $this->getJson(route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
 
         $this->getJson(route('admin.locations.show', $loc->id))->assertOk();
 
@@ -394,7 +408,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="filter-admin"', false)
             ->assertSee('data-column-key="admin_user_label"', false)
-            ->assertSee('name="admin_user_id"', false);
+            ->assertSee('name="admin_user_ids[]"', false);
 
         $this->getJson(route('admin.locations.data', [
             'draw' => 1,
@@ -406,7 +420,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
 
         $create = $this->postJson(route('admin.locations.store'), [
             'name' => 'Object with admin FA',
-            'admin_user_id' => $admin->id,
+            'admin_user_ids' => [$admin->id],
             'is_enabled' => 1,
         ])->assertOk();
 
@@ -421,7 +435,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
         ]))
             ->assertOk()
             ->assertJsonStructure([
-                'data' => [['admin_user_id', 'admin_user_label']],
+                'data' => [['admin_user_ids', 'admin_user_label', 'admin_user_names']],
             ]);
 
         $this->getJson(route('admin.locations.data', [
@@ -433,21 +447,30 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.locations.show', $createdId))
             ->assertOk()
-            ->assertJsonPath('admin_user_id', $admin->id);
+            ->assertJsonPath('admin_user_ids', [$admin->id]);
 
         $this->putJson(route('admin.locations.update', $createdId), [
             'name' => 'Object with admin FA updated',
-            'admin_user_id' => '',
+            'admin_user_ids' => [],
             'is_enabled' => 1,
         ])->assertOk();
 
         $this->getJson(route('admin.locations.show', $createdId))
             ->assertOk()
-            ->assertJsonPath('admin_user_id', null);
+            ->assertJsonPath('admin_user_ids', []);
 
         $this->deleteJson(route('admin.locations.destroy', $createdId))
             ->assertOk()
             ->assertJsonPath('success', true);
+    }
+
+    public function test_logs_data_returns_403_without_locations_view(): void
+    {
+        $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('logs.data.location', ['draw' => 1]))->assertStatus(403);
     }
 
     public function test_guest_cannot_access_any_locations_endpoint(): void
@@ -458,6 +481,7 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.locations.index')),
             fn () => $this->getJson(route('admin.locations.data', ['draw' => 1])),
             fn () => $this->getJson(route('admin.locations.columns-settings.get')),
+            fn () => $this->getJson(route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10])),
             fn () => $this->postJson(route('admin.locations.columns-settings.save'), [
                 'columns' => ['name' => true],
             ]),

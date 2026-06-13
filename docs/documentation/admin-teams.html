@@ -221,7 +221,7 @@
         <td>
           <b>Объект</b> (<code>#filter-location</code>): пусто — все; <code>none</code> — <code>location_id IS NULL</code>; id — группы объекта.<br>
           <b>Район</b> (<code>#filter-district</code>, если есть активные районы): пусто — все; <code>none</code> — группа без объекта <b>или</b> объект без района; id — группы, чей объект в этом районе (<code>teams → location → district_id</code>).<br>
-          <b>Администратор</b> (<code>#filter-admin</code>, если есть admin-пользователи): пусто — все; <code>none</code> — группа без объекта <b>или</b> объект без <code>admin_user_id</code>; id — группы, чей объект привязан к этому администратору.
+          <b>Администратор</b> (<code>#filter-admin</code>, если есть admin-пользователи): пусто — все; <code>none</code> — группа без объекта <b>или</b> объект без администраторов в pivot <code>location_admin_user</code>; id — группы, чей объект привязан к этому администратору (M2M).
         </td>
       </tr>
       <tr>
@@ -296,7 +296,7 @@
 
   <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>
   <ul>
-    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>trainer_profile_id</code> (id или <code>none</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>district_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по <code>location.district_id</code>), <code>admin_user_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по <code>location.admin_user_id</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
+    <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>trainer_profile_id</code> (id или <code>none</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>district_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по <code>location.district_id</code>), <code>admin_user_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по pivot <code>location_admin_user</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
     <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>location</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
     <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_label_full</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
     <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>locations</code> по <code>teams.location_id</code>), <code>month_price</code>, <code>status_label</code>.</li>
@@ -340,7 +340,8 @@
       <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
-      <li><code>tests/Feature/Crm/Teams/TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code> — <code>location_id</code>, фильтры <code>district_id</code> / <code>admin_user_id</code>, sync, лендинг, school-schedule, smoke 200</li>
+      <li><code>tests/Feature/Crm/Teams/TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code> — <code>location_id</code>, фильтры <code>district_id</code> / <code>admin_user_id</code> (pivot <code>location_admin_user</code>), sync, лендинг, school-schedule, smoke 200</li>
+      <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 страницы объектов и фильтра групп по M2M-админу</li>
       <li><code>tests/Feature/Crm/LocationTeam/</code> — интеграция объектов и групп, долги, доступ к страницам.</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер»: UI, <code>trainer_label</code>, сортировка, «Поля списка».</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageFullAccessFeatureTest.php</code>, <code>TeamsPageCompleteAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на все эндпоинты; без права / гость → 403.</li>

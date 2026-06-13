@@ -437,6 +437,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
 
         Route::get('/admin/lesson-packages/school-schedule', [LessonPackageController::class, 'schoolSchedule'])
             ->name('admin.lesson-packages.school-schedule');
+        Route::get('/admin/lesson-packages/school-schedule/logs-data', [LessonPackageController::class, 'schoolScheduleLogs'])
+            ->name('logs.data.school-schedule');
         Route::get('/admin/lesson-packages/school-schedule/view-settings', [SchoolScheduleViewSettingsController::class, 'show'])
             ->name('admin.lesson-packages.school-schedule.view-settings');
         Route::post('/admin/lesson-packages/school-schedule/view-settings', [SchoolScheduleViewSettingsController::class, 'store'])
@@ -556,6 +558,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/districts/data', [\App\Http\Controllers\Admin\DistrictController::class, 'data'])->name('admin.districts.data');
         Route::get('admin/districts/columns-settings', [\App\Http\Controllers\Admin\DistrictColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.districts.columns-settings.get');
         Route::post('admin/districts/columns-settings', [\App\Http\Controllers\Admin\DistrictColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.districts.columns-settings.save');
+        Route::get('admin/districts/logs-data', [\App\Http\Controllers\Admin\DistrictController::class, 'log'])->name('logs.data.district');
         Route::get('admin/districts/{district}', [\App\Http\Controllers\Admin\DistrictController::class, 'show'])->whereNumber('district')->name('admin.districts.show');
         Route::post('admin/districts', [\App\Http\Controllers\Admin\DistrictController::class, 'store'])->name('admin.districts.store');
         Route::put('admin/districts/{district}', [\App\Http\Controllers\Admin\DistrictController::class, 'update'])
@@ -572,6 +575,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/locations/data', [\App\Http\Controllers\Admin\LocationController::class, 'data'])->name('admin.locations.data');
         Route::get('admin/locations/columns-settings', [\App\Http\Controllers\Admin\LocationColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.locations.columns-settings.get');
         Route::post('admin/locations/columns-settings', [\App\Http\Controllers\Admin\LocationColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.locations.columns-settings.save');
+        Route::get('admin/locations/logs-data', [\App\Http\Controllers\Admin\LocationController::class, 'log'])->name('logs.data.location');
         Route::get('admin/locations/{location}', [\App\Http\Controllers\Admin\LocationController::class, 'show'])->whereNumber('location')->name('admin.locations.show');
         Route::post('admin/locations', [\App\Http\Controllers\Admin\LocationController::class, 'store'])
             ->middleware('can:locations.manage')
@@ -592,6 +596,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/sport-types/data', [\App\Http\Controllers\Admin\SportTypeController::class, 'data'])->name('admin.sport-types.data');
         Route::get('admin/sport-types/columns-settings', [\App\Http\Controllers\Admin\SportTypeColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.sport-types.columns-settings.get');
         Route::post('admin/sport-types/columns-settings', [\App\Http\Controllers\Admin\SportTypeColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.sport-types.columns-settings.save');
+        Route::get('admin/sport-types/logs-data', [\App\Http\Controllers\Admin\SportTypeController::class, 'log'])->name('logs.data.sport-type');
         Route::get('admin/sport-types/{sportType}', [\App\Http\Controllers\Admin\SportTypeController::class, 'show'])->whereNumber('sportType')->name('admin.sport-types.show');
         Route::post('admin/sport-types', [\App\Http\Controllers\Admin\SportTypeController::class, 'store'])
             ->middleware('can:sport_types.manage')
@@ -788,10 +793,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:schoolLeads.view')->group(function () {
         Route::get('/admin/school-leads', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'index'])->name('admin.school-leads');
         Route::get('/admin/school-leads/data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'dataTable'])->name('admin.school-leads.data');
-        Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
-        Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
+        Route::get('/admin/school-leads/logs-data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'log'])->name('logs.data.school-lead');
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
+        Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
+        Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {
@@ -839,6 +845,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('contract-templates.columns-settings.get');
         Route::post('/client-contract-templates/columns-settings', [\App\Http\Controllers\Contracts\ContractTemplateColumnsSettingsController::class, 'saveColumnsSettings'])
             ->name('contract-templates.columns-settings.save');
+        Route::get('/client-contract-templates/logs-data', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'log'])
+            ->name('logs.data.contract-template');
         Route::get('/client-contract-templates/create', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'create'])
             ->name('contract-templates.create');
         Route::post('/client-contract-templates', [\App\Http\Controllers\Contracts\ContractTemplateController::class, 'store'])
@@ -868,6 +876,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/client-contracts/data', [ContractTableController::class, 'data'])->name('contracts.data');
         Route::get('/client-contracts/columns-settings', [ContractTableController::class, 'getColumnsSettings'])->name('contracts.columns-settings.get');
         Route::post('/client-contracts/columns-settings', [ContractTableController::class, 'saveColumnsSettings'])->name('contracts.columns-settings.save');
+        Route::get('/client-contracts/logs-data', [ContractsController::class, 'log'])->name('logs.data.contract');
 
         // >>> ПОТОМ обычные CRUD-роуты без параметров <<<
 

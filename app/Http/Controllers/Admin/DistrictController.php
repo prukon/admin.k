@@ -2,21 +2,30 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StoreDistrictRequest;
 use App\Http\Requests\Admin\UpdateDistrictRequest;
+use App\Http\Requests\District\FilterRequest;
 use App\Models\District;
 use App\Models\Location;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\LocationDistrictSyncService;
 use App\Services\PartnerContext;
+use App\Support\BuildsLogTable;
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class DistrictController extends AdminBaseController
 {
+    use BuildsLogTable;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly LocationDistrictSyncService $locationDistrictSync,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
     }
@@ -173,6 +182,17 @@ class DistrictController extends AdminBaseController
             if ($syncLocations && $locationIds !== null) {
                 $this->locationDistrictSync->syncLocationsForDistrict($district, $locationIds);
             }
+
+            $district->load(['locations' => fn ($q) => $q->orderBy('name')]);
+
+            $this->auditLogger->record(
+                AuditEvent::DistrictCreated,
+                AuditContext::make($this->formatDistrictSnapshotDescription($district))
+                    ->withTarget($district, $district->name)
+                    ->withAuthorId($request->user()?->id)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
             if ((int) $code === 1062) {
@@ -234,6 +254,9 @@ class DistrictController extends AdminBaseController
             abort(404);
         }
 
+        $district->load(['locations' => fn ($q) => $q->orderBy('name')]);
+        $beforeSnapshot = $this->districtAuditSnapshot($district);
+
         $data = $request->validated();
         $syncLocations = $request->user()?->can('locations.view') ?? false;
         $locationIds = null;
@@ -250,6 +273,23 @@ class DistrictController extends AdminBaseController
 
             if ($syncLocations && $locationIds !== null) {
                 $this->locationDistrictSync->syncLocationsForDistrict($district, $locationIds);
+            }
+
+            $district->refresh()->load(['locations' => fn ($q) => $q->orderBy('name')]);
+
+            $changes = $this->diffDistrictAuditSnapshots(
+                $beforeSnapshot,
+                $this->districtAuditSnapshot($district),
+                $syncLocations && $locationIds !== null,
+            );
+
+            if ($changes !== []) {
+                $this->auditLogger->record(
+                    AuditEvent::DistrictUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withTarget($district, $district->name)
+                        ->withCreatedAt(now())
+                );
             }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
@@ -288,6 +328,13 @@ class DistrictController extends AdminBaseController
             ], 422);
         }
 
+        $this->auditLogger->record(
+            AuditEvent::DistrictDeleted,
+            AuditContext::make("Район удалён: {$district->name}. ID: {$district->id}.")
+                ->withTarget($district, $district->name)
+                ->withCreatedAt(now())
+        );
+
         $district->delete();
 
         if ($request->ajax() || $request->expectsJson()) {
@@ -298,6 +345,69 @@ class DistrictController extends AdminBaseController
         }
 
         return redirect()->route('admin.districts.index');
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('district');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function districtAuditSnapshot(District $district): array
+    {
+        $locationNames = $district->relationLoaded('locations')
+            ? $district->locations->sortBy('name')->pluck('name')->values()->all()
+            : [];
+
+        return [
+            'name' => (string) ($district->name ?? ''),
+            'sort_order' => (string) ($district->sort_order ?? 0),
+            'is_enabled' => $district->is_enabled ? 'Да' : 'Нет',
+            'locations' => $locationNames !== [] ? implode(', ', $locationNames) : 'не указаны',
+        ];
+    }
+
+    private function formatDistrictSnapshotDescription(District $district): string
+    {
+        $snapshot = $this->districtAuditSnapshot($district);
+
+        return implode("\n", [
+            "Название: {$snapshot['name']}",
+            "Сортировка: {$snapshot['sort_order']}",
+            "Активность: {$snapshot['is_enabled']}",
+            "Объекты: {$snapshot['locations']}",
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffDistrictAuditSnapshots(array $before, array $after, bool $includeLocations): array
+    {
+        $labels = [
+            'name' => 'Название',
+            'sort_order' => 'Сортировка',
+            'is_enabled' => 'Активность',
+            'locations' => 'Объекты',
+        ];
+
+        $changes = [];
+
+        foreach ($labels as $key => $label) {
+            if ($key === 'locations' && ! $includeLocations) {
+                continue;
+            }
+
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
     }
 
     /**

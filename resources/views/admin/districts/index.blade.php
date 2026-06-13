@@ -31,6 +31,17 @@
                             </button>
                         @endcan
 
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
                                 data-bs-toggle="collapse"
@@ -147,7 +158,7 @@
 
     @can('districts.view')
         <div class="modal fade" id="districtCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить район</h5>
@@ -160,11 +171,6 @@
                                 <label class="form-label">Название*</label>
                                 <input class="form-control" name="name" />
                                 <div class="invalid-feedback" data-error-for="name"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Сортировка</label>
-                                <input class="form-control" name="sort_order" type="number" min="0" value="0" />
-                                <div class="invalid-feedback" data-error-for="sort_order"></div>
                             </div>
                             @can('locations.view')
                             @if($locationOptions->isNotEmpty())
@@ -184,6 +190,11 @@
                             @endif
                             @endcan
                             <div class="mb-3">
+                                <label class="form-label">Сортировка</label>
+                                <input class="form-control" name="sort_order" type="number" min="0" value="0" />
+                                <div class="invalid-feedback" data-error-for="sort_order"></div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Активен</label>
                                 <select class="form-control" name="is_enabled">
                                     <option value="1" selected>Да</option>
@@ -202,7 +213,7 @@
         </div>
 
         <div class="modal fade" id="districtEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать район</h5>
@@ -217,11 +228,6 @@
                                 <label class="form-label">Название*</label>
                                 <input class="form-control" name="name" />
                                 <div class="invalid-feedback" data-error-for="name"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Сортировка</label>
-                                <input class="form-control" name="sort_order" type="number" min="0" />
-                                <div class="invalid-feedback" data-error-for="sort_order"></div>
                             </div>
                             @can('locations.view')
                             @if($locationOptions->isNotEmpty())
@@ -241,6 +247,11 @@
                             @endif
                             @endcan
                             <div class="mb-3">
+                                <label class="form-label">Сортировка</label>
+                                <input class="form-control" name="sort_order" type="number" min="0" />
+                                <div class="invalid-feedback" data-error-for="sort_order"></div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Активен</label>
                                 <select class="form-control" name="is_enabled">
                                     <option value="1">Да</option>
@@ -259,6 +270,8 @@
             </div>
         </div>
     @endcan
+
+    @include('includes.logModal')
 @endsection
 
 @can('locations.view')
@@ -500,6 +513,8 @@
                 });
             });
             @endcan
+
+            showLogModal(@json(route('logs.data.district')));
         });
     </script>
 @endpush

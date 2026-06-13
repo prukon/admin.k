@@ -85,6 +85,17 @@ class ContractPodpislonSendService
                     'payload_json' => json_encode(['channel' => 'client_cabinet'], JSON_UNESCAPED_UNICODE),
                 ]);
 
+                $this->contractAudit->record(
+                    AuditEvent::ContractSignSentSuccess,
+                    implode("\n", [
+                        'Статус запроса: "created" → "sent"',
+                        'Статус договора: "' . $oldContractStatus . '" → "' . $contract->status . '"',
+                    ]),
+                    userId: (int) $contract->user_id,
+                    authorId: $authorId,
+                    contract: $contract,
+                );
+
                 return [
                     'success' => true,
                     'message' => 'SMS отправлена',
@@ -94,6 +105,7 @@ class ContractPodpislonSendService
 
             $sr->status = 'failed';
             $sr->save();
+            $oldContractStatus = $contract->status;
             $contract->status = Contract::STATUS_FAILED;
             $contract->save();
 
@@ -103,6 +115,17 @@ class ContractPodpislonSendService
                 'type'         => 'failed',
                 'payload_json' => json_encode(['res' => $res, 'links' => $this->signingLinks($contract)], JSON_UNESCAPED_UNICODE),
             ]);
+
+            $this->contractAudit->record(
+                AuditEvent::ContractSignSentFailed,
+                implode("\n", [
+                    'Статус запроса: "created" → "failed"',
+                    'Статус договора: "' . $oldContractStatus . '" → "' . $contract->status . '"',
+                ]),
+                userId: (int) $contract->user_id,
+                authorId: $authorId,
+                contract: $contract,
+            );
 
             ContractSmsCooldown::release($contract->id);
 
@@ -115,6 +138,7 @@ class ContractPodpislonSendService
         } catch (\Throwable $e) {
             $sr->status = 'failed';
             $sr->save();
+            $oldContractStatus = $contract->status;
             $contract->status = Contract::STATUS_FAILED;
             $contract->save();
 
@@ -124,6 +148,18 @@ class ContractPodpislonSendService
                 'type'         => 'failed',
                 'payload_json' => json_encode(['error' => $e->getMessage()], JSON_UNESCAPED_UNICODE),
             ]);
+
+            $this->contractAudit->record(
+                AuditEvent::ContractSignSentFailed,
+                implode("\n", [
+                    'Статус запроса: "created" → "failed"',
+                    'Статус договора: "' . $oldContractStatus . '" → "' . $contract->status . '"',
+                    'Ошибка: ' . $e->getMessage(),
+                ]),
+                userId: (int) $contract->user_id,
+                authorId: $authorId,
+                contract: $contract,
+            );
 
             Log::error('[contracts.send] fail', [
                 'contract_id' => $contract->id,

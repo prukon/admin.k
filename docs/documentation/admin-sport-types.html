@@ -112,6 +112,7 @@
       <tr><td>GET</td><td><code>/admin/sport-types/data</code></td><td><code>sport_types.view</code></td><td>JSON таблицы (serverSide)</td></tr>
       <tr><td>GET</td><td><code>/admin/sport-types/columns-settings</code></td><td><code>sport_types.view</code></td><td>Настройки колонок (<code>user_table_settings</code>, ключ <code>sport_types_index</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/sport-types/columns-settings</code></td><td><code>sport_types.view</code></td><td>Сохранение настроек колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/sport-types/logs-data</code></td><td><code>sport_types.view</code></td><td>JSON модалки «История изменений» (категория <code>sport_type</code>)</td></tr>
       <tr><td>GET</td><td><code>/admin/sport-types/{sportType}</code></td><td><code>sport_types.view</code></td><td>JSON карточки для модалки edit (<code>admin.sport-types.show</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/sport-types</code></td><td><code>sport_types.view</code> + <code>sport_types.manage</code></td><td>Создание (<code>StoreSportTypeRequest</code>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/sport-types/{sportType}</code></td><td><code>sport_types.view</code> + <code>sport_types.manage</code></td><td>Обновление (<code>UpdateSportTypeRequest</code>)</td></tr>
@@ -123,7 +124,7 @@
   <h2>5) Интерфейс страницы</h2>
   <p>View: <code>resources/views/admin/sport-types/index.blade.php</code>. Заголовок раздела — «Справочники», ниже — <code>@include('admin.directories._section_tabs')</code>. Общий toolbar — <a href="/docs/documentation/reusable-ui-partials">переиспользуемые UI-блоки</a>, CSS <code>admin-list-toolbar.css</code>.</p>
   <ul>
-    <li><b>Toolbar</b> — «Добавить» (<code>sport_types.manage</code>), «Фильтры», «Колонки».</li>
+    <li><b>Toolbar</b> — «Добавить» (<code>sport_types.manage</code>), «История», «Фильтры», «Колонки».</li>
     <li><b>Фильтры</b> (collapse): <code>name</code> (название/описание/id), <code>status</code> — active/inactive; плюс глобальный поиск DataTables.</li>
     <li><b>DataTables</b> — server-side, ключ настроек колонок <code>sport_types_index</code>.</li>
     <li><b>Колонки</b> (настраиваемые): <code>sort</code>, <code>name</code>, <code>teams_count</code> (число связанных групп), <code>is_enabled_label</code>, <code>actions</code> (при <code>sport_types.manage</code>).</li>
@@ -132,7 +133,16 @@
     <li><b>Колонка «Название»</b> — при <code>sport_types.manage</code> тип <code>link</code> (<code>js-sport-type-edit</code>); только <code>sport_types.view</code> — <code>text-long</code> без ссылки. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
-  <h2>6) Связь с группами (<code>teams</code>)</h2>
+  <h2>6) Аудит (<code>my_logs</code>)</h2>
+  <p>Запись — через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). События: <code>sport_type.created</code>, <code>sport_type.updated</code>, <code>sport_type.deleted</code> (категория <code>sport_type</code>).</p>
+  <ul>
+    <li><b>create</b> — снимок: название, описание, сортировка, активность.</li>
+    <li><b>update</b> — diff «старое → новое» по тем же полям; лог только при изменениях.</li>
+    <li><b>delete</b> — «Вид спорта удалён: {name}. ID: {id}.» (<code>level = security</code>).</li>
+    <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar (при <code>sport_types.view</code>) → <code>GET /admin/sport-types/logs-data</code> (<code>route('logs.data.sport-type')</code>), модалка <code>includes.logModal</code>.</li>
+  </ul>
+
+  <h2>7) Связь с группами (<code>teams</code>)</h2>
   <p>Привязка выполняется на странице <a href="/docs/documentation/admin-teams#sport-types-view">/admin/teams</a>, а не в справочнике видов спорта:</p>
   <ul>
     <li>В модалках create/edit группы — селект <code>sport_type_id</code> (только активные виды спорта партнёра), если у пользователя есть <code>sport_types.view</code> и в справочнике есть записи.</li>
@@ -144,7 +154,7 @@
     Вид спорта группы и объект группы — <b>независимые</b> измерения. Объект задаётся полем <code>teams.location_id</code> (<a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>). Вид спорта не заменяет район/объект на лендинге.
   </div>
 
-  <h2>7) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
+  <h2>8) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
   <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
   <ul>
     <li><code>GET /lead/{landingSlug}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
@@ -152,10 +162,10 @@
     <li>Если справочник видов спорта пуст — блок на форме не рендерится, поведение как раньше (только район и услуга).</li>
   </ul>
 
-  <h2>8) Ключевые файлы</h2>
+  <h2>9) Ключевые файлы</h2>
   <ul>
     <li><code>app/Models/SportType.php</code></li>
-    <li><code>app/Http/Controllers/Admin/SportTypeController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/SportTypeController.php</code> — CRUD, <code>log()</code>, запись аудита</li>
     <li><code>app/Http/Controllers/Admin/SportTypeColumnsSettingsController.php</code></li>
     <li><code>app/Http/Requests/Admin/StoreSportTypeRequest.php</code>, <code>UpdateSportTypeRequest.php</code></li>
     <li><code>app/Rules/PartnerSportTypeId.php</code></li>
@@ -167,9 +177,11 @@
     <li><code>database/factories/SportTypeFactory.php</code></li>
   </ul>
 
-  <h2>9) Автотесты</h2>
+  <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit, diff полей, запись в logs-data</li>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>sport_types.view</code> / <code>sport_types.manage</code></li>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesFeatureTest.php</code> — CRUD, partner scope, права, destroy → null у teams.</li>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — smoke 200 всех эндпоинтов; UI раздела «Справочники»; 403 без прав; guest.</li>
       <li><code>tests/Feature/Crm/Directories/SportTypesDirectoriesIntegrationFeatureTest.php</code> — вкладки, сайдбар, приоритет ссылки, полный доступ 200/403.</li>

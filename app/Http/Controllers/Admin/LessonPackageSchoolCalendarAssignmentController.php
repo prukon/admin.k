@@ -196,6 +196,14 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ], 422);
         }
 
+        $userLabel = $this->scheduleUserLabel($ulp->user);
+        $this->recordScheduleAudit(
+            AuditEvent::ScheduleFlexibleLinked,
+            'Гибкий абонемент #'.$ulp->id.' привязан к календарю; ученик: '.$userLabel
+                .$this->scheduleSlotContext($slot, $occurrence->toDateString()),
+            (int) $ulp->user_id,
+        );
+
         return response()->json(['message' => 'Занятие привязано к абонементу.']);
     }
 
@@ -266,6 +274,14 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 'errors' => ['occurrence_date' => ['Не удалось сохранить привязку.']],
             ], 422);
         }
+
+        $userLabel = $this->scheduleUserLabel($ulp->user);
+        $this->recordScheduleAudit(
+            AuditEvent::ScheduleSingleLessonRegistered,
+            'Разовое занятие; назначение #'.$ulp->id.'; ученик: '.$userLabel
+                .$this->scheduleSlotContext($slot, $occurrence->toDateString()),
+            (int) $ulp->user_id,
+        );
 
         return response()->json(['message' => 'Разовое занятие записано в расписание.']);
     }
@@ -504,6 +520,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         try {
+            $linkedCount = 0;
             DB::transaction(function () use (
                 $partnerId,
                 $user,
@@ -512,6 +529,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $anchorSlot,
                 $effectiveLocationFilter,
                 $patterns,
+                &$linkedCount,
             ) {
                 $this->calendarPeriodService->applyFirstCalendarAnchor($ulp, $anchorDate);
                 $ulp->refresh();
@@ -545,6 +563,8 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     $periodEnd,
                     $effectiveLocationFilter
                 );
+
+                $linkedCount = count($chain);
 
                 $this->calendarService->assertFixedChainHasNoTimeOverlapWithExistingUserLessons(
                     (int) $user->id,
@@ -596,6 +616,15 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 'errors' => ['user_lesson_package_id' => ['Не удалось создать привязку.']],
             ], 422);
         }
+
+        $userLabel = $this->scheduleUserLabel($user);
+        $this->recordScheduleAudit(
+            AuditEvent::ScheduleFixedLinked,
+            'Фиксированный абонемент #'.$ulp->id.' привязан к календарю; ученик: '.$userLabel
+                .'; записей: '.$linkedCount
+                .$this->scheduleSlotContext($anchorSlot, $anchorDate->toDateString()),
+            (int) $user->id,
+        );
 
         return response()->json(['message' => 'Абонемент назначен, занятия привязаны к расписанию школы.']);
     }
@@ -722,6 +751,13 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 'errors' => ['user_id' => ['Не удалось сохранить пробную запись.']],
             ], 422);
         }
+
+        $userLabel = $this->scheduleUserLabel($user);
+        $this->recordScheduleAudit(
+            AuditEvent::ScheduleTrialRegistered,
+            'Пробное занятие; ученик: '.$userLabel.$this->scheduleSlotContext($slot, $occurrence->toDateString()),
+            (int) $user->id,
+        );
 
         return response()->json(['message' => 'Пробное занятие добавлено в расписание.']);
     }
@@ -873,5 +909,43 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         return $out;
+    }
+
+    private function recordScheduleAudit(AuditEvent $event, string $description, int $userId): void
+    {
+        $this->auditLogger->record(
+            $event,
+            AuditContext::make($description)
+                ->withAuthorId(auth()->id())
+                ->withPartnerId($this->requirePartnerId())
+                ->withUserId($userId)
+        );
+    }
+
+    private function scheduleUserLabel(?User $user): string
+    {
+        if ($user === null) {
+            return '—';
+        }
+
+        $label = trim(($user->lastname ?? '').' '.($user->name ?? ''));
+
+        return $label !== '' ? $label : ('Ученик #'.$user->id);
+    }
+
+    private function scheduleSlotContext(TeamScheduleSlot $slot, string $occurrenceDate): string
+    {
+        $slot->loadMissing('team:id,title');
+        $teamTitle = (string) ($slot->team?->title ?? '');
+        $timeStart = substr((string) ($slot->time_start ?? ''), 0, 5);
+        $timeEnd = substr((string) ($slot->time_end ?? ''), 0, 5);
+        $timeLabel = trim($timeStart.($timeStart && $timeEnd ? '–' : '').$timeEnd);
+        $parts = array_filter([
+            $teamTitle !== '' ? 'группа: '.$teamTitle : null,
+            $occurrenceDate !== '' ? 'дата: '.$occurrenceDate : null,
+            $timeLabel !== '' ? $timeLabel : null,
+        ]);
+
+        return $parts !== [] ? '; '.implode('; ', $parts) : '';
     }
 }

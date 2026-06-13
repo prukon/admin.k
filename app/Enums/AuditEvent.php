@@ -35,6 +35,30 @@ enum AuditEvent: string
     case TeamUpdated = 'team.updated';
     case TeamDeleted = 'team.deleted';
 
+    // --- location (legacy type 87) ---
+    case LocationCreated = 'location.created';
+    case LocationUpdated = 'location.updated';
+    case LocationDeleted = 'location.deleted';
+
+    // --- district (legacy type 86) ---
+    case DistrictCreated = 'district.created';
+    case DistrictUpdated = 'district.updated';
+    case DistrictDeleted = 'district.deleted';
+
+    // --- sport_type (legacy type 88) ---
+    case SportTypeCreated = 'sport_type.created';
+    case SportTypeUpdated = 'sport_type.updated';
+    case SportTypeDeleted = 'sport_type.deleted';
+
+    // --- school_lead (legacy type 89) ---
+    case SchoolLeadUpdated = 'school_lead.updated';
+    case SchoolLeadDeleted = 'school_lead.deleted';
+
+    // --- contract_template (legacy type 501) ---
+    case ContractTemplateCreated = 'contract_template.created';
+    case ContractTemplateUpdated = 'contract_template.updated';
+    case ContractTemplateEmailUpdated = 'contract_template.email_updated';
+
     // --- auth (legacy type 4) ---
     case AuthLogin = 'auth.login';
 
@@ -52,6 +76,8 @@ enum AuditEvent: string
     case ContractSmsOpened = 'contract.sms_opened';
     case ContractSigned = 'contract.signed';
     case ContractPdfRegeneratedByClient = 'contract.pdf_regenerated_by_client';
+    case ContractRevoked = 'contract.revoked';
+    case ContractEmailSent = 'contract.email_sent';
     case ContractLegacyCreated = 'contract.legacy_created';
     case ContractLegacySmsToggleUpdated = 'contract.legacy_sms_toggle_updated';
     case ContractLegacyDeleted = 'contract.legacy_deleted';
@@ -73,6 +99,11 @@ enum AuditEvent: string
     // --- lesson packages / school calendar (legacy type 60) ---
     case ScheduleTrialCancelled = 'schedule.trial_cancelled';
     case ScheduleSingleLessonRegistrationCancelled = 'schedule.single_lesson_registration_cancelled';
+    case ScheduleTrialRegistered = 'schedule.trial_registered';
+    case ScheduleSingleLessonRegistered = 'schedule.single_lesson_registered';
+    case ScheduleFlexibleLinked = 'schedule.flexible_linked';
+    case ScheduleFixedLinked = 'schedule.fixed_linked';
+    case ScheduleOccurrenceStatusSet = 'schedule.occurrence_status_set';
 
     // --- settings (legacy type 1, action 70) ---
     case SettingsUpdated = 'settings.updated';
@@ -116,6 +147,25 @@ enum AuditEvent: string
             self::TeamUpdated => 'Изменение группы',
             self::TeamDeleted => 'Удаление группы',
 
+            self::LocationCreated => 'Создание объекта',
+            self::LocationUpdated => 'Изменение объекта',
+            self::LocationDeleted => 'Удаление объекта',
+
+            self::DistrictCreated => 'Создание района',
+            self::DistrictUpdated => 'Изменение района',
+            self::DistrictDeleted => 'Удаление района',
+
+            self::SportTypeCreated => 'Создание вида спорта',
+            self::SportTypeUpdated => 'Изменение вида спорта',
+            self::SportTypeDeleted => 'Удаление вида спорта',
+
+            self::SchoolLeadUpdated => 'Изменение заявки с сайта',
+            self::SchoolLeadDeleted => 'Удаление заявки с сайта',
+
+            self::ContractTemplateCreated => 'Создание шаблона договора',
+            self::ContractTemplateUpdated => 'Изменение шаблона договора',
+            self::ContractTemplateEmailUpdated => 'Изменение письма шаблона договора',
+
             self::AuthLogin => 'Авторизация',
 
             self::PaymentReceived => 'Платежи',
@@ -130,6 +180,8 @@ enum AuditEvent: string
             self::ContractSmsOpened => 'Получатель открыл СМС',
             self::ContractSigned => 'Договор подписан',
             self::ContractPdfRegeneratedByClient => 'Перегенерация PDF родителем',
+            self::ContractRevoked => 'Отзыв договора',
+            self::ContractEmailSent => 'Отправка договора на email',
             self::ContractLegacyCreated => 'Создание договора',
             self::ContractLegacySmsToggleUpdated => 'Изменение отправки договора в SMS',
             self::ContractLegacyDeleted => 'Удаление договора',
@@ -148,6 +200,11 @@ enum AuditEvent: string
 
             self::ScheduleTrialCancelled => 'Отмена пробного занятия в расписании',
             self::ScheduleSingleLessonRegistrationCancelled => 'Отмена записи разового занятия в расписании',
+            self::ScheduleTrialRegistered => 'Запись на пробное занятие',
+            self::ScheduleSingleLessonRegistered => 'Запись разового занятия',
+            self::ScheduleFlexibleLinked => 'Привязка гибкого абонемента к календарю',
+            self::ScheduleFixedLinked => 'Привязка фиксированного абонемента к календарю',
+            self::ScheduleOccurrenceStatusSet => 'Статус занятия в календаре школы',
 
             self::SettingsUpdated => 'Изменение настроек',
 
@@ -172,6 +229,11 @@ enum AuditEvent: string
             self::UserPasswordChangedByAdmin,
             self::UserPasswordChanged,
             self::TeamDeleted,
+            self::LocationDeleted,
+            self::DistrictDeleted,
+            self::SportTypeDeleted,
+            self::SchoolLeadDeleted,
+            self::ContractRevoked,
             self::AuthLogin,
             self::RoleCreated,
             self::RoleUpdated,
@@ -223,6 +285,25 @@ enum AuditEvent: string
             self::TeamUpdated,
             self::TeamDeleted => 'team',
 
+            self::LocationCreated,
+            self::LocationUpdated,
+            self::LocationDeleted => 'location',
+
+            self::DistrictCreated,
+            self::DistrictUpdated,
+            self::DistrictDeleted => 'district',
+
+            self::SportTypeCreated,
+            self::SportTypeUpdated,
+            self::SportTypeDeleted => 'sport_type',
+
+            self::SchoolLeadUpdated,
+            self::SchoolLeadDeleted => 'school_lead',
+
+            self::ContractTemplateCreated,
+            self::ContractTemplateUpdated,
+            self::ContractTemplateEmailUpdated => 'contract_template',
+
             self::AuthLogin => 'auth',
 
             self::PaymentReceived,
@@ -237,6 +318,8 @@ enum AuditEvent: string
             self::ContractSmsOpened,
             self::ContractSigned,
             self::ContractPdfRegeneratedByClient,
+            self::ContractRevoked,
+            self::ContractEmailSent,
             self::ContractLegacyCreated,
             self::ContractLegacySmsToggleUpdated,
             self::ContractLegacyDeleted => 'contract',
@@ -252,7 +335,12 @@ enum AuditEvent: string
             self::ScheduleSlotDeleted,
             self::ScheduleSlotSplitEdited,
             self::ScheduleTrialCancelled,
-            self::ScheduleSingleLessonRegistrationCancelled => 'schedule',
+            self::ScheduleSingleLessonRegistrationCancelled,
+            self::ScheduleTrialRegistered,
+            self::ScheduleSingleLessonRegistered,
+            self::ScheduleFlexibleLinked,
+            self::ScheduleFixedLinked,
+            self::ScheduleOccurrenceStatusSet => 'schedule',
 
             self::SettingsUpdated => 'settings',
 
@@ -302,6 +390,25 @@ enum AuditEvent: string
             self::TeamUpdated,
             self::TeamDeleted => 3,
 
+            self::LocationCreated,
+            self::LocationUpdated,
+            self::LocationDeleted => 87,
+
+            self::DistrictCreated,
+            self::DistrictUpdated,
+            self::DistrictDeleted => 86,
+
+            self::SportTypeCreated,
+            self::SportTypeUpdated,
+            self::SportTypeDeleted => 88,
+
+            self::SchoolLeadUpdated,
+            self::SchoolLeadDeleted => 89,
+
+            self::ContractTemplateCreated,
+            self::ContractTemplateUpdated,
+            self::ContractTemplateEmailUpdated => 501,
+
             self::AuthLogin => 4,
 
             self::PaymentReceived => 5,
@@ -322,7 +429,12 @@ enum AuditEvent: string
             self::ScheduleSlotSplitEdited => 46,
 
             self::ScheduleTrialCancelled,
-            self::ScheduleSingleLessonRegistrationCancelled => 60,
+            self::ScheduleSingleLessonRegistrationCancelled,
+            self::ScheduleTrialRegistered,
+            self::ScheduleSingleLessonRegistered,
+            self::ScheduleFlexibleLinked,
+            self::ScheduleFixedLinked,
+            self::ScheduleOccurrenceStatusSet => 60,
 
             self::PartnerUpdated,
             self::PartnerCreated,
@@ -338,6 +450,8 @@ enum AuditEvent: string
             self::ContractSmsOpened,
             self::ContractSigned,
             self::ContractPdfRegeneratedByClient,
+            self::ContractRevoked,
+            self::ContractEmailSent,
             self::ContractLegacyCreated,
             self::ContractLegacySmsToggleUpdated,
             self::ContractLegacyDeleted => 500,
@@ -378,6 +492,25 @@ enum AuditEvent: string
             self::TeamUpdated => 32,
             self::TeamDeleted => 33,
 
+            self::LocationCreated => 871,
+            self::LocationUpdated => 872,
+            self::LocationDeleted => 873,
+
+            self::DistrictCreated => 861,
+            self::DistrictUpdated => 862,
+            self::DistrictDeleted => 863,
+
+            self::SportTypeCreated => 881,
+            self::SportTypeUpdated => 882,
+            self::SportTypeDeleted => 883,
+
+            self::SchoolLeadUpdated => 891,
+            self::SchoolLeadDeleted => 892,
+
+            self::ContractTemplateCreated => 5011,
+            self::ContractTemplateUpdated => 5012,
+            self::ContractTemplateEmailUpdated => 5013,
+
             self::AuthLogin => 40,
 
             self::PaymentReceived => 50,
@@ -398,6 +531,11 @@ enum AuditEvent: string
 
             self::ScheduleTrialCancelled => 601,
             self::ScheduleSingleLessonRegistrationCancelled => 602,
+            self::ScheduleTrialRegistered => 603,
+            self::ScheduleSingleLessonRegistered => 604,
+            self::ScheduleFlexibleLinked => 605,
+            self::ScheduleFixedLinked => 606,
+            self::ScheduleOccurrenceStatusSet => 607,
 
             self::SettingsUpdated => 70,
 
@@ -422,6 +560,8 @@ enum AuditEvent: string
             self::ContractSmsOpened => 519,
             self::ContractSigned => 520,
             self::ContractPdfRegeneratedByClient => 515,
+            self::ContractRevoked => 503,
+            self::ContractEmailSent => 504,
             self::ContractLegacyCreated => 900,
             self::ContractLegacySmsToggleUpdated => 901,
             self::ContractLegacyDeleted => 902,
@@ -585,6 +725,25 @@ enum AuditEvent: string
             32 => self::TeamUpdated,
             33 => self::TeamDeleted,
 
+            871 => self::LocationCreated,
+            872 => self::LocationUpdated,
+            873 => self::LocationDeleted,
+
+            861 => self::DistrictCreated,
+            862 => self::DistrictUpdated,
+            863 => self::DistrictDeleted,
+
+            881 => self::SportTypeCreated,
+            882 => self::SportTypeUpdated,
+            883 => self::SportTypeDeleted,
+
+            891 => self::SchoolLeadUpdated,
+            892 => self::SchoolLeadDeleted,
+
+            5011 => self::ContractTemplateCreated,
+            5012 => self::ContractTemplateUpdated,
+            5013 => self::ContractTemplateEmailUpdated,
+
             40 => self::AuthLogin,
 
             50 => self::PaymentReceived,
@@ -606,6 +765,11 @@ enum AuditEvent: string
 
             601 => self::ScheduleTrialCancelled,
             602 => self::ScheduleSingleLessonRegistrationCancelled,
+            603 => self::ScheduleTrialRegistered,
+            604 => self::ScheduleSingleLessonRegistered,
+            605 => self::ScheduleFlexibleLinked,
+            606 => self::ScheduleFixedLinked,
+            607 => self::ScheduleOccurrenceStatusSet,
 
             70 => self::SettingsUpdated,
 
@@ -628,6 +792,8 @@ enum AuditEvent: string
             513 => self::ContractSignSentSuccess,
             514 => self::ContractSignSentFailed,
             515 => self::ContractPdfRegeneratedByClient,
+            503 => self::ContractRevoked,
+            504 => self::ContractEmailSent,
             519 => self::ContractSmsOpened,
             520 => self::ContractSigned,
 

@@ -231,6 +231,14 @@ class ContractSigningController extends Controller
                 'payload_json' => null,
             ]);
 
+            $this->contractAudit->record(
+                AuditEvent::ContractRevoked,
+                "Договор отозван.\nВозврат 70 ₽: Нет",
+                userId: (int) $contract->user_id,
+                authorId: Auth::id(),
+                contract: $contract,
+            );
+
             return response()->json(['message' => 'Подписание отозвано', 'status' => 'revoked']);
         } catch (\Throwable $e) {
             ContractEvent::create([
@@ -266,6 +274,14 @@ class ContractSigningController extends Controller
                     ], JSON_UNESCAPED_UNICODE),
                 ]);
             });
+
+            $this->contractAudit->record(
+                AuditEvent::ContractRevoked,
+                "Договор отозван.\nВозврат 70 ₽: Да",
+                userId: (int) $contract->user_id,
+                authorId: Auth::id(),
+                contract: $contract,
+            );
 
             return response()->json([
                 'message' => 'Договор отозван. Средства возвращены на баланс партнёра.',
@@ -556,6 +572,15 @@ class ContractSigningController extends Controller
                 'type'         => $sendSigned ? 'email_signed_sent' : 'email_sent',
                 'payload_json' => json_encode(['to' => $to], JSON_UNESCAPED_UNICODE),
             ]);
+
+            $this->contractAudit->record(
+                AuditEvent::ContractEmailSent,
+                'Email: ' . $to . "\n"
+                . 'Вложение: ' . ($sendSigned ? 'подписанный PDF' : 'исходный PDF'),
+                userId: (int) $contract->user_id,
+                authorId: Auth::id(),
+                contract: $contract,
+            );
 
             return response()->json([
                 'success' => true,

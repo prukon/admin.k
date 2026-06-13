@@ -50,6 +50,9 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('payments-report-toolbar', false)
             ->assertSee('sportTypesReportFiltersCollapse', false)
             ->assertSee('sportTypesColumnsDropdown', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee("linkClass: 'js-sport-type-edit'", false);
     }
@@ -78,6 +81,10 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
         ]))->assertOk();
 
         $this->getJson(route('admin.sport-types.columns-settings.get'))->assertOk();
+
+        $this->getJson(route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->postJson(route('admin.sport-types.columns-settings.save'), [
             'columns' => [
@@ -142,6 +149,9 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.sport-types.columns-settings.get'))->assertOk();
 
+        $this->getJson(route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
+
         $this->postJson(route('admin.sport-types.columns-settings.save'), [
             'columns' => ['name' => true],
         ])->assertOk();
@@ -180,7 +190,11 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="directoriesSectionTabs"', false)
             ->assertSee('id="new-sport-type"', false)
             ->assertSee('sportTypeEditModal', false)
-            ->assertSee('id="sportTypeDeleteBtn"', false);
+            ->assertSee('id="sportTypeDeleteBtn"', false)
+            ->assertSee('historyModal', false);
+
+        $this->getJson(route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
 
         $this->getJson(route('admin.sport-types.data', [
             'draw' => 1,
@@ -252,6 +266,15 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
         $this->getJson(route('admin.sport-types.show', $this->sportType->id))->assertStatus(403);
     }
 
+    public function test_logs_data_returns_403_without_sport_types_view(): void
+    {
+        $actor = $this->createUserWithoutPermission('sport_types.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('logs.data.sport-type', ['draw' => 1]))->assertStatus(403);
+    }
+
     public function test_guest_cannot_access_any_sport_types_endpoint(): void
     {
         Auth::logout();
@@ -260,6 +283,7 @@ final class SportTypesPageFullAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.sport-types.index')),
             fn () => $this->getJson(route('admin.sport-types.data', ['draw' => 1])),
             fn () => $this->getJson(route('admin.sport-types.columns-settings.get')),
+            fn () => $this->getJson(route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10])),
             fn () => $this->postJson(route('admin.sport-types.columns-settings.save'), [
                 'columns' => ['name' => true],
             ]),

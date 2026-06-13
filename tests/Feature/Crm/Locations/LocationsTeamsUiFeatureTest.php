@@ -86,11 +86,11 @@ final class LocationsTeamsUiFeatureTest extends CrmTestCase
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertDontSee('id="colLocationTeams"', false)
-            ->assertDontSee('generic-multiselect-field', false)
+            ->assertDontSee('data-column-key="teams_label"', false)
             ->assertDontSee('id="locationCreateTeamIds"', false)
-            ->assertDontSee('window.KidsCrmGenericMultiselectSelect2 = {', false)
-            ->assertDontSee('window.KidsCrmHoverListDropdown = {', false)
-            ->assertDontSee('window.KidsCrmDataTableColumns = {', false);
+            ->assertDontSee('id="locationEditTeamIds"', false)
+            ->assertSee('id="locationCreateAdminUserIds"', false)
+            ->assertSee('generic-multiselect-field', false);
     }
 
     public function test_index_view_only_renders_teams_column_but_not_manage_multiselect_modals(): void

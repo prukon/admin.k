@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Enums\SchoolLeadStatus;
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\SchoolLead\FilterRequest;
 use App\Http\Requests\UpdateSchoolLeadRequest;
 use App\Models\District;
 use App\Models\Location;
@@ -11,7 +13,11 @@ use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\UserField;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
+use App\Services\PartnerContext;
 use App\Services\SchoolLeads\LatestUserContractLookup;
+use App\Support\BuildsLogTable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +25,14 @@ use Illuminate\View\View;
 
 class SchoolLeadController extends AdminBaseController
 {
+    use BuildsLogTable;
+
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
+        parent::__construct($partnerContext);
+    }
     public function index(): View
     {
         $partnerId = $this->requirePartnerContext();
@@ -356,6 +370,9 @@ class SchoolLeadController extends AdminBaseController
         $partnerId = $this->requirePartnerContext();
         $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
 
+        $schoolLead->load('district', 'location');
+        $beforeSnapshot = $this->schoolLeadAuditSnapshot($schoolLead);
+
         $data = $request->validated();
 
         if (array_key_exists('status', $data)) {
@@ -378,6 +395,20 @@ class SchoolLeadController extends AdminBaseController
 
         $schoolLead->save();
         $schoolLead->load('district', 'location');
+
+        $changes = $this->diffSchoolLeadAuditSnapshots(
+            $beforeSnapshot,
+            $this->schoolLeadAuditSnapshot($schoolLead),
+        );
+
+        if ($changes !== []) {
+            $this->auditLogger->record(
+                AuditEvent::SchoolLeadUpdated,
+                AuditContext::make(implode("\n", $changes))
+                    ->withTarget($schoolLead, $this->schoolLeadAuditLabel($schoolLead))
+                    ->withCreatedAt(now())
+            );
+        }
 
         $response = [
             'message'      => 'Изменения сохранены.',
@@ -406,11 +437,23 @@ class SchoolLeadController extends AdminBaseController
         $partnerId = $this->requirePartnerContext();
         $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
 
+        $this->auditLogger->record(
+            AuditEvent::SchoolLeadDeleted,
+            AuditContext::make("Заявка удалена: {$this->schoolLeadAuditLabel($schoolLead)}.")
+                ->withTarget($schoolLead, $this->schoolLeadAuditLabel($schoolLead))
+                ->withCreatedAt(now())
+        );
+
         $schoolLead->delete();
 
         return response()->json([
             'message' => 'Заявка удалена.',
         ]);
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('school_lead');
     }
 
     /**
@@ -489,5 +532,63 @@ class SchoolLeadController extends AdminBaseController
         if ((int) $schoolLead->partner_id !== $partnerId) {
             abort(404);
         }
+    }
+
+    private function schoolLeadAuditLabel(SchoolLead $schoolLead): string
+    {
+        $name = trim($schoolLead->parent_full_name) !== ''
+            ? trim($schoolLead->parent_full_name)
+            : trim((string) ($schoolLead->name ?? ''));
+
+        return $name !== ''
+            ? "Заявка #{$schoolLead->id}: {$name}"
+            : "Заявка #{$schoolLead->id}";
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function schoolLeadAuditSnapshot(SchoolLead $schoolLead): array
+    {
+        return [
+            'status' => $schoolLead->status
+                ? SchoolLeadStatus::label($schoolLead->status->value)
+                : 'не указан',
+            'comment' => $this->auditTextValue($schoolLead->comment, 'не указан'),
+            'district' => $schoolLead->district?->name ?? 'не указан',
+            'location' => $schoolLead->location?->name ?? 'не указан',
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffSchoolLeadAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'status' => 'Статус',
+            'comment' => 'Комментарий',
+            'district' => 'Район',
+            'location' => 'Объект',
+        ];
+
+        $changes = [];
+
+        foreach ($labels as $key => $label) {
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
+    }
+
+    private function auditTextValue(mixed $value, string $emptyLabel): string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : $emptyLabel;
     }
 }

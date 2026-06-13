@@ -35,6 +35,7 @@
     Группу можно создать без объекта (<code>location_id = null</code>), но на <a href="/docs/documentation/school-leads-landing">лендинг заявки</a> такая группа <b>не попадает</b>.<br>
     Адрес на лендинге и в справочниках — только у объекта (<code>locations.address</code>); колонки <code>teams.address</code>, <code>teams.training_base</code> и права <code>groups.address.view</code>, <code>groups.training_base.view</code> удалены.<br>
     У ученика <b>нет</b> <code>users.location_id</code> — «география» в отчётах идёт через <code>users.team_id</code> → <code>teams.location_id</code>.
+    Администраторы объекта (<code>location_admin_user</code>, M2M) — отдельная связь; на привязку групп к объекту не влияют (см. <a href="/docs/documentation/admin-locations#3">admin-locations §3</a>).
     Локация занятия в календаре — отдельно: <code>team_schedule_slots.location_id</code>.
   </div>
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Location extends Model
@@ -18,7 +19,6 @@ class Location extends Model
     protected $casts = [
         'partner_id' => 'int',
         'district_id' => 'int',
-        'admin_user_id' => 'int',
         'is_enabled' => 'bool',
     ];
 
@@ -32,9 +32,11 @@ class Location extends Model
         return $this->belongsTo(District::class, 'district_id');
     }
 
-    public function adminUser(): BelongsTo
+    public function adminUsers(): BelongsToMany
     {
-        return $this->belongsTo(User::class, 'admin_user_id');
+        return $this->belongsToMany(User::class, 'location_admin_user', 'location_id', 'user_id')
+            ->withPivot('partner_id')
+            ->withTimestamps();
     }
 
     public function teamScheduleSlots(): HasMany

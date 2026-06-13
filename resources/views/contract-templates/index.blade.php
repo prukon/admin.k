@@ -32,6 +32,17 @@
                                     <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить шаблон</span>
                                 </button>
 
+                                <button type="button"
+                                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#historyModal"
+                                        title="История изменений">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                                </button>
+
                                 <div class="dropdown payments-report-toolbar-dropdown">
                                     <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
                                             type="button"
@@ -262,4 +273,12 @@
     </script>
 
     @include('contract-templates.partials.email-summernote-init')
+
+    @include('includes.logModal')
+
+    <script>
+        document.getElementById('historyModal')?.addEventListener('show.bs.modal', function () {
+            showLogModal(@json(route('logs.data.contract-template')));
+        });
+    </script>
 @endpush

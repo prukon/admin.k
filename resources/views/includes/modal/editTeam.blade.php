@@ -19,6 +19,23 @@
                         <div class="invalid-feedback" id="edit-title-error"></div>
                     </div>
 
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label class="form-label" for="edit-location-id">Объект</label>
+                        <select id="edit-location-id"
+                                name="location_id"
+                                class="form-select">
+                            <option value="">— Не выбран —</option>
+                            @foreach($locationOptions as $location)
+                                <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="invalid-feedback d-block" data-error-for="location_id" id="edit-location_id-error"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     @can('sport_types.view')
                     @if($sportTypeOptions->isNotEmpty())
                     <div class="mb-3">
@@ -35,7 +52,13 @@
                     @endcan
 
                     <div class="mb-3">
-                        <label for="edit-default_duration_minutes" class="form-label">Длительность по умолчанию (мин)</label>
+                        <label for="edit-default_duration_minutes" class="form-label">
+                            Длительность по умолчанию (мин)
+                            @include('partials.ui.tooltip-hint', [
+                                'title' => 'Длительность указывается на сайте',
+                                'placement' => 'top',
+                            ])
+                        </label>
                         <input type="number" min="1" max="600" name="default_duration_minutes" class="form-control" id="edit-default_duration_minutes">
                         <div class="invalid-feedback" id="edit-default_duration_minutes-error"></div>
                     </div>
@@ -52,33 +75,6 @@
                         <div class="invalid-feedback" id="edit-month_price-error"></div>
                     </div>
 
-                    @can('schedule.view')
-                    <!-- Расписание -->
-                    <div class="mb-3">
-                        <label for="edit-weekdays" class="form-label">Расписание</label>
-                        <div id="edit-weekdays"></div>
-                        <p class="text-danger" id="edit-weekdays-error"></p>
-                    </div>
-                    @endcan
-
-                    @can('locations.view')
-                    @if($locationOptions->isNotEmpty())
-                    <div class="mb-3">
-                        <label class="form-label" for="edit-location-id">Объект</label>
-                        <select id="edit-location-id"
-                                name="location_id"
-                                class="form-select">
-                            <option value="">— Не выбран —</option>
-                            @foreach($locationOptions as $location)
-                                <option value="{{ $location->id }}">{{ $location->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="form-text">Группа без объекта не показывается на лендинге заявки.</div>
-                        <div class="invalid-feedback d-block" data-error-for="location_id" id="edit-location_id-error"></div>
-                    </div>
-                    @endif
-                    @endcan
-
                     @can('trainers.view')
                     <div class="mb-3">
                         <label for="edit-trainer-profile-id" class="form-label">Тренер</label>
@@ -89,6 +85,15 @@
                             @endforeach
                         </select>
                         <div class="invalid-feedback" id="edit-trainer-profile-id-error"></div>
+                    </div>
+                    @endcan
+
+                    @can('schedule.view')
+                    <!-- Расписание -->
+                    <div class="mb-3">
+                        <label for="edit-weekdays" class="form-label">Расписание</label>
+                        <div id="edit-weekdays"></div>
+                        <p class="text-danger" id="edit-weekdays-error"></p>
                     </div>
                     @endcan
 

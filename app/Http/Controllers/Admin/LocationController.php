@@ -2,23 +2,35 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StoreLocationRequest;
 use App\Http\Requests\Admin\UpdateLocationRequest;
+use App\Http\Requests\Location\FilterRequest;
 use App\Models\District;
 use App\Models\Location;
 use App\Models\Team;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\TeamLocationSyncService;
+use App\Services\LocationAdminUsersSyncService;
 use App\Services\PartnerContext;
+use App\Support\BuildsLogTable;
 use App\Support\PartnerAdminUserOptions;
+use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LocationController extends AdminBaseController
 {
+    use BuildsLogTable;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamLocationSyncService $teamLocationSync,
+        private readonly LocationAdminUsersSyncService $locationAdminUsersSync,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
     }
@@ -102,9 +114,9 @@ class LocationController extends AdminBaseController
 
         $adminFilter = trim((string) ($validated['admin_user_id'] ?? ''));
         if ($adminFilter === 'none') {
-            $baseQuery->whereNull('admin_user_id');
+            $baseQuery->whereDoesntHave('adminUsers');
         } elseif ($adminFilter !== '' && ctype_digit($adminFilter)) {
-            $baseQuery->where('admin_user_id', (int) $adminFilter);
+            $baseQuery->whereHas('adminUsers', fn ($q) => $q->where('users.id', (int) $adminFilter));
         }
 
         $totalRecords = Location::where('partner_id', $partnerId)->count();
@@ -131,11 +143,17 @@ class LocationController extends AdminBaseController
                 break;
             case 'admin_user_label':
                 $baseQuery
-                    ->leftJoin('users as location_admin_users_sort', 'locations.admin_user_id', '=', 'location_admin_users_sort.id')
-                    ->orderBy('location_admin_users_sort.lastname', $orderDir)
-                    ->orderBy('location_admin_users_sort.name', $orderDir)
-                    ->orderBy('locations.name', 'asc')
-                    ->select('locations.*');
+                    ->orderBy(
+                        DB::raw('(
+                            SELECT MIN(CONCAT(location_admin_users_sort.lastname, " ", location_admin_users_sort.name))
+                            FROM location_admin_user AS location_admin_user_sort
+                            INNER JOIN users AS location_admin_users_sort
+                                ON location_admin_users_sort.id = location_admin_user_sort.user_id
+                            WHERE location_admin_user_sort.location_id = locations.id
+                        )'),
+                        $orderDir
+                    )
+                    ->orderBy('locations.name', 'asc');
                 break;
             case 'address':
                 $baseQuery->orderBy('address', $orderDir)
@@ -159,7 +177,7 @@ class LocationController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocationsPivot = $filterActor?->can('locations.view') ?? false;
 
-        $with = ['district', 'adminUser'];
+        $with = ['district', 'adminUsers'];
         if ($canViewLocationsPivot) {
             $with[] = 'teams';
         }
@@ -182,13 +200,26 @@ class LocationController extends AdminBaseController
                 );
             }
 
+            $adminNames = $location->relationLoaded('adminUsers')
+                ? $location->adminUsers
+                    ->sortBy(fn ($user) => $user->lastname . ' ' . $user->name)
+                    ->pluck('full_name')
+                    ->values()
+                    ->all()
+                : [];
+            $adminLabels = $this->formatAdminUserLabels($adminNames);
+
             return [
                 'id'                => $location->id,
                 'name'              => $location->name,
                 'district_id'       => $location->district_id,
                 'district_name'     => $location->district?->name ?? '',
-                'admin_user_id'     => $location->admin_user_id,
-                'admin_user_label'  => $location->adminUser?->full_name ?? '',
+                'admin_user_ids'    => $location->relationLoaded('adminUsers')
+                    ? $location->adminUsers->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+                    : [],
+                'admin_user_label'  => $adminLabels['admin_user_label'],
+                'admin_user_label_full' => $adminLabels['admin_user_label_full'],
+                'admin_user_names'  => $adminLabels['admin_user_names'],
                 'address'           => $location->address ?? '',
                 'teams_label'       => $teamsLabels['teams_label'],
                 'teams_label_full'  => $teamsLabels['teams_label_full'],
@@ -212,7 +243,8 @@ class LocationController extends AdminBaseController
 
         $data = $request->validated();
         $teamIds = $data['team_ids'] ?? null;
-        unset($data['team_ids']);
+        $adminUserIds = $data['admin_user_ids'] ?? [];
+        unset($data['team_ids'], $data['admin_user_ids']);
 
         if (! $request->user()?->can('locations.view')) {
             $teamIds = null;
@@ -221,14 +253,26 @@ class LocationController extends AdminBaseController
         $data['partner_id'] = $partnerId;
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? true);
         $data['district_id'] = isset($data['district_id']) ? (int) $data['district_id'] : null;
-        $data['admin_user_id'] = isset($data['admin_user_id']) ? (int) $data['admin_user_id'] : null;
 
         try {
             $location = Location::create($data);
 
+            $this->locationAdminUsersSync->syncAdminsForLocation($location, $adminUserIds);
+
             if (is_array($teamIds)) {
                 $this->teamLocationSync->syncTeamsForLocation($location, $teamIds);
             }
+
+            $location->load(['district', 'adminUsers', 'teams']);
+
+            $this->auditLogger->record(
+                AuditEvent::LocationCreated,
+                AuditContext::make($this->formatLocationSnapshotDescription($location))
+                    ->withTarget($location, $location->name)
+                    ->withAuthorId($request->user()?->id)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null; // MySQL error code
             if ((int) $code === 1062) {
@@ -264,7 +308,7 @@ class LocationController extends AdminBaseController
             abort(404);
         }
 
-        $with = ['district', 'adminUser'];
+        $with = ['district', 'adminUsers'];
         if (auth()->user()?->can('locations.view')) {
             $with[] = 'teams';
         }
@@ -275,7 +319,7 @@ class LocationController extends AdminBaseController
             'id' => $location->id,
             'name' => $location->name,
             'district_id' => $location->district_id,
-            'admin_user_id' => $location->admin_user_id,
+            'admin_user_ids' => $location->adminUsers->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'address' => $location->address,
             'description' => $location->description,
             'is_enabled' => (int) $location->is_enabled,
@@ -296,24 +340,44 @@ class LocationController extends AdminBaseController
             abort(404);
         }
 
+        $location->load(['district', 'adminUsers', 'teams']);
+        $beforeSnapshot = $this->locationAuditSnapshot($location);
+
         $data = $request->validated();
         $syncTeams = $request->user()?->can('locations.view') ?? false;
         $teamIds = $syncTeams ? ($data['team_ids'] ?? []) : null;
-        unset($data['team_ids']);
+        $adminUserIds = $data['admin_user_ids'] ?? [];
+        unset($data['team_ids'], $data['admin_user_ids']);
 
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? false);
         $data['district_id'] = array_key_exists('district_id', $data)
             ? ($data['district_id'] !== null ? (int) $data['district_id'] : null)
             : $location->district_id;
-        $data['admin_user_id'] = array_key_exists('admin_user_id', $data)
-            ? ($data['admin_user_id'] !== null ? (int) $data['admin_user_id'] : null)
-            : $location->admin_user_id;
 
         try {
             $location->update($data);
 
+            $this->locationAdminUsersSync->syncAdminsForLocation($location, $adminUserIds);
+
             if ($syncTeams) {
                 $this->teamLocationSync->syncTeamsForLocation($location, $teamIds);
+            }
+
+            $location->refresh()->load(['district', 'adminUsers', 'teams']);
+
+            $changes = $this->diffLocationAuditSnapshots(
+                $beforeSnapshot,
+                $this->locationAuditSnapshot($location),
+                $syncTeams,
+            );
+
+            if ($changes !== []) {
+                $this->auditLogger->record(
+                    AuditEvent::LocationUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withTarget($location, $location->name)
+                        ->withCreatedAt(now())
+                );
             }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null; // MySQL error code
@@ -343,6 +407,13 @@ class LocationController extends AdminBaseController
             abort(404);
         }
 
+        $this->auditLogger->record(
+            AuditEvent::LocationDeleted,
+            AuditContext::make("Объект удалён: {$location->name}. ID: {$location->id}.")
+                ->withTarget($location, $location->name)
+                ->withCreatedAt(now())
+        );
+
         $location->delete();
 
         if ($request->ajax() || $request->expectsJson()) {
@@ -353,6 +424,93 @@ class LocationController extends AdminBaseController
         }
 
         return redirect()->route('admin.locations.index');
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('location');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function locationAuditSnapshot(Location $location): array
+    {
+        $adminNames = $location->relationLoaded('adminUsers')
+            ? $location->adminUsers
+                ->sortBy(fn ($user) => $user->lastname . ' ' . $user->name)
+                ->pluck('full_name')
+                ->values()
+                ->all()
+            : [];
+
+        $teamTitles = $location->relationLoaded('teams')
+            ? $location->teams->sortBy('title')->pluck('title')->values()->all()
+            : [];
+
+        return [
+            'name' => (string) ($location->name ?? ''),
+            'district' => $location->district?->name ?? 'не указан',
+            'address' => $this->auditTextValue($location->address, 'не указан'),
+            'description' => $this->auditTextValue($location->description, 'не указано'),
+            'is_enabled' => $location->is_enabled ? 'Да' : 'Нет',
+            'admins' => $adminNames !== [] ? implode(', ', $adminNames) : 'не указаны',
+            'teams' => $teamTitles !== [] ? implode(', ', $teamTitles) : 'не указаны',
+        ];
+    }
+
+    private function formatLocationSnapshotDescription(Location $location): string
+    {
+        $snapshot = $this->locationAuditSnapshot($location);
+
+        return implode("\n", [
+            "Название: {$snapshot['name']}",
+            "Район: {$snapshot['district']}",
+            "Адрес: {$snapshot['address']}",
+            "Описание: {$snapshot['description']}",
+            "Активность: {$snapshot['is_enabled']}",
+            "Администраторы: {$snapshot['admins']}",
+            "Группы: {$snapshot['teams']}",
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffLocationAuditSnapshots(array $before, array $after, bool $includeTeams): array
+    {
+        $labels = [
+            'name' => 'Название',
+            'district' => 'Район',
+            'address' => 'Адрес',
+            'description' => 'Описание',
+            'is_enabled' => 'Активность',
+            'admins' => 'Администраторы',
+            'teams' => 'Группы',
+        ];
+
+        $changes = [];
+
+        foreach ($labels as $key => $label) {
+            if ($key === 'teams' && ! $includeTeams) {
+                continue;
+            }
+
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
+    }
+
+    private function auditTextValue(mixed $value, string $emptyLabel): string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : $emptyLabel;
     }
 
     /**
@@ -386,6 +544,40 @@ class LocationController extends AdminBaseController
             'teams_label' => $titles[0] . ', еще ' . ($count - 1) . ' шт.',
             'teams_label_full' => $full,
             'teams_titles' => $titles,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $names
+     * @return array{admin_user_label: string, admin_user_label_full: string, admin_user_names: list<string>}
+     */
+    private function formatAdminUserLabels(array $names): array
+    {
+        $names = array_values(array_filter($names, static fn ($name) => trim((string) $name) !== ''));
+        $count = count($names);
+
+        if ($count === 0) {
+            return [
+                'admin_user_label' => '',
+                'admin_user_label_full' => '',
+                'admin_user_names' => [],
+            ];
+        }
+
+        $full = implode(', ', $names);
+
+        if ($count <= 2) {
+            return [
+                'admin_user_label' => $full,
+                'admin_user_label_full' => $full,
+                'admin_user_names' => $names,
+            ];
+        }
+
+        return [
+            'admin_user_label' => $names[0] . ', еще ' . ($count - 1) . ' шт.',
+            'admin_user_label_full' => $full,
+            'admin_user_names' => $names,
         ];
     }
 }

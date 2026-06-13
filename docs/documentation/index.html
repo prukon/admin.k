@@ -26,6 +26,28 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>История изменений на страницах CRM</h2>
+  <div class="note">
+    На перечисленных ниже экранах в toolbar есть кнопка «История» (иконка <code>fa-clock-rotate-left</code>) → модалка
+    <code>includes.logModal</code> → DataTables <code>GET …/logs-data</code>. Запись — только через <code>AuditLogger</code>
+    в <code>my_logs</code> (<code>event</code> + <code>level</code>); в модалке показываются события одной категории
+    (<code>AuditEvent::eventValuesForCategory()</code>). Подробнее — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>,
+    UI-паттерн — <a href="/docs/documentation/reusable-ui-partials#logmodal">reusable-ui-partials § logModal</a>.
+  </div>
+  <table>
+    <thead><tr><th>Страница CRM</th><th>Endpoint logs-data</th><th>Право</th><th>Категория</th><th>Документация</th></tr></thead>
+    <tbody>
+      <tr><td><code>/client-contracts</code></td><td><code>logs.data.contract</code></td><td><code>contracts.view</code></td><td><code>contract</code></td><td><a href="/docs/documentation/contracts#contracts-audit">contracts §1.2</a></td></tr>
+      <tr><td><code>/client-contract-templates</code></td><td><code>logs.data.contract-template</code></td><td><code>contracts.view</code></td><td><code>contract_template</code></td><td><a href="/docs/documentation/contract-templates#contract-templates-audit">contract-templates §5.0</a></td></tr>
+      <tr><td><code>/admin/school-leads</code></td><td><code>logs.data.school-lead</code></td><td><code>schoolLeads.view</code></td><td><code>school_lead</code></td><td><a href="/docs/documentation/school-leads-widget#school-leads-audit">school-leads §5.1.1</a></td></tr>
+      <tr><td><code>/admin/lesson-packages/school-schedule</code></td><td><code>logs.data.school-schedule</code></td><td><code>lessonPackages.view</code></td><td><code>schedule</code></td><td><a href="/docs/documentation/school-schedule-calendar#school-schedule-audit">school-schedule-calendar</a></td></tr>
+      <tr><td><code>/admin/locations</code></td><td><code>logs.data.location</code></td><td><code>locations.view</code></td><td><code>location</code></td><td><a href="/docs/documentation/admin-locations">admin-locations §5</a></td></tr>
+      <tr><td><code>/admin/districts</code></td><td><code>logs.data.district</code></td><td><code>districts.view</code></td><td><code>district</code></td><td><a href="/docs/documentation/admin-districts">admin-districts §5</a></td></tr>
+      <tr><td><code>/admin/sport-types</code></td><td><code>logs.data.sport-type</code></td><td><code>sport_types.view</code></td><td><code>sport_type</code></td><td><a href="/docs/documentation/admin-sport-types">admin-sport-types §6</a></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Глобальный журнал всех событий партнёра — вкладка «Настройки → Логи» (<a href="/docs/documentation/settings-logs">settings-logs</a>, право <code>viewing.all.logs</code>). Это не заменяет модалки «История» на страницах разделов.</p>
+
   <h2>Разделы</h2>
   <ul>
     <li><a href="/docs/documentation/payments">Оплаты: таблицы payment_intents / payables / payments / users_prices</a></li>
@@ -45,24 +67,24 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка и фильтр объекта, колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры, AJAX/суммы</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: период назначения, привязка к календарю, разовое (<code>no_schedule</code>), лимит строк, остаток (<code>lessons_remaining</code>) и статусы</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект» (Все / Без объекта / id), модалка слота, статусы, пробное, разовое, JSON/API</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота, статусы, пробное, разовое, JSON/API, <b>аудит «История»</b> (<code>schedule.*</code>)</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, статусы (<code>statuses</code>), тренер при «Посетил» (<code>schedule_users.trainer_profile_id</code>)</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
     <li><a href="/docs/documentation/location-team-bindings"><strong>Объекты ↔ группы</strong> (<code>teams.location_id</code>): одна группа — один объект, sync с <code>/admin/locations</code>, лендинг, слоты, отчёты; удалены pivot <code>location_team</code>, <code>teams.address</code>, <code>teams.training_base</code></a></li>
-    <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки, <code>DirectoriesMenu</code> (подпись сайдбара), права, БД, лендинг, CRM заявки, автотесты</a></li>
-    <li><a href="/docs/documentation/admin-districts">Районы (админка): <code>/admin/districts</code> — <code>districts.view</code>, CRUD, multiselect объектов в edit (<code>location_ids</code>), колонка «Объекты» с tooltip, hard delete</a></li>
-    <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, поля «Район» и «Администратор» (<code>admin_user_id</code>), привязка групп (<code>team_ids</code>)</a></li>
-    <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники» (не отдельный пункт меню), привязка к группам (<code>teams.sport_type_id</code>), фильтр на лендинге заявки</a></li>
+    <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки, <code>DirectoriesMenu</code> (подпись сайдбара), права, БД, M2M <code>location_admin_user</code> (до 5 админов на объект), лендинг, CRM заявки, автотесты</a></li>
+    <li><a href="/docs/documentation/admin-districts">Районы (админка): <code>/admin/districts</code> — <code>districts.view</code>, CRUD, multiselect объектов, аудит <code>district.*</code></a></li>
+    <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, M2M админов, привязка групп, аудит <code>location.*</code></a></li>
+    <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники», аудит <code>sport_type.*</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка «Создать договор» (PDF и режим «форма клиенту»), карточка, подписант CRM, revoke/refund, вкладка «Шаблоны»</a></li>
-    <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: модалки create/edit/email, <code>fields_schema</code>, <code>fill_sort_order</code>, версии, email-приглашение</a></li>
+    <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
+    <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, версии, аудит <code>contract_template.*</code></a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF, подпись SMS, sync профиля</a></li>
     <li><a href="/docs/documentation/admin-users">Пользователи в админке: <code>/admin/users</code>, родители, колонка и фильтр «Договор» (<code>contracts.view</code>, сортировка по статусу), мед./особенности, группа (без <code>users.location_id</code>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (лид → клиент → договор), toolbar, фильтры, Telegram (≠ B2B <code>partner_leads</code>)</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (лид → клиент → договор), аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <code>district_id</code>, <code>source=landing</code></a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права)</a></li>

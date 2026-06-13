@@ -27,6 +27,7 @@ class ContractTemplatesEndpointsAccessFeatureTest extends ContractsFeatureTestCa
 
         $this->getJson(route('contract-templates.data', ['draw' => 1]))->assertStatus(401);
         $this->getJson(route('contract-templates.columns-settings.get'))->assertStatus(401);
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertStatus(401);
         $this->postJson(route('contract-templates.columns-settings.save'), [
             'columns' => ['title' => true],
         ])->assertStatus(401);
@@ -65,6 +66,7 @@ class ContractTemplatesEndpointsAccessFeatureTest extends ContractsFeatureTestCa
 
         $this->getJson(route('contract-templates.data', ['draw' => 1]))->assertStatus(403);
         $this->getJson(route('contract-templates.columns-settings.get'))->assertStatus(403);
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertStatus(403);
         $this->postJson(route('contract-templates.columns-settings.save'), [
             'columns' => ['title' => true],
         ])->assertStatus(403);
@@ -115,6 +117,15 @@ class ContractTemplatesEndpointsAccessFeatureTest extends ContractsFeatureTestCa
         ]))->assertOk();
 
         $this->getJson(route('contract-templates.columns-settings.get'))->assertOk();
+
+        $this->getJson(route('logs.data.contract-template', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
         $this->get(route('contract-templates.download-docx', $template))->assertOk();
 
         $this->getJson(route('contract-templates.email.show', $template))
@@ -222,6 +233,7 @@ class ContractTemplatesEndpointsAccessFeatureTest extends ContractsFeatureTestCa
         $this->get(route('contract-templates.index', ['edit' => $template->id]))->assertOk();
         $this->getJson(route('contract-templates.data', ['draw' => 1, 'start' => 0, 'length' => 5]))->assertOk();
         $this->getJson(route('contract-templates.columns-settings.get'))->assertOk();
+        $this->getJson(route('logs.data.contract-template', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->postJson(route('contract-templates.columns-settings.save'), [
             'columns' => ['title' => true],
         ])->assertOk();

@@ -222,6 +222,118 @@ final class AuditLogsEventOnlyFeatureTest extends CrmTestCase
         $this->assertNotContains('legacy-team-modal', $descriptions);
     }
 
+    public function test_location_logs_data_filters_by_location_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('locations.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::LocationCreated, 'location-modal-event');
+        $this->createEventLog(AuditEvent::TeamCreated, 'team-not-in-location-modal');
+        $this->createLegacyOnlyLog(87, 871, 'legacy-location-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.location', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('location-modal-event', $descriptions);
+        $this->assertNotContains('team-not-in-location-modal', $descriptions);
+        $this->assertNotContains('legacy-location-modal', $descriptions);
+    }
+
+    public function test_district_logs_data_filters_by_district_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('districts.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::DistrictCreated, 'district-modal-event');
+        $this->createEventLog(AuditEvent::LocationCreated, 'location-not-in-district-modal');
+        $this->createLegacyOnlyLog(86, 861, 'legacy-district-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.district', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('district-modal-event', $descriptions);
+        $this->assertNotContains('location-not-in-district-modal', $descriptions);
+        $this->assertNotContains('legacy-district-modal', $descriptions);
+    }
+
+    public function test_sport_type_logs_data_filters_by_sport_type_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('sport_types.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::SportTypeCreated, 'sport-type-modal-event');
+        $this->createEventLog(AuditEvent::DistrictCreated, 'district-not-in-sport-type-modal');
+        $this->createLegacyOnlyLog(88, 881, 'legacy-sport-type-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.sport-type', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('sport-type-modal-event', $descriptions);
+        $this->assertNotContains('district-not-in-sport-type-modal', $descriptions);
+        $this->assertNotContains('legacy-sport-type-modal', $descriptions);
+    }
+
+    public function test_school_lead_logs_data_filters_by_school_lead_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('schoolLeads.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::SchoolLeadUpdated, 'school-lead-modal-event');
+        $this->createEventLog(AuditEvent::SportTypeCreated, 'sport-type-not-in-school-lead-modal');
+        $this->createLegacyOnlyLog(89, 891, 'legacy-school-lead-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.school-lead', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('school-lead-modal-event', $descriptions);
+        $this->assertNotContains('sport-type-not-in-school-lead-modal', $descriptions);
+        $this->assertNotContains('legacy-school-lead-modal', $descriptions);
+    }
+
+    public function test_contract_template_logs_data_filters_by_contract_template_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('contracts.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::ContractTemplateCreated, 'contract-template-modal-event');
+        $this->createEventLog(AuditEvent::SchoolLeadUpdated, 'school-lead-not-in-contract-template-modal');
+        $this->createLegacyOnlyLog(501, 5011, 'legacy-contract-template-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.contract-template', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('contract-template-modal-event', $descriptions);
+        $this->assertNotContains('school-lead-not-in-contract-template-modal', $descriptions);
+        $this->assertNotContains('legacy-contract-template-modal', $descriptions);
+    }
+
+    public function test_contract_logs_data_filters_by_contract_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('contracts.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::ContractCreated, 'contract-modal-event');
+        $this->createEventLog(AuditEvent::ContractTemplateCreated, 'template-not-in-contract-modal');
+        $this->createLegacyOnlyLog(500, 500, 'legacy-contract-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.contract', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('contract-modal-event', $descriptions);
+        $this->assertNotContains('template-not-in-contract-modal', $descriptions);
+        $this->assertNotContains('legacy-contract-modal', $descriptions);
+    }
+
+    public function test_school_schedule_logs_data_filters_by_schedule_category_event(): void
+    {
+        $this->grantPermissionToRoleOnPartner('lessonPackages.view', (int) $this->user->role_id);
+
+        $this->createEventLog(AuditEvent::ScheduleTrialRegistered, 'school-schedule-modal-event');
+        $this->createEventLog(AuditEvent::ContractCreated, 'contract-not-in-school-schedule-modal');
+        $this->createLegacyOnlyLog(60, 603, 'legacy-school-schedule-modal');
+
+        $descriptions = collect($this->getJson(route('logs.data.school-schedule', $this->auditLogsDataTableParams()))
+            ->json('data'))->pluck('description')->all();
+
+        $this->assertContains('school-schedule-modal-event', $descriptions);
+        $this->assertNotContains('contract-not-in-school-schedule-modal', $descriptions);
+        $this->assertNotContains('legacy-school-schedule-modal', $descriptions);
+    }
+
     public function test_pricing_logs_data_filters_by_pricing_category_event(): void
     {
         $this->grantPermissionToRoleOnPartner('setPrices.view', (int) $this->user->role_id);

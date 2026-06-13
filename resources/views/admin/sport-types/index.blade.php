@@ -31,6 +31,17 @@
                             </button>
                         @endcan
 
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#historyModal"
+                                title="История изменений">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                        </button>
+
                         <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                 type="button"
                                 data-bs-toggle="collapse"
@@ -143,7 +154,7 @@
 
     @can('sport_types.manage')
         <div class="modal fade" id="sportTypeCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить вид спорта</h5>
@@ -186,7 +197,7 @@
         </div>
 
         <div class="modal fade" id="sportTypeEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать вид спорта</h5>
@@ -231,6 +242,8 @@
             </div>
         </div>
     @endcan
+
+    @include('includes.logModal')
 @endsection
 
 @push('scripts')
@@ -427,6 +440,8 @@
                 });
             });
             @endcan
+
+            showLogModal(@json(route('logs.data.sport-type')));
         });
     </script>
 @endpush

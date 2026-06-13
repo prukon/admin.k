@@ -66,6 +66,23 @@
   </ul>
   <p class="small">Связь many-to-many <code>Team::locations()</code> не используется — одна группа привязана к одному объекту. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
 
+  <h3 id="school-schedule-audit">Аудит (<code>my_logs</code>)</h3>
+  <p>Категория <code>schedule</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a> §5.2). В toolbar справа — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) → модалка <code>includes.logModal</code> → <code>GET /admin/lesson-packages/school-schedule/logs-data</code> (<code>logs.data.school-schedule</code>). Доступ при <code>lessonPackages.view</code> (не <code>schedule.view</code> — это журнал <code>/schedule</code>).</p>
+  <table>
+    <thead><tr><th>Событие</th><th>Когда пишется</th></tr></thead>
+    <tbody>
+      <tr><td><code>schedule.flexible_linked</code></td><td>Привязка гибкого абонемента к слоту календаря</td></tr>
+      <tr><td><code>schedule.fixed_linked</code></td><td>Привязка фиксированного абонемента (цепочка слотов)</td></tr>
+      <tr><td><code>schedule.trial_registered</code></td><td>Запись на пробное занятие из модалки слота</td></tr>
+      <tr><td><code>schedule.trial_cancelled</code></td><td>Отмена пробной записи</td></tr>
+      <tr><td><code>schedule.single_lesson_registered</code></td><td>Разовая запись из модалки слота</td></tr>
+      <tr><td><code>schedule.single_lesson_registration_cancelled</code></td><td>Отмена разовой записи</td></tr>
+      <tr><td><code>schedule.occurrence_status_set</code></td><td>Установка статуса занятия на дату (посещение, пропуск и т.д.)</td></tr>
+      <tr><td><code>schedule.slot_occurrence_skipped</code>, <code>schedule.slot_truncated</code>, <code>schedule.slot_deleted</code>, <code>schedule.slot_split_edited</code></td><td>Мутации слота (<code>TeamScheduleSlotMutationService</code>) с календаря/модалки</td></tr>
+    </tbody>
+  </table>
+  <p class="small">События журнала <code>/schedule</code> (<code>schedule.user_range_updated</code>, <code>schedule.day_updated</code>, …) в модалке календаря школы тоже видны — общая категория <code>schedule</code>.</p>
+
   <h2 id="location-filter">Фильтр «Объект» в тулбаре календаря</h2>
   <p>Блок с выбором объекта (<code>id="schoolCalLocation"</code>, подпись «Объект») рендерится только при наличии права <code>locations.view</code> (директива Blade <code>@can('locations.view')</code>).
     У базовой роли admin в конфиге <code>config/role_base_permissions.php</code> это право включено; у кастомных ролей его можно отозвать — тогда фильтр не показывается, но календарь по-прежнему доступен при <code>lessonPackages.view</code> (все слоты партнёра без фильтра по объекту).</p>
@@ -200,6 +217,7 @@
       <tr><td>Разовое: отмена записи в календаре</td><td><code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code> — строка календаря удаляется, <code>user_lesson_packages</code> сохраняется</td></tr>
       <tr><td>Разрешённые действия по ячейке</td><td><code>GET …/slot-user-bind-actions</code> (<code>SchoolCalendarSlotUserBindActionsService</code>)</td></tr>
       <tr><td>Статус занятия</td><td><code>POST …/occurrence-status</code>, <code>GET …/occurrence-status/history</code></td></tr>
+      <tr><td>Аудит (модалка «История»)</td><td><code>GET …/school-schedule/logs-data</code> (<code>logs.data.school-schedule</code>)</td></tr>
     </tbody>
   </table>
   <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
@@ -285,6 +303,8 @@
 
   <h2>Тесты</h2>
   <p><strong>Фильтр «Объект» и модалка слота:</strong> <code>tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php</code> — week API (<code>location_id</code> пусто / <code>none</code> / id), store с <code>location_id=none</code>, разметка «Все»/«Без объекта», порядок полей в create, smoke 200, 403/гость.</p>
+  <p><code>SchoolScheduleAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit-сценарии (пробное, статус, привязки), иконка в toolbar, запись в logs-data.</p>
+  <p><code>SchoolSchedulePageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов раздела при <code>lessonPackages.view</code> (включая <code>logs-data</code>).</p>
   <p>Разметка модалки просмотра слота, <code>team_title</code> в JSON недели, загрузка страницы с группами <code>location_id</code>, read-API — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>, <code>LessonPackagesSectionAccessSmokeFeatureTest.php</code>.
     Фильтр групп и валидация пары группа+объект — <code>TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
     Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.

@@ -328,6 +328,10 @@ final class DirectoriesPageFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.sport-types.columns-settings.get'),
             ],
             [
+                'method' => 'GET',
+                'url'    => route('logs.data.sport-type', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
                 'method' => 'POST',
                 'url'    => route('admin.sport-types.columns-settings.save'),
                 'data'   => ['columns' => ['name' => true, 'teams_count' => true]],
@@ -403,6 +407,10 @@ final class DirectoriesPageFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.districts.columns-settings.get'),
             ],
             [
+                'method' => 'GET',
+                'url'    => route('logs.data.district', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
                 'method' => 'POST',
                 'url'    => route('admin.districts.columns-settings.save'),
                 'data'   => ['columns' => ['name' => true, 'locations_label' => true]],
@@ -454,6 +462,10 @@ final class DirectoriesPageFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'GET',
                 'url'    => route('admin.locations.columns-settings.get'),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('logs.data.location', ['draw' => 1, 'start' => 0, 'length' => 10]),
             ],
             [
                 'method' => 'POST',

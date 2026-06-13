@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\LocationAdminUsersSyncService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -64,6 +65,11 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
         ], $overrides));
     }
 
+    private function attachAdmins(Location $location, array $adminIds): void
+    {
+        app(LocationAdminUsersSyncService::class)->syncAdminsForLocation($location, $adminIds);
+    }
+
     public function test_location_admin_binding_full_crud_and_validation(): void
     {
         $admin = $this->createPartnerAdmin(['name' => 'Пётр', 'lastname' => 'Главный']);
@@ -76,7 +82,7 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $store = $this->postJson(route('admin.locations.store'), [
             'name' => 'Объект с админом',
-            'admin_user_id' => $admin->id,
+            'admin_user_ids' => [$admin->id],
             'is_enabled' => 1,
         ])->assertOk();
 
@@ -84,7 +90,7 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.locations.show', $locationId))
             ->assertOk()
-            ->assertJsonPath('admin_user_id', $admin->id);
+            ->assertJsonPath('admin_user_ids', [$admin->id]);
 
         $this->getJson(route('admin.locations.data', [
             'draw' => 1,
@@ -98,22 +104,22 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $this->putJson(route('admin.locations.update', $locationId), [
             'name' => 'Объект с админом',
-            'admin_user_id' => '',
+            'admin_user_ids' => [],
             'is_enabled' => 1,
         ])->assertOk();
 
-        $this->assertDatabaseHas('locations', [
-            'id' => $locationId,
-            'admin_user_id' => null,
+        $this->assertDatabaseMissing('location_admin_user', [
+            'location_id' => $locationId,
+            'user_id' => $admin->id,
         ]);
 
         $this->postJson(route('admin.locations.store'), [
             'name' => 'Объект с учеником',
-            'admin_user_id' => $student->id,
+            'admin_user_ids' => [$student->id],
             'is_enabled' => 1,
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['admin_user_id']);
+            ->assertJsonValidationErrors(['admin_user_ids.0']);
 
         $foreignAdmin = User::factory()->create([
             'partner_id' => $this->foreignPartner->id,
@@ -123,11 +129,11 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.locations.store'), [
             'name' => 'Объект с чужим админом',
-            'admin_user_id' => $foreignAdmin->id,
+            'admin_user_ids' => [$foreignAdmin->id],
             'is_enabled' => 1,
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['admin_user_id']);
+            ->assertJsonValidationErrors(['admin_user_ids.0']);
     }
 
     public function test_one_admin_can_be_bound_to_multiple_locations(): void
@@ -136,18 +142,18 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $firstId = (int) $this->postJson(route('admin.locations.store'), [
             'name' => 'Объект A',
-            'admin_user_id' => $admin->id,
+            'admin_user_ids' => [$admin->id],
             'is_enabled' => 1,
         ])->json('location.id');
 
         $secondId = (int) $this->postJson(route('admin.locations.store'), [
             'name' => 'Объект B',
-            'admin_user_id' => $admin->id,
+            'admin_user_ids' => [$admin->id],
             'is_enabled' => 1,
         ])->json('location.id');
 
-        $this->assertDatabaseHas('locations', ['id' => $firstId, 'admin_user_id' => $admin->id]);
-        $this->assertDatabaseHas('locations', ['id' => $secondId, 'admin_user_id' => $admin->id]);
+        $this->assertDatabaseHas('location_admin_user', ['location_id' => $firstId, 'user_id' => $admin->id]);
+        $this->assertDatabaseHas('location_admin_user', ['location_id' => $secondId, 'user_id' => $admin->id]);
     }
 
     public function test_teams_filters_by_location_admin_and_district(): void
@@ -159,12 +165,11 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
         $locationWithAdmin = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'district_id' => $district->id,
-            'admin_user_id' => $admin->id,
         ]);
+        $this->attachAdmins($locationWithAdmin, [$admin->id]);
         $locationOtherDistrict = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'district_id' => $otherDistrict->id,
-            'admin_user_id' => null,
         ]);
         $locationWithoutDistrict = Location::factory()->create([
             'partner_id' => $this->partner->id,
@@ -349,17 +354,17 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
     {
         $admin = $this->createPartnerAdmin(['name' => 'UI', 'lastname' => 'Админ']);
         District::factory()->forPartner($this->partner->id)->create(['name' => 'UI район']);
-        Location::factory()->create([
+        $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'name' => 'UI объект',
-            'admin_user_id' => $admin->id,
         ]);
+        $this->attachAdmins($location, [$admin->id]);
 
         $this->get(route('admin.locations.index'))
             ->assertOk()
             ->assertSee('id="filter-admin"', false)
             ->assertSee('data-column-key="admin_user_label"', false)
-            ->assertSee('name="admin_user_id"', false)
+            ->assertSee('name="admin_user_ids[]"', false)
             ->assertSee('id="filter-district"', false);
     }
 
@@ -383,11 +388,11 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
     {
         $admin = $this->createPartnerAdmin(['name' => 'Filter', 'lastname' => 'Admin']);
         $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Filter district']);
-        Location::factory()->create([
+        $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'district_id' => $district->id,
-            'admin_user_id' => $admin->id,
         ]);
+        $this->attachAdmins($location, [$admin->id]);
 
         $this->get(route('admin.team.index'))
             ->assertOk()
@@ -402,8 +407,8 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'district_id' => $district->id,
-            'admin_user_id' => $admin->id,
         ]);
+        $this->attachAdmins($location, [$admin->id]);
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'location_id' => $location->id,
@@ -422,11 +427,11 @@ final class DirectoriesHierarchyNewFeaturesFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.locations.show', $location->id))
             ->assertOk()
-            ->assertJsonPath('admin_user_id', $admin->id);
+            ->assertJsonPath('admin_user_ids', [$admin->id]);
 
         $this->putJson(route('admin.locations.update', $location->id), [
             'name' => $location->name,
-            'admin_user_id' => $admin->id,
+            'admin_user_ids' => [$admin->id],
             'district_id' => $district->id,
             'is_enabled' => 1,
         ])->assertOk();

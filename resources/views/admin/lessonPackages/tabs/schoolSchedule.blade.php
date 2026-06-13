@@ -39,6 +39,13 @@
                 <div class="d-flex align-items-center justify-content-md-end ms-md-auto">
                     <div class="wrap-icon btn"
                          data-bs-toggle="modal"
+                         data-bs-target="#historyModal"
+                         title="История изменений"
+                         aria-label="История изменений">
+                        <i class="fas fa-clock-rotate-left"></i>
+                    </div>
+                    <div class="wrap-icon btn ms-1"
+                         data-bs-toggle="modal"
                          data-bs-target="#schoolCalViewSettingsModal"
                          title="Отображение календаря">
                         <i class="fa-solid fa-gear settings-icon"></i>
@@ -2307,5 +2314,13 @@
 
             });
         })();
+    </script>
+
+    @include('includes.logModal')
+
+    <script>
+        document.getElementById('historyModal')?.addEventListener('show.bs.modal', function () {
+            showLogModal(@json(route('logs.data.school-schedule')));
+        });
     </script>
 @endpush
