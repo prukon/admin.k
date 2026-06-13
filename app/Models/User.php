@@ -10,6 +10,7 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
@@ -56,6 +57,11 @@ class User extends Authenticatable
     {
         // если поле в таблице users называется team_id
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    public function managedLocations(): HasMany
+    {
+        return $this->hasMany(Location::class, 'admin_user_id');
     }
 
     /**

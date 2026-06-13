@@ -200,6 +200,8 @@ final class LocationsFeatureTest extends CrmTestCase
             'name',
             'district_id',
             'district_name',
+            'admin_user_id',
+            'admin_user_label',
             'address',
             'teams_label',
             'teams_label_full',
@@ -209,6 +211,8 @@ final class LocationsFeatureTest extends CrmTestCase
         ], array_keys($row));
         $this->assertNull($row['district_id']);
         $this->assertSame('', $row['district_name']);
+        $this->assertNull($row['admin_user_id']);
+        $this->assertSame('', $row['admin_user_label']);
         $this->assertSame('', $row['teams_label']);
         $this->assertSame('', $row['teams_label_full']);
         $this->assertSame([], $row['teams_titles']);

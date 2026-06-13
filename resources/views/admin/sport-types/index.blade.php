@@ -143,7 +143,7 @@
 
     @can('sport_types.manage')
         <div class="modal fade" id="sportTypeCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить вид спорта</h5>
@@ -186,7 +186,7 @@
         </div>
 
         <div class="modal fade" id="sportTypeEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать вид спорта</h5>

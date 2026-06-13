@@ -6,22 +6,33 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\StoreDistrictRequest;
 use App\Http\Requests\Admin\UpdateDistrictRequest;
 use App\Models\District;
+use App\Models\Location;
+use App\Services\LocationDistrictSyncService;
 use App\Services\PartnerContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class DistrictController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly LocationDistrictSyncService $locationDistrictSync,
+    ) {
         parent::__construct($partnerContext);
     }
 
     public function index()
     {
-        $this->requirePartnerId();
+        $partnerId = $this->requirePartnerId();
 
-        return view('admin.districts.index');
+        $locationOptions = auth()->user()?->can('locations.view')
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
+        return view('admin.districts.index', compact('locationOptions'));
     }
 
     public function data(Request $request)
@@ -94,19 +105,41 @@ class DistrictController extends AdminBaseController
         $start  = $validated['start'] ?? 0;
         $length = $validated['length'] ?? 10;
 
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = auth()->user();
+        $canViewLocations = $filterActor?->can('locations.view') ?? false;
+
+        if ($canViewLocations) {
+            $baseQuery->with(['locations' => fn ($q) => $q->orderBy('name')]);
+        }
+
         $districts = $baseQuery
             ->skip($start)
             ->take($length)
             ->get();
 
-        $data = $districts->map(function (District $district) {
+        $data = $districts->map(function (District $district) use ($canViewLocations) {
+            $locationsLabels = [
+                'locations_label' => '',
+                'locations_label_full' => '',
+                'locations_names' => [],
+            ];
+            if ($canViewLocations && $district->relationLoaded('locations')) {
+                $locationsLabels = $this->formatLocationsLabels(
+                    $district->locations->sortBy('name')->pluck('name')->values()->all()
+                );
+            }
+
             return [
-                'id'                 => $district->id,
-                'sort_order'         => $district->sort_order,
-                'name'               => $district->name,
-                'locations_count'    => (int) $district->locations_count,
-                'is_enabled'         => (int) $district->is_enabled,
-                'is_enabled_label'   => $district->is_enabled ? 'Да' : 'Нет',
+                'id'                   => $district->id,
+                'sort_order'           => $district->sort_order,
+                'name'                 => $district->name,
+                'locations_count'      => (int) $district->locations_count,
+                'locations_label'      => $locationsLabels['locations_label'],
+                'locations_label_full' => $locationsLabels['locations_label_full'],
+                'locations_names'      => $locationsLabels['locations_names'],
+                'is_enabled'           => (int) $district->is_enabled,
+                'is_enabled_label'     => $district->is_enabled ? 'Да' : 'Нет',
             ];
         })->toArray();
 
@@ -123,12 +156,23 @@ class DistrictController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $data = $request->validated();
+        $syncLocations = $request->user()?->can('locations.view') ?? false;
+        $locationIds = null;
+        if ($syncLocations && array_key_exists('location_ids', $data)) {
+            $locationIds = $data['location_ids'] ?? [];
+        }
+        unset($data['location_ids']);
+
         $data['partner_id'] = $partnerId;
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? true);
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
 
         try {
             $district = District::create($data);
+
+            if ($syncLocations && $locationIds !== null) {
+                $this->locationDistrictSync->syncLocationsForDistrict($district, $locationIds);
+            }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
             if ((int) $code === 1062) {
@@ -164,12 +208,22 @@ class DistrictController extends AdminBaseController
             abort(404);
         }
 
-        return response()->json([
+        $payload = [
             'id' => $district->id,
             'name' => $district->name,
             'sort_order' => $district->sort_order,
             'is_enabled' => (int) $district->is_enabled,
-        ]);
+        ];
+
+        if (auth()->user()?->can('locations.view')) {
+            $payload['location_ids'] = $district->locations()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
+
+        return response()->json($payload);
     }
 
     public function update(UpdateDistrictRequest $request, District $district)
@@ -181,11 +235,22 @@ class DistrictController extends AdminBaseController
         }
 
         $data = $request->validated();
+        $syncLocations = $request->user()?->can('locations.view') ?? false;
+        $locationIds = null;
+        if ($syncLocations && array_key_exists('location_ids', $data)) {
+            $locationIds = $data['location_ids'] ?? [];
+        }
+        unset($data['location_ids']);
+
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? false);
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
 
         try {
             $district->update($data);
+
+            if ($syncLocations && $locationIds !== null) {
+                $this->locationDistrictSync->syncLocationsForDistrict($district, $locationIds);
+            }
         } catch (QueryException $e) {
             $code = $e->errorInfo[1] ?? null;
             if ((int) $code === 1062) {
@@ -233,5 +298,39 @@ class DistrictController extends AdminBaseController
         }
 
         return redirect()->route('admin.districts.index');
+    }
+
+    /**
+     * @param  list<string>  $names
+     * @return array{locations_label: string, locations_label_full: string, locations_names: list<string>}
+     */
+    private function formatLocationsLabels(array $names): array
+    {
+        $names = array_values(array_filter($names, static fn ($name) => trim((string) $name) !== ''));
+        $count = count($names);
+
+        if ($count === 0) {
+            return [
+                'locations_label' => '',
+                'locations_label_full' => '',
+                'locations_names' => [],
+            ];
+        }
+
+        $full = implode(', ', $names);
+
+        if ($count <= 2) {
+            return [
+                'locations_label' => $full,
+                'locations_label_full' => $full,
+                'locations_names' => $names,
+            ];
+        }
+
+        return [
+            'locations_label' => $names[0] . ', еще ' . ($count - 1) . ' шт.',
+            'locations_label_full' => $full,
+            'locations_names' => $names,
+        ];
     }
 }

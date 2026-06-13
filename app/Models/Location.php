@@ -18,6 +18,7 @@ class Location extends Model
     protected $casts = [
         'partner_id' => 'int',
         'district_id' => 'int',
+        'admin_user_id' => 'int',
         'is_enabled' => 'bool',
     ];
 
@@ -29,6 +30,11 @@ class Location extends Model
     public function district(): BelongsTo
     {
         return $this->belongsTo(District::class, 'district_id');
+    }
+
+    public function adminUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_user_id');
     }
 
     public function teamScheduleSlots(): HasMany

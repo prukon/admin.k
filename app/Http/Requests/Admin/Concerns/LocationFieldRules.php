@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin\Concerns;
 
 use App\Models\Location;
 use App\Services\PartnerContext;
+use App\Support\PartnerAdminUserOptions;
 use Illuminate\Validation\Rule;
 
 trait LocationFieldRules
@@ -12,6 +13,10 @@ trait LocationFieldRules
     {
         if ($this->has('district_id') && $this->input('district_id') === '') {
             $this->merge(['district_id' => null]);
+        }
+
+        if ($this->has('admin_user_id') && $this->input('admin_user_id') === '') {
+            $this->merge(['admin_user_id' => null]);
         }
     }
 
@@ -59,6 +64,12 @@ trait LocationFieldRules
             'address' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
             'is_enabled' => ['nullable', 'boolean'],
+            'admin_user_id' => [
+                'nullable',
+                'integer',
+                'min:1',
+                $this->partnerSystemAdminUserExistsRule($partnerId),
+            ],
         ];
 
         if ($this->user()?->can('locations.view')) {
@@ -85,6 +96,7 @@ trait LocationFieldRules
         return [
             'name' => 'название',
             'district_id' => 'район',
+            'admin_user_id' => 'администратор',
             'team_ids' => 'группы',
             'team_ids.*' => 'группа',
         ];
@@ -99,6 +111,7 @@ trait LocationFieldRules
             'name.required' => 'Введите название',
             'name.unique' => 'Объект с таким названием уже существует в выбранном районе',
             'district_id.exists' => 'Выберите район из списка текущего партнёра',
+            'admin_user_id.exists' => 'Выберите администратора из списка текущего партнёра',
             'team_ids.array' => 'Некорректный список групп',
             'team_ids.*.exists' => 'Выберите группу из списка текущего партнёра',
         ];
@@ -117,5 +130,21 @@ trait LocationFieldRules
         }
 
         return null;
+    }
+
+    private function partnerSystemAdminUserExistsRule(int $partnerId): \Illuminate\Validation\Rules\Exists
+    {
+        $adminRoleId = PartnerAdminUserOptions::systemAdminRoleId();
+
+        return Rule::exists('users', 'id')->where(function ($query) use ($partnerId, $adminRoleId) {
+            $query->where('partner_id', $partnerId)
+                ->where('is_enabled', 1);
+
+            if ($adminRoleId !== null) {
+                $query->where('role_id', $adminRoleId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        });
     }
 }

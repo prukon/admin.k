@@ -67,8 +67,13 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
 
     public function test_teams_page_renders_location_select_without_address_and_multiselect(): void
     {
+        $district = District::factory()->forPartner((int) $this->partner->id)->create([
+            'name' => 'UI smoke district',
+        ]);
+
         Location::factory()->create([
             'partner_id' => $this->partner->id,
+            'district_id' => $district->id,
             'name' => 'UI smoke object',
             'is_enabled' => true,
         ]);
@@ -78,11 +83,15 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
             ->assertViewIs('admin.team')
             ->assertSee('id="location_id"', false)
             ->assertSee('id="edit-location-id"', false)
+            ->assertSee('id="filter-district"', false)
             ->assertSee('Объект', false)
+            ->assertSee('Район', false)
+            ->assertSee('Адрес', false)
+            ->assertSee('id="colDistrict"', false)
+            ->assertSee('id="colAddress"', false)
             ->assertDontSee('id="createTeamLocationIds"', false)
             ->assertDontSee('id="editTeamLocationIds"', false)
             ->assertDontSee('id="address"', false)
-            ->assertDontSee('id="colAddress"', false)
             ->assertDontSee('groups.address.view', false)
             ->assertDontSee('id="training_base"', false)
             ->assertDontSee('id="colTrainingBase"', false)
@@ -101,6 +110,7 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
             'name' => 'Full access object',
             'address' => 'ул. Полная, 1',
             'is_enabled' => true,
+            'admin_user_id' => null,
         ]);
 
         $team = Team::factory()->create([
@@ -111,11 +121,23 @@ final class TeamLocationFullAccessFeatureTest extends CrmTestCase
         // --- Страница групп ---
         $this->get(route('admin.team.index'))->assertOk();
 
+        $adminRoleId = (int) \App\Models\Role::query()->where('name', 'admin')->value('id');
+        $admin = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $adminRoleId,
+            'is_enabled' => 1,
+        ]);
+        $location->update(['admin_user_id' => $admin->id]);
+
         $teamDataUrls = [
             '/admin/teams/data?draw=1&start=0&length=10',
             '/admin/teams/data?draw=1&location_id=' . $location->id,
             '/admin/teams/data?draw=1&location_id=none',
             '/admin/teams/data?draw=1&status=active&location_id=' . $location->id,
+            '/admin/teams/data?draw=1&district_id=' . $district->id,
+            '/admin/teams/data?draw=1&district_id=none',
+            '/admin/teams/data?draw=1&admin_user_id=' . $admin->id,
+            '/admin/teams/data?draw=1&admin_user_id=none',
         ];
 
         foreach ($teamDataUrls as $url) {

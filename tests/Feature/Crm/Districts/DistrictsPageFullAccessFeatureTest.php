@@ -88,7 +88,7 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
             'columns' => [
                 'sort_order' => true,
                 'name' => true,
-                'locations_count' => true,
+                'locations_label' => true,
                 'is_enabled_label' => true,
             ],
         ])
@@ -118,6 +118,74 @@ final class DistrictsPageFullAccessFeatureTest extends CrmTestCase
         $this->deleteJson(route('admin.districts.destroy', $disposable->id))
             ->assertOk()
             ->assertJsonPath('success', true);
+    }
+
+    public function test_all_districts_endpoints_with_location_binding_payloads_return_200(): void
+    {
+        $this->grantLocationsViewTo($this->user->role_id);
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'District binding smoke',
+        ]);
+
+        $this->get(route('admin.districts.index'))
+            ->assertOk()
+            ->assertSee('id="districtEditLocationIds"', false)
+            ->assertSee('data-column-key="locations_label"', false);
+
+        $this->getJson(route('admin.districts.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [['locations_label', 'locations_label_full', 'locations_names', 'locations_count']],
+            ]);
+
+        $this->getJson(route('admin.districts.show', $this->district->id))
+            ->assertOk()
+            ->assertJsonStructure(['location_ids']);
+
+        $this->putJson(route('admin.districts.update', $this->district->id), [
+            'name' => $this->district->name,
+            'sort_order' => 1,
+            'is_enabled' => 1,
+            'location_ids' => [$location->id],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('locations', [
+            'id' => $location->id,
+            'district_id' => $this->district->id,
+        ]);
+
+        $this->getJson(route('admin.districts.show', $this->district->id))
+            ->assertOk()
+            ->assertJsonPath('location_ids', [$location->id]);
+
+        $this->putJson(route('admin.districts.update', $this->district->id), [
+            'name' => $this->district->name,
+            'sort_order' => 1,
+            'is_enabled' => 1,
+            'location_ids' => [],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('locations', [
+            'id' => $location->id,
+            'district_id' => null,
+        ]);
+    }
+
+    private function grantLocationsViewTo(int $roleId): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $roleId,
+            'permission_id' => $this->permissionId('locations.view'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     public function test_user_with_districts_view_can_access_all_district_endpoints(): void

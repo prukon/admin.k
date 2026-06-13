@@ -42,9 +42,9 @@
       <tr><td>GET</td><td><code>/admin/districts/data</code></td><td>JSON таблицы</td></tr>
       <tr><td>GET</td><td><code>/admin/districts/columns-settings</code></td><td>Настройки колонок</td></tr>
       <tr><td>POST</td><td><code>/admin/districts/columns-settings</code></td><td>Сохранение колонок</td></tr>
-      <tr><td>GET</td><td><code>/admin/districts/{district}</code></td><td>JSON карточки</td></tr>
-      <tr><td>POST</td><td><code>/admin/districts</code></td><td>Создание</td></tr>
-      <tr><td>PUT</td><td><code>/admin/districts/{district}</code></td><td>Обновление</td></tr>
+      <tr><td>GET</td><td><code>/admin/districts/{district}</code></td><td>JSON карточки (+ <code>location_ids</code> при <code>locations.view</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/districts</code></td><td>Создание (+ sync <code>location_ids</code> при <code>locations.view</code>)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/districts/{district}</code></td><td>Обновление (+ sync <code>location_ids</code> при <code>locations.view</code>)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/districts/{district}</code></td><td>Удаление (hard delete)</td></tr>
     </tbody>
   </table>
@@ -59,20 +59,30 @@
   <h2>3) Интерфейс</h2>
   <p>View: <code>resources/views/admin/districts/index.blade.php</code>, вкладки: <code>admin/directories/_section_tabs.blade.php</code>.</p>
   <ul>
-    <li>Поля формы: <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>.</li>
-    <li>Колонка «Объектов» — <code>locations_count</code> (withCount).</li>
+    <li>Поля формы create/edit: <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>.</li>
+    <li><b>Multiselect «Объекты»</b> (<code>location_ids[]</code>) — в модалках <b>создания и редактирования</b>, при <code>locations.view</code> и непустом справочнике объектов. Select2 через partial <code>generic-multiselect</code> (см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>). При сохранении — полная замена списка объектов района через <code>LocationDistrictSyncService</code>: выбранным проставляется <code>locations.district_id</code>, снятым с района — <code>null</code>.</li>
+    <li><code>GET /admin/districts/{id}</code> возвращает <code>location_ids</code> только при <code>locations.view</code>; без права ключ отсутствует.</li>
+    <li>Колонка «Объекты» — при <code>locations.view</code> и непустом справочнике: тип DataTables <code>list</code>, ключ <code>locations_label</code> (сортировка по <code>locations_count</code>). До 2 названий — через запятую; при 3+ — «Первый, еще N шт.» + tooltip (<code>locations_label_full</code>, <code>locations_names</code>). Число объектов — <code>locations_count</code> (withCount).</li>
     <li>Фильтры: название/id, статус active/inactive.</li>
     <li>Сортировка по умолчанию: <code>sort_order</code>, затем <code>name</code>.</li>
     <li><b>Колонка «Название»</b> — <code>type: 'link'</code>, класс <code>js-district-edit</code>; клик открывает модалку редактирования (AJAX <code>GET /admin/districts/{id}</code>). Паттерн — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
-  <h2>4) Удаление</h2>
+  <h2>4) Sync объектов района (<code>location_ids</code>)</h2>
+  <ul>
+    <li>Сервис: <code>app/Services/LocationDistrictSyncService.php</code> — метод <code>syncLocationsForDistrict(District $district, array $locationIds)</code>.</li>
+    <li>Валидация: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code> (trait <code>DistrictLocationIdsRules</code>) — <code>location_ids</code> nullable array, каждый id — объект текущего партнёра; ошибки под полем «Объекты».</li>
+    <li>Объект может быть перенесён из другого района: при выборе в multiselect прежний <code>district_id</code> у других районов обнуляется автоматически (полная замена привязки).</li>
+    <li>Без <code>locations.view</code> поле <code>location_ids</code> не принимается и не синхронизируется; привязку объектов можно менять на странице <a href="/docs/documentation/admin-locations">/admin/locations</a> (select «Район»).</li>
+  </ul>
+
+  <h2>5) Удаление</h2>
   <ul>
     <li>Если к району привязан хотя бы один объект (<code>locations.district_id</code>, включая отключённые) — <b>422</b>: «Нельзя удалить район: к нему привязаны объекты».</li>
     <li>Без объектов — удаление из БД (hard delete). У заявок <code>school_leads.district_id</code> обнуляется (<code>nullOnDelete</code>).</li>
   </ul>
 
-  <h2>5) Лендинг и заявки</h2>
+  <h2>6) Лендинг и заявки</h2>
   <ul>
     <li>На лендинге родитель выбирает район → объект → услугу (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>).</li>
     <li>Объекты без <code>district_id</code> на лендинге <b>не показываются</b>.</li>
@@ -80,9 +90,10 @@
     <li>В CRM заявок: колонка/фильтр «Район» при <code>districts.view</code>; «Объект» — при <code>locations.view</code>.</li>
   </ul>
 
-  <h2>6) Код и тесты</h2>
+  <h2>7) Код и тесты</h2>
   <ul>
-    <li><code>app/Http/Controllers/Admin/DistrictController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/DistrictController.php</code> — <code>formatLocationsLabels()</code></li>
+    <li><code>app/Services/LocationDistrictSyncService.php</code></li>
     <li><code>app/Http/Requests/Admin/StoreDistrictRequest.php</code>, <code>UpdateDistrictRequest.php</code></li>
     <li><code>app/Models/District.php</code></li>
     <li>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code></li>
@@ -90,8 +101,8 @@
   </ul>
   <p>Автотесты (полный список — <a href="/docs/documentation/directories-hierarchy#9">directories-hierarchy §9</a>):</p>
   <ul>
-    <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code></li>
-    <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code> — в т.ч. multiselect <code>location_ids</code>, колонка <code>locations_label</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code> — full access + payloads с <code>location_ids</code></li>
     <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное название + JSON show</li>
     <li><code>tests/Feature/Crm/Districts/DistrictHierarchyFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictLocationLandingIntegrationFeatureTest.php</code></li>

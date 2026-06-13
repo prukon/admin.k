@@ -208,14 +208,21 @@ final class TeamLocationBindingFeatureTest extends CrmTestCase
         $this->assertNotContains('С объектом', $titles);
     }
 
-    public function test_teams_data_does_not_include_address_field(): void
+    public function test_teams_data_includes_address_and_district_from_location(): void
     {
         $this->grantGroupsAndLocationsView();
 
-        $location = Location::factory()->create(['partner_id' => $this->partner->id]);
+        $district = \App\Models\District::factory()->forPartner((int) $this->partner->id)->create([
+            'name' => 'Центральный',
+        ]);
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'district_id' => $district->id,
+            'address' => 'ул. Тестовая, 5',
+        ]);
         Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title' => 'Data без адреса',
+            'title' => 'Data с адресом',
             'location_id' => $location->id,
         ]);
 
@@ -223,10 +230,11 @@ final class TeamLocationBindingFeatureTest extends CrmTestCase
             $this->getJson('/admin/teams/data?draw=1&start=0&length=50')
                 ->assertOk()
                 ->json('data')
-        )->firstWhere('title', 'Data без адреса');
+        )->firstWhere('title', 'Data с адресом');
 
         $this->assertNotNull($row);
-        $this->assertArrayNotHasKey('address', $row);
+        $this->assertSame('ул. Тестовая, 5', $row['address']);
+        $this->assertSame('Центральный', $row['district_name']);
         $this->assertSame($location->name, $row['locations_label']);
     }
 

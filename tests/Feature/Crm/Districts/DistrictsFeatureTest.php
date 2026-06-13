@@ -74,6 +74,7 @@ final class DistrictsFeatureTest extends CrmTestCase
     public function test_data_returns_partner_scoped_districts_with_locations_count(): void
     {
         $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
 
         $own = District::factory()->forPartner($this->partner->id)->create([
             'name' => 'Кудрово',
@@ -101,6 +102,8 @@ final class DistrictsFeatureTest extends CrmTestCase
             ->assertJsonPath('data.0.name', 'Кудрово')
             ->assertJsonPath('data.0.sort_order', 5)
             ->assertJsonPath('data.0.locations_count', 1)
+            ->assertJsonPath('data.0.locations_label', 'Школа №2')
+            ->assertJsonPath('data.0.locations_names', ['Школа №2'])
             ->assertJsonPath('data.0.is_enabled_label', 'Да');
     }
 
@@ -137,7 +140,7 @@ final class DistrictsFeatureTest extends CrmTestCase
             'columns' => [
                 'sort_order' => true,
                 'name' => false,
-                'locations_count' => true,
+                'locations_label' => true,
                 'is_enabled_label' => true,
             ],
         ])->assertOk();
@@ -145,7 +148,7 @@ final class DistrictsFeatureTest extends CrmTestCase
         $this->getJson(route('admin.districts.columns-settings.get'))
             ->assertOk()
             ->assertJsonPath('name', false)
-            ->assertJsonPath('locations_count', true);
+            ->assertJsonPath('locations_label', true);
     }
 
     public function test_store_creates_partner_scoped_district(): void
@@ -272,5 +275,155 @@ final class DistrictsFeatureTest extends CrmTestCase
         $this->get(route('admin.districts.index'))
             ->assertOk()
             ->assertSee('Районы');
+    }
+
+    public function test_create_and_edit_modals_render_location_multiselect_when_locations_view(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
+
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Зал для multiselect',
+        ]);
+
+        $html = $this->get(route('admin.districts.index'))
+            ->assertOk()
+            ->assertSee('id="districtCreateLocationIds"', false)
+            ->assertSee('id="districtEditLocationIds"', false)
+            ->assertSee('js-generic-multiselect-select', false)
+            ->assertSee('Зал для multiselect', false)
+            ->getContent();
+
+        $createModal = (string) preg_replace('/^.*?id="districtCreateModal"/s', 'id="districtCreateModal"', $html, 1);
+        $createModal = (string) preg_replace('/id="districtEditModal".*$/s', '', $createModal, 1);
+        $this->assertStringContainsString('name="location_ids[]"', $createModal);
+        $this->assertStringContainsString('districtCreateLocationIds', $createModal);
+    }
+
+    public function test_store_syncs_location_ids_for_new_district(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект при создании',
+            'district_id' => null,
+        ]);
+
+        $response = $this->postJson(route('admin.districts.store'), [
+            'name' => 'Новый район',
+            'sort_order' => 0,
+            'is_enabled' => 1,
+            'location_ids' => [$location->id],
+        ])->assertOk();
+
+        $districtId = (int) $response->json('district.id');
+        $this->assertGreaterThan(0, $districtId);
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'district_id' => $districtId]);
+
+        $this->getJson(route('admin.districts.show', ['district' => $districtId]))
+            ->assertOk()
+            ->assertJsonPath('location_ids', [$location->id]);
+    }
+
+    public function test_store_rejects_foreign_location_ids(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
+
+        $foreignLocation = Location::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'name' => 'Чужой объект',
+        ]);
+
+        $this->postJson(route('admin.districts.store'), [
+            'name' => 'Новый район',
+            'sort_order' => 0,
+            'is_enabled' => 1,
+            'location_ids' => [$foreignLocation->id],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['location_ids.0']);
+    }
+
+    public function test_update_without_location_ids_preserves_location_bindings(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Старый']);
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'district_id' => $district->id,
+        ]);
+
+        $this->putJson(route('admin.districts.update', ['district' => $district->id]), [
+            'name' => 'Новое имя',
+            'sort_order' => 0,
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('districts', ['id' => $district->id, 'name' => 'Новое имя']);
+        $this->assertDatabaseHas('locations', ['id' => $location->id, 'district_id' => $district->id]);
+    }
+
+    public function test_show_and_update_sync_location_ids_for_district(): void
+    {
+        $this->asAdmin();
+        $this->grantPermission('districts.view');
+        $this->grantPermission('locations.view');
+
+        $district = District::factory()->forPartner($this->partner->id)->create(['name' => 'Центр']);
+        $otherDistrict = District::factory()->forPartner($this->partner->id)->create(['name' => 'Окраина']);
+
+        $locA = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект A',
+            'district_id' => $district->id,
+        ]);
+        $locB = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект B',
+            'district_id' => null,
+        ]);
+        $locC = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект C',
+            'district_id' => $otherDistrict->id,
+        ]);
+
+        $this->getJson(route('admin.districts.show', ['district' => $district->id]))
+            ->assertOk()
+            ->assertJsonPath('location_ids', [$locA->id]);
+
+        $this->putJson(route('admin.districts.update', ['district' => $district->id]), [
+            'name' => 'Центр',
+            'sort_order' => 0,
+            'is_enabled' => 1,
+            'location_ids' => [$locB->id, $locC->id],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('locations', ['id' => $locA->id, 'district_id' => null]);
+        $this->assertDatabaseHas('locations', ['id' => $locB->id, 'district_id' => $district->id]);
+        $this->assertDatabaseHas('locations', ['id' => $locC->id, 'district_id' => $district->id]);
+
+        $foreignLocation = Location::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'name' => 'Чужой объект',
+        ]);
+
+        $this->putJson(route('admin.districts.update', ['district' => $district->id]), [
+            'name' => 'Центр',
+            'sort_order' => 0,
+            'is_enabled' => 1,
+            'location_ids' => [$foreignLocation->id],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['location_ids.0']);
     }
 }

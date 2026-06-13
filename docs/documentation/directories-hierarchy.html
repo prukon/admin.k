@@ -76,6 +76,7 @@
   <p>Партнёр (школа) может иметь несколько районов города; в каждом районе — один или несколько объектов (филиалы, залы); к объектам привязаны группы (секции). Родитель на странице заявки выбирает цепочку <b>район → объект → услуга</b>; оператор в CRM видит те же поля в заявке.</p>
   <pre><code>districts (Район)
     └── locations.district_id (Объект, nullable в CRM)
+            ├── locations.admin_user_id → users (nullable, роль admin)
             └── teams.location_id (Группа, nullable)
                     └── school_leads.team_id (из лендинга)
 
@@ -152,7 +153,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     </thead>
     <tbody>
       <tr><td><code>districts</code></td><td><code>partner_id</code>, <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>. Уникальность: <code>unique(partner_id, name)</code>. <b>Hard delete</b> (без soft delete).</td></tr>
-      <tr><td><code>locations.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>restrictOnDelete</code>. Объект без района допустим в CRM, но <b>не показывается на лендинге</b>.</td></tr>
+      <tr><td><code>locations.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>restrictOnDelete</code>. Объект без района допустим в CRM, но <b>не показывается на лендинге</b>. Можно задать на <code>/admin/locations</code> или через multiselect «Объекты» в edit района (<code>location_ids</code>).</td></tr>
+      <tr><td><code>locations.admin_user_id</code></td><td>Nullable FK → <code>users</code>, <code>nullOnDelete</code>. Администратор объекта — активный пользователь партнёра с системной ролью <code>admin</code>. Один admin — на нескольких объектах; у объекта — не более одного admin. См. <a href="/docs/documentation/admin-locations#3">admin-locations §3</a>.</td></tr>
       <tr><td><code>locations</code> имя</td><td><code>unique(partner_id, district_id_unique_bucket, name)</code>, bucket = <code>COALESCE(district_id, 0)</code> (MySQL).</td></tr>
       <tr><td><code>school_leads.district_id</code></td><td>Nullable FK → <code>districts</code>, <code>nullOnDelete</code> (при удалении района поле обнуляется).</td></tr>
       <tr><td><code>school_leads.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>.</td></tr>
@@ -160,7 +162,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>sport_types</code></td><td>Плоский справочник партнёра; <code>teams.sport_type_id</code> (nullable), <code>school_leads.sport_type_id</code> — см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>.</td></tr>
     </tbody>
   </table>
-  <p>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>100001_add_district_id_to_locations_table.php</code>, <code>100002_add_district_id_to_school_leads_table.php</code>, <code>110000_add_districts_permissions.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code>.</p>
+  <p>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>100001_add_district_id_to_locations_table.php</code>, <code>100002_add_district_id_to_school_leads_table.php</code>, <code>110000_add_districts_permissions.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code>, <code>160000_add_admin_user_id_to_locations_table.php</code>.</p>
 
   <h2>5) CRM: страницы справочников</h2>
   <h3>5.1) Группы — <code>/admin/teams</code></h3>
@@ -168,6 +170,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li>Первая вкладка раздела «Справочники»; URL без изменений (<code>/admin/teams</code>).</li>
     <li>DataTables, фильтры, модалки create/edit, привязка объектов и тренеров — см. admin-teams. Клик по названию группы — модалка edit (<code>edit-team-link</code>).</li>
+    <li>При <code>locations.view</code> — фильтры по объекту, району объекта и администратору объекта (<code>location_id</code>, <code>district_id</code>, <code>admin_user_id</code>; значение <code>none</code> для «без привязки» / «без района» / «без администратора»).</li>
     <li>Право <code>groups.view</code> обязательно для доступа к странице и всем её endpoint'ам.</li>
   </ul>
 
@@ -175,8 +178,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <p>Подробно: <a href="/docs/documentation/admin-locations">admin-locations.html</a>.</p>
   <ul>
     <li>Select «Район» в create/edit — только <b>активные</b> районы (<code>is_enabled = true</code>).</li>
+    <li>Select «Администратор» (<code>admin_user_id</code>) в create/edit — при <code>locations.manage</code>; колонка и фильтр — при <code>locations.view</code>.</li>
     <li>Колонка и фильтр «Район» в таблице; фильтр «Без района» (<code>district_id=none</code>).</li>
-    <li>Сортировка по <code>district_name</code> (join к <code>districts</code>).</li>
+    <li>Сортировка по <code>district_name</code> (join к <code>districts</code>) и <code>admin_user_label</code> (join к <code>users</code>).</li>
     <li>Multiselect групп (<code>team_ids</code>) при <code>locations.manage</code>.</li>
   </ul>
 
@@ -184,6 +188,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <p>Подробно: <a href="/docs/documentation/admin-districts">admin-districts.html</a>.</p>
   <ul>
     <li>DataTables: поиск по имени/id, фильтр active/inactive, сортировка (sort_order, locations_count, is_enabled).</li>
+    <li>Multiselect «Объекты» (<code>location_ids[]</code>) в модалках create и edit — при <code>locations.view</code>; sync через <code>LocationDistrictSyncService</code>.</li>
+    <li>Колонка «Объекты» — список названий с tooltip (<code>locations_label</code>), не только счётчик.</li>
     <li>Удаление: 422, если есть объекты с <code>district_id</code> этого района (включая отключённые). Иначе — hard delete.</li>
   </ul>
 
@@ -230,7 +236,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li>Контроллеры: <code>TeamController</code>, <code>DistrictController</code>, <code>LocationController</code>, <code>SportTypeController</code>, <code>SchoolLeadController</code>, <code>SchoolLeadLandingController</code></li>
     <li>Requests: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code>, <code>LocationFieldRules</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code></li>
-    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationSyncService</code>, <code>TeamLocationAvailabilityService</code>, <code>SchoolLeadNotificationService</code></li>
+    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationSyncService</code>, <code>LocationDistrictSyncService</code>, <code>TeamLocationAvailabilityService</code>, <code>SchoolLeadNotificationService</code></li>
     <li>Views: <code>admin/districts/index.blade.php</code>, <code>admin/locations/index.blade.php</code>, <code>admin/team.blade.php</code>, <code>admin/sport-types/index.blade.php</code>, <code>admin/directories/_section_tabs.blade.php</code>, <code>landing/partner-lead.blade.php</code>, <code>admin/school-leads/tabs/leads.blade.php</code></li>
     <li>Sidebar: <code>resources/views/includes/sidebar.blade.php</code>, <code>App\Support\DirectoriesMenu</code></li>
   </ul>
@@ -260,12 +266,14 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>TeamsDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Группы», сайдбар, full access groups (CRUD → 200)</td></tr>
       <tr><td><code>SportTypesDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Виды спорта», сайдбар, full access sport-types</td></tr>
       <tr><td><code>TeamsPageFullAccessFeatureTest.php</code></td><td>Full access <code>/admin/teams</code> + UI «Справочники»</td></tr>
-      <tr><td><code>DistrictsFeatureTest.php</code></td><td>CRUD районов, partner scope, unique name, hard delete</td></tr>
-      <tr><td><code>DistrictsPageFullAccessFeatureTest.php</code></td><td>Full access + 403 без <code>districts.view</code></td></tr>
+      <tr><td><code>DirectoriesHierarchyNewFeaturesFeatureTest.php</code></td><td>Сквозные сценарии: <code>admin_user_id</code>, фильтры групп, multiselect район↔объекты, <code>locations_label</code></td></tr>
+      <tr><td><code>LocationAdminUserFeatureTest.php</code></td><td>Администратор объекта: CRUD, фильтр, колонка, валидация</td></tr>
+      <tr><td><code>DistrictsFeatureTest.php</code></td><td>CRUD районов, partner scope, unique name, hard delete, <code>location_ids</code>, <code>locations_label</code></td></tr>
+      <tr><td><code>DistrictsPageFullAccessFeatureTest.php</code></td><td>Full access + payloads с <code>location_ids</code>; 403 без <code>districts.view</code></td></tr>
       <tr><td><code>DistrictHierarchyFeatureTest.php</code></td><td>Сортировки, связь с заявками, лендинг, disabled district</td></tr>
       <tr><td><code>DistrictLocationLandingIntegrationFeatureTest.php</code></td><td>E2E: район → объект → лендинг → CRM</td></tr>
       <tr><td><code>LocationsFeatureTest.php</code></td><td>Объекты с <code>district_id</code>, фильтры, unique per district</td></tr>
-      <tr><td><code>LocationsPageFullAccessFeatureTest.php</code></td><td>Full access объектов + district payloads</td></tr>
+      <tr><td><code>LocationsPageFullAccessFeatureTest.php</code></td><td>Full access объектов + district и admin payloads (все endpoint'ы → 200)</td></tr>
       <tr><td><code>SportTypesFeatureTest.php</code></td><td>CRUD видов спорта, partner scope</td></tr>
       <tr><td><code>SportTypesPageFullAccessFeatureTest.php</code></td><td>Full access + UI «Справочники» на странице sport-types</td></tr>
       <tr><td><code>SchoolLeadDistrictFeatureTest.php</code></td><td>CRM UI/data/update, email/Telegram с районом</td></tr>

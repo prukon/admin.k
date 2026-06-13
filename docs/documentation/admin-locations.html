@@ -43,7 +43,7 @@
       <tr><td>GET</td><td><code>/admin/locations/data</code></td><td><code>locations.view</code></td><td>JSON таблицы</td></tr>
       <tr><td>GET</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Настройки колонок</td></tr>
       <tr><td>POST</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Сохранение колонок</td></tr>
-      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>, <code>admin_user_id</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание</td></tr>
       <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление</td></tr>
       <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление объекта; у групп с этим <code>location_id</code> — <code>null</code></td></tr>
@@ -58,32 +58,46 @@
     <li>Объекты без района не попадают на лендинг заявки (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing</a>).</li>
   </ul>
 
-  <h2>3) Интерфейс страницы</h2>
+  <h2>3) Поле «Администратор» (<code>admin_user_id</code>)</h2>
+  <ul>
+    <li>Колонка <code>locations.admin_user_id</code> — nullable FK → <code>users.id</code>, <code>nullOnDelete</code> (миграция <code>2026_06_13_160000_add_admin_user_id_to_locations_table.php</code>).</li>
+    <li>Допустимы только <b>активные</b> пользователи текущего партнёра с системной ролью <code>admin</code> (<code>App\Support\PartnerAdminUserOptions</code>).</li>
+    <li>Один администратор может быть назначен на <b>несколько</b> объектов; у объекта — <b>не более одного</b> администратора. Объект может быть без администратора.</li>
+    <li>Select «Администратор» в модалках create/edit — только при <code>locations.manage</code>; пустое значение → <code>null</code>.</li>
+    <li>Колонка «Администратор» (<code>admin_user_label</code>) и фильтр таблицы — при <code>locations.view</code> (значения: все / «Без администратора» (<code>none</code>) / id). Сортировка — join к <code>users</code> по ФИО.</li>
+    <li>JSON <code>GET /admin/locations/data</code>: ключи <code>admin_user_id</code>, <code>admin_user_label</code> (ФИО или пустая строка).</li>
+    <li>Модель: <code>Location::adminUser()</code>, <code>User::managedLocations()</code>.</li>
+    <li>Валидация: <code>LocationFieldRules</code> — <code>admin_user_id</code> nullable, exists у <code>users</code> партнёра с ролью <code>admin</code>; ошибки под полем «Администратор».</li>
+  </ul>
+
+  <h2>4) Интерфейс страницы</h2>
   <p>View: <code>resources/views/admin/locations/index.blade.php</code>, вкладки справочников — <code>admin/directories/_section_tabs.blade.php</code>.</p>
   <ul>
     <li><b>Toolbar</b> — «Добавить», «Фильтры», «Колонки».</li>
-    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id).</li>
-    <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком.</li>
-    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> при <code>locations.manage</code>.</li>
+    <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» / id).</li>
+    <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и select <code>admin_user_id</code> при <code>locations.manage</code>.</li>
     <li><b>Колонка «Название»</b> — при <code>locations.manage</code> тип <code>link</code> (<code>js-location-edit</code>, модалка edit); без manage — обычный <code>text</code>. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
-  <h2>4) Привязка групп (<code>team_ids</code>)</h2>
+  <h2>5) Привязка групп (<code>team_ids</code>)</h2>
   <p>Sync через <code>TeamLocationSyncService::syncTeamsForLocation</code>: выбранным группам проставляется <code>teams.location_id</code> текущего объекта; снятым — <code>null</code>. Обратная сторона — select <code>location_id</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
 
-  <h2>5) Связанные сущности</h2>
+  <h2>6) Связанные сущности</h2>
   <ul>
     <li><code>school_leads.location_id</code> и <code>school_leads.district_id</code> — заявка (UI «Объект» / «Район»).</li>
     <li><code>team_schedule_slots.location_id</code> — слот расписания.</li>
     <li><code>payments.location_id</code> — снимок в журнале оплат.</li>
   </ul>
 
-  <h2>6) Код и тесты</h2>
+  <h2>7) Код и тесты</h2>
   <ul>
     <li><code>app/Http/Controllers/Admin/LocationController.php</code></li>
     <li><code>app/Http/Requests/Admin/Concerns/LocationFieldRules.php</code></li>
+    <li><code>app/Support/PartnerAdminUserOptions.php</code></li>
+    <li><code>tests/Feature/Crm/Locations/LocationAdminUserFeatureTest.php</code> — CRUD, фильтр, колонка, валидация <code>admin_user_id</code></li>
     <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
-    <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district payloads</li>
+    <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district и admin payloads (все endpoint'ы → 200)</li>
     <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code>, <code>LocationTeamPagesAccessFeatureTest.php</code> — sync <code>team_ids</code>, smoke 200</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — сквозной доступ справочников</li>
   </ul>

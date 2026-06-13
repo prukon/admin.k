@@ -76,7 +76,7 @@
                                 </div>
 
                                 <div class="form-check">
-                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="locations_count" id="colDistrictLocations" checked>
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="locations_label" id="colDistrictLocations" checked>
                                     <label class="form-check-label" for="colDistrictLocations">Объекты</label>
                                 </div>
 
@@ -129,7 +129,11 @@
                 <tr>
                     <th>Сортировка</th>
                     <th>Название</th>
+                    @can('locations.view')
+                    @if($locationOptions->isNotEmpty())
                     <th>Объекты</th>
+                    @endif
+                    @endcan
                     <th>Активен</th>
                     @can('districts.view')
                         <th>Действия</th>
@@ -143,7 +147,7 @@
 
     @can('districts.view')
         <div class="modal fade" id="districtCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить район</h5>
@@ -162,6 +166,23 @@
                                 <input class="form-control" name="sort_order" type="number" min="0" value="0" />
                                 <div class="invalid-feedback" data-error-for="sort_order"></div>
                             </div>
+                            @can('locations.view')
+                            @if($locationOptions->isNotEmpty())
+                            <div class="mb-3 generic-multiselect-field">
+                                <label class="form-label" for="districtCreateLocationIds">Объекты</label>
+                                <select id="districtCreateLocationIds"
+                                        name="location_ids[]"
+                                        class="form-select js-generic-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите объекты">
+                                    @foreach($locationOptions as $location)
+                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="location_ids"></div>
+                            </div>
+                            @endif
+                            @endcan
                             <div class="mb-3">
                                 <label class="form-label">Активен</label>
                                 <select class="form-control" name="is_enabled">
@@ -181,7 +202,7 @@
         </div>
 
         <div class="modal fade" id="districtEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать район</h5>
@@ -202,6 +223,23 @@
                                 <input class="form-control" name="sort_order" type="number" min="0" />
                                 <div class="invalid-feedback" data-error-for="sort_order"></div>
                             </div>
+                            @can('locations.view')
+                            @if($locationOptions->isNotEmpty())
+                            <div class="mb-3 generic-multiselect-field">
+                                <label class="form-label" for="districtEditLocationIds">Объекты</label>
+                                <select id="districtEditLocationIds"
+                                        name="location_ids[]"
+                                        class="form-select js-generic-multiselect-select"
+                                        multiple
+                                        data-placeholder="Выберите объекты">
+                                    @foreach($locationOptions as $location)
+                                        <option value="{{ $location->id }}">{{ $location->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="location_ids"></div>
+                            </div>
+                            @endif
+                            @endcan
                             <div class="mb-3">
                                 <label class="form-label">Активен</label>
                                 <select class="form-control" name="is_enabled">
@@ -223,10 +261,17 @@
     @endcan
 @endsection
 
+@can('locations.view')
+    @if($locationOptions->isNotEmpty())
+        @include('partials.select2.generic-multiselect')
+    @endif
+@endcan
+
 @push('scripts')
     <script>
         $(document).ready(function () {
             const canManageDistricts = @json(auth()->user()->can('districts.view'));
+            const hasLocationOptions = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
             function districtsFilterParams() {
@@ -241,7 +286,7 @@
                     defaults: {
                         sort_order: true,
                         name: true,
-                        locations_count: true,
+                        ...(hasLocationOptions ? { locations_label: true } : {}),
                         is_enabled_label: true,
                         ...(canManageDistricts ? { actions: true } : {}),
                     },
@@ -276,7 +321,7 @@
                             return 'data-id="' + row.id + '"';
                         },
                     },
-                    { key: 'locations_count', type: 'count', data: 'locations_count' },
+                    { key: 'locations_label', type: 'list', data: 'locations_label', name: 'locations_count', itemsKey: 'locations_names', when: hasLocationOptions, searchable: false },
                     {
                         key: 'is_enabled_label',
                         type: 'badge',
@@ -319,14 +364,29 @@
             function clearErrors(form) {
                 form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
+                form.querySelectorAll('.js-generic-multiselect-select').forEach(function (select) {
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.clearInvalid($(select));
+                    }
+                });
             }
 
             function applyErrors(form, errors) {
                 Object.entries(errors || {}).forEach(([key, messages]) => {
                     const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
-                    const input = form.querySelector('[name="' + key + '"]');
+                    let input = form.querySelector('[name="' + key + '"]');
+
+                    if (!input && key === 'location_ids') {
+                        input = form.querySelector('[name="location_ids[]"]');
+                    }
+
                     const err = form.querySelector('[data-error-for="' + key + '"]');
-                    if (input) input.classList.add('is-invalid');
+                    if (input) {
+                        input.classList.add('is-invalid');
+                        if (window.KidsCrmGenericMultiselectSelect2 && input.classList.contains('js-generic-multiselect-select')) {
+                            KidsCrmGenericMultiselectSelect2.markInvalid($(input));
+                        }
+                    }
                     if (err) err.textContent = message;
                 });
             }
@@ -348,6 +408,17 @@
 
             const createForm = document.getElementById('districtCreateForm');
             const editForm = document.getElementById('districtEditForm');
+            const $createLocationsSelect = $('#districtCreateLocationIds');
+            const $editLocationsSelect = $('#districtEditLocationIds');
+
+            if (hasLocationOptions && window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($createLocationsSelect, {
+                    dropdownParent: $('#districtCreateModal')
+                });
+                KidsCrmGenericMultiselectSelect2.init($editLocationsSelect, {
+                    dropdownParent: $('#districtEditModal')
+                });
+            }
 
             document.getElementById('districtCreateSubmit')?.addEventListener('click', async () => {
                 clearErrors(createForm);
@@ -358,6 +429,9 @@
                 }
                 if (ok) {
                     createForm.reset();
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.setValues($createLocationsSelect, []);
+                    }
                     bootstrap.Modal.getInstance(document.getElementById('districtCreateModal'))?.hide();
                     reloadDistrictsTable();
                 }
@@ -374,6 +448,9 @@
                 editForm.querySelector('[name="name"]').value = data.name || '';
                 editForm.querySelector('[name="sort_order"]').value = data.sort_order ?? 0;
                 editForm.querySelector('[name="is_enabled"]').value = String(data.is_enabled ?? 1);
+                if (window.KidsCrmGenericMultiselectSelect2) {
+                    KidsCrmGenericMultiselectSelect2.setValues($editLocationsSelect, data.location_ids || []);
+                }
                 new bootstrap.Modal(document.getElementById('districtEditModal')).show();
             });
 

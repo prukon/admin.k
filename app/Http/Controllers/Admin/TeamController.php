@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\District;
 use App\Models\Location;
 use App\Models\SportType;
 use App\Models\Team;
@@ -24,6 +25,7 @@ use App\Support\BuildsLogTable;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\Auth;
 use App\Services\PartnerContext;
+use App\Support\PartnerAdminUserOptions;
 
 class TeamController extends AdminBaseController
 {
@@ -52,9 +54,13 @@ class TeamController extends AdminBaseController
         $weekdays = Weekday::all();
         $trainerOptions = $this->trainerOptionsForPartner($partnerId);
         $locationOptions = $this->locationOptionsForPartner($partnerId);
+        $districtOptions = $this->districtOptionsForPartner($partnerId);
         $sportTypeOptions = $this->sportTypeOptionsForPartner($partnerId);
+        $adminOptions = auth()->user()?->can('locations.view')
+            ? PartnerAdminUserOptions::forPartner($partnerId)
+            : collect();
 
-        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions', 'sportTypeOptions'));
+        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions', 'districtOptions', 'sportTypeOptions', 'adminOptions'));
     }
 
     /**
@@ -71,6 +77,8 @@ class TeamController extends AdminBaseController
             'status'               => 'nullable|string', // active / inactive
             'trainer_profile_id'   => 'nullable|string', // id или 'none'
             'location_id'          => 'nullable|string', // id или 'none'
+            'district_id'          => 'nullable|string', // id или 'none'
+            'admin_user_id'        => 'nullable|string', // id или 'none'
             'sport_type_id'        => 'nullable|string', // id или 'none'
 
             'draw'   => 'nullable|integer',
@@ -128,6 +136,34 @@ class TeamController extends AdminBaseController
                 $baseQuery->whereNull('teams.location_id');
             } elseif (ctype_digit((string) $locationFilter)) {
                 $baseQuery->where('teams.location_id', (int) $locationFilter);
+            }
+        }
+
+        // фильтр: администратор объекта
+        $adminFilter = $validated['admin_user_id'] ?? null;
+        if ($canViewLocations && $adminFilter !== null && $adminFilter !== '') {
+            if ($adminFilter === 'none') {
+                $baseQuery->where(function ($q) {
+                    $q->whereNull('teams.location_id')
+                        ->orWhereHas('location', fn ($lq) => $lq->whereNull('admin_user_id'));
+                });
+            } elseif (ctype_digit((string) $adminFilter)) {
+                $adminId = (int) $adminFilter;
+                $baseQuery->whereHas('location', fn ($lq) => $lq->where('admin_user_id', $adminId));
+            }
+        }
+
+        // фильтр: район объекта
+        $districtFilter = $validated['district_id'] ?? null;
+        if ($canViewLocations && $districtFilter !== null && $districtFilter !== '') {
+            if ($districtFilter === 'none') {
+                $baseQuery->where(function ($q) {
+                    $q->whereNull('teams.location_id')
+                        ->orWhereHas('location', fn ($lq) => $lq->whereNull('district_id'));
+                });
+            } elseif (ctype_digit((string) $districtFilter)) {
+                $districtId = (int) $districtFilter;
+                $baseQuery->whereHas('location', fn ($lq) => $lq->where('district_id', $districtId));
             }
         }
 
@@ -196,6 +232,23 @@ class TeamController extends AdminBaseController
                         ->orderBy('teams.title', 'asc');
                     break;
 
+                case 'district_name':
+                    $baseQuery
+                        ->leftJoin('locations as team_locations_district_sort', 'team_locations_district_sort.id', '=', 'teams.location_id')
+                        ->leftJoin('districts as team_districts_sort', 'team_districts_sort.id', '=', 'team_locations_district_sort.district_id')
+                        ->select('teams.*')
+                        ->orderBy('team_districts_sort.name', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
+                case 'address':
+                    $baseQuery
+                        ->leftJoin('locations as team_locations_address_sort', 'team_locations_address_sort.id', '=', 'teams.location_id')
+                        ->select('teams.*')
+                        ->orderBy('team_locations_address_sort.address', $orderDir)
+                        ->orderBy('teams.title', 'asc');
+                    break;
+
                 case 'sport_type_label':
                     $baseQuery
                         ->leftJoin('sport_types', 'sport_types.id', '=', 'teams.sport_type_id')
@@ -246,7 +299,7 @@ class TeamController extends AdminBaseController
 
         $with = ['weekdays', 'trainerProfiles.user'];
         if ($canViewLocations) {
-            $with[] = 'location';
+            $with[] = 'location.district';
         }
         if ($canViewSportTypes) {
             $with[] = 'sportType';
@@ -282,8 +335,12 @@ class TeamController extends AdminBaseController
             }
 
             $locationName = '';
+            $districtName = '';
+            $address = '';
             if ($canViewLocations && $team->relationLoaded('location') && $team->location) {
                 $locationName = (string) $team->location->name;
+                $districtName = (string) ($team->location->district?->name ?? '');
+                $address = (string) ($team->location->address ?? '');
             }
 
             return [
@@ -297,6 +354,8 @@ class TeamController extends AdminBaseController
                 'locations_label'      => $locationName,
                 'locations_label_full' => $locationName,
                 'locations_names'      => $locationName !== '' ? [$locationName] : [],
+                'district_name'  => $districtName,
+                'address'        => $address,
                 'weekdays_label'  => $weekdaysLabel,
                 'weekdays_items'  => $weekdaysItems,
                 'month_price'     => $team->month_price,
@@ -593,6 +652,20 @@ class TeamController extends AdminBaseController
         return Location::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    private function districtOptionsForPartner(int $partnerId)
+    {
+        if (! auth()->user()?->can('locations.view')) {
+            return collect();
+        }
+
+        return District::query()
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name']);
     }

@@ -154,6 +154,8 @@ final class TeamsPageNewFeaturesFeatureTest extends CrmTestCase
         $this->assertSame('', $row['locations_label']);
         $this->assertSame('', $row['locations_label_full']);
         $this->assertSame([], $row['locations_names']);
+        $this->assertSame('', $row['district_name']);
+        $this->assertSame('', $row['address']);
     }
 
     public function test_index_renders_location_select_when_locations_view(): void

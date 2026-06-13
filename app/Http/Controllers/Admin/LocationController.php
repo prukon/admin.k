@@ -10,6 +10,7 @@ use App\Models\Location;
 use App\Models\Team;
 use App\Services\TeamLocationSyncService;
 use App\Services\PartnerContext;
+use App\Support\PartnerAdminUserOptions;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
@@ -42,7 +43,11 @@ class LocationController extends AdminBaseController
                 ->get(['id', 'name'])
             : collect();
 
-        return view('admin.locations.index', compact('teamOptions', 'districtOptions'));
+        $adminOptions = auth()->user()?->can('locations.view')
+            ? PartnerAdminUserOptions::forPartner($partnerId)
+            : collect();
+
+        return view('admin.locations.index', compact('teamOptions', 'districtOptions', 'adminOptions'));
     }
 
     public function data(Request $request)
@@ -50,12 +55,13 @@ class LocationController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $validated = $request->validate([
-            'name'        => 'nullable|string',
-            'status'      => 'nullable|string',
-            'district_id' => 'nullable|string',
-            'draw'        => 'nullable|integer',
-            'start'       => 'nullable|integer',
-            'length'      => 'nullable|integer',
+            'name'          => 'nullable|string',
+            'status'        => 'nullable|string',
+            'district_id'   => 'nullable|string',
+            'admin_user_id' => 'nullable|string',
+            'draw'          => 'nullable|integer',
+            'start'         => 'nullable|integer',
+            'length'        => 'nullable|integer',
         ]);
 
         $baseQuery = Location::query()
@@ -94,6 +100,13 @@ class LocationController extends AdminBaseController
             $baseQuery->where('district_id', (int) $districtFilter);
         }
 
+        $adminFilter = trim((string) ($validated['admin_user_id'] ?? ''));
+        if ($adminFilter === 'none') {
+            $baseQuery->whereNull('admin_user_id');
+        } elseif ($adminFilter !== '' && ctype_digit($adminFilter)) {
+            $baseQuery->where('admin_user_id', (int) $adminFilter);
+        }
+
         $totalRecords = Location::where('partner_id', $partnerId)->count();
         $recordsFiltered = (clone $baseQuery)->count();
 
@@ -113,6 +126,14 @@ class LocationController extends AdminBaseController
                 $baseQuery
                     ->leftJoin('districts as location_districts_sort', 'locations.district_id', '=', 'location_districts_sort.id')
                     ->orderBy('location_districts_sort.name', $orderDir)
+                    ->orderBy('locations.name', 'asc')
+                    ->select('locations.*');
+                break;
+            case 'admin_user_label':
+                $baseQuery
+                    ->leftJoin('users as location_admin_users_sort', 'locations.admin_user_id', '=', 'location_admin_users_sort.id')
+                    ->orderBy('location_admin_users_sort.lastname', $orderDir)
+                    ->orderBy('location_admin_users_sort.name', $orderDir)
                     ->orderBy('locations.name', 'asc')
                     ->select('locations.*');
                 break;
@@ -138,7 +159,7 @@ class LocationController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocationsPivot = $filterActor?->can('locations.view') ?? false;
 
-        $with = ['district'];
+        $with = ['district', 'adminUser'];
         if ($canViewLocationsPivot) {
             $with[] = 'teams';
         }
@@ -166,6 +187,8 @@ class LocationController extends AdminBaseController
                 'name'              => $location->name,
                 'district_id'       => $location->district_id,
                 'district_name'     => $location->district?->name ?? '',
+                'admin_user_id'     => $location->admin_user_id,
+                'admin_user_label'  => $location->adminUser?->full_name ?? '',
                 'address'           => $location->address ?? '',
                 'teams_label'       => $teamsLabels['teams_label'],
                 'teams_label_full'  => $teamsLabels['teams_label_full'],
@@ -198,6 +221,7 @@ class LocationController extends AdminBaseController
         $data['partner_id'] = $partnerId;
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? true);
         $data['district_id'] = isset($data['district_id']) ? (int) $data['district_id'] : null;
+        $data['admin_user_id'] = isset($data['admin_user_id']) ? (int) $data['admin_user_id'] : null;
 
         try {
             $location = Location::create($data);
@@ -240,7 +264,7 @@ class LocationController extends AdminBaseController
             abort(404);
         }
 
-        $with = ['district'];
+        $with = ['district', 'adminUser'];
         if (auth()->user()?->can('locations.view')) {
             $with[] = 'teams';
         }
@@ -251,6 +275,7 @@ class LocationController extends AdminBaseController
             'id' => $location->id,
             'name' => $location->name,
             'district_id' => $location->district_id,
+            'admin_user_id' => $location->admin_user_id,
             'address' => $location->address,
             'description' => $location->description,
             'is_enabled' => (int) $location->is_enabled,
@@ -280,6 +305,9 @@ class LocationController extends AdminBaseController
         $data['district_id'] = array_key_exists('district_id', $data)
             ? ($data['district_id'] !== null ? (int) $data['district_id'] : null)
             : $location->district_id;
+        $data['admin_user_id'] = array_key_exists('admin_user_id', $data)
+            ? ($data['admin_user_id'] !== null ? (int) $data['admin_user_id'] : null)
+            : $location->admin_user_id;
 
         try {
             $location->update($data);

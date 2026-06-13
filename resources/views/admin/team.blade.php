@@ -141,6 +141,22 @@
                                            checked>
                                     <label class="form-check-label" for="colLocations">Объект</label>
                                 </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="district_name"
+                                           id="colDistrict"
+                                           checked>
+                                    <label class="form-check-label" for="colDistrict">Район</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="address"
+                                           id="colAddress"
+                                           checked>
+                                    <label class="form-check-label" for="colAddress">Адрес</label>
+                                </div>
                                 @endif
                                 @endcan
 
@@ -174,7 +190,7 @@
                                            data-column-key="month_price"
                                            id="colMonthPrice"
                                            checked>
-                                    <label class="form-check-label" for="colMonthPrice">Стоимость</label>
+                                    <label class="form-check-label" for="colMonthPrice">Стоимость по умолчанию</label>
                                 </div>
 
                                 <div class="form-check">
@@ -226,6 +242,18 @@
                     @endcan
 
                     @can('locations.view')
+                    @if($districtOptions->isNotEmpty())
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-district">Район</label>
+                        <select id="filter-district" class="form-select">
+                            <option value="">Все районы</option>
+                            <option value="none">Без района</option>
+                            @foreach($districtOptions as $district)
+                                <option value="{{ $district->id }}">{{ $district->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     @if($locationOptions->isNotEmpty())
                     <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-location">Объект</label>
@@ -234,6 +262,18 @@
                             <option value="none">Без привязки к объектам</option>
                             @foreach($locationOptions as $location)
                                 <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
+                    @if($adminOptions->isNotEmpty())
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-admin">Администратор</label>
+                        <select id="filter-admin" class="form-select">
+                            <option value="">Все администраторы</option>
+                            <option value="none">Без администратора</option>
+                            @foreach($adminOptions as $admin)
+                                <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -285,6 +325,8 @@
                     @can('locations.view')
                     @if($locationOptions->isNotEmpty())
                     <th>Объект</th>
+                    <th>Район</th>
+                    <th>Адрес</th>
                     @endif
                     @endcan
                     @can('sport_types.view')
@@ -295,7 +337,7 @@
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
-                    <th>Стоимость</th>
+                    <th>Стоимость по умолчанию</th>
                     <th>Статус</th>
                     <th>Действия</th>
                 </tr>
@@ -317,6 +359,8 @@
             const canViewSchedule = @json(auth()->user()->can('schedule.view'));
             const canViewTrainers = @json(auth()->user()->can('trainers.view'));
             const canViewLocations = @json(auth()->user()->can('locations.view') && $locationOptions->isNotEmpty());
+            const canFilterByDistrict = @json(auth()->user()->can('locations.view') && $districtOptions->isNotEmpty());
+            const canFilterByAdmin = @json(auth()->user()->can('locations.view') && $adminOptions->isNotEmpty());
             const canViewSportTypes = @json(auth()->user()->can('sport_types.view') && $sportTypeOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
@@ -347,6 +391,8 @@
                     status: $('#filter-status').val() || '',
                     trainer_profile_id: canViewTrainers ? ($('#filter-trainer').val() || '') : '',
                     location_id: canViewLocations ? ($('#filter-location').val() || '') : '',
+                    district_id: canFilterByDistrict ? ($('#filter-district').val() || '') : '',
+                    admin_user_id: canFilterByAdmin ? ($('#filter-admin').val() || '') : '',
                     sport_type_id: canViewSportTypes ? ($('#filter-sport-type').val() || '') : ''
                 };
             }
@@ -356,6 +402,8 @@
                 return params.title !== ''
                     || params.trainer_profile_id !== ''
                     || params.location_id !== ''
+                    || params.district_id !== ''
+                    || params.admin_user_id !== ''
                     || params.sport_type_id !== ''
                     || params.status !== defaultFilterStatus;
             }
@@ -380,7 +428,11 @@
                         order_by: true,
                         title: true,
                         ...(canViewTrainers ? { trainer_label: true } : {}),
-                        ...(canViewLocations ? { locations_label: true } : {}),
+                        ...(canViewLocations ? {
+                            locations_label: true,
+                            district_name: true,
+                            address: true,
+                        } : {}),
                         ...(canViewSportTypes ? { sport_type_label: true } : {}),
                         ...(canViewSchedule ? { weekdays_label: true } : {}),
                         month_price: true,
@@ -406,6 +458,12 @@
                             }
                             if (canViewLocations) {
                                 d.location_id = params.location_id;
+                            }
+                            if (canFilterByDistrict) {
+                                d.district_id = params.district_id;
+                            }
+                            if (canFilterByAdmin) {
+                                d.admin_user_id = params.admin_user_id;
                             }
                             if (canViewSportTypes) {
                                 d.sport_type_id = params.sport_type_id;
@@ -437,6 +495,8 @@
                         searchable: false,
                         emptyHtml: '<span class="text-muted">—</span>',
                     },
+                    { key: 'district_name', type: 'text', data: 'district_name', when: canViewLocations, searchable: false },
+                    { key: 'address', type: 'text-long', data: 'address', when: canViewLocations, searchable: false },
                     { key: 'sport_type_label', type: 'text', data: 'sport_type_label', when: canViewSportTypes, searchable: false },
                     {
                         key: 'weekdays_label',
@@ -502,6 +562,12 @@
                 }
                 if (canViewLocations) {
                     $('#filter-location').val('');
+                }
+                if (canFilterByDistrict) {
+                    $('#filter-district').val('');
+                }
+                if (canFilterByAdmin) {
+                    $('#filter-admin').val('');
                 }
                 if (canViewSportTypes) {
                     $('#filter-sport-type').val('');

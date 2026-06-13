@@ -95,6 +95,15 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
+                                           data-column-key="admin_user_label"
+                                           id="colLocationAdmin"
+                                           checked>
+                                    <label class="form-check-label" for="colLocationAdmin">Администратор</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
                                            data-column-key="address"
                                            id="colLocationAddress"
                                            checked>
@@ -161,6 +170,17 @@
                     </div>
 
                     <div class="col-12 col-md-3">
+                        <label class="form-label" for="filter-admin">Администратор</label>
+                        <select id="filter-admin" class="form-select">
+                            <option value="">Все администраторы</option>
+                            <option value="none">Без администратора</option>
+                            @foreach($adminOptions as $admin)
+                                <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
                         <label class="form-label" for="filter-status">Статус</label>
                         <select id="filter-status" class="form-select">
                             <option value="">Все объекты</option>
@@ -184,6 +204,7 @@
                     <th>№</th>
                     <th>Название</th>
                     <th>Район</th>
+                    <th>Администратор</th>
                     <th>Адрес</th>
                     @if($teamOptions->isNotEmpty())
                     <th>Группы</th>
@@ -202,7 +223,7 @@
     @can('locations.manage')
         {{-- Create --}}
         <div class="modal fade" id="locationCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить объект</h5>
@@ -227,6 +248,16 @@
                                 <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">Администратор</label>
+                                <select class="form-control" name="admin_user_id">
+                                    <option value="">— Без администратора —</option>
+                                    @foreach($adminOptions as $admin)
+                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback" data-error-for="admin_user_id"></div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Адрес</label>
                                 <input class="form-control" name="address" />
                                 <div class="invalid-feedback" data-error-for="address"></div>
@@ -235,14 +266,6 @@
                                 <label class="form-label">Описание</label>
                                 <input class="form-control" name="description" />
                                 <div class="invalid-feedback" data-error-for="description"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Активна</label>
-                                <select class="form-control" name="is_enabled">
-                                    <option value="1" selected>Да</option>
-                                    <option value="0">Нет</option>
-                                </select>
-                                <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
                             @if($teamOptions->isNotEmpty())
                             <div class="mb-3 generic-multiselect-field">
@@ -259,6 +282,14 @@
                                 <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
                             </div>
                             @endif
+                            <div class="mb-3">
+                                <label class="form-label">Активна</label>
+                                <select class="form-control" name="is_enabled">
+                                    <option value="1" selected>Да</option>
+                                    <option value="0">Нет</option>
+                                </select>
+                                <div class="invalid-feedback" data-error-for="is_enabled"></div>
+                            </div>
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -271,7 +302,7 @@
 
         {{-- Edit --}}
         <div class="modal fade" id="locationEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать объект</h5>
@@ -298,6 +329,16 @@
                                 <div class="invalid-feedback" data-error-for="district_id"></div>
                             </div>
                             <div class="mb-3">
+                                <label class="form-label">Администратор</label>
+                                <select class="form-control" name="admin_user_id">
+                                    <option value="">— Без администратора —</option>
+                                    @foreach($adminOptions as $admin)
+                                        <option value="{{ $admin->id }}">{{ $admin->full_name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="invalid-feedback" data-error-for="admin_user_id"></div>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Адрес</label>
                                 <input class="form-control" name="address" />
                                 <div class="invalid-feedback" data-error-for="address"></div>
@@ -306,14 +347,6 @@
                                 <label class="form-label">Описание</label>
                                 <input class="form-control" name="description" />
                                 <div class="invalid-feedback" data-error-for="description"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Активна</label>
-                                <select class="form-control" name="is_enabled">
-                                    <option value="1">Да</option>
-                                    <option value="0">Нет</option>
-                                </select>
-                                <div class="invalid-feedback" data-error-for="is_enabled"></div>
                             </div>
                             @if($teamOptions->isNotEmpty())
                             <div class="mb-3 generic-multiselect-field">
@@ -330,6 +363,14 @@
                                 <div class="invalid-feedback d-block" data-error-for="team_ids"></div>
                             </div>
                             @endif
+                            <div class="mb-3">
+                                <label class="form-label">Активна</label>
+                                <select class="form-control" name="is_enabled">
+                                    <option value="1">Да</option>
+                                    <option value="0">Нет</option>
+                                </select>
+                                <div class="invalid-feedback" data-error-for="is_enabled"></div>
+                            </div>
                         </form>
                     </div>
                     <div class="modal-footer">
@@ -359,6 +400,7 @@
                     name: $('#filter-name').val() || '',
                     status: $('#filter-status').val() || '',
                     district_id: $('#filter-district').val() || '',
+                    admin_user_id: $('#filter-admin').val() || '',
                 };
             }
 
@@ -366,7 +408,8 @@
                 const params = locationsFilterParams();
                 return params.name !== ''
                     || params.status !== defaultFilterStatus
-                    || params.district_id !== '';
+                    || params.district_id !== ''
+                    || params.admin_user_id !== '';
             }
 
             function syncLocationsFiltersCollapseState() {
@@ -389,6 +432,7 @@
                         id: true,
                         name: true,
                         district_name: true,
+                        admin_user_label: true,
                         address: true,
                         ...(hasTeamOptions ? { teams_label: true } : {}),
                         is_enabled_label: true,
@@ -409,6 +453,7 @@
                             d.name = params.name;
                             d.status = params.status;
                             d.district_id = params.district_id;
+                            d.admin_user_id = params.admin_user_id;
                         }
                     },
                     order: [[1, 'asc']],
@@ -429,6 +474,7 @@
                         } : {}),
                     },
                     { key: 'district_name', type: 'text', data: 'district_name' },
+                    { key: 'admin_user_label', type: 'text', data: 'admin_user_label' },
                     { key: 'address', type: 'text-long', data: 'address' },
                     {
                         key: 'teams_label',
@@ -480,6 +526,7 @@
             $('#filter-reset').on('click', function () {
                 $('#filter-name').val('');
                 $('#filter-district').val('');
+                $('#filter-admin').val('');
                 $('#filter-status').val(defaultFilterStatus);
                 reloadLocationsTable();
             });
@@ -592,6 +639,10 @@
                 const districtSelect = editForm.querySelector('[name="district_id"]');
                 if (districtSelect) {
                     districtSelect.value = data.district_id ? String(data.district_id) : '';
+                }
+                const adminSelect = editForm.querySelector('[name="admin_user_id"]');
+                if (adminSelect) {
+                    adminSelect.value = data.admin_user_id ? String(data.admin_user_id) : '';
                 }
                 editForm.querySelector('[name="address"]').value = data.address || '';
                 editForm.querySelector('[name="description"]').value = data.description || '';

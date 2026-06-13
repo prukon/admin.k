@@ -52,7 +52,13 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="month_price" class="form-label">Стоимость в месяц</label>
+                        <label for="month_price" class="form-label">
+                            Стоимость по умолчанию
+                            @include('partials.ui.tooltip-hint', [
+                                'title' => 'Стоимость указывается на сайте',
+                                'placement' => 'top',
+                            ])
+                        </label>
                         <input type="number"
                                min="0"
                                step="1"

@@ -26,7 +26,9 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
     {
         $this->get(route('admin.team.index'))
             ->assertOk()
-            ->assertSee('Стоимость в месяц', false)
+            ->assertSee('Стоимость по умолчанию', false)
+            ->assertSee('Стоимость указывается на сайте', false)
+            ->assertSee('data-kids-tooltip-hint', false)
             ->assertSee('id="month_price"', false)
             ->assertSee('id="edit-month_price"', false)
             ->assertSee('data-column-key="month_price"', false);

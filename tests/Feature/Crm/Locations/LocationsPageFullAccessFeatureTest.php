@@ -379,6 +379,77 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('success', true);
     }
 
+    public function test_all_locations_endpoints_with_admin_user_payloads_return_200(): void
+    {
+        $adminRoleId = (int) \App\Models\Role::query()->where('name', 'admin')->value('id');
+        $admin = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $adminRoleId,
+            'is_enabled' => 1,
+            'name' => 'Smoke',
+            'lastname' => 'Admin',
+        ]);
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee('id="filter-admin"', false)
+            ->assertSee('data-column-key="admin_user_label"', false)
+            ->assertSee('name="admin_user_id"', false);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'admin_user_id' => $admin->id,
+        ]))
+            ->assertOk();
+
+        $create = $this->postJson(route('admin.locations.store'), [
+            'name' => 'Object with admin FA',
+            'admin_user_id' => $admin->id,
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $createdId = (int) ($create->json('location.id') ?? 0);
+        $this->assertGreaterThan(0, $createdId);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'admin_user_id' => $admin->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [['admin_user_id', 'admin_user_label']],
+            ]);
+
+        $this->getJson(route('admin.locations.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'admin_user_id' => 'none',
+        ]))->assertOk();
+
+        $this->getJson(route('admin.locations.show', $createdId))
+            ->assertOk()
+            ->assertJsonPath('admin_user_id', $admin->id);
+
+        $this->putJson(route('admin.locations.update', $createdId), [
+            'name' => 'Object with admin FA updated',
+            'admin_user_id' => '',
+            'is_enabled' => 1,
+        ])->assertOk();
+
+        $this->getJson(route('admin.locations.show', $createdId))
+            ->assertOk()
+            ->assertJsonPath('admin_user_id', null);
+
+        $this->deleteJson(route('admin.locations.destroy', $createdId))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+    }
+
     public function test_guest_cannot_access_any_locations_endpoint(): void
     {
         Auth::logout();

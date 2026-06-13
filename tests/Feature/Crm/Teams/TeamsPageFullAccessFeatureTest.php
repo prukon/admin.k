@@ -161,6 +161,8 @@ class TeamsPageFullAccessFeatureTest extends CrmTestCase
             '/admin/teams/data?draw=1&start=0&length=10&status=inactive',
             '/admin/teams/data?draw=1&start=0&length=10&title=Filter',
             '/admin/teams/data?draw=1&start=0&length=10&trainer_profile_id=none',
+            '/admin/teams/data?draw=1&start=0&length=10&admin_user_id=none',
+            '/admin/teams/data?draw=1&start=0&length=10&district_id=none',
             '/admin/teams/data?draw=1&start=0&length=10&search[value]=Filter',
             '/admin/teams/data?draw=1&start=0&length=10&title=Filter&search[value]=Other&status=active',
         ];

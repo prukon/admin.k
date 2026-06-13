@@ -90,7 +90,7 @@ class StoreRequest extends FormRequest
             'trainer_profile_id' => 'тренер',
             'location_id' => 'объект',
             'sport_type_id' => 'вид спорта',
-            'month_price' => 'стоимость в месяц',
+            'month_price' => 'стоимость по умолчанию',
         ];
     }
 
@@ -102,8 +102,8 @@ class StoreRequest extends FormRequest
             'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',
-            'month_price.integer' => 'Стоимость в месяц должна быть целым числом рублей',
-            'month_price.min' => 'Стоимость в месяц не может быть отрицательной',
+            'month_price.integer' => 'Стоимость по умолчанию должна быть целым числом рублей',
+            'month_price.min' => 'Стоимость по умолчанию не может быть отрицательной',
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_id.exists' => 'Выберите объект из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',

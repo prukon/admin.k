@@ -41,7 +41,13 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="edit-month_price" class="form-label">Стоимость в месяц</label>
+                        <label for="edit-month_price" class="form-label">
+                            Стоимость по умолчанию
+                            @include('partials.ui.tooltip-hint', [
+                                'title' => 'Стоимость указывается на сайте',
+                                'placement' => 'top',
+                            ])
+                        </label>
                         <input type="number" min="0" step="1" name="month_price" class="form-control" id="edit-month_price">
                         <div class="invalid-feedback" id="edit-month_price-error"></div>
                     </div>

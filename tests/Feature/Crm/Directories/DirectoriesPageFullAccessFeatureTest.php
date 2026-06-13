@@ -405,7 +405,7 @@ final class DirectoriesPageFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'POST',
                 'url'    => route('admin.districts.columns-settings.save'),
-                'data'   => ['columns' => ['name' => true, 'locations_count' => true]],
+                'data'   => ['columns' => ['name' => true, 'locations_label' => true]],
             ],
             [
                 'method' => 'GET',
