@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\SchoolLeadStatus;
 use App\Models\District;
 use App\Models\Location;
+use App\Models\SchoolLeadStatus;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -18,6 +18,10 @@ class UpdateSchoolLeadRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->has('school_lead_status_id') && $this->input('school_lead_status_id') === '') {
+            $this->merge(['school_lead_status_id' => null]);
+        }
+
         if ($this->user()?->can('districts.view')) {
             if ($this->has('district_id') && $this->input('district_id') === '') {
                 $this->merge(['district_id' => null]);
@@ -38,10 +42,9 @@ class UpdateSchoolLeadRequest extends FormRequest
     public function rules(): array
     {
         $rules = [
-            'status' => [
+            'school_lead_status_id' => [
                 'nullable',
-                'string',
-                'in:' . implode(',', SchoolLeadStatus::values()),
+                'integer',
             ],
             'comment' => [
                 'nullable',
@@ -67,6 +70,20 @@ class UpdateSchoolLeadRequest extends FormRequest
             $partnerId = app(PartnerContext::class)->partnerId();
             if (!$partnerId) {
                 return;
+            }
+
+            if ($this->filled('school_lead_status_id')) {
+                $statusExists = SchoolLeadStatus::query()
+                    ->availableForPartner((int) $partnerId)
+                    ->whereKey((int) $this->input('school_lead_status_id'))
+                    ->exists();
+
+                if (!$statusExists) {
+                    $afterValidator->errors()->add(
+                        'school_lead_status_id',
+                        'Выбранный статус не существует или недоступен для этого партнёра.'
+                    );
+                }
             }
 
             $district = null;
@@ -158,20 +175,20 @@ class UpdateSchoolLeadRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'status'      => 'Статус',
-            'comment'     => 'Комментарий',
-            'district_id' => 'Район',
-            'location_id' => 'Объект',
+            'school_lead_status_id' => 'Статус',
+            'comment'               => 'Комментарий',
+            'district_id'           => 'Район',
+            'location_id'           => 'Объект',
         ];
     }
 
     public function messages(): array
     {
         return [
-            'status.in'           => 'Недопустимый статус.',
-            'comment.max'         => 'Комментарий слишком длинный.',
-            'district_id.integer' => 'Поле «Район» должно быть числом (ID района).',
-            'location_id.integer' => 'Поле «Объект» должно быть числом (ID объекта).',
+            'school_lead_status_id.integer' => 'Поле «Статус» должно быть числом (ID статуса).',
+            'comment.max'                   => 'Комментарий слишком длинный.',
+            'district_id.integer'           => 'Поле «Район» должно быть числом (ID района).',
+            'location_id.integer'           => 'Поле «Объект» должно быть числом (ID объекта).',
         ];
     }
 }

@@ -53,6 +53,9 @@ enum AuditEvent: string
     // --- school_lead (legacy type 89) ---
     case SchoolLeadUpdated = 'school_lead.updated';
     case SchoolLeadDeleted = 'school_lead.deleted';
+    case SchoolLeadStatusCreated = 'school_lead.status_created';
+    case SchoolLeadStatusUpdated = 'school_lead.status_updated';
+    case SchoolLeadStatusDeleted = 'school_lead.status_deleted';
 
     // --- contract_template (legacy type 501) ---
     case ContractTemplateCreated = 'contract_template.created';
@@ -161,6 +164,9 @@ enum AuditEvent: string
 
             self::SchoolLeadUpdated => 'Изменение заявки с сайта',
             self::SchoolLeadDeleted => 'Удаление заявки с сайта',
+            self::SchoolLeadStatusCreated => 'Создание статуса заявки',
+            self::SchoolLeadStatusUpdated => 'Изменение статуса заявки',
+            self::SchoolLeadStatusDeleted => 'Удаление статуса заявки',
 
             self::ContractTemplateCreated => 'Создание шаблона договора',
             self::ContractTemplateUpdated => 'Изменение шаблона договора',
@@ -298,7 +304,10 @@ enum AuditEvent: string
             self::SportTypeDeleted => 'sport_type',
 
             self::SchoolLeadUpdated,
-            self::SchoolLeadDeleted => 'school_lead',
+            self::SchoolLeadDeleted,
+            self::SchoolLeadStatusCreated,
+            self::SchoolLeadStatusUpdated,
+            self::SchoolLeadStatusDeleted => 'school_lead',
 
             self::ContractTemplateCreated,
             self::ContractTemplateUpdated,
@@ -403,7 +412,10 @@ enum AuditEvent: string
             self::SportTypeDeleted => 88,
 
             self::SchoolLeadUpdated,
-            self::SchoolLeadDeleted => 89,
+            self::SchoolLeadDeleted,
+            self::SchoolLeadStatusCreated,
+            self::SchoolLeadStatusUpdated,
+            self::SchoolLeadStatusDeleted => 89,
 
             self::ContractTemplateCreated,
             self::ContractTemplateUpdated,
@@ -506,6 +518,9 @@ enum AuditEvent: string
 
             self::SchoolLeadUpdated => 891,
             self::SchoolLeadDeleted => 892,
+            self::SchoolLeadStatusCreated => 893,
+            self::SchoolLeadStatusUpdated => 894,
+            self::SchoolLeadStatusDeleted => 895,
 
             self::ContractTemplateCreated => 5011,
             self::ContractTemplateUpdated => 5012,
@@ -739,6 +754,9 @@ enum AuditEvent: string
 
             891 => self::SchoolLeadUpdated,
             892 => self::SchoolLeadDeleted,
+            893 => self::SchoolLeadStatusCreated,
+            894 => self::SchoolLeadStatusUpdated,
+            895 => self::SchoolLeadStatusDeleted,
 
             5011 => self::ContractTemplateCreated,
             5012 => self::ContractTemplateUpdated,

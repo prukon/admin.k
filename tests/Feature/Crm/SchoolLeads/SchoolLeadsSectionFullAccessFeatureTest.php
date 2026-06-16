@@ -38,7 +38,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Секция доступ',
             'phone'      => '+7 900 100-00-01',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
 
@@ -315,7 +315,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Workflow лид',
             'phone'      => '+7 900 901-01-01',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $student = User::factory()->create([
@@ -382,10 +382,10 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Удалить секция',
             'phone'      => '+7 900 100-00-99',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
-        return [
+        return array_merge([
             [
                 'method'  => 'GET',
                 'url'     => route('admin.school-leads'),
@@ -397,7 +397,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                     'draw'        => 1,
                     'start'       => 0,
                     'length'      => 10,
-                    'statuses'    => ['new', 'processing'],
+                    'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
                     'location_id' => (string) $locationId,
                 ]),
             ],
@@ -421,7 +421,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
                 'data'   => [
-                    'status'  => 'processing',
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment' => 'Section smoke',
                 ],
             ],
@@ -429,7 +429,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                 'method' => 'DELETE',
                 'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
-        ];
+        ], $this->schoolLeadStatusManagementRoutesPayload());
     }
 
     /**

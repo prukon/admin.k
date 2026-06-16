@@ -35,7 +35,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Page access',
             'phone'      => '+7 900 222-22-22',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
 
@@ -126,7 +126,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             'draw'     => 1,
             'start'    => 0,
             'length'   => 10,
-            'statuses' => ['new', 'processing'],
+            'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
         ]))->assertOk()
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
@@ -154,7 +154,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
-            'status'  => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'Full access smoke',
         ])->assertOk();
 
@@ -162,7 +162,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Delete smoke',
             'phone'      => '+7 900 333-33-33',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]))
@@ -202,7 +202,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Denied delete',
             'phone'      => '+7 900 444-44-44',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         return array_merge($this->readOnlyRoutesPayload(), [
@@ -214,13 +214,13 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
-                'data'   => ['status' => 'processing', 'comment' => 'denied'],
+                'data'   => ['school_lead_status_id' => $this->schoolLeadProcessingStatusId(), 'comment' => 'denied'],
             ],
             [
                 'method' => 'DELETE',
                 'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
-        ]);
+        ], $this->schoolLeadStatusManagementRoutesPayload());
     }
 
     /**

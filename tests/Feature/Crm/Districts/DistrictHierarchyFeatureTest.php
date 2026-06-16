@@ -134,7 +134,7 @@ final class DistrictHierarchyFeatureTest extends CrmTestCase
             'district_id' => $district->id,
             'name'        => 'Лид с районом',
             'phone'       => '+7 900 100-00-01',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.districts.destroy', $district->id))->assertOk();

@@ -31,7 +31,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Мария Иванова',
             'phone'      => '+7 900 111-22-33',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->postJson(route('admin.user.store'), [
@@ -65,7 +65,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'С локацией',
             'phone'       => '+7 900 555-55-55',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $location->id,
         ]);
 
@@ -98,7 +98,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Занятый лид',
             'phone'      => '+7 900 777-77-77',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $existingUser->id,
         ]);
 
@@ -135,7 +135,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'child_middlename'       => 'Сергеевич',
             'child_birthday'         => '2018-05-10',
             'team_id'                => $team->id,
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'is_individual_traits'   => true,
             'is_on_medical_register' => false,
             'is_with_disability'     => true,
@@ -173,7 +173,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Связанный',
             'phone'      => '+7 900 888-88-88',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $linkedUser->id,
         ]);
 
@@ -181,7 +181,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Свободный',
             'phone'      => '+7 900 999-99-99',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -208,7 +208,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Лид',
             'phone'      => '+7 900 111-22-33',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $superRole = Role::query()->where('name', 'superadmin')->firstOrFail();
@@ -234,7 +234,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'Особенный ученик',
             'phone'                  => '+7 900 111-22-33',
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'child_lastname'         => 'Иванов',
             'child_firstname'        => 'Пётр',
             'is_individual_traits'   => true,
@@ -270,7 +270,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'С заявкой',
             'phone'                  => '+7 900 222-33-44',
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'is_individual_traits'   => true,
             'is_on_medical_register' => true,
             'is_with_disability'     => true,

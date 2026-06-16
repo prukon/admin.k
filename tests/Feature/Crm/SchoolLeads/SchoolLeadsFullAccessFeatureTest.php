@@ -28,7 +28,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Доступный лид',
             'phone'      => '+7 900 111-11-11',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
 
@@ -160,7 +160,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'draw'     => 1,
             'start'    => 0,
             'length'   => 10,
-            'statuses' => ['new', 'processing'],
+            'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
         ]))->assertOk();
 
         $this->getJson(route('admin.school-leads.columns-settings.get'))->assertOk();
@@ -176,7 +176,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
-            'status'  => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'OK',
         ])->assertOk();
 
@@ -184,7 +184,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'На удаление',
             'phone'      => '+7 900 999-99-99',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $tempLead->id]))
@@ -217,7 +217,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'draw'        => 1,
             'start'       => 0,
             'length'      => 10,
-            'statuses'    => ['new'],
+            'status_ids' => [$this->schoolLeadSystemStatusId()],
             'location_id' => (string) $location->id,
             'search'      => ['value' => 'Доступный'],
         ]))->assertOk();
@@ -254,7 +254,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
-            'status'      => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment'     => 'С локацией',
             'location_id' => $location->id,
         ])->assertOk();
@@ -299,7 +299,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'Лид для клиента',
             'phone'                  => '+7 900 801-01-01',
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'is_individual_traits'   => true,
             'is_on_medical_register' => false,
             'is_with_disability'     => true,
@@ -317,7 +317,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Лид с договором',
             'phone'      => '+7 900 802-02-02',
-            'status'     => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'user_id'    => $student->id,
         ]);
 
@@ -358,7 +358,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'Полный доступ лид',
             'phone'                  => '+7 900 803-03-03',
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'is_individual_traits'   => true,
             'is_on_medical_register' => true,
             'is_with_disability'     => false,
@@ -412,7 +412,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'Health workflow',
             'phone'                  => '+7 900 806-06-06',
-            'status'                 => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'is_individual_traits'   => false,
             'is_on_medical_register' => true,
             'is_with_disability'     => false,
@@ -461,7 +461,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Без contracts.view',
             'phone'      => '+7 900 804-04-04',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $user->id,
         ]);
 
@@ -488,7 +488,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Запрет store',
             'phone'      => '+7 900 805-05-05',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->get(route('admin.school-leads'))->assertOk();
@@ -512,11 +512,11 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'name'       => 'Чужой',
             'phone'      => '+7 900 000-00-00',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $foreignLead->id]), [
-            'status' => 'spam',
+            'school_lead_status_id' => $this->schoolLeadSpamStatusId(),
         ])->assertNotFound();
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $foreignLead->id]))
@@ -537,10 +537,10 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Удалить',
             'phone'      => '+7 900 555-55-55',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
-        return [
+        return array_merge([
             [
                 'method'  => 'GET',
                 'url'     => route('admin.school-leads'),
@@ -552,7 +552,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                     'draw'        => 1,
                     'start'       => 0,
                     'length'      => 10,
-                    'statuses'    => ['new', 'processing'],
+                    'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
                     'location_id' => (string) $locationId,
                 ]),
             ],
@@ -581,7 +581,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
                 'data'   => [
-                    'status'      => 'processing',
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment'     => 'Smoke',
                     'location_id' => $locationId,
                 ],
@@ -590,7 +590,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                 'method' => 'DELETE',
                 'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
-        ];
+        ], $this->schoolLeadStatusManagementRoutesPayload());
     }
 
     /**

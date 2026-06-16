@@ -48,7 +48,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Только лид',
             'phone'      => '+7 900 300-00-01',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -86,7 +86,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Подписанный',
             'phone'      => '+7 900 400-00-04',
-            'status'     => 'sale',
+            'school_lead_status_id' => $this->schoolLeadSaleStatusId(),
             'user_id'    => $user->id,
         ]);
 
@@ -110,7 +110,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Новый клиент',
             'phone'      => '+7 900 500-00-05',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $store = $this->postJson(route('admin.user.store'), [
@@ -152,7 +152,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'name'       => 'Чужой лид',
             'phone'      => '+7 900 600-00-06',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->postJson(route('admin.user.store'), [
@@ -205,7 +205,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Ссылка на договор',
             'phone'      => '+7 900 700-00-07',
-            'status'     => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'user_id'    => $user->id,
         ]);
 

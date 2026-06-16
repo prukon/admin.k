@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\SchoolLeadSource;
-use App\Enums\SchoolLeadStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +18,6 @@ class SchoolLead extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'status' => SchoolLeadStatus::class,
         'source' => SchoolLeadSource::class,
         'consent_accepted_at' => 'datetime',
         'child_birthday' => 'date',
@@ -28,6 +26,11 @@ class SchoolLead extends Model
         'is_with_disability' => 'boolean',
         'needs_contact_help' => 'boolean',
     ];
+
+    public function schoolLeadStatus(): BelongsTo
+    {
+        return $this->belongsTo(SchoolLeadStatus::class, 'school_lead_status_id');
+    }
 
     public function partner(): BelongsTo
     {

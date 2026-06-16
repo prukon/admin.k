@@ -44,7 +44,7 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
             'location_id' => $this->location->id,
             'name'        => 'FA лид иерархии',
             'phone'       => '+7 900 700-00-01',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
 
@@ -167,7 +167,7 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
             'location_id' => $this->location->id,
             'name'        => 'На удаление FA',
             'phone'       => '+7 900 700-00-99',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         return [
@@ -182,7 +182,7 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
                     'draw'        => 1,
                     'start'       => 0,
                     'length'      => 10,
-                    'statuses'    => ['new', 'processing'],
+                    'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
                     'district_id' => (string) $this->district->id,
                     'location_id' => (string) $this->location->id,
                 ]),
@@ -227,7 +227,7 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
                 'data'   => [
-                    'status'      => 'processing',
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment'     => 'FA district update',
                     'district_id' => $this->district->id,
                     'location_id' => $this->location->id,

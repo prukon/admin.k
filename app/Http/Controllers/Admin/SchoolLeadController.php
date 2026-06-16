@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\AuditEvent;
-use App\Enums\SchoolLeadStatus;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\SchoolLead\FilterRequest;
 use App\Http\Requests\UpdateSchoolLeadRequest;
@@ -11,6 +10,7 @@ use App\Models\District;
 use App\Models\Location;
 use App\Models\Role;
 use App\Models\SchoolLead;
+use App\Models\SchoolLeadStatus;
 use App\Models\Team;
 use App\Models\UserField;
 use App\Services\Audit\AuditContext;
@@ -33,6 +33,7 @@ class SchoolLeadController extends AdminBaseController
     ) {
         parent::__construct($partnerContext);
     }
+
     public function index(): View
     {
         $partnerId = $this->requirePartnerContext();
@@ -66,23 +67,27 @@ class SchoolLeadController extends AdminBaseController
             ->orderBy('title')
             ->get(['id', 'title']);
 
+        $schoolLeadStatuses = $this->statusesForPartner($partnerId);
+        $defaultStatusFilterIds = $schoolLeadStatuses
+            ->filter(fn (SchoolLeadStatus $status) => $status->is_default_in_filter)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values()
+            ->all();
+
         $stats = $this->buildPartnerLeadStats($partnerId);
 
         $viewData = [
-            'canViewLocations'        => $canViewLocations,
-            'canViewDistricts'        => $canViewDistricts,
-            'canCreateUserFromLead'   => $canCreateUserFromLead,
-            'canViewContracts'        => $canViewContracts,
-            'activeLocations'         => $activeLocations,
-            'activeDistricts'         => $activeDistricts,
-            'filterTeams'             => $filterTeams,
-            'schoolLeadStatusOptions' => collect(SchoolLeadStatus::cases())
-                ->map(fn (SchoolLeadStatus $status) => [
-                    'value' => $status->value,
-                    'label' => SchoolLeadStatus::label($status->value),
-                ])
-                ->all(),
-            'leadStats'               => $stats,
+            'canViewLocations'         => $canViewLocations,
+            'canViewDistricts'         => $canViewDistricts,
+            'canCreateUserFromLead'    => $canCreateUserFromLead,
+            'canViewContracts'         => $canViewContracts,
+            'activeLocations'          => $activeLocations,
+            'activeDistricts'          => $activeDistricts,
+            'filterTeams'              => $filterTeams,
+            'schoolLeadStatuses'       => $schoolLeadStatuses,
+            'defaultStatusFilterIds'   => $defaultStatusFilterIds,
+            'leadStats'                => $stats,
         ];
 
         if ($canCreateUserFromLead) {
@@ -125,7 +130,13 @@ class SchoolLeadController extends AdminBaseController
             ->where('school_leads.partner_id', $partnerId)
             ->whereNull('school_leads.deleted_at')
             ->leftJoin('teams', 'teams.id', '=', 'school_leads.team_id')
-            ->select('school_leads.*', 'teams.title as team_title');
+            ->leftJoin('school_lead_statuses', 'school_lead_statuses.id', '=', 'school_leads.school_lead_status_id')
+            ->select(
+                'school_leads.*',
+                'teams.title as team_title',
+                'school_lead_statuses.name as status_name',
+                'school_lead_statuses.color as status_color',
+            );
 
         if ($canViewDistricts) {
             $baseQuery
@@ -142,10 +153,14 @@ class SchoolLeadController extends AdminBaseController
         $recordsTotal = (clone $baseQuery)->count();
         $query = clone $baseQuery;
 
-        if ($request->has('statuses')) {
-            $statuses = array_filter((array) $request->input('statuses', []));
-            if (!empty($statuses)) {
-                $query->whereIn('school_leads.status', $statuses);
+        if ($request->has('status_ids')) {
+            $statusIds = array_values(array_filter(
+                array_map('intval', (array) $request->input('status_ids', [])),
+                fn (int $id) => $id > 0
+            ));
+
+            if ($statusIds !== []) {
+                $query->whereIn('school_leads.school_lead_status_id', $statusIds);
             }
         }
 
@@ -199,7 +214,7 @@ class SchoolLeadController extends AdminBaseController
                     ->orWhere('school_leads.child_firstname', 'like', "%{$search}%")
                     ->orWhere('school_leads.child_middlename', 'like', "%{$search}%")
                     ->orWhere('school_leads.comment', 'like', "%{$search}%")
-                    ->orWhere('school_leads.status', 'like', "%{$search}%")
+                    ->orWhere('school_lead_statuses.name', 'like', "%{$search}%")
                     ->orWhere('school_leads.utm_source', 'like', "%{$search}%")
                     ->orWhere('school_leads.utm_medium', 'like', "%{$search}%")
                     ->orWhere('school_leads.utm_campaign', 'like', "%{$search}%")
@@ -236,7 +251,6 @@ class SchoolLeadController extends AdminBaseController
                     'phone',
                     'parent_email',
                     'child_birthday',
-                    'status',
                     'comment',
                     'utm_source',
                     'page_url',
@@ -245,6 +259,8 @@ class SchoolLeadController extends AdminBaseController
 
                 if (in_array($columnName, $sortable, true)) {
                     $query->orderBy('school_leads.' . $columnName, $dir);
+                } elseif ($columnName === 'status_label') {
+                    $query->orderBy('school_lead_statuses.name', $dir);
                 } elseif ($columnName === 'team_title') {
                     $query->orderBy('teams.title', $dir);
                 } elseif ($canViewDistricts && $columnName === 'district_name') {
@@ -302,6 +318,7 @@ class SchoolLeadController extends AdminBaseController
                     : null;
                 $parentNameParts = $item->resolvedParentNameParts();
                 $childNameParts = $item->resolvedChildNameParts();
+                $statusPayload = $this->schoolLeadStatusPayload($item);
 
                 $row = [
                     'id'                     => $item->id,
@@ -325,16 +342,12 @@ class SchoolLeadController extends AdminBaseController
                     'is_on_medical_register' => (bool) $item->is_on_medical_register,
                     'is_with_disability'     => (bool) $item->is_with_disability,
                     'user_id'                => $item->user_id,
-                    'status'                 => $item->status?->value,
-                    'status_label'           => $item->status
-                        ? SchoolLeadStatus::label($item->status->value)
-                        : null,
                     'comment'                => $item->comment,
                     'utm_summary'            => implode('; ', $utmParts),
                     'page_url'               => $item->page_url,
                     'referrer'               => $item->referrer,
                     'created_at'             => $item->created_at?->format('d.m.Y H:i'),
-                ];
+                ] + $statusPayload;
 
                 if ($canViewDistricts) {
                     $row['district_id']   = $item->district_id;
@@ -372,15 +385,13 @@ class SchoolLeadController extends AdminBaseController
         $partnerId = $this->requirePartnerContext();
         $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
 
-        $schoolLead->load('district', 'location');
+        $schoolLead->load('district', 'location', 'schoolLeadStatus');
         $beforeSnapshot = $this->schoolLeadAuditSnapshot($schoolLead);
 
         $data = $request->validated();
 
-        if (array_key_exists('status', $data)) {
-            $schoolLead->status = $data['status']
-                ? SchoolLeadStatus::from($data['status'])
-                : null;
+        if (array_key_exists('school_lead_status_id', $data)) {
+            $schoolLead->school_lead_status_id = $data['school_lead_status_id'];
         }
 
         if (array_key_exists('comment', $data)) {
@@ -396,7 +407,7 @@ class SchoolLeadController extends AdminBaseController
         }
 
         $schoolLead->save();
-        $schoolLead->load('district', 'location');
+        $schoolLead->load('district', 'location', 'schoolLeadStatus');
 
         $changes = $this->diffSchoolLeadAuditSnapshots(
             $beforeSnapshot,
@@ -413,13 +424,9 @@ class SchoolLeadController extends AdminBaseController
         }
 
         $response = [
-            'message'      => 'Изменения сохранены.',
-            'status'       => $schoolLead->status?->value,
-            'status_label' => $schoolLead->status
-                ? SchoolLeadStatus::label($schoolLead->status->value)
-                : null,
-            'comment'      => $schoolLead->comment,
-        ];
+            'message' => 'Изменения сохранены.',
+            'comment' => $schoolLead->comment,
+        ] + $this->schoolLeadStatusPayload($schoolLead);
 
         if ($request->user()?->can('districts.view')) {
             $response['district_id']   = $schoolLead->district_id;
@@ -493,14 +500,15 @@ class SchoolLeadController extends AdminBaseController
     }
 
     /**
-     * @return array{total: int, new: int, processing: int}
+     * @return array{total: int, new: int}
      */
     private function buildPartnerLeadStats(int $partnerId): array
     {
         return [
-            'total'      => (int) $this->partnerLeadsBaseQuery($partnerId)->count(),
-            'new'        => $this->countLeadsByStatusForPartner($partnerId, SchoolLeadStatus::New),
-            'processing' => $this->countLeadsByStatusForPartner($partnerId, SchoolLeadStatus::Processing),
+            'total' => (int) $this->partnerLeadsBaseQuery($partnerId)->count(),
+            'new'   => (int) $this->partnerLeadsBaseQuery($partnerId)
+                ->where('school_leads.school_lead_status_id', SchoolLeadStatus::systemNewId())
+                ->count(),
         ];
     }
 
@@ -511,11 +519,47 @@ class SchoolLeadController extends AdminBaseController
             ->whereNull('school_leads.deleted_at');
     }
 
-    private function countLeadsByStatusForPartner(int $partnerId, SchoolLeadStatus $status): int
+    /**
+     * @return \Illuminate\Support\Collection<int, SchoolLeadStatus>
+     */
+    private function statusesForPartner(int $partnerId)
     {
-        return (int) $this->partnerLeadsBaseQuery($partnerId)
-            ->where('school_leads.status', $status->value)
-            ->count();
+        return SchoolLeadStatus::query()
+            ->availableForPartner($partnerId)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function schoolLeadStatusPayload(SchoolLead $schoolLead): array
+    {
+        $status = $schoolLead->relationLoaded('schoolLeadStatus')
+            ? $schoolLead->schoolLeadStatus
+            : null;
+
+        if (!$status && $schoolLead->school_lead_status_id) {
+            $statusName = $schoolLead->status_name ?? null;
+            $statusColor = $schoolLead->status_color ?? null;
+
+            if ($statusName !== null) {
+                $status = new SchoolLeadStatus([
+                    'id'    => $schoolLead->school_lead_status_id,
+                    'name'  => $statusName,
+                    'color' => $statusColor,
+                ]);
+            }
+        }
+
+        return [
+            'school_lead_status_id' => $schoolLead->school_lead_status_id,
+            'status_label'          => $status?->name,
+            'status_color'          => $status?->color,
+            'status_text_color'     => $status?->contrastingTextColor(),
+            'status_badge_style'    => $status?->badgeStyle(),
+        ];
     }
 
     private function requirePartnerContext(): int
@@ -552,11 +596,13 @@ class SchoolLeadController extends AdminBaseController
      */
     private function schoolLeadAuditSnapshot(SchoolLead $schoolLead): array
     {
+        $statusName = $schoolLead->schoolLeadStatus?->name
+            ?? $schoolLead->status_name
+            ?? null;
+
         return [
-            'status' => $schoolLead->status
-                ? SchoolLeadStatus::label($schoolLead->status->value)
-                : 'не указан',
-            'comment' => $this->auditTextValue($schoolLead->comment, 'не указан'),
+            'status'   => $statusName ?: 'не указан',
+            'comment'  => $this->auditTextValue($schoolLead->comment, 'не указан'),
             'district' => $schoolLead->district?->name ?? 'не указан',
             'location' => $schoolLead->location?->name ?? 'не указан',
         ];
@@ -570,8 +616,8 @@ class SchoolLeadController extends AdminBaseController
     private function diffSchoolLeadAuditSnapshots(array $before, array $after): array
     {
         $labels = [
-            'status' => 'Статус',
-            'comment' => 'Комментарий',
+            'status'   => 'Статус',
+            'comment'  => 'Комментарий',
             'district' => 'Район',
             'location' => 'Объект',
         ];

@@ -26,7 +26,7 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Тест',
             'phone'      => '+7 900 111-11-11',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
 
@@ -35,9 +35,16 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
      */
     private function allSchoolLeadsRoutes(): array
     {
+        $updateStatus = $this->createPartnerSchoolLeadStatus(['name' => 'Access update']);
+        $deleteStatus = $this->createPartnerSchoolLeadStatus(['name' => 'Access delete']);
+
         return [
             ['GET', route('admin.school-leads')],
             ['GET', route('admin.school-leads.data', ['draw' => 1, 'start' => 0, 'length' => 10])],
+            ['GET', route('admin.school-leads.statuses.index')],
+            ['POST', route('admin.school-leads.statuses.store')],
+            ['PUT', route('admin.school-leads.statuses.update', ['schoolLeadStatus' => $updateStatus->id])],
+            ['DELETE', route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => $deleteStatus->id])],
             ['GET', route('admin.school-leads.columns-settings.get')],
             ['POST', route('admin.school-leads.columns-settings.save')],
             ['PUT', route('admin.school-leads.update', ['schoolLead' => $this->lead->id])],
@@ -61,10 +68,24 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
         Auth::logout();
 
         foreach ($this->allSchoolLeadsRoutes() as [$method, $url]) {
-            $response = $this->call($method, $url, $method === 'POST' ? [
-                '_token'  => 'test',
-                'columns' => ['name' => true],
-            ] : ($method === 'PUT' ? ['status' => 'processing'] : []));
+            $data = match ($method) {
+                'POST' => str_contains($url, 'statuses') ? [
+                    'name'  => 'Гость',
+                    'color' => '#0d6efd',
+                ] : [
+                    '_token'  => 'test',
+                    'columns' => ['name' => true],
+                ],
+                'PUT' => str_contains($url, 'statuses') ? [
+                    'name'  => 'Гость update',
+                    'color' => '#ffc107',
+                ] : [
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+                ],
+                default => [],
+            };
+
+            $response = $this->call($method, $url, $data);
             $this->assertContains(
                 $response->getStatusCode(),
                 [302, 401, 403, 419],
@@ -88,7 +109,7 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'columns' => ['name' => true],
         ])->assertForbidden();
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
-            'status' => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
         ])->assertForbidden();
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $this->lead->id]))
             ->assertForbidden();
@@ -105,7 +126,7 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Доступ',
             'phone'      => '+7 900 333-33-33',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->get(route('admin.school-leads'))
@@ -118,20 +139,29 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'draw'     => 1,
             'start'    => 0,
             'length'   => 10,
-            'statuses' => ['new'],
+            'status_ids' => [$this->schoolLeadSystemStatusId()],
         ]))
             ->assertOk()
             ->assertJsonStructure([
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
-                'stats' => ['total', 'new', 'processing'],
+                'stats' => ['total', 'new'],
                 'data',
             ]);
 
         $this->getJson(route('admin.school-leads.columns-settings.get'))
             ->assertOk()
             ->assertJson([]);
+
+        $this->getJson(route('admin.school-leads.statuses.index'))
+            ->assertOk()
+            ->assertJsonStructure(['statuses']);
+
+        $this->postJson(route('admin.school-leads.statuses.store'), [
+            'name'  => 'Доступный статус',
+            'color' => '#198754',
+        ])->assertOk();
 
         $this->postJson(route('admin.school-leads.columns-settings.save'), [
             'columns' => [
@@ -146,12 +176,12 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             ->assertJsonFragment(['name' => true, 'phone' => false]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status'  => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'Проверка доступа',
         ])
             ->assertOk()
             ->assertJson([
-                'status'  => 'processing',
+                'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                 'comment' => 'Проверка доступа',
             ]);
 
@@ -174,7 +204,7 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Smoke',
             'phone'       => '+7 900 444-44-44',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $location->id,
         ]);
 
@@ -190,7 +220,7 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             'draw'         => 1,
             'start'        => 0,
             'length'       => 10,
-            'statuses'     => ['new'],
+            'status_ids' => [$this->schoolLeadSystemStatusId()],
             'location_id' => (string) $location->id,
             'search'       => ['value' => 'Smoke'],
         ]))
@@ -213,6 +243,15 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
         $this->getJson(route('admin.school-leads.columns-settings.get'))
             ->assertOk();
 
+        $this->getJson(route('admin.school-leads.statuses.index'))
+            ->assertOk()
+            ->assertJsonStructure(['statuses']);
+
+        $this->postJson(route('admin.school-leads.statuses.store'), [
+            'name'  => 'Smoke статус',
+            'color' => '#dc3545',
+        ])->assertOk();
+
         $this->postJson(route('admin.school-leads.columns-settings.save'), [
             'columns' => [
                 'name'     => true,
@@ -222,13 +261,13 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status'      => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment'     => 'OK',
             'location_id' => $location->id,
         ])
             ->assertOk()
             ->assertJson([
-                'status'        => 'processing',
+                'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                 'comment'       => 'OK',
                 'location_id'   => $location->id,
                 'location_name' => 'Smoke-локация',

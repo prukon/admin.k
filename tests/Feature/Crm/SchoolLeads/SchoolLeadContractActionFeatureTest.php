@@ -36,7 +36,7 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Без договора',
             'phone'      => '+7 900 100-00-01',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $user->id,
         ]);
 
@@ -88,7 +88,7 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'С договором',
             'phone'      => '+7 900 200-00-02',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $user->id,
         ]);
 
@@ -192,7 +192,7 @@ final class SchoolLeadContractActionFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Нет contracts.view',
             'phone'      => '+7 900 901-01-01',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'user_id'    => $user->id,
         ]);
 

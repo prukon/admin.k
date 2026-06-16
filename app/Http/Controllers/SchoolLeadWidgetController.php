@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\SchoolLeadStatus;
+use App\Models\SchoolLeadStatus;
 use App\Http\Requests\SubmitSchoolLeadRequest;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
@@ -48,7 +48,7 @@ class SchoolLeadWidgetController extends Controller
                 'partner_widget_id'   => $widget->id,
                 'name'                => $request->string('name')->toString(),
                 'phone'               => $request->string('phone')->toString(),
-                'status'              => SchoolLeadStatus::New->value,
+                'school_lead_status_id' => SchoolLeadStatus::systemNewId(),
                 'utm_source'          => $request->input('utm_source'),
                 'utm_medium'          => $request->input('utm_medium'),
                 'utm_campaign'        => $request->input('utm_campaign'),

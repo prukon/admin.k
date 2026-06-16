@@ -18,10 +18,10 @@ class SchoolLeadCrudFeatureTest extends CrmTestCase
     public function test_destroy_soft_deletes_school_lead(): void
     {
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Удаляемый',
-            'phone'      => '+7 900 000-00-01',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Удаляемый',
+            'phone'                 => '+7 900 000-00-01',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
@@ -35,24 +35,26 @@ class SchoolLeadCrudFeatureTest extends CrmTestCase
 
     public function test_datatable_filters_by_statuses(): void
     {
+        $processingStatusId = $this->schoolLeadProcessingStatusId();
+
         SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Новый',
-            'phone'      => '+7 900 111-11-11',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Новый',
+            'phone'                 => '+7 900 111-11-11',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
         SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'В работе',
-            'phone'      => '+7 900 222-22-22',
-            'status'     => 'processing',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'В работе',
+            'phone'                 => '+7 900 222-22-22',
+            'school_lead_status_id' => $processingStatusId,
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
-            'draw'     => 1,
-            'start'    => 0,
-            'length'   => 10,
-            'statuses' => ['processing'],
+            'draw'       => 1,
+            'start'      => 0,
+            'length'     => 10,
+            'status_ids' => [$processingStatusId],
         ]));
 
         $response->assertOk();
@@ -60,34 +62,36 @@ class SchoolLeadCrudFeatureTest extends CrmTestCase
         $this->assertEquals(1, $response->json('recordsFiltered'));
 
         foreach ($response->json('data') as $row) {
-            $this->assertSame('processing', $row['status']);
+            $this->assertSame($processingStatusId, (int) $row['school_lead_status_id']);
         }
     }
 
     public function test_update_fails_with_invalid_status(): void
     {
+        $systemStatusId = $this->schoolLeadSystemStatusId();
+
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Иван',
-            'phone'      => '+7 999 123-45-67',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Иван',
+            'phone'                 => '+7 999 123-45-67',
+            'school_lead_status_id' => $systemStatusId,
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status' => 'invalid-status',
+            'school_lead_status_id' => 999999,
         ])->assertStatus(422);
 
         $lead->refresh();
-        $this->assertSame('new', $lead->status?->value);
+        $this->assertSame($systemStatusId, (int) $lead->school_lead_status_id);
     }
 
     public function test_cannot_destroy_foreign_partner_lead(): void
     {
         $foreignLead = SchoolLead::create([
-            'partner_id' => $this->foreignPartner->id,
-            'name'       => 'Чужой',
-            'phone'      => '+7 900 999-99-99',
-            'status'     => 'new',
+            'partner_id'            => $this->foreignPartner->id,
+            'name'                  => 'Чужой',
+            'phone'                 => '+7 900 999-99-99',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $foreignLead->id]))

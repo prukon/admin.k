@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
-use App\Enums\SchoolLeadStatus;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
+use App\Models\SchoolLeadStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -66,25 +66,25 @@ class SchoolLeadFactory extends Factory
         $utmCampaigns = ['spring', 'summer', 'trial', 'brand', 'retarget'];
 
         return [
-            'partner_id' => Partner::factory(),
-            'partner_widget_id' => null,
-            'district_id' => null,
-            'location_id' => null,
-            'name' => $this->faker->randomElement(self::FIRST_NAMES),
-            'phone' => '+7 9' . $this->faker->numerify('## ###-##-##'),
-            'status' => $this->faker->randomElement(SchoolLeadStatus::values()),
-            'comment' => $this->faker->optional(0.35)->randomElement(self::COMMENTS),
-            'utm_source' => $this->faker->randomElement($utmSources),
-            'utm_medium' => $this->faker->randomElement($utmMediums),
-            'utm_campaign' => $this->faker->randomElement($utmCampaigns),
-            'utm_content' => $this->faker->optional(0.4)->lexify('ad-????'),
-            'utm_term' => $this->faker->optional(0.3)->words(2, true),
-            'page_url' => $this->faker->url(),
-            'referrer' => $this->faker->optional(0.5)->url(),
-            'consent_accepted_at' => now(),
-            'policy_url' => $this->faker->url(),
-            'ip' => $this->faker->ipv4(),
-            'user_agent' => $this->faker->userAgent(),
+            'partner_id'            => Partner::factory(),
+            'partner_widget_id'     => null,
+            'district_id'           => null,
+            'location_id'           => null,
+            'name'                  => $this->faker->randomElement(self::FIRST_NAMES),
+            'phone'                 => '+7 9' . $this->faker->numerify('## ###-##-##'),
+            'school_lead_status_id' => fn () => SchoolLeadStatus::systemNewId(),
+            'comment'               => $this->faker->optional(0.35)->randomElement(self::COMMENTS),
+            'utm_source'            => $this->faker->randomElement($utmSources),
+            'utm_medium'            => $this->faker->randomElement($utmMediums),
+            'utm_campaign'          => $this->faker->randomElement($utmCampaigns),
+            'utm_content'           => $this->faker->optional(0.4)->lexify('ad-????'),
+            'utm_term'              => $this->faker->optional(0.3)->words(2, true),
+            'page_url'              => $this->faker->url(),
+            'referrer'              => $this->faker->optional(0.5)->url(),
+            'consent_accepted_at'   => now(),
+            'policy_url'            => $this->faker->url(),
+            'ip'                    => $this->faker->ipv4(),
+            'user_agent'            => $this->faker->userAgent(),
         ];
     }
 
@@ -105,10 +105,10 @@ class SchoolLeadFactory extends Factory
         ]);
     }
 
-    public function status(SchoolLeadStatus|string $status): static
+    public function withStatus(?int $statusId = null): static
     {
-        $value = $status instanceof SchoolLeadStatus ? $status->value : $status;
-
-        return $this->state(fn () => ['status' => $value]);
+        return $this->state(fn () => [
+            'school_lead_status_id' => $statusId ?? SchoolLeadStatus::systemNewId(),
+        ]);
     }
 }

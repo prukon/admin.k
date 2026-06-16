@@ -238,22 +238,23 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
 
+        $processingStatusId = $this->schoolLeadProcessingStatusId();
+
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Inline select ABCD',
-            'phone'      => '+7 900 200-00-02',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Inline select ABCD',
+            'phone'                 => '+7 900 200-00-02',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this
             ->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-                'status'  => 'processing',
-                'comment' => 'ABCD inline-select smoke',
+                'school_lead_status_id' => $processingStatusId,
+                'comment'               => 'ABCD inline-select smoke',
             ])
             ->assertOk();
 
-        $status = $lead->fresh()->status;
-        $this->assertSame('processing', is_object($status) && property_exists($status, 'value') ? $status->value : $status);
+        $this->assertSame($processingStatusId, (int) $lead->fresh()->school_lead_status_id);
     }
 
     public function test_partner_lead_status_update_endpoint_still_works_with_inline_select(): void
@@ -339,34 +340,42 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $this->grantPermissionForUser($actor, 'schoolLeads.view');
         $this->actingAs($actor);
 
+        $systemStatusId = $this->schoolLeadSystemStatusId();
+        $processingStatusId = $this->schoolLeadProcessingStatusId();
+
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Access ABCD',
-            'phone'      => '+7 900 400-00-04',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Access ABCD',
+            'phone'                 => '+7 900 400-00-04',
+            'school_lead_status_id' => $systemStatusId,
         ]);
         $deleteLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Delete ABCD',
-            'phone'      => '+7 900 400-00-05',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Delete ABCD',
+            'phone'                 => '+7 900 400-00-05',
+            'school_lead_status_id' => $systemStatusId,
         ]);
 
         $routes = [
             ['GET', route('admin.school-leads'), ['HTTP_ACCEPT' => 'text/html']],
             ['GET', route('admin.school-leads.data', [
-                'draw'     => 1,
-                'start'    => 0,
-                'length'   => 10,
-                'statuses' => ['new'],
+                'draw'       => 1,
+                'start'      => 0,
+                'length'     => 10,
+                'status_ids' => [$systemStatusId],
             ]), []],
+            ['GET', route('admin.school-leads.statuses.index'), []],
+            ['POST', route('admin.school-leads.statuses.store'), [], [
+                'name'  => 'ABCD статус',
+                'color' => '#ff0000',
+            ]],
             ['GET', route('admin.school-leads.columns-settings.get'), []],
             ['POST', route('admin.school-leads.columns-settings.save'), [], [
                 'columns' => ['name' => true, 'status' => true, 'contract' => true, 'actions' => true],
             ]],
             ['PUT', route('admin.school-leads.update', ['schoolLead' => $lead->id]), [], [
-                'status'  => 'processing',
-                'comment' => 'ABCD access',
+                'school_lead_status_id' => $processingStatusId,
+                'comment'               => 'ABCD access',
             ]],
             ['DELETE', route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]), []],
         ];

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\SchoolLeadSource;
-use App\Enums\SchoolLeadStatus;
+use App\Models\SchoolLeadStatus;
 use App\Http\Requests\SubmitSchoolLeadLandingRequest;
 use App\Models\District;
 use App\Models\Location;
@@ -285,7 +285,7 @@ final class SchoolLeadLandingService
             'team_id'                => $teamId,
             'needs_contact_help'     => $request->boolean('needs_contact_help'),
             'comment'                => $request->input('comment'),
-            'status'                 => SchoolLeadStatus::New->value,
+            'school_lead_status_id'  => SchoolLeadStatus::systemNewId(),
             'utm_source'             => $request->input('utm_source'),
             'utm_medium'             => $request->input('utm_medium'),
             'utm_campaign'           => $request->input('utm_campaign'),

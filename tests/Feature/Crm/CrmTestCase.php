@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Partner;
+use App\Models\SchoolLeadStatus;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
@@ -241,5 +242,106 @@ abstract class CrmTestCase extends TestCase
             'partner_id' => $partner->id,
             'role_id'    => $role->id,
         ], $attributes));
+    }
+
+    protected function schoolLeadSystemStatusId(): int
+    {
+        return SchoolLeadStatus::systemNewId();
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function createPartnerSchoolLeadStatus(array $attributes = [], ?int $partnerId = null): SchoolLeadStatus
+    {
+        return SchoolLeadStatus::query()->create([
+            'partner_id'           => $partnerId ?? (int) $this->partner->id,
+            'name'                 => $attributes['name'] ?? 'Кастомный',
+            'color'                => $attributes['color'] ?? '#0d6efd',
+            'sort_order'           => (int) ($attributes['sort_order'] ?? 10),
+            'is_default_in_filter' => (bool) ($attributes['is_default_in_filter'] ?? false),
+            'is_system'            => false,
+        ]);
+    }
+
+    protected ?int $cachedSchoolLeadProcessingStatusId = null;
+
+    protected ?int $cachedSchoolLeadSaleStatusId = null;
+
+    protected ?int $cachedSchoolLeadSpamStatusId = null;
+
+    protected function schoolLeadProcessingStatusId(): int
+    {
+        if ($this->cachedSchoolLeadProcessingStatusId === null) {
+            $this->cachedSchoolLeadProcessingStatusId = (int) $this->createPartnerSchoolLeadStatus([
+                'name'                 => 'Обработка',
+                'is_default_in_filter' => true,
+            ])->id;
+        }
+
+        return $this->cachedSchoolLeadProcessingStatusId;
+    }
+
+    protected function schoolLeadSaleStatusId(): int
+    {
+        if ($this->cachedSchoolLeadSaleStatusId === null) {
+            $this->cachedSchoolLeadSaleStatusId = (int) $this->createPartnerSchoolLeadStatus([
+                'name' => 'Продажа',
+            ])->id;
+        }
+
+        return $this->cachedSchoolLeadSaleStatusId;
+    }
+
+    protected function schoolLeadSpamStatusId(): int
+    {
+        if ($this->cachedSchoolLeadSpamStatusId === null) {
+            $this->cachedSchoolLeadSpamStatusId = (int) $this->createPartnerSchoolLeadStatus([
+                'name' => 'Спам',
+            ])->id;
+        }
+
+        return $this->cachedSchoolLeadSpamStatusId;
+    }
+
+    /**
+     * Маршруты CRUD статусов заявок для smoke-тестов доступа (все должны отдавать 200).
+     *
+     * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
+     */
+    protected function schoolLeadStatusManagementRoutesPayload(): array
+    {
+        $updateStatus = $this->createPartnerSchoolLeadStatus(['name' => 'Update smoke']);
+        $deleteStatus = $this->createPartnerSchoolLeadStatus(['name' => 'Delete smoke']);
+
+        return [
+            [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.statuses.index'),
+            ],
+            [
+                'method' => 'POST',
+                'url'    => route('admin.school-leads.statuses.store'),
+                'data'   => [
+                    'name'                 => 'Создан access',
+                    'color'                => '#198754',
+                    'is_default_in_filter' => false,
+                ],
+            ],
+            [
+                'method' => 'PUT',
+                'url'    => route('admin.school-leads.statuses.update', ['schoolLeadStatus' => $updateStatus->id]),
+                'data'   => [
+                    'name'                 => 'Обновлён access',
+                    'color'                => '#ffc107',
+                    'sort_order'           => 30,
+                    'is_default_in_filter' => true,
+                ],
+            ],
+            [
+                'method' => 'DELETE',
+                'url'    => route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => $deleteStatus->id]),
+            ],
+        ];
     }
 }

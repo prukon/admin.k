@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\SchoolLeadStatus;
 use App\Models\Location;
 use App\Models\Partner;
 use App\Models\SchoolLead;
@@ -29,7 +28,6 @@ class DevSchoolLeadsSeeder extends Seeder
         }
 
         $widgetService = app(PartnerWidgetService::class);
-        $statuses = SchoolLeadStatus::cases();
         $remaining = self::TOTAL_LEADS;
         $partnerCount = count($partnerIds);
 
@@ -53,11 +51,8 @@ class DevSchoolLeadsSeeder extends Seeder
                 ->all();
 
             for ($i = 0; $i < $count; $i++) {
-                $status = $statuses[$i % count($statuses)];
-
                 SchoolLead::factory()
                     ->forPartner((int) $partnerId, $widget)
-                    ->status($status)
                     ->create([
                         'location_id' => $locationIds !== []
                             ? $locationIds[array_rand($locationIds)]

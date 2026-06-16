@@ -182,6 +182,11 @@
             badgeClass = opts.badgeClassMap[status];
         }
 
+        let badgeStyle = '';
+        if (typeof opts.badgeStyleFn === 'function') {
+            badgeStyle = opts.badgeStyleFn(status, row) || '';
+        }
+
         const options = Array.isArray(opts.options) ? opts.options : [];
         let optionsHtml = '';
         options.forEach(function (option) {
@@ -194,10 +199,13 @@
         const badgeExtraClass = opts.badgeExtraClass || '';
         const selectExtraClass = opts.selectExtraClass || 'form-select form-select-sm d-none';
 
+        const badgeClassPart = badgeStyle ? 'badge' : ('badge ' + esc(badgeClass));
+        const badgeStyleAttr = badgeStyle ? (' style="' + esc(badgeStyle) + '"') : '';
+
         return ''
             + '<div class="d-flex align-items-center gap-1">'
-            + '<span class="badge ' + esc(badgeClass) + ' ' + esc(badgeSelector) + ' ' + esc(badgeExtraClass) + '"'
-            + ' data-id="' + esc(rowId) + '" data-status="' + esc(status || '') + '">' + esc(label) + '</span>'
+            + '<span class="' + esc(badgeClassPart) + ' ' + esc(badgeSelector) + ' ' + esc(badgeExtraClass) + '"'
+            + ' data-id="' + esc(rowId) + '" data-status="' + esc(status || '') + '"' + badgeStyleAttr + '>' + esc(label) + '</span>'
             + '<select class="' + esc(selectExtraClass) + ' ' + esc(selectSelector) + '" data-id="' + esc(rowId) + '">'
             + optionsHtml
             + '</select>'

@@ -831,6 +831,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/school-leads', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'index'])->name('admin.school-leads');
         Route::get('/admin/school-leads/data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'dataTable'])->name('admin.school-leads.data');
         Route::get('/admin/school-leads/logs-data', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'log'])->name('logs.data.school-lead');
+        Route::get('/admin/school-leads/statuses', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'index'])->name('admin.school-leads.statuses.index');
+        Route::post('/admin/school-leads/statuses', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'store'])->name('admin.school-leads.statuses.store');
+        Route::put('/admin/school-leads/statuses/{schoolLeadStatus}', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'update'])->name('admin.school-leads.statuses.update');
+        Route::delete('/admin/school-leads/statuses/{schoolLeadStatus}', [\App\Http\Controllers\Admin\SchoolLeadStatusController::class, 'destroy'])->name('admin.school-leads.statuses.destroy');
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');

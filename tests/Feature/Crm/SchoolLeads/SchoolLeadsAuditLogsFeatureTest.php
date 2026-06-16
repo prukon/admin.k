@@ -89,12 +89,12 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name' => 'Иван Петров',
             'phone' => '+7 900 000-00-01',
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'comment' => 'Старый комментарий',
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status' => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'Новый комментарий',
         ])->assertOk();
 
@@ -115,7 +115,7 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name' => 'Без изменений',
             'phone' => '+7 900 000-00-02',
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'comment' => '',
         ]);
 
@@ -124,7 +124,7 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             ->count();
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'comment' => '',
         ])->assertOk();
 
@@ -151,11 +151,11 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name' => 'С районом',
             'phone' => '+7 900 000-00-03',
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'district_id' => $district->id,
             'location_id' => $location->id,
         ])->assertOk();
@@ -178,7 +178,7 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name' => 'На удаление',
             'phone' => '+7 900 000-00-04',
-            'status' => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
@@ -200,12 +200,12 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'В таблице логов',
             'phone'      => '+7 900 000-00-05',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'comment'    => 'До',
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status'  => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'После',
         ])->assertOk();
 

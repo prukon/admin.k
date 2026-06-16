@@ -141,10 +141,10 @@ final class DataTableClickableNameLinksFeatureTest extends ContractsFeatureTestC
         app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
 
         $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Parent Link',
-            'phone'      => '+7 900 555-55-55',
-            'status'     => 'new',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Parent Link',
+            'phone'                 => '+7 900 555-55-55',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->get(route('admin.school-leads'))
@@ -155,8 +155,8 @@ final class DataTableClickableNameLinksFeatureTest extends ContractsFeatureTestC
             ->assertSee('id="editLeadModal"', false);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
-            'status'  => 'processing',
-            'comment' => 'Via name link modal',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+            'comment'               => 'Via name link modal',
         ])
             ->assertOk();
     }

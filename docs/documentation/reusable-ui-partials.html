@@ -252,10 +252,10 @@ function reloadTable() {
         <td>Иконка PDF, tooltip «Статус: …» всегда (не ellipsis). См. <a href="/docs/documentation/admin-users#user-contract-column">admin-users §2.3</a>.</td>
       </tr>
       <tr>
-        <td><code>/admin/school-leads</code>, <code>/admin/partner-leads</code> — <code>status</code></td>
-        <td><code>custom</code> (badge + select)</td>
+        <td><code>/admin/school-leads</code> — <code>status</code></td>
         <td><code>inline-select</code></td>
-        <td>Опции статусов в JS; обработчики <code>.lead-status-badge</code> / <code>.lead-status-select</code> без изменений.</td>
+        <td><code>inline-select</code></td>
+        <td>Опции статусов динамически из <code>school_lead_statuses</code> (справочник партнёра + системный «Новый»); badge с цветом (<code>badgeStyleFn</code> / <code>status_badge_style</code>). См. <a href="/docs/documentation/school-leads-widget#school-lead-statuses">school-leads-widget §5.4</a>. В <code>/admin/partner-leads</code> — фиксированный enum (другая сущность).</td>
       </tr>
       <tr>
         <td><code>/admin/school-leads</code> — <code>contract</code></td>
@@ -407,7 +407,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
-    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (статус), <code>actions</code> (договор); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), <code>actions</code> (договор); 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts, outgoing emails (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
     <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий</li>

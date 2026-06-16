@@ -4,9 +4,10 @@
     $canCreateUserFromLead = $canCreateUserFromLead ?? (auth()->user() && auth()->user()->can('users.view'));
     $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
     $canShowLeadClientColumn = $canViewContracts || $canCreateUserFromLead;
-    $leadStats = $leadStats ?? ['total' => 0, 'new' => 0, 'processing' => 0];
+    $leadStats = $leadStats ?? ['total' => 0, 'new' => 0];
     $leadsHasActiveFilters = false;
-    $schoolLeadStatusOptions = $schoolLeadStatusOptions ?? [];
+    $schoolLeadStatuses = $schoolLeadStatuses ?? collect();
+    $defaultStatusFilterIds = $defaultStatusFilterIds ?? [];
     $filterTeams = $filterTeams ?? collect();
 @endphp
 
@@ -32,14 +33,6 @@
                                 </span>
                             </div>
                         </div>
-                        <div class="payments-report-total-inline payments-report-total-stat text-end" id="schoolLeadsStatProcessing">
-                            <div class="payments-report-total-label text-muted small mb-0">В обработке</div>
-                            <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
-                                <span class="payments-report-total-value-inner">
-                                    <span class="payments-report-total-amount school-leads-stat-processing">{{ number_format($leadStats['processing'], 0, '', ' ') }}</span>
-                                </span>
-                            </div>
-                        </div>
                         <div class="payments-report-total-inline payments-report-total-stat text-end" id="schoolLeadsStatTotal">
                             <div class="payments-report-total-label text-muted small mb-0">Всего</div>
                             <div class="payments-report-total-value fs-6 fw-semibold text-body tabular-nums lh-sm mt-1">
@@ -50,6 +43,17 @@
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#schoolLeadStatusesModal"
+                                title="Настройки статусов">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-cog payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Настройки</span>
+                        </button>
+
                         <button type="button"
                                 class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
                                 data-bs-toggle="modal"
@@ -175,9 +179,9 @@
                 <div class="col-12 col-md-4">
                     <div class="mb-0 generic-multiselect-field">
                         <label class="form-label" for="sl-filter-status">Статус</label>
-                        <select class="form-select js-generic-multiselect-select" id="sl-filter-status" name="statuses[]" multiple data-placeholder="Все статусы">
-                        @foreach ($schoolLeadStatusOptions as $option)
-                            <option value="{{ $option['value'] }}" @selected(in_array($option['value'], ['new', 'processing'], true))>{{ $option['label'] }}</option>
+                        <select class="form-select js-generic-multiselect-select" id="sl-filter-status" name="status_ids[]" multiple data-placeholder="Все статусы">
+                        @foreach ($schoolLeadStatuses as $status)
+                            <option value="{{ $status->id }}" @selected(in_array((string) $status->id, $defaultStatusFilterIds, true))>{{ $status->name }}</option>
                         @endforeach
                         </select>
                     </div>
@@ -267,6 +271,8 @@
 
 </div>
 
+@include('admin.school-leads.partials.status-settings')
+
 <div class="modal fade" id="editLeadModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -281,12 +287,11 @@
                         <label for="leadStatus" class="form-label">Статус</label>
                         <select id="leadStatus" class="form-select">
                             <option value="">— не выбран —</option>
-                            <option value="new">Новый</option>
-                            <option value="processing">Обработка</option>
-                            <option value="sale">Продажа</option>
-                            <option value="rejected">Отказ</option>
-                            <option value="spam">Спам</option>
+                            @foreach ($schoolLeadStatuses as $status)
+                                <option value="{{ $status->id }}">{{ $status->name }}</option>
+                            @endforeach
                         </select>
+                        <div class="invalid-feedback" id="leadStatusError"></div>
                     </div>
                     @if ($canViewDistricts)
                         <div class="mb-3">
@@ -372,22 +377,38 @@
             var canCreateUserFromLead = @json($canCreateUserFromLead);
             var canViewContracts = @json($canViewContracts);
             var canShowLeadClientColumn = @json($canShowLeadClientColumn);
+            var schoolLeadStatuses = @json($schoolLeadStatuses->map(fn ($status) => $status->toFrontendArray())->values());
+            var defaultStatusFilterIds = @json($defaultStatusFilterIds);
+            var schoolLeadStatusRoutes = {
+                index: @json(route('admin.school-leads.statuses.index')),
+                store: @json(route('admin.school-leads.statuses.store')),
+                update: @json(route('admin.school-leads.statuses.update', ['schoolLeadStatus' => '__ID__'])),
+                destroy: @json(route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => '__ID__'])),
+            };
 
             var $filtersForm = $('#school-leads-filters');
             var $statNew = $('.school-leads-stat-new');
-            var $statProcessing = $('.school-leads-stat-processing');
             var $statTotal = $('.school-leads-stat-total');
             var $toolbarRoot = $('#schoolLeadsReportToolbar');
 
             var editLeadModal = new bootstrap.Modal(document.getElementById('editLeadModal'));
             var deleteLeadModal = new bootstrap.Modal(document.getElementById('deleteLeadModal'));
+            var schoolLeadStatusesModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusesModal'));
+            var schoolLeadStatusFormModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusFormModal'));
+
+            document.getElementById('schoolLeadStatusFormModal').addEventListener('shown.bs.modal', function () {
+                var backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length) {
+                    backdrops[backdrops.length - 1].style.zIndex = '1060';
+                }
+            });
             var leadIdToDelete = null;
 
             var toastEl = document.getElementById('mainToast');
             var toastBodyEl = document.getElementById('mainToastBody');
             var toastInstance = new bootstrap.Toast(toastEl, { delay: 2500 });
 
-            var defaultStatusFilters = ['new', 'processing'];
+            var defaultStatusFilters = defaultStatusFilterIds.slice();
             var $statusFilter = $('#sl-filter-status');
             var $districtFilter = $('#sl-filter-district');
             var $locationFilter = $('#sl-filter-location');
@@ -402,7 +423,7 @@
             }
 
             function readFiltersFromForm() {
-                var statuses = $statusFilter.length ? ($statusFilter.val() || []) : [];
+                var statusIds = $statusFilter.length ? ($statusFilter.val() || []) : [];
                 var districtId = '';
                 if (canViewDistricts && $districtFilter.length) {
                     districtId = $districtFilter.val() || '';
@@ -415,7 +436,7 @@
                 var hasSpecialConditions = $specialConditionsFilter.length && $specialConditionsFilter.is(':checked');
 
                 return {
-                    statuses: statuses,
+                    status_ids: statusIds,
                     district_id: districtId,
                     location_id: locationId,
                     team_id: teamId,
@@ -445,9 +466,6 @@
                 }
                 if (stats.new !== undefined) {
                     $statNew.text(schoolLeadsFormatCount(stats.new));
-                }
-                if (stats.processing !== undefined) {
-                    $statProcessing.text(schoolLeadsFormatCount(stats.processing));
                 }
                 if (stats.total !== undefined) {
                     $statTotal.text(schoolLeadsFormatCount(stats.total));
@@ -494,25 +512,31 @@
                 toastInstance.show();
             }
 
-            function getStatusBadgeClass(status) {
-                switch (status) {
-                    case 'new': return 'bg-secondary';
-                    case 'processing': return 'bg-warning text-dark';
-                    case 'sale': return 'bg-success';
-                    case 'rejected': return 'bg-danger';
-                    case 'spam': return 'bg-dark';
-                    default: return 'bg-secondary';
+            function getStatusBadgeStyle(statusId, row) {
+                if (row && row.status_badge_style) {
+                    return row.status_badge_style;
                 }
+
+                if (row && row.status_color) {
+                    var textColor = row.status_text_color || '#ffffff';
+                    return 'background-color:' + row.status_color + ';color:' + textColor + ';';
+                }
+
+                return '';
             }
 
-            const leadStatusInlineSelectOptions = [
-                { value: '', label: '— не выбран —' },
-                { value: 'new', label: 'Новый' },
-                { value: 'processing', label: 'Обработка' },
-                { value: 'sale', label: 'Продажа' },
-                { value: 'rejected', label: 'Отказ' },
-                { value: 'spam', label: 'Спам' },
-            ];
+            function buildLeadStatusInlineSelectOptions() {
+                var options = [{ value: '', label: '— не выбран —' }];
+                schoolLeadStatuses.forEach(function (status) {
+                    options.push({
+                        value: String(status.id),
+                        label: status.name,
+                    });
+                });
+                return options;
+            }
+
+            var leadStatusInlineSelectOptions = buildLeadStatusInlineSelectOptions();
 
             function renderChildFlags(row) {
                 var badges = [];
@@ -566,7 +590,7 @@
                         url: @json(route('admin.school-leads.data')),
                         type: 'GET',
                         data: function (d) {
-                            d.statuses = appliedFilters.statuses;
+                            d.status_ids = appliedFilters.status_ids;
                             if (canViewDistricts) {
                                 d.district_id = appliedFilters.district_id;
                             }
@@ -761,14 +785,14 @@
                         name: 'status',
                         className: 'dt-col-inline-select',
                         inlineSelect: {
-                            statusKey: 'status',
+                            statusKey: 'school_lead_status_id',
                             labelKey: 'status_label',
                             rowIdKey: 'id',
                             badgeSelector: 'lead-status-badge',
                             selectSelector: 'lead-status-select',
                             badgeExtraClass: '',
                             selectExtraClass: 'form-select form-select-sm d-none',
-                            badgeClassFn: getStatusBadgeClass,
+                            badgeStyleFn: getStatusBadgeStyle,
                             options: leadStatusInlineSelectOptions,
                         },
                     },
@@ -854,7 +878,8 @@
             $('#leads-table').on('click', '.edit-lead', function() {
                 var rowData = table.row($(this).closest('tr')).data();
                 $('#editLeadId').val(rowData.id);
-                $('#leadStatus').val(rowData.status || '');
+                $('#leadStatus').val(rowData.school_lead_status_id ? String(rowData.school_lead_status_id) : '').removeClass('is-invalid');
+                $('#leadStatusError').text('');
                 $('#leadComment').val(rowData.comment || '');
                 if (canViewDistricts) {
                     $('#leadDistrict').val(rowData.district_id || '').removeClass('is-invalid');
@@ -870,7 +895,10 @@
 
             $('#saveLeadBtn').on('click', function() {
                 var id = $('#editLeadId').val();
-                var payload = { status: $('#leadStatus').val(), comment: $('#leadComment').val() };
+                var payload = {
+                    school_lead_status_id: $('#leadStatus').val(),
+                    comment: $('#leadComment').val(),
+                };
                 if (canViewDistricts) {
                     payload.district_id = $('#leadDistrict').val();
                 }
@@ -886,6 +914,8 @@
                     $('#leadLocation').removeClass('is-invalid');
                     $('#leadLocationError').text('');
                 }
+                $('#leadStatus').removeClass('is-invalid');
+                $('#leadStatusError').text('');
                 $.ajax({
                     url: '/admin/school-leads/' + id,
                     type: 'PUT',
@@ -901,6 +931,10 @@
                         var message = 'Ошибка сохранения.';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             message = xhr.responseJSON.message;
+                        }
+                        if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.school_lead_status_id) {
+                            $('#leadStatus').addClass('is-invalid');
+                            $('#leadStatusError').text(xhr.responseJSON.errors.school_lead_status_id[0]);
                         }
                         if (canViewDistricts && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.district_id) {
                             $('#leadDistrict').addClass('is-invalid');
@@ -930,13 +964,13 @@
                     url: '/admin/school-leads/' + id,
                     type: 'PUT',
                     headers: { 'X-CSRF-TOKEN': csrfToken },
-                    data: { status: $select.val() },
+                    data: { school_lead_status_id: $select.val() || '' },
                     success: function(response) {
                         var $container = $select.closest('div');
                         var $badge = $container.find('.lead-status-badge');
                         $badge.removeClass('bg-secondary bg-warning text-dark bg-success bg-danger bg-dark')
-                            .addClass(getStatusBadgeClass(response.status))
-                            .attr('data-status', response.status || '')
+                            .attr('style', response.status_badge_style || '')
+                            .attr('data-status', response.school_lead_status_id || '')
                             .text(response.status_label || '—');
                         $select.addClass('d-none');
                         $badge.removeClass('d-none');
@@ -1089,6 +1123,273 @@
                     showToast(response.message || 'Клиент создан.', 'success');
                 };
             }
+
+            function schoolLeadStatusUrl(template, id) {
+                return String(template).replace('__ID__', String(id));
+            }
+
+            function escapeHtml(value) {
+                return $('<div/>').text(value == null ? '' : value).html();
+            }
+
+            function normalizeSchoolLeadStatusHex(hex) {
+                if (!hex || typeof hex !== 'string') {
+                    return '#0d6efd';
+                }
+                var value = hex.trim();
+                if (/^#[0-9A-Fa-f]{6}$/.test(value) || /^#[0-9A-Fa-f]{3}$/.test(value)) {
+                    return value;
+                }
+                return '#0d6efd';
+            }
+
+            function setSchoolLeadStatusFormColor(hex) {
+                var normalized = normalizeSchoolLeadStatusHex(hex);
+                $('#schoolLeadStatusFormColor').val(normalized);
+                $('#schoolLeadStatusFormColorPicker').val(normalized);
+                $('#schoolLeadStatusFormColorHex').text(normalized);
+            }
+
+            $('#schoolLeadStatusFormColorSwatches .sls-color-swatch').on('click', function () {
+                setSchoolLeadStatusFormColor($(this).data('hex'));
+            });
+            $('#schoolLeadStatusFormColorPicker').on('input', function () {
+                setSchoolLeadStatusFormColor(this.value);
+            });
+
+            function clearSchoolLeadStatusFormErrors() {
+                $('#schoolLeadStatusForm .is-invalid').removeClass('is-invalid');
+                $('#schoolLeadStatusForm [data-error-for]').text('');
+            }
+
+            function showSchoolLeadStatusFormErrors(errors) {
+                clearSchoolLeadStatusFormErrors();
+                if (!errors) {
+                    return;
+                }
+                Object.keys(errors).forEach(function (field) {
+                    var message = errors[field] && errors[field][0] ? errors[field][0] : '';
+                    if (!message) {
+                        return;
+                    }
+                    var $input = $('#schoolLeadStatusForm [name="' + field + '"]');
+                    if ($input.length) {
+                        $input.addClass('is-invalid');
+                    }
+                    $('#schoolLeadStatusForm [data-error-for="' + field + '"]').text(message);
+                });
+            }
+
+            function applySchoolLeadStatusesToUi(statuses) {
+                schoolLeadStatuses = Array.isArray(statuses) ? statuses : [];
+                leadStatusInlineSelectOptions = buildLeadStatusInlineSelectOptions();
+
+                defaultStatusFilters = schoolLeadStatuses
+                    .filter(function (status) { return !!status.is_default_in_filter; })
+                    .map(function (status) { return String(status.id); });
+
+                var $leadStatus = $('#leadStatus');
+                var currentLeadStatus = $leadStatus.val();
+                $leadStatus.find('option:not(:first)').remove();
+                schoolLeadStatuses.forEach(function (status) {
+                    $leadStatus.append(
+                        $('<option/>', { value: String(status.id), text: status.name })
+                    );
+                });
+                if (currentLeadStatus) {
+                    $leadStatus.val(currentLeadStatus);
+                }
+
+                if ($statusFilter.length) {
+                    var currentFilter = $statusFilter.val() || [];
+                    $statusFilter.empty();
+                    schoolLeadStatuses.forEach(function (status) {
+                        $statusFilter.append(
+                            $('<option/>', { value: String(status.id), text: status.name })
+                        );
+                    });
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.setValues($statusFilter, currentFilter);
+                    } else {
+                        $statusFilter.val(currentFilter).trigger('change');
+                    }
+                }
+            }
+
+            function renderSchoolLeadStatusesTable(statuses) {
+                var $tbody = $('#school-lead-statuses-table-body');
+                $tbody.empty();
+
+                statuses.forEach(function (status) {
+                    var nameHtml = escapeHtml(status.name);
+                    if (status.is_system) {
+                        var systemStatusHint = 'Системный статус. Его нельзя изменять или удалять.';
+                        nameHtml += ' <span class="kids-tooltip-hint d-inline-block ms-1"'
+                            + ' tabindex="0"'
+                            + ' data-kids-tooltip-hint'
+                            + ' data-bs-toggle="tooltip"'
+                            + ' data-bs-placement="top"'
+                            + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                            + ' title="' + escapeHtml(systemStatusHint) + '"'
+                            + ' aria-label="' + escapeHtml(systemStatusHint) + '">'
+                            + '<i class="fa fa-info-circle" aria-hidden="true"></i>'
+                            + '</span>';
+                    }
+
+                    var colorHtml = status.color
+                        ? '<span class="badge" style="' + escapeHtml(status.badge_style || ('background-color:' + status.color + ';')) + '">' + escapeHtml(status.name) + '</span>'
+                        : '—';
+
+                    var actionsHtml = '';
+                    if (!status.is_system) {
+                        actionsHtml =
+                            '<button type="button" class="btn btn-sm btn-primary me-1 js-school-lead-status-edit"'
+                            + ' data-id="' + escapeHtml(status.id) + '"'
+                            + ' data-name="' + escapeHtml(status.name) + '"'
+                            + ' data-color="' + escapeHtml(status.color || '#0d6efd') + '"'
+                            + ' data-sort-order="' + escapeHtml(status.sort_order || 0) + '"'
+                            + ' data-default-filter="' + (status.is_default_in_filter ? '1' : '0') + '"'
+                            + ' title="Редактировать" aria-label="Редактировать">'
+                            + '<i class="fa fa-edit" aria-hidden="true"></i></button>'
+                            + '<button type="button" class="btn btn-sm btn-danger js-school-lead-status-delete"'
+                            + ' data-id="' + escapeHtml(status.id) + '"'
+                            + ' data-name="' + escapeHtml(status.name) + '"'
+                            + ' title="Удалить" aria-label="Удалить">'
+                            + '<i class="fa fa-trash" aria-hidden="true"></i></button>';
+                    }
+
+                    $tbody.append(
+                        '<tr>'
+                        + '<td>' + nameHtml + '</td>'
+                        + '<td class="text-center">' + escapeHtml(status.sort_order || 0) + '</td>'
+                        + '<td>' + colorHtml + '</td>'
+                        + '<td class="text-center">' + (status.is_default_in_filter ? 'Да' : 'Нет') + '</td>'
+                        + '<td>' + actionsHtml + '</td>'
+                        + '</tr>'
+                    );
+                });
+
+                if (window.KidsCrmTooltip) {
+                    var statusesModalEl = document.getElementById('schoolLeadStatusesModal');
+                    KidsCrmTooltip.dispose(statusesModalEl, { scopes: ['hint'] });
+                    KidsCrmTooltip.init(statusesModalEl, { scopes: ['hint'] });
+                }
+            }
+
+            function loadSchoolLeadStatusesTable() {
+                return $.getJSON(schoolLeadStatusRoutes.index).then(function (response) {
+                    var statuses = response.statuses || [];
+                    renderSchoolLeadStatusesTable(statuses);
+                    applySchoolLeadStatusesToUi(statuses);
+                    return statuses;
+                });
+            }
+
+            document.getElementById('schoolLeadStatusesModal').addEventListener('show.bs.modal', function () {
+                loadSchoolLeadStatusesTable().catch(function () {
+                    showToast('Не удалось загрузить статусы.', 'error');
+                });
+            });
+
+            $('#schoolLeadStatusCreateBtn').on('click', function () {
+                clearSchoolLeadStatusFormErrors();
+                $('#schoolLeadStatusFormId').val('');
+                $('#schoolLeadStatusFormName').val('');
+                setSchoolLeadStatusFormColor('#0d6efd');
+                $('#schoolLeadStatusFormSortOrder').val('');
+                $('#schoolLeadStatusFormDefaultFilter').prop('checked', false);
+                $('#schoolLeadStatusFormModalLabel').text('Создать статус');
+                schoolLeadStatusFormModal.show();
+            });
+
+            $('#school-lead-statuses-table-body').on('click', '.js-school-lead-status-edit', function () {
+                var $btn = $(this);
+                clearSchoolLeadStatusFormErrors();
+                $('#schoolLeadStatusFormId').val($btn.data('id'));
+                $('#schoolLeadStatusFormName').val($btn.data('name') || '');
+                setSchoolLeadStatusFormColor($btn.data('color') || '#0d6efd');
+                $('#schoolLeadStatusFormSortOrder').val($btn.data('sort-order') || '');
+                $('#schoolLeadStatusFormDefaultFilter').prop('checked', String($btn.data('default-filter')) === '1');
+                $('#schoolLeadStatusFormModalLabel').text('Редактировать статус');
+                schoolLeadStatusFormModal.show();
+            });
+
+            $('#school-lead-statuses-table-body').on('click', '.js-school-lead-status-delete', function () {
+                var statusId = $(this).data('id');
+                if (!statusId) {
+                    return;
+                }
+
+                var statusName = String($(this).data('name') || '').trim();
+                var messageText = statusName !== ''
+                    ? 'Вы уверены, что хотите удалить статус «' + statusName + '»?'
+                    : 'Вы уверены, что хотите удалить этот статус?';
+
+                showConfirmDeleteModal('Удаление статуса', messageText, function () {
+                    $.ajax({
+                        url: schoolLeadStatusUrl(schoolLeadStatusRoutes.destroy, statusId),
+                        type: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': csrfToken },
+                        success: function () {
+                            showToast('Статус удалён.', 'success');
+                            loadSchoolLeadStatusesTable().then(function () {
+                                appliedFilters = readFiltersFromForm();
+                                dtApi.reload({ keepPage: true });
+                            });
+                        },
+                        error: function (xhr) {
+                            var message = (xhr.responseJSON && xhr.responseJSON.message)
+                                || 'Не удалось удалить статус.';
+                            showToast(message, 'error');
+                        }
+                    });
+                });
+            });
+
+            $('#schoolLeadStatusForm').on('submit', function (e) {
+                e.preventDefault();
+                clearSchoolLeadStatusFormErrors();
+
+                var statusId = $('#schoolLeadStatusFormId').val();
+                var payload = {
+                    name: $('#schoolLeadStatusFormName').val(),
+                    color: $('#schoolLeadStatusFormColor').val(),
+                    sort_order: $('#schoolLeadStatusFormSortOrder').val(),
+                    is_default_in_filter: $('#schoolLeadStatusFormDefaultFilter').is(':checked') ? 1 : 0,
+                };
+
+                var requestOptions = {
+                    headers: { 'X-CSRF-TOKEN': csrfToken },
+                    data: payload,
+                };
+
+                if (statusId) {
+                    requestOptions.url = schoolLeadStatusUrl(schoolLeadStatusRoutes.update, statusId);
+                    requestOptions.type = 'PUT';
+                } else {
+                    requestOptions.url = schoolLeadStatusRoutes.store;
+                    requestOptions.type = 'POST';
+                }
+
+                $.ajax(Object.assign(requestOptions, {
+                    success: function () {
+                        schoolLeadStatusFormModal.hide();
+                        showToast('Статус сохранён.', 'success');
+                        loadSchoolLeadStatusesTable().then(function () {
+                            appliedFilters = readFiltersFromForm();
+                            dtApi.reload({ keepPage: true });
+                        });
+                    },
+                    error: function (xhr) {
+                        if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                            showSchoolLeadStatusFormErrors(xhr.responseJSON.errors);
+                        }
+                        var message = (xhr.responseJSON && xhr.responseJSON.message)
+                            || 'Не удалось сохранить статус.';
+                        showToast(message, 'error');
+                    }
+                }));
+            });
         });
     </script>
 @endsection

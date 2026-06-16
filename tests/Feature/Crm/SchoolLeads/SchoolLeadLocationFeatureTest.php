@@ -102,21 +102,21 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Без локации',
             'phone'       => '+7 900 111-11-11',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => null,
         ]);
         SchoolLead::create([
             'partner_id'  => $this->partner->id,
             'name'        => 'В A',
             'phone'       => '+7 900 222-22-22',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $locA->id,
         ]);
         SchoolLead::create([
             'partner_id'  => $this->partner->id,
             'name'        => 'В B',
             'phone'       => '+7 900 333-33-33',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $locB->id,
         ]);
 
@@ -127,7 +127,7 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
         ]));
         $all->assertOk();
         $this->assertEquals(3, $all->json('recordsTotal'));
-        $all->assertJsonStructure(['stats' => ['total', 'new', 'processing']]);
+        $all->assertJsonStructure(['stats' => ['total', 'new']]);
         $this->assertArrayHasKey('location_name', $all->json('data.0'));
         $this->assertArrayHasKey('location_id', $all->json('data.0'));
 
@@ -166,14 +166,14 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Целевой',
             'phone'       => '+7 900 111-11-11',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $loc->id,
         ]);
         SchoolLead::create([
             'partner_id' => $this->partner->id,
             'name'       => 'Другой',
             'phone'      => '+7 900 222-22-22',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -197,13 +197,13 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Первый',
             'phone'      => '+7 900 111-11-11',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
         SchoolLead::create([
             'partner_id' => $this->partner->id,
             'name'       => 'Второй',
             'phone'      => '+7 900 222-22-22',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -231,14 +231,14 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Найти по локации',
             'phone'       => '+7 900 111-11-11',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $loc->id,
         ]);
         SchoolLead::create([
             'partner_id' => $this->partner->id,
             'name'       => 'Не попадёт',
             'phone'      => '+7 900 222-22-22',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -272,14 +272,14 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Z-lead',
             'phone'       => '+7 900 111-11-11',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $locZ->id,
         ]);
         SchoolLead::create([
             'partner_id'  => $this->partner->id,
             'name'        => 'A-lead',
             'phone'       => '+7 900 222-22-22',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $locA->id,
         ]);
 
@@ -320,14 +320,14 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'С локацией',
             'phone'       => '+7 900 111-11-11',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $loc->id,
         ]);
         SchoolLead::create([
             'partner_id' => $this->partner->id,
             'name'       => 'Без локации',
             'phone'      => '+7 900 222-22-22',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $response = $this->getJson(route('admin.school-leads.data', [
@@ -359,7 +359,7 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Иван',
             'phone'      => '+7 999 123-45-67',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
@@ -388,7 +388,7 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id'  => $this->partner->id,
             'name'        => 'Иван',
             'phone'       => '+7 999 123-45-67',
-            'status'      => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'location_id' => $location->id,
         ]);
 
@@ -418,17 +418,17 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Иван',
             'phone'      => '+7 999 123-45-67',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
             'location_id' => $foreignLoc->id,
-            'status'      => 'processing',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
         ])->assertOk();
 
         $lead->refresh();
         $this->assertNull($lead->location_id);
-        $this->assertSame('processing', $lead->status?->value);
+        $this->assertSame($this->schoolLeadProcessingStatusId(), (int) $lead->school_lead_status_id);
     }
 
     public function test_update_rejects_disabled_location(): void
@@ -444,7 +444,7 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Иван',
             'phone'      => '+7 999 123-45-67',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
@@ -467,7 +467,7 @@ final class SchoolLeadLocationFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'Иван',
             'phone'      => '+7 999 123-45-67',
-            'status'     => 'new',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
