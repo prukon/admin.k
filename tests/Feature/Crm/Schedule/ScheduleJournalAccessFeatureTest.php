@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Tests\Feature\Crm\CrmTestCase;
@@ -171,5 +172,100 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->assertOk()
             ->assertSee('data-is-visited="1"', false)
             ->assertSee('id="status-' . $this->visitedStatusId . '"', false);
+    }
+
+    public function test_schedule_journal_lists_only_active_students_with_system_role_user(): void
+    {
+        $this->grantScheduleView();
+        [$student] = $this->makeStudentTeamAndTrainer();
+
+        $trainer = $this->makeTrainerProfile('ТренерЖурналФильтр');
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'name' => 'АдминЖурнал',
+            'lastname' => 'Фильтр',
+            'is_enabled' => 1,
+        ]);
+
+        $customRole = Role::query()->create([
+            'name' => 'vip-student-schedule',
+            'label' => 'VIP ученик',
+            'is_sistem' => false,
+            'is_visible' => true,
+            'order_by' => 50,
+        ]);
+
+        $customRoleUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $customRole->id,
+            'name' => 'КастомРоль',
+            'lastname' => 'Журнал',
+            'is_enabled' => 1,
+        ]);
+
+        $disabledStudent = $this->makeStudent();
+        $disabledStudent->update(['is_enabled' => 0]);
+
+        $this->get(route('schedule.index'))
+            ->assertOk()
+            ->assertSee($student->full_name, false)
+            ->assertDontSee($trainer->user->full_name, false)
+            ->assertDontSee($admin->full_name, false)
+            ->assertDontSee($customRoleUser->full_name, false)
+            ->assertDontSee($disabledStudent->full_name, false);
+    }
+
+    public function test_schedule_endpoints_reject_non_student_users(): void
+    {
+        $this->grantScheduleView();
+
+        $trainer = $this->makeTrainerProfile('ТренерЖурналAPI');
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'name' => 'АдминЖурналAPI',
+            'lastname' => 'Тест',
+            'is_enabled' => 1,
+        ]);
+
+        $customRole = Role::query()->create([
+            'name' => 'custom-schedule-api',
+            'label' => 'Кастом API',
+            'is_sistem' => false,
+            'is_visible' => true,
+            'order_by' => 51,
+        ]);
+
+        $customRoleUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $customRole->id,
+            'name' => 'КастомAPI',
+            'lastname' => 'Тест',
+            'is_enabled' => 1,
+        ]);
+
+        $date = '2026-05-15';
+
+        foreach ([$trainer->user_id, $admin->id, $customRoleUser->id] as $userId) {
+            $this->getJson(route('schedule.cell-context', [
+                'user_id' => $userId,
+                'date' => $date,
+            ]))->assertNotFound();
+
+            $this->postJson(route('schedule.update'), [
+                'user_id' => $userId,
+                'date' => $date,
+                'status_id' => $this->visitedStatusId,
+            ])->assertNotFound();
+
+            $this->getJson(route('user.schedule.info', $userId))->assertNotFound();
+
+            $this->postJson(route('user.set.group', $userId), [
+                'team_id' => null,
+            ])->assertNotFound();
+
+            $this->postJson(route('user.update.schedule', $userId), [
+                'weekdays' => [1],
+                'date_from' => $date,
+                'date_to' => $date,
+            ])->assertNotFound();
+        }
     }
 }

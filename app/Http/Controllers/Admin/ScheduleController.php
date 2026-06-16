@@ -56,9 +56,10 @@ class ScheduleController extends AdminBaseController
         $startOfMonth = Carbon::createFromDate($year, $month, 1);
         $endOfMonth   = $startOfMonth->copy()->endOfMonth();
 
-        // 5) Пользователи: только включенные и только этого партнера
+        // 5) Ученики: активные, партнёр, системная роль user
         $usersQuery = User::where('partner_id', $partnerId)
-            ->where('is_enabled', 1);
+            ->where('is_enabled', 1)
+            ->withSystemRoleUser();
 
         if ($team_id !== 'all') {
             if ($team_id === 'none') {
@@ -128,10 +129,7 @@ class ScheduleController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
 
-        $user = User::query()
-            ->where('id', $data['user_id'])
-            ->where('partner_id', $partnerId)
-            ->firstOrFail();
+        $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
 
         $entry = ScheduleUser::query()
             ->with('trainerProfile.user')
@@ -175,10 +173,7 @@ class ScheduleController extends AdminBaseController
         $data = $request->validated();
 
         DB::transaction(function () use ($authorId, $partnerId, $data) {
-            $user = User::query()
-                ->where('id', $data['user_id'])
-                ->where('partner_id', $partnerId)
-                ->firstOrFail();
+            $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
 
             $status = Status::findForSchedulePartner((int) $data['status_id'], $partnerId);
             $descriptionText = $data['description'] ?? '';
@@ -253,11 +248,8 @@ class ScheduleController extends AdminBaseController
 
     public function getUserInfo(User $user)
     {
-        // ИЗМЕНЕНИЕ #1: ограничиваем доступ – работаем только с пользователями своего партнёра
         $partnerId = $this->requirePartnerId();
-        if ($user->partner_id !== $partnerId) {
-            abort(404); // или return response()->json(['error'=>'Not found'], 404);
-        }
+        $this->assertScheduleStudent($user, $partnerId);
 
         // ИЗМЕНЕНИЕ #2: при загрузке команды гарантируем, что это команда текущего партнёра
         // + сразу загружаем её weekdays
@@ -289,15 +281,10 @@ class ScheduleController extends AdminBaseController
     //Вызов Личное расписание ученика
     public function getUserScheduleInfo(User $user)
     {
-        // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
         $partnerId = $this->requirePartnerId();
+        $this->assertScheduleStudent($user, $partnerId);
 
-        // ИЗМЕНЕНИЕ #2: убеждаемся, что пользователь принадлежит этому партнёру
-        if ($user->partner_id !== $partnerId) {
-            abort(404); // или return response()->json(['error'=>'Not found'], 404);
-        }
-
-        // ИЗМЕНЕНИЕ #3: загружаем team только в рамках партнёра и её weekdays
+        // загружаем team только в рамках партнёра и её weekdays
         $user->load(['team' => function($q) use ($partnerId) {
             $q->where('partner_id', $partnerId)
                 ->with('weekdays');
@@ -337,13 +324,8 @@ class ScheduleController extends AdminBaseController
     //Установка группы через расписание
     public function setUserGroup(Request $request, User $user)
     {
-        // ИЗМЕНЕНИЕ #1: получаем текущего партнёра из контекста
         $partnerId = $this->requirePartnerId();
-
-        // ИЗМЕНЕНИЕ #2: проверяем, что пользователь принадлежит этому партнёру
-        if ($user->partner_id !== $partnerId) {
-            abort(404);
-        }
+        $this->assertScheduleStudent($user, $partnerId);
 
         // 1) Валидация входных данных
         $request->validate([
@@ -388,13 +370,8 @@ class ScheduleController extends AdminBaseController
     //Установка индивидуального расписания юзеру
     public function updateUserScheduleRange(Request $request, User $user)
     {
-        // 1) Контекст
         $partnerId = $this->requirePartnerId();
-
-        // 2) Проверяем, что пользователь именно нашего партнёра
-        if ($user->partner_id !== $partnerId) {
-            abort(404);
-        }
+        $this->assertScheduleStudent($user, $partnerId);
 
         // 3) Валидация
         $data = $request->validate([
@@ -474,6 +451,30 @@ class ScheduleController extends AdminBaseController
     public function getLogsData(FilterRequest $request)
     {
         return $this->buildLogDataTable('schedule');
+    }
+
+    private function findScheduleStudentForPartner(int $partnerId, int $userId): User
+    {
+        return User::query()
+            ->whereKey($userId)
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->withSystemRoleUser()
+            ->firstOrFail();
+    }
+
+    private function assertScheduleStudent(User $user, int $partnerId): void
+    {
+        $isScheduleStudent = User::query()
+            ->whereKey($user->id)
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->withSystemRoleUser()
+            ->exists();
+
+        if (! $isScheduleStudent) {
+            abort(404);
+        }
     }
 
     private function trainerOptionsForPartner(int $partnerId)

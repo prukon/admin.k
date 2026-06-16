@@ -138,6 +138,16 @@ class User extends Authenticatable
         return $this->role && $this->role->name === $roleName;
     }
 
+    /**
+     * Ученики журнала расписания: только системная роль user (не кастомные роли партнёра).
+     */
+    public function scopeWithSystemRoleUser($query)
+    {
+        return $query->whereHas('role', function ($q) {
+            $q->where('name', 'user')->where('is_sistem', true);
+        });
+    }
+
     public function role()
     {
         return $this->belongsTo(Role::class, 'role_id');
