@@ -1,5 +1,7 @@
 @extends('layouts.admin2')
 
+@include('partials.select2.filter-multiselect')
+
 @section('content')
     <div class="main-content">
         <h4 class="pt-3 pb-3 text-start">Заявки с сайта</h4>

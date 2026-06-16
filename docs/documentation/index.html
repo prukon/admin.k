@@ -39,7 +39,7 @@
     <tbody>
       <tr><td><code>/client-contracts</code></td><td><code>logs.data.contract</code></td><td><code>contracts.view</code></td><td><code>contract</code></td><td><a href="/docs/documentation/contracts#contracts-audit">contracts §1.2</a></td></tr>
       <tr><td><code>/client-contract-templates</code></td><td><code>logs.data.contract-template</code></td><td><code>contracts.view</code></td><td><code>contract_template</code></td><td><a href="/docs/documentation/contract-templates#contract-templates-audit">contract-templates §5.0</a></td></tr>
-      <tr><td><code>/admin/school-leads</code></td><td><code>logs.data.school-lead</code></td><td><code>schoolLeads.view</code></td><td><code>school_lead</code></td><td><a href="/docs/documentation/school-leads-widget#school-leads-audit">school-leads §5.1.1</a></td></tr>
+      <tr><td><code>/admin/school-leads</code></td><td><code>logs.data.school-lead</code></td><td><code>schoolLeads.view</code></td><td><code>school_lead</code></td><td><a href="/docs/documentation/school-leads-widget#school-leads-audit">school-leads §5.1.3</a></td></tr>
       <tr><td><code>/admin/lesson-packages/school-schedule</code></td><td><code>logs.data.school-schedule</code></td><td><code>lessonPackages.view</code></td><td><code>schedule</code></td><td><a href="/docs/documentation/school-schedule-calendar#school-schedule-audit">school-schedule-calendar</a></td></tr>
       <tr><td><code>/admin/locations</code></td><td><code>logs.data.location</code></td><td><code>locations.view</code></td><td><code>location</code></td><td><a href="/docs/documentation/admin-locations">admin-locations §5</a></td></tr>
       <tr><td><code>/admin/districts</code></td><td><code>logs.data.district</code></td><td><code>districts.view</code></td><td><code>district</code></td><td><a href="/docs/documentation/admin-districts">admin-districts §5</a></td></tr>
@@ -86,7 +86,7 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF, подпись SMS, sync профиля</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code></a></li>
     <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, родители, колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, группа, доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (лид → клиент → договор), <b>настраиваемые статусы</b> (<code>school_lead_statuses</code>), аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (лид → клиент → договор), <b>настраиваемые статусы</b> (<code>school_lead_statuses</code>), <b>filter multiselect</b> статусов в панели фильтров, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <code>district_id</code>, <code>source=landing</code></a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права)</a></li>
@@ -94,7 +94,7 @@
 
   <h2>Переиспользование UI</h2>
   <ul>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, Select2 multiselect</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, Select2 multiselect (модалки) и <b>filter multiselect</b> (панели фильтров)</a></li>
   </ul>
 </div>
 </body>

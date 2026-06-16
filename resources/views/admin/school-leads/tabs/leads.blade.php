@@ -13,8 +13,6 @@
 
 @vite(['resources/css/admin-list-toolbar.css'])
 
-@include('partials.select2.generic-multiselect')
-
 <div class="main-content text-start">
 
     <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2" id="schoolLeadsReportToolbar">
@@ -176,15 +174,17 @@
     <div class="collapse {{ $leadsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="schoolLeadsFiltersCollapse">
         <form id="school-leads-filters" class="border rounded p-2 p-md-3 bg-light" action="#" method="get">
             <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                    <div class="mb-0 generic-multiselect-field">
-                        <label class="form-label" for="sl-filter-status">Статус</label>
-                        <select class="form-select js-generic-multiselect-select" id="sl-filter-status" name="status_ids[]" multiple data-placeholder="Все статусы">
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="sl-filter-status">Статус</label>
+                    <select class="form-select js-filter-multiselect-select"
+                            id="sl-filter-status"
+                            name="status_ids[]"
+                            multiple
+                            data-placeholder="Выберите статусы">
                         @foreach ($schoolLeadStatuses as $status)
                             <option value="{{ $status->id }}" @selected(in_array((string) $status->id, $defaultStatusFilterIds, true))>{{ $status->name }}</option>
                         @endforeach
-                        </select>
-                    </div>
+                    </select>
                 </div>
 
                 @if ($canViewDistricts)
@@ -366,7 +366,7 @@
 
 @include('includes.logModal')
 
-@section('scripts')
+@push('scripts')
     <script>
         $(document).ready(function() {
             showLogModal(@json(route('logs.data.school-lead')));
@@ -415,10 +415,11 @@
             var $teamFilter = $('#sl-filter-team');
             var $specialConditionsFilter = $('#sl-filter-special-conditions');
 
-            if ($statusFilter.length && window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.init($statusFilter, {
-                    placeholder: $statusFilter.data('placeholder') || 'Все статусы',
-                    allowClear: true
+            if ($statusFilter.length && window.KidsCrmFilterMultiselectSelect2) {
+                KidsCrmFilterMultiselectSelect2.init($statusFilter, {
+                    placeholder: $statusFilter.data('placeholder') || 'Выберите статусы',
+                    allowClear: true,
+                    dropdownParent: $('#school-leads-filters')
                 });
             }
 
@@ -473,8 +474,8 @@
             }
 
             function resetFiltersFormToDefault() {
-                if ($statusFilter.length && window.KidsCrmGenericMultiselectSelect2) {
-                    KidsCrmGenericMultiselectSelect2.setValues($statusFilter, defaultStatusFilters);
+                if ($statusFilter.length && window.KidsCrmFilterMultiselectSelect2) {
+                    KidsCrmFilterMultiselectSelect2.setValues($statusFilter, defaultStatusFilters);
                 } else if ($statusFilter.length) {
                     $statusFilter.val(defaultStatusFilters).trigger('change');
                 }
@@ -1208,8 +1209,9 @@
                             $('<option/>', { value: String(status.id), text: status.name })
                         );
                     });
-                    if (window.KidsCrmGenericMultiselectSelect2) {
-                        KidsCrmGenericMultiselectSelect2.setValues($statusFilter, currentFilter);
+                    if (window.KidsCrmFilterMultiselectSelect2) {
+                        KidsCrmFilterMultiselectSelect2.rebuild($statusFilter);
+                        KidsCrmFilterMultiselectSelect2.setValues($statusFilter, currentFilter);
                     } else {
                         $statusFilter.val(currentFilter).trigger('change');
                     }
@@ -1392,5 +1394,5 @@
             });
         });
     </script>
-@endsection
+@endpush
 

@@ -407,7 +407,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
-    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), <code>actions</code> (договор); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), <code>actions</code> (договор); 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts, outgoing emails (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>
     <li><a href="/docs/documentation/tbank#commissions-ui">/admin/settings/tbank-commissions</a> — server-side таблица правил комиссий</li>
@@ -425,11 +425,32 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <p>В LTV и «Платежи по месяцам» при раскрытии строки детализация платежей использует обычный <code>$('#…').DataTable({ serverSide: true })</code>, не <code>KidsCrmDataTable.create</code> — у дочерней таблицы нет dropdown «Колонки».
     Backend поддерживает два формата одного endpoint: legacy JSON без <code>draw</code> и server-side DataTables с <code>draw</code> + <code>meta_payments_count</code> / <code>meta_sum_total</code> (см. <a href="/docs/documentation/reports-admin">reports-admin</a> §4–5).</p>
 
-  <h2>4) Select2 multiselect групп</h2>
-  <p>Partial: <code>resources/views/partials/select2/teams-multiselect.blade.php</code></p>
-  <p>Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, сводка «первая группа, ещё N шт.» при 3+ выбранных, dropdown не закрывается при клике в поиск.</p>
+  <h2 id="select2-multiselect">4) Multiselect: модалки (Select2) и фильтры (кастомный UI)</h2>
+  <p>Два независимых компонента. Не смешивать: в модалках — chip-теги на Select2; в панелях фильтров — trigger как <code>form-select</code> без Select2.</p>
 
-  <h3>Подключение</h3>
+  <h3>4.1) Filter multiselect (<code>filter-multiselect</code>)</h3>
+  <p>Partial: <code>resources/views/partials/select2/filter-multiselect.blade.php</code></p>
+  <p>Для collapse-фильтров отчётов и списков: внешне как соседний <code>form-select</code>, выбор — dropdown с чекбоксами. Скрытый <code>&lt;select multiple&gt;</code> синхронизируется с UI и отправляется в API.</p>
+  <pre><code>@include('partials.select2.filter-multiselect')
+
+&lt;select class="form-select js-filter-multiselect-select"
+        id="sl-filter-status"
+        name="status_ids[]"
+        multiple
+        data-placeholder="Выберите статусы"&gt;
+  …
+&lt;/select&gt;</code></pre>
+  <p><b>JS API:</b> <code>window.KidsCrmFilterMultiselectSelect2</code> — <code>init</code>, <code>setValues</code>, <code>rebuild</code>, <code>reset</code>, <code>markInvalid</code> / <code>clearInvalid</code>.</p>
+  <p><b>Где используется:</b></p>
+  <ul>
+    <li><a href="/docs/documentation/school-leads-widget#school-leads-filter-multiselect">/admin/school-leads</a> — фильтр «Статус» (<code>status_ids[]</code>).</li>
+  </ul>
+
+  <h3>4.2) Select2 multiselect для модалок (<code>generic-multiselect</code>)</h3>
+  <p>Partial-обёртки: <code>teams-multiselect.blade.php</code>, <code>locations-multiselect.blade.php</code> → внутри <code>generic-multiselect.blade.php</code>.</p>
+  <p>Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, chip-теги, сводка «первая группа, ещё N шт.» при 3+ выбранных, dropdown не закрывается при клике в поиск.</p>
+
+  <h4>Подключение (модалка)</h4>
   <pre><code>@include('partials.select2.teams-multiselect')
 
 &lt;select name="team_ids[]"
@@ -440,10 +461,10 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     &lt;option value="{{ $team->id }}"&gt;{{ $team->title }}&lt;/option&gt;
   @endforeach
 &lt;/select&gt;</code></pre>
-  <p>Обобщённый multiselect с hover-list в chip: <code>partials/select2/generic-multiselect.blade.php</code> (сводка 3+ значений через <code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>).</p>
+  <p>Обобщённый multiselect с hover-list в chip: <code>partials/select2/generic-multiselect.blade.php</code> (сводка 3+ значений через <code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>). Класс на select: <code>js-generic-multiselect-select</code>.</p>
   <p>Select2 подключается в layout <code>layouts/admin2.blade.php</code> (<code>select2.full.min.js</code> + bootstrap-5 theme).</p>
 
-  <h3>JS API (<code>window.KidsCrmTeamsMultiselectSelect2</code>)</h3>
+  <h3>JS API модалок (<code>window.KidsCrmGenericMultiselectSelect2</code>)</h3>
   <ul>
     <li><code>init($select, { dropdownParent })</code> — инициализация; для модалок задавать <code>dropdownParent: $('#…Modal')</code>.</li>
     <li><code>setValues($select, ids)</code> — заполнить при открытии edit.</li>
@@ -451,9 +472,10 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><code>markInvalid($select)</code> / <code>clearInvalid($select)</code> — подсветка ошибок валидации (<code>team_ids</code>).</li>
   </ul>
 
-  <h3>Где используется</h3>
+  <h3>Где используется (модалки)</h3>
   <ul>
-    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — поля <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code> (только при <code>locations.manage</code> и непустом списке групп партнёра).</li>
+    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — поля <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, администраторы (только при <code>locations.manage</code> и непустом списке групп партнёра).</li>
+    <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — multiselect объектов в create/edit модалках.</li>
   </ul>
 
   <h2>5) Русификация Select2</h2>
@@ -487,7 +509,8 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li>Backend — GET/POST <code>…/columns-settings</code> с объектом <code>columns</code> (как на locations / sport-types / teams).</li>
     <li>Reload после фильтров — <code>dtApi.reload({ keepPage: true })</code>.</li>
     <li>Кликабельное название — <code>type: 'link'</code> + handler модалки или <code>bindNavLinks</code> (см. <a href="#datatable-clickable-names">§3.2</a>).</li>
-    <li>Для Select2 в модалках — partial multiselect + <code>@include('partials.select2.ru')</code> при необходимости.</li>
+    <li>Для Select2 в модалках — partial <code>generic-multiselect</code> (§4.2) + <code>@include('partials.select2.ru')</code> при необходимости.</li>
+    <li>Для multiselect в панели фильтров — partial <code>filter-multiselect</code> (§4.1), <code>KidsCrmFilterMultiselectSelect2</code>; без Select2.</li>
     <li>Для иконки-подсказки в форме — <code>@include('partials.ui.tooltip-hint', …)</code> (§2).</li>
   </ol>
 

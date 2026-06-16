@@ -6,6 +6,7 @@ namespace Tests\Feature\Crm\SchoolLeads;
 
 use App\Models\Location;
 use App\Models\SchoolLead;
+use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Контроль доступа: вкладка «Заявки» (/admin/school-leads) и её endpoint'ы —
+ * Контроль доступа: вкладка «Заявки» (/admin/school-leads) и все её endpoint'ы —
  * 200 при schoolLeads.view, отказ для гостя и без права.
  */
 final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
@@ -32,9 +33,9 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
         ]);
 
         $this->lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Page access',
-            'phone'      => '+7 900 222-22-22',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Page access',
+            'phone'                 => '+7 900 222-22-22',
             'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
     }
@@ -110,70 +111,46 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
     {
         $this->actingAsViewer();
 
-        $location = Location::factory()->create([
-            'partner_id' => $this->partner->id,
-            'is_enabled' => true,
-        ]);
-
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
             ->assertSee('historyModal', false)
             ->assertSee('История', false)
-            ->assertSee('showLogModal', false);
+            ->assertSee('showLogModal', false)
+            ->assertSee('id="sl-filter-status"', false)
+            ->assertSee('js-filter-multiselect-select', false)
+            ->assertSee('KidsCrmFilterMultiselectSelect2', false)
+            ->assertSee('id="schoolLeadStatusesModal"', false)
+            ->assertSee('schoolLeadStatusRoutes', false);
 
-        $this->getJson(route('admin.school-leads.data', [
-            'draw'     => 1,
-            'start'    => 0,
-            'length'   => 10,
-            'status_ids' => [$this->schoolLeadSystemStatusId(), $this->schoolLeadProcessingStatusId()],
-        ]))->assertOk()
-            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+        foreach ($this->routesPayload() as $item) {
+            $response = $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
+            );
 
-        $this->getJson(route('admin.school-leads.data', [
-            'draw'        => 1,
-            'start'       => 0,
-            'length'      => 10,
-            'location_id' => (string) $location->id,
-            'search'      => ['value' => 'Page access'],
-        ]))->assertOk();
-
-        $this->getJson(route('admin.school-leads.columns-settings.get'))->assertOk();
-
-        $this->getJson(route('logs.data.school-lead', ['draw' => 1, 'start' => 0, 'length' => 10]))
-            ->assertOk()
-            ->assertJsonStructure(['data']);
-
-        $this->postJson(route('admin.school-leads.columns-settings.save'), [
-            'columns' => [
-                'name'    => true,
-                'phone'   => true,
-                'status'  => true,
-                'actions' => true,
-            ],
-        ])->assertOk();
-
-        $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
-            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
-            'comment' => 'Full access smoke',
-        ])->assertOk();
-
-        $deleteLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Delete smoke',
-            'phone'      => '+7 900 333-33-33',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]))
-            ->assertOk();
+            $this->assertSame(
+                200,
+                $response->getStatusCode(),
+                "Viewer: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
+            );
+        }
     }
 
-    public function test_admin_all_leads_page_read_endpoints_return_200(): void
+    public function test_admin_all_leads_page_endpoints_return_200(): void
     {
         $this->asAdmin();
 
-        foreach ($this->readOnlyRoutesPayload() as $item) {
+        $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('id="sl-filter-status"', false)
+            ->assertSee('KidsCrmFilterMultiselectSelect2', false);
+
+        foreach ($this->routesPayload() as $item) {
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -189,8 +166,6 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                 "Админ: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
             );
         }
-
-        $this->get(route('admin.school-leads'))->assertOk();
     }
 
     /**
@@ -199,22 +174,35 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
     private function routesPayload(): array
     {
         $deleteLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Denied delete',
-            'phone'      => '+7 900 444-44-44',
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Denied delete',
+            'phone'                 => '+7 900 444-44-44',
             'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
-        return array_merge($this->readOnlyRoutesPayload(), [
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => true,
+        ]);
+
+        return array_merge($this->readOnlyRoutesPayload($location, $team), [
             [
                 'method' => 'POST',
                 'url'    => route('admin.school-leads.columns-settings.save'),
-                'data'   => ['columns' => ['name' => true, 'phone' => true]],
+                'data'   => ['columns' => ['name' => true, 'phone' => true, 'status' => true]],
             ],
             [
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
-                'data'   => ['school_lead_status_id' => $this->schoolLeadProcessingStatusId(), 'comment' => 'denied'],
+                'data'   => [
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+                    'comment'               => 'access smoke',
+                ],
             ],
             [
                 'method' => 'DELETE',
@@ -226,7 +214,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
     /**
      * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
      */
-    private function readOnlyRoutesPayload(): array
+    private function readOnlyRoutesPayload(Location $location, Team $team): array
     {
         return [
             [
@@ -244,11 +232,39 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
+                'url'    => route('admin.school-leads.data', [
+                    'draw'       => 1,
+                    'start'      => 0,
+                    'length'     => 10,
+                    'status_ids' => [
+                        $this->schoolLeadSystemStatusId(),
+                        $this->schoolLeadProcessingStatusId(),
+                    ],
+                ]),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.data', [
+                    'draw'                     => 1,
+                    'start'                    => 0,
+                    'length'                   => 10,
+                    'status_ids'               => [$this->schoolLeadSystemStatusId()],
+                    'location_id'              => (string) $location->id,
+                    'team_id'                  => (string) $team->id,
+                    'has_special_conditions'   => '1',
+                ]),
+            ],
+            [
+                'method' => 'GET',
                 'url'    => route('admin.school-leads.columns-settings.get'),
             ],
             [
                 'method' => 'GET',
                 'url'    => route('logs.data.school-lead', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.statuses.index'),
             ],
         ];
     }

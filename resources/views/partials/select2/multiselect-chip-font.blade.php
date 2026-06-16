@@ -70,13 +70,37 @@
             display: none !important;
         }
 
+        .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection .select2-selection__rendered > .select2-search.select2-search--inline {
+            display: inline-flex !important;
+            align-items: center !important;
+            float: none !important;
+            width: auto !important;
+            max-width: 100%;
+            flex: 1 1 3.5rem;
+            min-width: 3.5rem;
+            height: auto !important;
+            margin: 0 !important;
+        }
+
+        .select2-container--bootstrap-5.kids-crm-ms-summary-mode .select2-selection.kids-crm-ms-selection .select2-selection__rendered > .select2-search.select2-search--inline {
+            flex: 1 1 4rem;
+            min-width: 4rem;
+        }
+
         .select2-container--bootstrap-5 .select2-selection.kids-crm-ms-selection .select2-search--inline .select2-search__field {
             margin: 0 !important;
             padding: 0 !important;
+            width: auto !important;
+            min-width: 1.5rem;
             min-height: 1.1rem !important;
+            height: auto !important;
             font-size: 0.8125rem !important;
             line-height: 1.35 !important;
             color: #212529 !important;
+        }
+
+        .select2-container--bootstrap-5.kids-crm-ms-summary-mode .select2-selection.kids-crm-ms-selection .select2-search--inline .select2-search__field {
+            min-width: 4rem;
         }
 
         .select2-container--bootstrap-5.kids-crm-ms-summary-mode .select2-selection__choice:not(.kids-crm-ms-summary) {

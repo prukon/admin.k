@@ -8,11 +8,6 @@
                 width: 100% !important;
             }
 
-            .kids-crm-generic-ms-select2.select2-container--bootstrap-5 .select2-search--inline {
-                flex: 1 1 3.5rem;
-                min-width: 3.5rem;
-            }
-
             .kids-crm-generic-ms-select2.select2-container--bootstrap-5 .select2-search--inline .select2-search__field::placeholder {
                 color: #b0b8c1;
             }
@@ -31,16 +26,6 @@
             .kids-crm-generic-ms-select2.select2-container--bootstrap-5.select2-container--open .select2-selection--multiple.is-invalid {
                 border-color: var(--bs-form-invalid-border-color, #dc3545);
                 box-shadow: 0 0 0 0.18rem rgba(220, 53, 69, 0.12);
-            }
-
-            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.kids-crm-generic-ms-select2 .select2-search--inline {
-                flex: 1 1 4rem;
-                min-width: 4rem;
-            }
-
-            .select2-container--bootstrap-5.kids-crm-ms-summary-mode.kids-crm-generic-ms-select2 .select2-search--inline .select2-search__field {
-                width: 100% !important;
-                min-width: 4rem;
             }
 
             .select2-dropdown.kids-crm-generic-ms-dropdown {
@@ -137,6 +122,128 @@
             .modal .select2-dropdown.kids-crm-generic-ms-dropdown {
                 z-index: 1060;
             }
+
+            /* Filter multiselect: оболочка как form-select, текст выбора — компактный. */
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 {
+                width: 100% !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection.select2-selection--multiple {
+                min-height: calc(1.5em + 0.75rem + 2px) !important;
+                padding: 0.375rem 2.25rem 0.375rem 0.75rem !important;
+                font-weight: 400 !important;
+                color: var(--bs-body-color, #212529) !important;
+                background-color: var(--bs-body-bg, #fff) !important;
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+                background-repeat: no-repeat !important;
+                background-position: right 0.75rem center !important;
+                background-size: 16px 12px !important;
+                border: var(--bs-border-width, 1px) solid var(--bs-border-color, #ced4da) !important;
+                border-radius: var(--bs-border-radius, 0.375rem) !important;
+                box-shadow: none !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2.select2-container--focus .select2-selection.kids-crm-filter-ms-selection.select2-selection--multiple,
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2.select2-container--open .select2-selection.kids-crm-filter-ms-selection.select2-selection--multiple {
+                border-color: #86b7fe !important;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection .select2-selection__rendered {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+                gap: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                font-size: 0.8125rem !important;
+                line-height: 1.35 !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection li.select2-selection__choice {
+                display: inline !important;
+                flex: 0 1 auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                font-size: 0.8125rem !important;
+                font-weight: 400 !important;
+                line-height: 1.35 !important;
+                color: #212529 !important;
+                background: transparent !important;
+                border: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-width: 100% !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection li.select2-selection__choice + li.select2-selection__choice::before {
+                content: ', ';
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection .select2-selection__choice__remove {
+                display: none !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection.select2-selection--multiple .select2-search {
+                display: inline-flex !important;
+                width: auto !important;
+                height: auto !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection .select2-selection__rendered > .select2-search.select2-search--inline {
+                display: inline-flex !important;
+                align-items: center !important;
+                float: none !important;
+                width: auto !important;
+                flex: 0 0 auto !important;
+                min-width: 0.75rem;
+                height: auto !important;
+                margin: 0 !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection .select2-search--inline .select2-search__field {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 0.75em !important;
+                min-width: 0.75rem !important;
+                min-height: 0 !important;
+                height: auto !important;
+                font-family: inherit !important;
+                font-size: 0.8125rem !important;
+                font-weight: 400 !important;
+                line-height: 1.35 !important;
+                color: #212529 !important;
+                background: transparent !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection .select2-search--inline .select2-search__field::placeholder {
+                color: var(--bs-secondary-color, #6c757d) !important;
+                opacity: 1;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2.kids-crm-filter-ms-summary-mode .select2-selection.kids-crm-filter-ms-selection li.select2-selection__choice:not(.kids-crm-filter-ms-summary) {
+                display: none !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection li.select2-selection__choice.kids-crm-filter-ms-summary {
+                display: inline !important;
+                font-size: 0.8125rem !important;
+                line-height: 1.35 !important;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap !important;
+            }
+
+            .select2-container--bootstrap-5.kids-crm-filter-ms-select2 .select2-selection.kids-crm-filter-ms-selection li.select2-selection__choice.kids-crm-filter-ms-summary .kids-hover-list-dropdown__trigger {
+                font-size: 0.8125rem !important;
+                line-height: 1.35 !important;
+                color: #212529 !important;
+            }
         </style>
     @endpush
 
@@ -217,12 +324,72 @@
                     return escapeHtml(summary);
                 }
 
+                function isFilterMode($select, options) {
+                    if (options && options.mode === 'filter') {
+                        return true;
+                    }
+
+                    return $select.hasClass('js-filter-multiselect-select');
+                }
+
+                function syncFilterInlineSearchWidth($select) {
+                    if (!$select.data('kidsCrmMsFilterMode')) {
+                        return;
+                    }
+
+                    const $search = $select.next('.select2-container').find('.select2-search__field');
+                    if (!$search.length) {
+                        return;
+                    }
+
+                    const selectedCount = getSelectedIds($select).length;
+                    const searchValue = String($search.val() || '');
+                    let widthEm;
+
+                    if (searchValue.length > 0) {
+                        widthEm = Math.max(1.25, (searchValue.length + 0.5) * 0.65);
+                    } else if (selectedCount > 0) {
+                        widthEm = 0.75;
+                    } else {
+                        const placeholder = String($search.attr('placeholder') || '');
+                        widthEm = Math.max(2, Math.min(placeholder.length * 0.5, 10));
+                    }
+
+                    $search.css('width', widthEm + 'em');
+                }
+
+                function scheduleSyncFilterInlineSearchWidth($select) {
+                    if (!$select.data('kidsCrmMsFilterMode')) {
+                        return;
+                    }
+
+                    window.requestAnimationFrame(function () {
+                        syncFilterInlineSearchWidth($select);
+                        window.setTimeout(function () {
+                            syncFilterInlineSearchWidth($select);
+                        }, 0);
+                    });
+                }
+
+                function bindFilterSearchWidthEvents($select) {
+                    if (!$select.data('kidsCrmMsFilterMode')) {
+                        return;
+                    }
+
+                    const $search = $select.next('.select2-container').find('.select2-search__field');
+                    $search.off('input' + namespace + ' keyup' + namespace);
+                    $search.on('input' + namespace + ' keyup' + namespace, function () {
+                        scheduleSyncFilterInlineSearchWidth($select);
+                    });
+                }
+
                 function syncSelectionSummary($select) {
                     const $container = $select.next('.select2-container');
                     if (!$container.length) {
                         return;
                     }
 
+                    const filterMode = isFilterMode($select, {}) || !!$select.data('kidsCrmMsFilterMode');
                     const $rendered = $container.find('.select2-selection__rendered');
                     const texts = $select.find('option:selected').map(function () {
                         return $(this).text();
@@ -237,9 +404,12 @@
                     if (texts.length >= 3) {
                         const summary = formatSelectionSummary(texts);
                         const summaryHtml = renderSummaryWithHover(summary, texts);
+                        const summaryClasses = filterMode
+                            ? 'select2-selection__choice kids-crm-generic-ms-summary kids-crm-filter-ms-summary'
+                            : 'select2-selection__choice kids-crm-generic-ms-summary kids-crm-ms-chip kids-crm-ms-summary';
 
                         $rendered.prepend(
-                            '<li class="select2-selection__choice kids-crm-generic-ms-summary kids-crm-ms-chip kids-crm-ms-summary">' +
+                            '<li class="' + summaryClasses + '">' +
                             summaryHtml +
                             '</li>'
                         );
@@ -247,6 +417,14 @@
                         if (window.KidsCrmTooltip) {
                             KidsCrmTooltip.init($container[0], { scopes: ['list'] });
                         }
+                    }
+
+                    if (filterMode) {
+                        const selectedCount = ($select.val() || []).length;
+                        $container.toggleClass('kids-crm-filter-ms-summary-mode', selectedCount >= 3);
+                        $container.removeClass('kids-crm-ms-summary-mode');
+                        scheduleSyncFilterInlineSearchWidth($select);
+                        return;
                     }
 
                     if (window.KidsCrmMultiselectChipStyles) {
@@ -480,6 +658,7 @@
                         }
 
                         scheduleSyncDropdownCheckboxes($select);
+                        scheduleSyncFilterInlineSearchWidth($select);
                     });
 
                     $select.on('select2:unselect' + namespace, function (e) {
@@ -489,20 +668,25 @@
 
                         syncSelectionSummary($select);
                         scheduleSyncDropdownCheckboxes($select, 0);
+                        scheduleSyncFilterInlineSearchWidth($select);
                     });
 
                     $select.on('change' + namespace, function () {
                         syncSelectionSummary($select);
                         scheduleSyncDropdownCheckboxes($select);
+                        scheduleSyncFilterInlineSearchWidth($select);
                     });
 
                     $select.on('select2:open' + namespace, function () {
                         bindSearchFieldKeepOpen($select);
+                        bindFilterSearchWidthEvents($select);
                         scheduleSyncDropdownCheckboxes($select);
                         scheduleDropdownReposition($select);
+                        scheduleSyncFilterInlineSearchWidth($select);
 
                         window.setTimeout(function () {
                             $select.next('.select2-container').find('.select2-search__field').trigger('focus');
+                            scheduleSyncFilterInlineSearchWidth($select);
                         }, 0);
                     });
                 }
@@ -522,6 +706,9 @@
                         }
 
                         const $dropdownParent = normalizeDropdownParent($select, options.dropdownParent);
+                        const filterMode = isFilterMode($select, options);
+
+                        $select.data('kidsCrmMsFilterMode', filterMode);
 
                         $select.select2({
                             theme: 'bootstrap-5',
@@ -532,8 +719,12 @@
                             multiple: true,
                             closeOnSelect: false,
                             dropdownParent: $dropdownParent && $dropdownParent.length ? $dropdownParent : undefined,
-                            containerCssClass: 'kids-crm-generic-ms-select2',
-                            selectionCssClass: 'kids-crm-ms-selection',
+                            containerCssClass: filterMode
+                                ? 'kids-crm-generic-ms-select2 kids-crm-filter-ms-select2'
+                                : 'kids-crm-generic-ms-select2',
+                            selectionCssClass: filterMode
+                                ? 'kids-crm-filter-ms-selection'
+                                : 'kids-crm-ms-selection',
                             dropdownCssClass: 'kids-crm-generic-ms-dropdown',
                             templateResult: function (data) {
                                 return formatOption(data, getSelectedIds($select));
@@ -542,8 +733,10 @@
 
                         bindEvents($select);
                         bindSearchFieldKeepOpen($select);
+                        bindFilterSearchWidthEvents($select);
                         bindModalReposition($select, $dropdownParent);
                         syncSelectionSummary($select);
+                        scheduleSyncFilterInlineSearchWidth($select);
                     },
 
                     initAll: function ($root, options) {
