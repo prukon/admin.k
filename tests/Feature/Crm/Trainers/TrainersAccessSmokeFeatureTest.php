@@ -150,12 +150,12 @@ final class TrainersAccessSmokeFeatureTest extends CrmTestCase
         $this->getJson(route('admin.trainers.show', $this->profile->id))->assertOk();
     }
 
-    public function test_trainer_system_role_exists_and_is_hidden(): void
+    public function test_trainer_system_role_exists_and_is_visible(): void
     {
         $role = Role::query()->where('name', 'trainer')->first();
 
         $this->assertNotNull($role);
-        $this->assertSame(0, (int) $role->is_visible);
+        $this->assertSame(1, (int) $role->is_visible);
         $this->assertSame('Тренер', $role->label);
     }
 }

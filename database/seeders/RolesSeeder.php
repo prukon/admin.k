@@ -49,7 +49,7 @@ class RolesSeeder extends Seeder
                     'name'       => 'trainer',
                     'label'      => 'Тренер',
                     'is_sistem'  => 1,
-                    'is_visible' => 0,
+                    'is_visible' => 1,
                     'order_by'   => 15,
                     'created_at' => $now,
                     'updated_at' => $now,

@@ -110,6 +110,9 @@
                         </div>
 
                         <div class="col-12 col-md-6">
+                            @if(!empty($lockStudentRole) && !empty($studentRoleId))
+                                <input type="hidden" name="role_id" value="{{ (int) $studentRoleId }}">
+                            @else
                             <div class="mb-3">
                                 <label for="create_role_id" class="form-label">Роль</label>
                                 <select name="role_id" class="form-select" id="create_role_id">
@@ -119,6 +122,7 @@
                                     @endforeach
                                 </select>
                             </div>
+                            @endif
                         </div>
 
                         @include('includes.modal._student_health_fields', ['prefix' => 'create'])
@@ -216,13 +220,25 @@
         window.resetCreateUserHealthFields = resetCreateUserHealthFields;
         window.syncCreateUserHealthFields = syncCreateUserHealthFields;
 
-        $('#create_role_id').on('change', function () {
+        function currentCreateRoleId() {
+            const $roleSelect = $('#create_role_id');
+            if ($roleSelect.length) {
+                return $roleSelect.val();
+            }
+
+            const hiddenRoleId = $('#create-user-form').find('input[name="role_id"]').val();
+            return hiddenRoleId || null;
+        }
+
+        const $createUserFormRoot = $('#create-user-form');
+
+        $createUserFormRoot.on('change', '#create_role_id', function () {
             syncCreateUserHealthFields($(this).val());
         });
 
-        syncCreateUserHealthFields($('#create_role_id').val());
+        syncCreateUserHealthFields(currentCreateRoleId());
 
-        $('#create-user-form').on('submit', function (e) {
+        $createUserFormRoot.on('submit', function (e) {
             e.preventDefault();
 
             const $form = $(this); // ← вот его и не хватало

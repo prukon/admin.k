@@ -100,6 +100,8 @@ class SchoolLeadController extends AdminBaseController
             });
 
             $viewData['roles'] = $rolesQuery->orderBy('order_by')->get();
+            $viewData['studentRoleId'] = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
+            $viewData['lockStudentRole'] = true;
             $viewData['allTeams'] = Team::query()
                 ->where('partner_id', $partnerId)
                 ->orderBy('order_by')

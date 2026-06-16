@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Страница «Все пользователи» (/admin/users): новый тулбар, фильтры, поиск DataTables, доступ к endpoint’ам.
+ * Страница «Пользователи» (/admin/users): новый тулбар, фильтры, поиск DataTables, доступ к endpoint’ам.
  */
 final class AdminUsersPageFeatureTest extends CrmTestCase
 {
@@ -55,7 +55,7 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
             ->getContent();
 
         $this->assertStringContainsString('>Пользователи</h4>', $html);
-        $this->assertStringContainsString('>Все пользователи</h1>', $html);
+        $this->assertStringContainsString('>Пользователи</h1>', $html);
         $this->assertStringContainsString('payments-report-surface', $html);
         $this->assertStringContainsString('admin-list-toolbar', $html);
         $this->assertStringContainsString('payments-report-toolbar-actions--many', $html);

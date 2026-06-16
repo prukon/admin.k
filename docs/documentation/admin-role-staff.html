@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: администраторы и кастомные роли (админка)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Администраторы и сотрудники с кастомной ролью</h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-role-staff.html</code> · URL: <code>/docs/documentation/admin-role-staff</code> · обзор вкладок: <a href="/docs/documentation/admin-users-section">admin-users-section</a></div>
+
+  <h2>1) Назначение и модель</h2>
+  <div class="note">
+  <b>Сотрудник</b> (администратор или пользователь с кастомной ролью партнёра) — обычная запись <code>users</code> с фиксированным <code>role_id</code>. Отдельной таблицы профиля нет (в отличие от <code>trainer_profiles</code> у тренеров).<br>
+  ФИО, email, телефон, пароль, аватар, активность — в <code>users</code>. При создании и обновении через эти страницы <code>users.team_id</code> сбрасывается в <code>null</code>.
+  </div>
+
+  <h2>2) Доступ</h2>
+  <div class="note">
+    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware(['can:users.view', 'can:users.role.update'])</code>.<br>
+    Без <code>users.view</code> или без <code>users.role.update</code> — <b>403</b>.<br>
+    Вкладка в разделе «Пользователи» видна только при <code>users.role.update</code> (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
+  </div>
+
+  <p>Контроллер: <code>App\Http\Controllers\Admin\RoleStaffUserController</code>.<br>
+  Запросы: <code>StoreRoleStaffUserRequest</code>, <code>UpdateRoleStaffUserRequest</code> (authorize: <code>users.role.update</code>).<br>
+  View: <code>resources/views/admin/role_staff/index.blade.php</code> (общий шаблон для обеих страниц).</p>
+
+  <h2 id="administrators">3) Администраторы — <code>/admin/administrators</code></h2>
+  <p>Системная роль <code>roles.name = admin</code>. Вкладка «Администраторы».</p>
+
+  <h3>3.1) Маршруты</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя маршрута</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/administrators</code></td><td><code>admin.administrators.index</code></td><td>HTML страницы</td></tr>
+      <tr><td>GET</td><td><code>/admin/administrators/data</code></td><td><code>admin.administrators.data</code></td><td>JSON DataTables (<code>role_id = admin</code>)</td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/administrators/columns-settings?table_key=role_staff_admin</code></td><td><code>admin.administrators.columns-settings.*</code></td><td>Настройки колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.show</code></td><td>JSON карточки</td></tr>
+      <tr><td>POST</td><td><code>/admin/administrators</code></td><td><code>admin.administrators.store</code></td><td>Создание</td></tr>
+      <tr><td>PUT</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.update</code></td><td>Обновление</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/administrators/{user}</code></td><td><code>admin.administrators.destroy</code></td><td>Soft delete <code>users</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.2) UI и колонки</h3>
+  <ul>
+    <li>Колонки: аватар, ФИО, email, телефон, активен, действия.</li>
+    <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
+    <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, пароль (опционально), активен.</li>
+    <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code>.</li>
+    <li><b>Удаление</b> — soft delete пользователя из модалки редактирования.</li>
+    <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
+  </ul>
+
+  <h2 id="custom-roles">4) Кастомные роли — <code>/admin/roles/{name}</code></h2>
+  <p>
+    <code>{name}</code> — машинное имя роли (<code>roles.name</code>), только <code>[a-z0-9_]+</code>.
+    Роль должна быть несистемной (<code>is_sistem = 0</code>) и привязана к текущему партнёру через <code>partner_role</code>.
+    Подпись вкладки — <code>roles.label</code> из настроек роли.
+  </p>
+
+  <h3>4.1) Маршруты</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя маршрута</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/roles/{role}</code></td><td><code>admin.roles.users.index</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/roles/{role}/data</code></td><td><code>admin.roles.users.data</code></td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/roles/{role}/columns-settings?table_key=role_staff_{name}</code></td><td><code>admin.roles.users.columns-settings.*</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.show</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/roles/{role}</code></td><td><code>admin.roles.users.store</code></td></tr>
+      <tr><td>PUT</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.update</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/roles/{role}/{user}</code></td><td><code>admin.roles.users.destroy</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>UI и поля — те же, что у администраторов (§3.2). <code>table_key</code> в настройках колонок: <code>role_staff_{roles.name}</code>.</p>
+
+  <h2>5) Валидация (store / update)</h2>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Правила</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>name</code>, <code>lastname</code></td><td>обязательны, max 25</td></tr>
+      <tr><td><code>email</code></td><td>nullable, unique в <code>users</code></td></tr>
+      <tr><td><code>phone</code></td><td>nullable, unique, канон <code>+7XXXXXXXXXX</code></td></tr>
+      <tr><td><code>password</code></td><td>nullable, min 8 при создании</td></tr>
+      <tr><td><code>avatar</code></td><td>jpeg/png/webp, max 5120 КБ</td></tr>
+      <tr><td><code>is_enabled</code></td><td>boolean</td></tr>
+    </tbody>
+  </table>
+  <p class="small"><code>role_id</code> в форме не передаётся — берётся из контекста страницы (маршрут / роль вкладки).</p>
+
+  <h2>6) Изоляция по партнёру</h2>
+  <ul>
+    <li>Список и операции — только <code>users.partner_id = current_partner</code> и ожидаемый <code>role_id</code>.</li>
+    <li>Чужой партнёр или пользователь другой роли на role-scoped маршруте → <b>404</b>.</li>
+    <li>Кастомная роль другого партнёра → <b>404</b> на <code>/admin/roles/{name}</code>.</li>
+  </ul>
+
+  <h2>7) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/RoleStaffUserController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/RoleStaffColumnsSettingsController.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreRoleStaffUserRequest.php</code>, <code>UpdateRoleStaffUserRequest.php</code></li>
+    <li><code>resources/views/admin/role_staff/index.blade.php</code></li>
+  </ul>
+
+  <h2>8) Автотесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>AdministratorsPageFullAccessFeatureTest.php</code> — страница и все endpoint’ы <code>/admin/administrators</code>: 200 / 403 / 404</li>
+      <li><code>CustomRoleUsersPageFullAccessFeatureTest.php</code> — <code>/admin/roles/{role}</code>: 200 / 403 / 404</li>
+      <li><code>RoleStaffUsersFeatureTest.php</code> — валидация, CRUD, <code>table_key</code></li>
+    </ul>
+    <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-users-section">Вкладки раздела «Пользователи»</a> ·
+    <a href="/docs/documentation/admin-users">Ученики</a> ·
+    <a href="/docs/documentation/settings-roles-custom">Создание кастомных ролей</a>
+  </p>
+</div>
+</body>
+</html>

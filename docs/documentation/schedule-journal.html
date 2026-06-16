@@ -67,7 +67,7 @@
       <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: таблица учеников × дни месяца, фильтры год/месяц/группа</td></tr>
+      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: таблица активных учеников (роль <code>user</code>, §2.1) × дни месяца, фильтры год/месяц/группа</td></tr>
       <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON для модалки ячейки: статусы, тренеры, дефолт группы</td></tr>
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Сохранение одной ячейки (статус, комментарий, тренер для «Посетил»)</td></tr>
       <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи изменений (DataTables, категория <code>schedule</code> по <code>event</code> — <a href="/docs/documentation/audit-my-logs">аудит</a>)</td></tr>
@@ -82,7 +82,58 @@
       <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
     </tbody>
   </table>
-  <p>Изоляция: ученик, группа, статус и тренер в запросах проверяются на <code>partner_id = current_partner</code>; чужой ученик → <b>404</b>.</p>
+  <p>Изоляция: ученик, группа, статус и тренер в запросах проверяются на <code>partner_id = current_partner</code>; чужой ученик → <b>404</b>. Пользователь другой роли или неактивный ученик → <b>404</b> на user-эндпоинтах журнала (см. <a href="#student-list">§2.1</a>).</p>
+
+  <h2 id="student-list">2.1) Список строк в журнале: только активные ученики</h2>
+  <div class="note">
+  В таблице вкладки «Журнал» и во всех user-эндпоинтах журнала (<code>cell-context</code>, <code>update</code>, <code>user-schedule</code>, <code>set-group</code>, <code>update-schedule-range</code>) участвуют <strong>только</strong> пользователи, которые одновременно:
+  <ul>
+    <li>принадлежат <code>current_partner</code>;</li>
+    <li>имеют <code>users.is_enabled = 1</code>;</li>
+    <li>имеют системную роль <code>user</code> (<code>roles.name = 'user'</code> и <code>roles.is_sistem = 1</code>, сидер <code>RolesSeeder</code>, id=3).</li>
+  </ul>
+  </div>
+
+  <h3>Кого нет в списке</h3>
+  <table>
+    <thead>
+      <tr><th>Тип пользователя</th><th>Почему не отображается</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Администратор (<code>roles.name = admin</code>)</td><td>Не ученик; системная роль admin</td></tr>
+      <tr><td>Тренер (<code>roles.name = trainer</code>)</td><td>Не ученик; учёт тренеров — через <code>trainer_profiles</code> и вкладки «Нагрузка» / «ЗП» (см. <a href="/docs/documentation/admin-trainers">Тренеры</a>)</td></tr>
+      <tr><td>Пользователь с <strong>кастомной ролью</strong> партнёра (<code>roles.is_sistem = 0</code>)</td><td>Даже если в UI роль называется «ученик» или «VIP» — в журнал не попадает. Кастомные роли: <a href="/docs/documentation/settings-roles-custom">settings-roles-custom</a></td></tr>
+      <tr><td>Отключённый ученик (<code>is_enabled = 0</code>)</td><td>Фильтр активности</td></tr>
+      <tr><td>Суперадмин</td><td>Другая системная роль</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <strong>Согласованность с <code>/admin/users</code>:</strong> и журнал, и вкладка «Пользователи» в админке показывают только <b>учеников</b> (системная роль <code>user</code>). Отличие журнала — дополнительно <code>is_enabled = 1</code> и контекст посещаемости; тренеры, администраторы и кастомные роли — на других вкладках раздела (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
+  </div>
+
+  <h3>Реализация</h3>
+  <ul>
+    <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id).</li>
+    <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
+  </ul>
+  <p>
+    Записи в <code>schedule_users</code> для пользователей, которые больше не проходят фильтр (смена роли, отключение), в БД могут остаться, но строка в таблице журнала не выводится и изменить ячейку через API нельзя.
+    Отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> агрегирует <code>schedule_users</code> по включённым пользователям партнёра (<code>is_enabled = 1</code>) без проверки роли — устаревшие строки для не-учеников теоретически могут учитываться в нагрузке, пока не удалены из БД.
+  </p>
+
+  <h3>Ответы API для «не-ученика»</h3>
+  <table>
+    <thead>
+      <tr><th>Ситуация</th><th>Код</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Тренер / админ / кастомная роль / отключённый ученик</td><td><b>404</b></td></tr>
+      <tr><td>Ученик другого партнёра</td><td><b>404</b></td></tr>
+      <tr><td>Активный ученик с системной ролью <code>user</code> своего партнёра</td><td><b>200</b> при <code>schedule.view</code> и валидных данных</td></tr>
+    </tbody>
+  </table>
 
   <h2>3) Данные: таблицы и модели</h2>
   <h3>3.1) <code>schedule_users</code></h3>
@@ -92,7 +143,7 @@
       <tr><th>Поле</th><th>Описание</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>user_id</code></td><td>Ученик (<code>users</code>, роль user, <code>is_enabled = 1</code> в выборке журнала)</td></tr>
+      <tr><td><code>user_id</code></td><td>Ученик: <code>users</code> с системной ролью <code>user</code> (<code>roles.is_sistem = 1</code>), <code>is_enabled = 1</code>, <code>partner_id = current_partner</code> — см. <a href="#student-list">§2.1</a></td></tr>
       <tr><td><code>date</code></td><td>День (формат даты в БД, ключ ячейки <code>Y-m-d</code>)</td></tr>
       <tr><td><code>status_id</code></td><td>Ссылка на <code>statuses.id</code></td></tr>
       <tr><td><code>description</code></td><td>Комментарий к ячейке (индикатор в углу ячейки на таблице)</td></tr>
@@ -133,8 +184,8 @@
 
   <h2>5) UI вкладки «Журнал расписания»</h2>
   <ul>
-    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы).</li>
-    <li>Таблица: строки — ученики, столбцы — дни месяца; цвет/иконка из статуса.</li>
+    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы) — применяются <strong>после</strong> отбора активных учеников с системной ролью <code>user</code> (<a href="#student-list">§2.1</a>).</li>
+    <li>Таблица: строки — только такие ученики, столбцы — дни месяца; цвет/иконка из статуса.</li>
     <li>Клик по ячейке → модалка <code>#cellEditModal</code>: статус (радио), комментарий, кнопка «Сохранить».</li>
     <li>Иконка у строки ученика → «Личное расписание» (диапазон дат + дни недели).</li>
     <li>Кнопка «Настройки» → список статусов, создание/редактирование кастомных.</li>
@@ -159,7 +210,7 @@
   </ol>
 
   <h3>6.2) API <code>GET /schedule/cell-context</code></h3>
-  <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>).</p>
+  <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>). <code>user_id</code> должен быть активным учеником партнёра (<a href="#student-list">§2.1</a>), иначе <b>404</b>.</p>
   <p>Ответ (основные поля):</p>
   <ul>
     <li><code>visited_status_id</code> — id системного «Посетил»</li>
@@ -170,7 +221,7 @@
   </ul>
 
   <h3>6.3) API <code>POST /schedule/update</code></h3>
-  <p>Валидация: <code>UpdateScheduleCellRequest</code>.</p>
+  <p>Валидация: <code>UpdateScheduleCellRequest</code>. <code>user_id</code> — тот же круг учеников, что в §2.1; иначе <b>404</b>.</p>
   <ul>
     <li><code>trainer_profile_id</code> — nullable; значения <code>""</code>, <code>none</code>, <code>0</code> приводятся к <code>null</code></li>
     <li>Тренер должен существовать в <code>trainer_profiles</code> с <code>partner_id = current_partner</code></li>
@@ -187,7 +238,8 @@
 
   <h2>7) Массовое «Личное расписание ученика»</h2>
   <p>
-    <code>POST /schedule/user/{user}/update-schedule-range</code> удаляет записи ученика в диапазоне дат и вставляет «Посетил» на выбранные дни недели (<code>weekdays</code>: 1–7 ISO).
+    <code>POST /schedule/user/{user}/update-schedule-range</code> — только для активного ученика с системной ролью <code>user</code> (<a href="#student-list">§2.1</a>); иначе <b>404</b>.
+    Удаляет записи ученика в диапазоне дат и вставляет «Посетил» на выбранные дни недели (<code>weekdays</code>: 1–7 ISO).
     Поле <code>trainer_profile_id</code> при массовой вставке <strong>не заполняется</strong> (остаётся <code>null</code>).
     Тренера для таких дней при необходимости задают вручную через модалку ячейки.
   </p>
@@ -207,7 +259,8 @@
   <h2>10) Связанные файлы</h2>
   <ul class="small">
     <li><code>resources/views/admin/schedule/index.blade.php</code>, <code>journal.blade.php</code></li>
-    <li><code>app/Http/Controllers/Admin/ScheduleController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/ScheduleController.php</code> — <code>findScheduleStudentForPartner()</code>, <code>assertScheduleStudent()</code></li>
+    <li><code>app/Models/User.php</code> — <code>scopeWithSystemRoleUser()</code></li>
     <li><code>app/Http/Controllers/Admin/StatusController.php</code></li>
     <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code>, <code>GetScheduleCellContextRequest.php</code></li>
     <li><code>app/Models/Status.php</code>, <code>ScheduleUser.php</code></li>
@@ -217,13 +270,19 @@
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права 403, со <code>schedule.view</code> страница и все эндпоинты 200</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права <code>schedule.view</code> → 403 на страницу и эндпоинты</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php</code> — со <code>schedule.view</code>: страница и каждый эндпоинт журнала отдельно → 200; сводный smoke всех API; гость на JSON → 401</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php</code> — в списке и API только активные ученики с системной ролью <code>user</code>; исключение тренера, админа, кастомной роли, отключённого; фильтры группы; 404 для не-учеников</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — контекст ячейки, сохранение тренера / «без тренера», сброс при смене статуса, изоляция партнёра, первый тренер группы</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadAccessFeatureTest.php</code>, <code>ScheduleTrainerWorkloadFeatureTest.php</code> — отчёт нагрузки (см. <a href="/docs/documentation/schedule-trainer-workload#tests">отдельный раздел</a>)</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code> на странице групп (дни недели)</li>
     </ul>
   </div>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php \
+  tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php \
+  tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php \
+  tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

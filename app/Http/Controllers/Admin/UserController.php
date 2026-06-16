@@ -31,12 +31,14 @@ use App\Support\BuildsLogTable;
 use Intervention\Image\ImageManager;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Services\UserService;
+use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 
 class UserController extends AdminBaseController
 {
     public $service;
 
     use BuildsLogTable;
+    use RendersUsersSectionTabs;
 
 
     public function __construct(
@@ -88,6 +90,7 @@ class UserController extends AdminBaseController
             ->get();
 
         $canViewContracts = $currentUser?->can('contracts.view') ?? false;
+        $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
 
         // 6) Отдаём на view
         return view('admin.user', compact(
@@ -97,8 +100,9 @@ class UserController extends AdminBaseController
             'currentUser',
             'roles',
             'user',
-            'canViewContracts'
-        ) + ['activeTab' => 'users']);
+            'canViewContracts',
+            'studentRoleId'
+        ) + $this->usersSectionViewData('users'));
     }
 
     public function data(Request $request)
@@ -131,6 +135,11 @@ class UserController extends AdminBaseController
             User::query(),
             'users.partner_id'
         );
+
+        $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
+        if ($studentRoleId > 0) {
+            $baseQuery->where('users.role_id', $studentRoleId);
+        }
 
         // Фильтр по ID
         if (!empty($validated['id'])) {
@@ -182,7 +191,11 @@ class UserController extends AdminBaseController
         }
 
         // Общее количество записей по партнёру (без фильтров)
-        $totalRecords = $this->scopeByPartner(User::query())->count();
+        $totalRecordsQuery = $this->scopeByPartner(User::query());
+        if ($studentRoleId > 0) {
+            $totalRecordsQuery->where('users.role_id', $studentRoleId);
+        }
+        $totalRecords = $totalRecordsQuery->count();
 
         // Количество записей с учётом фильтров
         $recordsFiltered = (clone $baseQuery)->count();

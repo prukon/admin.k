@@ -44,6 +44,8 @@
   </ul>
   <div class="warn">
     Системную роль через эту форму создать нельзя: в UI создаётся обычная роль с <code>is_sistem = 0</code>.
+    Пользователи с такой ролью <strong>не отображаются</strong> в журнале посещаемости <code>/schedule</code> — там только активные ученики с системной ролью <code>user</code> (см. <a href="/docs/documentation/schedule-journal#student-list">schedule-journal §2.1</a>).<br>
+    После создания роли в разделе CRM «Пользователи» появляется вкладка с подписью <code>roles.label</code> и URL <code>/admin/roles/{name}</code> (при <code>users.role.update</code>) — см. <a href="/docs/documentation/admin-role-staff#custom-roles">admin-role-staff §4</a>.
   </div>
 
   <h2>2) Доступ (авторизация)</h2>

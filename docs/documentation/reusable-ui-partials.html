@@ -84,6 +84,7 @@
       <tr><td><code>/admin/teams</code></td><td><code>admin/team.blade.php</code></td></tr>
       <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
       <tr><td><code>/admin/trainers</code></td><td><code>admin/trainers/index.blade.php</code></td></tr>
+      <tr><td><code>/admin/administrators</code>, <code>/admin/roles/{name}</code></td><td><code>admin/role_staff/index.blade.php</code> (общий шаблон сотрудников по роли)</td></tr>
       <tr><td><code>/admin/school-leads</code></td><td><code>admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>)</td></tr>
       <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
       <tr><td><code>/admin/settings/logs</code></td><td><code>admin/setting/logs.blade.php</code></td></tr>
@@ -403,6 +404,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><code>/admin/sport-types</code> — sort, text, count, badge</li>
     <li><a href="/docs/documentation/admin-users">/admin/users</a> — <code>image</code>, <code>link</code>, <code>badge</code>, <code>icon</code> (договор); 0 <code>custom</code></li>
     <li><code>/admin/trainers</code> — <code>image</code>, <code>list</code>, <code>actions</code> (0 <code>custom</code>)</li>
+    <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
     <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (статус), <code>actions</code> (договор); 0 <code>custom</code></li>

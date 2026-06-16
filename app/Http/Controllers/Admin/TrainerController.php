@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Team;
 use App\Services\PartnerContext;
 use App\Services\TeamTrainerSyncService;
+use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,8 @@ use Intervention\Image\ImageManager;
 
 class TrainerController extends AdminBaseController
 {
+    use RendersUsersSectionTabs;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
@@ -38,7 +41,7 @@ class TrainerController extends AdminBaseController
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        return view('admin.trainers.index', compact('teamOptions') + ['activeTab' => 'trainers']);
+        return view('admin.trainers.index', compact('teamOptions') + $this->usersSectionViewData('trainers'));
     }
 
     public function data(Request $request)

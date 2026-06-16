@@ -27,7 +27,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Тренеры (админка)</h1>
-  <div class="small">Файл: <code>/docs/documentation/admin-trainers.html</code> · URL: <code>/docs/documentation/admin-trainers</code> · страница CRM: <code>/admin/trainers</code></div>
+  <div class="small">Файл: <code>/docs/documentation/admin-trainers.html</code> · URL: <code>/docs/documentation/admin-trainers</code> · страница CRM: <code>/admin/trainers</code> · вкладки раздела: <a href="/docs/documentation/admin-users-section">admin-users-section</a></div>
 
   <h2>1) Назначение и модель данных</h2>
   <div class="note">
@@ -43,7 +43,7 @@
     <tbody>
       <tr>
         <td><code>roles.name = trainer</code></td>
-        <td>Системная роль (сидер <code>RolesSeeder</code>, id=4). В UI списка ролей скрыта: <code>is_visible = 0</code>. Базовые права — <code>config/role_base_permissions.php</code> → ключ <code>trainer</code>.</td>
+        <td>Системная роль (сидер <code>RolesSeeder</code>, id=4). <code>is_visible = 1</code> — отображается в матрице «Настройки → Права и роли» и как вкладка «Тренеры» в разделе «Пользователи» (при <code>trainers.view</code>). Базовые права — <code>config/role_base_permissions.php</code> → ключ <code>trainer</code>. Миграция <code>2026_06_16_120000_set_trainer_role_visible.php</code>.</td>
       </tr>
       <tr>
         <td><code>trainer_profiles</code></td>
@@ -66,7 +66,7 @@
   <div class="note">
     Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:trainers.view')</code>.
     Без <code>trainers.view</code> страница и JSON-операции отвечают <b>403</b>.
-    Пункт меню «Тренеры» — <code>resources/views/includes/sidebar.blade.php</code> (<code>@can('trainers.view')</code>).
+    Отдельного пункта «Тренеры» в сайдбаре нет: вход в раздел — <code>/admin/users</code> («Пользователи»), вкладка «Тренеры» видна при <code>trainers.view</code> (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
   </div>
 
   <table>
@@ -100,7 +100,7 @@
       </tr>
       <tr>
         <td><code>users.view</code> + <code>users.role.update</code></td>
-        <td>Нужны для смены роли на <code>trainer</code> в модалке пользователя (создание профиля через <code>TrainerProfileSyncService</code>).</td>
+        <td>Смена роли на <code>trainer</code> в модалке ученика на <code>/admin/users</code> (создание профиля через <code>TrainerProfileSyncService</code>). Основной способ создания тренера — <code>POST /admin/trainers</code> на этой странице.</td>
       </tr>
       <tr>
         <td><code>groups.view</code></td>
@@ -189,6 +189,8 @@
     <li><code>app/Models/TrainerProfile.php</code></li>
     <li><code>app/Http/Requests/Admin/StoreTrainerRequest.php</code>, <code>UpdateTrainerRequest.php</code></li>
     <li><code>app/Http/Requests/User/UpdateRequest.php</code> — правила <code>team_ids</code> для роли trainer</li>
+    <li><code>app/Http/Controllers/Admin/Concerns/RendersUsersSectionTabs.php</code></li>
+    <li><code>resources/views/admin/users/_users_section_tabs.blade.php</code></li>
     <li><code>resources/views/admin/trainers/index.blade.php</code></li>
     <li><code>app/Http/Controllers/Admin/Report/PaymentReportController.php</code> — <code>trainersSearch</code>, фильтр в <code>getPayments</code></li>
     <li>Аналогичные фильтры: <code>PaymentMonthlyReportController</code>, <code>LtvReportController</code>, <code>DeptReportController</code></li>
@@ -205,7 +207,7 @@
       <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтрация данных по тренеру</li>
       <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, trainers-search</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер в ячейке «Посетил» журнала <code>/schedule</code></li>
-      <li><code>tests/Feature/Crm/Permissions/PartnerBasePermissionsTest.php</code> — базовые права ролей <code>user</code>, <code>admin</code>, <code>trainer</code></li>
+      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code> — вкладки раздела «Пользователи»</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/Trainers tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code></pre>
@@ -214,7 +216,8 @@
     <a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/schedule-journal">Журнал расписания</a> ·
     <a href="/docs/documentation/admin-teams">Группы</a> ·
-    <a href="/docs/documentation/admin-users">Пользователи</a> ·
+    <a href="/docs/documentation/admin-users-section">Вкладки раздела «Пользователи»</a> ·
+    <a href="/docs/documentation/admin-users">Ученики</a> ·
     <a href="/docs/documentation/reports-admin#trainer-filter">Отчёты: фильтр по тренеру</a> ·
     <a href="/docs/documentation/partners-permissions">Права партнёра</a>
   </p>

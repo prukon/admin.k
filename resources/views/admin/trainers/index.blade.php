@@ -11,7 +11,7 @@
     <div class="main-content text-start">
         <h4 class="pt-3 pb-3 text-start">Пользователи</h4>
         <div class="">
-            @include('admin.users._users_section_tabs', ['activeTab' => $activeTab ?? 'trainers'])
+            @include('admin.users._users_section_tabs')
 
             <div class="tab-content">
                 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">

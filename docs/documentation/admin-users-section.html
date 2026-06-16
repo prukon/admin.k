@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: раздел «Пользователи» (вкладки по ролям)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Раздел CRM «Пользователи»: вкладки по ролям</h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-users-section.html</code> · URL: <code>/docs/documentation/admin-users-section</code> · оглавление: <a href="/doc">/doc</a></div>
+
+  <h2>1) Назначение</h2>
+  <div class="note">
+    В админке пункт меню <b>«Пользователи»</b> ведёт на <code>/admin/users</code>. Внутри раздела — горизонтальные <b>вкладки</b> (partial <code>resources/views/admin/users/_users_section_tabs.blade.php</code>), по одной на каждую роль партнёра (кроме <code>superadmin</code>).<br>
+    Каждая вкладка — отдельная страница со списком, добавлением и редактированием пользователей <b>только этой роли</b> (паттерн как у <a href="/docs/documentation/admin-trainers">тренеров</a>).
+  </div>
+
+  <p>Состав вкладок и подписи задаёт сервис <code>App\Services\Users\UsersSectionTabsResolver</code> (порядок — <code>roles.order_by</code>).</p>
+
+  <h2>2) Вкладки, URL и права</h2>
+  <table>
+    <thead>
+      <tr><th>Вкладка (UI)</th><th>Роль (<code>roles.name</code>)</th><th>URL CRM</th><th>Видимость вкладки</th><th>Документация</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Пользователи</b></td>
+        <td><code>user</code> (ученик)</td>
+        <td><code>/admin/users</code></td>
+        <td><code>users.role.update</code></td>
+        <td><a href="/docs/documentation/admin-users">admin-users</a></td>
+      </tr>
+      <tr>
+        <td><b>Тренеры</b></td>
+        <td><code>trainer</code></td>
+        <td><code>/admin/trainers</code></td>
+        <td><code>trainers.view</code></td>
+        <td><a href="/docs/documentation/admin-trainers">admin-trainers</a></td>
+      </tr>
+      <tr>
+        <td><b>Администраторы</b></td>
+        <td><code>admin</code></td>
+        <td><code>/admin/administrators</code></td>
+        <td><code>users.role.update</code></td>
+        <td><a href="/docs/documentation/admin-role-staff#administrators">admin-role-staff §3</a></td>
+      </tr>
+      <tr>
+        <td><b>{label}</b> кастомной роли</td>
+        <td>несистемная роль партнёра (<code>is_sistem = 0</code>)</td>
+        <td><code>/admin/roles/{name}</code></td>
+        <td><code>users.role.update</code></td>
+        <td><a href="/docs/documentation/admin-role-staff#custom-roles">admin-role-staff §4</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>Не путать:</b> вкладка «Пользователи» показывает только <b>учеников</b> (<code>role_id</code> системной роли <code>user</code>). Администраторы, тренеры и кастомные роли — на своих вкладках. Журнал <code>/schedule</code> по-прежнему фильтрует только активных учеников — см. <a href="/docs/documentation/schedule-journal#student-list">schedule-journal §2.1</a>.
+  </div>
+
+  <h3>2.1) Какие роли попадают во вкладки</h3>
+  <ul>
+    <li>Все роли партнёра из <code>roles</code>: системные + привязанные через <code>partner_role</code>, кроме <code>superadmin</code>.</li>
+    <li>У обычного админа во вкладки попадают только роли с <code>is_visible = 1</code> (как в матрице «Настройки → Права и роли»). У superadmin фильтр <code>is_visible</code> не применяется.</li>
+    <li>Новая кастомная роль из <a href="/docs/documentation/settings-roles-custom">«Настройки → Права и роли»</a> автоматически появляется как вкладка (если у актора есть <code>users.role.update</code>).</li>
+    <li>На маршрут <code>/admin/roles/{name}</code> нельзя попасть для зарезервированных имён <code>user</code>, <code>admin</code>, <code>trainer</code>, <code>superadmin</code> — ответ <b>404</b> (для них есть отдельные URL).</li>
+  </ul>
+
+  <h3>2.2) Меню сайдбара</h3>
+  <p>
+    Отдельного пункта «Тренеры» в сайдбаре нет: одна ссылка <code>/admin/users</code> («Пользователи»). Переход между ролями — только вкладками внутри раздела.
+  </p>
+
+  <h2>3) Общий UI</h2>
+  <ul>
+    <li>Заголовок страницы раздела: <code>Пользователи</code> (h4).</li>
+    <li>На каждой вкладке — toolbar (добавить, фильтры, колонки), DataTables через <code>KidsCrmDataTable.create</code> — см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.</li>
+    <li>Trait контроллеров: <code>App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs</code> передаёт в view <code>usersSectionTabs</code> и <code>activeTab</code>.</li>
+  </ul>
+
+  <h2>4) Создание ученика: фиксированная роль</h2>
+  <div class="note">
+    На <code>/admin/users</code> и при создании клиента из <a href="/docs/documentation/school-leads-widget">заявок с сайта</a> в модалке <code>createUser.blade.php</code> селект роли скрыт: передаётся скрытое поле <code>role_id</code> = id роли <code>user</code>. Создать администратора или сотрудника с кастомной ролью через эту модалку нельзя — только через соответствующую вкладку.
+  </div>
+
+  <h2>5) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Services/Users/UsersSectionTabsResolver.php</code></li>
+    <li><code>resources/views/admin/users/_users_section_tabs.blade.php</code></li>
+    <li><code>app/Http/Controllers/Admin/Concerns/RendersUsersSectionTabs.php</code></li>
+    <li><code>app/Http/Controllers/Admin/UserController.php</code> — ученики</li>
+    <li><code>app/Http/Controllers/Admin/TrainerController.php</code> — тренеры</li>
+    <li><code>app/Http/Controllers/Admin/RoleStaffUserController.php</code> — администраторы и кастомные роли</li>
+    <li><code>resources/views/admin/role_staff/index.blade.php</code></li>
+  </ul>
+
+  <h2>6) Автотесты (Feature)</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code> — вкладки, resolver, зарезервированные URL, фиксация роли в create</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersSectionFeatureTest.php</code> — вкладки в HTML, доступ users/trainers, комбинированный smoke</li>
+      <li><code>tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php</code> — <code>/admin/administrators</code>: 200 на все endpoint’ы, 403, изоляция</li>
+      <li><code>tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php</code> — <code>/admin/roles/{role}</code>: 200, 403, изоляция</li>
+      <li><code>tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php</code> — CRUD, валидация, список учеников на <code>/admin/users/data</code></li>
+    </ul>
+    <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php \
+  tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUsersSectionFeatureTest.php</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-users">Ученики (/admin/users)</a> ·
+    <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
+    <a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли</a> ·
+    <a href="/docs/documentation/settings-roles-custom">Кастомные роли (настройки)</a>
+  </p>
+</div>
+</body>
+</html>

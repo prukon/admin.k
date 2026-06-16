@@ -11,13 +11,13 @@
     <div class="main-content text-start">
         <h4 class="pt-3 pb-3 text-start">Пользователи</h4>
         <div class="">
-            @include('admin.users._users_section_tabs', ['activeTab' => $activeTab ?? 'users'])
+            @include('admin.users._users_section_tabs')
 
             <div class="tab-content">
                 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
                     <div class="card-body px-3 py-3">
                         <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
-                            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Все пользователи</h1>
+                            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Пользователи</h1>
                             <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
                                 <button id="new-user"
                                         type="button"
@@ -259,7 +259,10 @@
                     </table>
                 </div>
 
-                @include('includes.modal.createUser')
+                @include('includes.modal.createUser', [
+                    'lockStudentRole' => true,
+                    'studentRoleId' => $studentRoleId ?? null,
+                ])
                 @include('includes.modal.editUser')
                 @include('includes.modal.fieldModal')
             </div>

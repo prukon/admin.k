@@ -63,6 +63,11 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         $this->grantPermission($actor, 'trainers.view');
     }
 
+    private function grantRoleUpdate(User $actor): void
+    {
+        $this->grantPermission($actor, 'users.role.update');
+    }
+
     private function studentRoleId(): int
     {
         return (int) Role::query()->where('name', 'user')->firstOrFail()->id;
@@ -74,6 +79,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantUsersView($this->user);
+        $this->grantRoleUpdate($this->user);
         $this->grantTrainersView($this->user);
 
         $usersUrl = route('admin.user1');
@@ -82,7 +88,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'users')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Все пользователи</a>', false)
+            ->assertSee('>Пользователи</a>', false)
             ->assertSee('href="' . $usersUrl . '"', false)
             ->assertSee('nav-link active', false)
             ->assertSee('role="tab">Тренеры</a>', false);
@@ -92,6 +98,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantTrainersView($this->user);
+        $this->grantRoleUpdate($this->user);
 
         $usersUrl = route('admin.user1');
         $trainersUrl = route('admin.trainers.index');
@@ -100,7 +107,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Все пользователи</a>', false)
+            ->assertSee('>Пользователи</a>', false)
             ->assertSee('href="' . $usersUrl . '"', false)
             ->assertSee('href="' . $trainersUrl . '"', false)
             ->assertSee('role="tab">Тренеры</a>', false)
@@ -125,12 +132,13 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         $actor = $this->createUserWithoutPermission('trainers.view', $this->partner);
         $this->actingAs($actor);
         $this->grantUsersView($actor);
+        $this->grantRoleUpdate($actor);
 
         $this->get(route('admin.user1'))
             ->assertOk()
             ->assertViewHas('activeTab', 'users')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Все пользователи</a>', false)
+            ->assertSee('>Пользователи</a>', false)
             ->assertDontSee('role="tab">Тренеры</a>', false)
             ->assertDontSee('href="' . route('admin.trainers.index') . '"', false);
     }
@@ -139,6 +147,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantUsersView($this->user);
+        $this->grantRoleUpdate($this->user);
         $this->grantTrainersView($this->user);
 
         $heading = '>Пользователи</h4>';
@@ -156,6 +165,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantUsersView($this->user);
+        $this->grantRoleUpdate($this->user);
         $this->grantTrainersView($this->user);
 
         $this->get(route('admin.user1'))
@@ -289,6 +299,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantUsersView($this->user);
+        $this->grantRoleUpdate($this->user);
         $this->grantTrainersView($this->user);
 
         $roleId = $this->studentRoleId();
@@ -302,6 +313,10 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         $this->get(route('admin.trainers.index'))
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers');
+
+        $this->get(route('admin.administrators.index'))
+            ->assertOk()
+            ->assertViewHas('activeTab', 'administrators');
 
         $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertOk();
         $this->getJson(route('admin.users.table-settings.get'))->assertOk();
@@ -365,6 +380,25 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         ]);
 
         $this->deleteJson(route('admin.trainers.destroy', $disposable->id))->assertOk();
+
+        $adminStaff = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => (int) Role::query()->where('name', 'admin')->value('id'),
+            'email'      => 'section-combo-admin-' . uniqid('', true) . '@example.test',
+        ]);
+
+        $this->getJson(route('admin.administrators.data', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk();
+
+        $this->getJson(route('admin.administrators.show', ['user' => $adminStaff->id]))
+            ->assertOk();
+
+        $this->postJson(route('admin.administrators.store'), [
+            'name'       => 'Комбо',
+            'lastname'   => 'Админ',
+            'email'      => 'section-combo-admin-new-' . uniqid('', true) . '@example.test',
+            'is_enabled' => 1,
+        ])->assertOk();
     }
 
     public function test_users_section_endpoints_return_forbidden_without_users_view(): void

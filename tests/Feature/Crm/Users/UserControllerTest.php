@@ -252,11 +252,15 @@ class UserControllerTest extends CrmTestCase
 
         $this->assertEquals(1, $json['draw']);
 
-// реальное количество пользователей текущего партнёра
-        $partnerUserCount = \App\Models\User::where('partner_id', $this->partner->id)->count();
+// только ученики (role = user) на странице /admin/users
+        $studentRoleId = (int) \App\Models\Role::query()->where('name', 'user')->value('id');
+        $partnerStudentCount = \App\Models\User::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('role_id', $studentRoleId)
+            ->count();
 
-        $this->assertEquals($partnerUserCount, $json['recordsTotal']);
-        $this->assertEquals($partnerUserCount, $json['recordsFiltered']);
+        $this->assertEquals($partnerStudentCount, $json['recordsTotal']);
+        $this->assertEquals($partnerStudentCount, $json['recordsFiltered']);
 
         $returnedIds = collect($json['data'])->pluck('id')->all();
         foreach ($usersA as $userA) {

@@ -1,14 +1,9 @@
 <ul class="nav nav-tabs" id="usersSectionTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {{ ($activeTab ?? 'users') === 'users' ? 'active' : '' }}"
-           href="{{ route('admin.user1') }}"
-           role="tab">Все пользователи</a>
-    </li>
-    @can('trainers.view')
+    @foreach($usersSectionTabs ?? [] as $tab)
         <li class="nav-item" role="presentation">
-            <a class="nav-link {{ ($activeTab ?? '') === 'trainers' ? 'active' : '' }}"
-               href="{{ route('admin.trainers.index') }}"
-               role="tab">Тренеры</a>
+            <a class="nav-link {{ ($activeTab ?? '') === $tab['id'] ? 'active' : '' }}"
+               href="{{ route($tab['route'], $tab['route_params'] ?? []) }}"
+               role="tab">{{ $tab['label'] }}</a>
         </li>
-    @endcan
+    @endforeach
 </ul>

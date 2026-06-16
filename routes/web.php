@@ -552,6 +552,43 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.trainers.destroy');
     });
 
+    // Администраторы и кастомные роли (staff users)
+    Route::middleware(['can:users.view', 'can:users.role.update'])->group(function () {
+        Route::get('admin/administrators', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsIndex'])->name('admin.administrators.index');
+        Route::get('admin/administrators/data', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsData'])->name('admin.administrators.data');
+        Route::get('admin/administrators/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.administrators.columns-settings.get');
+        Route::post('admin/administrators/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.administrators.columns-settings.save');
+        Route::get('admin/administrators/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsShow'])->whereNumber('user')->name('admin.administrators.show');
+        Route::post('admin/administrators', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsStore'])->name('admin.administrators.store');
+        Route::put('admin/administrators/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsUpdate'])->whereNumber('user')->name('admin.administrators.update');
+        Route::delete('admin/administrators/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsDestroy'])->whereNumber('user')->name('admin.administrators.destroy');
+
+        Route::get('admin/roles/{role}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleIndex'])
+            ->where('role', '[a-z0-9_]+')
+            ->name('admin.roles.users.index');
+        Route::get('admin/roles/{role}/data', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleData'])
+            ->where('role', '[a-z0-9_]+')
+            ->name('admin.roles.users.data');
+        Route::get('admin/roles/{role}/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'getColumnsSettings'])
+            ->where('role', '[a-z0-9_]+')
+            ->name('admin.roles.users.columns-settings.get');
+        Route::post('admin/roles/{role}/columns-settings', [\App\Http\Controllers\Admin\RoleStaffColumnsSettingsController::class, 'saveColumnsSettings'])
+            ->where('role', '[a-z0-9_]+')
+            ->name('admin.roles.users.columns-settings.save');
+        Route::get('admin/roles/{role}/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleShow'])
+            ->where(['role' => '[a-z0-9_]+', 'user' => '[0-9]+'])
+            ->name('admin.roles.users.show');
+        Route::post('admin/roles/{role}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleStore'])
+            ->where('role', '[a-z0-9_]+')
+            ->name('admin.roles.users.store');
+        Route::put('admin/roles/{role}/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleUpdate'])
+            ->where(['role' => '[a-z0-9_]+', 'user' => '[0-9]+'])
+            ->name('admin.roles.users.update');
+        Route::delete('admin/roles/{role}/{user}', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'customRoleDestroy'])
+            ->where(['role' => '[a-z0-9_]+', 'user' => '[0-9]+'])
+            ->name('admin.roles.users.destroy');
+    });
+
     // Справочники: районы
     Route::middleware('can:districts.view')->group(function () {
         Route::get('admin/districts', [\App\Http\Controllers\Admin\DistrictController::class, 'index'])->name('admin.districts.index');

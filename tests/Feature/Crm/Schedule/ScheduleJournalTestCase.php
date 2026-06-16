@@ -131,6 +131,28 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         ]);
     }
 
+    protected function makeCustomRoleUser(array $roleAttributes = [], array $userAttributes = []): User
+    {
+        $customRole = Role::query()->create(array_merge([
+            'name' => 'custom-role-' . uniqid(),
+            'label' => 'Кастомная роль',
+            'is_sistem' => false,
+            'is_visible' => true,
+            'order_by' => 50,
+        ], $roleAttributes));
+
+        return User::factory()->create(array_merge([
+            'partner_id' => $this->partner->id,
+            'role_id' => $customRole->id,
+            'is_enabled' => 1,
+        ], $userAttributes));
+    }
+
+    protected function studentRoleId(): int
+    {
+        return (int) Role::query()->where('name', 'user')->value('id');
+    }
+
     protected function createVisitedScheduleEntry(int $userId, int $trainerProfileId, string $date): void
     {
         \App\Models\ScheduleUser::query()->create([
