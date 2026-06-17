@@ -383,7 +383,17 @@
                         searchable: false,
                         fallbackUrl: defaultAvatar,
                     },
-                    { key: 'full_name', type: 'text', data: 'full_name', name: 'full_name' },
+                    {
+                        key: 'full_name',
+                        type: 'link',
+                        data: 'full_name',
+                        name: 'full_name',
+                        className: 'dt-col-text',
+                        linkClass: 'js-role-staff-edit',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '"';
+                        },
+                    },
                     { key: 'email', type: 'text', data: 'email', name: 'email' },
                     { key: 'phone', type: 'text', data: 'phone', name: 'phone' },
                     {
@@ -492,7 +502,8 @@
                 showFormError(createForm, result.data.message || 'Не удалось сохранить');
             });
 
-            $(document).on('click', '.js-role-staff-edit', async function () {
+            $(document).on('click', '.js-role-staff-edit', async function (e) {
+                e.preventDefault();
                 const userId = $(this).data('id');
                 clearErrors(editForm);
                 const res = await fetch(urlFromTemplate(cfg.showUrlTemplate, userId), {

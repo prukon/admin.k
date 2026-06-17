@@ -121,7 +121,11 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('js-filter-multiselect-select', false)
             ->assertSee('KidsCrmFilterMultiselectSelect2', false)
             ->assertSee('id="schoolLeadStatusesModal"', false)
-            ->assertSee('schoolLeadStatusRoutes', false);
+            ->assertSee('schoolLeadStatusRoutes', false)
+            ->assertSee('renderLeadStatusInlineSelect', false)
+            ->assertSee('lead-status-inline-picker', false)
+            ->assertSee('lead-status-col-header', false)
+            ->assertSee('>Отображать</th>', false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -148,7 +152,10 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="sl-filter-status"', false)
-            ->assertSee('KidsCrmFilterMultiselectSelect2', false);
+            ->assertSee('KidsCrmFilterMultiselectSelect2', false)
+            ->assertSee('renderLeadStatusInlineSelect', false)
+            ->assertSee('lead-status-inline-menu', false)
+            ->assertSee('>Отображать</th>', false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -202,6 +209,16 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                 'data'   => [
                     'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment'               => 'access smoke',
+                ],
+            ],
+            [
+                'method' => 'PUT',
+                'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
+                'data'   => [
+                    'school_lead_status_id' => $this->createPartnerSchoolLeadStatus([
+                        'name'  => 'Access inline color',
+                        'color' => '#20c997',
+                    ])->id,
                 ],
             ],
             [

@@ -61,7 +61,7 @@
                             <th>Название</th>
                             <th class="text-center">Сортировка</th>
                             <th>Цвет</th>
-                            <th class="text-center">В фильтре</th>
+                            <th class="text-center">Отображать</th>
                             <th>Действия</th>
                         </tr>
                         </thead>

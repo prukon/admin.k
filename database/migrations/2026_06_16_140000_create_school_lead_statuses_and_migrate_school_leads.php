@@ -36,7 +36,7 @@ return new class extends Migration
             'partner_id'            => null,
             'code'                  => 'new',
             'name'                  => 'Новый',
-            'color'                 => '#6c757d',
+            'color'                 => '#a0fe62',
             'sort_order'            => 0,
             'is_default_in_filter'  => true,
             'is_system'             => true,

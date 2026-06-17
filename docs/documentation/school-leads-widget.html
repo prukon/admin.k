@@ -156,8 +156,8 @@
         <li><b>Сброс</b> — возвращает статусы по умолчанию (<code>is_default_in_filter</code>), очищает район, объект, секцию и чекбокс особых условий.</li>
       </ul>
     </li>
-    <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings.</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>inline-select</code> с динамическими опциями из справочника партнёра; badge с цветом статуса (<code>status_badge_style</code>). Тот же тип <code>inline-select</code> для статуса — в <code>/admin/partner-leads</code> (там фиксированный enum, не путать).</li>
+    <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings. Порядок по умолчанию: после «ФИО родителя» идёт <b>«Статус»</b>, затем телефон, email и остальные поля (см. §5.5.1).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
     <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку редактирования заявки (как кнопка «Изменить»). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
@@ -259,9 +259,9 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       "name": "...",
       "school_lead_status_id": 1,
       "status_label": "Новый",
-      "status_color": "#6c757d",
-      "status_text_color": "#ffffff",
-      "status_badge_style": "background-color:#6c757d;color:#ffffff;",
+      "status_color": "#a0fe62",
+      "status_text_color": "#212529",
+      "status_badge_style": "background-color:#a0fe62;color:#212529;",
       "utm_summary": "source: google; medium: cpc",
       "page_url": "https://...",
       "location_id": 5,
@@ -315,19 +315,19 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <tbody>
       <tr>
         <td><b>Системный «Новый»</b></td>
-        <td>Одна запись на платформу (<code>partner_id = null</code>, <code>code = new</code>, <code>is_system = true</code>). Цвет по умолчанию <code>#6c757d</code>. В фильтре по умолчанию (<code>is_default_in_filter = true</code>).</td>
+        <td>Одна запись на платформу (<code>partner_id = null</code>, <code>code = new</code>, <code>is_system = true</code>). Цвет по умолчанию <code>#a0fe62</code> (<code>SchoolLeadStatus::DEFAULT_NEW_COLOR</code>; миграция <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code>). В фильтре по умолчанию (<code>is_default_in_filter = true</code>).</td>
         <td>Нельзя переименовать, изменить или удалить (403). Рядом с названием — иконка <code>fa-info-circle</code> с подсказкой (<code>KidsCrmTooltip</code>).</td>
       </tr>
       <tr>
         <td><b>Кастомные статусы партнёра</b></td>
-        <td>Имя, цвет (<code>#RRGGBB</code> или <code>#RGB</code>), порядок (<code>sort_order</code>, авто при создании если не указан), флаг «Отображается заявки в этом статусе по умолчанию» (<code>is_default_in_filter</code>).</td>
+        <td>Имя, цвет (<code>#RRGGBB</code> или <code>#RGB</code>), порядок (<code>sort_order</code>, авто при создании если не указан), флаг «Отображается заявки в этом статусе по умолчанию» (<code>is_default_in_filter</code>) — в таблице модалки колонка <b>«Отображать»</b>.</td>
         <td>CRUD через API §5; удаление запрещено, если на статусе есть неудалённые заявки (422).</td>
       </tr>
     </tbody>
   </table>
   <ul>
     <li><b>Новые заявки</b> (виджет, лендинг) получают <code>school_lead_status_id</code> системного «Новый» автоматически.</li>
-    <li><b>UI модалки настроек</b> — таблица статусов; для кастомных — иконки редактирования (<code>fa-edit</code>) и удаления (<code>fa-trash</code>); удаление через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>).</li>
+    <li><b>UI модалки настроек</b> — таблица статусов (колонки: название, сортировка, цвет, <b>«Отображать»</b>, действия); для кастомных — иконки редактирования (<code>fa-edit</code>) и удаления (<code>fa-trash</code>); удаление через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>). В колонке «Цвет» — превью badge с фактическим цветом статуса.</li>
     <li><b>Форма статуса</b> — отдельная модалка поверх настроек; выбор цвета: color picker + палитра пресетов (как на <a href="/docs/documentation/lesson-packages">/admin/lesson-packages/occurrence-statuses</a>).</li>
     <li><b>Валидация</b> — <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>; ошибки 422 в JSON, тексты на русском под полями формы.</li>
     <li><b>Изоляция</b> — кастомный статус другого партнёра → <b>404</b> на update/delete.</li>
@@ -340,8 +340,46 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   </div>
 
   <h3>5.5) Статус заявки и редактирование</h3>
-  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>school_lead_status_id</code> (id из справочника партнёра или пустая строка → <code>null</code>), <code>comment</code>, опционально <code>district_id</code>, <code>location_id</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
-  <p>В таблице статус меняется inline (<code>inline-select</code>): опции подгружаются из справочника; после смены — <code>PUT</code> с новым <code>school_lead_status_id</code>. Badge отображает цвет статуса.</p>
+  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>school_lead_status_id</code> (id из справочника партнёра или пустая строка → <code>null</code>), <code>comment</code>, опционально <code>district_id</code>, <code>location_id</code>. В ответе — поля для обновления badge в таблице: <code>status_label</code>, <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
+  <p>В модалке «Редактирование заявки» статус меняется через обычный <code>&lt;select id="leadStatus"&gt;</code>. В таблице — inline (§5.5.1).</p>
+
+  <h3 id="school-leads-inline-status">5.5.1) Inline-смена статуса в таблице (цветные бейджи)</h3>
+  <p>Колонка «Статус» расположена сразу после «ФИО родителя» (заголовок <code>.lead-status-col-header</code> с подсказкой, тот же порядок в меню «Колонки» и в массиве <code>columns</code> DataTable).</p>
+  <table>
+    <thead>
+      <tr><th>Элемент UI</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Триггер (<code>.lead-status-inline-trigger</code>)</td>
+        <td>Цветной badge с названием статуса и иконкой <code>fa-caret-down</code>; курсор <code>pointer</code>; подсказка «Нажмите, чтобы изменить статус»; поддержка клавиатуры (<code>Enter</code> / <code>Пробел</code>).</td>
+      </tr>
+      <tr>
+        <td>Меню (<code>.lead-status-inline-menu</code>)</td>
+        <td>Кастомный dropdown (не нативный <code>&lt;select&gt;</code>): при открытии переносится в <code>document.body</code>, позиционируется <code>position: fixed</code> под бейджем. Каждый пункт — кнопка-badge того же цвета, что в справочнике; текущий статус помечен классом <code>is-active</code>.</td>
+      </tr>
+      <tr>
+        <td>Закрытие меню</td>
+        <td>Клик вне меню, <code>Escape</code>, повторный клик по триггеру, выбор другого статуса (или того же — просто закрытие).</td>
+      </tr>
+      <tr>
+        <td>Сохранение</td>
+        <td>Клик по пункту меню → <code>PUT /admin/school-leads/{id}</code> с новым <code>school_lead_status_id</code> → toast → перезагрузка строк таблицы (<code>dtApi.reload</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+  <h4>Цвет badge</h4>
+  <ul>
+    <li>Бэкенд в <code>GET …/data</code> и в ответе <code>PUT</code> отдаёт <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code> (метод <code>SchoolLeadStatus::badgeStyle()</code> + контрастный цвет текста <code>contrastingTextColor()</code>).</li>
+    <li>На клиенте <code>getStatusBadgeStyle(statusId, row)</code> берёт стиль из полей строки; если их нет — из массива <code>schoolLeadStatuses</code> (актуализируется после CRUD в модалке настроек).</li>
+    <li>Колонка DataTable объявлена как <code>type: 'inline-select'</code>, но рендер переопределён функцией <code>renderLeadStatusInlineSelect</code> (не стандартный <code>KidsCrmDataTable.renderInlineSelect</code> с нативным select).</li>
+  </ul>
+  <h4>Файлы и стили</h4>
+  <ul>
+    <li>JS и разметка: <code>resources/views/admin/school-leads/tabs/leads.blade.php</code> (<code>renderLeadStatusInlineSelect</code>, <code>buildLeadStatusMenuHtml</code>, <code>openLeadStatusInlineSelect</code>, <code>saveLeadStatusInline</code>).</li>
+    <li>CSS: <code>resources/css/datatables-columns.css</code> — блок <code>.lead-status-inline-picker</code>, <code>.lead-status-inline-menu</code>, <code>.lead-status-inline-option</code>.</li>
+  </ul>
+  <p class="small">Тесты UI и API: <code>SchoolLeadsInlineStatusUiFeatureTest</code> (разметка, порядок колонок, цвета, payload inline-update). Доступ 200: <code>SchoolLeadsPageFullAccessFeatureTest</code>, <code>SchoolLeadStatusesPageFullAccessFeatureTest</code> (§5.9).</p>
 
   <h3>5.6) Колонка «Договор» и права на UI</h3>
   <p>Отдельная колонка таблицы «Договор» показывается, если у пользователя есть <code>users.view</code> <b>или</b> <code>contracts.view</code> (в Blade: <code>canShowLeadClientColumn</code>).</p>
@@ -425,11 +463,12 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     </tbody>
   </table>
   <p class="small">
-    Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, CRUD заявок и статусов — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
+    Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, CRUD заявок и статусов, inline-update статуса с цветом — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
     <code>SchoolLeadStatusesPageFullAccessFeatureTest</code>,
     <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
     (в т.ч. workflow admin: store пользователя + create договора → 200).
     Фильтр статусов и API: <code>SchoolLeadsFilterMultiselectFeatureTest</code>.
+    Inline UI и цветные бейджи: <code>SchoolLeadsInlineStatusUiFeatureTest</code>.
     Статусы (бизнес-логика): <code>SchoolLeadStatusesFeatureTest</code>.
     Бизнес-сценарии: <code>SchoolLeadCreateUserFeatureTest</code>, <code>SchoolLeadContractActionFeatureTest</code>, <code>SchoolLeadsLeadClientContractFeatureTest</code>.
     Виджет (<code>/admin/school-widget</code>) — право <code>schoolWidget.view</code>; лендинг CRM — <code>schoolLeadLanding.view</code> (§6).
@@ -495,8 +534,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>SchoolLeadLandingService</code>, <code>TelegramBotClient</code>, <code>SchoolLeads\LatestUserContractLookup</code></li>
     <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
     <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
-    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ tabs, <code>partials/status-settings.blade.php</code>), <code>includes/modal/createUser.blade.php</code>, <code>contracts/create.blade.php</code></li>
+    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ tabs, <code>partials/status-settings.blade.php</code>), <code>includes/modal/createUser.blade.php</code>, <code>contracts/create.blade.php</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -528,7 +567,8 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadLocationFeatureTest.php</code> — объекты: UI, фильтр, сортировка, update, columns-settings</li>
     <li><code>SchoolLeadDistrictFeatureTest.php</code> — районы: UI, фильтр, сортировка, update, email/Telegram</li>
     <li><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code> — full access заявок с районом и объектом → 200</li>
-    <li><code>SchoolLeadStatusesFeatureTest.php</code> — справочник статусов: системный «Новый», CRUD, валидация, фильтр <code>status_ids[]</code>, stats, inline payload, виджет → системный статус</li>
+    <li><code>SchoolLeadStatusesFeatureTest.php</code> — справочник статусов: системный «Новый» (цвет <code>#a0fe62</code>), CRUD, валидация, фильтр <code>status_ids[]</code>, stats, inline payload, виджет → системный статус</li>
+    <li><code>SchoolLeadsInlineStatusUiFeatureTest.php</code> — inline UI статуса: разметка кастомного меню, порядок колонки «Статус», заголовок «Отображать» в модалке, цветные <code>status_badge_style</code> в data и PUT</li>
     <li><code>SchoolLeadStatusesPageFullAccessFeatureTest.php</code> — доступ 200/403 к странице и всем endpoint'ам статусов при <code>schoolLeads.view</code></li>
     <li><code>SchoolLeadCrudFeatureTest.php</code>, <code>SchoolLeadManagementTest.php</code> — CRUD заявок, смена <code>school_lead_status_id</code>, anti-leak</li>
     <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>

@@ -48,7 +48,7 @@ class DocumentationController extends Controller
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: модалки, fields_schema, fill_sort_order, email, версии',
         'account-contract-fill'       => 'Заполнение договора родителем: кабинет, fill/generate/sign, sync профиля',
-        'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, лид→клиент→договор, Telegram',
+        'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, статусы с цветными бейджами, inline-смена в таблице, лид→клиент→договор, Telegram',
         'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingSlug}, каскад район→объект→услуга, district_id',
         'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
     ];

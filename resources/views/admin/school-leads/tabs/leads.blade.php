@@ -102,6 +102,10 @@
                                     <label class="form-check-label" for="slColName">ФИО родителя</label>
                                 </div>
                                 <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="status" id="slColStatus" checked>
+                                    <label class="form-check-label" for="slColStatus">Статус</label>
+                                </div>
+                                <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="phone" id="slColPhone" checked>
                                     <label class="form-check-label" for="slColPhone">Телефон родителя</label>
                                 </div>
@@ -144,10 +148,6 @@
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="page_url" id="slColPageUrl" checked>
                                     <label class="form-check-label" for="slColPageUrl">Страница</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="status" id="slColStatus" checked>
-                                    <label class="form-check-label" for="slColStatus">Статус</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="comment" id="slColComment" checked>
@@ -244,6 +244,7 @@
             <tr>
                 <th>№</th>
                 <th>ФИО родителя</th>
+                <th class="lead-status-col-header" title="Статус можно изменить прямо в таблице — нажмите на бейдж в строке">Статус</th>
                 <th>Телефон родителя</th>
                 <th>Email родителя</th>
                 <th>ФИО ребенка</th>
@@ -258,7 +259,6 @@
                 <th>Особые условия</th>
                 <th>UTM / источник</th>
                 <th>Страница</th>
-                <th>Статус</th>
                 <th>Комментарий</th>
                 @if ($canShowLeadClientColumn)
                     <th>Договор</th>
@@ -523,15 +523,187 @@
                     return 'background-color:' + row.status_color + ';color:' + textColor + ';';
                 }
 
+                var statusIdToMatch = statusId || (row && row.school_lead_status_id);
+                if (statusIdToMatch) {
+                    var matchedStatus = schoolLeadStatuses.find(function (status) {
+                        return String(status.id) === String(statusIdToMatch);
+                    });
+                    if (matchedStatus) {
+                        if (matchedStatus.badge_style) {
+                            return matchedStatus.badge_style;
+                        }
+                        if (matchedStatus.color) {
+                            var matchedTextColor = matchedStatus.text_color || '#ffffff';
+                            return 'background-color:' + matchedStatus.color + ';color:' + matchedTextColor + ';';
+                        }
+                    }
+                }
+
                 return '';
             }
 
+            var leadStatusEditHint = 'Нажмите, чтобы изменить статус';
+            var $leadStatusOpenMenu = null;
+
+            function getLeadStatusOptionBadgeStyle(option) {
+                if (option && option.badge_style) {
+                    return option.badge_style;
+                }
+
+                if (option && option.color) {
+                    var textColor = option.text_color || '#ffffff';
+                    return 'background-color:' + option.color + ';color:' + textColor + ';';
+                }
+
+                return '';
+            }
+
+            function closeAllLeadStatusMenus() {
+                $('.lead-status-inline-picker.is-open .lead-status-inline-trigger').attr('aria-expanded', 'false');
+                $('.lead-status-inline-picker.is-open').removeClass('is-open');
+
+                if ($leadStatusOpenMenu && $leadStatusOpenMenu.length) {
+                    var $ownerPicker = $leadStatusOpenMenu.data('owner-picker');
+                    if ($ownerPicker && $ownerPicker.length) {
+                        $leadStatusOpenMenu.addClass('d-none').appendTo($ownerPicker);
+                    } else {
+                        $leadStatusOpenMenu.addClass('d-none');
+                    }
+                    $leadStatusOpenMenu = null;
+                }
+            }
+
+            function positionLeadStatusMenu($picker, $menu) {
+                var trigger = $picker.find('.lead-status-inline-trigger').get(0);
+                if (!trigger) {
+                    return;
+                }
+
+                var rect = trigger.getBoundingClientRect();
+                $menu.css({
+                    top: Math.round(rect.bottom + 4) + 'px',
+                    left: Math.round(rect.left) + 'px',
+                    minWidth: Math.max(Math.round(rect.width), 112) + 'px',
+                });
+            }
+
+            function buildLeadStatusMenuHtml(currentStatusId) {
+                var esc = window.KidsCrmTooltip.escapeHtml;
+                var html = '';
+
+                leadStatusInlineSelectOptions.forEach(function (option) {
+                    var isActive = String(option.value) === String(currentStatusId || '');
+                    var badgeStyle = getLeadStatusOptionBadgeStyle(option);
+                    var badgeClass = badgeStyle ? 'badge' : 'badge bg-secondary';
+                    var styleAttr = badgeStyle ? (' style="' + esc(badgeStyle) + '"') : '';
+                    var activeClass = isActive ? ' is-active' : '';
+
+                    html += '<button type="button"'
+                        + ' class="lead-status-inline-option ' + esc(badgeClass) + activeClass + '"'
+                        + ' data-value="' + esc(option.value) + '"' + styleAttr
+                        + ' role="option"'
+                        + (isActive ? ' aria-selected="true"' : ' aria-selected="false"')
+                        + '>'
+                        + esc(option.label)
+                        + '</button>';
+                });
+
+                return html;
+            }
+
+            function openLeadStatusInlineSelect($badge) {
+                var $picker = $badge.closest('.lead-status-inline-picker');
+                var $menu = $picker.find('.lead-status-inline-menu');
+                var isSamePickerOpen = $picker.hasClass('is-open');
+
+                closeAllLeadStatusMenus();
+
+                if (isSamePickerOpen) {
+                    return;
+                }
+
+                $menu.html(buildLeadStatusMenuHtml($badge.data('status')));
+                $menu.data('owner-picker', $picker);
+                $menu.appendTo(document.body);
+                $leadStatusOpenMenu = $menu;
+                $picker.addClass('is-open');
+                $badge.attr('aria-expanded', 'true');
+                $menu.removeClass('d-none');
+                positionLeadStatusMenu($picker, $menu);
+                $menu.find('.lead-status-inline-option.is-active').first().focus();
+            }
+
+            function saveLeadStatusInline(leadId, statusId, $picker) {
+                closeAllLeadStatusMenus();
+
+                $.ajax({
+                    url: '/admin/school-leads/' + leadId,
+                    type: 'PUT',
+                    headers: { 'X-CSRF-TOKEN': csrfToken },
+                    data: { school_lead_status_id: statusId || '' },
+                    success: function(response) {
+                        var $badge = $picker.find('.lead-status-badge');
+                        var badgeStyle = getStatusBadgeStyle(response.school_lead_status_id, response);
+                        $badge.removeClass('bg-secondary bg-warning text-dark bg-success bg-danger bg-dark');
+                        if (badgeStyle) {
+                            $badge.attr('style', badgeStyle);
+                        } else {
+                            $badge.removeAttr('style').addClass('bg-secondary');
+                        }
+                        $badge
+                            .attr('data-status', response.school_lead_status_id || '')
+                            .attr('aria-label', leadStatusEditHint + ': ' + (response.status_label || '—'));
+                        showToast(response.message || 'Статус обновлён.', 'success');
+                        dtApi.reload({ keepPage: true });
+                    },
+                    error: function(xhr) {
+                        showToast((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка обновления статуса.', 'error');
+                    }
+                });
+            }
+
+            function renderLeadStatusInlineSelect(value, type, row) {
+                row = row || {};
+                var esc = window.KidsCrmTooltip.escapeHtml;
+                var status = row.school_lead_status_id;
+                var label = row.status_label || '—';
+                var rowId = row.id;
+
+                if (type !== 'display') {
+                    return value || label || '';
+                }
+
+                var badgeStyle = getStatusBadgeStyle(status, row);
+                var badgeClassPart = badgeStyle ? 'badge' : 'badge bg-secondary';
+                var badgeStyleAttr = badgeStyle ? (' style="' + esc(badgeStyle) + '"') : '';
+                var ariaLabel = leadStatusEditHint + ': ' + label;
+
+                return ''
+                    + '<div class="d-flex align-items-center gap-1 lead-status-inline-picker" data-lead-id="' + esc(rowId) + '">'
+                    + '<span class="' + esc(badgeClassPart) + ' lead-status-badge lead-status-inline-trigger"'
+                    + ' role="button" tabindex="0"'
+                    + ' title="' + esc(leadStatusEditHint) + '"'
+                    + ' aria-haspopup="listbox"'
+                    + ' aria-expanded="false"'
+                    + ' aria-label="' + esc(ariaLabel) + '"'
+                    + ' data-id="' + esc(rowId) + '" data-status="' + esc(status || '') + '"' + badgeStyleAttr + '>'
+                    + esc(label)
+                    + '<i class="fas fa-caret-down lead-status-inline-caret" aria-hidden="true"></i>'
+                    + '</span>'
+                    + '<div class="lead-status-inline-menu d-none" role="listbox"'
+                    + ' aria-label="' + esc(leadStatusEditHint) + '"></div>'
+                    + '</div>';
+            }
+
             function buildLeadStatusInlineSelectOptions() {
-                var options = [{ value: '', label: '— не выбран —' }];
+                var options = [{ value: '', label: '— не выбран —', badge_style: '', color: null, text_color: '#ffffff' }];
                 schoolLeadStatuses.forEach(function (status) {
                     options.push({
                         value: String(status.id),
                         label: status.name,
+                        badge_style: status.badge_style || '',
+                        color: status.color || null,
+                        text_color: status.text_color || '#ffffff',
                     });
                 });
                 return options;
@@ -633,6 +805,25 @@
                                 linkClass: 'edit-lead',
                                 extraAttrs: 'data-id="' + row.id + '"',
                             });
+                        },
+                    },
+                    {
+                        key: 'status',
+                        type: 'inline-select',
+                        data: 'status_label',
+                        name: 'status',
+                        className: 'dt-col-inline-select',
+                        render: renderLeadStatusInlineSelect,
+                        inlineSelect: {
+                            statusKey: 'school_lead_status_id',
+                            labelKey: 'status_label',
+                            rowIdKey: 'id',
+                            badgeSelector: 'lead-status-badge',
+                            selectSelector: 'lead-status-select',
+                            badgeExtraClass: '',
+                            selectExtraClass: 'form-select form-select-sm d-none',
+                            badgeStyleFn: getStatusBadgeStyle,
+                            options: leadStatusInlineSelectOptions,
                         },
                     },
                     {
@@ -777,24 +968,6 @@
                             return '<a href="' + $('<div/>').text(data).html() + '" target="_blank" rel="noopener">'
                                 + $('<div/>').text(short).html()
                                 + '</a>';
-                        },
-                    },
-                    {
-                        key: 'status',
-                        type: 'inline-select',
-                        data: 'status_label',
-                        name: 'status',
-                        className: 'dt-col-inline-select',
-                        inlineSelect: {
-                            statusKey: 'school_lead_status_id',
-                            labelKey: 'status_label',
-                            rowIdKey: 'id',
-                            badgeSelector: 'lead-status-badge',
-                            selectSelector: 'lead-status-select',
-                            badgeExtraClass: '',
-                            selectExtraClass: 'form-select form-select-sm d-none',
-                            badgeStyleFn: getStatusBadgeStyle,
-                            options: leadStatusInlineSelectOptions,
                         },
                     },
                     {
@@ -951,50 +1124,65 @@
                 });
             });
 
-            $('#leads-table').on('click', '.lead-status-badge', function() {
-                var $badge = $(this);
-                var $container = $badge.closest('div');
-                $badge.addClass('d-none');
-                $container.find('.lead-status-select').removeClass('d-none').focus();
+            $('#leads-table').on('click', '.lead-status-badge', function(event) {
+                event.stopPropagation();
+                openLeadStatusInlineSelect($(this));
             });
 
-            $('#leads-table').on('change', '.lead-status-select', function() {
-                var $select = $(this);
-                var id = $select.data('id');
-                $.ajax({
-                    url: '/admin/school-leads/' + id,
-                    type: 'PUT',
-                    headers: { 'X-CSRF-TOKEN': csrfToken },
-                    data: { school_lead_status_id: $select.val() || '' },
-                    success: function(response) {
-                        var $container = $select.closest('div');
-                        var $badge = $container.find('.lead-status-badge');
-                        $badge.removeClass('bg-secondary bg-warning text-dark bg-success bg-danger bg-dark')
-                            .attr('style', response.status_badge_style || '')
-                            .attr('data-status', response.school_lead_status_id || '')
-                            .text(response.status_label || '—');
-                        $select.addClass('d-none');
-                        $badge.removeClass('d-none');
-                        showToast(response.message || 'Статус обновлён.', 'success');
-                        dtApi.reload({ keepPage: true });
-                    },
-                    error: function(xhr) {
-                        showToast((xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка обновления статуса.', 'error');
-                        var $badge = $select.closest('div').find('.lead-status-badge');
-                        $select.val($badge.data('status') || '').addClass('d-none');
-                        $badge.removeClass('d-none');
-                    }
-                });
+            $('#leads-table').on('keydown', '.lead-status-badge', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openLeadStatusInlineSelect($(this));
+                }
             });
 
-            $('#leads-table').on('blur', '.lead-status-select', function() {
-                var $select = $(this);
-                setTimeout(function() {
-                    if (!$select.is(':focus')) {
-                        $select.addClass('d-none');
-                        $select.closest('div').find('.lead-status-badge').removeClass('d-none');
-                    }
-                }, 150);
+            $(document).on('click', '.lead-status-inline-menu', function(event) {
+                event.stopPropagation();
+            });
+
+            $(document).on('click', '.lead-status-inline-option', function(event) {
+                event.stopPropagation();
+                var $option = $(this);
+                var $menu = $option.closest('.lead-status-inline-menu');
+                var $picker = $menu.data('owner-picker');
+
+                if (!$picker || !$picker.length) {
+                    closeAllLeadStatusMenus();
+                    return;
+                }
+
+                var leadId = $picker.find('.lead-status-badge').data('id');
+                var newStatusId = String($option.data('value') || '');
+                var currentStatusId = String($picker.find('.lead-status-badge').data('status') || '');
+
+                if (newStatusId === currentStatusId) {
+                    closeAllLeadStatusMenus();
+                    return;
+                }
+
+                saveLeadStatusInline(leadId, newStatusId, $picker);
+            });
+
+            $(document).on('click.leadStatusMenu', function() {
+                closeAllLeadStatusMenus();
+            });
+
+            $(document).on('keydown.leadStatusMenu', function(event) {
+                if (event.key === 'Escape') {
+                    closeAllLeadStatusMenus();
+                }
+            });
+
+            $(window).on('resize scroll.leadStatusMenu', function() {
+                if (!$leadStatusOpenMenu || !$leadStatusOpenMenu.length) {
+                    return;
+                }
+
+                var $picker = $leadStatusOpenMenu.data('owner-picker');
+                if ($picker && $picker.length) {
+                    positionLeadStatusMenu($picker, $leadStatusOpenMenu);
+                }
             });
 
             $('#leads-table').on('click', '.delete-lead', function() {

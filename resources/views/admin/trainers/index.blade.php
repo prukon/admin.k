@@ -504,7 +504,17 @@
                         searchable: false,
                         fallbackUrl: defaultAvatar,
                     },
-                    { key: 'full_name', type: 'text', data: 'full_name' },
+                    {
+                        key: 'full_name',
+                        type: 'link',
+                        data: 'full_name',
+                        name: 'full_name',
+                        className: 'dt-col-text',
+                        linkClass: 'js-trainer-edit',
+                        linkAttrs: function (row) {
+                            return 'data-id="' + row.id + '"';
+                        },
+                    },
                     {
                         key: 'teams_label',
                         type: 'list',
@@ -836,6 +846,7 @@
                 if (!btn) {
                     return;
                 }
+                event.preventDefault();
 
                 clearErrors(editForm);
                 const id = btn.getAttribute('data-id');

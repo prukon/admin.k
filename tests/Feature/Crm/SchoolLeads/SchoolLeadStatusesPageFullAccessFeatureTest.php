@@ -113,7 +113,9 @@ final class SchoolLeadStatusesPageFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
             ->assertSee('id="schoolLeadStatusesModal"', false)
-            ->assertSee('schoolLeadStatusRoutes', false);
+            ->assertSee('schoolLeadStatusRoutes', false)
+            ->assertSee('renderLeadStatusInlineSelect', false)
+            ->assertSee('>Отображать</th>', false);
 
         foreach ($this->allRoutesPayload() as $item) {
             $response = $this->call(

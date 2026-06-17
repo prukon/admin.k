@@ -15,7 +15,7 @@ class SchoolLeadStatus extends Model
 
     public const CODE_NEW = 'new';
 
-    public const DEFAULT_NEW_COLOR = '#6c757d';
+    public const DEFAULT_NEW_COLOR = '#a0fe62';
 
     protected $table = 'school_lead_statuses';
 

@@ -255,7 +255,7 @@ function reloadTable() {
         <td><code>/admin/school-leads</code> — <code>status</code></td>
         <td><code>inline-select</code></td>
         <td><code>inline-select</code></td>
-        <td>Опции статусов динамически из <code>school_lead_statuses</code> (справочник партнёра + системный «Новый»); badge с цветом (<code>badgeStyleFn</code> / <code>status_badge_style</code>). См. <a href="/docs/documentation/school-leads-widget#school-lead-statuses">school-leads-widget §5.4</a>. В <code>/admin/partner-leads</code> — фиксированный enum (другая сущность).</td>
+        <td>Опции статусов динамически из <code>school_lead_statuses</code> (справочник партнёра + системный «Новый»); цветные badge и кастомное меню выбора (<code>renderLeadStatusInlineSelect</code>, <code>status_badge_style</code>). См. <a href="/docs/documentation/school-leads-widget#school-leads-inline-status">school-leads-widget §5.5.1</a> и <a href="/docs/documentation/school-leads-widget#school-lead-statuses">§5.4</a>. В <code>/admin/partner-leads</code> — фиксированный enum и стандартный <code>renderInlineSelect</code> (другая сущность).</td>
       </tr>
       <tr>
         <td><code>/admin/school-leads</code> — <code>contract</code></td>

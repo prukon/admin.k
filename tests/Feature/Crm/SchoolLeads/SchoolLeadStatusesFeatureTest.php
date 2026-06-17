@@ -46,6 +46,7 @@ final class SchoolLeadStatusesFeatureTest extends CrmTestCase
 
         $this->assertNotNull($system);
         $this->assertSame('Новый', $system['name']);
+        $this->assertSame('#a0fe62', $system['color']);
         $this->assertTrue($system['is_default_in_filter']);
         $this->assertSame(SchoolLeadStatus::CODE_NEW, SchoolLeadStatus::systemNew()->code);
     }
