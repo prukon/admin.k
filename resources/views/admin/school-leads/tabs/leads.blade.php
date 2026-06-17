@@ -641,7 +641,7 @@
             }
 
             function buildLeadStatusInlineSelectOptions() {
-                var options = [{ value: '', label: '— не выбран —', badge_style: '', color: null, text_color: '#ffffff' }];
+                var options = [];
                 schoolLeadStatuses.forEach(function (status) {
                     options.push({
                         value: String(status.id),
