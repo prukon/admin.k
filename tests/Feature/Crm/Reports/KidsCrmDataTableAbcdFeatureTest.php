@@ -89,7 +89,7 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $this->assertStringContainsString('inlineSelect:', $html);
         $this->assertStringContainsString('lead-status-badge', $html);
         $this->assertStringContainsString('lead-status-select', $html);
-        $this->assertStringContainsString('create-user-from-lead', $html);
+        $this->assertStringContainsString('edit-lead', $html);
         $this->assertStringContainsString("key: 'contract'", $html);
         $this->assertStringContainsString("type: 'actions'", $html);
         $this->assertStringNotContainsString("type: 'custom'", $html);

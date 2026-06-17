@@ -327,7 +327,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="slColContract"', false)
-            ->assertSee('create-user-from-lead', false);
+            ->assertSee('id="createClientBtn"', false);
 
         $this->postJson(route('admin.user.store'), [
             'name'           => 'Workflow',

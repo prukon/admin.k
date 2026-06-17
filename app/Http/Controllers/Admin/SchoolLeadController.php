@@ -6,6 +6,7 @@ use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\SchoolLead\FilterRequest;
 use App\Http\Requests\UpdateSchoolLeadRequest;
+use App\Models\ContractTemplate;
 use App\Models\District;
 use App\Models\Location;
 use App\Models\Role;
@@ -88,7 +89,18 @@ class SchoolLeadController extends AdminBaseController
             'schoolLeadStatuses'       => $schoolLeadStatuses,
             'defaultStatusFilterIds'   => $defaultStatusFilterIds,
             'leadStats'                => $stats,
+            'studentRoleId'            => (int) (Role::query()->where('name', 'user')->value('id') ?? 0),
         ];
+
+        if ($canViewContracts) {
+            $viewData['contractCreatePartner'] = app('current_partner');
+            $viewData['contractTemplates'] = ContractTemplate::query()
+                ->forPartner($partnerId)
+                ->active()
+                ->whereNotNull('current_version_id')
+                ->orderBy('title')
+                ->get(['id', 'title']);
+        }
 
         if ($canCreateUserFromLead) {
             $isSuperadmin = $this->isSuperAdmin();
@@ -105,7 +117,6 @@ class SchoolLeadController extends AdminBaseController
             });
 
             $viewData['roles'] = $rolesQuery->orderBy('order_by')->get();
-            $viewData['studentRoleId'] = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
             $viewData['lockStudentRole'] = true;
             $viewData['allTeams'] = Team::query()
                 ->where('partner_id', $partnerId)
@@ -341,6 +352,7 @@ class SchoolLeadController extends AdminBaseController
                     'is_individual_traits'   => (bool) $item->is_individual_traits,
                     'is_on_medical_register' => (bool) $item->is_on_medical_register,
                     'is_with_disability'     => (bool) $item->is_with_disability,
+                    'needs_contact_help'     => (bool) $item->needs_contact_help,
                     'user_id'                => $item->user_id,
                     'comment'                => $item->comment,
                     'utm_summary'            => implode('; ', $utmParts),
@@ -406,8 +418,31 @@ class SchoolLeadController extends AdminBaseController
             $schoolLead->location_id = $data['location_id'];
         }
 
+        foreach ([
+            'parent_lastname',
+            'parent_firstname',
+            'parent_middlename',
+            'parent_phone',
+            'parent_email',
+            'child_lastname',
+            'child_firstname',
+            'child_middlename',
+            'child_birthday',
+            'team_id',
+        ] as $field) {
+            if (array_key_exists($field, $data)) {
+                $schoolLead->{$field} = $data[$field];
+            }
+        }
+
+        foreach (['is_individual_traits', 'is_on_medical_register', 'is_with_disability'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $schoolLead->{$field} = (bool) $data[$field];
+            }
+        }
+
         $schoolLead->save();
-        $schoolLead->load('district', 'location', 'schoolLeadStatus');
+        $schoolLead->load('district', 'location', 'schoolLeadStatus', 'team');
 
         $changes = $this->diffSchoolLeadAuditSnapshots(
             $beforeSnapshot,
@@ -438,7 +473,10 @@ class SchoolLeadController extends AdminBaseController
             $response['location_name'] = $schoolLead->location?->name;
         }
 
-        return response()->json($response);
+        $response['team_id']    = $schoolLead->team_id;
+        $response['team_title'] = $schoolLead->team?->title;
+
+        return response()->json($response + $this->schoolLeadExtendedFieldsPayload($schoolLead));
     }
 
     public function destroy(SchoolLead $schoolLead): JsonResponse
@@ -559,6 +597,31 @@ class SchoolLeadController extends AdminBaseController
             'status_color'          => $status?->color,
             'status_text_color'     => $status?->contrastingTextColor(),
             'status_badge_style'    => $status?->badgeStyle(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function schoolLeadExtendedFieldsPayload(SchoolLead $schoolLead): array
+    {
+        $parentNameParts = $schoolLead->resolvedParentNameParts();
+        $childNameParts = $schoolLead->resolvedChildNameParts();
+
+        return [
+            'parent_lastname'        => $parentNameParts['lastname'] ?: null,
+            'parent_firstname'       => $parentNameParts['firstname'] ?: null,
+            'parent_middlename'      => $parentNameParts['middlename'] ?: null,
+            'parent_phone'           => $schoolLead->parent_phone ?: $schoolLead->phone,
+            'parent_email'           => $schoolLead->parent_email,
+            'child_lastname'         => $childNameParts['lastname'] ?: null,
+            'child_firstname'        => $childNameParts['firstname'] ?: null,
+            'child_middlename'       => $childNameParts['middlename'] ?: null,
+            'child_birthday_iso'     => $schoolLead->child_birthday?->format('Y-m-d'),
+            'is_individual_traits'   => (bool) $schoolLead->is_individual_traits,
+            'is_on_medical_register' => (bool) $schoolLead->is_on_medical_register,
+            'is_with_disability'     => (bool) $schoolLead->is_with_disability,
+            'needs_contact_help'     => (bool) $schoolLead->needs_contact_help,
         ];
     }
 

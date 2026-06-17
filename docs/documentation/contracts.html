@@ -208,7 +208,8 @@
     <li><code>?create=1</code>, <code>?user_id={id}</code> или ошибки валидации после <code>POST</code> — флаг <code>shouldOpenCreateModal</code>, модалка открывается при загрузке страницы.</li>
     <li>Валидный <code>user_id</code> своего партнёра (<code>is_enabled = 1</code>) → <code>preselectedUser</code>: <code>id</code>, <code>text</code>, <code>team_id</code>, <code>team_title</code>, <code>parent_full_name</code> (или <code>null</code>).</li>
     <li>Чужой партнёр / несуществующий id — <code>preselectedUser = null</code>, модалка всё равно может открыться по query.</li>
-    <li>Переход из заявок: <code>GET /client-contracts/create?user_id=…</code> → redirect на index с теми же параметрами (§<a href="/docs/documentation/school-leads-widget">school-leads-widget §5.7</a>).</li>
+    <li>Переход из заявок (прямая ссылка): <code>GET /client-contracts?user_id=…</code> или legacy <code>GET /client-contracts/create?user_id=…</code> → redirect на index с теми же параметрами. Основной UX на странице заявок — встроенная модалка без смены страницы (§<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">school-leads-widget §5.8</a>).</li>
+    <li>JS API: <code>window.KidsCrmContractCreate.openModal(preselectedUser)</code> — используется на <code>/admin/school-leads</code> и на <code>/client-contracts</code>.</li>
   </ul>
 
   <h3>5.4) Сохранение и оплата</h3>
@@ -220,10 +221,10 @@
 
   <h2>6) Заявки с сайта и создание договора</h2>
   <ul>
-    <li>После привязки ученика к заявке — ссылка «Создать договор» → <code>GET /client-contracts/create?user_id={id}</code> (redirect на список с открытой модалкой).</li>
+    <li>После привязки ученика к заявке — кнопка «Создать договор» в таблице и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>.</li>
     <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): иконка PDF последнего договора с tooltip «Статус: …», сортировка по статусу; без кнопки «Создать договор».</li>
-    <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5–5.7).</li>
+    <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5.2–5.8).</li>
   </ul>
 
   <h2>7) Режим «форма клиенту» (<code>creation_mode=template</code>)</h2>

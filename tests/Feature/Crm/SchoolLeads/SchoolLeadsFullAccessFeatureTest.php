@@ -324,7 +324,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="slColContract"', false)
-            ->assertSee('create-user-from-lead', false)
+            ->assertSee('id="createClientBtn"', false)
             ->assertSee('Создать договор', false);
 
         foreach ($this->workflowRoutesPayload($leadForUser, $student) as $item) {
@@ -420,7 +420,7 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('create-user-from-lead', false);
+            ->assertSee('id="createClientBtn"', false);
 
         $this->getJson(route('admin.school-leads.data', [
             'draw'   => 1,

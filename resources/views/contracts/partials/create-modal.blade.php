@@ -278,6 +278,7 @@
             const shouldOpenCreateModal = @json($shouldOpenCreateModal ?? false);
             const createModalEl = document.getElementById('createContractModal');
             let suppressCreateModalReset = false;
+            let activePreselectedUser = preselectedUser;
 
             function getContractCreateFieldInput(fieldName) {
                 if (fieldName === 'creation_mode') {
@@ -458,7 +459,7 @@
             }
 
             function applyPreselectedStudent() {
-                if (!preselectedUser) {
+                if (!activePreselectedUser) {
                     return;
                 }
 
@@ -466,19 +467,19 @@
                 const $g = $('#group_id_select');
                 const $h = $('#group_id_hidden');
 
-                if ($userSelect.find('option[value="' + preselectedUser.id + '"]').length === 0) {
-                    $userSelect.append(new Option(preselectedUser.text, preselectedUser.id, true, true));
+                if ($userSelect.find('option[value="' + activePreselectedUser.id + '"]').length === 0) {
+                    $userSelect.append(new Option(activePreselectedUser.text, activePreselectedUser.id, true, true));
                 }
-                $userSelect.val(String(preselectedUser.id)).trigger('change');
+                $userSelect.val(String(activePreselectedUser.id)).trigger('change');
 
-                setParentFullNameDisplay(preselectedUser.parent_full_name);
+                setParentFullNameDisplay(activePreselectedUser.parent_full_name);
 
                 $g.empty();
                 $h.val('');
 
-                if (preselectedUser.team_id && preselectedUser.team_title) {
-                    $g.append(new Option(preselectedUser.team_title, preselectedUser.team_id, true, true));
-                    $h.val(preselectedUser.team_id);
+                if (activePreselectedUser.team_id && activePreselectedUser.team_title) {
+                    $g.append(new Option(activePreselectedUser.team_title, activePreselectedUser.team_id, true, true));
+                    $h.val(activePreselectedUser.team_id);
                 } else {
                     $g.append(new Option('— группы нет —', '', true, true));
                 }
@@ -580,6 +581,8 @@
 
                 destroyContractUserSelect2();
 
+                activePreselectedUser = null;
+
                 $('#group_id_select').empty().append(new Option('—', '', true, true));
                 $('#group_id_hidden').val('');
                 setParentFullNameDisplay('');
@@ -671,6 +674,18 @@
                 if (shouldOpenCreateModal) {
                     bootstrap.Modal.getOrCreateInstance(createModalEl).show();
                 }
+
+                window.KidsCrmContractCreate = window.KidsCrmContractCreate || {};
+                window.KidsCrmContractCreate.openModal = function (userData) {
+                    if (!createModalEl) {
+                        return;
+                    }
+
+                    suppressCreateModalReset = false;
+                    resetCreateContractForm();
+                    activePreselectedUser = userData || null;
+                    bootstrap.Modal.getOrCreateInstance(createModalEl).show();
+                };
             });
         })();
     </script>

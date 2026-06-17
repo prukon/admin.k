@@ -185,7 +185,7 @@
   <div class="note">
     Колонка в таблице <code>/admin/users</code> сразу после «Родитель». Показывается только если у актора есть <code>contracts.view</code>
     (в Blade: <code>$canViewContracts</code>, в JS: <code>canViewContracts</code>).<br>
-    <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code> (кнопка «Создать клиента» / текстовая ссылка / «Создать договор»).
+    <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code>. Без клиента в ячейке «—»; после создания клиента из модалки §<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">5.5.2</a> — ссылка на договор или кнопка «Создать договор» (встроенная модалка, §<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">5.8</a>).
     На <code>/admin/users</code> — только иконка последнего договора и только при <code>contracts.view</code>; кнопки «Создать договор» в ячейке <b>нет</b>.
   </div>
 
@@ -437,8 +437,9 @@
   <h3>Создание из заявки с сайта (<code>school_lead_id</code>)</h3>
   <div class="note">
     На странице <a href="/docs/documentation/school-leads-widget">«Заявки с сайта»</a> (<code>/admin/school-leads</code>) при <code>schoolLeads.view</code> + <code>users.view</code>
-    в колонке «Договор» открывается та же модалка <code>createUser.blade.php</code> с предзаполнением имени и телефона из лида
-    и скрытым полем <code>school_lead_id</code> (локация заявки в ученика не копируется).
+    создание клиента выполняется из модалки «Редактирование лида» (§<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>):
+    кнопка «Создать клиента» → сохранение заявки (<code>PUT</code>) → <code>POST /admin/users</code> с полями модалки и скрытым <code>school_lead_id</code>.
+    Район и объект заявки в ученика не копируются.
   </div>
   <ul>
     <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>

@@ -39,7 +39,7 @@ class ContractCreateModalParentFeatureTest extends ContractsFeatureTestCase
 
         $this->assertStringContainsString('function setParentFullNameDisplay', $html);
         $this->assertStringContainsString('setParentFullNameDisplay(d.parent_full_name)', $html);
-        $this->assertStringContainsString('setParentFullNameDisplay(preselectedUser.parent_full_name)', $html);
+        $this->assertStringContainsString('setParentFullNameDisplay(activePreselectedUser.parent_full_name)', $html);
         $this->assertStringContainsString("setParentFullNameDisplay('')", $html);
     }
 

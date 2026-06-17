@@ -68,9 +68,8 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('id="create-is_individual_traits"', false)
-            ->assertSee('id="create-is_on_medical_register"', false)
-            ->assertSee('id="create-is_with_disability"', false)
+            ->assertSee('id="lead-is_individual_traits"', false)
+            ->assertSee('form-check-input js-user-health-field js-lead-health-checkbox', false)
             ->assertSee('Индивидуальные особенности воспитанника', false)
             ->assertSee('Состоит на учёте у медицинских специалистов', false)
             ->assertSee('Наличие инвалидности', false);
@@ -85,7 +84,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertDontSee('id="create-is_individual_traits"', false);
+            ->assertDontSee('id="lead-is_individual_traits"', false);
     }
 
     public function test_school_leads_page_includes_create_client_javascript_helpers(): void
@@ -97,10 +96,10 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('prefillCreateUserFromLead', false)
-            ->assertSee('setCreateUserHealthFieldsFromLead', false)
-            ->assertSee('syncCreateUserHealthFields', false)
-            ->assertSee('create-user-from-lead', false);
+            ->assertSee('populateLeadForm', false)
+            ->assertSee('syncCreateClientBtnState', false)
+            ->assertSee('collectCreateClientPayload', false)
+            ->assertDontSee('create-user-from-lead', false);
     }
 
     public function test_datatable_includes_health_flags_for_create_client_prefill(): void

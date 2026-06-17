@@ -36,10 +36,10 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             ->assertViewHas('canViewContracts', true)
             ->assertSee('Договор</th>', false)
             ->assertSee('id="slColContract"', false)
-            ->assertSee('create-user-from-lead', false)
+            ->assertSee('id="createClientBtn"', false)
             ->assertSee('Создать договор', false)
-            ->assertSee('id="createUserModal"', false)
-            ->assertSee('id="create-school-lead-id"', false);
+            ->assertSee('id="editLeadModal"', false)
+            ->assertDontSee('create-user-from-lead', false);
     }
 
     public function test_datatable_contract_column_states_for_lead_without_user(): void

@@ -273,65 +273,16 @@
 
 @include('admin.school-leads.partials.status-settings')
 
-<div class="modal fade" id="editLeadModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Редактирование заявки</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editLeadForm">
-                    <input type="hidden" id="editLeadId">
-                    <div class="mb-3">
-                        <label for="leadStatus" class="form-label">Статус</label>
-                        <select id="leadStatus" class="form-select">
-                            <option value="">— не выбран —</option>
-                            @foreach ($schoolLeadStatuses as $status)
-                                <option value="{{ $status->id }}">{{ $status->name }}</option>
-                            @endforeach
-                        </select>
-                        <div class="invalid-feedback" id="leadStatusError"></div>
-                    </div>
-                    @if ($canViewDistricts)
-                        <div class="mb-3">
-                            <label for="leadDistrict" class="form-label">Район</label>
-                            <select id="leadDistrict" class="form-select">
-                                <option value="">— не выбран —</option>
-                                @foreach ($activeDistricts as $district)
-                                    <option value="{{ $district->id }}">{{ $district->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback" id="leadDistrictError"></div>
-                        </div>
-                    @endif
-                    @if ($canViewLocations)
-                        <div class="mb-3">
-                            <label for="leadLocation" class="form-label">Объект</label>
-                            <select id="leadLocation" class="form-select">
-                                <option value="">— не выбран —</option>
-                                @foreach ($activeLocations as $location)
-                                    <option value="{{ $location->id }}">{{ $location->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="invalid-feedback" id="leadLocationError"></div>
-                        </div>
-                    @endif
-                    <div class="mb-3">
-                        <label for="leadComment" class="form-label">Комментарий</label>
-                        <textarea id="leadComment" class="form-control" rows="3"></textarea>
-                    </div>
-                </form>
-                <div class="alert alert-danger d-none" id="editLeadError"></div>
-                <div class="alert alert-success d-none" id="editLeadSuccess"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" id="saveLeadBtn">Сохранить</button>
-            </div>
-        </div>
-    </div>
-</div>
+@include('admin.school-leads.partials.edit-lead-modal')
+
+@if ($canViewContracts)
+    @include('contracts.partials.create-modal', [
+        'partner' => $contractCreatePartner ?? app('current_partner'),
+        'contractTemplates' => $contractTemplates ?? collect(),
+        'preselectedUser' => null,
+        'shouldOpenCreateModal' => false,
+    ])
+@endif
 
 <div class="modal fade" id="deleteLeadModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -350,11 +301,6 @@
         </div>
     </div>
 </div>
-
-@if ($canCreateUserFromLead)
-    @include('includes.modal.createUser')
-@endif
-
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="mainToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
@@ -391,7 +337,6 @@
             var $statTotal = $('.school-leads-stat-total');
             var $toolbarRoot = $('#schoolLeadsReportToolbar');
 
-            var editLeadModal = new bootstrap.Modal(document.getElementById('editLeadModal'));
             var deleteLeadModal = new bootstrap.Modal(document.getElementById('deleteLeadModal'));
             var schoolLeadStatusesModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusesModal'));
             var schoolLeadStatusFormModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusFormModal'));
@@ -998,10 +943,6 @@
                             }
 
                             if (!row.user_id) {
-                                if (canCreateUserFromLead) {
-                                    return '<button type="button" class="btn btn-sm btn-primary text-nowrap create-user-from-lead" data-id="' + row.id + '">Создать клиента</button>';
-                                }
-
                                 return '—';
                             }
 
@@ -1016,7 +957,9 @@
                             }
 
                             if (row.create_contract_url) {
-                                return '<a href="' + row.create_contract_url + '" class="btn btn-sm btn-primary text-nowrap">Создать договор</a>';
+                                return '<button type="button"'
+                                    + ' class="btn btn-sm btn-primary text-nowrap js-open-create-contract-from-lead"'
+                                    + ' data-user-id="' + row.user_id + '">Создать договор</button>';
                             }
 
                             return '—';
@@ -1049,79 +992,561 @@
                 dtApi.reload({ keepPage: true });
             });
 
-            $('#leads-table').on('click', '.edit-lead', function() {
-                var rowData = table.row($(this).closest('tr')).data();
-                $('#editLeadId').val(rowData.id);
-                $('#leadStatus').val(rowData.school_lead_status_id ? String(rowData.school_lead_status_id) : '').removeClass('is-invalid');
-                $('#leadStatusError').text('');
-                $('#leadComment').val(rowData.comment || '');
-                if (canViewDistricts) {
-                    $('#leadDistrict').val(rowData.district_id || '').removeClass('is-invalid');
-                    $('#leadDistrictError').text('');
+            var editLeadModalEl = document.getElementById('editLeadModal');
+            var editLeadModal = new bootstrap.Modal(editLeadModalEl);
+            var $editLeadForm = $('#editLeadForm');
+            var $editLeadModal = $('#editLeadModal');
+            var leadModalReadOnly = false;
+            var currentLeadModalRowData = null;
+            var studentRoleId = @json($studentRoleId ?? 0);
+            var userStoreUrl = @json(route('admin.user.store'));
+            var canUpdateLeadHealth = @json(auth()->user()?->can('users.other.update') ?? false);
+
+            function boolToTriState(value) {
+                if (value === true || value === 1 || value === '1') {
+                    return '1';
                 }
-                if (canViewLocations) {
-                    $('#leadLocation').val(rowData.location_id || '').removeClass('is-invalid');
-                    $('#leadLocationError').text('');
+                if (value === false || value === 0 || value === '0') {
+                    return '0';
                 }
+
+                return '';
+            }
+
+            function clearLeadFormErrors() {
+                $editLeadForm.find('.is-invalid').removeClass('is-invalid');
+                $editLeadForm.find('.invalid-feedback').text('');
                 $('#editLeadError, #editLeadSuccess').addClass('d-none').text('');
-                editLeadModal.show();
+            }
+
+            function applyLeadFormErrors(errors) {
+                if (!errors || typeof errors !== 'object') {
+                    return;
+                }
+
+                Object.keys(errors).forEach(function(field) {
+                    var messages = errors[field];
+                    if (!messages || !messages.length) {
+                        return;
+                    }
+
+                    var message = messages[0];
+                    var $feedback = $editLeadForm.find('[data-field-error="' + field.replace(/"/g, '\\"') + '"]');
+                    var $input = $();
+
+                    var customMatch = /^custom\.(.+)$/.exec(field);
+                    if (customMatch) {
+                        $input = $editLeadForm.find('[name="custom[' + customMatch[1] + ']"]');
+                    }
+                    if (!$input.length) {
+                        $input = $editLeadForm.find('[name="' + field.replace(/\./g, '\\.') + '"]');
+                    }
+
+                    if ($input.length) {
+                        $input.addClass('is-invalid');
+                        showEditLeadAccordionPanel($input);
+                    }
+                    if ($feedback.length) {
+                        $feedback.text(message);
+                        showEditLeadAccordionPanel($feedback);
+                    } else if (field === 'school_lead') {
+                        $('#editLeadError').removeClass('d-none').text(message);
+                    }
+                });
+            }
+
+            function syncCreateClientBtnState() {
+                var $btn = $('#createClientBtn');
+                if (!$btn.length || leadModalReadOnly) {
+                    return;
+                }
+
+                var firstname = String($('#leadChildFirstname').val() || '').trim();
+                var lastname = String($('#leadChildLastname').val() || '').trim();
+                var enabled = firstname !== '' && lastname !== '';
+
+                $btn.prop('disabled', !enabled);
+            }
+
+            function setLeadHealthFields(values) {
+                if (!canUpdateLeadHealth) {
+                    return;
+                }
+
+                $('#lead-is_individual_traits').prop('checked', !!values.is_individual_traits);
+                $('#lead-is_on_medical_register').prop('checked', !!values.is_on_medical_register);
+                $('#lead-is_with_disability').prop('checked', !!values.is_with_disability);
+            }
+
+            function setLeadModalStatusPicker(statusId, statusLabel, meta) {
+                meta = meta || {};
+                var $picker = $('#leadModalStatusPicker');
+                var $badge = $picker.find('.lead-status-inline-trigger');
+                var normalizedId = statusId ? String(statusId) : '';
+                var label = statusLabel || '—';
+                var badgeStyle = getStatusBadgeStyle(normalizedId, {
+                    school_lead_status_id: normalizedId,
+                    status_label: label,
+                    status_color: meta.status_color,
+                    status_text_color: meta.status_text_color,
+                    status_badge_style: meta.status_badge_style,
+                });
+
+                $('#leadStatus').val(normalizedId);
+                $badge
+                    .attr('data-status', normalizedId)
+                    .attr('aria-label', leadStatusEditHint + ': ' + label);
+
+                $badge.removeClass('bg-secondary bg-warning text-dark bg-success bg-danger bg-dark');
+                if (badgeStyle) {
+                    $badge.attr('style', badgeStyle);
+                } else {
+                    $badge.removeAttr('style').addClass('bg-secondary');
+                }
+
+                $badge.html(
+                    $('<div/>').text(label).html()
+                        + '<i class="fas fa-caret-down lead-status-inline-caret" aria-hidden="true"></i>'
+                );
+            }
+
+            function setLeadModalClientInfo(rowData) {
+                $('#leadClientCreatedBadge').addClass('d-none');
+                $('#leadCreateContractWrap').addClass('d-none');
+
+                if (!rowData || !rowData.user_id) {
+                    return;
+                }
+
+                $('#leadClientCreatedBadge').removeClass('d-none');
+
+                if (canViewContracts && rowData.create_contract_url) {
+                    $('#leadCreateContractWrap').removeClass('d-none');
+                }
+            }
+
+            function buildContractPreselectedUser(rowData) {
+                if (!rowData || !rowData.user_id) {
+                    return null;
+                }
+
+                var text = [rowData.child_lastname, rowData.child_firstname]
+                    .filter(function(part) { return !!part; })
+                    .join(' ')
+                    .trim();
+
+                if (!text) {
+                    text = rowData.child_full_name || ('Ученик #' + rowData.user_id);
+                }
+
+                return {
+                    id: rowData.user_id,
+                    text: text,
+                    team_id: rowData.team_id || null,
+                    team_title: rowData.team_title || null,
+                    parent_full_name: rowData.parent_full_name || null,
+                };
+            }
+
+            function openCreateContractFromLead(rowData) {
+                var preselected = buildContractPreselectedUser(rowData);
+                if (!preselected || !window.KidsCrmContractCreate || typeof window.KidsCrmContractCreate.openModal !== 'function') {
+                    return;
+                }
+
+                var leadModalInstance = bootstrap.Modal.getInstance(editLeadModalEl);
+                if (leadModalInstance && editLeadModalEl.classList.contains('show')) {
+                    var onHidden = function() {
+                        editLeadModalEl.removeEventListener('hidden.bs.modal', onHidden);
+                        window.KidsCrmContractCreate.openModal(preselected);
+                    };
+                    editLeadModalEl.addEventListener('hidden.bs.modal', onHidden);
+                    leadModalInstance.hide();
+                    return;
+                }
+
+                window.KidsCrmContractCreate.openModal(preselected);
+            }
+
+            function setLeadModalReadOnly(isReadOnly) {
+                leadModalReadOnly = !!isReadOnly;
+                $editLeadModal.toggleClass('lead-modal-readonly', leadModalReadOnly);
+                $('#editLeadEditableActions').toggleClass('d-none', leadModalReadOnly);
+
+                var $fields = $editLeadForm.find('input, select, textarea, button')
+                    .not('.accordion-button')
+                    .not('.lead-status-inline-trigger')
+                    .not('#leadCreateContractBtn');
+                $fields.prop('disabled', leadModalReadOnly);
+                $editLeadForm.find('.accordion-button').prop('disabled', false);
+                $('#leadCreateContractBtn').prop('disabled', false);
+                var $pickerTrigger = $('#leadModalStatusPicker .lead-status-inline-trigger');
+                $pickerTrigger.attr('tabindex', leadModalReadOnly ? '-1' : '0');
+
+                window.syncStudentParentFieldsVisibility?.('lead');
+
+                if (!leadModalReadOnly) {
+                    syncCreateClientBtnState();
+                }
+            }
+
+            function setEditLeadAccordionButtonState($button, isExpanded) {
+                $button.toggleClass('collapsed', !isExpanded);
+                $button.attr('aria-expanded', isExpanded ? 'true' : 'false');
+            }
+
+            function toggleEditLeadAccordionButton(buttonEl) {
+                var $button = $(buttonEl);
+                var targetSelector = $button.attr('data-bs-target');
+                if (!targetSelector) {
+                    return;
+                }
+
+                var panelEl = document.querySelector(targetSelector);
+                if (!panelEl) {
+                    return;
+                }
+
+                var isShown = panelEl.classList.contains('show');
+
+                if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    var collapse = bootstrap.Collapse.getOrCreateInstance(panelEl, { toggle: false });
+                    if (isShown) {
+                        collapse.hide();
+                    } else {
+                        collapse.show();
+                    }
+                } else {
+                    $(panelEl).toggleClass('show', !isShown);
+                }
+
+                setEditLeadAccordionButtonState($button, !isShown);
+            }
+
+            function showEditLeadAccordionPanel($element) {
+                var $panel = $element.closest('.accordion-collapse');
+                if (!$panel.length || $panel.hasClass('show')) {
+                    return;
+                }
+
+                var panelEl = $panel.get(0);
+                var $button = $panel.prev('.accordion-header').find('.accordion-button');
+
+                if (panelEl && typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                    bootstrap.Collapse.getOrCreateInstance(panelEl, { toggle: false }).show();
+                } else {
+                    $panel.addClass('show');
+                }
+
+                if ($button.length) {
+                    setEditLeadAccordionButtonState($button, true);
+                }
+            }
+
+            $('#editLeadAccordion').on('click', '.accordion-button', function(event) {
+                event.preventDefault();
+                toggleEditLeadAccordionButton(this);
             });
 
-            $('#saveLeadBtn').on('click', function() {
-                var id = $('#editLeadId').val();
+            $('#editLeadAccordion')
+                .on('shown.bs.collapse', '.accordion-collapse', function() {
+                    setEditLeadAccordionButtonState(
+                        $(this).prev('.accordion-header').find('.accordion-button'),
+                        true
+                    );
+                })
+                .on('hidden.bs.collapse', '.accordion-collapse', function() {
+                    setEditLeadAccordionButtonState(
+                        $(this).prev('.accordion-header').find('.accordion-button'),
+                        false
+                    );
+                });
+
+            function populateLeadForm(rowData) {
+                clearLeadFormErrors();
+                currentLeadModalRowData = rowData || null;
+                $('#editLeadId').val(rowData.id);
+                setLeadModalStatusPicker(
+                    rowData.school_lead_status_id,
+                    rowData.status_label || '—',
+                    rowData
+                );
+                $('#leadComment').val(rowData.comment || '');
+                $('#leadTeam').val(rowData.team_id ? String(rowData.team_id) : '');
+                $('#leadChildLastname').val(rowData.child_lastname || '');
+                $('#leadChildFirstname').val(rowData.child_firstname || '');
+                $('#leadChildMiddlename').val(rowData.child_middlename || '');
+                $('#leadChildBirthday').val(rowData.child_birthday_iso || '');
+
+                if (canViewDistricts) {
+                    $('#leadDistrict').val(rowData.district_id ? String(rowData.district_id) : '');
+                }
+                if (canViewLocations) {
+                    $('#leadLocation').val(rowData.location_id ? String(rowData.location_id) : '');
+                }
+
+                setLeadHealthFields({
+                    is_individual_traits: rowData.is_individual_traits,
+                    is_on_medical_register: rowData.is_on_medical_register,
+                    is_with_disability: rowData.is_with_disability,
+                });
+
+                if (rowData.needs_contact_help) {
+                    $('#leadNeedsContactHelpBadge').removeClass('d-none');
+                } else {
+                    $('#leadNeedsContactHelpBadge').addClass('d-none');
+                }
+
+                $editLeadForm.find('.js-lead-custom-field').val('');
+
+                if (typeof window.setStudentParentForm === 'function') {
+                    window.setStudentParentForm('lead', {
+                        parent_id: null,
+                        parent_lastname: rowData.parent_lastname || '',
+                        parent_firstname: rowData.parent_firstname || '',
+                        parent_middlename: rowData.parent_middlename || '',
+                        parent_phone: rowData.parent_phone || rowData.phone || '',
+                        parent_email: rowData.parent_email || '',
+                        forceNewParent: true,
+                    });
+                }
+
+                setLeadModalReadOnly(!!rowData.user_id);
+                setLeadModalClientInfo(rowData);
+            }
+
+            function collectLeadPayload() {
                 var payload = {
                     school_lead_status_id: $('#leadStatus').val(),
                     comment: $('#leadComment').val(),
+                    team_id: $('#leadTeam').val(),
+                    parent_lastname: $('#lead-parent-lastname').val(),
+                    parent_firstname: $('#lead-parent-firstname').val(),
+                    parent_middlename: $('#lead-parent-middlename').val(),
+                    parent_phone: $('#lead-parent-phone').val(),
+                    parent_email: $('#lead-parent-email').val(),
+                    child_lastname: $('#leadChildLastname').val(),
+                    child_firstname: $('#leadChildFirstname').val(),
+                    child_middlename: $('#leadChildMiddlename').val(),
+                    child_birthday: $('#leadChildBirthday').val(),
                 };
+
                 if (canViewDistricts) {
                     payload.district_id = $('#leadDistrict').val();
                 }
                 if (canViewLocations) {
                     payload.location_id = $('#leadLocation').val();
                 }
-                $('#editLeadError, #editLeadSuccess').addClass('d-none').text('');
-                if (canViewDistricts) {
-                    $('#leadDistrict').removeClass('is-invalid');
-                    $('#leadDistrictError').text('');
+
+                if (canUpdateLeadHealth) {
+                    payload.is_individual_traits = $('#lead-is_individual_traits').is(':checked') ? '1' : '0';
+                    payload.is_on_medical_register = $('#lead-is_on_medical_register').is(':checked') ? '1' : '0';
+                    payload.is_with_disability = $('#lead-is_with_disability').is(':checked') ? '1' : '0';
                 }
-                if (canViewLocations) {
-                    $('#leadLocation').removeClass('is-invalid');
-                    $('#leadLocationError').text('');
-                }
-                $('#leadStatus').removeClass('is-invalid');
-                $('#leadStatusError').text('');
-                $.ajax({
+
+                return payload;
+            }
+
+            function collectCreateClientPayload() {
+                var payload = collectLeadPayload();
+
+                return {
+                    name: payload.child_firstname,
+                    lastname: payload.child_lastname,
+                    birthday: payload.child_birthday || null,
+                    team_id: payload.team_id || null,
+                    role_id: studentRoleId,
+                    is_enabled: 1,
+                    school_lead_id: $('#editLeadId').val(),
+                    parent_id: $('#lead-parent-id').val() || null,
+                    parent_lastname: payload.parent_lastname,
+                    parent_firstname: payload.parent_firstname,
+                    parent_middlename: payload.parent_middlename,
+                    parent_passport: $('#lead-parent-passport').val(),
+                    parent_passport_issued: $('#lead-parent-passport-issued').val(),
+                    parent_address: $('#lead-parent-address').val(),
+                    parent_phone: payload.parent_phone,
+                    parent_email: payload.parent_email,
+                    is_individual_traits: payload.is_individual_traits,
+                    is_on_medical_register: payload.is_on_medical_register,
+                    is_with_disability: payload.is_with_disability,
+                    custom: {},
+                };
+            }
+
+            function saveLeadAjax() {
+                var id = $('#editLeadId').val();
+
+                return $.ajax({
                     url: '/admin/school-leads/' + id,
                     type: 'PUT',
-                    headers: { 'X-CSRF-TOKEN': csrfToken },
-                    data: payload,
-                    success: function(response) {
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    data: collectLeadPayload(),
+                });
+            }
+
+            $('#leads-table').on('click', '.edit-lead', function() {
+                var rowData = table.row($(this).closest('tr')).data();
+                populateLeadForm(rowData);
+                editLeadModal.show();
+
+                if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function') {
+                    window.KidsCrmTooltip.init(editLeadModalEl);
+                }
+            });
+
+            $editLeadForm.on('input change', '.js-lead-child-name', syncCreateClientBtnState);
+
+            $('#saveLeadBtn').on('click', function() {
+                if (leadModalReadOnly) {
+                    return;
+                }
+
+                var $btn = $(this);
+                clearLeadFormErrors();
+                $btn.prop('disabled', true);
+
+                saveLeadAjax()
+                    .done(function(response) {
                         $('#editLeadSuccess').removeClass('d-none').text(response.message || 'Сохранено.');
                         dtApi.reload({ keepPage: true });
                         showToast(response.message || 'Изменения сохранены.', 'success');
                         setTimeout(function() { editLeadModal.hide(); }, 600);
-                    },
-                    error: function(xhr) {
+                    })
+                    .fail(function(xhr) {
                         var message = 'Ошибка сохранения.';
                         if (xhr.responseJSON && xhr.responseJSON.message) {
                             message = xhr.responseJSON.message;
                         }
-                        if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.school_lead_status_id) {
-                            $('#leadStatus').addClass('is-invalid');
-                            $('#leadStatusError').text(xhr.responseJSON.errors.school_lead_status_id[0]);
-                        }
-                        if (canViewDistricts && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.district_id) {
-                            $('#leadDistrict').addClass('is-invalid');
-                            $('#leadDistrictError').text(xhr.responseJSON.errors.district_id[0]);
-                        }
-                        if (canViewLocations && xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.location_id) {
-                            $('#leadLocation').addClass('is-invalid');
-                            $('#leadLocationError').text(xhr.responseJSON.errors.location_id[0]);
+                        if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            applyLeadFormErrors(xhr.responseJSON.errors);
                         }
                         $('#editLeadError').removeClass('d-none').text(message);
                         showToast(message, 'error');
+                    })
+                    .always(function() {
+                        $btn.prop('disabled', false);
+                    });
+            });
+
+            if (canCreateUserFromLead) {
+                $editLeadForm.find('.js-lead-custom-field').each(function() {
+                    var $field = $(this);
+                    var name = $field.attr('name') || '';
+                    var match = /^custom\[(.+)\]$/.exec(name);
+                    if (!match) {
+                        return;
                     }
+                    var slug = match[1];
+                    $field.on('input', function() {
+                        // no-op: collected on submit
+                    });
                 });
+
+                $('#createClientBtn').on('click', function() {
+                    if (leadModalReadOnly || $(this).prop('disabled')) {
+                        return;
+                    }
+
+                    var $btn = $(this);
+                    var $saveBtn = $('#saveLeadBtn');
+                    clearLeadFormErrors();
+                    $btn.prop('disabled', true);
+                    $saveBtn.prop('disabled', true);
+
+                    var clientPayload = collectCreateClientPayload();
+
+                    $editLeadForm.find('.js-lead-custom-field').each(function() {
+                        var $field = $(this);
+                        var name = $field.attr('name') || '';
+                        var match = /^custom\[(.+)\]$/.exec(name);
+                        if (match && !$field.prop('disabled')) {
+                            clientPayload.custom[match[1]] = $field.val();
+                        }
+                    });
+
+                    saveLeadAjax()
+                        .done(function() {
+                            return $.ajax({
+                                url: userStoreUrl,
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json',
+                                },
+                                data: clientPayload,
+                            });
+                        })
+                        .done(function(response) {
+                            editLeadModal.hide();
+                            dtApi.reload({ keepPage: true });
+                            showToast(response.message || 'Клиент создан.', 'success');
+                        })
+                        .fail(function(xhr) {
+                            var message = 'Ошибка создания клиента.';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+                            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                applyLeadFormErrors(xhr.responseJSON.errors);
+                            }
+                            $('#editLeadError').removeClass('d-none').text(message);
+                            showToast(message, 'error');
+                            syncCreateClientBtnState();
+                        })
+                        .always(function() {
+                            $saveBtn.prop('disabled', false);
+                            syncCreateClientBtnState();
+                        });
+                });
+            }
+
+            editLeadModalEl.addEventListener('hidden.bs.modal', function() {
+                clearLeadFormErrors();
+                closeAllLeadStatusMenus();
+                setLeadModalReadOnly(false);
+                setLeadModalClientInfo(null);
+                currentLeadModalRowData = null;
+                if (typeof window.resetStudentParentForm === 'function') {
+                    window.resetStudentParentForm('lead');
+                }
+            });
+
+            $('#editLeadModal').on('click', '#leadCreateContractBtn', function(event) {
+                event.preventDefault();
+                if (!currentLeadModalRowData) {
+                    return;
+                }
+                openCreateContractFromLead(currentLeadModalRowData);
+            });
+
+            $('#leads-table').on('click', '.js-open-create-contract-from-lead', function(event) {
+                event.preventDefault();
+                var rowData = table.row($(this).closest('tr')).data();
+                openCreateContractFromLead(rowData);
+            });
+
+            $('#editLeadModal').on('click', '.lead-modal-status-picker .lead-status-inline-trigger', function(event) {
+                if (leadModalReadOnly) {
+                    return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                openLeadStatusInlineSelect($(this));
+            });
+
+            $('#editLeadModal').on('keydown', '.lead-modal-status-picker .lead-status-inline-trigger', function(event) {
+                if (leadModalReadOnly) {
+                    return;
+                }
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openLeadStatusInlineSelect($(this));
+                }
             });
 
             $('#leads-table').on('click', '.lead-status-badge', function(event) {
@@ -1152,7 +1577,6 @@
                     return;
                 }
 
-                var leadId = $picker.find('.lead-status-badge').data('id');
                 var newStatusId = String($option.data('value') || '');
                 var currentStatusId = String($picker.find('.lead-status-badge').data('status') || '');
 
@@ -1161,6 +1585,21 @@
                     return;
                 }
 
+                if ($picker.hasClass('lead-modal-status-picker')) {
+                    var optionMeta = leadStatusInlineSelectOptions.find(function(option) {
+                        return String(option.value) === newStatusId;
+                    }) || {};
+
+                    setLeadModalStatusPicker(newStatusId, $.trim($option.text()), {
+                        status_color: optionMeta.color,
+                        status_text_color: optionMeta.text_color,
+                        status_badge_style: optionMeta.badge_style,
+                    });
+                    closeAllLeadStatusMenus();
+                    return;
+                }
+
+                var leadId = $picker.find('.lead-status-badge').data('id');
                 saveLeadStatusInline(leadId, newStatusId, $picker);
             });
 
@@ -1209,109 +1648,6 @@
                     }
                 });
             });
-
-            if (canCreateUserFromLead) {
-                var createUserModalEl = document.getElementById('createUserModal');
-                var createUserModal = createUserModalEl ? new bootstrap.Modal(createUserModalEl) : null;
-                var $createUserForm = $('#create-user-form');
-
-                function resetCreateUserFormErrors() {
-                    $createUserForm.find('.is-invalid').removeClass('is-invalid');
-                    $createUserForm.find('.invalid-feedback').remove();
-                }
-
-                function resetCreateUserFormFields() {
-                    if (!$createUserForm.length) {
-                        return;
-                    }
-                    $createUserForm[0].reset();
-                    $('#create-school-lead-id').val('');
-                    $createUserForm.removeData('success-handler');
-                    $createUserForm.removeData('school-lead-prefill');
-                    resetCreateUserFormErrors();
-                    if (typeof window.resetStudentParentForm === 'function') {
-                        window.resetStudentParentForm('create');
-                    }
-                    if (typeof window.resetCreateUserHealthFields === 'function') {
-                        window.resetCreateUserHealthFields();
-                    }
-                    if (typeof window.syncCreateUserHealthFields === 'function') {
-                        window.syncCreateUserHealthFields($('#create_role_id').val());
-                    }
-                }
-
-                function prefillCreateUserFromLead(rowData) {
-                    resetCreateUserFormFields();
-
-                    var studentRoleId = $('.js-student-parent-fields[data-parent-prefix="create"]').data('student-role-id');
-                    if (studentRoleId) {
-                        $('#create_role_id').val(String(studentRoleId)).trigger('change');
-                    }
-
-                    $('#create-name').val(rowData.child_firstname || '');
-                    $('#create-lastname').val(rowData.child_lastname || '');
-                    $('#create-birthday').val(rowData.child_birthday_iso || '');
-
-                    if (rowData.team_id) {
-                        $('#create-team').val(String(rowData.team_id));
-                    } else {
-                        $('#create-team').val('');
-                    }
-
-                    $('#create-email').val(rowData.parent_email || '');
-                    $('#create-school-lead-id').val(rowData.id);
-
-                    var $phone = $('#create-phone');
-                    if ($phone.length && !$phone.prop('disabled')) {
-                        var phoneValue = rowData.parent_phone || rowData.phone || '';
-                        window.PhoneInputMask?.setValue($phone, phoneValue);
-                    }
-
-                    $createUserForm.data('school-lead-prefill', {
-                        parent_lastname: rowData.parent_lastname || '',
-                        parent_firstname: rowData.parent_firstname || '',
-                        parent_middlename: rowData.parent_middlename || '',
-                    });
-
-                    if (typeof window.setCreateUserHealthFieldsFromLead === 'function') {
-                        window.setCreateUserHealthFieldsFromLead({
-                            is_individual_traits: rowData.is_individual_traits,
-                            is_on_medical_register: rowData.is_on_medical_register,
-                            is_with_disability: rowData.is_with_disability,
-                        });
-                    }
-                    if (typeof window.syncCreateUserHealthFields === 'function') {
-                        window.syncCreateUserHealthFields($('#create_role_id').val());
-                    }
-
-                    $createUserForm.data('success-handler', 'school-leads-table');
-                }
-
-                $('#leads-table').on('click', '.create-user-from-lead', function() {
-                    var rowData = table.row($(this).closest('tr')).data();
-                    if (!rowData || rowData.user_id) {
-                        return;
-                    }
-
-                    prefillCreateUserFromLead(rowData);
-
-                    if (createUserModal) {
-                        createUserModal.show();
-                    }
-                });
-
-                if (createUserModalEl) {
-                    createUserModalEl.addEventListener('hidden.bs.modal', function() {
-                        resetCreateUserFormFields();
-                    });
-                }
-
-                window.onSchoolLeadUserCreated = function(response) {
-                    resetCreateUserFormFields();
-                    dtApi.reload({ keepPage: true });
-                    showToast(response.message || 'Клиент создан.', 'success');
-                };
-            }
 
             function schoolLeadStatusUrl(template, id) {
                 return String(template).replace('__ID__', String(id));

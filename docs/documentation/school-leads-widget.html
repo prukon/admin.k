@@ -123,7 +123,7 @@
       <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>school_leads_index</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости колонок (<code>columns</code> — объект ключ → bool)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
-      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td><code>school_lead_status_id</code>, комментарий; при <code>locations.view</code> — <code>location_id</code> (<code>UpdateSchoolLeadRequest</code>)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей; при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code> → <b>422</b> (<code>UpdateSchoolLeadRequest</code>, §5.5.2)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Soft delete</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>JSON: список статусов партнёра + системный «Новый» (§5.4)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>Создать кастомный статус</td></tr>
@@ -157,8 +157,8 @@
       </ul>
     </li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings. Порядок по умолчанию: после «ФИО родителя» идёт <b>«Статус»</b>, затем телефон, email и остальные поля (см. §5.5.1).</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия»; конвертация в клиента и работа с договором — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
-    <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку редактирования заявки (как кнопка «Изменить»). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия» (иконка карандаша → модалка §5.5.2); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
+    <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2), как кнопка «Изменить» в «Действиях». См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
 
@@ -268,13 +268,26 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       "location_name": "Филиал",
       "district_id": 2,
       "district_name": "Центральный",
+      "child_lastname": "Иванов",
+      "child_firstname": "Пётр",
+      "child_birthday_iso": "2018-05-10",
+      "team_id": 3,
+      "team_title": "Группа А",
+      "parent_lastname": "Иванова",
+      "parent_firstname": "Мария",
+      "parent_phone": "+7 900 ...",
+      "parent_email": "parent@example.com",
+      "is_individual_traits": true,
+      "is_on_medical_register": false,
+      "is_with_disability": false,
+      "needs_contact_help": false,
       "user_id": null
     },
     {
       "id": 2,
       "name": "...",
       "user_id": 42,
-      "create_contract_url": "https://.../client-contracts/create?user_id=42"
+      "create_contract_url": "https://.../client-contracts?user_id=42"
     },
     {
       "id": 3,
@@ -291,7 +304,9 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">
     Поля <code>district_id</code> / <code>district_name</code> — только при <code>districts.view</code>.
     Поля <code>location_id</code> / <code>location_name</code> — только при <code>locations.view</code>.
+    Поля ФИО родителя/ученика, <code>child_birthday_iso</code>, <code>team_id</code>, флаги особенностей и <code>needs_contact_help</code> — для предзаполнения модалки §5.5.2.
     Поля <code>user_id</code>, <code>create_contract_url</code>, <code>latest_contract</code> — см. §5.6–5.8 (зависят от прав и состояния лида).
+    <code>create_contract_url</code> — URL <code>/client-contracts?user_id=…</code> (для API и прямого перехода); в UI таблицы и модалки открывается встроенная модалка договора без смены страницы (§5.8).
     <code>stats</code> всегда по всему партнёру, независимо от фильтров таблицы.
   </p>
 
@@ -339,9 +354,24 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <b>Миграция с enum:</b> миграция <code>2026_06_16_140000_…</code> создаёт справочник и колонку <code>school_lead_status_id</code>, но <b>не</b> переносит значения из старого поля <code>status</code> автоматически. Существующие заявки могут остаться с <code>school_lead_status_id = NULL</code> до ручного обновления в БД (например, проставить системный «Новый» по <code>school_lead_statuses.code = 'new'</code>).
   </div>
 
-  <h3>5.5) Статус заявки и редактирование</h3>
-  <p><code>PUT /admin/school-leads/{id}</code> — JSON: <code>school_lead_status_id</code> (id из справочника партнёра или пустая строка → <code>null</code>), <code>comment</code>, опционально <code>district_id</code>, <code>location_id</code>. В ответе — поля для обновления badge в таблице: <code>status_label</code>, <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code>. Ошибки валидации — 422, тексты на русском (<code>UpdateSchoolLeadRequest</code>). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
-  <p>В модалке «Редактирование заявки» статус меняется через обычный <code>&lt;select id="leadStatus"&gt;</code>. В таблице — inline (§5.5.1).</p>
+  <h3>5.5) API обновления заявки</h3>
+  <p><code>PUT /admin/school-leads/{id}</code> — JSON (<code>UpdateSchoolLeadRequest</code>):</p>
+  <table>
+    <thead>
+      <tr><th>Поле</th><th>Условие</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>school_lead_status_id</code></td><td>всегда</td><td>id из справочника партнёра или пустая строка → <code>null</code></td></tr>
+      <tr><td><code>comment</code></td><td>всегда</td><td>Комментарий оператора</td></tr>
+      <tr><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>, <code>parent_phone</code>, <code>parent_email</code></td><td>всегда</td><td>Данные родителя в заявке</td></tr>
+      <tr><td><code>child_lastname</code>, <code>child_firstname</code>, <code>child_middlename</code>, <code>child_birthday</code></td><td>всегда</td><td>Данные ученика в заявке</td></tr>
+      <tr><td><code>team_id</code></td><td>всегда</td><td>Группа (секция) партнёра; пусто → <code>null</code></td></tr>
+      <tr><td><code>district_id</code></td><td><code>districts.view</code></td><td>Район; пусто → <code>null</code></td></tr>
+      <tr><td><code>location_id</code></td><td><code>locations.view</code></td><td>Объект; должен соответствовать району</td></tr>
+      <tr><td><code>is_individual_traits</code>, <code>is_on_medical_register</code>, <code>is_with_disability</code></td><td><code>users.other.update</code></td><td><code>0</code> / <code>1</code> (в UI — чекбоксы)</td></tr>
+    </tbody>
+  </table>
+  <p>В ответе — поля для обновления badge: <code>status_label</code>, <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code>. Ошибки валидации — <b>422</b>, тексты на русском под полями формы. Если у заявки уже есть <code>user_id</code> (клиент создан) — <b>422</b> с ошибкой <code>school_lead</code> (редактирование закрыто). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
 
   <h3 id="school-leads-inline-status">5.5.1) Inline-смена статуса в таблице (цветные бейджи)</h3>
   <p>Колонка «Статус» расположена сразу после «ФИО родителя» (заголовок <code>.lead-status-col-header</code> с подсказкой, тот же порядок в меню «Колонки» и в массиве <code>columns</code> DataTable).</p>
@@ -364,7 +394,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       </tr>
       <tr>
         <td>Сохранение</td>
-        <td>Клик по пункту меню → <code>PUT /admin/school-leads/{id}</code> с новым <code>school_lead_status_id</code> → toast → перезагрузка строк таблицы (<code>dtApi.reload</code>).</td>
+        <td>Клик по пункту меню в <b>таблице</b> → <code>PUT /admin/school-leads/{id}</code> с новым <code>school_lead_status_id</code> → toast → перезагрузка строк (<code>dtApi.reload</code>). В <b>модалке</b> §5.5.2 выбор статуса только меняет форму; сохранение — кнопкой «Сохранить изменения».</td>
       </tr>
     </tbody>
   </table>
@@ -381,6 +411,53 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   </ul>
   <p class="small">Тесты UI и API: <code>SchoolLeadsInlineStatusUiFeatureTest</code> (разметка, порядок колонок, цвета, payload inline-update). Доступ 200: <code>SchoolLeadsPageFullAccessFeatureTest</code>, <code>SchoolLeadStatusesPageFullAccessFeatureTest</code> (§5.9).</p>
 
+  <h3 id="school-lead-edit-modal">5.5.2) Модалка «Редактирование лида»</h3>
+  <p>Единая модалка для просмотра и редактирования заявки. Открывается по клику на имя родителя (<code>.edit-lead</code>) или иконку карандаша в «Действиях». Partial: <code>resources/views/admin/school-leads/partials/edit-lead-modal.blade.php</code>; JS — <code>tabs/leads.blade.php</code> (<code>populateLeadForm</code>, <code>collectLeadPayload</code>, <code>saveLeadAjax</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Блок UI</th><th>Описание</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Верх (вне аккордеона)</td>
+        <td>
+          <b>Статус</b> — тот же inline-picker, что в таблице (<code>#leadModalStatusPicker</code>, <code>setLeadModalStatusPicker</code>): подпись и цветной badge в одной строке; значение в скрытом <code>#leadStatus</code> (<code>school_lead_status_id</code>).<br>
+          <b>Комментарий</b> — <code>#leadComment</code>.<br>
+          При <code>needs_contact_help</code> — badge «Просит помочь с выбором секции» в заголовке модалки.
+        </td>
+      </tr>
+      <tr>
+        <td>Аккордеон «Ученик»</td>
+        <td>ФИО ученика, дата рождения, <b>группа</b>, <b>район</b> (при <code>districts.view</code>), <b>объект</b> (при <code>locations.view</code>). Сведения об ученике (мед./особенности) — <b>чекбоксы</b> при <code>users.other.update</code> (partial <code>includes/modal/_student_health_fields</code>, <code>variant=checkbox</code>).</td>
+      </tr>
+      <tr>
+        <td>Аккордеон «Родитель»</td>
+        <td>Блок <code>admin/users/_parent_form.blade.php</code> с префиксом <code>lead</code> (ФИО, телефон, email, паспорт, адрес; режим «новый родитель» при открытии из лида).</td>
+      </tr>
+      <tr>
+        <td>Аккордеон «Дополнительные поля клиента»</td>
+        <td>Только при <code>users.view</code> и наличии настраиваемых полей партнёра — те же <code>custom[{slug}]</code>, что при создании ученика; подставляются в <code>POST /admin/users</code> при «Создать клиента».</td>
+      </tr>
+      <tr>
+        <td>Футер (редактируемая заявка)</td>
+        <td>«Сохранить изменения» → <code>PUT /admin/school-leads/{id}</code>. При <code>users.view</code> — «Создать клиента» (активна, если заполнены имя и фамилия ученика).</td>
+      </tr>
+      <tr>
+        <td>Заявка с <code>user_id</code> (read-only)</td>
+        <td>
+          Все поля формы только для чтения; кнопки «Сохранить» и «Создать клиента» скрыты.<br>
+          Под статусом — плашка <b>«На основании лида был создан клиент.»</b><br>
+          При <code>contracts.view</code> и отсутствии договора — кнопка <b>«Создать договор»</b> (остаётся активной; §5.8).
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Отдельной модалки «Редактирование заявки» и отдельного <code>createUserModal</code> на странице заявок <b>нет</b>.
+    Аккордеон «Заявка» (старый блок со статусом/комментарием/группой) удалён — эти поля перенесены согласно таблице выше.
+    Ошибки валидации <code>PUT</code> и <code>POST /admin/users</code> выводятся под полями (<code>data-field-error</code>, <code>applyLeadFormErrors</code>).
+  </p>
+
   <h3>5.6) Колонка «Договор» и права на UI</h3>
   <p>Отдельная колонка таблицы «Договор» показывается, если у пользователя есть <code>users.view</code> <b>или</b> <code>contracts.view</code> (в Blade: <code>canShowLeadClientColumn</code>).</p>
   <table>
@@ -390,13 +467,13 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <tbody>
       <tr>
         <td>Нет <code>user_id</code></td>
-        <td><code>users.view</code></td>
-        <td>Кнопка <b>«Создать клиента»</b> (<code>btn-primary</code>) — открывает модалку создания ученика на этой же странице</td>
+        <td>—</td>
+        <td>В ячейке «—» (создание клиента — в модалке §5.5.2, кнопка «Создать клиента»)</td>
       </tr>
       <tr>
         <td>Есть <code>user_id</code>, у ученика нет договоров</td>
         <td><code>contracts.view</code></td>
-        <td>Ссылка-кнопка <b>«Создать договор»</b> → <code>GET /client-contracts/create?user_id={id}</code> (redirect на список, модалка с предзаполнением; без списания на этом шаге)</td>
+        <td>Кнопка <b>«Создать договор»</b> — открывает встроенную модалку на этой же странице (§5.8), без перехода на <code>/client-contracts</code></td>
       </tr>
       <tr>
         <td>Есть <code>user_id</code>, есть договор(ы)</td>
@@ -425,24 +502,26 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <div class="note">
     Связь хранится в <code>school_leads.user_id</code> (nullable FK на <code>users</code>, <code>nullOnDelete</code>).
     У старых учеников и лидов без конвертации поле <code>null</code>.
-    Повторная конвертация одной заявки блокируется валидацией <code>school_lead_id</code> (заявка уже с <code>user_id</code>).
+    Повторная конвертация одной заявки блокируется валидацией <code>school_lead_id</code> (заявка уже с <code>user_id</code>) и <code>PUT</code> заявки (422).
     Unique-индекс <code>school_leads_user_id_unique</code> на колонке <code>user_id</code> (миграция <code>2026_05_19_170000_add_user_id_to_school_leads_table.php</code>) — один ученик не может быть привязан к двум заявкам.
   </div>
   <ul>
-    <li>Модалка — общий partial <code>resources/views/includes/modal/createUser.blade.php</code> (как на <a href="/docs/documentation/admin-users">/admin/users</a>), подключается на странице заявок при <code>users.view</code>.</li>
-    <li>При открытии из строки лида подставляются: <b>имя</b> (всё поле <code>name</code> заявки в «Имя ученика») и <b>телефон</b> (контакт в <code>users.phone</code>). Объект заявки (<code>school_leads.location_id</code>) и район (<code>district_id</code>) в ученика <b>не переносятся</b>. Фамилию и блок «Данные родителя» оператор заполняет вручную — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
-    <li>Скрытое поле формы: <code>school_lead_id</code>. Submit → <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>), не отдельный маршрут заявок.</li>
-    <li>Валидация: опциональный <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена. Иначе 422 (<code>school_lead_id.exists</code>).</li>
-    <li>После успешного <code>store</code> в транзакции: <code>school_leads.user_id = {новый user id}</code>. Таблица заявок перезагружается без полной перезагрузки страницы.</li>
+    <li>UI — кнопка <b>«Создать клиента»</b> в модалке §5.5.2 (не в колонке таблицы). Доступна при <code>users.view</code>; disabled, пока не заполнены имя и фамилия ученика (tooltip с подсказкой).</li>
+    <li>Поток: сначала <code>PUT /admin/school-leads/{id}</code> (сохранение полей модалки), затем <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>) с телом из <code>collectCreateClientPayload()</code>: ФИО ученика, дата рождения, <code>team_id</code>, блок родителя, флаги особенностей, <code>custom</code>, скрытые <code>role_id</code> (роль <code>user</code>), <code>is_enabled=1</code>, <code>school_lead_id</code>.</li>
+    <li>Район и объект заявки (<code>district_id</code>, <code>location_id</code>) в карточку ученика <b>не переносятся</b> (как и раньше). См. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
+    <li>Валидация: <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена. Иначе 422.</li>
+    <li>После успешного <code>store</code>: <code>school_leads.user_id = {новый user id}</code>; модалка закрывается, таблица перезагружается.</li>
   </ul>
-  <p class="small">Повторная привязка к другому лиду или второй клиент с того же лида блокируется валидацией (заявка уже с <code>user_id</code>).</p>
+  <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>).</p>
 
-  <h3>5.8) Переход к созданию договора</h3>
+  <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>
   <ul>
-    <li>Из колонки «Договор» — ссылка <code>/client-contracts/create?user_id=…</code> (middleware <code>can:contracts.view</code>) → redirect на <code>/client-contracts?create=1&amp;user_id=…</code>, открывается модалка «Создать договор» на странице списка.</li>
-    <li>В модалке ученик предзаполняется в Select2 (<code>preselectedUser</code>), группа — из <code>team_id</code>, ФИО родителя — read-only из <code>parents</code> (или «—»). См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a>.</li>
-    <li><b>Списание с баланса</b> за создание договора происходит только при <code>POST /client-contracts</code> из модалки, не при клике «Создать договор» в таблице заявок. Подтверждение оплаты — в той же модалке на <code>/client-contracts</code>.</li>
-    <li>Связь «заявка ↔ договор» в БД <b>не дублируется</b> в <code>contracts</code>: договор находится по <code>user_id</code> ученика, привязанного к лиду.</li>
+    <li>При <code>contracts.view</code> на страницу заявок подключается partial <code>contracts/partials/create-modal.blade.php</code> (тот же UI, что на <code>/client-contracts</code>).</li>
+    <li>Кнопки «Создать договор» в колонке таблицы и в read-only модалке лида — <code>type="button"</code>, класс <code>js-open-create-contract-from-lead</code>; вызывают <code>openCreateContractFromLead(rowData)</code> → <code>window.KidsCrmContractCreate.openModal(preselectedUser)</code>. Страница <b>не меняется</b>.</li>
+    <li>Предзаполнение ученика (<code>preselectedUser</code>) собирается из строки DataTables: <code>user_id</code>, ФИО ученика, <code>team_id</code> / <code>team_title</code>, <code>parent_full_name</code>. При открытии из модалки лида она сначала закрывается, затем открывается модалка договора.</li>
+    <li>В JSON data по-прежнему отдаётся <code>create_contract_url</code> = <code>route('contracts.index', ['user_id' => …])</code> для совместимости и прямых ссылок; прямой <code>GET /client-contracts?user_id=…</code> по-прежнему открывает модалку на странице договоров (§<a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a>).</li>
+    <li><b>Списание с баланса</b> — только при <code>POST /client-contracts</code> из модалки (предварительно <code>POST /client-contracts/check-balance</code>), не при открытии модалки.</li>
+    <li>Связь «заявка ↔ договор» в БД <b>не дублируется</b>: договор ищется по <code>user_id</code> ученика, привязанного к лиду (<code>LatestUserContractLookup</code>).</li>
   </ul>
 
   <h3>5.9) Доступ к разделу и связанным действиям</h3>
@@ -456,19 +535,22 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, CRUD статусов (§5.4), update/delete заявок (в пределах своего партнёра)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>districts.view</code></td><td>Дополнительно: фильтр/столбец/поле «Район» в UI и API (<code>district_id</code>)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле «Объект» в UI и API (<code>location_id</code>)</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: модалка «Создать клиента», <code>POST /admin/users</code> с <code>school_lead_id</code> → 200</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; переход <code>GET /client-contracts/create?user_id=</code> → redirect, index с модалкой → <b>200</b></td></tr>
-      <tr><td>Только <code>users.view</code> без <code>contracts.view</code></td><td>Колонка «Договор» видна (для «Создать клиента»), но полей договора в JSON нет</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: кнопка «Создать клиента» в модалке §5.5.2, <code>POST /admin/users</code> с <code>school_lead_id</code> → 200</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; встроенная модалка договора на странице заявок; <code>GET …/users-search</code>, <code>…/user-group</code>, <code>POST …/check-balance</code> → 200</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>users.other.update</code></td><td>Чекбоксы сведений об ученике в модалке и сохранение флагов через <code>PUT</code></td></tr>
+      <tr><td>Только <code>users.view</code> без <code>contracts.view</code></td><td>Колонка «Договор» может быть видна (если есть <code>users.view</code>), но полей договора в JSON нет; в ячейке «—» до создания клиента</td></tr>
       <tr><td><code>POST /admin/users</code> без <code>users.view</code></td><td><b>403</b> (даже с <code>schoolLeads.view</code>)</td></tr>
     </tbody>
   </table>
   <p class="small">
     Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, CRUD заявок и статусов, inline-update статуса с цветом — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
+    <code>SchoolLeadEditModalFullAccessFeatureTest</code> (модалка §5.5.2: гость/403; viewer/admin → 200 на core endpoint'ы, расширенный <code>PUT</code>, workflow «создать клиента» и встроенная модалка договора),
     <code>SchoolLeadStatusesPageFullAccessFeatureTest</code>,
     <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
     (в т.ч. workflow admin: store пользователя + create договора → 200).
     Фильтр статусов и API: <code>SchoolLeadsFilterMultiselectFeatureTest</code>.
     Inline UI и цветные бейджи: <code>SchoolLeadsInlineStatusUiFeatureTest</code>.
+    Модалка «Редактирование лида»: <code>SchoolLeadEditModalFeatureTest</code>, <code>SchoolLeadEditModalFullFeatureTest</code>, <code>SchoolLeadCreateClientFullFeatureTest</code>.
     Статусы (бизнес-логика): <code>SchoolLeadStatusesFeatureTest</code>.
     Бизнес-сценарии: <code>SchoolLeadCreateUserFeatureTest</code>, <code>SchoolLeadContractActionFeatureTest</code>, <code>SchoolLeadsLeadClientContractFeatureTest</code>.
     Виджет (<code>/admin/school-widget</code>) — право <code>schoolWidget.view</code>; лендинг CRM — <code>schoolLeadLanding.view</code> (§6).
@@ -535,7 +617,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
     <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
     <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ tabs, <code>partials/status-settings.blade.php</code>), <code>includes/modal/createUser.blade.php</code>, <code>contracts/create.blade.php</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -559,7 +641,9 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>
     <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — расширенный доступ (локации, workflow с <code>users.view</code> + <code>contracts.view</code>); маркер <code>edit-lead</code> в HTML</li>
     <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя родителя + update JSON</li>
-    <li><code>SchoolLeadCreateUserFeatureTest.php</code> — модалка, <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
+    <li><code>SchoolLeadEditModalFeatureTest.php</code>, <code>SchoolLeadEditModalFullFeatureTest.php</code>, <code>SchoolLeadEditModalFullAccessFeatureTest.php</code> — объединённая модалка §5.5.2, inline-статус в модалке, чекбоксы здоровья, встроенное создание договора</li>
+    <li><code>SchoolLeadCreateClientFullFeatureTest.php</code> — создание клиента из модалки, перенос health-флагов</li>
+    <li><code>SchoolLeadCreateUserFeatureTest.php</code> — <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>
     <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры (район, объект, секция, особые условия), колонки, пагинация</li>

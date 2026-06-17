@@ -19,11 +19,11 @@
     }
 @endphp
 
-<div class="col-12 js-student-parent-fields d-none"
+<div class="col-12 js-student-parent-fields {{ ($prefix ?? 'create') === 'lead' ? '' : 'd-none' }}"
      data-parent-prefix="{{ $prefix }}"
      data-student-role-id="{{ $studentRoleId }}"
      data-has-parent-profiles="{{ $hasParentProfiles ? '1' : '0' }}">
-    <div class="small text-muted mb-2">Данные родителя</div>
+    <div class="small text-muted mb-2 js-parent-section-title {{ !empty($hideSectionTitle) ? 'd-none' : '' }}">Данные родителя</div>
 
     @if($hasParentProfiles)
         <div class="js-parent-mode-toggle-wrap mb-2" data-parent-prefix="{{ $prefix }}">
@@ -301,6 +301,14 @@
 
                 window.syncStudentParentFieldsVisibility = function (prefix) {
                     const $wrap = parentFieldsWrap(prefix);
+                    if (prefix === 'lead') {
+                        $wrap.removeClass('d-none');
+                        $wrap.find('input, select, textarea').prop('disabled', false);
+                        $wrap.find('.js-parent-mode-btn').prop('disabled', false);
+
+                        return;
+                    }
+
                     const $form = $wrap.closest('form');
                     const studentRoleId = String($wrap.data('student-role-id') || '');
                     const currentRoleId = String($form.find('select[name="role_id"]').val() || '');
@@ -534,6 +542,11 @@
                     $('#editUserModal').on('shown.bs.modal', function () {
                         initParentSelectsInModal($(this));
                         window.syncStudentParentFieldsVisibility('edit');
+                    });
+
+                    $('#editLeadModal').on('shown.bs.modal', function () {
+                        initParentSelectsInModal($(this));
+                        window.syncStudentParentFieldsVisibility('lead');
                     });
                 });
             })(jQuery);

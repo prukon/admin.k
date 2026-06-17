@@ -302,10 +302,12 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
     {
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('id="createUserModal"', false)
-            ->assertSee('create-user-from-lead', false)
-            ->assertSee('prefillCreateUserFromLead', false)
+            ->assertSee('id="editLeadModal"', false)
+            ->assertSee('id="createClientBtn"', false)
+            ->assertSee('populateLeadForm', false)
             ->assertSee('forceNewParent', false)
+            ->assertDontSee('id="createUserModal"', false)
+            ->assertDontSee('create-user-from-lead', false)
             ->assertDontSee('>Суперадмин</option>', false);
     }
 
@@ -325,6 +327,8 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
             ->get(route('admin.school-leads'))
             ->assertOk()
+            ->assertSee('id="editLeadModal"', false)
+            ->assertDontSee('id="createClientBtn"', false)
             ->assertDontSee('id="createUserModal"', false);
     }
 
