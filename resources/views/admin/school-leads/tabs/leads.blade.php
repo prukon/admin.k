@@ -970,9 +970,17 @@
                         type: 'actions',
                         className: 'dt-col-actions',
                         render: function (data, type, row) {
-                            return '' +
-                                '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>' +
-                                '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
+                            if (type !== 'display') {
+                                return '';
+                            }
+
+                            var html = '';
+                            if (!row.user_id) {
+                                html += '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>';
+                            }
+                            html += '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
+
+                            return html;
                         },
                     },
                 ],

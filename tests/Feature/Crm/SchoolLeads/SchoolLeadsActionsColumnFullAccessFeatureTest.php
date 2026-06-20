@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\SchoolLeads;
 
+use App\Models\Contract;
 use App\Models\Location;
+use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\User;
@@ -14,12 +16,14 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Контроль доступа: вкладка «Заявки» (/admin/school-leads) и все её endpoint'ы —
- * 200 при schoolLeads.view, отказ для гостя и без права.
+ * Контроль доступа: вкладка «Заявки» и столбец «Действия» (скрытие редактирования после создания клиента).
+ * Страница и все endpoint'ы → 200 при schoolLeads.view; отказ для гостя и без права.
  */
-final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
+final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
 {
-    private SchoolLead $lead;
+    private SchoolLead $leadWithoutClient;
+
+    private SchoolLead $leadWithClient;
 
     protected function setUp(): void
     {
@@ -32,12 +36,34 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             '2fa:passed'      => true,
         ]);
 
-        $this->lead = SchoolLead::create([
+        $this->leadWithoutClient = SchoolLead::create([
             'partner_id'            => $this->partner->id,
-            'name'                  => 'Page access',
-            'phone'                 => '+7 900 222-22-22',
+            'name'                  => 'Access без клиента',
+            'phone'                 => '+7 900 820-20-01',
             'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
+
+        $client = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+            'name'       => 'Access',
+            'lastname'   => 'Client',
+        ]);
+
+        $this->leadWithClient = SchoolLead::create([
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Access с клиентом',
+            'phone'                 => '+7 900 820-20-02',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'user_id'               => $client->id,
+            'child_lastname'        => 'Client',
+            'child_firstname'       => 'Access',
+        ]);
+    }
+
+    private function defaultRoleId(): int
+    {
+        return (int) Role::query()->where('is_visible', 1)->orderBy('order_by')->value('id');
     }
 
     private function grantSchoolLeadsView(User $actor): void
@@ -111,23 +137,20 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
     {
         $this->actingAsViewer();
 
-        $this->get(route('admin.school-leads'))
+        $html = $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
-            ->assertSee('historyModal', false)
-            ->assertSee('История', false)
-            ->assertSee('showLogModal', false)
-            ->assertSee('id="sl-filter-status"', false)
-            ->assertSee('js-filter-multiselect-select', false)
-            ->assertSee('KidsCrmFilterMultiselectSelect2', false)
-            ->assertSee('id="schoolLeadStatusesModal"', false)
-            ->assertSee('schoolLeadStatusRoutes', false)
-            ->assertSee('renderLeadStatusInlineSelect', false)
-            ->assertSee('lead-status-inline-picker', false)
-            ->assertSee('lead-status-col-header', false)
-            ->assertSee('>Отображать</th>', false)
+            ->assertSee("key: 'actions'", false)
             ->assertSee('if (!row.user_id)', false)
-            ->assertSee('delete-lead', false);
+            ->assertSee('delete-lead', false)
+            ->getContent();
+
+        $actionsColumnPos = strpos($html, "key: 'actions'");
+        $this->assertNotFalse($actionsColumnPos);
+        $this->assertStringContainsString(
+            'if (!row.user_id)',
+            substr($html, $actionsColumnPos, 900)
+        );
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -147,18 +170,37 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
         }
     }
 
+    public function test_viewer_datatable_returns_user_id_for_leads_with_and_without_client(): void
+    {
+        $this->actingAsViewer();
+
+        $rows = $this->getJson(route('admin.school-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 50,
+        ]))
+            ->assertOk()
+            ->json('data');
+
+        $withoutClient = collect($rows)->firstWhere('id', $this->leadWithoutClient->id);
+        $withClient = collect($rows)->firstWhere('id', $this->leadWithClient->id);
+
+        $this->assertNotNull($withoutClient);
+        $this->assertNotNull($withClient);
+        $this->assertNull($withoutClient['user_id']);
+        $this->assertSame((int) $this->leadWithClient->user_id, (int) $withClient['user_id']);
+    }
+
     public function test_admin_all_leads_page_endpoints_return_200(): void
     {
         $this->asAdmin();
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee('id="sl-filter-status"', false)
-            ->assertSee('KidsCrmFilterMultiselectSelect2', false)
-            ->assertSee('renderLeadStatusInlineSelect', false)
-            ->assertSee('lead-status-inline-menu', false)
-            ->assertSee('>Отображать</th>', false)
-            ->assertSee('if (!row.user_id)', false);
+            ->assertSee("key: 'actions'", false)
+            ->assertSee('if (!row.user_id)', false)
+            ->assertSee('edit-lead', false)
+            ->assertSee('delete-lead', false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -178,6 +220,48 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
         }
     }
 
+    public function test_admin_datatable_with_client_contract_states_returns_200(): void
+    {
+        $this->asAdmin();
+
+        $user = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->defaultRoleId(),
+        ]);
+
+        Contract::create([
+            'school_id'       => $this->partner->id,
+            'user_id'         => $user->id,
+            'group_id'        => null,
+            'source_pdf_path' => 'documents/test/access-contract.pdf',
+            'source_sha256'   => str_repeat('f', 64),
+            'status'          => Contract::STATUS_DRAFT,
+        ]);
+
+        SchoolLead::create([
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Access admin contract',
+            'phone'                 => '+7 900 820-20-03',
+            'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+            'user_id'               => $user->id,
+        ]);
+
+        $rows = $this->getJson(route('admin.school-leads.data', [
+            'draw'   => 1,
+            'start'  => 0,
+            'length' => 50,
+        ]))
+            ->assertOk()
+            ->json('data');
+
+        $row = collect($rows)->firstWhere('name', 'Access admin contract');
+
+        $this->assertNotNull($row);
+        $this->assertSame($user->id, (int) $row['user_id']);
+        $this->assertArrayHasKey('latest_contract', $row);
+        $this->assertArrayNotHasKey('create_contract_url', $row);
+    }
+
     /**
      * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
      */
@@ -185,8 +269,8 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
     {
         $deleteLead = SchoolLead::create([
             'partner_id'            => $this->partner->id,
-            'name'                  => 'Denied delete',
-            'phone'                 => '+7 900 444-44-44',
+            'name'                  => 'Access delete target',
+            'phone'                 => '+7 900 820-20-99',
             'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
         ]);
 
@@ -204,24 +288,22 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'POST',
                 'url'    => route('admin.school-leads.columns-settings.save'),
-                'data'   => ['columns' => ['name' => true, 'phone' => true, 'status' => true]],
-            ],
-            [
-                'method' => 'PUT',
-                'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
                 'data'   => [
-                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
-                    'comment'               => 'access smoke',
+                    'columns' => [
+                        'name'     => true,
+                        'phone'    => true,
+                        'status'   => true,
+                        'contract' => true,
+                        'actions'  => true,
+                    ],
                 ],
             ],
             [
                 'method' => 'PUT',
-                'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
+                'url'    => route('admin.school-leads.update', ['schoolLead' => $this->leadWithoutClient->id]),
                 'data'   => [
-                    'school_lead_status_id' => $this->createPartnerSchoolLeadStatus([
-                        'name'  => 'Access inline color',
-                        'color' => '#20c997',
-                    ])->id,
+                    'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
+                    'comment'               => 'actions access smoke',
                 ],
             ],
             [
@@ -247,7 +329,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.school-leads.data', [
                     'draw'   => 1,
                     'start'  => 0,
-                    'length' => 10,
+                    'length' => 50,
                 ]),
             ],
             [
@@ -255,7 +337,7 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.school-leads.data', [
                     'draw'       => 1,
                     'start'      => 0,
-                    'length'     => 10,
+                    'length'     => 50,
                     'status_ids' => [
                         $this->schoolLeadSystemStatusId(),
                         $this->schoolLeadProcessingStatusId(),
@@ -265,13 +347,13 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             [
                 'method' => 'GET',
                 'url'    => route('admin.school-leads.data', [
-                    'draw'                     => 1,
-                    'start'                    => 0,
-                    'length'                   => 10,
-                    'status_ids'               => [$this->schoolLeadSystemStatusId()],
-                    'location_id'              => (string) $location->id,
-                    'team_id'                  => (string) $team->id,
-                    'has_special_conditions'   => '1',
+                    'draw'                   => 1,
+                    'start'                  => 0,
+                    'length'                 => 50,
+                    'status_ids'             => [$this->schoolLeadSystemStatusId()],
+                    'location_id'            => (string) $location->id,
+                    'team_id'                => (string) $team->id,
+                    'has_special_conditions' => '1',
                 ]),
             ],
             [

@@ -237,7 +237,8 @@ final class SchoolLeadEditModalFullAccessFeatureTest extends CrmTestCase
             ->assertSee('id="editLeadModal"', false)
             ->assertSee('id="createContractModal"', false)
             ->assertSee('id="createClientBtn"', false)
-            ->assertSee('js-open-create-contract-from-lead', false);
+            ->assertSee('js-open-create-contract-from-lead', false)
+            ->assertSee('if (!row.user_id)', false);
 
         foreach ($this->routesPayload(includeContractEndpoints: true, includeUserStore: true) as $item) {
             $response = $this->call(

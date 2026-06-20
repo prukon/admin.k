@@ -157,8 +157,8 @@
       </ul>
     </li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings. Порядок по умолчанию: после «ФИО родителя» идёт <b>«Статус»</b>, затем телефон, email и остальные поля (см. §5.5.1).</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование и удаление — в колонке «Действия» (иконка карандаша → модалка §5.5.2); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
-    <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2), как кнопка «Изменить» в «Действиях». См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование (иконка карандаша — только пока нет клиента) и удаление — в колонке «Действия» (<a href="#school-leads-actions-column">§5.5.3</a>); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
+    <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2): без клиента — редактирование, с клиентом — просмотр (read-only). Кнопка карандаша в «Действиях» при наличии <code>user_id</code> скрыта (<a href="#school-leads-actions-column">§5.5.3</a>). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>phone</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>utm</code>, <code>page_url</code>, <code>status</code>, <code>comment</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>actions</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
 
@@ -305,7 +305,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Поля <code>district_id</code> / <code>district_name</code> — только при <code>districts.view</code>.
     Поля <code>location_id</code> / <code>location_name</code> — только при <code>locations.view</code>.
     Поля ФИО родителя/ученика, <code>child_birthday_iso</code>, <code>team_id</code>, флаги особенностей и <code>needs_contact_help</code> — для предзаполнения модалки §5.5.2.
-    Поля <code>user_id</code>, <code>create_contract_url</code>, <code>latest_contract</code> — см. §5.6–5.8 (зависят от прав и состояния лида).
+    Поля <code>user_id</code>, <code>create_contract_url</code>, <code>latest_contract</code> — см. §5.5.3, §5.6–5.8 (зависят от прав и состояния лида). Поле <code>user_id</code> также управляет видимостью кнопки редактирования в колонке «Действия».
     <code>create_contract_url</code> — URL <code>/client-contracts?user_id=…</code> (для API и прямого перехода); в UI таблицы и модалки открывается встроенная модалка договора без смены страницы (§5.8).
     <code>stats</code> всегда по всему партнёру, независимо от фильтров таблицы.
   </p>
@@ -412,7 +412,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">Тесты UI и API: <code>SchoolLeadsInlineStatusUiFeatureTest</code> (разметка, порядок колонок, цвета, payload inline-update). Доступ 200: <code>SchoolLeadsPageFullAccessFeatureTest</code>, <code>SchoolLeadStatusesPageFullAccessFeatureTest</code> (§5.9).</p>
 
   <h3 id="school-lead-edit-modal">5.5.2) Модалка «Редактирование лида»</h3>
-  <p>Единая модалка для просмотра и редактирования заявки. Открывается по клику на имя родителя (<code>.edit-lead</code>) или иконку карандаша в «Действиях». Partial: <code>resources/views/admin/school-leads/partials/edit-lead-modal.blade.php</code>; JS — <code>tabs/leads.blade.php</code> (<code>populateLeadForm</code>, <code>collectLeadPayload</code>, <code>saveLeadAjax</code>).</p>
+  <p>Единая модалка для просмотра и редактирования заявки. Открывается по клику на имя родителя (<code>.edit-lead</code>) или иконку карандаша в «Действиях» (карандаш только пока не создан клиент — <a href="#school-leads-actions-column">§5.5.3</a>). Partial: <code>resources/views/admin/school-leads/partials/edit-lead-modal.blade.php</code>; JS — <code>tabs/leads.blade.php</code> (<code>populateLeadForm</code>, <code>collectLeadPayload</code>, <code>saveLeadAjax</code>).</p>
   <table>
     <thead>
       <tr><th>Блок UI</th><th>Описание</th></tr>
@@ -456,6 +456,38 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Отдельной модалки «Редактирование заявки» и отдельного <code>createUserModal</code> на странице заявок <b>нет</b>.
     Аккордеон «Заявка» (старый блок со статусом/комментарием/группой) удалён — эти поля перенесены согласно таблице выше.
     Ошибки валидации <code>PUT</code> и <code>POST /admin/users</code> выводятся под полями (<code>data-field-error</code>, <code>applyLeadFormErrors</code>).
+  </p>
+
+  <h3 id="school-leads-actions-column">5.5.3) Колонка «Действия»</h3>
+  <p>Колонка <code>key: 'actions'</code> (<code>type: 'actions'</code>, класс <code>dt-col-actions</code>). Рендер — в <code>resources/views/admin/school-leads/tabs/leads.blade.php</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Состояние лида</th><th>Кнопка «Редактировать» (карандаш, <code>edit-lead</code>)</th><th>Кнопка «Удалить» (<code>delete-lead</code>)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Нет <code>user_id</code> (клиент не создан)</td>
+        <td>Показывается — открывает редактируемую модалку §5.5.2</td>
+        <td>Показывается</td>
+      </tr>
+      <tr>
+        <td>Есть <code>user_id</code> (клиент создан)</td>
+        <td><b>Скрыта</b> — независимо от наличия договора</td>
+        <td>Показывается</td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Условие в JS: <code>if (!row.user_id)</code> — кнопка карандаша добавляется в HTML только для заявок без привязанного клиента.</li>
+    <li>Кнопка удаления рендерится <b>всегда</b> (вне проверки <code>user_id</code>).</li>
+    <li>Просмотр заявки с клиентом — по клику на <b>ФИО родителя</b> (колонка <code>name</code>, класс <code>edit-lead</code>): модалка §5.5.2 в режиме read-only (<code>setLeadModalReadOnly(true)</code>).</li>
+    <li>В JSON <code>GET /admin/school-leads/data</code> поле <code>user_id</code> используется и для колонки «Договор» (§5.6), и для логики «Действий».</li>
+    <li>Inline-смена статуса в таблице (§5.5.1) при наличии <code>user_id</code> по-прежнему отображается, но <code>PUT /admin/school-leads/{id}</code> вернёт <b>422</b> (<code>UpdateSchoolLeadRequest</code>: «Заявка уже привязана к клиенту…»).</li>
+  </ul>
+  <p class="small">
+    На <code>/admin/partner-leads</code> (лиды платформы, другая сущность) кнопка редактирования в «Действиях» <b>не скрывается</b> — поведение только у вкладки «Заявки» (<code>/admin/school-leads</code>).
+    Тесты: <code>SchoolLeadsActionsColumnFeatureTest</code> (markup, состояния <code>user_id</code> в data, workflow «создать клиента»);
+    доступ 200/403: <code>SchoolLeadsActionsColumnFullAccessFeatureTest</code> (§5.9).
   </p>
 
   <h3>5.6) Колонка «Договор» и права на UI</h3>
@@ -543,7 +575,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     </tbody>
   </table>
   <p class="small">
-    Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, CRUD заявок и статусов, inline-update статуса с цветом — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
+    Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, CRUD заявок и статусов, inline-update статуса с цветом, markup колонки «Действия» — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
+    <code>SchoolLeadsActionsColumnFullAccessFeatureTest</code> (столбец «Действия» §5.5.3: гость/403; viewer/admin → 200 на страницу, data с лидами с клиентом и без, CRUD и статусы),
     <code>SchoolLeadEditModalFullAccessFeatureTest</code> (модалка §5.5.2: гость/403; viewer/admin → 200 на core endpoint'ы, расширенный <code>PUT</code>, workflow «создать клиента» и встроенная модалка договора),
     <code>SchoolLeadStatusesPageFullAccessFeatureTest</code>,
     <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
@@ -551,6 +584,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Фильтр статусов и API: <code>SchoolLeadsFilterMultiselectFeatureTest</code>.
     Inline UI и цветные бейджи: <code>SchoolLeadsInlineStatusUiFeatureTest</code>.
     Модалка «Редактирование лида»: <code>SchoolLeadEditModalFeatureTest</code>, <code>SchoolLeadEditModalFullFeatureTest</code>, <code>SchoolLeadCreateClientFullFeatureTest</code>.
+    Колонка «Действия» (скрытие карандаша при <code>user_id</code>): <code>SchoolLeadsActionsColumnFeatureTest</code>.
     Статусы (бизнес-логика): <code>SchoolLeadStatusesFeatureTest</code>.
     Бизнес-сценарии: <code>SchoolLeadCreateUserFeatureTest</code>, <code>SchoolLeadContractActionFeatureTest</code>, <code>SchoolLeadsLeadClientContractFeatureTest</code>.
     Виджет (<code>/admin/school-widget</code>) — право <code>schoolWidget.view</code>; лендинг CRM — <code>schoolLeadLanding.view</code> (§6).
@@ -637,7 +671,9 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
   <p><b>CRM: заявки и виджет</b></p>
   <ul>
     <li><code>SchoolLeadsAuditLogsFeatureTest.php</code> — endpoint «История», update/delete audit, diff полей, запись в logs-data</li>
-    <li><code>SchoolLeadsPageFullAccessFeatureTest.php</code> — гость/403; при <code>schoolLeads.view</code> все endpoint'ы вкладки «Заявки» (§5), включая data с <code>status_ids[]</code>, logs-data, CRUD заявок и статусов → 200</li>
+    <li><code>SchoolLeadsPageFullAccessFeatureTest.php</code> — гость/403; при <code>schoolLeads.view</code> все endpoint'ы вкладки «Заявки» (§5), включая data с <code>status_ids[]</code>, logs-data, CRUD заявок и статусов, markup <code>if (!row.user_id)</code> в колонке «Действия» → 200</li>
+    <li><code>SchoolLeadsActionsColumnFullAccessFeatureTest.php</code> — §5.5.3: гость/403; viewer/admin → 200 на страницу и все endpoint'ы §5 при лидах с клиентом и без</li>
+    <li><code>SchoolLeadsActionsColumnFeatureTest.php</code> — §5.5.3: скрытие карандаша при <code>user_id</code>, сохранение удаления и клика по имени родителя, состояния data, workflow «создать клиента»</li>
     <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>
     <li><code>SchoolLeadsAccessFeatureTest.php</code>, <code>SchoolLeadsFullAccessFeatureTest.php</code> — расширенный доступ (локации, workflow с <code>users.view</code> + <code>contracts.view</code>); маркер <code>edit-lead</code> в HTML</li>
     <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное имя родителя + update JSON</li>
