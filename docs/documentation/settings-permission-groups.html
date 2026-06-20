@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: матрица прав — группы permissions (permission_groups)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Матрица прав: группы permissions (<code>permission_groups</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/settings-permission-groups.html</code> · см. также
+    <a href="/docs/documentation/settings-roles-custom">кастомные роли</a>,
+    <a href="/docs/documentation/partners-permissions">базовые права партнёра</a></div>
+
+  <div class="note">
+    <b>Назначение.</b> На вкладке «Настройки → Права и роли» права отображаются в аккордеоне по <b>группам</b>
+    (<code>permission_groups</code>). Группа — только навигация в UI матрицы: <b>имена прав</b>, назначение в
+    <code>permission_role</code> и проверки <code>Gate</code> / <code>hasPermission()</code> <b>не меняются</b> при перегруппировке.
+  </div>
+
+  <h2>1) Где в интерфейсе</h2>
+  <ul>
+    <li>Страница: <code>GET /admin/settings/rules</code> (вкладка «Права и роли», право <code>settings.roles.view</code>).</li>
+    <li>Разметка аккордеона: <code>/resources/views/admin/setting/rule.blade.php</code> — блок <code>#permission-accordion</code>.</li>
+    <li>Контроллер собирает группы: <code>RuleController::showRules</code> — коллекция <code>$groups</code> с вложенными <code>permissions</code>.</li>
+  </ul>
+
+  <h2>2) Модель данных</h2>
+  <ul>
+    <li><code>permission_groups</code> — справочник групп (<code>slug</code>, <code>name</code>, <code>sort_order</code>, <code>is_visible</code>).</li>
+    <li><code>permissions.permission_group_id</code> — FK на группу. Уникальность прав — по полю <code>permissions.name</code>.</li>
+    <li>Назначение прав ролям — как и раньше, только через <code>permission_role</code> (<code>partner_id</code>, <code>role_id</code>, <code>permission_id</code>).</li>
+  </ul>
+
+  <h2>3) Список групп (после перегруппировки 2026-06)</h2>
+  <p>Раньше почти все пункты меню и полевые права сидели в одной группе «Главное меню». Сейчас каталог разбит по смысловым блокам.</p>
+  <table>
+    <thead>
+      <tr><th><code>slug</code></th><th>Название в UI</th><th>Что внутри (примеры)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации: <code>dashboard.view</code>, <code>myPayments.view</code>, <code>myGroup.view</code>, <code>messages.view</code>, <code>blog.view</code>, <code>documentations.view</code></td></tr>
+      <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code>, <code>reports.emails.view</code>, <code>reports.payments.*</code></td></tr>
+      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.view</code>, <code>schedule.trainerSalary.*</code>, <code>scheduleSlots.*</code></td></tr>
+      <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>groups.view</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code></td></tr>
+      <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code></td></tr>
+      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code></td></tr>
+      <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.view</code>, <code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
+      <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code></td></tr>
+      <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.view</code>, <code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
+      <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …</td></tr>
+      <tr><td><code>users</code></td><td>Управление пользователями</td><td>Страницы <code>users.view</code>, <code>trainers.view</code> и поля CRM: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, …</td></tr>
+      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.view</code>, <code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, …</td></tr>
+      <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
+      <tr><td><code>misc</code></td><td>Разное</td><td><code>paying.classes</code>, <code>payment.clubfee</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>Важно: <code>account.*</code> и <code>users.*</code> — разные группы.</b><br>
+    <code>account.user.name.update</code> — изменение <b>своего</b> имени в личном кабинете.<br>
+    <code>users.name.update</code> — изменение имени <b>другого</b> пользователя в CRM (модалка редактирования).<br>
+    Группировка визуально разделяет эти сценарии; семантика прав не объединялась.
+  </div>
+
+  <h2>4) Видимость в матрице (<code>is_visible</code>)</h2>
+  <ul>
+    <li>У каждого permission есть <code>permissions.is_visible</code>. Для роли <b>не superadmin</b> на странице показываются только права с <code>is_visible = 1</code>
+      (<code>RuleController::showRules</code>).</li>
+    <li>Группа аккордеона отображается, только если после фильтра в ней осталось хотя бы одно право. Поэтому администратор партнёра может видеть <b>меньше</b> блоков, чем superadmin
+      (например, «Заявки и лиды» и «Партнёры и сервис» скрыты, если все права группы с <code>is_visible = 0</code>).</li>
+    <li><code>superadmin</code> видит все права и все группы каталога (включая «невидимые» бейджи в UI).</li>
+  </ul>
+
+  <h2>5) Источник истины и деплой</h2>
+  <ul>
+    <li>Группы: <code>/database/seeders/PermissionGroupsSeeder.php</code> (upsert по <code>slug</code>).</li>
+    <li>Каталог прав и <code>group_slug</code>: <code>/database/seeders/PermissionSeeder.php</code> (upsert по <code>name</code>, обновляет <code>permission_group_id</code>).</li>
+    <li>Миграция для уже существующих БД: <code>/database/migrations/2026_06_20_140000_reorganize_permission_groups.php</code>
+      (создаёт группы и переназначает <code>permission_group_id</code> batch-update; <code>down()</code> намеренно пустой).</li>
+    <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
+    <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
+  </ul>
+
+  <h2>6) Что не менялось</h2>
+  <ul>
+    <li>Строки <code>permissions.name</code> и логика Gate в <code>AuthServiceProvider</code>.</li>
+    <li>Базовые наборы в <code>/config/role_base_permissions.php</code> и автопроставление при создании партнёра.</li>
+    <li>Проверки в Request / Blade по тем же именам прав.</li>
+  </ul>
+
+  <h2>7) Автотесты</h2>
+  <div class="note">
+    Фичтесты перегруппировки и доступа к вкладке:
+  </div>
+  <ul>
+    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 14 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — гость / без <code>settings.roles.view</code> → 403; с правом, admin и superadmin → все endpoint'ы вкладки 200.</li>
+    <li>См. также: <code>RulesSettingsAccessControlTest</code>, <code>RulesSettingsPageFullAccessFeatureTest</code>, <code>RuleControllerTest</code>.</li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|RulesSettingsSectionFullAccessFeatureTest'</code></pre>
+
+  <p class="small">
+    <a href="/docs/documentation">К списку разделов</a> ·
+    <a href="/docs/documentation/settings-roles-custom">кастомные роли</a> ·
+    короткая ссылка на оглавление: <code>/doc</code>
+  </p>
+</div>
+</body>
+</html>

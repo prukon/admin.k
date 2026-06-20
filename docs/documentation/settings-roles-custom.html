@@ -36,6 +36,8 @@
   <h2>1) Где в интерфейсе и маршруты</h2>
   <ul>
     <li>Страница: <code>GET /admin/settings/rules</code> (внутри общей страницы настроек, вкладка «Права и роли»).</li>
+    <li>Матрица прав сгруппирована по аккордеону <code>#permission-accordion</code> (группы <code>permission_groups</code>) — см.
+      <a href="/docs/documentation/settings-permission-groups">группы permissions в матрице</a>.</li>
     <li>Создание роли: <code>POST /admin/setting/role/create</code> (AJAX, имя маршрута <code>admin.setting.role.create</code>).</li>
     <li>Переключение одного права у роли: <code>POST /admin/setting/rule/toggle</code>.</li>
     <li>Удаление кастомной роли: <code>DELETE /admin/setting/role/delete</code>.</li>
@@ -90,10 +92,14 @@
   <ul>
     <li><code>/tests/Feature/Crm/RuleControllerTest.php</code> — создание роли, базовые <code>permission_ids</code>, пустой конфиг, неизвестные имена в конфиге и вызов <code>Log::warning</code>, коллизии имён.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code> — 403 без права <code>settings.roles.view</code>, 200 для администратора партнёра на странице и JSON-ручках.</li>
+    <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — smoke 200 на все endpoint'ы вкладки (гость, 403 без права, admin, superadmin).</li>
+    <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группы <code>permission_groups</code> и маппинг прав после перегруппировки каталога.</li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code></pre>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code></pre>
 
-  <p class="small"><a href="/docs/documentation">К списку разделов</a> · короткая ссылка на оглавление: <code>/doc</code></p>
+  <p class="small"><a href="/docs/documentation">К списку разделов</a> ·
+    <a href="/docs/documentation/settings-permission-groups">группы в матрице прав</a> ·
+    короткая ссылка на оглавление: <code>/doc</code></p>
 </div>
 </body>
 </html>

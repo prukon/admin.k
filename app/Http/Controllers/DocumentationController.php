@@ -18,6 +18,7 @@ class DocumentationController extends Controller
         'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
         'partners-permissions'        => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)',
         'settings-roles-custom'       => 'Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)',
+        'settings-permission-groups'  => 'Матрица прав: группы permissions (permission_groups), аккордеон «Права и роли»',
         'audit-my-logs'               => 'Аудит CRM (my_logs): AuditEvent, AuditLogger, event/level, без legacy type/action в runtime',
         'settings-logs'               => 'Настройки → Логи: вкладка my_logs, фильтры event/level, доступ, SUPERADMIN_ALL_OR_FILTER',
         'reports-payments'            => 'Отчёт «Платежи» (админка): таблица, «Поля списка», права (доп. колонки, история T‑Bank)',

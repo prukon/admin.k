@@ -32,7 +32,7 @@
   <h2>1) Как устроены роли/права (важно)</h2>
   <ul>
     <li><b>Системные роли</b>: <code>roles.name = user/admin/trainer</code> существуют один раз в системе (общие для всех партнёров). Роль <code>trainer</code> отображается в матрице ролей (<code>is_visible = 1</code>) и как вкладка «Тренеры» в разделе «Пользователи»; участвует в автопроставлении прав наравне с <code>user</code> и <code>admin</code>.</li>
-    <li><b>Права</b>: <code>permissions</code> — единый справочник имён permissions.</li>
+    <li><b>Права</b>: <code>permissions</code> — единый справочник имён permissions. В матрице «Права и роли» права сгруппированы по <code>permission_groups</code> (см. <a href="/docs/documentation/settings-permission-groups">группы в матрице</a>).</li>
     <li><b>Назначение прав ролям делается в разрезе партнёра</b> через pivot-таблицу <code>permission_role</code>:
       <ul>
         <li><code>permission_role.partner_id</code></li>

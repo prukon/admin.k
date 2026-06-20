@@ -56,6 +56,9 @@ final class TeamLocationBindingFeatureTest extends CrmTestCase
         $this->assertNull(
             DB::table('permissions')->where('name', 'groups.training_base.view')->value('id')
         );
+        $this->assertNull(
+            DB::table('permissions')->where('name', 'groups.address.view')->value('id')
+        );
     }
 
     public function test_team_can_be_created_without_location_id(): void
