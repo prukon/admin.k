@@ -105,6 +105,23 @@
                 @endcannot
             </div>
 
+            @can('users.sex')
+                <div class="mb-3">
+                    <label for="sex" class="form-label">Пол</label>
+                    <select id="sex" name="sex" class="form-select @error('sex') is-invalid @enderror">
+                        <option value="" @selected(old('sex', $user->sex) === null || old('sex', $user->sex) === '')>Не указано</option>
+                        @foreach (\App\Enums\UserSex::cases() as $sexCase)
+                            <option value="{{ $sexCase->value }}" @selected(old('sex', $user->sex) === $sexCase->value)>
+                                {{ $sexCase->label() }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('sex')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endcan
+
             {{-- Поле "Email" --}}
             <div class="mb-3">
                 <label for="email" class="form-label">Адрес электронной почты (необязательно)</label>

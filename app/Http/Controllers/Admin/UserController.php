@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\UserSex;
 use App\Http\Requests\User\FilterRequest;
 use App\Http\Requests\User\StoreRequest;
 use App\Http\Requests\User\UpdatePasswordRequest;
@@ -90,6 +91,8 @@ class UserController extends AdminBaseController
             ->get();
 
         $canViewContracts = $currentUser?->can('contracts.view') ?? false;
+        $canViewUserSex = $currentUser?->can('users.sex') ?? false;
+        $canViewUserComment = $currentUser?->can('users.comment') ?? false;
         $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
 
         // 6) Отдаём на view
@@ -101,6 +104,8 @@ class UserController extends AdminBaseController
             'roles',
             'user',
             'canViewContracts',
+            'canViewUserSex',
+            'canViewUserComment',
             'studentRoleId'
         ) + $this->usersSectionViewData('users'));
     }
@@ -121,6 +126,8 @@ class UserController extends AdminBaseController
         ]);
 
         $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
+        $canViewUserSex = Auth::user()?->can('users.sex') ?? false;
+        $canViewUserComment = Auth::user()?->can('users.comment') ?? false;
         $contractFilter   = $canViewContracts ? trim((string) ($validated['contract'] ?? '')) : '';
 
         $teamFilter = $validated['team_id'] ?? null;
@@ -210,100 +217,26 @@ class UserController extends AdminBaseController
         $orderDir         = $request->input('order.0.dir', 'asc');
 
         if ($orderColumnIndex !== null) {
-            switch ((int) $orderColumnIndex) {
-                case 0:
-                    // 0 – нумерация, сортировку игнорируем, ставим дефолт
-                    $baseQuery
-                        ->orderBy('users.lastname', 'asc')
-                        ->orderBy('users.name', 'asc');
-                    break;
+            $columnKeys = $this->usersListColumnKeys(
+                Auth::user(),
+                $canViewContracts,
+                $canViewUserSex,
+                $canViewUserComment
+            );
+            $columnKey = $columnKeys[(int) $orderColumnIndex] ?? null;
 
-                case 1: // avatar -> image_crop
-                    $baseQuery->orderBy('users.image_crop', $orderDir);
-                    break;
-
-                case 2: // name
-                    $baseQuery
-                        ->orderBy('users.lastname', $orderDir)
-                        ->orderBy('users.name', $orderDir);
-                    break;
-
-                case 3: // parent FIO (parents)
-                    $baseQuery
-                        ->leftJoin('parents', 'parents.id', '=', 'users.parent_id')
-                        ->select('users.*')
-                        ->orderBy('parents.lastname', $orderDir)
-                        ->orderBy('parents.firstname', $orderDir);
-                    break;
-
-                case 4:
-                    if ($canViewContracts) {
-                        $contractLookup->applyUsersListSortByLatestContractStatus(
-                            $baseQuery,
-                            $partnerId,
-                            $orderDir
-                        );
-                        break;
-                    }
-                    // teams.title
-                    $baseQuery
-                        ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-                        ->select('users.*')
-                        ->orderBy('teams.title', $orderDir);
-                    break;
-
-                case 5:
-                    if ($canViewContracts) {
-                        $baseQuery
-                            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
-                            ->select('users.*')
-                            ->orderBy('teams.title', $orderDir);
-                        break;
-                    }
-                    $baseQuery->orderBy('users.birthday', $orderDir);
-                    break;
-
-                case 6:
-                    if ($canViewContracts) {
-                        $baseQuery->orderBy('users.birthday', $orderDir);
-                        break;
-                    }
-                    $baseQuery->orderBy('users.email', $orderDir);
-                    break;
-
-                case 7:
-                    if ($canViewContracts) {
-                        $baseQuery->orderBy('users.email', $orderDir);
-                        break;
-                    }
-                    $baseQuery->orderBy('users.phone', $orderDir);
-                    break;
-
-                case 8:
-                    if ($canViewContracts) {
-                        $baseQuery->orderBy('users.phone', $orderDir);
-                        break;
-                    }
-                    $baseQuery->orderBy('users.is_enabled', $orderDir);
-                    break;
-
-                case 9:
-                    if ($canViewContracts) {
-                        $baseQuery->orderBy('users.is_enabled', $orderDir);
-                        break;
-                    }
-                    // actions — не сортируем
-                    $baseQuery
-                        ->orderBy('users.lastname', 'asc')
-                        ->orderBy('users.name', 'asc');
-                    break;
-
-                case 10: // actions — не сортируем
-                default:
-                    $baseQuery
-                        ->orderBy('users.lastname', 'asc')
-                        ->orderBy('users.name', 'asc');
-                    break;
+            if ($columnKey !== null && $columnKey !== 'rownum' && $columnKey !== 'actions') {
+                $this->applyUsersListSort(
+                    $baseQuery,
+                    $columnKey,
+                    $orderDir,
+                    $partnerId,
+                    $contractLookup
+                );
+            } else {
+                $baseQuery
+                    ->orderBy('users.lastname', 'asc')
+                    ->orderBy('users.name', 'asc');
             }
         } else {
             $baseQuery
@@ -332,7 +265,7 @@ class UserController extends AdminBaseController
                 ->forUserIds($partnerId, $userIds);
         }
 
-        $data = $users->map(function (User $user) use ($canViewContracts, $latestContractsByUser) {
+        $data = $users->map(function (User $user) use ($canViewContracts, $canViewUserSex, $canViewUserComment, $latestContractsByUser) {
             $avatar = $user->image_crop
                 ? asset('storage/avatars/' . $user->image_crop)
                 : asset('img/default-avatar.png');
@@ -351,6 +284,14 @@ class UserController extends AdminBaseController
                 'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'   => (int) $user->is_enabled,
             ];
+
+            if ($canViewUserSex) {
+                $row['sex'] = UserSex::labelFor($user->sex);
+            }
+
+            if ($canViewUserComment) {
+                $row['comment'] = (string) ($user->comment ?? '');
+            }
 
             if ($canViewContracts) {
                 $contract = $latestContractsByUser->get($user->id);
@@ -602,6 +543,9 @@ class UserController extends AdminBaseController
         ])->all();
 
         if (request()->ajax()) {
+            $canViewUserSex = $currentUser?->can('users.sex') ?? false;
+            $canViewUserComment = $currentUser?->can('users.comment') ?? false;
+
             // Преобразуем модель в массив
             $userArray = $user->toArray();
 
@@ -609,6 +553,14 @@ class UserController extends AdminBaseController
             $userArray['birthday'] = $user->birthday
                 ? $user->birthday->format('Y-m-d')
                 : null;
+
+            if (!$canViewUserSex) {
+                unset($userArray['sex']);
+            }
+
+            if (!$canViewUserComment) {
+                unset($userArray['comment']);
+            }
 
             $trainerTeamIds = [];
             if ($user->role?->name === 'trainer' && $user->trainerProfile) {
@@ -630,6 +582,10 @@ class UserController extends AdminBaseController
                 'targetIsSuperadmin' => $user->role?->name === 'superadmin',
                 'fields' => $fieldsPayload,
                 'roles'  => $rolesPayload,
+                'ui' => [
+                    'canViewUserSex' => $canViewUserSex,
+                    'canViewUserComment' => $canViewUserComment,
+                ],
             ]);
         }
 
@@ -661,6 +617,8 @@ class UserController extends AdminBaseController
             'is_individual_traits' => $user->is_individual_traits,
             'is_on_medical_register' => $user->is_on_medical_register,
             'is_with_disability' => $user->is_with_disability,
+            'sex' => $user->sex,
+            'comment' => $user->comment,
         ];
 
         // Валидные входные данные
@@ -759,6 +717,8 @@ class UserController extends AdminBaseController
                 'is_individual_traits' => $user->is_individual_traits,
                 'is_on_medical_register' => $user->is_on_medical_register,
                 'is_with_disability' => $user->is_with_disability,
+                'sex' => $user->sex,
+                'comment' => $user->comment,
             ];
 
             $changes = [];
@@ -816,6 +776,22 @@ class UserController extends AdminBaseController
                             . $this->formatTriStateBool($new[$field]);
                     }
                 }
+            }
+
+            if ($actor && $actor->can('users.sex') && ($old['sex'] ?? null) !== ($new['sex'] ?? null)) {
+                $changes[] = 'Пол: '
+                    . UserSex::labelFor($old['sex'] ?? null)
+                    . ' → '
+                    . UserSex::labelFor($new['sex'] ?? null);
+            }
+
+            if ($actor && $actor->can('users.comment') && (string) ($old['comment'] ?? '') !== (string) ($new['comment'] ?? '')) {
+                $oldComment = trim((string) ($old['comment'] ?? ''));
+                $newComment = trim((string) ($new['comment'] ?? ''));
+                $changes[] = 'Комментарий: '
+                    . ($oldComment !== '' ? $oldComment : '-')
+                    . ' → '
+                    . ($newComment !== '' ? $newComment : '-');
             }
 
             // Приклеиваем изменения по кастом-полям
@@ -985,6 +961,73 @@ class UserController extends AdminBaseController
         }
 
         return $value ? 'Да' : 'Нет';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function usersListColumnKeys(
+        ?User $actor,
+        bool $canViewContracts,
+        bool $canViewUserSex,
+        bool $canViewUserComment,
+    ): array {
+        $keys = ['rownum', 'avatar', 'name', 'parent'];
+
+        if ($canViewContracts) {
+            $keys[] = 'contract';
+        }
+
+        $keys[] = 'teams';
+        $keys[] = 'birthday';
+
+        if ($canViewUserSex) {
+            $keys[] = 'sex';
+        }
+
+        if ($canViewUserComment) {
+            $keys[] = 'comment';
+        }
+
+        return array_merge($keys, ['email', 'phone', 'status_label', 'actions']);
+    }
+
+    private function applyUsersListSort(
+        $query,
+        string $columnKey,
+        string $orderDir,
+        int $partnerId,
+        LatestUserContractLookup $contractLookup,
+    ): void {
+        match ($columnKey) {
+            'avatar' => $query->orderBy('users.image_crop', $orderDir),
+            'name' => $query
+                ->orderBy('users.lastname', $orderDir)
+                ->orderBy('users.name', $orderDir),
+            'parent' => $query
+                ->leftJoin('parents', 'parents.id', '=', 'users.parent_id')
+                ->select('users.*')
+                ->orderBy('parents.lastname', $orderDir)
+                ->orderBy('parents.firstname', $orderDir),
+            'contract' => $contractLookup->applyUsersListSortByLatestContractStatus(
+                $query,
+                $partnerId,
+                $orderDir
+            ),
+            'teams' => $query
+                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+                ->select('users.*')
+                ->orderBy('teams.title', $orderDir),
+            'birthday' => $query->orderBy('users.birthday', $orderDir),
+            'sex' => $query->orderBy('users.sex', $orderDir),
+            'comment' => $query->orderBy('users.comment', $orderDir),
+            'email' => $query->orderBy('users.email', $orderDir),
+            'phone' => $query->orderBy('users.phone', $orderDir),
+            'status_label' => $query->orderBy('users.is_enabled', $orderDir),
+            default => $query
+                ->orderBy('users.lastname', 'asc')
+                ->orderBy('users.name', 'asc'),
+        };
     }
 
     /**

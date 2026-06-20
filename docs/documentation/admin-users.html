@@ -68,7 +68,13 @@
   </ul>
 
   <h3>Индексы колонок DataTables</h3>
-  <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Если у актора нет <code>contracts.view</code>, колонка «Договор» не рендерится — сдвиг на −1 для всех колонок после «Родитель» (см. вторую таблицу).</p>
+  <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Сервер строит порядок колонок методом <code>usersListColumnKeys()</code> — он должен совпадать с массивом <code>columns</code> в JS (<code>admin/user.blade.php</code>).</p>
+  <ul class="small">
+    <li>Если у актора нет <code>contracts.view</code>, колонка «Договор» не рендерится — сдвиг на −1 для всех колонок после «Родитель».</li>
+    <li>Если нет <code>users.sex</code> — колонка «Пол» не рендерится; без <code>users.comment</code> — колонка «Комментарий» (§<a href="#user-comment-sex">2.4</a>). Обе вставляются <b>после «Дата рождения»</b>, перед «Email».</li>
+  </ul>
+
+  <p class="small">Таблицы ниже — при наличии у актора <b>обоих</b> прав <code>users.sex</code> и <code>users.comment</code>. Если есть только одно — соответствующая колонка отсутствует, индексы колонок правее сдвигаются на −1 (см. список выше).</p>
 
   <h4>Без колонки «Договор» (<code>contracts.view</code> отсутствует)</h4>
   <table>
@@ -82,10 +88,12 @@
       <tr><td>3</td><td><code>parent</code></td><td>Родитель (склейка ФИО)</td></tr>
       <tr><td>4</td><td><code>teams</code></td><td>Группа</td></tr>
       <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
-      <tr><td>6</td><td><code>email</code></td><td>Email</td></tr>
-      <tr><td>7</td><td><code>phone</code></td><td>Телефон</td></tr>
-      <tr><td>8</td><td><code>status_label</code></td><td>Статус</td></tr>
-      <tr><td>9</td><td><code>actions</code></td><td>Действия</td></tr>
+      <tr><td>6</td><td><code>sex</code></td><td>Пол (только при <code>users.sex</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
+      <tr><td>7</td><td><code>comment</code></td><td>Комментарий (только при <code>users.comment</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
+      <tr><td>8</td><td><code>email</code></td><td>Email</td></tr>
+      <tr><td>9</td><td><code>phone</code></td><td>Телефон</td></tr>
+      <tr><td>10</td><td><code>status_label</code></td><td>Статус</td></tr>
+      <tr><td>11</td><td><code>actions</code></td><td>Действия</td></tr>
     </tbody>
   </table>
 
@@ -102,10 +110,12 @@
       <tr><td>4</td><td><code>contract</code></td><td>Договор</td><td>статус последнего договора (§<a href="#user-contract-column">2.3.5</a>)</td></tr>
       <tr><td>5</td><td><code>teams</code></td><td>Группа</td><td><code>teams.title</code></td></tr>
       <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td><td><code>users.birthday</code></td></tr>
-      <tr><td>7</td><td><code>email</code></td><td>Email</td><td><code>users.email</code></td></tr>
-      <tr><td>8</td><td><code>phone</code></td><td>Телефон</td><td><code>users.phone</code></td></tr>
-      <tr><td>9</td><td><code>status_label</code></td><td>Статус</td><td><code>users.is_enabled</code></td></tr>
-      <tr><td>10</td><td><code>actions</code></td><td>Действия</td><td>нет</td></tr>
+      <tr><td>7</td><td><code>sex</code></td><td>Пол</td><td><code>users.sex</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.sex</code>)</td></tr>
+      <tr><td>8</td><td><code>comment</code></td><td>Комментарий</td><td><code>users.comment</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.comment</code>)</td></tr>
+      <tr><td>9</td><td><code>email</code></td><td>Email</td><td><code>users.email</code></td></tr>
+      <tr><td>10</td><td><code>phone</code></td><td>Телефон</td><td><code>users.phone</code></td></tr>
+      <tr><td>11</td><td><code>status_label</code></td><td>Статус</td><td><code>users.is_enabled</code></td></tr>
+      <tr><td>12</td><td><code>actions</code></td><td>Действия</td><td>нет</td></tr>
     </tbody>
   </table>
 
@@ -382,6 +392,116 @@
     При необходимости добавляются отдельные <code>prefill_source</code> (например, «Да»/«Нет»/«—» для шаблона DOCX).
   </div>
 
+  <h2 id="user-comment-sex">2.4) Пол и комментарий ученика</h2>
+  <div class="note">
+    Два необязательных поля на учётной записи <b>ученика</b> (<code>roles.name = user</code>): пол (<code>users.sex</code>) и комментарий (<code>users.comment</code>).
+    Хранятся в таблице <code>users</code> (не <code>user_fields</code>).<br>
+    Миграция полей: <code>database/migrations/2026_06_20_120000_add_comment_and_sex_to_users_table.php</code>.<br>
+    Права — <b>раздельные</b>: <code>users.sex</code> и <code>users.comment</code>. Отдельного права «только просмотр» нет: без права поле в UI <b>не рендерится</b>, на бэкенде ключи из запроса снимаются (<code>offsetUnset</code>).<br>
+    <b>Пол:</b> одно право <code>users.sex</code> — и для CRM (колонка, модалки), и для личного кабинета ученика. Отдельного <code>account.user.sex.update</code> нет (удалено миграцией <code>2026_06_20_130000_merge_account_user_sex_into_users_sex.php</code>).<br>
+    <b>Комментарий:</b> только CRM (<code>users.comment</code>); в кабинете недоступен.<br>
+    Доступ к странице раздела — только <code>users.view</code> (§1); эти права не заменяют <code>users.view</code>.
+  </div>
+
+  <h3>2.4.1) Поля в БД</h3>
+  <table>
+    <thead>
+      <tr><th>Колонка <code>users.*</code></th><th>Смысл в UI</th><th>Тип / значения</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sex</code></td>
+        <td>Пол</td>
+        <td><code>string(16) NULL</code>; константы enum <code>App\Enums\UserSex</code>: <code>male</code> («Мужской»), <code>female</code> («Женский»); <code>NULL</code> — «Не указано»</td>
+      </tr>
+      <tr>
+        <td><code>comment</code></td>
+        <td>Комментарий к учётной записи ученика</td>
+        <td><code>text NULL</code>; max 5000 символов в валидации</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>2.4.2) UI (модалки create / edit и список)</h3>
+  <p>Partial: <code>resources/views/includes/modal/_student_comment_sex_fields.blade.php</code> (подключается в <code>createUser.blade.php</code> и <code>editUser.blade.php</code>).</p>
+  <ul>
+    <li>Блок виден только если у актора есть хотя бы одно из прав <code>users.sex</code> / <code>users.comment</code> <b>и</b> в форме выбрана роль <code>user</code>; для тренера, админа и др. — скрыт (<code>js-user-comment-sex-wrap</code>, JS <code>syncCreateUserCommentSexFields</code> / <code>syncEditUserCommentSexFields</code>).</li>
+    <li>Пол — <code>&lt;select name="sex"&gt;</code>: «Не указано» (<code>value=""</code> → <code>NULL</code>), «Мужской», «Женский» (рендерится только при <code>@can('users.sex')</code>).</li>
+    <li>Комментарий — <code>&lt;textarea name="comment"&gt;</code>, <code>maxlength="5000"</code> (только при <code>@can('users.comment')</code>).</li>
+    <li>В списке DataTables — опциональные колонки «Пол» и «Комментарий» (<code>data-column-key="sex"</code>, <code>comment</code>) в «Поля списка»; в JSON <code>GET /admin/users/data</code> ключи <code>sex</code> (подпись «Мужской»/«Женский»/«Не указано») и <code>comment</code> (сырой текст) — только при соответствующих правах актора.</li>
+    <li>Длинный комментарий в ячейке — обрезка с tooltip (<code>dt-cell-ellipsis</code>, <code>KidsCrmTooltip.bindDataTable</code>).</li>
+    <li>В личном кабинете ученика поле «Пол» — при том же праве <code>users.sex</code>; комментарий в кабинете <b>не показывается</b> (см. <a href="/docs/documentation/parents-and-family-cabinet#account-sex">parents-and-family-cabinet §4.4</a>).</li>
+    <li>В модалке edit при AJAX-загрузке: JSON содержит <code>ui.canViewUserSex</code> / <code>ui.canViewUserComment</code>; JS <code>applyEditUserCommentSexPermissions</code> убирает поля из DOM, если права нет (актуально после смены прав без перезагрузки страницы).</li>
+    <li>Настройки колонок «Поля списка» (<code>UserTableSettingsController</code>): ключи <code>sex</code> / <code>comment</code> не сохраняются и не отдаются без соответствующих прав.</li>
+  </ul>
+
+  <h3>2.4.3) Права</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Где</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users.view</code></td>
+        <td>CRM</td>
+        <td>Доступ к разделу и endpoint’ам (§1). <b>Не даёт</b> видеть пол/комментарий — без <code>users.sex</code> / <code>users.comment</code> поля скрыты.</td>
+      </tr>
+      <tr>
+        <td><code>users.sex</code></td>
+        <td>CRM и личный кабинет</td>
+        <td>Колонка «Пол», поле в модалках create/edit, приём и сохранение <code>sex</code> в CRM; в кабинете — редактирование своего пола на <code>/account-settings/user/edit</code>. Без права поле не рендерится. Gate в <code>AuthServiceProvider</code>.</td>
+      </tr>
+      <tr>
+        <td><code>users.comment</code></td>
+        <td>CRM</td>
+        <td>Колонка «Комментарий», textarea в модалках, сохранение <code>comment</code>. Gate в <code>AuthServiceProvider</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">
+    В <code>config/role_base_permissions.php</code> для роли <code>admin</code> по умолчанию: <code>users.sex</code>, <code>users.comment</code>;
+    для роли <code>user</code> (ученик): <code>users.sex</code> (личный кабинет).<br>
+    Миграция <code>2026_06_20_120001_add_users_comment_and_sex_permissions.php</code> — права в <code>permissions</code> и назначение <code>users.sex</code> / <code>users.comment</code> роли <code>admin</code> по всем партнёрам.<br>
+    Миграция <code>2026_06_20_130000_merge_account_user_sex_into_users_sex.php</code> — перенос <code>account.user.sex.update</code> → <code>users.sex</code>, удаление legacy-права.<br>
+    Сидер: <code>PermissionSeeder</code>.
+  </p>
+
+  <h3>2.4.4) Валидация и сохранение</h3>
+  <p>Trait <code>ValidatesStudentCommentAndSex</code> в <code>StoreRequest</code> и <code>UpdateRequest</code>.</p>
+  <ul>
+    <li>Правила добавляются, если у актора есть соответствующее право <b>и</b> эффективная роль — <code>user</code> (учитывается входящий <code>role_id</code>).</li>
+    <li><code>sex</code>: <code>nullable|string|in:male,female</code>; пустая строка → <code>null</code>.</li>
+    <li><code>comment</code>: <code>nullable|string|max:5000</code>; trim, пустая строка → <code>null</code>.</li>
+    <li>Без права ключ снимается из запроса — значение в БД не меняется.</li>
+    <li>Для роли не <code>user</code> ключи также снимаются; при смене роли с ученика на другую сохранённые <code>sex</code>/<code>comment</code> в БД <b>не обнуляются</b> автоматически.</li>
+    <li>Сохранение: через <code>UserService::store/update()</code> в общем массиве полей <code>User</code>.</li>
+    <li>Личный кабинет: <code>AccountUpdateRequest</code> — только <code>sex</code> при <code>users.sex</code>; комментарий через кабинет не редактируется.</li>
+  </ul>
+
+  <h3>2.4.5) API и аудит</h3>
+  <ul>
+    <li><code>GET /admin/users/{id}/edit</code> (AJAX) — в <code>user</code>: <code>sex</code>, <code>comment</code> (только при соответствующих правах актора); в <code>ui</code>: <code>canViewUserSex</code>, <code>canViewUserComment</code>.</li>
+    <li><code>POST /admin/users</code>, <code>PATCH /admin/users/{user}</code> — те же ключи в теле формы.</li>
+    <li>Изменения в CRM пишутся в <code>my_logs</code> (<code>event = user.updated</code>), если у актора есть соответствующее право: строки «Пол: … → …» (подписи из <code>UserSex::labelFor</code>), «Комментарий: … → …».</li>
+    <li>Изменение пола в кабинете — <code>event = user.account_updated</code> (<code>AccountController@update</code>).</li>
+  </ul>
+
+  <h3>2.4.6) Сортировка колонок «Пол» и «Комментарий»</h3>
+  <p class="small">
+    На сервере: <code>UserController::applyUsersListSort()</code> по ключу колонки из <code>usersListColumnKeys()</code>
+    (<code>sex</code> → <code>orderBy users.sex</code>, <code>comment</code> → <code>orderBy users.comment</code>).
+    Индексы в таблицах §2 зависят от наличия <code>contracts.view</code>, <code>users.sex</code>, <code>users.comment</code> у актора.
+  </p>
+
+  <h3>2.4.7) Изоляция партнёра</h3>
+  <p>Те же правила scope, что для ученика в §2.1.3: <code>users.partner_id = current_partner</code>.</p>
+
+  <h3>2.4.8) Feature-тесты</h3>
+  <p class="small">
+    <code>tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php</code> (45 тестов): gates <code>users.sex</code> / <code>users.comment</code>; отсутствие legacy <code>account.user.sex.update</code>; <code>role_base_permissions</code> для ученика; единое право <code>users.sex</code> в CRM и кабинете; store/update/edit JSON (<code>ui.*</code>); валидация; DataTables JSON и сортировка; UI страницы и модалок; частичные права; <code>UserTableSettingsController</code>; аудит CRM и кабинета; гость 401; без <code>users.view</code> 403; smoke 200 endpoint’ов.<br>
+    Запуск: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>
+  </p>
+
   <h2 id="user-location">3) Локация ученика</h2>
   <div class="note">
     Поле <code>users.location_id</code> удалено (миграция <code>2026_05_28_110000_drop_location_id_from_users_table</code>).
@@ -402,7 +522,8 @@
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
     Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с аудитом (<code>event = user.created</code>) и опциональными <code>user_field_values</code>.
-    Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании <b>не задаются</b> — только в edit после появления ученика.<br>
+    Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании через отдельную вкладку с выбором роли могут задаваться в create; на вкладке «Пользователи» с фиксированной ролью <code>user</code> — см. §2.2.<br>
+    Пол и комментарий (§<a href="#user-comment-sex">2.4</a>) — в модалках <b>create и edit</b> при <code>users.sex</code> / <code>users.comment</code>.<br>
     На этой странице селект роли в модалке скрыт: передаётся скрытое <code>role_id</code> = id системной роли <code>user</code> (<code>lockStudentRole</code> в view). Создание администратора, тренера или сотрудника с кастомной ролью — через соответствующую вкладку (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
   </div>
 
@@ -452,6 +573,7 @@
     Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),
     email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
     Сведения об ученике (три флага <code>is_*</code>) — §<a href="#user-health">2.2</a> (<code>users.other.update</code>, только роль <code>user</code>).
+    Пол и комментарий — §<a href="#user-comment-sex">2.4</a> (<code>users.sex</code>, <code>users.comment</code>).
     Доп. поля: <code>custom[{slug}]</code> с той же логикой партнёра и <code>editable</code>, что при создании (это <code>user_fields</code>, не путать с §2.2).
     Поле <code>location_id</code> в запросе не используется (см. §3).
   </div>
@@ -476,11 +598,20 @@
     <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code>, <code>Location.php</code></li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — последний договор по <code>user_id</code> (§<a href="#user-contract-column">2.3</a>)</li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
-    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code></li>
+    <li><code>app/Enums/UserSex.php</code></li>
+    <li><code>app/Http/Requests/User/Concerns/ValidatesStudentCommentAndSex.php</code></li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code>, <code>users.sex</code>, <code>users.comment</code></li>
     <li><code>database/migrations/2026_05_28_140000_add_student_health_flags_to_users_table.php</code></li>
     <li><code>database/migrations/2026_05_28_140001_add_users_other_update_permission.php</code></li>
+    <li><code>database/migrations/2026_06_20_120000_add_comment_and_sex_to_users_table.php</code></li>
+    <li><code>database/migrations/2026_06_20_120001_add_users_comment_and_sex_permissions.php</code></li>
+    <li><code>database/migrations/2026_06_20_130000_merge_account_user_sex_into_users_sex.php</code></li>
+    <li><code>resources/views/account/users.blade.php</code> — пол в кабинете (<code>@can('users.sex')</code>)</li>
+    <li><code>app/Http/Requests/User/AccountUpdateRequest.php</code></li>
+    <li><code>app/Http/Controllers/Admin/AccountController.php</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
     <li><code>resources/views/includes/modal/_student_health_fields.blade.php</code></li>
+    <li><code>resources/views/includes/modal/_student_comment_sex_fields.blade.php</code></li>
     <li><code>app/Http/Controllers/Admin/UserTableSettingsController.php</code></li>
     <li><code>resources/views/admin/user.blade.php</code></li>
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
@@ -497,6 +628,7 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAccessFeatureTest.php</code> — гость 401, без <code>users.view</code> 403, smoke 200 всех endpoint’ов родителя</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра: search, store/update, data, edit 404</li>
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php</code> — флаги §2.2: edit/update, права <code>users.other.update</code>, UI, валидация, лог, доступ 200/403</li>
+      <li><code>tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php</code> — пол и комментарий §2.4: <code>users.sex</code> (CRM + кабинет), <code>users.comment</code> (только CRM), edit JSON <code>ui.*</code>, columns-settings, аудит, smoke 200/403</li>
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code> — изоляция партнёра для edit/update/data и флагов</li>
       <li><code>tests/Feature/Crm/Users/UsersPartnerScopeFullAccessFeatureTest.php</code> — smoke 200 всех endpoint’ов раздела, изоляция CRUD</li>
       <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code> — логика <code>syncForStudent</code>, отвязка, не-ученик</li>
@@ -513,12 +645,14 @@
     Запуск колонки «Договор»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
     Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
+    Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
+    <a href="#user-comment-sex">Пол и комментарий</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-users-section">Вкладки раздела «Пользователи»</a> ·

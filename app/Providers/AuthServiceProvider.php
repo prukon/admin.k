@@ -433,6 +433,14 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('users.other.update');
         });
 
+        Gate::define('users.sex', function (User $user) {
+            return $user->hasPermission('users.sex');
+        });
+
+        Gate::define('users.comment', function (User $user) {
+            return $user->hasPermission('users.comment');
+        });
+
 //////////////////////// Разное  //////////////////////
 
         // Пример: Gate для доступа в админку

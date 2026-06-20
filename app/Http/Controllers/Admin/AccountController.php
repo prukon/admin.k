@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Enums\UserSex;
 use App\Http\Requests\User\AccountUpdateRequest;
 use App\Http\Requests\User\UpdateRequest;
 
@@ -152,6 +153,7 @@ class AccountController extends AdminBaseController
                 'parent_address'      => 'Адрес родителя',
                 'parent_phone'        => 'Телефон родителя',
                 'parent_email'        => 'Email родителя',
+                'sex'                 => 'Пол',
             ];
             return $map[$key] ?? $key;
         };
@@ -379,6 +381,9 @@ class AccountController extends AdminBaseController
             $labelYesNo = fn($v) => ((int)$v === 1 ? 'Да' : 'Нет');
 
             $watched = ['lastname','name','email','is_enabled','team_id','role_id','birthday'];
+            if ($user->can('users.sex')) {
+                $watched[] = 'sex';
+            }
             $changes = [];
 
             $teamTitle = function ($id): ?string {
@@ -404,6 +409,10 @@ class AccountController extends AdminBaseController
                 if ($field === 'is_enabled') {
                     $old = $old === null ? null : $labelYesNo((int)$old);
                     $new = $new === null ? null : $labelYesNo((int)$new);
+                }
+                if ($field === 'sex') {
+                    $old = UserSex::labelFor($old);
+                    $new = UserSex::labelFor($new);
                 }
 
                 if ($field === 'team_id') {

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Http\Requests\User\Concerns\ForbidsSuperadminRole;
+use App\Http\Requests\User\Concerns\ValidatesStudentCommentAndSex;
 use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\User;
@@ -17,6 +18,7 @@ use Illuminate\Validation\Rule;
 class UpdateRequest extends FormRequest
 {
     use ForbidsSuperadminRole;
+    use ValidatesStudentCommentAndSex;
     use ValidatesStudentHealthFields;
     use ValidatesStudentParent;
 
@@ -89,6 +91,7 @@ class UpdateRequest extends FormRequest
 
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
+        $this->prepareStudentCommentAndSexForValidation();
         $this->stripRoleIdForSuperadminTarget($targetUser);
     }
 
@@ -160,7 +163,17 @@ class UpdateRequest extends FormRequest
             ];
         }
 
-        return array_merge($rules, $this->studentHealthFieldRules());
+        return array_merge($rules, $this->studentHealthFieldRules(), $this->studentCommentAndSexRules());
+    }
+
+    protected function effectiveRoleIdForCommentSexCheck(): ?int
+    {
+        $targetUser = $this->route('user');
+        $roleId = $this->has('role_id')
+            ? (int) $this->input('role_id')
+            : (int) ($targetUser?->role_id ?? 0);
+
+        return $roleId > 0 ? $roleId : null;
     }
 
     protected function effectiveRoleIdForStudentHealthCheck(): ?int
@@ -259,7 +272,9 @@ class UpdateRequest extends FormRequest
             'team_ids' => 'группы тренера',
             'team_ids.*' => 'группа',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
-        ] + $this->studentParentAttributes() + $this->studentHealthFieldAttributes();
+        ] + $this->studentParentAttributes()
+            + $this->studentHealthFieldAttributes()
+            + $this->studentCommentAndSexAttributes();
     }
 
     /**
@@ -314,7 +329,7 @@ class UpdateRequest extends FormRequest
 
             // 2FA
             'two_factor_enabled.boolean' => 'Некорректное значение поля 2FA.',
-        ] + $this->studentHealthFieldMessages();
+        ] + $this->studentHealthFieldMessages() + $this->studentCommentAndSexMessages();
     }
 
     /**

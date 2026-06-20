@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Http\Requests\User\Concerns\ForbidsSuperadminRole;
+use App\Http\Requests\User\Concerns\ValidatesStudentCommentAndSex;
 use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\UserField;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rule;
 class StoreRequest extends FormRequest
 {
     use ForbidsSuperadminRole;
+    use ValidatesStudentCommentAndSex;
     use ValidatesStudentHealthFields;
     use ValidatesStudentParent;
     public function authorize(): bool
@@ -48,6 +50,7 @@ class StoreRequest extends FormRequest
 
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
+        $this->prepareStudentCommentAndSexForValidation();
     }
 
     public function rules(): array
@@ -72,7 +75,12 @@ class StoreRequest extends FormRequest
 
         ];
 
-        $rules = array_merge($rules, $this->studentParentRules(), $this->studentHealthFieldRules());
+        $rules = array_merge(
+            $rules,
+            $this->studentParentRules(),
+            $this->studentHealthFieldRules(),
+            $this->studentCommentAndSexRules(),
+        );
 
         if ($partnerId) {
             $rules['school_lead_id'] = [
@@ -107,7 +115,9 @@ class StoreRequest extends FormRequest
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
             'school_lead_id' => 'Заявка с сайта',
-        ] + $this->studentParentAttributes() + $this->studentHealthFieldAttributes();
+        ] + $this->studentParentAttributes()
+            + $this->studentHealthFieldAttributes()
+            + $this->studentCommentAndSexAttributes();
     }
 
     public function withValidator($validator): void
@@ -173,7 +183,9 @@ class StoreRequest extends FormRequest
 
             'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',
-        ] + $this->studentParentMessages() + $this->studentHealthFieldMessages();
+        ] + $this->studentParentMessages()
+            + $this->studentHealthFieldMessages()
+            + $this->studentCommentAndSexMessages();
     }
 
     /**

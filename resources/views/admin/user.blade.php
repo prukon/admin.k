@@ -3,6 +3,8 @@
 @php
     $usersHasActiveFilters = false;
     $canViewContracts = $canViewContracts ?? (auth()->user() && auth()->user()->can('contracts.view'));
+    $canViewUserSex = $canViewUserSex ?? (auth()->user() && auth()->user()->can('users.sex'));
+    $canViewUserComment = $canViewUserComment ?? (auth()->user() && auth()->user()->can('users.comment'));
 @endphp
 
 @section('content')
@@ -142,6 +144,28 @@
                                             <label class="form-check-label" for="colBirthday">Дата рождения</label>
                                         </div>
 
+                                        @if($canViewUserSex)
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="sex"
+                                                   id="colSex"
+                                                   checked>
+                                            <label class="form-check-label" for="colSex">Пол</label>
+                                        </div>
+                                        @endif
+
+                                        @if($canViewUserComment)
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="comment"
+                                                   id="colComment"
+                                                   checked>
+                                            <label class="form-check-label" for="colComment">Комментарий</label>
+                                        </div>
+                                        @endif
+
                                         <div class="form-check">
                                             <input class="form-check-input column-toggle"
                                                    type="checkbox"
@@ -262,8 +286,13 @@
                 @include('includes.modal.createUser', [
                     'lockStudentRole' => true,
                     'studentRoleId' => $studentRoleId ?? null,
+                    'canViewUserSex' => $canViewUserSex,
+                    'canViewUserComment' => $canViewUserComment,
                 ])
-                @include('includes.modal.editUser')
+                @include('includes.modal.editUser', [
+                    'canViewUserSex' => $canViewUserSex,
+                    'canViewUserComment' => $canViewUserComment,
+                ])
                 @include('includes.modal.fieldModal')
             </div>
         </div>
@@ -277,6 +306,8 @@
         $(document).ready(function () {
 
             const canViewContracts = @json((bool) $canViewContracts);
+            const canViewUserSex = @json((bool) $canViewUserSex);
+            const canViewUserComment = @json((bool) $canViewUserComment);
             const defaultFilterStatus = 'active';
 
             function renderContractCell(row) {
@@ -347,6 +378,8 @@
                         ...(canViewContracts ? { contract: true } : {}),
                         teams: true,
                         birthday: true,
+                        ...(canViewUserSex ? { sex: true } : {}),
+                        ...(canViewUserComment ? { comment: true } : {}),
                         email: true,
                         phone: true,
                         status_label: true,
@@ -418,6 +451,31 @@
                     }] : []),
                     { key: 'teams', type: 'text', data: 'teams' },
                     { key: 'birthday', type: 'text', data: 'birthday', className: 'dt-col-text text-nowrap' },
+                    ...(canViewUserSex ? [{
+                        key: 'sex',
+                        type: 'text',
+                        data: 'sex',
+                        className: 'dt-col-text text-nowrap',
+                    }] : []),
+                    ...(canViewUserComment ? [{
+                        key: 'comment',
+                        type: 'text',
+                        data: 'comment',
+                        className: 'dt-col-text dt-cell-ellipsis',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data || '';
+                            }
+
+                            const text = data || '';
+                            if (!text) {
+                                return '';
+                            }
+
+                            const escaped = KidsCrmTooltip.escapeHtml(text);
+                            return '<span class="js-dt-cell-ellipsis-tooltip" data-bs-toggle="tooltip" title="' + escaped + '">' + escaped + '</span>';
+                        },
+                    }] : []),
                     { key: 'email', type: 'text', data: 'email' },
                     { key: 'phone', type: 'text', data: 'phone', className: 'dt-col-text text-nowrap' },
                     {
@@ -491,6 +549,10 @@
             });
 
             showLogModal("{{ route('logs.data.user') }}");
+
+            if (typeof KidsCrmTooltip !== 'undefined' && typeof KidsCrmTooltip.bindDataTable === 'function') {
+                KidsCrmTooltip.bindDataTable(table, '.js-dt-cell-ellipsis-tooltip');
+            }
         });
     </script>
 @endpush

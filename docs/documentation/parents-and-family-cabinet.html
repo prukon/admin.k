@@ -132,6 +132,7 @@ users (role=user) — ученик, вход в CRM
     <li>Поиск по <code>name</code> ищет также по ФИО в <code>parents</code> (<code>whereHas parentProfile</code>).</li>
     <li>Сортировка col=3: <code>parents.lastname</code>, <code>parents.firstname</code> (left join).</li>
     <li>Право: достаточно <code>users.view</code> + store/update пользователя; отдельного permission на родителя в админке нет.</li>
+    <li>Пол и комментарий ученика — §<a href="/docs/documentation/admin-users#user-comment-sex">admin-users §2.4</a>: пол — <code>users.sex</code> (CRM и кабинет), комментарий — только CRM (<code>users.comment</code>, §<a href="#account-sex">4.4</a>).</li>
   </ul>
 
   <h2 id="account-parent">4) Личный кабинет: учётная запись</h2>
@@ -148,16 +149,18 @@ users (role=user) — ученик, вход в CRM
     <tbody>
       <tr><td><code>account.user.view</code></td><td><code>account.user.view</code></td><td>Доступ к странице и маршрутам группы <code>account.user.*</code></td></tr>
       <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование ФИО родителя; без права — поля disabled (readonly)</td></tr>
+      <tr><td><code>users.sex</code></td><td><code>users.sex</code></td><td>Пол ученика: в CRM (колонка, модалки) и в личном кабинете (<code>/account-settings/user/edit</code>); без права — поле не рендерится. Комментарий в кабинете недоступен.</td></tr>
     </tbody>
   </table>
-  <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).</p>
+  <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> и <code>users.sex</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).</p>
 
   <h3>4.2) Сохранение</h3>
   <ul>
     <li><code>PATCH /account-settings/user</code> — <code>AccountUpdateRequest</code> + <code>AccountController@update</code>.</li>
     <li>Поля родителя валидируются только при <code>account.user.parent.update</code>.</li>
+    <li>Пол (<code>sex</code>) — только при <code>users.sex</code> (§<a href="#account-sex">4.4</a>).</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
-    <li>Ошибки валидации — JSON 422, ключи <code>parent_lastname</code> и т.д. (вывод под полями на фронте).</li>
+    <li>Ошибки валидации — JSON 422, ключи <code>parent_lastname</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
   </ul>
 
   <h3>4.3) Endpoint’ы учётной записи (smoke доступа)</h3>
@@ -172,6 +175,18 @@ users (role=user) — ученик, вход в CRM
       <tr><td>POST / DELETE</td><td><code>/account-settings/user/avatar</code></td><td>200 / 422</td></tr>
     </tbody>
   </table>
+
+  <h3 id="account-sex">4.4) Пол ученика в кабинете</h3>
+  <div class="note">
+    Одно право <code>users.sex</code> — и для CRM, и для кабинета (legacy <code>account.user.sex.update</code> удалено, см. миграцию <code>2026_06_20_130000_merge_account_user_sex_into_users_sex.php</code> и §<a href="/docs/documentation/admin-users#user-comment-sex">admin-users §2.4</a>).<br>
+    Поле «Пол» на <code>resources/views/account/users.blade.php</code> — <code>&lt;select name="sex"&gt;</code> с вариантами из <code>App\Enums\UserSex</code>.<br>
+    Валидация: <code>AccountUpdateRequest</code> (<code>nullable|in:male,female</code>) при <code>users.sex</code>.<br>
+    Комментарий (<code>users.comment</code>) в личном кабинете <b>не отображается и не редактируется</b>.
+  </div>
+  <ul>
+    <li>Изменения пола пишутся в <code>my_logs</code> (<code>event = user.account_updated</code>).</li>
+    <li>Тесты: <code>UserCommentAndSexFeatureTest</code> — раздел «Личный кабинет: пол через users.sex».</li>
+  </ul>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
 
@@ -295,6 +310,8 @@ users (role=user) — ученик, вход в CRM
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>searchParents</code>, data, store/update</li>
     <li><code>app/Http/Controllers/Admin/AccountController.php</code> — личный кабинет</li>
+    <li><code>app/Http/Requests/User/AccountUpdateRequest.php</code> — пол (<code>users.sex</code>)</li>
+    <li><code>resources/views/account/users.blade.php</code> — пол в кабинете</li>
     <li><code>app/Http/Controllers/User/FamilyStudentContextController.php</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
     <li><code>database/factories/ParentProfileFactory.php</code></li>
@@ -302,6 +319,8 @@ users (role=user) — ученик, вход в CRM
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/admin-users#user-parent">Пользователи (админка)</a> ·
+    <a href="/docs/documentation/admin-users#user-comment-sex">Пол и комментарий (CRM)</a> ·
+    <a href="#account-sex">Пол в кабинете</a> ·
     <a href="/docs/documentation/contracts#contract-create-modal">Договоры (модалка создания)</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры (карточка)</a> ·
     <a href="/docs/documentation/partner-scope-guide">Изоляция партнёра</a></p>

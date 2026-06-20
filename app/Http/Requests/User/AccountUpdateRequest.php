@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
+use App\Enums\UserSex;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -58,6 +59,10 @@ class AccountUpdateRequest extends FormRequest
         }
 
         $this->prepareStudentParentForValidation();
+
+        if ($this->has('sex') && $this->input('sex') === '') {
+            $this->merge(['sex' => null]);
+        }
     }
 
     /**
@@ -102,6 +107,10 @@ class AccountUpdateRequest extends FormRequest
 
         if ($this->user()->can('account.user.parent.update')) {
             $rules = array_merge($rules, $this->accountStudentParentRules());
+        }
+
+        if ($this->user()->can('users.sex')) {
+            $rules['sex'] = ['nullable', 'string', Rule::in(array_column(UserSex::cases(), 'value'))];
         }
 
         return $rules;
@@ -172,6 +181,7 @@ class AccountUpdateRequest extends FormRequest
             'email'              => 'Email',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
             'phone'              => 'Телефон',
+            'sex'                => 'Пол',
         ] + $this->studentParentAttributes();
     }
 
@@ -208,6 +218,9 @@ class AccountUpdateRequest extends FormRequest
 
             // 2FA
             'two_factor_enabled.boolean' => 'Некорректное значение поля 2FA.',
+
+            'sex.string' => 'Поле «Пол» должно быть строкой.',
+            'sex.in' => 'Выберите корректное значение поля «Пол».',
         ] + $this->studentParentMessages();
     }
 }

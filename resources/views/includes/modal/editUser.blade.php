@@ -229,6 +229,10 @@
                         </div>
 
                         @include('includes.modal._student_health_fields')
+                        @include('includes.modal._student_comment_sex_fields', [
+                            'canViewUserSex' => $canViewUserSex ?? null,
+                            'canViewUserComment' => $canViewUserComment ?? null,
+                        ])
 
                         <!-- Поле "Активность" -->
                         <div class="col-12 col-md-6">
@@ -429,6 +433,46 @@
             $wrap.find('.js-user-health-field').prop('disabled', !isStudent);
         }
 
+        function setEditUserCommentSexFields(user) {
+            if ($('#edit-sex').length) {
+                $('#edit-sex').val(user.sex || '');
+            }
+            if ($('#edit-comment').length) {
+                $('#edit-comment').val(user.comment || '');
+            }
+        }
+
+        function applyEditUserCommentSexPermissions(ui) {
+            const canSex = ui?.canViewUserSex === true;
+            const canComment = ui?.canViewUserComment === true;
+            const $wrap = $('.js-user-comment-sex-wrap');
+
+            if (!canSex) {
+                $wrap.find('.js-user-comment-sex-sex-field').remove();
+            }
+
+            if (!canComment) {
+                $wrap.find('.js-user-comment-sex-comment-field').remove();
+            }
+
+            if (!canSex && !canComment) {
+                $wrap.remove();
+            }
+        }
+
+        function syncEditUserCommentSexFields(roleId, roles) {
+            const $wrap = $('.js-user-comment-sex-wrap');
+            if (!$wrap.length) {
+                return;
+            }
+
+            const studentRoleId = studentRoleIdFromRoles(roles);
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            $wrap.toggleClass('d-none', !isStudent);
+            $wrap.find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+        }
+
         function setEditUserTrainerTeamIds(teamIds) {
             const ids = (teamIds || []).map(function (id) {
                 return parseInt(id, 10);
@@ -493,6 +537,7 @@
             }
 
             syncEditUserHealthFields(roleId, roles);
+            syncEditUserCommentSexFields(roleId, roles);
         }
 
         $(document).on('change', '#edit-user-form #role_id', function () {
@@ -668,6 +713,9 @@
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
+                        applyEditUserCommentSexPermissions(response.ui || {});
+                        setEditUserCommentSexFields(response.user);
+                        syncEditUserCommentSexFields(response.user.role_id, editUserRolesCache);
 
                         // 3) Устанавливаем action формы
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
@@ -783,6 +831,9 @@
                         syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
+                        applyEditUserCommentSexPermissions(response.ui || {});
+                        setEditUserCommentSexFields(response.user);
+                        syncEditUserCommentSexFields(response.user.role_id, editUserRolesCache);
 
                         // 3) Устанавливаем action формы (используется в обновлении и смене пароля/удалении)
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);

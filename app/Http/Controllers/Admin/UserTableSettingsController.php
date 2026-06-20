@@ -9,6 +9,12 @@ use Illuminate\Support\Facades\Auth;
 
 class UserTableSettingsController extends Controller
 {
+    /** @var list<string> */
+    private const PERMISSION_SCOPED_COLUMNS = [
+        'sex' => 'users.sex',
+        'comment' => 'users.comment',
+    ];
+
     /**
      * Вернуть настройки колонок для текущего пользователя
      * для таблицы "users_index".
@@ -18,6 +24,7 @@ class UserTableSettingsController extends Controller
     public function getColumnsSettings()
     {
         $userId = Auth::id();
+        $actor = Auth::user();
 
         $settings = UserTableSetting::where('user_id', $userId)
             ->where('table_key', 'users_index')
@@ -30,7 +37,7 @@ class UserTableSettingsController extends Controller
             $columns = [];
         }
 
-        return response()->json($columns);
+        return response()->json($this->filterColumnsByActorPermissions($columns, $actor));
     }
 
     /**
@@ -42,13 +49,14 @@ class UserTableSettingsController extends Controller
     public function saveColumnsSettings(Request $request)
     {
         $userId = Auth::id();
+        $actor = Auth::user();
 
         // валидируем только, что это массив
         $data = $request->validate([
             'columns' => 'required|array',
         ]);
 
-        $rawColumns = $data['columns'];
+        $rawColumns = $this->filterColumnsByActorPermissions($data['columns'], $actor);
 
         // аккуратно нормализуем к boolean
         $normalized = [];
@@ -78,5 +86,20 @@ class UserTableSettingsController extends Controller
         return response()->json([
             'success' => true,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $columns
+     * @return array<string, mixed>
+     */
+    private function filterColumnsByActorPermissions(array $columns, $actor): array
+    {
+        foreach (self::PERMISSION_SCOPED_COLUMNS as $columnKey => $permissionName) {
+            if (!$actor || !$actor->can($permissionName)) {
+                unset($columns[$columnKey]);
+            }
+        }
+
+        return $columns;
     }
 }

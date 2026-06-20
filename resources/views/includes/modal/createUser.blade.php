@@ -126,6 +126,11 @@
                         </div>
 
                         @include('includes.modal._student_health_fields', ['prefix' => 'create'])
+                        @include('includes.modal._student_comment_sex_fields', [
+                            'prefix' => 'create',
+                            'canViewUserSex' => $canViewUserSex ?? null,
+                            'canViewUserComment' => $canViewUserComment ?? null,
+                        ])
                     </div>
 
                     @if(!empty($userFieldsPayload))
@@ -216,9 +221,37 @@
             $wrap.find('.js-user-health-field').prop('disabled', !isStudent);
         }
 
+        function setCreateUserCommentSexFields(values) {
+            if ($('#create-sex').length) {
+                $('#create-sex').val(values.sex || '');
+            }
+            if ($('#create-comment').length) {
+                $('#create-comment').val(values.comment || '');
+            }
+        }
+
+        function resetCreateUserCommentSexFields() {
+            setCreateUserCommentSexFields({ sex: '', comment: '' });
+        }
+
+        function syncCreateUserCommentSexFields(roleId) {
+            const $wrap = $('#create-user-form .js-user-comment-sex-wrap');
+            if (!$wrap.length) {
+                return;
+            }
+
+            const studentRoleId = createStudentRoleId();
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            $wrap.toggleClass('d-none', !isStudent);
+            $wrap.find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+        }
+
+        window.resetCreateUserCommentSexFields = resetCreateUserCommentSexFields;
         window.setCreateUserHealthFieldsFromLead = setCreateUserHealthFields;
         window.resetCreateUserHealthFields = resetCreateUserHealthFields;
         window.syncCreateUserHealthFields = syncCreateUserHealthFields;
+        window.syncCreateUserCommentSexFields = syncCreateUserCommentSexFields;
 
         function currentCreateRoleId() {
             const $roleSelect = $('#create_role_id');
@@ -233,10 +266,13 @@
         const $createUserFormRoot = $('#create-user-form');
 
         $createUserFormRoot.on('change', '#create_role_id', function () {
-            syncCreateUserHealthFields($(this).val());
+            const roleId = $(this).val();
+            syncCreateUserHealthFields(roleId);
+            syncCreateUserCommentSexFields(roleId);
         });
 
         syncCreateUserHealthFields(currentCreateRoleId());
+        syncCreateUserCommentSexFields(currentCreateRoleId());
 
         $createUserFormRoot.on('submit', function (e) {
             e.preventDefault();
