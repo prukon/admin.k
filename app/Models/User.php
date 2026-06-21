@@ -9,6 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\TeamUserSyncService;
+use App\Support\UserTeamQuery;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -49,15 +51,51 @@ class User extends Authenticatable
 
     public $timestamps = true;
 
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+            app(TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($user);
+        });
+    }
+
     public function getBirthdayForFormAttribute(): ?string
     {
         return $this->birthday ?->format('Y-m-d');
     }
 
-    public function team()
+    /**
+     * Legacy: users.team_id — архивный снимок до M:N, не обновляется при смене групп в CRM.
+     */
+    public function legacyTeam(): BelongsTo
     {
-        // если поле в таблице users называется team_id
         return $this->belongsTo(Team::class, 'team_id');
+    }
+
+    /**
+     * @deprecated Используйте teams() — актуальные группы ученика из pivot team_user.
+     */
+    public function team(): BelongsTo
+    {
+        return $this->legacyTeam();
+    }
+
+    /**
+     * Группы ученика (роль user) — актуальный источник данных.
+     */
+    public function teams(): BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_user', 'user_id', 'team_id')
+            ->withPivot('partner_id')
+            ->withTimestamps()
+            ->orderBy('teams.order_by')
+            ->orderBy('teams.title');
+    }
+
+    public function scopeFilterByStudentTeam($query, int $partnerId, mixed $teamFilter)
+    {
+        UserTeamQuery::applyStudentTeamFilter($query, $partnerId, $teamFilter);
+
+        return $query;
     }
 
     public function managedLocations(): BelongsToMany

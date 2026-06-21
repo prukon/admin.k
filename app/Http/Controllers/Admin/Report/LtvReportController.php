@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\UserTeamQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,6 @@ class LtvReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
         $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
@@ -82,7 +82,6 @@ class LtvReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
 
@@ -117,10 +116,11 @@ class LtvReportController extends AdminBaseController
 
         $partnerId = $this->requirePartnerId();
 
+        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+
         // Агрегация по таблице payments
         $baseQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('payments.summ', '>', 0)
             ->where('users.partner_id', $partnerId);
 
@@ -129,7 +129,7 @@ class LtvReportController extends AdminBaseController
         $baseQuery->selectRaw("
                 users.id as user_id,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
-                teams.title as team_title,
+                {$teamTitlesSub} as team_title,
                 SUM(payments.summ) as total_price,
                 COUNT(payments.id) as payment_count,
                 MIN(payments.operation_date) as first_payment_date,
@@ -141,7 +141,6 @@ class LtvReportController extends AdminBaseController
                 'users.lastname',
                 'users.name',
                 'users.is_enabled',
-                'teams.title'
             );
 
         return DataTables::of($baseQuery)
@@ -267,9 +266,10 @@ class LtvReportController extends AdminBaseController
      */
     private function buildLtvUserPaymentsQuery(Request $request, int $partnerId, int $userId)
     {
+        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+
         $payments = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId)
             ->where('users.id', $userId)
             ->where('payments.summ', '>', 0);
@@ -287,7 +287,7 @@ class LtvReportController extends AdminBaseController
                 payments.payment_id,
                 payments.payment_status,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
-                teams.title as team_title
+                {$teamTitlesSub} as team_title
             ")
             ->orderBy('payments.operation_date', 'desc');
     }
@@ -361,35 +361,18 @@ class LtvReportController extends AdminBaseController
                 });
             }
 
-            $filterTeamId = $request->query('filter_team_id');
-            if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
-                $tid = (int) $filterTeamId;
-                if ($tid > 0) {
-                    $paymentsQuery->where('users.team_id', $tid);
-                }
-            } elseif ($request->filled('team_title')) {
-                $like = '%'.trim((string) $request->query('team_title')).'%';
-                $paymentsQuery->where('teams.title', 'like', $like);
-            }
+            UserTeamQuery::applyReportTeamFilters(
+                $paymentsQuery,
+                $partnerId,
+                $request->query('filter_team_id'),
+                $request->filled('team_title') ? (string) $request->query('team_title') : null,
+            );
 
-            $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
-            if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
-                $tpid = (int) $filterTrainerProfileId;
-                if ($tpid > 0) {
-                    $trainerTeamIds = DB::table('team_trainer')
-                        ->where('partner_id', $partnerId)
-                        ->where('trainer_profile_id', $tpid)
-                        ->pluck('team_id')
-                        ->map(fn ($id) => (int) $id)
-                        ->all();
-
-                    if ($trainerTeamIds === []) {
-                        $paymentsQuery->whereRaw('1 = 0');
-                    } else {
-                        $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
-                    }
-                }
-            }
+            UserTeamQuery::applyReportTrainerTeamFilter(
+                $paymentsQuery,
+                $partnerId,
+                $request->query('filter_trainer_profile_id'),
+            );
         }
 
         /** @var \App\Models\User|null $filterActor */

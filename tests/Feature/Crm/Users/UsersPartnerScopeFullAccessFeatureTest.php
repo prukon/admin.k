@@ -117,7 +117,7 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
             'lastname'   => 'Access',
             'email'      => 'scope-access-' . uniqid('', true) . '@example.test',
             'role_id'    => $roleId,
-            'team_id'    => $team->id,
+            'team_ids'   => [$team->id],
             'is_enabled' => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
 
@@ -292,7 +292,7 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
             'lastname'   => 'Partner',
             'email'      => 'own-partner-' . uniqid('', true) . '@example.test',
             'role_id'    => $roleId,
-            'team_id'    => $team->id,
+            'team_ids'   => [$team->id],
             'is_enabled' => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
 
@@ -379,23 +379,23 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
             [
                 'method'  => 'GET',
                 'url'     => '/admin/users/data?draw=1&start=0&length=10',
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'GET',
                 'url'     => route('admin.users.table-settings.get'),
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'POST',
                 'url'     => route('admin.users.table-settings.save'),
                 'data'    => ['columns' => ['name' => true, 'email' => false]],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'GET',
                 'url'     => route('logs.data.user', ['draw' => 1, 'start' => 0, 'length' => 10]),
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'POST',
@@ -410,7 +410,7 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
                         ],
                     ],
                 ],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'POST',
@@ -420,43 +420,43 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
                     'lastname'   => 'Smoke',
                     'email'      => 'ep-' . uniqid('', true) . '@example.test',
                     'role_id'    => $roleId,
-                    'team_id'    => $teamId,
+                    'team_ids'   => [$teamId],
                     'is_enabled' => 1,
                 ],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'GET',
                 'url'     => route('admin.user.edit', ['user' => $userId]),
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'PATCH',
                 'url'     => route('admin.user.update', ['user' => $userId]),
                 'data'    => ['name' => 'Ep', 'lastname' => 'Patched'],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'DELETE',
                 'url'     => '/admin/users/' . $userId . '/avatar',
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'POST',
                 'url'     => '/admin/users/' . $userId . '/avatar',
                 'data'    => [],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'POST',
                 'url'     => '/admin/user/' . $userId . '/update-password',
                 'data'    => ['password' => 'smoke-pass-88'],
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [
                 'method'  => 'DELETE',
                 'url'     => '/admin/user/' . $userId,
-                'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
         ];
     }

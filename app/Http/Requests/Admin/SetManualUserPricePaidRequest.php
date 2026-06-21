@@ -16,6 +16,7 @@ class SetManualUserPricePaidRequest extends FormRequest
     {
         return [
             'user_id'      => ['required', 'integer', 'min:1'],
+            'team_id'      => ['required', 'integer', 'min:1'],
             'selectedDate' => ['required', 'string', 'max:255'],
             'mode'         => ['required', Rule::in(['paid', 'unpaid'])],
             'comment'      => ['required', 'string', 'min:3', 'max:5000'],
@@ -29,6 +30,7 @@ class SetManualUserPricePaidRequest extends FormRequest
             'comment.min'      => 'Комментарий должен содержать не менее :min символов.',
             'comment.max'      => 'Комментарий слишком длинный.',
             'mode.in'          => 'Некорректный режим ручной отметки оплаты.',
+            'team_id.required' => 'Выберите группу для изменения статуса оплаты.',
         ];
     }
 }

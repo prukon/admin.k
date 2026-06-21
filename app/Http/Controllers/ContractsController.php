@@ -26,6 +26,8 @@ use App\Support\BuildsLogTable;
 
 use App\Models\Team;
 use App\Models\UserTableSetting;
+use App\Services\Contracts\ContractCreationService;
+use App\Services\TeamUserSyncService;
 
 class ContractsController extends Controller
 {
@@ -33,6 +35,8 @@ class ContractsController extends Controller
 
     public function __construct(
         private readonly ContractAudit $contractAudit,
+        private readonly ContractCreationService $contractCreationService,
+        private readonly TeamUserSyncService $teamUserSync,
     ) {}
 
    
@@ -313,7 +317,7 @@ class ContractsController extends Controller
                 Cache::forget("partner_balance_{$partner->id}");
 
                 // 3) Готовим данные договора
-                $groupId = $student->team_id; // может быть null — это ок
+                $groupId = $this->contractCreationService->resolveGroupIdForStudent($student);
 
                 $path = $request->file('pdf')->store('documents/' . date('Y/m'));
                 $sha = hash_file('sha256', Storage::path($path));
@@ -379,41 +383,42 @@ class ContractsController extends Controller
 
 
 
-        $users = \App\Models\User::query()
-            ->when($partnerId, fn($qq) => $qq->where('users.partner_id', $partnerId))
+        $users = User::query()
+            ->when($partnerId, fn ($qq) => $qq->where('users.partner_id', $partnerId))
             ->where('users.is_enabled', 1)
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)])
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where(function ($w) use ($q) {
                     $w->where('users.name', 'like', "%{$q}%")
-                        ->orWhere('users.lastname', 'like', "%{$q}%")   // ← поиск по фамилии
+                        ->orWhere('users.lastname', 'like', "%{$q}%")
                         ->orWhere('users.phone', 'like', "%{$q}%")
                         ->orWhere('users.email', 'like', "%{$q}%");
                 });
             })
-            ->orderBy('users.lastname')    // чуть приятнее сортировка
+            ->orderBy('users.lastname')
             ->orderBy('users.name')
             ->limit(50)
             ->get([
                 'users.id',
                 'users.name',
-                'users.lastname',          // ← добавили
-                'users.team_id',
-                'teams.title as team_title',
+                'users.lastname',
             ]);
 
-
         $results = $users->map(function ($u) {
-//            $fullname = trim($u->name . ' ' . ($u->lastname ?? '')); // Имя Фамилия
             $fullname = trim(($u->lastname ?? '') . ' ' . $u->name);
+            $teamIds = $this->teamUserSync->teamIdsForStudent($u);
 
             return [
                 'id' => $u->id,
-                'text' => $fullname,         // ← Select2 будет показывать это
-                'name' => $u->name,          // на будущее
-                'lastname' => $u->lastname,      // на будущее
-                'team_id' => $u->team_id,
-                'team_title' => $u->team_title,
+                'text' => $fullname,
+                'name' => $u->name,
+                'lastname' => $u->lastname,
+                'team_id' => $teamIds[0] ?? null,
+                'team_title' => $this->teamUserSync->teamTitlesLabel($u) ?: null,
+                'groups' => $u->teams->map(fn ($team) => [
+                    'id' => (int) $team->id,
+                    'title' => (string) $team->title,
+                ])->values()->all(),
             ];
         });
 
@@ -466,8 +471,11 @@ class ContractsController extends Controller
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
         // Подтягиваем данные ученика + название группы (teams.title)
-        $student = \App\Models\User::query()
-            ->with('parentProfile')
+        $student = User::query()
+            ->with([
+                'parentProfile',
+                'teams' => fn ($q) => $q->where('teams.partner_id', $contract->school_id),
+            ])
             ->select(
                 'id',
                 'name',
@@ -479,12 +487,9 @@ class ContractsController extends Controller
             )
             ->find($contract->user_id);
 
-        $teamTitle = null;
-        if ($student && $student->team_id) {
-            $teamTitle = DB::table('teams')
-                ->where('id', $student->team_id)
-                ->value('title');
-        }
+        $teamTitle = $student
+            ? ($this->teamUserSync->teamTitlesLabel($student) ?: null)
+            : null;
 
         return view('contracts.show', compact('contract', 'events', 'requests', 'student', 'teamTitle'));
     }

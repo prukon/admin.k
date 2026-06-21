@@ -6,6 +6,7 @@ use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 
@@ -39,9 +40,22 @@ class Team extends Model
     public function test() {
         return "test";
     }
+    /**
+     * @deprecated Legacy: users.team_id (архив). Для актуальных учеников — students().
+     */
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * Ученики группы (pivot team_user).
+     */
+    public function students(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'team_user', 'team_id', 'user_id')
+            ->withPivot('partner_id')
+            ->withTimestamps();
     }
 
     public function partner()

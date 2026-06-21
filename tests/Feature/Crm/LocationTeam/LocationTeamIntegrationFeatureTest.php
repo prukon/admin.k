@@ -317,14 +317,11 @@ final class LocationTeamIntegrationFeatureTest extends CrmTestCase
             'is_enabled' => 1,
         ]);
 
-        DB::table('users_prices')->insert([
-            'user_id' => $student->id,
-            'is_paid' => 0,
-            'price' => 777,
+        $this->insertUserPrice($student, [
+            'is_paid'   => 0,
+            'price'     => 777,
             'new_month' => '2026-02-01',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        ], $teamWithoutObject);
 
         $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->getJson(route('debts.getDebts', [

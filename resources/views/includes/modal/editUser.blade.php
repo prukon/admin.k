@@ -96,29 +96,13 @@
                             </div>
                         </div>
 
-                        <!-- Поле "Группа" (ученик / сотрудник) -->
+                        <!-- Группы ученика -->
                         <div class="col-12 col-md-6 js-user-student-team-wrap">
-                            <div class="mb-3">
-                                <label for="edit-team" class="form-label">Группа</label>
-                                <select
-                                        id="edit-team"
-                                        name="team_id"
-                                        class="form-select"
-                                        data-team-locked="{{ auth()->user()->can('users.group.update') ? '0' : '1' }}"
-                                        @cannot('users.group.update') disabled aria-disabled="true" @endcannot
-                                >
-                                    <option value="">Без группы</option>
-                                    @foreach($allTeams as $team)
-                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
-                                    @endforeach
-                                </select>
-
-                                @cannot('users.group.update')
-                                    <div class="form-text text-muted">
-                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение группы
-                                    </div>
-                                @endcannot
-                            </div>
+                            @include('admin.users._student_teams_multiselect', [
+                                'teamsFieldId' => 'editStudentTeamIds',
+                                'teamOptions' => $allTeams,
+                                'canEditTeams' => auth()->user()->can('users.group.update'),
+                            ])
                         </div>
 
                         @can('trainers.view')
@@ -473,6 +457,14 @@
             $wrap.find('.js-user-comment-sex-field').prop('disabled', !isStudent);
         }
 
+        function setEditUserStudentTeamIds(teamIds) {
+            const $select = $('#editStudentTeamIds');
+            if (!$select.length || !window.KidsCrmGenericMultiselectSelect2) {
+                return;
+            }
+            KidsCrmGenericMultiselectSelect2.setValues($select, teamIds || []);
+        }
+
         function setEditUserTrainerTeamIds(teamIds) {
             const ids = (teamIds || []).map(function (id) {
                 return parseInt(id, 10);
@@ -509,17 +501,23 @@
             editUserRolesCache = response.roles || [];
         }
 
-        function syncEditUserTeamFields(roleId, roles, trainerTeamIds) {
+        function syncEditUserTeamFields(roleId, roles, trainerTeamIds, studentTeamIds) {
             const trainerRoleId = trainerRoleIdFromRoles(roles);
             const isTrainer = trainerRoleId && parseInt(roleId, 10) === trainerRoleId;
             const $studentWrap = $('.js-user-student-team-wrap');
-            const $teamSelect = $('#edit-team');
+            const $studentSelect = $('#editStudentTeamIds');
             const $trainerWrap = $('.js-user-trainer-teams-wrap');
-            const teamLocked = String($teamSelect.data('team-locked')) === '1';
+            const teamLocked = String($studentSelect.data('team-locked')) === '1'
+                || $studentSelect.prop('disabled');
 
             if (isTrainer) {
                 $studentWrap.addClass('d-none');
-                $teamSelect.prop('disabled', true);
+                if ($studentSelect.length) {
+                    $studentSelect.prop('disabled', true);
+                    if (window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.setValues($studentSelect, []);
+                    }
+                }
                 if (hasTrainerTeamsUi) {
                     $trainerWrap.removeClass('d-none');
                     $trainerWrap.find('input[name="team_ids[]"]').prop('disabled', false);
@@ -529,7 +527,12 @@
                 }
             } else {
                 $studentWrap.removeClass('d-none');
-                $teamSelect.prop('disabled', teamLocked);
+                if ($studentSelect.length) {
+                    $studentSelect.prop('disabled', teamLocked);
+                    if (studentTeamIds !== undefined && studentTeamIds !== null) {
+                        setEditUserStudentTeamIds(studentTeamIds);
+                    }
+                }
                 if (hasTrainerTeamsUi) {
                     $trainerWrap.addClass('d-none');
                     $trainerWrap.find('input[name="team_ids[]"]').prop('disabled', true).prop('checked', false);
@@ -541,7 +544,7 @@
         }
 
         $(document).on('change', '#edit-user-form #role_id', function () {
-            syncEditUserTeamFields($(this).val(), editUserRolesCache, null);
+            syncEditUserTeamFields($(this).val(), editUserRolesCache, null, null);
         });
 
         function applyPhoneUI(user){
@@ -703,14 +706,18 @@
                             });
                         }
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
-                        $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Роли
                         applyEditUserRoleSelect(response);
-                        syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
+                        syncEditUserTeamFields(
+                            response.user.role_id,
+                            editUserRolesCache,
+                            response.user.trainer_team_ids || [],
+                            response.user.team_ids || []
+                        );
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
                         applyEditUserCommentSexPermissions(response.ui || {});
@@ -821,14 +828,18 @@
                             });
                         }
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
-                        $('#edit-user-form #edit-team').val(response.user.team_id);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Роли
                         applyEditUserRoleSelect(response);
-                        syncEditUserTeamFields(response.user.role_id, editUserRolesCache, response.user.trainer_team_ids || []);
+                        syncEditUserTeamFields(
+                            response.user.role_id,
+                            editUserRolesCache,
+                            response.user.trainer_team_ids || [],
+                            response.user.team_ids || []
+                        );
                         setEditUserHealthFields(response.user);
                         syncEditUserHealthFields(response.user.role_id, editUserRolesCache);
                         applyEditUserCommentSexPermissions(response.ui || {});

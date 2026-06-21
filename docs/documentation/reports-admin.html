@@ -100,8 +100,8 @@
       <tr>
         <td>Задолженности</td>
         <td><code>/admin/reports/debts</code></td>
-        <td>Группа ученика → <code>teams.location_id</code></td>
-        <td>Локация через <code>users.team_id</code>: группа привязана к объекту L или без объекта (<code>location_id IS NULL</code>)</td>
+        <td>Группы ученика в pivot → <code>teams.location_id</code></td>
+        <td>Локация через pivot <code>team_user</code>: ученик попадает, если <b>хотя бы одна</b> его группа привязана к объекту L или без объекта (<code>location_id IS NULL</code>)</td>
         <td><code>pay-debt-filter-location</code></td>
       </tr>
     </tbody>
@@ -111,14 +111,14 @@
     <li>Старые строки <code>payments</code> без локации: <code>location_id IS NULL</code> попадают в «Без локации».</li>
     <li>Снимок <code>payments.location_id</code> задаётся только при первом создании платежа (если передан явно), см. <a href="/docs/documentation/payments">payments.html</a>.</li>
     <li>Привязка группы к объекту: <code>teams.location_id</code> на <code>/admin/teams</code> и sync <code>team_ids</code> на <code>/admin/locations</code>. Обзор: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</li>
-    <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики с <code>users.team_id IS NULL</code> <i>или</i> с группой без объекта (<code>teams.location_id IS NULL</code>). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
-    <li><b>Задолженности — конкретный объект L:</b> ученик попадает, если <code>teams.location_id = L</code> у его группы; ученик без группы в выборку по L <b>не</b> входит.</li>
+    <li><b>Задолженности — различие <code>none</code> и платежных отчётов:</b> для долгов <code>filter_location_id=none</code> — ученики без групп в pivot <i>или</i> с группой без объекта (<code>teams.location_id IS NULL</code>, <code>UserTeamQuery::applyDebtLocationNoneFilter</code>). Для платежей/LTV/monthly <code>none</code> — только строки с <code>payments.location_id IS NULL</code>.</li>
+    <li><b>Задолженности — конкретный объект L:</b> ученик попадает, если <b>хотя бы одна</b> его группа в pivot имеет <code>teams.location_id = L</code>; ученик без групп в выборку по L <b>не</b> входит.</li>
   </ul>
 
   <h2 id="trainer-filter">2.2) Фильтр по тренеру в отчётах</h2>
   <div class="note">
     Единый параметр запроса: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра).
-    Логика: из <code>team_trainer</code> берутся <code>team_id</code> выбранного тренера, затем в выборку попадают ученики с <code>users.team_id</code> из этого списка.
+    Логика: из <code>team_trainer</code> берутся <code>team_id</code> выбранного тренера, затем в выборку попадают ученики, состоящие <b>хотя бы в одной</b> из этих групп (pivot <code>team_user</code>, <code>UserTeamQuery::applyReportTrainerTeamFilter</code>).
     Если у тренера нет групп — пустой результат.
     Select2: <code>GET /admin/reports/payments/trainers-search</code> (<code>reports.payments.trainers.search</code>, middleware <code>reports.view</code>).
     Подробно о модели тренеров и привязках: <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.
@@ -160,11 +160,17 @@
     <li>Отличие от фильтра локации (§2.1): на сервере фильтр по тренеру <b>не привязан</b> к проверке <code>trainers.view</code> в query — UI скрыт без права; при ручной подстановке параметра в URL фильтрация может сработать (см. тесты в <code>PaymentReportTrainerFilterFeatureTest</code>).</li>
   </ul>
 
-  <h2>3) Отчёт “Задолженности”</h2>
+  <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (AJAX, server-side; UI — <code>KidsCrmDataTable.create('#debts-table')</code>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+    <li><b>Источники строк</b>:
+      <ul>
+        <li><b>Месячные</b> — неоплаченные записи <code>users_prices</code> (<code>is_paid=0</code>, <code>price&gt;0</code>, месяц &lt; текущего). Каждая строка привязана к <code>users_prices.team_id</code> — у ученика в двух группах два долга за один календарный месяц возможны как две строки.</li>
+        <li><b>Периодные</b> — неоплаченные <code>user_custom_payment</code> (доп. платежи по датам).</li>
+      </ul>
+    </li>
     <li><b>Колонки (настройки)</b>:
       <ul>
         <li><code>GET /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.get</code>)</li>
@@ -175,8 +181,9 @@
     </li>
   </ul>
   <div class="note">
-    Фильтр локации — §2.1: через группу ученика (<code>users.team_id</code> → <code>teams.location_id</code>).
-    Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
+    <b>Фильтр «Группа» (<code>filter_team_id</code>):</b> для месячных долгов — <code>users_prices.team_id = …</code>; для периодных доп. платежей — ученик состоит в группе (pivot). Текстовый <code>team_title</code> — по любой группе ученика в pivot.
+    <br><b>Фильтр локации</b> — §2.1: через группы ученика в pivot (<code>team_user</code> → <code>teams.location_id</code>), не по <code>users_prices.team_id</code>. Платёжные отчёты — <code>payments.location_id</code>.
+    <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
   </div>
 
   <h2>4) Отчёт “Платежи по ученикам (LTV)”</h2>

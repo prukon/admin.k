@@ -411,8 +411,8 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
                     'is_with_disability'     => '1',
                 ],
                 'headers' => [
-                    'HTTP_ACCEPT'      => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
+                    'HTTP_ACCEPT'           => 'application/json',
+                    'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
                 ],
             ],
             [

@@ -57,6 +57,18 @@
   </table>
   <p class="small">Контроллер настроек колонок: <code>TeamColumnsSettingsController</code>. Изоляция по партнёру — через <code>PartnerContext</code> / <code>current_partner</code> в сессии.</p>
 
+  <h2 id="team-delete">1.1) Удаление группы</h2>
+  <div class="note">
+    <code>DELETE /admin/team/{team}</code> (<code>TeamController@destroy</code>):
+    <ul>
+      <li>soft delete — <code>teams.deleted_at</code>;</li>
+      <li>все ученики отвязываются от группы в pivot: <code>TeamUserSyncService::detachTeamFromAllStudents</code>;</li>
+      <li>legacy <code>users.team_id</code> <b>не изменяется</b> (архивный снимок);</li>
+      <li>аудит <code>team.deleted</code> в <code>my_logs</code>.</li>
+    </ul>
+    Связь M:N и влияние на «Цены» / <code>users_prices</code> — <a href="/docs/documentation/student-team-membership#team-delete">student-team-membership §1.2</a>.
+  </div>
+
   <h2>2) Таблица групп и «Поля списка»</h2>
   <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные); при <code>locations.view</code> — также объект, район объекта и администратор объекта; при <code>trainers.view</code> — тренер; при <code>sport_types.view</code> — вид спорта. Колонка «#» (нумерация) не настраивается.</p>
 

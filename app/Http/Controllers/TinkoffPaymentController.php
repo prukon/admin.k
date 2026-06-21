@@ -58,6 +58,7 @@ class TinkoffPaymentController extends Controller
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+        $monthlyTeamId = null;
 
         if ($paymentKind === 'custom_payment') {
             $upp = null;
@@ -89,13 +90,16 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
+            $teamIdParam = $r->filled('team_id') ? (int) $r->input('team_id') : null;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
-                $rawFmt
+                $rawFmt,
+                $teamIdParam
             );
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
+            $monthlyTeamId = $resolved['team_id'];
         } else {
             $outSumRaw = (string) $r->input('outSum', '0');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
@@ -117,6 +121,9 @@ class TinkoffPaymentController extends Controller
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+            if (! empty($monthlyTeamId)) {
+                $payableMeta['team_id'] = (int) $monthlyTeamId;
+            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {
@@ -208,6 +215,7 @@ class TinkoffPaymentController extends Controller
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+        $monthlyTeamId = null;
 
         if ($paymentKind === 'custom_payment') {
             $upp = null;
@@ -239,13 +247,16 @@ class TinkoffPaymentController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
+            $teamIdParam = $r->filled('team_id') ? (int) $r->input('team_id') : null;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
-                $rawFmt
+                $rawFmt,
+                $teamIdParam
             );
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
+            $monthlyTeamId = $resolved['team_id'];
         } else {
             $outSumRaw = (string) $r->input('outSum', '0');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
@@ -271,6 +282,9 @@ class TinkoffPaymentController extends Controller
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+            if (! empty($monthlyTeamId)) {
+                $payableMeta['team_id'] = (int) $monthlyTeamId;
+            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {

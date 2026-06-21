@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -99,7 +100,9 @@ class ReportController extends Controller
                 ->where('type', FiscalReceipt::TYPE_INCOME_RETURN)
                 ->groupBy('payment_id');
 
-            $payments = Payment::with(['user.team'])
+            $payments = Payment::with([
+                'user.teams' => fn ($q) => $q->whereNull('teams.deleted_at'),
+            ])
                 ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
                     $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
                 })
@@ -132,6 +135,8 @@ class ReportController extends Controller
                 ->get();
 
 
+            $teamUserSync = app(TeamUserSyncService::class);
+
             return DataTables::of($payments)
                 ->addIndexColumn()
                 ->addColumn('user_name', function ($row) {
@@ -144,11 +149,14 @@ class ReportController extends Controller
                     // Возвращаем user_id, если он существует, иначе null
                     return $row->user ? $row->user->id : null;
                 })
-                ->addColumn('team_title', function ($row) {
-                    // Проверка, существует ли пользователь и его команда
-                    return $row->user && $row->user->team
-                        ? $row->user->team->title // Возвращаем название команды
-                        : 'Без команды'; // Если команды нет
+                ->addColumn('team_title', function ($row) use ($teamUserSync) {
+                    if (! $row->user) {
+                        return 'Без команды';
+                    }
+
+                    $label = $teamUserSync->teamTitlesLabel($row->user);
+
+                    return $label !== '' ? $label : 'Без команды';
                 })
                 ->addColumn('summ', function ($row) {
                     return number_format($row->summ, 0) . ' руб'; // Формат суммы

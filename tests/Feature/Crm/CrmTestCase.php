@@ -6,6 +6,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Partner;
 use App\Models\SchoolLeadStatus;
+use App\Models\Team;
+use App\Services\TeamUserSyncService;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
@@ -343,5 +345,34 @@ abstract class CrmTestCase extends TestCase
                 'url'    => route('admin.school-leads.statuses.destroy', ['schoolLeadStatus' => $deleteStatus->id]),
             ],
         ];
+    }
+
+    /**
+     * Вставка строки users_prices с обязательным team_id (схема после pivot).
+     *
+     * @param  Team|int|null  $team  Явная группа; иначе team_id пользователя или новая группа партнёра.
+     */
+    protected function insertUserPrice(User $user, array $fields, Team|int|null $team = null): void
+    {
+        if ($team instanceof Team) {
+            $teamId = (int) $team->id;
+        } elseif (is_int($team)) {
+            $teamId = $team;
+        } else {
+            $teamId = (int) ($user->team_id ?: 0);
+        }
+
+        if ($teamId <= 0) {
+            $teamId = (int) Team::factory()->create(['partner_id' => $user->partner_id])->id;
+        }
+
+        app(TeamUserSyncService::class)->attachTeamForStudent($user, $teamId);
+
+        DB::table('users_prices')->insert(array_merge([
+            'user_id'    => $user->id,
+            'team_id'    => $teamId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $fields));
     }
 }

@@ -29,6 +29,7 @@ class CreateSbpPaymentRequest extends FormRequest
                 'max:32',
             ],
             'formatedPaymentDate' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+            'team_id' => ['nullable', 'integer', 'min:1'],
 
             'payment_kind' => ['nullable', 'string', 'in:custom_payment,lesson_package'],
             'custom_payment_id' => ['required_if:payment_kind,custom_payment', 'nullable', 'integer', 'min:1'],

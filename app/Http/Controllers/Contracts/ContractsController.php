@@ -13,6 +13,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\Contracts\ContractBillingService;
 use App\Services\Contracts\ContractCreationService;
+use App\Services\TeamUserSyncService;
 use App\Support\BuildsLogTable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,7 @@ class ContractsController extends Controller
     public function __construct(
         private readonly ContractCreationService $creationService,
         private readonly ContractBillingService $billing,
+        private readonly TeamUserSyncService $teamUserSync,
     ) {
     }
 
@@ -89,25 +91,29 @@ class ContractsController extends Controller
                 ->where('id', $userId)
                 ->where('partner_id', $partnerId)
                 ->where('is_enabled', 1)
-                ->with('parentProfile')
-                ->first(['id', 'name', 'lastname', 'team_id', 'parent_id']);
+                ->with([
+                    'parentProfile',
+                    'teams' => fn ($query) => $query->where('teams.partner_id', $partnerId),
+                ])
+                ->first(['id', 'name', 'lastname', 'parent_id']);
 
             if ($student) {
-                $teamTitle = null;
-                if ($student->team_id) {
-                    $teamTitle = Team::query()
-                        ->where('id', $student->team_id)
-                        ->where('partner_id', $partnerId)
-                        ->value('title');
-                }
+                $teamIds = $this->teamUserSync->teamIdsForStudent($student);
+                $teamTitle = $this->teamUserSync->teamTitlesLabel($student);
+                $groups = $student->teams
+                    ->map(fn (Team $team) => ['id' => (int) $team->id, 'title' => (string) $team->title])
+                    ->values()
+                    ->all();
 
                 $parentFullName = trim((string) $student->parent_full_name);
 
                 $preselectedUser = [
                     'id'               => $student->id,
                     'text'             => trim(($student->lastname ?? '') . ' ' . ($student->name ?? '')),
-                    'team_id'          => $student->team_id,
-                    'team_title'       => $teamTitle,
+                    'team_id'          => $teamIds[0] ?? null,
+                    'team_ids'         => $teamIds,
+                    'team_title'       => $teamTitle !== '' ? $teamTitle : null,
+                    'groups'           => $groups,
                     'parent_full_name' => $parentFullName !== '' ? $parentFullName : null,
                 ];
             }
@@ -158,7 +164,10 @@ class ContractsController extends Controller
         $requests = $contract->signRequests()->orderBy('id', 'desc')->get();
 
         $student = User::query()
-            ->with('parentProfile')
+            ->with([
+                'parentProfile',
+                'teams' => fn ($q) => $q->where('teams.partner_id', $contract->school_id),
+            ])
             ->select(
                 'id',
                 'name',
@@ -170,12 +179,9 @@ class ContractsController extends Controller
             )
             ->find($contract->user_id);
 
-        $teamTitle = null;
-        if ($student && $student->team_id) {
-            $teamTitle = DB::table('teams')
-                ->where('id', $student->team_id)
-                ->value('title');
-        }
+        $teamTitle = $student
+            ? (app(TeamUserSyncService::class)->teamTitlesLabel($student) ?: null)
+            : null;
 
         return view('contracts.show', compact('contract', 'events', 'requests', 'student', 'teamTitle'));
     }

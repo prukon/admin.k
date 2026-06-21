@@ -26,6 +26,13 @@
     <li>Страница: <code>/admin/reports/payments</code></li>
   </ul>
 
+  <h2>1.1) Группы ученика</h2>
+  <ul>
+    <li><b>Колонка</b> «Группа» (<code>team_title</code>) — все группы ученика через запятую (pivot <code>team_user</code>, подзапрос <code>UserTeamQuery::sqlStudentTeamTitlesSubquery</code>).</li>
+    <li><b>Фильтр</b>: <code>filter_team_id</code> — id группы партнёра; ученик попадает в отчёт, если состоит в выбранной группе.</li>
+    <li>Тот же фильтр и колонка — в monthly, LTV, задолженностях. Подробно: <a href="/docs/documentation/student-team-membership">student-team-membership</a>, <a href="/docs/documentation/reports-admin">reports-admin</a>.</li>
+  </ul>
+
   <h2>2) Локация (при праве <code>locations.view</code>)</h2>
   <ul>
     <li><b>Колонка</b> «Локация» — после «Группа», ключ в настройках колонок: <code>location</code>.</li>
@@ -38,7 +45,7 @@
 
   <h2>2.1) Фильтр «Тренер» (при праве <code>trainers.view</code>)</h2>
   <ul>
-    <li><b>Параметр</b>: <code>filter_trainer_profile_id</code> — id из <code>trainer_profiles</code>; отбор учеников по <code>users.team_id</code> из групп тренера (<code>team_trainer</code>).</li>
+    <li><b>Параметр</b>: <code>filter_trainer_profile_id</code> — id из <code>trainer_profiles</code>; отбор учеников по pivot: состоит хотя бы в одной группе тренера (<code>team_trainer</code> + <code>team_user</code>).</li>
     <li><b>UI</b>: Select2, поиск <code>GET /admin/reports/payments/trainers-search</code>; блок скрыт без <code>trainers.view</code>.</li>
     <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#trainer-filter">reports-admin.html</a> (§2.2) и <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.</li>
   </ul>

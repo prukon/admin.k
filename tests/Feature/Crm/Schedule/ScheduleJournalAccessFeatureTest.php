@@ -59,6 +59,10 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)
+            ->postJson(route('user.sync.teams', $student), ['team_ids' => []])
+            ->assertStatus(403);
+
+        $this->actingAs($actor)->withSession($session)
             ->postJson(route('user.update.schedule', $student), [
                 'weekdays' => [1],
                 'date_from' => '2026-05-01',

@@ -23,6 +23,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
+use App\Services\TeamUserSyncService;
+use App\Support\UserTeamQuery;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 
 
@@ -135,7 +137,7 @@ class PaymentReportController extends AdminBaseController
 
         $users = User::query()
             ->where('users.partner_id', $partnerId)
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)])
             ->when($q !== '', function ($qq) use ($q) {
                 $needle = '%'.$q.'%';
                 $qq->where(function ($w) use ($needle) {
@@ -150,20 +152,21 @@ class PaymentReportController extends AdminBaseController
                 'users.id',
                 'users.name',
                 'users.lastname',
-                'users.team_id',
-                'teams.title as team_title',
             ]);
 
-        $results = $users->map(function ($u) {
+        $teamUserSync = app(TeamUserSyncService::class);
+
+        $results = $users->map(function ($u) use ($teamUserSync) {
             $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            $teamIds = $teamUserSync->teamIdsForStudent($u);
 
             return [
                 'id' => $u->id,
                 'text' => $text !== '' ? $text : '—',
                 'name' => $u->name,
                 'lastname' => $u->lastname,
-                'team_id' => $u->team_id,
-                'team_title' => $u->team_title,
+                'team_id' => $teamIds[0] ?? null,
+                'team_title' => $teamUserSync->teamTitlesLabel($u) ?: null,
             ];
         });
 
@@ -351,9 +354,8 @@ class PaymentReportController extends AdminBaseController
             ->groupBy('payment_id');
 
         return Payment::query()
-            ->with(['user.team', 'location'])
+            ->with(['user.teams' => fn ($q) => $q->where('teams.partner_id', $partnerId), 'location'])
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->leftJoin('locations as payment_location', 'payment_location.id', '=', 'payments.location_id')
             ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
                 $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
@@ -781,6 +783,7 @@ SQL;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
         $refundActionMetaCache = [];
+        $teamUserSync = app(TeamUserSyncService::class);
 
         return DataTables::of($paymentsQuery)
             ->addIndexColumn()
@@ -802,10 +805,14 @@ SQL;
             ->addColumn('user_id', function (Payment $row) {
                 return $row->user ? $row->user->id : null;
             })
-            ->addColumn('team_title', function (Payment $row) {
-                return $row->user && $row->user->team
-                    ? $row->user->team->title
-                    : 'Без команды';
+            ->addColumn('team_title', function (Payment $row) use ($teamUserSync) {
+                if (! $row->user) {
+                    return 'Без команды';
+                }
+
+                $label = $teamUserSync->teamTitlesLabel($row->user);
+
+                return $label !== '' ? $label : 'Без команды';
             })
             ->addColumn('location_title', function (Payment $row) use ($canViewLocations) {
                 if (! $canViewLocations) {
@@ -883,14 +890,12 @@ SQL;
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy('payments.operation_date', $dir);
             })
-            ->orderColumn('team_title', function ($query, $order) {
+            ->orderColumn('team_title', function ($query, $order) use ($partnerId) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $sub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
 
-                // "Без команды" (NULL/empty) в конце при ASC и при DESC (стабильно)
-                $query->orderByRaw(
-                    "CASE WHEN teams.title IS NULL OR teams.title = '' THEN 1 ELSE 0 END asc"
-                );
-                $query->orderBy('teams.title', $dir);
+                $query->orderByRaw("CASE WHEN ({$sub}) IS NULL OR ({$sub}) = '' THEN 1 ELSE 0 END asc");
+                $query->orderByRaw("({$sub}) {$dir}");
             })
             ->orderColumn('location_title', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
@@ -1245,35 +1250,18 @@ SQL;
             });
         }
 
-        $filterTeamId = $request->query('filter_team_id');
-        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
-            $tid = (int) $filterTeamId;
-            if ($tid > 0) {
-                $paymentsQuery->where('users.team_id', $tid);
-            }
-        } elseif ($request->filled('team_title')) {
-            $like = '%'.trim((string) $request->query('team_title')).'%';
-            $paymentsQuery->where('teams.title', 'like', $like);
-        }
+        UserTeamQuery::applyReportTeamFilters(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_team_id'),
+            $request->filled('team_title') ? (string) $request->query('team_title') : null,
+        );
 
-        $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
-        if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
-            $tpid = (int) $filterTrainerProfileId;
-            if ($tpid > 0) {
-                $trainerTeamIds = DB::table('team_trainer')
-                    ->where('partner_id', $partnerId)
-                    ->where('trainer_profile_id', $tpid)
-                    ->pluck('team_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all();
-
-                if ($trainerTeamIds === []) {
-                    $paymentsQuery->whereRaw('1 = 0');
-                } else {
-                    $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
-                }
-            }
-        }
+        UserTeamQuery::applyReportTrainerTeamFilter(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_trainer_profile_id'),
+        );
 
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();

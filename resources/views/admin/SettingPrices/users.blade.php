@@ -27,24 +27,34 @@
                 @foreach($users as $idx => $user)
                     @php
                         $fullName = trim($user->lastname . ' ' . $user->name);
+                        $teamsList = $user->teams->sortBy('title')->values();
+                        $teamIds = $teamsList->pluck('id')->implode(',');
+                        $teamCount = $teamsList->count();
                     @endphp
 
                     <div class="row mb-2 wrap-team user-row"
                          data-user-id="{{ $user->id }}"
                          data-user-name="{{ $fullName }}"
-                         data-team-id="{{ $user->team_id }}"
-                         data-team-name="{{ optional($user->team)->title }}">
+                         data-team-ids="{{ $teamIds }}"
+                         data-team-count="{{ $teamCount }}">
                         <div class="team-name col-7">
                             {{ ($idx + 1) . '. ' . $fullName }}
-                            <div class="small text-muted">
-                                {{ optional($user->team)->title ?? 'Группа не указана' }}
+                            <div class="small text-muted user-row-teams">
+                                @if($teamsList->isEmpty())
+                                    Группа не указана
+                                @else
+                                    @foreach($teamsList as $team)
+                                        <span class="user-row-team-label" data-team-id="{{ $team->id }}">{{ $team->title }}</span>@if(!$loop->last), @endif
+                                    @endforeach
+                                @endif
                             </div>
                         </div>
                         <div class="team-price col-2">
                             {{-- можно потом вывести какую-то актуальную цену, сейчас оставим пустым --}}
                         </div>
                         <div class="team-buttons col-3 d-flex justify-content-end">
-                            <input class="detail btn btn-primary" type="button" value="Подробно">
+                            <input class="detail btn btn-primary user-detail-btn" type="button" value="Подробно"
+                                   title="">
                         </div>
                     </div>
                 @endforeach
@@ -91,6 +101,29 @@
 
 @include('includes.modal.manualUserPricePaidModal')
 
+@push('styles')
+    <style>
+        #left_bar .user-detail-btn.btn-primary.is-visually-disabled,
+        #left_bar .user-detail-btn.btn-primary[aria-disabled="true"] {
+            color: #6c757d !important;
+            background-color: #dee2e6 !important;
+            border-color: #adb5bd !important;
+            opacity: 1 !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+        }
+
+        #left_bar .user-detail-btn.btn-primary.is-visually-disabled:hover,
+        #left_bar .user-detail-btn.btn-primary.is-visually-disabled:focus,
+        #left_bar .user-detail-btn.btn-primary[aria-disabled="true"]:hover,
+        #left_bar .user-detail-btn.btn-primary[aria-disabled="true"]:focus {
+            color: #6c757d !important;
+            background-color: #dee2e6 !important;
+            border-color: #adb5bd !important;
+        }
+    </style>
+@endpush
+
 {{-- Toast Bootstrap 5 для "Сохранено / Ошибка" --}}
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="priceToast" class="toast align-items-center text-white bg-success border-0" role="alert"
@@ -110,8 +143,11 @@
     <script>
         (function () {
             let currentUserId = null;
+            let currentTeamId = null;
             let lastPricesPayload = null;
             let editingNewMonth = null;
+
+            const DETAIL_DISABLED_TITLE = 'Выберите конкретную группу';
 
             function escapeAttr(s) {
                 if (s == null || s === '') {
@@ -122,6 +158,116 @@
                     .replace(/"/g, '&quot;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
+            }
+
+            function getFilterTeamId() {
+                const val = $('#filter-team').val();
+                return val ? String(val) : '';
+            }
+
+            function getFilterTeamTitle() {
+                const teamId = getFilterTeamId();
+                if (!teamId) {
+                    return '';
+                }
+                const opt = $('#filter-team option[value="' + teamId + '"]');
+                return opt.length ? opt.text().trim() : '';
+            }
+
+            function resolveTeamContext(row) {
+                const filterTeamId = getFilterTeamId();
+                const teamIds = (row.attr('data-team-ids') || '').split(',').filter(Boolean);
+                const teamCount = Number(row.attr('data-team-count') || teamIds.length || 0);
+
+                if (filterTeamId) {
+                    if (!teamIds.includes(filterTeamId)) {
+                        return null;
+                    }
+                    return {
+                        id: filterTeamId,
+                        title: getFilterTeamTitle()
+                    };
+                }
+
+                if (teamCount <= 1 && teamIds.length === 1) {
+                    const onlyId = teamIds[0];
+                    const label = row.find('.user-row-team-label[data-team-id="' + onlyId + '"]').text().trim();
+                    return {
+                        id: onlyId,
+                        title: label
+                    };
+                }
+
+                return null;
+            }
+
+            function updateTeamLabelsHighlight() {
+                const filterTeamId = getFilterTeamId();
+                $('#left_bar .user-row-team-label').removeClass('fw-bold');
+                if (filterTeamId) {
+                    $('#left_bar .user-row-team-label[data-team-id="' + filterTeamId + '"]').addClass('fw-bold');
+                }
+            }
+
+            function isUserDetailBtnDisabled(btn) {
+                return btn.attr('aria-disabled') === 'true';
+            }
+
+            function updateDetailButtonsState() {
+                const filterTeamId = getFilterTeamId();
+                const leftBar = document.getElementById('left_bar');
+
+                if (typeof KidsCrmTooltip !== 'undefined' && leftBar) {
+                    KidsCrmTooltip.dispose(leftBar, { scopes: ['hint'] });
+                }
+
+                $('#left_bar .user-row').each(function () {
+                    const row = $(this);
+                    const btn = row.find('.user-detail-btn');
+                    const teamCount = Number(row.attr('data-team-count') || 0);
+                    const teamIds = (row.attr('data-team-ids') || '').split(',').filter(Boolean);
+                    const count = teamCount || teamIds.length;
+
+                    const disabled = !filterTeamId && count > 1;
+
+                    btn.prop('disabled', false);
+                    btn.removeClass('disabled is-visually-disabled');
+                    btn.removeAttr('aria-disabled');
+                    btn.removeAttr('title');
+                    btn.removeAttr('data-kids-tooltip-hint');
+                    btn.removeAttr('data-bs-toggle');
+                    btn.removeAttr('data-bs-placement');
+                    btn.removeAttr('data-bs-custom-class');
+
+                    if (disabled) {
+                        btn.attr('aria-disabled', 'true');
+                        btn.addClass('is-visually-disabled');
+                        btn.attr('title', DETAIL_DISABLED_TITLE);
+                        btn.attr('data-kids-tooltip-hint', '1');
+                        btn.attr('data-bs-toggle', 'tooltip');
+                        btn.attr('data-bs-placement', 'top');
+                        btn.attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+                    }
+                });
+
+                if (typeof KidsCrmTooltip !== 'undefined' && leftBar) {
+                    KidsCrmTooltip.init(leftBar, { scopes: ['hint'] });
+                }
+            }
+
+            function resetRightPanel() {
+                currentUserId = null;
+                currentTeamId = null;
+                editingNewMonth = null;
+                lastPricesPayload = null;
+                $('#left_bar .user-row').removeClass('wrap-team--active');
+                $('#left_bar .detail').removeClass('action-button');
+                $('#user-detail-name').text('Выберите ученика слева');
+                $('#user-detail-team').text('');
+                $('#user-prices-table-wrapper').html(
+                    '<p class="text-muted mb-0">После выбора ученика здесь появятся цены по месяцам за выбранный год.</p>'
+                );
+                $('#save-user-year-prices').prop('disabled', true);
             }
 
             function showToast(message, isError) {
@@ -143,7 +289,7 @@
                 toast.show();
             }
 
-            function postManualPaidForUser(userId, selectedDate, mode, comment, onError) {
+            function postManualPaidForUser(userId, teamId, selectedDate, mode, comment, onError) {
                 const csrf = $('meta[name="csrf-token"]').attr('content');
                 return $.ajax({
                     url: '/admin/setting-prices/manual-paid',
@@ -156,6 +302,7 @@
                     },
                     data: JSON.stringify({
                         user_id: userId,
+                        team_id: teamId,
                         selectedDate: selectedDate,
                         mode: mode,
                         comment: comment
@@ -308,7 +455,8 @@
 
             function loadUserYearPrices(done) {
                 const userId = currentUserId;
-                if (!userId) {
+                const teamId = currentTeamId;
+                if (!userId || !teamId) {
                     return;
                 }
 
@@ -320,6 +468,7 @@
                     method: 'POST',
                     data: {
                         user_id: userId,
+                        team_id: teamId,
                         year: year,
                         _token: token
                     },
@@ -354,10 +503,10 @@
 
                 $('#left_bar .user-row').each(function () {
                     const item = $(this);
-                    const itemTeamId = (item.attr('data-team-id') || '').toString();
+                    const itemTeamIds = (item.attr('data-team-ids') || '').split(',').filter(Boolean);
                     const userName = (item.attr('data-user-name') || '').toLowerCase();
 
-                    const matchTeam = !teamId || itemTeamId === teamId.toString();
+                    const matchTeam = !teamId || itemTeamIds.includes(teamId.toString());
                     const matchName = !query || userName.indexOf(query) !== -1;
 
                     if (matchTeam && matchName) {
@@ -417,7 +566,7 @@
                         return;
                     }
 
-                    if (!lastPricesPayload || !currentUserId) {
+                    if (!lastPricesPayload || !currentUserId || !currentTeamId) {
                         return;
                     }
 
@@ -443,7 +592,7 @@
                         'Подтверждение',
                         'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
                         function (comment) {
-                            postManualPaidForUser(currentUserId, selectedDate, mode, comment, function (msg) {
+                            postManualPaidForUser(currentUserId, currentTeamId, selectedDate, mode, comment, function (msg) {
                                 showToast(msg, true);
                             }).done(function (res) {
                                 if (res && res.success) {
@@ -456,8 +605,23 @@
                     );
                 });
 
-                $('#left_bar').on('click', '.user-row', function () {
+                $('#left_bar').on('click', '.user-row', function (e) {
+                    if ($(e.target).closest('.user-detail-btn[aria-disabled="true"]').length) {
+                        return;
+                    }
+
                     const row = $(this);
+                    const btn = row.find('.user-detail-btn');
+                    if (isUserDetailBtnDisabled(btn)) {
+                        return;
+                    }
+
+                    const teamContext = resolveTeamContext(row);
+                    if (!teamContext) {
+                        showToast(DETAIL_DISABLED_TITLE, true);
+                        return;
+                    }
+
                     const userId = row.attr('data-user-id');
                     const userName = row.attr('data-user-name') || '';
 
@@ -467,9 +631,11 @@
                     row.find('.detail').addClass('action-button');
 
                     currentUserId = userId;
+                    currentTeamId = teamContext.id;
                     editingNewMonth = null;
 
                     $('#user-detail-name').text(userName);
+                    $('#user-detail-team').text(teamContext.title || '');
 
                     loadUserYearPrices();
                 });
@@ -480,16 +646,23 @@
                 });
 
                 $('#filter-team').on('change', function () {
+                    updateTeamLabelsHighlight();
+                    updateDetailButtonsState();
                     filterUsers();
+                    resetRightPanel();
                 });
 
                 $('#filter-user').on('input', function () {
                     filterUsers();
                 });
 
+                updateTeamLabelsHighlight();
+                updateDetailButtonsState();
+
                 $('#save-user-year-prices').on('click', function () {
                     const userId = currentUserId;
-                    if (!userId) {
+                    const teamId = currentTeamId;
+                    if (!userId || !teamId) {
                         return;
                     }
 
@@ -529,6 +702,7 @@
                                 method: 'POST',
                                 data: {
                                     user_id: userId,
+                                    team_id: teamId,
                                     year: year,
                                     prices: payload,
                                     _token: token

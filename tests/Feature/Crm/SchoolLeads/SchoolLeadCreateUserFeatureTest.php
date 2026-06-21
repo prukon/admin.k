@@ -262,6 +262,46 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
         $this->assertSame($user->id, (int) $lead->fresh()->user_id);
     }
 
+    public function test_store_from_lead_assigns_team_to_pivot_when_role_is_student(): void
+    {
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Из заявки',
+        ]);
+
+        $userRoleId = (int) Role::query()->where('name', 'user')->value('id');
+
+        $lead = SchoolLead::create([
+            'partner_id'             => $this->partner->id,
+            'name'                   => 'Ученик из заявки',
+            'phone'                  => '+7 900 333-44-55',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'team_id'                => $team->id,
+        ]);
+
+        $response = $this->postJson(route('admin.user.store'), [
+            'name'           => 'Ученик',
+            'lastname'       => 'Из заявки',
+            'role_id'        => $userRoleId,
+            'is_enabled'     => 1,
+            'school_lead_id' => $lead->id,
+        ], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ]);
+
+        $response->assertOk();
+
+        $userId = (int) $response->json('user.id');
+        $this->assertGreaterThan(0, $userId);
+
+        $this->assertDatabaseHas('team_user', [
+            'user_id'    => $userId,
+            'team_id'    => $team->id,
+            'partner_id' => $this->partner->id,
+        ]);
+        $this->assertNull(User::findOrFail($userId)->team_id);
+    }
+
     public function test_store_uses_submitted_health_flags_when_provided(): void
     {
         $this->grantUsersOtherUpdatePermission();

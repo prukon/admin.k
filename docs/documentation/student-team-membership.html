@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: ученик ↔ группы (M:N, team_user)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Ученик ↔ группы: связь M:N (<code>team_user</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/student-team-membership.html</code> · миграция: <code>2026_06_20_160000_create_team_user_table.php</code></div>
+
+  <div class="note">
+    <b>Кратко.</b> У ученика (роль <code>user</code>) может быть <b>несколько групп</b> одновременно.
+    Источник истины — pivot <code>team_user</code> (<code>partner_id</code>, <code>team_id</code>, <code>user_id</code>, timestamps, UNIQUE <code>(team_id, user_id)</code>).
+    Колонка <code>users.team_id</code> <b>сохранена как архив</b>: при создании через factory/seed дублируется в pivot один раз; при изменениях групп в CRM <b>не обновляется</b>.
+  </div>
+
+  <h2>1) Модель данных</h2>
+  <table>
+    <thead><tr><th>Объект</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>team_user</code></td><td>Актуальная принадлежность ученика к группам партнёра</td></tr>
+      <tr><td><code>users.team_id</code></td><td>Legacy-снимок (только create/backfill); не использовать в бизнес-логике CRM</td></tr>
+      <tr><td><code>contracts.group_id</code></td><td>Снимок группы <b>конкретного договора</b> (не pivot ученика)</td></tr>
+      <tr><td><code>User::teams()</code>, <code>Team::students()</code></td><td>Eloquent M:N через <code>team_user</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.1) Сервисы и хелперы</h3>
+  <ul>
+    <li><code>App\Services\TeamUserSyncService</code> — <code>syncTeamsForStudent</code>, <code>attachTeamForStudent</code>, <code>detachAllTeamsForStudent</code>, <code>detachTeamFromAllStudents</code> (при удалении группы), <code>teamIdsForStudent</code>, <code>teamTitlesLabel</code> (строка через запятую), <code>syncLegacyTeamColumnToPivot</code> (только create).</li>
+    <li><code>App\Support\UserPriceTeamMembership</code> — проверка членства ученика в группе для <code>users_prices</code> и resolver оплаты; <code>primaryTeamIdForStudent</code> — первая группа в pivot.</li>
+    <li><code>App\Support\UserTeamQuery</code> — фильтры отчётов и подзапрос названий групп без дублей строк.</li>
+    <li>Scope <code>User::filterByStudentTeam($partnerId, $teamId)</code> — ученик виден, если состоит в выбранной группе (<code>none</code> = без групп в pivot).</li>
+  </ul>
+
+  <h3 id="team-delete">1.2) Удаление группы (<code>DELETE /admin/team/{team}</code>)</h3>
+  <div class="note">
+    Soft delete группы (<code>teams.deleted_at</code>) + отвязка всех учеников в pivot:
+    <code>TeamUserSyncService::detachTeamFromAllStudents($teamId, $partnerId)</code> (<code>TeamController@destroy</code>).
+    Legacy-колонка <code>users.team_id</code> при этом <b>не обнуляется</b> — актуальная принадлежность только в <code>team_user</code>.
+    Строки <code>users_prices</code> с <code>team_id</code> удалённой группы в БД остаются (история начислений); новые начисления для soft-deleted группы не создаются.
+    Подробнее — <a href="/docs/documentation/admin-teams#team-delete">admin-teams § удаление</a>.
+  </div>
+
+  <h2>2) Админка учеников (<code>/admin/users</code>)</h2>
+  <p>См. также <a href="/docs/documentation/admin-users">admin-users</a>.</p>
+  <table>
+    <thead><tr><th>UI / API</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>, Select2). Partial: <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials § multiselect</a>.</td></tr>
+      <tr><td>Право записи</td><td><code>users.group.update</code> — без права поле disabled, sync не выполняется (<code>UpdateRequest</code>).</td></tr>
+      <tr><td>Колонка DataTables</td><td>Ключ <code>teams</code>, заголовок «Группы» — все названия через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>).</td></tr>
+      <tr><td>Фильтр «Группа»</td><td><code>team_id</code> — ученик в списке, если состоит в выбранной группе; <code>none</code> — нет записей в pivot.</td></tr>
+      <tr><td>JSON edit</td><td><code>user.team_ids</code> — массив id из pivot (не из <code>users.team_id</code>).</td></tr>
+      <tr><td>Аудит</td><td>При смене групп — строка «Группы: … → …» в <code>user.updated</code>.</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Валидация: <code>StoreRequest</code>, <code>UpdateRequest</code> — <code>team_ids.*</code> exists в <code>teams</code> текущего партнёра.</p>
+
+  <h2>3) Журнал расписания (<code>/schedule</code>)</h2>
+  <p>См. <a href="/docs/documentation/schedule-journal">schedule-journal</a>.</p>
+  <table>
+    <thead><tr><th>Элемент</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>Строка ученика</td><td>Под ФИО — подпись со списком групп (через запятую).</td></tr>
+      <tr><td>Фильтр группы</td><td>Ученик показывается, если состоит в выбранной группе (pivot).</td></tr>
+      <tr><td>Модалка «Управление группами»</td><td>Multiselect + <code>POST /schedule/user/{user}/sync-teams</code> (<code>SyncScheduleUserTeamsRequest</code>, поле <code>team_ids</code>). Пустой массив — снять со всех групп.</td></tr>
+      <tr><td><code>POST …/set-group</code></td><td>Legacy attach одной группы / detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code>.</td></tr>
+      <tr><td><code>GET …/cell-context</code></td><td><code>team_ids</code>, <code>teams_label</code>, <code>context_team_id</code> — для дефолтного тренера и подписи в модалке ячейки.</td></tr>
+      <tr><td><code>GET user-schedule/info</code></td><td><code>user.team_ids</code>, <code>user.team_titles</code>; дни недели группы — по <code>context_team_id</code> (фильтр журнала или query).</td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    Право <code>schedule.view</code> достаточно для изменения групп из журнала (отдельное <code>users.group.update</code> в этом UI не проверяется).
+    Изменение групп ученика в карточке <code>/admin/users</code> по-прежнему требует <code>users.group.update</code>.
+  </div>
+
+  <h2 id="contracts">4) Договоры (<code>/client-contracts</code>)</h2>
+  <p>См. <a href="/docs/documentation/contracts">contracts</a>.</p>
+  <ul>
+    <li><code>GET /client-contracts/user-group?user_id=</code> — список групп ученика из pivot.</li>
+    <li><code>GET /client-contracts/users-search</code> — поля <code>team_ids</code>, <code>groups[]</code> для модалки создания.</li>
+    <li><code>POST /client-contracts</code> (<code>ContractStoreRequest</code>):
+      <ul>
+        <li>0 групп у ученика → <code>contracts.group_id = null</code>;</li>
+        <li>1 группа → подставляется автоматически;</li>
+        <li>2+ группы → обязателен <code>group_id</code> из списка групп ученика.</li>
+      </ul>
+    </li>
+    <li>Список договоров (DataTables): колонка «Группа» — <code>contracts.group_id</code> → <code>teams.title</code> (снимок на момент создания).</li>
+    <li>Карточка договора: поле «Группа» — все текущие группы ученика из pivot (<code>TeamUserSyncService::teamTitlesLabel</code>).</li>
+  </ul>
+
+  <h2>5) Отчёты и dashboard</h2>
+  <table>
+    <thead><tr><th>Раздел</th><th>Правило</th></tr></thead>
+    <tbody>
+      <tr><td>Платежи, LTV, monthly</td><td>Без фильтра по группе — <b>одна строка</b> на ученика/платёж; колонка «Группа» — все группы через запятую. Фильтр <code>filter_team_id</code> — ученик попадает, если состоит в группе (pivot).</td></tr>
+      <tr><td>Задолженности (месячные)</td><td>Источник — <code>users_prices</code>: <b>отдельная строка</b> на каждую пару <code>(ученик, team_id, месяц)</code> с неоплаченным начислением. Фильтр <code>filter_team_id</code> — по <code>users_prices.team_id</code> (не pivot). Фильтр локации — по группам ученика в pivot (§ <a href="/docs/documentation/reports-admin#location-filter">reports-admin §2.1</a>).</td></tr>
+      <tr><td>Фильтр тренера</td><td>Ученики из <b>любой</b> группы тренера (<code>team_trainer</code> + pivot), не <code>users.team_id</code>.</td></tr>
+      <tr><td>Фильтр объекта</td><td>Ученик попадает, если <b>хотя бы одна</b> его группа привязана к объекту (<code>teams.location_id</code>). См. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
+      <tr><td>Dashboard AJAX</td><td><code>getUserDetails</code> → <code>userTeamsLabel</code>; <code>getTeamDetails</code> — ученик в группе, если состоит в ней (pivot).</td></tr>
+      <tr><td>«Цены» → вкладка users</td><td>Контекст одной группы слева; в таблице — ученики этой группы; начисление/оплата месяца — строка <code>users_prices</code> с <code>team_id</code> выбранной группы. См. <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</td></tr>
+      <tr><td>Chat API <code>/chat/api/users</code></td><td><code>team_title</code> — подписи всех групп ученика.</td></tr>
+      <tr><td>Журнал платежей (Robokassa / Tinkoff)</td><td><code>team_title</code> в ledger — через <code>TeamUserSyncService::teamTitlesLabel</code>.</td></tr>
+      <tr><td>«Нагрузка тренеров»</td><td>Группировка в ячейках пока по legacy <code>users.team_id</code> (не pivot) — см. <a href="/docs/documentation/schedule-trainer-workload">schedule-trainer-workload</a>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6) Личный кабинет и «Моя группа»</h2>
+  <table>
+    <thead><tr><th>Страница</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td><code>/account-settings/user/edit</code></td><td>Поле «Группы» — <b>только чтение</b> (<code>readonly</code> + <code>disabled</code>), значения из pivot через <code>$user->teams</code>. Подпись: «Изменение групп доступно только администратору CRM». В <code>AccountUpdateRequest</code> / PATCH нет <code>team_id</code>. Редактирование — <code>/admin/users</code> (<code>users.group.update</code>). См. <a href="/docs/documentation/parents-and-family-cabinet#account-groups">parents-and-family-cabinet §4.5</a>.</td></tr>
+      <tr><td><code>/my-group</code> (<code>myGroup.view</code>)</td><td>Если несколько групп — select «Выберите группу для просмотра»; <code>GET /my-group/data?team_id=</code> возвращает одногруппников выбранной группы.</td></tr>
+      <tr><td>«Мои документы»</td><td>Read-only подпись групп ученика (pivot).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>7) Контекст группы (<code>context_team_id</code>)</h2>
+  <p>Когда у ученика несколько групп, часть UI/API принимает явный контекст одной группы:</p>
+  <ul>
+    <li>Журнал — фильтр «Группа» на странице или <code>data-context-team-id</code> на ячейке;</li>
+    <li><code>cell-context</code>, <code>user-schedule/info</code> — query <code>context_team_id</code>;</li>
+    <li>Дефолтный тренер «Посетил» — тренер группы из контекста (<code>team_trainer</code>), не первой попавшей группы без контекста.</li>
+  </ul>
+
+  <h2>8) Права доступа</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Где</th></tr></thead>
+    <tbody>
+      <tr><td><code>users.group.update</code></td><td>Запись <code>team_ids</code> в <code>/admin/users</code></td></tr>
+      <tr><td><code>schedule.view</code></td><td>Журнал, в т.ч. <code>sync-teams</code> и <code>set-group</code></td></tr>
+      <tr><td><code>contracts.view</code></td><td>Lookups групп для договоров</td></tr>
+      <tr><td><code>myGroup.view</code></td><td>Страница «Моя группа» (роль <code>user</code> по умолчанию в base permissions)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>9) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>database/migrations/2026_06_20_160000_create_team_user_table.php</code></li>
+    <li><code>database/migrations/2026_06_21_120000_add_team_id_to_users_prices_table.php</code></li>
+    <li><code>app/Services/TeamUserSyncService.php</code>, <code>app/Support/UserTeamQuery.php</code>, <code>app/Support/UserPriceTeamMembership.php</code></li>
+    <li><code>app/Models/User.php</code> — <code>teams()</code>, hook create → legacy sync</li>
+    <li><code>resources/views/admin/users/_student_teams_multiselect.blade.php</code></li>
+    <li><code>app/Http/Requests/Admin/SyncScheduleUserTeamsRequest.php</code></li>
+    <li><code>app/Services/Contracts/ContractCreationService.php</code> — <code>resolveGroupIdForStudent</code></li>
+  </ul>
+
+  <h2>10) Feature-тесты</h2>
+  <div class="note">
+    <ul class="small">
+      <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFeatureTest.php</code> — поведение во всех разделах</li>
+      <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFullAccessFeatureTest.php</code> — доступ 200/403/401 по endpoint’ам</li>
+      <li><code>tests/Feature/Crm/Users/TeamUserSyncFeatureTest.php</code> — admin store/update/filter</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — журнал attach/sync/context</li>
+      <li><code>tests/Feature/Crm/Contracts/ContractGroupPivotFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code>, <code>LtvReportTeamPivotFeatureTest.php</code></li>
+    </ul>
+    <pre><code>php artisan test --env=testing tests/Feature/Crm/StudentTeams/</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/admin-users">Ученики (админка)</a> ·
+    <a href="/docs/documentation/schedule-journal">Журнал</a> ·
+    <a href="/docs/documentation/contracts">Договоры</a> ·
+    <a href="/docs/documentation/reports-admin">Отчёты</a>
+  </p>
+</div>
+</body>
+</html>

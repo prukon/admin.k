@@ -54,6 +54,8 @@
                                 <option value="">—</option>
                             </select>
                             <input type="hidden" name="group_id" id="group_id_hidden">
+                            <div class="field-error-msg text-danger small mt-1"
+                                 data-field-error="group_id">@error('group_id'){{ $message }}@enderror</div>
                         </div>
 
                         <div class="col-12">
@@ -305,6 +307,11 @@
                     return;
                 }
 
+                if (fieldName === 'group_id') {
+                    $('#group_id_select').toggleClass('is-invalid', isInvalid);
+                    return;
+                }
+
                 const $input = getContractCreateFieldInput(fieldName);
                 if ($input.length) {
                     $input.toggleClass('is-invalid', isInvalid);
@@ -357,6 +364,15 @@
 
                 const mode = $('input[name="creation_mode"]:checked').val();
 
+                if (!$('#group_id_select').prop('disabled') && $('#group_id_select').find('option').length > 1) {
+                    const groupId = $('#group_id_hidden').val();
+                    if (!groupId || String(groupId).trim() === '') {
+                        showContractCreateFieldError('group_id', 'Выберите группу для договора.');
+                        valid = false;
+                        firstInvalidField = firstInvalidField || 'group_id';
+                    }
+                }
+
                 if (mode === 'pdf') {
                     const pdfInput = document.getElementById('input_pdf');
                     if (!pdfInput || !pdfInput.files || pdfInput.files.length === 0) {
@@ -376,6 +392,8 @@
                 if (!valid && firstInvalidField) {
                     if (firstInvalidField === 'user_id') {
                         $('#user_id').select2('open');
+                    } else if (firstInvalidField === 'group_id') {
+                        $('#group_id_select').trigger('focus');
                     } else {
                         const $input = getContractCreateFieldInput(firstInvalidField);
                         if ($input.length) {
@@ -397,6 +415,55 @@
             function setParentFullNameDisplay(value) {
                 const display = (value && String(value).trim() !== '') ? String(value).trim() : '—';
                 $('#parent_full_name_display').val(display);
+            }
+
+            function applyStudentGroupsToForm(groups) {
+                const $g = $('#group_id_select');
+                const $h = $('#group_id_hidden');
+
+                $g.empty();
+                $h.val('');
+                clearContractCreateFieldError('group_id');
+
+                if (!groups || !groups.length) {
+                    $g.append(new Option('— группы нет —', '', true, true));
+                    $g.prop('disabled', true);
+                    return;
+                }
+
+                if (groups.length === 1) {
+                    $g.append(new Option(groups[0].title, groups[0].id, true, true));
+                    $h.val(String(groups[0].id));
+                    $g.prop('disabled', true);
+                    return;
+                }
+
+                $g.append(new Option('— выберите группу —', '', true, true));
+                groups.forEach(function (group) {
+                    $g.append(new Option(group.title, group.id, false, false));
+                });
+                $g.prop('disabled', false);
+
+                $g.off('change.contractGroups').on('change.contractGroups', function () {
+                    const val = $(this).val();
+                    $h.val(val ? String(val) : '');
+                    clearContractCreateFieldError('group_id');
+                });
+            }
+
+            function fetchAndApplyStudentGroups(userId, prefetchGroups) {
+                if (Array.isArray(prefetchGroups)) {
+                    applyStudentGroupsToForm(prefetchGroups);
+                    return;
+                }
+
+                $.getJSON(@json(route('contracts.user.group')), {user_id: userId})
+                    .done(function (resp) {
+                        applyStudentGroupsToForm(resp.groups || []);
+                    })
+                    .fail(function () {
+                        applyStudentGroupsToForm([]);
+                    });
             }
 
             function initContractUserSelect2() {
@@ -433,28 +500,16 @@
                     clearContractCreateFieldError('user_id');
 
                     const d = e.params.data || {};
-                    const $g = $('#group_id_select');
-                    const $h = $('#group_id_hidden');
 
                     setParentFullNameDisplay(d.parent_full_name);
-
-                    $g.empty();
-                    $h.val('');
-
-                    if (d.team_id && d.team_title) {
-                        $g.append(new Option(d.team_title, d.team_id, true, true));
-                        $h.val(d.team_id);
-                    } else {
-                        $g.append(new Option('— группы нет —', '', true, true));
-                    }
+                    fetchAndApplyStudentGroups(d.id, d.groups);
                 });
 
                 $userSelect.on('select2:clear.contractCreate', function () {
                     clearContractCreateFieldError('user_id');
 
                     setParentFullNameDisplay('');
-                    $('#group_id_select').empty().append(new Option('—', '', true, true));
-                    $('#group_id_hidden').val('');
+                    applyStudentGroupsToForm([]);
                 });
             }
 
@@ -464,8 +519,6 @@
                 }
 
                 const $userSelect = $('#user_id');
-                const $g = $('#group_id_select');
-                const $h = $('#group_id_hidden');
 
                 if ($userSelect.find('option[value="' + activePreselectedUser.id + '"]').length === 0) {
                     $userSelect.append(new Option(activePreselectedUser.text, activePreselectedUser.id, true, true));
@@ -473,16 +526,10 @@
                 $userSelect.val(String(activePreselectedUser.id)).trigger('change');
 
                 setParentFullNameDisplay(activePreselectedUser.parent_full_name);
-
-                $g.empty();
-                $h.val('');
-
-                if (activePreselectedUser.team_id && activePreselectedUser.team_title) {
-                    $g.append(new Option(activePreselectedUser.team_title, activePreselectedUser.team_id, true, true));
-                    $h.val(activePreselectedUser.team_id);
-                } else {
-                    $g.append(new Option('— группы нет —', '', true, true));
-                }
+                fetchAndApplyStudentGroups(
+                    activePreselectedUser.id,
+                    activePreselectedUser.groups || null
+                );
             }
 
             function toggleCreationMode() {
@@ -583,8 +630,7 @@
 
                 activePreselectedUser = null;
 
-                $('#group_id_select').empty().append(new Option('—', '', true, true));
-                $('#group_id_hidden').val('');
+                applyStudentGroupsToForm([]);
                 setParentFullNameDisplay('');
                 $('#block-template').hide();
                 $('#block-pdf').show();

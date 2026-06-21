@@ -612,8 +612,8 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                     'school_lead_id' => $leadForUser->id,
                 ],
                 'headers' => [
-                    'HTTP_ACCEPT'      => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
+                    'HTTP_ACCEPT'           => 'application/json',
+                    'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
                 ],
             ],
             [

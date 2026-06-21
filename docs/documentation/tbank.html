@@ -163,7 +163,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Webhook <code>/webhooks/tinkoff/payments</code>:
       <ul>
         <li><code>CONFIRMED</code> → фиксируем оплату: <code>payment_intents.paid</code>, <code>payables.paid</code>, запись в <code>payments</code>.</li>
-        <li>Если <code>payables.type=monthly_fee</code> → отмечаем месяц в <code>users_prices</code>.</li>
+        <li>Если <code>payables.type=monthly_fee</code> → <code>UserPrice::markMonthlyPaid</code> по <code>(user_id, payables.meta.team_id, payables.month)</code> — см. <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</li>
       </ul>
     </li>
     <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если в момент обработки webhook у партнёра включена автовыплата</b> (<code>auto_payout_enabled</code>). Ретроактивно автовыплаты по старым платежам не создаются.</li>
@@ -174,7 +174,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <br>Для устойчивости к гонкам webhook’ов обработчик также использует <code>Data.payment_intent_id</code>, если webhook пришёл раньше сохранения <code>tbank_payment_id</code>/<code>tbank_order_id</code> в <code>payment_intents</code>.
   </div>
   <div class="note">
-    <b>Сумма в Init для месячного абонемента:</b> до вызова банка создаётся <code>payables</code> с суммой из <code>users_prices</code> (сервис <code>UserPriceMonthlyFeePaymentResolver</code>, нормализация <code>PaymentOutSumNormalizer</code>). Значение <code>outSum</code> в POST формы для сценария с <code>formatedPaymentDate</code> не задаёт итоговую сумму — она пересчитывается на сервере так же, как на витрине <code>POST /payment</code>.
+    <b>Сумма в Init для месячного абонемента:</b> до вызова банка создаётся <code>payables</code> с суммой из <code>users_prices</code> для <code>(user_id, team_id, month)</code> (сервис <code>UserPriceMonthlyFeePaymentResolver</code>, <code>payables.meta.team_id</code>, нормализация <code>PaymentOutSumNormalizer</code>). Значение <code>outSum</code> в POST формы для сценария с <code>formatedPaymentDate</code> не задаёт итоговую сумму — она пересчитывается на сервере так же, как на витрине <code>POST /payment</code>.
     См. <a href="/docs/documentation/payments#vitrina-payment">документ «Оплаты» → п. 3.1.1</a>.
   </div>
 

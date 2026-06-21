@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Contracts\ContractUserGroupRequest;
 use App\Http\Requests\Contracts\ContractUsersSearchRequest;
 use App\Models\User;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ContractLookupsController extends Controller
 {
+    public function __construct(
+        private readonly TeamUserSyncService $teamUserSync,
+    ) {
+    }
+
     // единая точка входа
     private function partner(): \App\Models\Partner
     {
@@ -33,7 +39,7 @@ class ContractLookupsController extends Controller
         $users = User::query()
             ->when($partnerId, fn($qq) => $qq->where('users.partner_id', $partnerId))
             ->where('users.is_enabled', 1)
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+            ->with(['teams' => fn ($query) => $query->where('teams.partner_id', $partnerId)])
             ->leftJoin('parents', function ($join) {
                 $join->on('parents.id', '=', 'users.parent_id')
                     ->whereNull('parents.deleted_at');
@@ -53,22 +59,29 @@ class ContractLookupsController extends Controller
                 'users.id',
                 'users.name',
                 'users.lastname',
-                'users.team_id',
-                'teams.title as team_title',
                 DB::raw("TRIM(CONCAT_WS(' ', parents.lastname, parents.firstname, parents.middlename)) as parent_full_name_from_join"),
             ]);
 
         $results = $users->map(function ($u) {
             $fullname = trim(($u->lastname ?? '') . ' ' . $u->name);
             $parentFullName = trim((string) ($u->getAttributes()['parent_full_name_from_join'] ?? ''));
+            $teamIds = $this->teamUserSync->teamIdsForStudent($u);
+            $teamTitle = $this->teamUserSync->teamTitlesLabel($u);
+            $firstTeamId = $teamIds[0] ?? null;
+            $groups = $u->teams
+                ->map(fn ($team) => ['id' => (int) $team->id, 'title' => (string) $team->title])
+                ->values()
+                ->all();
 
             return [
                 'id'               => $u->id,
                 'text'             => $fullname,
                 'name'             => $u->name,
                 'lastname'         => $u->lastname,
-                'team_id'          => $u->team_id,
-                'team_title'       => $u->team_title,
+                'team_id'          => $firstTeamId,
+                'team_ids'         => $teamIds,
+                'team_title'       => $teamTitle !== '' ? $teamTitle : null,
+                'groups'           => $groups,
                 'parent_full_name' => $parentFullName !== '' ? $parentFullName : null,
             ];
         });
@@ -86,6 +99,7 @@ class ContractLookupsController extends Controller
             ->where('id', $userId)
             ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
+            ->with(['teams' => fn ($query) => $query->where('teams.partner_id', $partnerId)])
             ->first();
 
         if (!$student) {
@@ -93,24 +107,13 @@ class ContractLookupsController extends Controller
             return response()->json(['groups' => []]);
         }
 
-        $groups = [];
-        if (method_exists($student, 'groups')) {
-            $groups = $student->groups()
-                ->select('groups.id', 'groups.title')
-                ->when(function ($q) {
-                    // если есть pivot с флагом активности — оставь; иначе убери строку ниже
-                }, function ($q) {
-                    $q->wherePivot('is_active', 1);
-                })
-                ->orderBy('groups.title')
-                ->get()
-                ->map(fn($g) => ['id' => $g->id, 'title' => $g->title])
-                ->values()
-                ->all();
-        }
+        $groups = $student->teams
+            ->map(fn ($team) => ['id' => (int) $team->id, 'title' => (string) $team->title])
+            ->values()
+            ->all();
 
         Log::debug('[contracts.userGroup] done', ['groups_count' => count($groups)]);
+
         return response()->json(['groups' => $groups]);
     }
 }
-

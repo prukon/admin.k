@@ -24,6 +24,10 @@ use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
 use App\Services\PartnerContext;
+use App\Http\Requests\Admin\SaveUserYearPricesRequest;
+use App\Http\Requests\Admin\UserYearPricesRequest;
+use App\Services\TeamUserSyncService;
+use App\Support\UserPriceTeamMembership;
 use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use Illuminate\Support\Carbon as SupportCarbon;
@@ -219,13 +223,11 @@ class SettingPricesController extends AdminBaseController
         $this->ensureTeamPricesForMonth($allTeams, $monthDate);
         $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
 
-        // Список активных учеников текущего партнёра
-        $users = User::with('team')
+        // Список активных учеников текущего партнёра (с хотя бы одной группой в pivot)
+        $users = User::with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')])
+            ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
-            ->whereHas('team', function ($q) use ($partnerId) {
-                $q->where('partner_id', $partnerId)
-                    ->whereNull('deleted_at');
-            })
+            ->whereHas('teams', fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'))
             ->orderBy('lastname')
             ->orderBy('name')
             ->get();
@@ -451,7 +453,7 @@ class SettingPricesController extends AdminBaseController
             ], 404);
         }
 
-        $usersTeam = User::where('team_id', $team->id)
+        $usersTeam = $team->students()
             ->where('is_enabled', true)
             ->orderBy('lastname', 'asc')
             ->orderBy('name', 'asc')
@@ -465,6 +467,7 @@ class SettingPricesController extends AdminBaseController
                 [
                     'new_month' => $selectedDate,
                     'user_id'   => $user->id,
+                    'team_id'   => $team->id,
                 ],
                 [
                     'price' => 0,
@@ -497,23 +500,33 @@ class SettingPricesController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         $userId       = (int) $request->validated('user_id');
+        $teamId       = (int) $request->validated('team_id');
         $selectedDate = $request->validated('selectedDate');
         $mode         = $request->validated('mode');
         $comment      = trim($request->validated('comment'));
 
         $monthDate = $this->formatedDate($selectedDate);
 
-        $user = User::with('team')->find($userId);
+        $user = $this->findPartnerStudent($userId, $partnerId);
 
-        if (!$user || !$user->team || (int) $user->team->partner_id !== $partnerId) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Ученик не найден или недоступен в контексте текущего партнёра.',
             ], 404);
         }
 
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Группа не найдена или ученик в ней не состоит.',
+            ], 422);
+        }
+
         /** @var UserPrice|null $row */
         $row = UserPrice::where('user_id', $userId)
+            ->where('team_id', $teamId)
             ->where('new_month', $monthDate)
             ->first();
 
@@ -601,7 +614,7 @@ class SettingPricesController extends AdminBaseController
         $row->refresh();
         $row->load('user');
 
-        return response()->json([
+        return $this->settingPricesUsersJsonOrRedirect($request, [
             'success'    => true,
             'user_price' => $row,
         ]);
@@ -703,12 +716,13 @@ class SettingPricesController extends AdminBaseController
                     ->withCreatedAt(now())
             );
 
-            $users = User::where('team_id', $team->id)
+            $users = $team->students()
                 ->where('is_enabled', 1)
                 ->get();
 
             foreach ($users as $user) {
                 $userPrice = UserPrice::where('user_id', $user['id'])
+                    ->where('team_id', $team->id)
                     ->where('new_month', $selectedDate)
                     ->first();
 
@@ -721,6 +735,7 @@ class SettingPricesController extends AdminBaseController
                 } else {
                     UserPrice::create([
                         'user_id'   => $user['id'],
+                        'team_id'   => $team->id,
                         'new_month' => $selectedDate,
                         'price'     => $teamPrice,
                         'is_paid'   => false,
@@ -792,12 +807,13 @@ class SettingPricesController extends AdminBaseController
                         ->withCreatedAt(now())
                 );
 
-                $users = User::where('team_id', $team->id)
+                $users = $team->students()
                     ->where('is_enabled', 1)
                     ->get();
 
                 foreach ($users as $user) {
                     $userPrice = UserPrice::where('user_id', $user['id'])
+                        ->where('team_id', $team->id)
                         ->where('new_month', $selectedDate)
                         ->first();
 
@@ -810,6 +826,7 @@ class SettingPricesController extends AdminBaseController
                     } else {
                         UserPrice::create([
                             'user_id'   => $user['id'],
+                            'team_id'   => $team->id,
                             'new_month' => $selectedDate,
                             'price'     => $teamData['price'],
                             'is_paid'   => false,
@@ -833,16 +850,26 @@ class SettingPricesController extends AdminBaseController
 
         $selectedDate = $data['selectedDate'] ?? null;
         $usersPrice   = $data['usersPrice'] ?? null;
+        $teamId       = isset($data['teamId']) ? (int) $data['teamId'] : 0;
 
         if (is_null($usersPrice) || !is_array($usersPrice)) {
             return response()->json(['error' => 'Некорректные данные'], 400);
+        }
+
+        if ($teamId <= 0) {
+            return response()->json(['error' => 'Не указана группа'], 400);
+        }
+
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team) {
+            return response()->json(['error' => 'Группа не найдена'], 404);
         }
 
         $authorId           = auth()->id();
         $selectedDateString = $selectedDate;
         $selectedDate       = $this->formatedDate($selectedDate);
 
-        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $partnerId) {
+        DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $partnerId, $teamId, $team) {
             foreach ($usersPrice as $priceData) {
 
                 $userId = $priceData['user_id'] ?? null;
@@ -850,9 +877,9 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
-                $user = User::with('team')->find($userId);
+                $user = $this->findPartnerStudent((int) $userId, $partnerId);
 
-                if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+                if (! $user) {
                     Log::warning('setPriceAllUsers: попытка изменить цену пользователя не своего партнёра', [
                         'user_id'   => $userId,
                         'partnerId' => $partnerId,
@@ -860,7 +887,12 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
+                if (! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+                    continue;
+                }
+
                 $userPriceRecord = UserPrice::where('user_id', $userId)
+                    ->where('team_id', $teamId)
                     ->where('new_month', $selectedDate)
                     ->where('is_paid', 0)
                     ->first();
@@ -874,7 +906,7 @@ class SettingPricesController extends AdminBaseController
 
                     $this->auditLogger->record(
                         AuditEvent::PricingStudentApply,
-                        AuditContext::make("Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}.")
+                        AuditContext::make("Обновлена цена: {$priceData['price']} руб. Период: {$selectedDateString}. Группа: {$team->title}.")
                             ->withUserId($userId)
                             ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
                             ->withCreatedAt(now())
@@ -892,31 +924,49 @@ class SettingPricesController extends AdminBaseController
 
     public function setPriceAllUsers(Request $request)
 {
+    $partnerId = $this->requirePartnerId();
+
     // Получаем JSON-содержимое запроса и декодируем его
     $data = json_decode($request->getContent(), true);
 
     // Проверяем, что данные переданы корректно
     $selectedDate = $data['selectedDate'] ?? null;
     $usersPrice   = $data['usersPrice']   ?? null;
+    $teamId       = isset($data['teamId']) ? (int) $data['teamId'] : 0;
 
     // Проверка данных
     if (is_null($usersPrice) || !is_array($usersPrice)) {
         return response()->json(['error' => 'Некорректные данные'], 400);
     }
 
+    if ($teamId <= 0) {
+        return response()->json(['error' => 'Не указана группа'], 400);
+    }
+
+    $team = $this->findPartnerTeam($teamId, $partnerId);
+    if (! $team) {
+        return response()->json(['error' => 'Группа не найдена'], 404);
+    }
+
     $authorId           = auth()->id(); // Авторизованный пользователь
     $selectedDateString = $selectedDate;
     $selectedDate       = $this->formatedDate($selectedDate); // 'Сентябрь 2024' -> '2024-09-01'
 
-    DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice) {
+    DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $teamId, $team, $partnerId) {
         foreach ($usersPrice as $priceData) {
             $userId = $priceData['user_id'] ?? null;
             if (!$userId) {
                 continue;
             }
 
+            $user = $this->findPartnerStudent((int) $userId, $partnerId);
+            if (! $user || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+                continue;
+            }
+
             /** @var UserPrice|null $userPriceRecord */
             $userPriceRecord = UserPrice::where('user_id', $userId)
+                ->where('team_id', $teamId)
                 ->where('new_month', $selectedDate)
                 ->first();
 
@@ -948,7 +998,7 @@ class SettingPricesController extends AdminBaseController
             // ПРИМЕНИТЬ справа. Установка цен всем ученикам
             $this->auditLogger->record(
                 AuditEvent::PricingStudentApply,
-                AuditContext::make("Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}.")
+                AuditContext::make("Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}. Группа: {$team->title}.")
                     ->withUserId($userId)
                     ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
                     ->withCreatedAt(now())
@@ -966,28 +1016,34 @@ class SettingPricesController extends AdminBaseController
     /**
      * AJAX: получить цены конкретного ученика по месяцам за год (вкладка "по ученикам")
      */
-    public function userYearPrices(Request $request)
+    public function userYearPrices(UserYearPricesRequest $request)
     {
         $partnerId = $this->requirePartnerId();
 
-        $data = $request->validate([
-            'user_id' => 'required|integer',
-            'year'    => 'required|integer|min:2000|max:2100',
-        ]);
+        $data   = $request->validated();
+        $userId = (int) $data['user_id'];
+        $teamId = (int) $data['team_id'];
+        $year   = (int) $data['year'];
 
-        $userId = $data['user_id'];
-        $year   = $data['year'];
+        $user = $this->findPartnerStudent($userId, $partnerId);
 
-        $user = User::with('team')->find($userId);
-
-        if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'User not found',
             ], 404);
         }
 
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Группа не найдена или ученик в ней не состоит.',
+            ], 422);
+        }
+
         $prices = UserPrice::where('user_id', $userId)
+            ->where('team_id', $teamId)
             ->whereYear('new_month', $year)
             ->get()
             ->keyBy('new_month');
@@ -1021,8 +1077,8 @@ class SettingPricesController extends AdminBaseController
                 'id'        => $user->id,
                 'name'      => $user->name,
                 'lastname'  => $user->lastname,
-                'team_id'   => $user->team_id,
-                'team_name' => optional($user->team)->title,
+                'team_id'   => $teamId,
+                'team_name' => $team->title,
             ],
             'year'   => $year,
             'months' => $months,
@@ -1032,33 +1088,35 @@ class SettingPricesController extends AdminBaseController
     /**
      * AJAX: сохранить цены ученика за год (вкладка "по ученикам")
      */
-    public function saveUserYearPrices(Request $request)
+    public function saveUserYearPrices(SaveUserYearPricesRequest $request)
     {
         $partnerId = $this->requirePartnerId();
 
-        $data = $request->validate([
-            'user_id'          => 'required|integer',
-            'year'             => 'required|integer|min:2000|max:2100',
-            'prices'           => 'required|array',
-            'prices.*.new_month' => 'required|date_format:Y-m-d',
-            'prices.*.price'     => 'required|numeric|min:0',
-        ]);
-
-        $userId = $data['user_id'];
-        $year   = $data['year'];
+        $data   = $request->validated();
+        $userId = (int) $data['user_id'];
+        $teamId = (int) $data['team_id'];
+        $year   = (int) $data['year'];
         $items  = $data['prices'];
 
-        $user = User::with('team')->find($userId);
-        if (!$user || !$user->team || (int) $user->team->partner_id !== (int) $partnerId) {
+        $user = $this->findPartnerStudent($userId, $partnerId);
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'User not found',
             ], 404);
         }
 
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Группа не найдена или ученик в ней не состоит.',
+            ], 422);
+        }
+
         $authorId = auth()->id();
 
-        DB::transaction(function () use ($items, $userId, $year, $authorId) {
+        DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team) {
             foreach ($items as $item) {
                 $newMonth = $item['new_month'];
                 $price    = (int) $item['price'];
@@ -1070,6 +1128,7 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 $userPrice = UserPrice::where('user_id', $userId)
+                    ->where('team_id', $teamId)
                     ->where('new_month', $newMonth)
                     ->first();
 
@@ -1089,7 +1148,7 @@ class SettingPricesController extends AdminBaseController
 
                         $this->auditLogger->record(
                             AuditEvent::PricingStudentApply,
-                            AuditContext::make("Обновлена цена: {$price} руб. Период: {$monthLabel}.")
+                            AuditContext::make("Обновлена цена: {$price} руб. Период: {$monthLabel}. Группа: {$team->title}.")
                                 ->withUserId($userId)
                                 ->withTargetReference('App\Models\UserPrice', (int) $userPrice->id, $userPrice->user->name ?? 'Пользователь')
                                 ->withCreatedAt(now())
@@ -1098,6 +1157,7 @@ class SettingPricesController extends AdminBaseController
                 } else {
                     $created = UserPrice::create([
                         'user_id'   => $userId,
+                        'team_id'   => $teamId,
                         'new_month' => $newMonth,
                         'price'     => $price,
                         'is_paid'   => false,
@@ -1105,7 +1165,7 @@ class SettingPricesController extends AdminBaseController
 
                     $this->auditLogger->record(
                         AuditEvent::PricingStudentApply,
-                        AuditContext::make("Установлена цена: {$price} руб. Период: {$monthLabel}.")
+                        AuditContext::make("Установлена цена: {$price} руб. Период: {$monthLabel}. Группа: {$team->title}.")
                             ->withUserId($userId)
                             ->withTargetReference('App\Models\UserPrice', (int) $created->id, $created->user->name ?? 'Пользователь')
                             ->withCreatedAt(now())
@@ -1114,7 +1174,7 @@ class SettingPricesController extends AdminBaseController
             }
         });
 
-        return response()->json([
+        return $this->settingPricesUsersJsonOrRedirect($request, [
             'success' => true,
         ]);
     }
@@ -1123,5 +1183,50 @@ class SettingPricesController extends AdminBaseController
     public function getLogsData(FilterRequest $request)
     {
         return $this->buildLogDataTable('pricing');
+    }
+
+    /**
+     * Ученик партнёра с хотя бы одной группой в pivot team_user.
+     */
+    private function findPartnerStudent(int $userId, int $partnerId): ?User
+    {
+        $user = User::with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')])
+            ->find($userId);
+
+        if (! $user || (int) $user->partner_id !== $partnerId) {
+            return null;
+        }
+
+        if (! $user->teams()->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')->exists()) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    private function findPartnerTeam(int $teamId, int $partnerId): ?Team
+    {
+        if ($teamId <= 0) {
+            return null;
+        }
+
+        return $this->scopeByPartner(Team::query())
+            ->whereKey($teamId)
+            ->whereNull('deleted_at')
+            ->first();
+    }
+
+    /**
+     * AJAX / JSON → ответ API; обычный POST (fallback без JS) → редирект на вкладку «по ученикам».
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function settingPricesUsersJsonOrRedirect(Request $request, array $payload)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('admin.settingPrices.users');
     }
 }

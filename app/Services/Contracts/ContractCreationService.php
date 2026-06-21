@@ -10,12 +10,14 @@ use App\Models\Partner;
 use App\Models\User;
 use App\Enums\AuditEvent;
 use App\Services\Audit\ContractAudit;
+use App\Services\TeamUserSyncService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ContractCreationService
 {
@@ -23,11 +25,12 @@ class ContractCreationService
         private readonly ContractBillingService $billing,
         private readonly ContractTemplateService $templateService,
         private readonly ContractAudit $contractAudit,
+        private readonly TeamUserSyncService $teamUserSync,
     ) {
     }
 
     /**
-     * @param array{user_id: int, creation_mode: string, pdf?: UploadedFile, contract_template_id?: int} $data
+     * @param array{user_id: int, creation_mode: string, group_id?: int|null, pdf?: UploadedFile, contract_template_id?: int} $data
      */
     public function create(Partner $partner, array $data): Contract
     {
@@ -40,12 +43,18 @@ class ContractCreationService
         abort_unless($student, 422, 'Ученик не найден у текущего партнёра.');
 
         $mode = $data['creation_mode'];
+        $groupId = $this->resolveContractGroupId(
+            $student,
+            array_key_exists('group_id', $data) && $data['group_id'] !== null
+                ? (int) $data['group_id']
+                : null
+        );
 
-        return DB::transaction(function () use ($partner, $student, $data, $mode) {
+        return DB::transaction(function () use ($partner, $student, $data, $mode, $groupId) {
             if ($mode === Contract::CREATION_MODE_PDF) {
-                $contract = $this->createPdfContract($partner, $student, $data['pdf']);
+                $contract = $this->createPdfContract($partner, $student, $data['pdf'], $groupId);
             } else {
-                $contract = $this->createTemplateContract($partner, $student, (int) $data['contract_template_id']);
+                $contract = $this->createTemplateContract($partner, $student, (int) $data['contract_template_id'], $groupId);
             }
 
             $this->billing->chargeCreationFee($partner, $contract);
@@ -74,7 +83,7 @@ class ContractCreationService
         });
     }
 
-    private function createPdfContract(Partner $partner, User $student, UploadedFile $pdf): Contract
+    private function createPdfContract(Partner $partner, User $student, UploadedFile $pdf, ?int $groupId): Contract
     {
         $path = $pdf->store('documents/' . date('Y/m'));
         $sha = hash_file('sha256', Storage::path($path));
@@ -82,7 +91,7 @@ class ContractCreationService
         return Contract::create([
             'school_id'                   => $partner->id,
             'user_id'                     => $student->id,
-            'group_id'                    => $student->team_id,
+            'group_id'                    => $groupId,
             'creation_mode'               => Contract::CREATION_MODE_PDF,
             'contract_template_version_id'=> null,
             'source_pdf_path'             => $path,
@@ -92,7 +101,7 @@ class ContractCreationService
         ]);
     }
 
-    private function createTemplateContract(Partner $partner, User $student, int $templateId): Contract
+    private function createTemplateContract(Partner $partner, User $student, int $templateId, ?int $groupId): Contract
     {
         $template = $this->templateService->resolveForPartner($partner->id, $templateId);
         /** @var ContractTemplateVersion $version */
@@ -101,7 +110,7 @@ class ContractCreationService
         return Contract::create([
             'school_id'                    => $partner->id,
             'user_id'                      => $student->id,
-            'group_id'                     => $student->team_id,
+            'group_id'                     => $groupId,
             'creation_mode'                => Contract::CREATION_MODE_TEMPLATE,
             'contract_template_version_id' => $version->id,
             'source_pdf_path'              => null,
@@ -110,6 +119,41 @@ class ContractCreationService
             'fill_expires_at'              => now()->addDays(Contract::FILL_TTL_DAYS),
             'status'                       => Contract::STATUS_AWAITING_CLIENT_FILL,
             'provider'                     => 'podpislon',
+        ]);
+    }
+
+    /**
+     * Группа для договора: 0 групп → null; 1 → auto; 2+ → обязателен выбор.
+     *
+     * @throws ValidationException
+     */
+    public function resolveGroupIdForStudent(User $student, ?int $requestedGroupId = null): ?int
+    {
+        return $this->resolveContractGroupId($student, $requestedGroupId);
+    }
+
+    private function resolveContractGroupId(User $student, ?int $requestedGroupId): ?int
+    {
+        $student->loadMissing([
+            'teams' => fn ($query) => $query->where('teams.partner_id', $student->partner_id),
+        ]);
+
+        $teamIds = $this->teamUserSync->teamIdsForStudent($student);
+
+        if ($teamIds === []) {
+            return null;
+        }
+
+        if (count($teamIds) === 1) {
+            return $teamIds[0];
+        }
+
+        if ($requestedGroupId !== null && in_array($requestedGroupId, $teamIds, true)) {
+            return $requestedGroupId;
+        }
+
+        throw ValidationException::withMessages([
+            'group_id' => 'Выберите группу для договора.',
         ]);
     }
 

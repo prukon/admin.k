@@ -380,23 +380,11 @@ class AccountController extends AdminBaseController
             $labelOnOff = fn($v) => ((int)$v === 1 ? 'включена' : 'выключена');
             $labelYesNo = fn($v) => ((int)$v === 1 ? 'Да' : 'Нет');
 
-            $watched = ['lastname','name','email','is_enabled','team_id','role_id','birthday'];
+            $watched = ['lastname','name','email','is_enabled','role_id','birthday'];
             if ($user->can('users.sex')) {
                 $watched[] = 'sex';
             }
             $changes = [];
-
-            $teamTitle = function ($id): ?string {
-                static $titles = null;
-                if ($titles === null) {
-                    $titles = \App\Models\Team::query()
-                        ->pluck('title', 'id')
-                        ->map(fn($v) => (string)$v)
-                        ->toArray();
-                }
-                if ($id === null) return null;
-                return $titles[$id] ?? ('#'.$id);
-            };
 
             foreach ($watched as $field) {
                 $old = $original[$field] ?? null;
@@ -413,17 +401,6 @@ class AccountController extends AdminBaseController
                 if ($field === 'sex') {
                     $old = UserSex::labelFor($old);
                     $new = UserSex::labelFor($new);
-                }
-
-                if ($field === 'team_id') {
-                    $oldTitle = $teamTitle($original['team_id'] ?? null);
-                    $newTitle = $teamTitle($user->team_id);
-                    if (($original['team_id'] ?? null) != $user->team_id) {
-                        $changes[] = $fieldLabel('team_id') . ': ' .
-                            ($oldTitle === null ? 'null' : $oldTitle) . ' → ' .
-                            ($newTitle === null ? 'null' : $newTitle);
-                    }
-                    continue;
                 }
 
                 if ($old != $new) {

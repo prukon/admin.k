@@ -499,13 +499,10 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'is_enabled' => 1,
         ]);
 
-        DB::table('users_prices')->insert([
-            'user_id' => $student->id,
-            'is_paid' => 0,
-            'price' => 500,
+        $this->insertUserPrice($student, [
+            'is_paid'   => 0,
+            'price'     => 500,
             'new_month' => '2026-01-01',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         $this->get(route('debts'))->assertOk();
@@ -573,24 +570,16 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'team_id' => $teamB->id,
         ]);
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $userA->id,
-                'is_paid' => 0,
-                'price' => 1000,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $userB->id,
-                'is_paid' => 0,
-                'price' => 2000,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $this->insertUserPrice($userA, [
+            'is_paid'   => 0,
+            'price'     => 1000,
+            'new_month' => '2026-01-01',
+        ], $teamA);
+        $this->insertUserPrice($userB, [
+            'is_paid'   => 0,
+            'price'     => 2000,
+            'new_month' => '2026-01-01',
+        ], $teamB);
 
         $json = $this->withHeaders($this->ajaxHeaders())
             ->getJson(route('debts.getDebts', [
@@ -629,23 +618,15 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'team_id' => null,
         ]);
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $withLoc->id,
-                'is_paid' => 0,
-                'price' => 900,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $withoutLoc->id,
-                'is_paid' => 0,
-                'price' => 100,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($withLoc, [
+            'is_paid'   => 0,
+            'price'     => 900,
+            'new_month' => '2026-01-01',
+        ], $teamBound);
+        $this->insertUserPrice($withoutLoc, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => '2026-01-01',
         ]);
 
         $json = $this->withHeaders($this->ajaxHeaders())
@@ -689,23 +670,15 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
             'team_id' => null,
         ]);
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $userA->id,
-                'is_paid' => 0,
-                'price' => 100,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $userB->id,
-                'is_paid' => 0,
-                'price' => 200,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($userA, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => '2026-01-01',
+        ], $teamA);
+        $this->insertUserPrice($userB, [
+            'is_paid'   => 0,
+            'price'     => 200,
+            'new_month' => '2026-01-01',
         ]);
 
         $json = $this->withHeaders($this->ajaxHeaders())

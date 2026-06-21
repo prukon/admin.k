@@ -46,7 +46,8 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
                 'partner_id' => $partner->id,
             ]);
 
-        $userId = 2001;
+        $user = $this->createStudentForPartner($partner);
+        $userId = $user->id;
         $month = now()->startOfMonth()->format('Y-m-01');
 
         $payable = Payable::create([
@@ -78,9 +79,10 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
         ]);
 
         UserPrice::factory()->paid()->create([
-            'user_id' => $userId,
+            'user_id'   => $userId,
+            'team_id'   => (int) $user->team_id,
             'new_month' => $month,
-            'price' => (string) (int) $payable->amount,
+            'price'     => (string) (int) $payable->amount,
         ]);
 
         $refund = Refund::create([

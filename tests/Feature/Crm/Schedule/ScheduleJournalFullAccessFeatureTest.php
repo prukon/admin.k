@@ -80,6 +80,8 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
                 'visited_status_id',
                 'current_status_id',
                 'team_id',
+                'team_ids',
+                'teams_label',
                 'team_default_trainer_profile_id',
                 'trainer_profile_id_for_select',
                 'trainers',
@@ -138,6 +140,18 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         ])
             ->assertOk()
             ->assertJson(['success' => true]);
+    }
+
+    public function test_user_sync_teams_returns_ok(): void
+    {
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
+
+        $this->postJson(route('user.sync.teams', $student), [
+            'team_ids' => [$team->id],
+        ])
+            ->assertOk()
+            ->assertJson(['success' => true])
+            ->assertJsonStructure(['team_ids', 'teams_label']);
     }
 
     public function test_user_update_schedule_range_returns_ok(): void
@@ -248,6 +262,10 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
             $this->postJson(route('user.set.group', $student), [
                 'team_id' => $team->id,
+            ])->assertOk();
+
+            $this->postJson(route('user.sync.teams', $student), [
+                'team_ids' => [$team->id],
             ])->assertOk();
 
             $this->postJson(route('user.update.schedule', $student), [

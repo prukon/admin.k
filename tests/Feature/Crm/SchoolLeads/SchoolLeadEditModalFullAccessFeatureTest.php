@@ -177,7 +177,7 @@ final class SchoolLeadEditModalFullAccessFeatureTest extends CrmTestCase
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
         ], [
-            'X-Requested-With' => 'XMLHttpRequest',
+                    'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
         ])->assertOk();
     }
 
@@ -408,8 +408,8 @@ final class SchoolLeadEditModalFullAccessFeatureTest extends CrmTestCase
                     'school_lead_id' => $leadForClient->id,
                 ],
                 'headers' => [
-                    'HTTP_ACCEPT'      => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
+                    'HTTP_ACCEPT'           => 'application/json',
+                    'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
                 ],
             ];
         }

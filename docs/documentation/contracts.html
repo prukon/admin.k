@@ -105,7 +105,7 @@
     <tbody>
       <tr><td>Родитель</td><td><code>$student->parent_full_name</code> (из <code>parents</code> через <code>parentProfile</code>) или «—»</td></tr>
       <tr><td>Ученик</td><td><code>$student->full_name</code> (фамилия + имя ученика)</td></tr>
-      <tr><td>Группа</td><td><code>teams.title</code> по <code>user.team_id</code></td></tr>
+      <tr><td>Группа</td><td>На карточке — все текущие группы ученика через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>, pivot). В списке договоров — снимок <code>contracts.group_id</code> → <code>teams.title</code>.</td></tr>
       <tr><td>Статус</td><td><code>contracts.status</code> (бейдж)</td></tr>
       <tr><td>Телефон</td><td><code>users.phone</code> (контакт родителя)</td></tr>
       <tr><td>Почта</td><td><code>users.email</code></td></tr>
@@ -114,8 +114,8 @@
 
   <h3>2.2) Загрузка ученика в контроллере</h3>
   <div class="note">
-    В <code>ContractsController@show</code> (и legacy <code>ContractsController</code>) ученик загружается с <code>->with('parentProfile')</code> и полями <code>id</code>, <code>name</code>, <code>lastname</code>, <code>phone</code>, <code>email</code>, <code>team_id</code>, <code>parent_id</code>.
-    ФИО для UI — через <code>$student->parentFormFields()</code> / <code>parent_full_name</code>, не из колонок <code>users</code> (legacy <code>parent_*</code> на users удалены).
+    В <code>ContractsController@show</code> ученик загружается с <code>->with('parentProfile')</code> и pivot-группами (<code>teams</code>); для подписи «Группа» используется <code>TeamUserSyncService::teamTitlesLabel</code>.
+    Legacy <code>ContractsController</code> (корневой, не в роутах) — устаревший.
   </div>
 
   <h2>3) Предзаполнение подписанта (модалка «Отправка на подпись»)</h2>
@@ -176,7 +176,7 @@
     <tbody>
       <tr><td>Ученик</td><td><code>#user_id</code> (Select2, AJAX)</td><td>Обязательное. Поиск по имени/фамилии/телефону/email ученика. Отправляется в <code>POST /client-contracts</code> как <code>user_id</code>.</td></tr>
       <tr><td>ФИО родителя</td><td><code>#parent_full_name_display</code></td><td>Только просмотр (<code>disabled</code>, <code>readonly</code>). В форму <b>не отправляется</b>. По умолчанию «—»; после выбора ученика — <code>parent_full_name</code> из справочника <code>parents</code> или «—», если родитель не указан.</td></tr>
-      <tr><td>Группа</td><td><code>#group_id_select</code> + hidden <code>group_id</code></td><td>Read-only: подставляется из <code>users.team_id</code> выбранного ученика.</td></tr>
+      <tr><td>Группа</td><td><code>#group_id_select</code> + hidden <code>group_id</code></td><td>После выбора ученика — <code>GET /client-contracts/user-group?user_id=</code> или prefetch <code>groups[]</code> из users-search. 0 групп — «— группы нет —»; 1 — auto, read-only; 2+ — обязательный select. Сохраняется в <code>contracts.group_id</code> (снимок договора, не pivot). См. <a href="/docs/documentation/student-team-membership#contracts">student-team-membership §4</a>.</td></tr>
       <tr><td>Партнёр</td><td>disabled input</td><td>Текущий <code>current_partner</code>.</td></tr>
       <tr><td>Способ создания</td><td><code>creation_mode</code></td><td><code>pdf</code> — прикрепить PDF; <code>template</code> — форма клиенту (DOCX-шаблон).</td></tr>
       <tr><td>PDF / шаблон</td><td><code>#input_pdf</code> или <code>#contract_template_id</code></td><td>В зависимости от режима; см. <a href="/docs/documentation/contract-templates">contract-templates</a>.</td></tr>
@@ -206,7 +206,7 @@
   <h3>5.3) Предзаполнение и открытие модалки</h3>
   <ul>
     <li><code>?create=1</code>, <code>?user_id={id}</code> или ошибки валидации после <code>POST</code> — флаг <code>shouldOpenCreateModal</code>, модалка открывается при загрузке страницы.</li>
-    <li>Валидный <code>user_id</code> своего партнёра (<code>is_enabled = 1</code>) → <code>preselectedUser</code>: <code>id</code>, <code>text</code>, <code>team_id</code>, <code>team_title</code>, <code>parent_full_name</code> (или <code>null</code>).</li>
+    <li>Валидный <code>user_id</code> своего партнёра (<code>is_enabled = 1</code>) → <code>preselectedUser</code>: <code>id</code>, <code>text</code>, <code>team_ids</code>, <code>team_id</code> (первая группа), <code>team_title</code>, <code>groups[]</code>, <code>parent_full_name</code> (или <code>null</code>).</li>
     <li>Чужой партнёр / несуществующий id — <code>preselectedUser = null</code>, модалка всё равно может открыться по query.</li>
     <li>Переход из заявок (прямая ссылка): <code>GET /client-contracts?user_id=…</code> или legacy <code>GET /client-contracts/create?user_id=…</code> → redirect на index с теми же параметрами. Основной UX на странице заявок — встроенная модалка без смены страницы (§<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">school-leads-widget §5.8</a>).</li>
     <li>JS API: <code>window.KidsCrmContractCreate.openModal(preselectedUser)</code> — используется на <code>/admin/school-leads</code> и на <code>/client-contracts</code>.</li>
@@ -286,6 +286,7 @@
     <a href="/docs/documentation/contract-templates">Шаблоны договоров</a> ·
     <a href="/docs/documentation/account-contract-fill">Заполнение родителем</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
+    <a href="/docs/documentation/student-team-membership">Ученик ↔ группы (M:N)</a> ·
     <a href="/docs/documentation/admin-users#user-parent">Пользователи: данные родителя</a></p>
 </div>
 </body>

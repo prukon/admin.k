@@ -31,6 +31,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Support\BuildsLogTable;
 use Intervention\Image\ImageManager;
 use App\Services\SchoolLeads\LatestUserContractLookup;
+use App\Services\TeamUserSyncService;
 use App\Services\UserService;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 
@@ -46,6 +47,7 @@ class UserController extends AdminBaseController
         UserService $service,
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly TeamUserSyncService $teamUserSync,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -173,11 +175,7 @@ class UserController extends AdminBaseController
 
         // Фильтр по группе: id / none / пусто
         if ($teamFilter !== null && $teamFilter !== '') {
-            if ($teamFilter === 'none') {
-                $baseQuery->whereNull('users.team_id');
-            } else {
-                $baseQuery->where('users.team_id', $teamFilter);
-            }
+            $baseQuery->filterByStudentTeam((int) $this->partnerId(), $teamFilter);
         }
 
         // Фильтр по статусу
@@ -249,7 +247,7 @@ class UserController extends AdminBaseController
         $length = $validated['length'] ?? 10;
 
         $users = $baseQuery
-            ->with(['team', 'parentProfile'])
+            ->with(['teams', 'parentProfile'])
             ->skip($start)
             ->take($length)
             ->get();
@@ -275,7 +273,7 @@ class UserController extends AdminBaseController
                 'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
                 'parent'       => $user->parent_full_name,
-                'teams'        => $user->team ? $user->team->title : '',
+                'teams'        => $this->teamUserSync->teamTitlesLabel($user) ?: '',
                 'birthday'     => $user->birthday
                     ? Carbon::parse($user->birthday)->format('d.m.Y')
                     : '',
@@ -370,14 +368,15 @@ class UserController extends AdminBaseController
             : null;
         unset($validatedData['school_lead_id']);
 
-        $isEnabled  = $request->boolean('is_enabled');          // чекбокс может не прийти — приводим к bool
-        $teamId = $validatedData['team_id'] ?? null;        // поле опционально — может отсутствовать
+        $isEnabled  = $request->boolean('is_enabled');
+        $teamIds    = $validatedData['team_ids'] ?? [];
+        unset($validatedData['team_ids'], $validatedData['team_id']);
 
         // Собираем итоговый массив данных для сервиса
         $data = array_merge($validatedData, [
             'partner_id'  => $partnerId,
             'is_enabled'  => $isEnabled,
-            'team_id'     => $teamId, // может быть null
+            'team_ids'    => $teamIds,
         ]);
 
         $data = $this->applySchoolLeadHealthFlags($data, $schoolLeadId, $partnerId);
@@ -397,7 +396,6 @@ class UserController extends AdminBaseController
             &$user,
             &$teamTitleForLog,
             $data,
-            $teamId,
             $partnerId,
             $schoolLeadId,
             $customInput,
@@ -405,6 +403,9 @@ class UserController extends AdminBaseController
         ) {
             // Создаём пользователя через доменный сервис
             $user = $this->service->store($data);
+            $user->load('teams');
+
+            $teamTitleForLog = $this->teamUserSync->teamTitlesLabel($user) ?: '-';
 
             if ($schoolLeadId) {
                 SchoolLead::query()
@@ -437,11 +438,6 @@ class UserController extends AdminBaseController
                         ['value' => $valueStr]
                     );
                 }
-            }
-
-            // Группа (может отсутствовать)
-            if ($teamId) {
-                $teamTitleForLog = Team::find($teamId)?->title ?? '-';
             }
 
             // Роль (обязательна, но подстрахуемся)
@@ -496,13 +492,15 @@ class UserController extends AdminBaseController
                 ],
             ], 200);
         }
+
+        return redirect()->route('admin.user1');
     }
 
     public function edit(User $user)
     {
         $partnerId = $this->requirePartnerId();
         $user = $this->scopeByPartner(
-            User::query()->with(['fields', 'role', 'trainerProfile.teams', 'parentProfile']),
+            User::query()->with(['fields', 'role', 'trainerProfile.teams', 'teams', 'parentProfile']),
             'users.partner_id'
         )
             ->whereKey($user->id)
@@ -571,6 +569,7 @@ class UserController extends AdminBaseController
                     ->all();
             }
             $userArray['trainer_team_ids'] = $trainerTeamIds;
+            $userArray['team_ids'] = $this->teamUserSync->teamIdsForStudent($user);
             $userArray = array_merge($userArray, $user->parentFormFields());
 
             return response()->json([
@@ -601,7 +600,7 @@ class UserController extends AdminBaseController
 
         $actor = $this->currentUser();
 
-        $user->load(['team', 'role', 'parentProfile']);
+        $user->load(['teams', 'role', 'parentProfile']);
 
         // Снимок старых значений (только то, что потенциально логируем)
         $old = [
@@ -610,7 +609,7 @@ class UserController extends AdminBaseController
             'email'      => (string) ($user->email ?? ''),
             'is_enabled' => (bool)   ($user->is_enabled ?? false),
             'birthday'   => $user->birthday, // Carbon|string|null — отформатируем ниже
-            'team'       => (string) ($user->team?->title ?: '-'),
+            'team'       => $this->teamUserSync->teamTitlesLabel($user) ?: '-',
             'role'       => (string) ($user->role?->label ?: '-'),
             'phone'      => (string) ($user->phone ?? ''),
             'parent'     => $user->parent_full_name ?: '-',
@@ -702,7 +701,7 @@ class UserController extends AdminBaseController
                 }
             };
 
-            $user->load(['team', 'role', 'parentProfile']);
+            $user->load(['teams', 'role', 'parentProfile']);
 
             $new = [
                 'name'       => (string) ($user->name ?? ''),
@@ -710,7 +709,7 @@ class UserController extends AdminBaseController
                 'email'      => (string) ($user->email ?? ''),
                 'is_enabled' => (bool)   ($user->is_enabled ?? false),
                 'birthday'   => $user->birthday,
-                'team'       => (string) ($user->team?->title ?: '-'),
+                'team'       => $this->teamUserSync->teamTitlesLabel($user) ?: '-',
                 'role'       => (string) ($user->role?->label ?: '-'),
                 'phone'      => (string) ($user->phone ?? ''),
                 'parent'     => $user->parent_full_name ?: '-',
@@ -741,7 +740,7 @@ class UserController extends AdminBaseController
                     . " → " . $formatDate($new['birthday']);
             }
             if ($old['team'] !== $new['team']) {
-                $changes[] = "Группа: {$old['team']} → {$new['team']}"; // названия, не id
+                $changes[] = "Группы: {$old['team']} → {$new['team']}";
             }
             if ($old['role'] !== $new['role']) {
                 $changes[] = "Роль: {$old['role']} → {$new['role']}";
@@ -1015,9 +1014,22 @@ class UserController extends AdminBaseController
                 $orderDir
             ),
             'teams' => $query
-                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
+                ->leftJoinSub(
+                    DB::table('team_user')
+                        ->join('teams', 'teams.id', '=', 'team_user.team_id')
+                        ->select(
+                            'team_user.user_id',
+                            DB::raw('MIN(teams.title) as teams_sort_title')
+                        )
+                        ->where('team_user.partner_id', $partnerId)
+                        ->groupBy('team_user.user_id'),
+                    'user_teams_sort',
+                    'user_teams_sort.user_id',
+                    '=',
+                    'users.id'
+                )
                 ->select('users.*')
-                ->orderBy('teams.title', $orderDir),
+                ->orderBy('user_teams_sort.teams_sort_title', $orderDir),
             'birthday' => $query->orderBy('users.birthday', $orderDir),
             'sex' => $query->orderBy('users.sex', $orderDir),
             'comment' => $query->orderBy('users.comment', $orderDir),
@@ -1059,6 +1071,14 @@ class UserController extends AdminBaseController
             if (!array_key_exists($field, $data)) {
                 $data[$field] = $lead->{$field};
             }
+        }
+
+        if (
+            empty($data['team_ids'])
+            && $lead->team_id
+            && empty($data['team_id'])
+        ) {
+            $data['team_ids'] = [(int) $lead->team_id];
         }
 
         return $data;

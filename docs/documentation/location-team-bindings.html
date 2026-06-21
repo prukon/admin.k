@@ -34,7 +34,7 @@
     Раньше связь была many-to-many через pivot <code>location_team</code> (удалён); «универсальные» группы без привязки трактовались как доступные во всех объектах — эта модель <b>снята</b>.<br>
     Группу можно создать без объекта (<code>location_id = null</code>), но на <a href="/docs/documentation/school-leads-landing">лендинг заявки</a> такая группа <b>не попадает</b>.<br>
     Адрес на лендинге и в справочниках — только у объекта (<code>locations.address</code>); колонки <code>teams.address</code>, <code>teams.training_base</code> и права <code>groups.address.view</code>, <code>groups.training_base.view</code> удалены.<br>
-    У ученика <b>нет</b> <code>users.location_id</code> — «география» в отчётах идёт через <code>users.team_id</code> → <code>teams.location_id</code>.
+    У ученика <b>нет</b> <code>users.location_id</code> — «география» в отчётах идёт через группы ученика в pivot <code>team_user</code> → <code>teams.location_id</code> (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
     Администраторы объекта (<code>location_admin_user</code>, M2M) — отдельная связь; на привязку групп к объекту не влияют (см. <a href="/docs/documentation/admin-locations#3">admin-locations §3</a>).
     Локация занятия в календаре — отдельно: <code>team_schedule_slots.location_id</code>.
   </div>
@@ -61,7 +61,7 @@
         <td>Не показывается для L</td>
       </tr>
       <tr>
-        <td>Ученик без <code>team_id</code></td>
+        <td>Ученик без групп в pivot</td>
         <td colspan="2">В отчёте «Задолженности» при фильтре по конкретному объекту <b>не попадает</b> (кроме режима «Без локации»)</td>
       </tr>
     </tbody>
@@ -75,7 +75,7 @@
   <h2>2) Схема БД</h2>
   <pre><code>locations (Объект)
     └── teams.location_id (nullable FK, nullOnDelete)
-            └── users.team_id (ученик → группа)
+            └── team_user (ученик ↔ группы, M:N)
 
 school_leads.district_id + school_leads.location_id — снимок заявки
 team_schedule_slots.location_id — объект слота расписания</code></pre>
@@ -146,7 +146,7 @@ team_schedule_slots.location_id — объект слота расписания
       </tr>
       <tr>
         <td>Задолженности</td>
-        <td><code>users.team_id</code> → <code>teams.location_id</code>. <code>filter_location_id=none</code> — <code>team_id IS NULL</code> или группа с <code>location_id IS NULL</code></td>
+        <td>pivot <code>team_user</code> → <code>teams.location_id</code>. <code>filter_location_id=none</code> — нет групп в pivot или группа с <code>location_id IS NULL</code></td>
       </tr>
     </tbody>
   </table>

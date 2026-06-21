@@ -256,18 +256,16 @@ class PaymentReportTest extends CrmTestCase
         ]);
 
         // Сценарий 2: user_name пустой, есть user с ФИО и командой
-        $teamUser = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'lastname' => 'Иванов',
-            'name' => 'Пётр',
-        ]);
-
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
             'title' => 'Команда А',
         ]);
-        $teamUser->team_id = $team->id;
-        $teamUser->save();
+        $teamUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванов',
+            'name' => 'Пётр',
+            'team_id' => $team->id,
+        ]);
 
         $paymentWithUser = Payment::factory()->create([
             'user_id' => $teamUser->id,

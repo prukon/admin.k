@@ -2,6 +2,10 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Models\Partner;
+use App\Models\Role;
+use App\Models\Team;
+use App\Models\User;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesSeeder;
@@ -33,6 +37,17 @@ abstract class JobsTestCase extends TestCase
         $this->seed(RolesSeeder::class);
         $this->seed(PermissionGroupsSeeder::class);
         $this->seed(PermissionSeeder::class);
+    }
+
+    protected function createStudentForPartner(Partner $partner): User
+    {
+        $team = Team::factory()->create(['partner_id' => $partner->id]);
+
+        return User::factory()->create([
+            'partner_id' => $partner->id,
+            'team_id'    => $team->id,
+            'role_id'    => Role::query()->where('name', 'user')->value('id'),
+        ]);
     }
 }
 

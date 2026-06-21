@@ -25,6 +25,7 @@ use Carbon\CarbonInterface;
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
 use App\Services\Payments\PaymentLedgerRecorder;
+use App\Services\TeamUserSyncService;
 
 
 
@@ -395,10 +396,10 @@ class TinkoffPaymentsService
                 if ((string) $payable->type === 'monthly_fee') {
                     $month = $payable->month ? $payable->month->format('Y-m-d') : ($payable->meta['month'] ?? null);
                     if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
-                        UserPrice::updateOrCreate(
-                            ['user_id' => (int) $locked->user_id, 'new_month' => $month],
-                            ['is_paid' => 1]
-                        );
+                        $teamId = isset($payable->meta['team_id']) && is_numeric($payable->meta['team_id'])
+                            ? (int) $payable->meta['team_id']
+                            : null;
+                        UserPrice::markMonthlyPaid((int) $locked->user_id, $month, $teamId, true);
                     }
                 } elseif ((string) $payable->type === 'custom_payment_fee') {
                     $pid = $payable->meta['user_period_price_id'] ?? null;
@@ -430,8 +431,15 @@ class TinkoffPaymentsService
                     }
                 }
 
-                $user = User::find((int) $locked->user_id);
-                $teamName = $user?->team?->title ?? 'Без команды';
+                $partnerIdForTeams = (int) $locked->partner_id;
+                $user = User::with([
+                    'teams' => fn ($q) => $q
+                        ->where('teams.partner_id', $partnerIdForTeams)
+                        ->whereNull('teams.deleted_at'),
+                ])->find((int) $locked->user_id);
+                $teamName = $user
+                    ? (app(TeamUserSyncService::class)->teamTitlesLabel($user) ?: 'Без команды')
+                    : 'Без команды';
                 $currentDateTime = now()->format('Y-m-d H:i:s');
 
                 app(PaymentLedgerRecorder::class)->record(

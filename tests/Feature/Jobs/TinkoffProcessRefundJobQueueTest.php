@@ -47,7 +47,8 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
                 'partner_id' => $partner->id,
             ]);
 
-        $userId = 1001;
+        $user = $this->createStudentForPartner($partner);
+        $userId = $user->id;
 
         $payable = Payable::create([
             'partner_id' => $partner->id,
@@ -78,9 +79,10 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         ]);
 
         UserPrice::factory()->paid()->create([
-            'user_id' => $userId,
+            'user_id'   => $userId,
+            'team_id'   => (int) $user->team_id,
             'new_month' => $payable->month->format('Y-m-d'),
-            'price' => (string) (int) $payable->amount,
+            'price'     => (string) (int) $payable->amount,
         ]);
 
         $refund = Refund::create([

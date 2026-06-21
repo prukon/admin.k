@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Team;
+use App\Support\UserTeamQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
@@ -61,15 +62,7 @@ final class TeamLocationAvailabilityService
         }
 
         if ($filterLocationId === 'none') {
-            $query->where(function ($q) use ($partnerId) {
-                $q->whereNull('users.team_id')
-                    ->orWhereIn('users.team_id', function (QueryBuilder $sub) use ($partnerId) {
-                        $sub->select('teams.id')
-                            ->from('teams')
-                            ->where('teams.partner_id', $partnerId)
-                            ->whereNull('teams.location_id');
-                    });
-            });
+            UserTeamQuery::applyDebtLocationNoneFilter($query, $partnerId);
 
             return;
         }
@@ -83,11 +76,6 @@ final class TeamLocationAvailabilityService
             return;
         }
 
-        $query->whereIn('users.team_id', function (QueryBuilder $sub) use ($partnerId, $locationId) {
-            $sub->select('teams.id')
-                ->from('teams')
-                ->where('teams.partner_id', $partnerId)
-                ->where('teams.location_id', $locationId);
-        });
+        UserTeamQuery::applyDebtLocationFilter($query, $partnerId, $locationId);
     }
 }

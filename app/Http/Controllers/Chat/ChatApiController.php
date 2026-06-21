@@ -12,6 +12,7 @@ use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Support\UserTeamQuery;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Cmgmyr\Messenger\Models\Thread;
@@ -389,21 +390,10 @@ class ChatApiController extends AdminBaseController
             $selects[] = DB::raw('NULL as role_label');
         }
 
-// teams join: users.team_id -> teams.id, иначе fallback по partner_id
-        $hasTeams = Schema::hasTable('teams');
-        $hasUserTeamId = Schema::hasColumn('users', 'team_id');
-        if ($hasTeams && $hasUserTeamId) {
-            $qb->leftJoin('teams', 'teams.id', '=', 'users.team_id');
-            $selects[] = DB::raw('teams.title as team_title');
-        } elseif ($hasTeams && Schema::hasColumn('users', 'partner_id')) {
-            $qb->leftJoin('teams', function($join){
-                $join->on('teams.partner_id', '=', 'users.partner_id')
-                    ->where('teams.is_enabled', '=', 1);
-            });
-            $selects[] = DB::raw('teams.title as team_title');
-        } else {
-            $selects[] = DB::raw('NULL as team_title');
-        }
+// подписи групп ученика через pivot (без join-дублей)
+        $partnerId = $this->requirePartnerId();
+        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+        $selects[] = DB::raw("{$teamTitlesSub} as team_title");
 
         if (Schema::hasColumn('users', 'last_seen_at')) {
             $selects[] = DB::raw('users.last_seen_at as last_seen_at');

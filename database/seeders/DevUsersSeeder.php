@@ -7,6 +7,7 @@ use App\Models\Partner;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\TeamUserSyncService;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -201,6 +202,8 @@ class DevUsersSeeder extends Seeder
             }
 
             $user->save();
+
+            app(TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($user);
         }
     }
 }

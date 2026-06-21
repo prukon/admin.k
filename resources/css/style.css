@@ -1260,6 +1260,25 @@ a.disabled {
     font-size: 11px;
 }
 
+#left_bar .user-detail-btn.btn-primary.is-visually-disabled,
+#left_bar .user-detail-btn.btn-primary[aria-disabled="true"] {
+    color: #6c757d !important;
+    background-color: #dee2e6 !important;
+    border-color: #adb5bd !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+}
+
+#left_bar .user-detail-btn.btn-primary.is-visually-disabled:hover,
+#left_bar .user-detail-btn.btn-primary.is-visually-disabled:focus,
+#left_bar .user-detail-btn.btn-primary[aria-disabled="true"]:hover,
+#left_bar .user-detail-btn.btn-primary[aria-disabled="true"]:focus {
+    color: #6c757d !important;
+    background-color: #dee2e6 !important;
+    border-color: #adb5bd !important;
+}
+
 /*.wrap-users .user-name {*/
 /*text-align: left;*/
 

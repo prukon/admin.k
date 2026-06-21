@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use App\Services\Payments\PaymentLedgerRecorder;
+use App\Services\TeamUserSyncService;
 
 class RobokassaController extends Controller
 {
@@ -198,15 +199,10 @@ class RobokassaController extends Controller
             if ((string) $payable->type === 'monthly_fee') {
                 $month = $payable->month ? $payable->month->format('Y-m-d') : ($payable->meta['month'] ?? null);
                 if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
-                    UserPrice::updateOrCreate(
-                        [
-                            'user_id'   => $shpUserId,
-                            'new_month' => $month,
-                        ],
-                        [
-                            'is_paid' => 1,
-                        ]
-                    );
+                    $teamId = isset($payable->meta['team_id']) && is_numeric($payable->meta['team_id'])
+                        ? (int) $payable->meta['team_id']
+                        : null;
+                    UserPrice::markMonthlyPaid((int) $shpUserId, $month, $teamId, true);
                 } else {
                     Log::warning('Robokassa result: monthly_fee without valid month in payable', [
                         'InvId' => $invId,
@@ -244,8 +240,14 @@ class RobokassaController extends Controller
                 }
             }
 
-            $user = User::find($shpUserId);
-            $teamName = $user?->team?->title ?? 'Без команды';
+            $user = User::with([
+                'teams' => fn ($q) => $q
+                    ->where('teams.partner_id', $partnerId)
+                    ->whereNull('teams.deleted_at'),
+            ])->find($shpUserId);
+            $teamName = $user
+                ? (app(TeamUserSyncService::class)->teamTitlesLabel($user) ?: 'Без команды')
+                : 'Без команды';
             $currentDateTime = now()->format('Y-m-d H:i:s');
 
             app(PaymentLedgerRecorder::class)->record(

@@ -45,6 +45,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => $team->id,
             'usersPrice'   => [
                 ['user_id' => $user->id, 'price' => 1000, 'user' => ['name' => $user->name]],
             ],
@@ -124,6 +125,7 @@ class SettingPricesTest extends CrmTestCase
         // setPriceAllUsers
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => $team->id,
             'usersPrice'   => [
                 ['user_id' => $user->id, 'price' => 2100, 'user' => ['name' => $user->name]],
             ],
@@ -314,7 +316,8 @@ class SettingPricesTest extends CrmTestCase
         foreach ([$activeUser1, $activeUser2] as $user) {
             $this->assertDatabaseHas('users_prices', [
                 'user_id'   => $user->id,
-                'new_month' => '2024-09-01',
+                'team_id'   => $team->id,
+            'new_month' => '2024-09-01',
                 'price'     => 0,
             ]);
         }
@@ -322,6 +325,7 @@ class SettingPricesTest extends CrmTestCase
         // Для отключённого пользователя записи нет
         $this->assertDatabaseMissing('users_prices', [
             'user_id'   => $disabledUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
         ]);
 
@@ -376,6 +380,7 @@ class SettingPricesTest extends CrmTestCase
 
         UserPrice::forceCreate([
             'user_id'   => $unpaidUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
@@ -390,6 +395,7 @@ class SettingPricesTest extends CrmTestCase
 
         UserPrice::forceCreate([
             'user_id'   => $paidUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 800,
             'is_paid'   => 1,
@@ -422,6 +428,7 @@ class SettingPricesTest extends CrmTestCase
         // Неоплаченный — обновлён
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $unpaidUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1500,
             'is_paid'   => 0,
@@ -430,6 +437,7 @@ class SettingPricesTest extends CrmTestCase
         // Оплаченный — не изменён
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $paidUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 800,
             'is_paid'   => 1,
@@ -438,6 +446,7 @@ class SettingPricesTest extends CrmTestCase
         // Для отключённого — записи нет
         $this->assertDatabaseMissing('users_prices', [
             'user_id'   => $disabledUser->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
         ]);
 
@@ -560,12 +569,14 @@ class SettingPricesTest extends CrmTestCase
         // уже есть цены
         UserPrice::forceCreate([
             'user_id'   => $userA1->id,
+            'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $userB1->id,
+            'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
             'price'     => 2500,
             'is_paid'   => 1,
@@ -597,6 +608,7 @@ class SettingPricesTest extends CrmTestCase
         // userA1: был не оплачен — обновился
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $userA1->id,
+            'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
             'price'     => 2000,
             'is_paid'   => 0,
@@ -605,6 +617,7 @@ class SettingPricesTest extends CrmTestCase
         // userA2: записи не было — появилась
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $userA2->id,
+            'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
             'price'     => 2000,
             'is_paid'   => 0,
@@ -613,6 +626,7 @@ class SettingPricesTest extends CrmTestCase
         // userB1: is_paid = 1 — не изменился
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $userB1->id,
+            'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
             'price'     => 2500,
             'is_paid'   => 1,
@@ -726,33 +740,44 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
 
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
         $user1 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
         $user2 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
         $user3 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
 
         UserPrice::forceCreate([
             'user_id'   => $user1->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user2->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 2000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user3->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 3000,
             'is_paid'   => 1,
@@ -760,6 +785,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => $team->id,
             'usersPrice'   => [
                 [
                     'user_id' => $user1->id,
@@ -785,6 +811,7 @@ class SettingPricesTest extends CrmTestCase
         // user1 — обновлён
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user1->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1500,
             'is_paid'   => 0,
@@ -793,6 +820,7 @@ class SettingPricesTest extends CrmTestCase
         // user2 — без изменений
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user2->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 2000,
             'is_paid'   => 0,
@@ -801,6 +829,7 @@ class SettingPricesTest extends CrmTestCase
         // user3 — не тронут
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user3->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 3000,
             'is_paid'   => 1,
@@ -833,37 +862,49 @@ class SettingPricesTest extends CrmTestCase
     {
         $this->asAdmin();
 
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'deleted_at' => null,
+        ]);
+
         $user1 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
         $user2 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
         $user3 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
         $user4 = User::factory()->create([
             'partner_id' => $this->partner->id,
+            'team_id'    => $team->id,
             'is_enabled' => true,
         ]);
 
         UserPrice::forceCreate([
             'user_id'   => $user1->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user2->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 2000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user3->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 3000,
             'is_paid'   => 0,
@@ -873,6 +914,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => $team->id,
             'usersPrice'   => [
                 [
                     'user_id' => $user1->id,
@@ -890,11 +932,13 @@ class SettingPricesTest extends CrmTestCase
         // user1 и user2 — обновлены
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user1->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1500,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user2->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 2500,
         ]);
@@ -902,6 +946,7 @@ class SettingPricesTest extends CrmTestCase
         // user3 — не изменён
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user3->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 3000,
         ]);
@@ -909,6 +954,7 @@ class SettingPricesTest extends CrmTestCase
         // user4 — записи так и нет
         $this->assertDatabaseMissing('users_prices', [
             'user_id'   => $user4->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
         ]);
     }
@@ -970,16 +1016,16 @@ class SettingPricesTest extends CrmTestCase
             ],
         ])->assertStatus(200);
 
-        // setPriceAllUsers (action=12)
-        UserPrice::forceCreate([
-            'user_id'   => $user->id,
-            'new_month' => '2024-09-01',
-            'price'     => 1000,
-            'is_paid'   => 0,
-        ]);
+        // setPriceAllUsers (action=12) — запись уже создана setTeamPrice / setPriceAllTeams
+        UserPrice::query()
+            ->where('user_id', $user->id)
+            ->where('team_id', $team->id)
+            ->where('new_month', '2024-09-01')
+            ->update(['price' => 1000, 'is_paid' => 0]);
 
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => $team->id,
             'usersPrice'   => [
                 [
                     'user_id' => $user->id,
@@ -1068,6 +1114,7 @@ class SettingPricesTest extends CrmTestCase
 
         UserPrice::query()->create([
             'user_id'   => $user->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
@@ -1075,6 +1122,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setting-prices.manual-paid'), [
             'user_id'      => $user->id,
+            'team_id'      => $team->id,
             'selectedDate' => 'Сентябрь 2024',
             'mode'         => 'paid',
             'comment'      => 'Комментарий для ручной отметки оплаты',
@@ -1099,6 +1147,7 @@ class SettingPricesTest extends CrmTestCase
 
         $res = $this->postJson(route('setting-prices.manual-paid'), [
             'user_id'      => $user->id,
+            'team_id'      => $team->id,
             'selectedDate' => 'Сентябрь 2024',
             'mode'         => 'paid',
             'comment'      => 'Комментарий для ручной отметки оплаты',
@@ -1127,6 +1176,7 @@ class SettingPricesTest extends CrmTestCase
 
         UserPrice::query()->create([
             'user_id'   => $user->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
@@ -1134,6 +1184,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setting-prices.manual-paid'), [
             'user_id'      => $user->id,
+            'team_id'      => $team->id,
             'selectedDate' => 'Сентябрь 2024',
             'mode'         => 'clear',
             'comment'      => 'Попытка сброса ручной пометки',
@@ -1158,6 +1209,7 @@ class SettingPricesTest extends CrmTestCase
 
         $row = UserPrice::query()->create([
             'user_id'   => $user->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
@@ -1165,6 +1217,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setting-prices.manual-paid'), [
             'user_id'      => $user->id,
+            'team_id'      => $team->id,
             'selectedDate' => 'Сентябрь 2024',
             'mode'         => 'paid',
             'comment'      => 'Комментарий для ручной отметки оплаты',
@@ -1202,6 +1255,7 @@ class SettingPricesTest extends CrmTestCase
 
         UserPrice::query()->create([
             'user_id'   => $user->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-03-01',
             'price'     => 500,
             'is_paid'   => 0,
@@ -1209,6 +1263,7 @@ class SettingPricesTest extends CrmTestCase
 
         $this->postJson(route('setting-prices.user-year-prices'), [
             'user_id' => $user->id,
+            'team_id' => $team->id,
             'year'    => 2024,
         ])->assertStatus(200)
             ->assertJsonPath('can_manage_manual_paid', false)
@@ -1232,6 +1287,7 @@ class SettingPricesTest extends CrmTestCase
 
         $json = $this->postJson(route('setting-prices.user-year-prices'), [
             'user_id' => $user->id,
+            'team_id' => $team->id,
             'year'    => 2024,
         ])->json();
 

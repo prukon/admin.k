@@ -9,6 +9,7 @@ use App\Models\Status;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Services\TeamUserSyncService;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
@@ -244,9 +245,12 @@ class DevScheduleJournalSeeder extends Seeder
      */
     private function maybeAdjustTeam(User $user, array $partnerTeamIds): void
     {
-        if ($user->team_id) {
+        $sync = app(TeamUserSyncService::class);
+        $teamIds = $sync->teamIdsForStudent($user);
+
+        if ($teamIds !== []) {
             if (random_int(1, 100) <= self::CLEAR_TEAM_PROBABILITY_PERCENT) {
-                $user->forceFill(['team_id' => null])->save();
+                $sync->detachAllTeamsForStudent($user);
             }
 
             return;
@@ -257,7 +261,7 @@ class DevScheduleJournalSeeder extends Seeder
         }
 
         if (random_int(1, 100) <= self::ASSIGN_TEAM_PROBABILITY_PERCENT) {
-            $user->forceFill(['team_id' => $partnerTeamIds[array_rand($partnerTeamIds)]])->save();
+            $sync->syncTeamsForStudent($user, [$partnerTeamIds[array_rand($partnerTeamIds)]]);
         }
     }
 
@@ -307,7 +311,8 @@ class DevScheduleJournalSeeder extends Seeder
     ): ?int {
         $choice = random_int(0, 2);
 
-        $teamId = $student->team_id ? (int) $student->team_id : null;
+        $teamIds = app(TeamUserSyncService::class)->teamIdsForStudent($student);
+        $teamId = $teamIds[0] ?? null;
         $ownIds = $teamId !== null
             ? ($teamTrainerIds->get($teamId)?->all() ?? [])
             : [];

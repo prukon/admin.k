@@ -443,6 +443,10 @@ final class ParentsAndFamilyCabinetFullAccessFeatureTest extends CrmTestCase
                     'parent_id'         => $this->sharedParent->id,
                     'is_enabled'        => 1,
                 ],
+                'headers' => [
+                    'HTTP_ACCEPT'           => 'application/json',
+                    'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
+                ],
             ],
             [
                 'method' => 'PATCH',

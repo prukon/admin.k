@@ -265,24 +265,16 @@ final class PaymentReportTrainerFilterFeatureTest extends CrmTestCase
 
         $month = '2026-01-01';
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $studentA->id,
-                'is_paid' => 0,
-                'price' => 1200,
-                'new_month' => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $studentB->id,
-                'is_paid' => 0,
-                'price' => 3400,
-                'new_month' => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $this->insertUserPrice($studentA, [
+            'is_paid'   => 0,
+            'price'     => 1200,
+            'new_month' => $month,
+        ], $teamA);
+        $this->insertUserPrice($studentB, [
+            'is_paid'   => 0,
+            'price'     => 3400,
+            'new_month' => $month,
+        ], $teamB);
 
         $this->getJson(route('reports.debts.total', [
             'filter_trainer_profile_id' => $trainer->id,

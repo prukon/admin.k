@@ -11,6 +11,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\Weekday;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -603,6 +604,7 @@ class TeamControllerTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'team_id'    => $team->id,
         ]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($userWithTeam, (int) $team->id);
 
         $response = $this->deleteJson("/admin/team/{$team->id}");
 
@@ -611,10 +613,10 @@ class TeamControllerTest extends CrmTestCase
             'message' => 'Группа и её связь с пользователями успешно помечены как удалённые',
         ]);
 
-        // Пользователь больше не привязан к команде
-        $this->assertDatabaseHas('users', [
-            'id'      => $userWithTeam->id,
-            'team_id' => null,
+        // Ученик отвязан от группы в pivot (legacy users.team_id не трогаем)
+        $this->assertDatabaseMissing('team_user', [
+            'user_id' => $userWithTeam->id,
+            'team_id' => $team->id,
         ]);
 
         // Soft delete

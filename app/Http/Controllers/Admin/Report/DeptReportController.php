@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
 use App\Models\UserCustomPayment;
+use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
 
 class DeptReportController extends AdminBaseController
@@ -40,7 +41,6 @@ class DeptReportController extends AdminBaseController
 
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users_prices.is_paid', 0)
             ->where('users.is_enabled', 1)
             ->where('users_prices.price', '>', 0)
@@ -53,7 +53,6 @@ class DeptReportController extends AdminBaseController
 
         $totalPeriods = DB::table('user_custom_payment')
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
             ->where('users.is_enabled', 1)
@@ -108,7 +107,6 @@ class DeptReportController extends AdminBaseController
 
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users_prices.is_paid', 0)
             ->where('users.is_enabled', 1)
             ->where('users_prices.price', '>', 0)
@@ -120,7 +118,6 @@ class DeptReportController extends AdminBaseController
         $today = Carbon::now()->format('Y-m-d');
         $totalPeriods = DB::table('user_custom_payment')
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
             ->where('users.is_enabled', 1)
@@ -149,7 +146,6 @@ class DeptReportController extends AdminBaseController
         if ($request->ajax()) {
             $monthly = DB::table('users_prices')
                 ->join('users', 'users.id', '=', 'users_prices.user_id')
-                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
@@ -167,7 +163,6 @@ class DeptReportController extends AdminBaseController
 
             $periods = DB::table('user_custom_payment')
                 ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
-                ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
@@ -263,11 +258,14 @@ class DeptReportController extends AdminBaseController
         if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
             $tid = (int) $filterTeamId;
             if ($tid > 0) {
-                $query->where('users.team_id', $tid);
+                $query->where('users_prices.team_id', $tid);
             }
         } elseif ($request->filled('team_title')) {
-            $like = '%'.trim((string) $request->query('team_title')).'%';
-            $query->where('teams.title', 'like', $like);
+            UserTeamQuery::applyStudentTeamTitleLikeExists(
+                $query,
+                $partnerId,
+                '%'.trim((string) $request->query('team_title')).'%',
+            );
         }
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
@@ -303,11 +301,14 @@ class DeptReportController extends AdminBaseController
         if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
             $tid = (int) $filterTeamId;
             if ($tid > 0) {
-                $query->where('users.team_id', $tid);
+                UserTeamQuery::applyStudentInTeamExists($query, $partnerId, $tid);
             }
         } elseif ($request->filled('team_title')) {
-            $like = '%'.trim((string) $request->query('team_title')).'%';
-            $query->where('teams.title', 'like', $like);
+            UserTeamQuery::applyStudentTeamTitleLikeExists(
+                $query,
+                $partnerId,
+                '%'.trim((string) $request->query('team_title')).'%',
+            );
         }
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
@@ -353,7 +354,7 @@ class DeptReportController extends AdminBaseController
             return;
         }
 
-        $query->whereIn('users.team_id', $trainerTeamIds);
+        UserTeamQuery::applyStudentInAnyTeamExists($query, $partnerId, $trainerTeamIds);
     }
 
     /**

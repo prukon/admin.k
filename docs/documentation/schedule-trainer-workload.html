@@ -118,7 +118,7 @@
   <ul>
     <li>ось Y — все <strong>активные</strong> тренеры партнёра (<code>trainer_profiles.is_enabled</code>, user включён), сортировка <code>sort_order</code>, <code>id</code> (даже без визитов за период — пустая строка);</li>
     <li>ось X — дни недели ISO 1–7 (Пн … Вс), из <code>WEEKDAY(date)+1</code>;</li>
-    <li>в ячейке — уникальные <strong>группы</strong> ученика (<code>users.team_id</code> → <code>teams.title</code>, без группы → «Без группы»);</li>
+    <li>в ячейке — уникальные <strong>группы</strong> ученика (<code>users.team_id</code> → <code>teams.title</code>, без группы → «Без группы»). <span class="small">Примечание: отчёт нагрузки пока группирует по legacy-колонке <code>users.team_id</code>, не по pivot M:N — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</span></li>
     <li>число в ячейке — <code>COUNT(DISTINCT DATE(schedule_users.date))</code> для пары (тренер, день недели, группа) за период (не число учеников и не число строк <code>schedule_users</code>).</li>
   </ul>
 

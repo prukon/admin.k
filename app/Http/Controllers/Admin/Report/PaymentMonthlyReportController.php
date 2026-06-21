@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Support\UserTeamQuery;
 use App\Models\UserTableSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -36,7 +37,6 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
         $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
@@ -90,7 +90,6 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
 
         $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
@@ -127,7 +126,6 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $monthsQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId);
 
         $this->applyMonthlyReportFilters($monthsQuery, $request, $partnerId);
@@ -332,9 +330,10 @@ class PaymentMonthlyReportController extends AdminBaseController
         $start = Carbon::createFromFormat('Y-m', $yearMonth)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
+        $teamTitlesSub = UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId);
+
         $paymentsQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->leftJoin('teams', 'teams.id', '=', 'users.team_id')
             ->where('users.partner_id', $partnerId)
             ->select(
                 'payments.id',
@@ -347,8 +346,8 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'payments.user_name as payment_user_name',
                 'users.name as user_firstname',
                 'users.lastname as user_lastname',
-                'teams.title as team_title'
-            );
+            )
+            ->selectRaw("{$teamTitlesSub} as team_title");
 
         $this->applyMonthlyReportFilters($paymentsQuery, $request, $partnerId);
 
@@ -391,35 +390,18 @@ class PaymentMonthlyReportController extends AdminBaseController
             });
         }
 
-        $filterTeamId = $request->query('filter_team_id');
-        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
-            $tid = (int) $filterTeamId;
-            if ($tid > 0) {
-                $paymentsQuery->where('users.team_id', $tid);
-            }
-        } elseif ($request->filled('team_title')) {
-            $like = '%'.trim((string) $request->query('team_title')).'%';
-            $paymentsQuery->where('teams.title', 'like', $like);
-        }
+        UserTeamQuery::applyReportTeamFilters(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_team_id'),
+            $request->filled('team_title') ? (string) $request->query('team_title') : null,
+        );
 
-        $filterTrainerProfileId = $request->query('filter_trainer_profile_id');
-        if ($filterTrainerProfileId !== null && $filterTrainerProfileId !== '' && ctype_digit((string) $filterTrainerProfileId)) {
-            $tpid = (int) $filterTrainerProfileId;
-            if ($tpid > 0) {
-                $trainerTeamIds = DB::table('team_trainer')
-                    ->where('partner_id', $partnerId)
-                    ->where('trainer_profile_id', $tpid)
-                    ->pluck('team_id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all();
-
-                if ($trainerTeamIds === []) {
-                    $paymentsQuery->whereRaw('1 = 0');
-                } else {
-                    $paymentsQuery->whereIn('users.team_id', $trainerTeamIds);
-                }
-            }
-        }
+        UserTeamQuery::applyReportTrainerTeamFilter(
+            $paymentsQuery,
+            $partnerId,
+            $request->query('filter_trainer_profile_id'),
+        );
 
         /** @var \App\Models\User|null $filterActor */
         $filterActor = Auth::user();

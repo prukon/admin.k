@@ -16,6 +16,7 @@ class UserService
     public function __construct(
         private readonly TrainerProfileSyncService $trainerProfileSync,
         private readonly TeamTrainerSyncService $teamTrainerSync,
+        private readonly TeamUserSyncService $teamUserSync,
         private readonly StudentParentSyncService $studentParentSync,
     ) {
     }
@@ -23,8 +24,10 @@ class UserService
     //  - Создание учетной записи юзера
     public function store($data)
     {
+        $teamIds = array_key_exists('team_ids', $data) ? (array) $data['team_ids'] : [];
         $parentPayload = $this->studentParentSync->extractParentPayload($data);
         $userData = $this->studentParentSync->stripParentPayload($data);
+        unset($userData['team_ids'], $userData['team_id']);
 
         $user = User::create($userData);
         $user->load('role');
@@ -33,6 +36,10 @@ class UserService
         $partnerId = (int) ($user->partner_id ?? 0);
         if ($partnerId > 0) {
             $this->studentParentSync->syncForStudent($user, $partnerId, $parentPayload);
+        }
+
+        if ($user->role?->name === 'user') {
+            $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
         }
 
         return $user->refresh();
@@ -160,13 +167,14 @@ class UserService
                 Log::warning('Данные custom отсутствуют или не являются массивом.');
             }
 
-            // Исключаем 'custom', родителя и группы тренера из основного массива
+            // Исключаем 'custom', родителя и группы из основного массива users
             $teamIds = array_key_exists('team_ids', $data) ? (array) $data['team_ids'] : null;
             $parentPayload = $this->studentParentSync->extractParentPayload($data);
             $userData = array_diff_key(
                 $this->studentParentSync->stripParentPayload($data),
                 ['custom' => '', 'team_ids' => '']
             );
+            unset($userData['team_id']);
 
             /**
              * ✅ role_id -> roles.name (кеш в пределах запроса)
@@ -223,6 +231,12 @@ class UserService
             $this->trainerProfileSync->syncForUser($user);
 
             if (
+                $user->role?->name === 'user'
+                && $teamIds !== null
+                && $currentUser?->can('users.group.update')
+            ) {
+                $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
+            } elseif (
                 $user->role?->name === 'trainer'
                 && $teamIds !== null
                 && $currentUser?->can('trainers.view')

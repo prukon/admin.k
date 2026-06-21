@@ -292,6 +292,7 @@ class MyPaymentsReportTest extends CrmTestCase
 
         $this->user->team()->associate($team);
         $this->user->save();
+        app(\App\Services\TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($this->user->fresh());
 
         $payment = Payment::factory()->create([
             'user_id' => $this->user->id,

@@ -5,10 +5,13 @@ namespace Tests\Feature\Crm\Account;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\SmsRuService;
+use App\Services\TeamUserSyncService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -19,6 +22,8 @@ use Tests\Feature\Crm\CrmTestCase;
  */
 final class AccountUserEditPageFeatureTest extends CrmTestCase
 {
+    private ?string $tempStoragePath = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,6 +32,24 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed'      => true,
         ]);
+
+        $this->tempStoragePath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . 'kidscrm-storage-'
+            . Str::uuid();
+
+        File::ensureDirectoryExists($this->tempStoragePath);
+        $this->app->useStoragePath($this->tempStoragePath);
+        Storage::fake('public');
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->tempStoragePath !== null && is_dir($this->tempStoragePath)) {
+            File::deleteDirectory($this->tempStoragePath);
+        }
+
+        parent::tearDown();
     }
 
     public function test_student_edit_page_shows_role_label_and_simplified_name_fields(): void
@@ -47,17 +70,31 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Имя ученика', $html);
     }
 
-    public function test_student_edit_page_shows_team_field(): void
+    public function test_student_edit_page_shows_readonly_teams_block(): void
     {
+        $teamA = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Account-A',
+        ]);
+        $teamB = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title'      => 'Account-B',
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($this->user, [$teamA->id, $teamB->id]);
+
         $this->actingAs($this->user);
 
         $html = (string) $this->get(route('account.user.edit'))
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('id="team"', $html);
-        $this->assertStringContainsString('name="team_id"', $html);
-        $this->assertStringContainsString('>Группа</label>', $html);
+        $this->assertStringContainsString('>Группы</label>', $html);
+        $this->assertStringContainsString('readonly', $html);
+        $this->assertStringContainsString('Изменение групп доступно только администратору CRM', $html);
+        $this->assertStringNotContainsString('id="team"', $html);
+        $this->assertStringNotContainsString('name="team_id"', $html);
+        $this->assertStringContainsString('Account-A', $html);
+        $this->assertStringContainsString('Account-B', $html);
     }
 
     public function test_admin_edit_page_shows_role_label_and_hides_team_field(): void
@@ -77,6 +114,7 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Данные ученика', $html);
         $this->assertStringNotContainsString('id="team"', $html);
         $this->assertStringNotContainsString('name="team_id"', $html);
+        $this->assertStringNotContainsString('>Группы</label>', $html);
     }
 
     public function test_guest_is_redirected_from_account_user_edit_page_routes(): void
@@ -127,7 +165,7 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
     {
         $this->actingAs($this->user);
 
-        $this->assertAllAccountUserEditPageEndpointsReturn200($this->user, assertTeamUpdate: true);
+        $this->assertAllAccountUserEditPageEndpointsReturn200($this->user);
     }
 
     public function test_admin_all_account_user_edit_page_endpoints_return_200(): void
@@ -139,28 +177,17 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
 
         $this->actingAs($admin);
 
-        $this->assertAllAccountUserEditPageEndpointsReturn200($admin, assertTeamUpdate: false);
+        $this->assertAllAccountUserEditPageEndpointsReturn200($admin);
     }
 
-    private function assertAllAccountUserEditPageEndpointsReturn200(User $actor, bool $assertTeamUpdate): void
+    private function assertAllAccountUserEditPageEndpointsReturn200(User $actor): void
     {
         $this->get(route('account.user.edit'))->assertOk();
 
-        $team = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title'      => 'Smoke team',
-        ]);
-
-        $updatePayload = [
+        $this->patchJson(route('account.user.update'), [
             'name'     => $actor->name,
             'lastname' => $actor->lastname,
-        ];
-
-        if ($assertTeamUpdate) {
-            $updatePayload['team_id'] = $team->id;
-        }
-
-        $this->patchJson(route('account.user.update'), $updatePayload, $this->jsonHeaders())
+        ], $this->jsonHeaders())
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -169,8 +196,6 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         ], $this->jsonHeaders())
             ->assertOk()
             ->assertJsonPath('success', true);
-
-        $this->useWritablePublicStorage();
 
         $this->post(route('account.user.avatar.store'), [
             'image_big'  => UploadedFile::fake()->image('big.jpg', 1200, 800),
@@ -207,11 +232,6 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         ], $this->jsonHeaders())
             ->assertOk()
             ->assertJsonPath('success', true);
-    }
-
-    private function useWritablePublicStorage(): void
-    {
-        Storage::fake('public');
     }
 
     /**

@@ -48,6 +48,14 @@ class StoreRequest extends FormRequest
             $this->merge(['school_lead_id' => null]);
         }
 
+        if ($this->has('team_ids')) {
+            $ids = $this->input('team_ids');
+            $ids = is_array($ids) ? $ids : [];
+            $this->merge([
+                'team_ids' => array_values(array_filter(array_map('intval', $ids), fn (int $id) => $id > 0)),
+            ]);
+        }
+
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
         $this->prepareStudentCommentAndSexForValidation();
@@ -61,7 +69,8 @@ class StoreRequest extends FormRequest
             'name'        => 'required|string|max:25',
             'lastname'    => 'required|string|max:25',
             'birthday'    => 'nullable|date',
-            'team_id'     => 'nullable|integer|exists:teams,id', // было string — ставим integer + exists
+            'team_ids'    => 'nullable|array',
+            'team_ids.*'  => ['integer', 'min:1'],
             'start_date'  => 'nullable|date',
 
             'email'       => 'nullable|email|max:255|unique:users,email',
@@ -83,6 +92,10 @@ class StoreRequest extends FormRequest
         );
 
         if ($partnerId) {
+            $rules['team_ids.*'][] = Rule::exists('teams', 'id')->where(
+                fn ($query) => $query->where('partner_id', $partnerId)
+            );
+
             $rules['school_lead_id'] = [
                 'nullable',
                 'integer',
@@ -110,7 +123,8 @@ class StoreRequest extends FormRequest
             'password'   => 'Пароль',
             'birthday'   => 'Дата рождения',
             'start_date' => 'Дата начала',
-            'team_id'      => 'Группа',
+            'team_ids'       => 'Группы',
+            'team_ids.*'     => 'Группа',
             'is_enabled' => 'Активность',
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
@@ -175,8 +189,9 @@ class StoreRequest extends FormRequest
             'role_id.integer'   => 'Некорректный формат роли.',
             'role_id.exists'    => 'Выбранная роль не существует в базе.',
 
-            'team_id.integer'   => 'Некорректный формат группы.',
-            'team_id.exists'    => 'Выбранная группа не существует в базе.',
+            'team_ids.array'    => 'Некорректный формат списка групп.',
+            'team_ids.*.integer'=> 'Некорректный формат группы.',
+            'team_ids.*.exists' => 'Выбранная группа не существует в базе.',
 
 
             'phone.regex'       => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',

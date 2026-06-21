@@ -645,7 +645,7 @@ class UserControllerTest extends CrmTestCase
             'email' => 'newuser@example.com',
             'phone' => '+79990000001',
             'role_id' => $role->id,
-            'team_id' => $team->id,
+            'team_ids' => [$team->id],
             'birthday' => '2015-01-01',
             'start_date' => '2024-09-01',
             'is_enabled' => 1,                 // boolean для валидации
@@ -681,12 +681,65 @@ class UserControllerTest extends CrmTestCase
         $this->assertNotNull($created, "Пользователь с id={$createdId} не найден в БД");
 
         $this->assertEquals($this->partner->id, $created->partner_id);
-        $this->assertEquals($team->id, $created->team_id);
+        $this->assertDatabaseHas('team_user', [
+            'user_id'    => $created->id,
+            'team_id'    => $team->id,
+            'partner_id' => $this->partner->id,
+        ]);
+        $this->assertNull($created->team_id);
         $this->assertEquals($payload['name'], $created->name);
         $this->assertEquals($payload['email'], $created->email);
         $this->assertEquals(1, $created->is_enabled);
 
         $this->assertEquals('Пользователь создан успешно', $json['message']);
+    }
+
+    /**
+     * [P1] Non-AJAX POST (нативная отправка формы): redirect, не пустой 200.
+     * Защита от белого экрана, если JS модалки не загрузился.
+     */
+    public function test_store_non_ajax_redirects_and_creates_user(): void
+    {
+        $role = Role::firstOrCreate(
+            ['name' => 'user'],
+            [
+                'label' => 'user',
+                'is_sistem' => 1,
+                'is_visible' => 1,
+                'order_by' => 0,
+            ]
+        );
+
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        $payload = [
+            'name' => 'NonAjax',
+            'lastname' => 'Пользователь',
+            'email' => 'nonajax-' . uniqid('', true) . '@example.com',
+            'phone' => '+79990000099',
+            'role_id' => $role->id,
+            'team_ids' => [$team->id],
+            'birthday' => '2015-01-01',
+            'start_date' => '2024-09-01',
+            'is_enabled' => 1,
+            'password' => 'TestPass123!',
+            'password_confirmation' => 'TestPass123!',
+        ];
+
+        $response = $this->post('/admin/users', $payload);
+
+        $response->assertRedirect(route('admin.user1'));
+
+        $created = User::query()->where('email', $payload['email'])->first();
+        $this->assertNotNull($created);
+        $this->assertEquals($this->partner->id, $created->partner_id);
+        $this->assertDatabaseHas('team_user', [
+            'user_id'    => $created->id,
+            'team_id'    => $team->id,
+            'partner_id' => $this->partner->id,
+        ]);
     }
 
     public function test_store_rejects_superadmin_role_assignment(): void
@@ -832,7 +885,7 @@ class UserControllerTest extends CrmTestCase
             'lastname' => 'Пароля',
             'email' => 'nopassuser@example.com',
             'role_id' => $role->id,
-            'team_id' => $team->id,
+            'team_ids' => [$team->id],
             'birthday' => '2016-06-06',
             'is_enabled' => 1,
         ];
@@ -873,7 +926,7 @@ class UserControllerTest extends CrmTestCase
             'lastname'   => 'Строка',
             'email'      => $email,
             'role_id'    => $role->id,
-            'team_id'    => $team->id,
+            'team_ids'    => [$team->id],
             'birthday'   => '2017-07-07',
             'is_enabled' => 1,
             'password'   => '',
@@ -913,7 +966,7 @@ class UserControllerTest extends CrmTestCase
             'lastname'   => 'Пароль',
             'email'      => $email,
             'role_id'    => $role->id,
-            'team_id'    => $team->id,
+            'team_ids'    => [$team->id],
             'birthday'   => '2018-08-08',
             'is_enabled' => 1,
             'password'   => " \t  ",
@@ -951,7 +1004,7 @@ class UserControllerTest extends CrmTestCase
             'lastname'   => 'Пароль',
             'email'      => 'short-pass@example.com',
             'role_id'    => $role->id,
-            'team_id'    => $team->id,
+            'team_ids'    => [$team->id],
             'is_enabled' => 1,
             'password'   => 'short',
         ], [
@@ -992,7 +1045,7 @@ class UserControllerTest extends CrmTestCase
             'lastname'   => 'Паролем',
             'email'      => $email,
             'role_id'    => $role->id,
-            'team_id'    => $team->id,
+            'team_ids'    => [$team->id],
             'birthday'   => '2019-09-09',
             'is_enabled' => 1,
             'password'   => $plain,
@@ -1033,7 +1086,7 @@ class UserControllerTest extends CrmTestCase
             'email' => 'maria@example.com',
             'phone' => '+79990000002',
             'role_id' => $role->id,
-            'team_id' => $team->id,
+            'team_ids' => [$team->id],
             'birthday' => '2014-02-02',
             'start_date' => '2024-09-01',
             'is_enabled' => 1,
@@ -1090,7 +1143,7 @@ class UserControllerTest extends CrmTestCase
             'email'                 => 'nopartner@example.com',
             'phone'                 => '+79990000003',
             'role_id'               => $roleUserId,
-            'team_id'               => null,
+            'team_ids'              => [],
             'birthday'              => '2015-03-03',
             'start_date'            => '2024-09-01',
             'is_enabled'            => 1,
@@ -1319,15 +1372,6 @@ class UserControllerTest extends CrmTestCase
      */
     public function test_update_changes_basic_fields_and_logs_only_changed_values(): void
     {
-        $oldTeam = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title' => 'Старая группа',
-        ]);
-        $newTeam = Team::factory()->create([
-            'partner_id' => $this->partner->id,
-            'title' => 'Новая группа',
-        ]);
-
         $oldRole = new Role();
         $oldRole->name = 'test-old-role';
         $oldRole->label = 'Старая роль';
@@ -1349,7 +1393,6 @@ class UserControllerTest extends CrmTestCase
             'email' => 'old@example.com',
             'is_enabled' => 1,
             'birthday' => '2010-01-01',
-            'team_id' => $oldTeam->id,
             'role_id' => $oldRole->id,
             'phone' => '+70000000001',
         ]);
@@ -1363,7 +1406,6 @@ class UserControllerTest extends CrmTestCase
             'email' => 'new@example.com',    // меняем
             'is_enabled' => 0,                    // меняем
             'birthday' => '2012-02-02',         // меняем
-            'team_id' => $newTeam->id,         // меняем
             'role_id' => $newRole->id,         // меняем
             // телефон не трогаем
         ];
@@ -1379,7 +1421,6 @@ class UserControllerTest extends CrmTestCase
         $this->assertEquals('new@example.com', $user->email);
         $this->assertEquals(0, $user->is_enabled);
         $this->assertEquals('2012-02-02', $user->birthday->format('Y-m-d'));
-        $this->assertEquals($newTeam->id, $user->team_id);
         $this->assertEquals($newRole->id, $user->role_id);
 
         $logs = MyLog::where('target_type', User::class)
@@ -1397,10 +1438,10 @@ class UserControllerTest extends CrmTestCase
         $this->assertStringContainsString('Email: old@example.com → new@example.com', $desc);
         $this->assertStringContainsString('Активен: Да → Нет', $desc);
         $this->assertStringContainsString('Д.р: 01.01.2010 → 02.02.2012', $desc);
-        $this->assertStringContainsString('Группа: Старая группа → Новая группа', $desc);
         $this->assertStringContainsString('Роль: Старая роль → Новая роль', $desc);
 
         $this->assertStringNotContainsString('Телефон:', $desc);
+        $this->assertStringNotContainsString('Групп', $desc);
     }
 
     /**

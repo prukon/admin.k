@@ -30,12 +30,13 @@
     <li><code>payables</code> — <b>что именно оплачивается</b> (покупка/обязательство: месяц, клубный взнос, форма, лагерь).</li>
     <li><code>payment_intents</code> — <b>технический трек</b> попытки оплаты у провайдера (Robokassa и т.д.).</li>
     <li><code>payments</code> — <b>финансовый факт</b>: деньги реально поступили (запись для отчётов).</li>
-    <li><code>users_prices</code> — <b>состояние оплат по месяцам</b> (проекция для UI/логики “оплачен ли месяц”).</li>
+    <li><code>users_prices</code> — <b>состояние начислений и оплат по месяцам</b> в разрезе <b>группы</b> (проекция для UI «Цены», витрины оплаты и отчёта «Задолженности»).</li>
   </ul>
 
   <div class="note">
     <b>Ключевой принцип:</b> разовые оплаты (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>) <b>не пишем</b> в <code>users_prices</code>.
-    <br>В <code>users_prices</code> отражаются только <b>месячные</b> оплаты (<code>monthly_fee</code>).
+    <br>В <code>users_prices</code> отражаются только <b>месячные</b> начисления и их оплата (<code>monthly_fee</code>).
+    <br>У ученика в нескольких группах — <b>отдельная строка</b> на каждую пару <code>(user_id, team_id, new_month)</code>. См. §2.1 и <a href="/docs/documentation/student-team-membership">ученик ↔ группы</a>.
   </div>
 
   <h2>2) Что хранится в каждой таблице</h2>
@@ -46,7 +47,7 @@
     <li><b>amount/currency</b>: сумма и валюта</li>
     <li><b>status</b>: <code>pending</code> → <code>paid</code> (дальше возможны refund-статусы)</li>
     <li><b>month</b> (только для <code>monthly_fee</code>): дата <code>YYYY-MM-01</code></li>
-    <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, <code>{user_period_price_id: …}</code> для доп. платежа, <code>{user_lesson_package_id: …}</code> для назначенного абонемента, размер формы, смена лагеря…)</li>
+    <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, <code>{team_id: …}</code> для месячного абонемента, <code>{user_period_price_id: …}</code> для доп. платежа, <code>{user_lesson_package_id: …}</code> для назначенного абонемента, размер формы, смена лагеря…)</li>
   </ul>
 
   <h3><code>payment_intents</code> (попытка оплаты у провайдера)</h3>
@@ -67,15 +68,39 @@
     <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
     <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
     <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
-    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности» фильтрует по <code>users.team_id</code> → <code>teams.location_id</code>, не по <code>payments.location_id</code>.</li>
+    <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности»: фильтр локации — по группам ученика в pivot; фильтр группы для месячных долгов — по <code>users_prices.team_id</code> (§<a href="#users-prices-by-team">2.1</a>).</li>
   </ul>
 
-  <h3><code>users_prices</code> (состояние оплат по месяцам)</h3>
+  <h3 id="users-prices"><code>users_prices</code> (начисления и оплаты по месяцам и группам)</h3>
   <ul>
-    <li><b>user_id</b></li>
+    <li><b>user_id</b> — ученик</li>
+    <li><b>team_id</b> — группа начисления (<b>NOT NULL</b>); UNIQUE <code>(user_id, team_id, new_month)</code> (миграция <code>2026_06_21_120000_add_team_id_to_users_prices_table.php</code>)</li>
     <li><b>new_month</b>: дата <code>YYYY-MM-01</code></li>
-    <li><b>price</b>: начисленная сумма к оплате за месяц (строка/число в рублях; для витрины оплаты и Init — источник истины после нормализации)</li>
-    <li><b>is_paid</b>: 0/1</li>
+    <li><b>price</b>: начисленная сумма к оплате за месяц в этой группе (строка/число в рублях; для витрины оплаты и Init — источник истины после нормализации)</li>
+    <li><b>is_paid</b>: автоматическая отметка из webhook (<code>monthly_fee</code>)</li>
+    <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического)</li>
+  </ul>
+
+  <h3 id="users-prices-by-team">2.1) Начисления по группам: «Цены», витрина, webhook</h3>
+  <div class="note">
+    Источник группы — pivot <code>team_user</code> (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
+    Legacy-колонка <code>users.team_id</code> в расчётах <b>не участвует</b>.
+  </div>
+  <ul>
+    <li><b>Админка «Цены»</b> (<code>/admin/setting-prices</code>, вкладка users): список учеников выбранной группы; при открытии месяца для группы создаётся/читается строка <code>users_prices</code> с <code>team_id</code> этой группы (<code>SettingPricesController</code>, <code>firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>).</li>
+    <li><b>Ручная оплата</b> (<code>setManualPaid</code>): обязательны <code>user_id</code>, <code>team_id</code>, месяц; ученик должен состоять в группе (<code>UserPriceTeamMembership::studentBelongsToTeam</code>).</li>
+    <li><b>Dashboard → витрина</b>: в форму оплаты передаётся hidden <code>team_id</code> из строки календаря (<code>dashboard.blade.php</code> → <code>paymentUser.blade.php</code>).</li>
+    <li><b>Resolver суммы</b> — <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code>:
+      <ul>
+        <li>если передан <code>team_id</code> — проверка членства и чтение <code>users_prices</code> по <code>(user_id, team_id, month)</code>;</li>
+        <li>если не передан и за месяц ровно одна строка с <code>price &gt; 0</code> — берётся её <code>team_id</code>;</li>
+        <li>если несколько строк — <b>422</b> «Укажите группу для оплаты за этот месяц.»;</li>
+        <li>если строк нет — fallback на <code>UserPriceTeamMembership::primaryTeamIdForStudent</code> (первая группа в pivot по <code>order_by</code>, <code>title</code>).</li>
+      </ul>
+    </li>
+    <li><b>Старт оплаты</b> (Robokassa / T‑Bank): в <code>payables.meta.team_id</code> сохраняется выбранная группа (<code>TransactionController</code>, <code>TinkoffPaymentController</code>).</li>
+    <li><b>Webhook (успех / refund)</b>: <code>UserPrice::markMonthlyPaid($userId, $month, $teamId)</code> — <code>updateOrCreate</code> по <code>(user_id, team_id, new_month)</code>; <code>team_id</code> из <code>payables.meta</code>, иначе primary group из pivot.</li>
+    <li><b>Отчёт «Задолженности»</b>: месячные долги — одна строка на каждую неоплаченную запись <code>users_prices</code>; фильтр <code>filter_team_id</code> для месячной части — по <code>users_prices.team_id</code> (см. <a href="/docs/documentation/reports-admin#debts">reports-admin §3</a>).</li>
   </ul>
 
   <h2>3) Основные воркфлоу</h2>
@@ -85,7 +110,7 @@
     <li>Создаём <code>payables</code>:
       <ul>
         <li><code>type=monthly_fee</code></li>
-        <li><code>month=YYYY-MM-01</code> (+ дублируем в <code>meta.month</code>)</li>
+        <li><code>month=YYYY-MM-01</code> (+ дублируем в <code>meta.month</code> и <code>meta.team_id</code>)</li>
         <li><code>status=pending</code></li>
       </ul>
     </li>
@@ -101,7 +126,7 @@
         <li><code>payment_intents.status=paid</code></li>
         <li><code>payables.status=paid</code>, <code>paid_at</code></li>
         <li><b>пишем <code>payments</code></b></li>
-        <li><b>обновляем <code>users_prices</code></b> для <code>(user_id + month)</code>: <code>is_paid=1</code></li>
+        <li><b>обновляем <code>users_prices</code></b> для <code>(user_id + team_id + month)</code>: <code>is_paid=1</code> (§<a href="#users-prices-by-team">2.1</a>)</li>
       </ul>
     </li>
   </ol>
@@ -124,10 +149,10 @@
     <li><b>Период на сервере</b>: если пришёл валидный <code>formatedPaymentDate</code> (<code>YYYY-MM-DD</code>), он имеет приоритет; иначе строка <code>paymentDate</code> разбирается через <code>TransactionController::formatedDate</code> (русское «Месяц Год» → <code>YYYY-MM-01</code>).
       Для разбора используется <code>DateTime::createFromFormat('!F Y', …)</code>: префикс <code>!</code> обязателен, иначе PHP подставляет «сегодняшний» день в неполную дату и короткие месяцы (например февраль) могут сместиться в следующий календарный месяц.
     </li>
-    <li><b>Сумма для месячного абонемента</b> берётся только из <code>users_prices</code> для пары <code>(user_id, new_month)</code>:
-      сервис <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code> (метод <code>resolveOrAbort</code>).
+    <li><b>Группа и сумма для месячного абонемента</b>: hidden <code>team_id</code> (с дашборда или после resolver); сумма — только из <code>users_prices</code> для тройки <code>(user_id, team_id, new_month)</code>:
+      сервис <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code> (метод <code>resolveOrAbort</code>, §<a href="#users-prices-by-team">2.1</a>).
       Нормализация строки суммы до формата копеек — <code>App\Support\Payments\PaymentOutSumNormalizer</code>.
-      Если начисления за выбранный месяц нет или сумма некорректна — ответы <b>403</b> / <b>422</b> с понятным текстом (не подмена суммы из POST).
+      Если начисления за выбранный месяц/группу нет, группа не указана при нескольких начислениях или сумма некорректна — ответы <b>403</b> / <b>422</b> с понятным текстом (не подмена суммы из POST).
     </li>
     <li><b>Отображение «Итого»</b> на странице: целые рубли с разбивкой тысяч (копейки только во внутренних полях форм для провайдера).</li>
     <li><b>Согласованность с Init</b>: те же правила суммы и периода применяются при старте оплаты — <code>TransactionController::pay</code> (Робокасса), <code>TinkoffPaymentController::create</code> / <code>createSbp</code> (T‑Bank): при наличии месячного периода сумма снова читается из <code>users_prices</code>, а не из пользовательского <code>outSum</code>.</li>
@@ -251,7 +276,7 @@
     <li>Webhook T‑Bank <code>/webhooks/tinkoff/payments</code>:
       <ul>
         <li>при <code>Status=CONFIRMED</code> в транзакции: <code>payment_intents.status=paid</code>, <code>payables.status=paid</code>, создаём <code>payments</code></li>
-        <li>если <code>payables.type=monthly_fee</code> → <code>users_prices.is_paid=1</code> для <code>(user_id + payables.month)</code></li>
+        <li>если <code>payables.type=monthly_fee</code> → <code>UserPrice::markMonthlyPaid</code> для <code>(user_id, payables.meta.team_id, payables.month)</code> (§<a href="#users-prices-by-team">2.1</a>)</li>
         <li>при финальном неуспехе (<code>CANCELED</code>/<code>REJECTED</code>/...) → <code>payment_intents.status=failed</code></li>
       </ul>
     </li>
@@ -314,7 +339,7 @@
     <li><b>История покупок/оплат</b>: <code>payables</code></li>
     <li><b>Почему не прошёл webhook</b>: логи + <code>payment_intents</code></li>
     <li><b>Факт денег</b>: <code>payments</code></li>
-    <li><b>Оплата месяца</b>: <code>users_prices</code></li>
+    <li><b>Начисление / оплата месяца по группе</b>: <code>users_prices</code> (<code>team_id</code> обязателен)</li>
     <li><b>Автопроверки витрины и суммы из БД</b>: feature‑тесты <code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code> (доступ <code>paying.classes</code>, <code>POST /payment</code>, Робокасса/T‑Bank при месячном периоде).</li>
   </ul>
 

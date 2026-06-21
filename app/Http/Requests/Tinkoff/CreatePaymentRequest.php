@@ -36,6 +36,7 @@ class CreatePaymentRequest extends FormRequest
 
             // YYYY-MM-01 (месяц оплаты)
             'formatedPaymentDate' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+            'team_id' => ['nullable', 'integer', 'min:1'],
 
             // дополнительный платеж (user_period_prices) / назначенный абонемент (user_lesson_packages)
             'payment_kind' => ['nullable', 'string', 'in:custom_payment,lesson_package'],

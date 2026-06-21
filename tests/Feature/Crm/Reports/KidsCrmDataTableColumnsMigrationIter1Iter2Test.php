@@ -267,13 +267,10 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         Carbon::setTestNow('2026-02-15');
         $this->asAdmin();
 
-        DB::table('users_prices')->insert([
-            'user_id' => $this->user->id,
-            'is_paid' => 0,
-            'price' => 500,
+        $this->insertUserPrice($this->user, [
+            'is_paid'   => 0,
+            'price'     => 500,
             'new_month' => '2026-01-01',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         DB::table('user_custom_payment')->insert([

@@ -59,7 +59,7 @@
   <p class="small">Миграции: <code>2026_05_20_140000_refactor_trainers_to_trainer_profiles.php</code>, <code>2026_05_20_150000_create_team_trainer_table.php</code>.</p>
 
   <div class="warn">
-    <b>Не путать:</b> поле <code>users.team_id</code> у ученика — его основная группа в CRM. Привязка тренера к группам идёт только через <code>team_trainer</code>, не через <code>users.team_id</code> у тренера (у тренера <code>team_id</code> при сохранении сбрасывается в <code>null</code>).
+    <b>Не путать:</b> у ученика группы хранятся в pivot <code>team_user</code> (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>). Привязка тренера к группам — только через <code>team_trainer</code>; у тренера <code>users.team_id</code> при сохранении сбрасывается в <code>null</code>.
   </div>
 
   <h2>2) Доступ и маршруты</h2>
@@ -166,7 +166,7 @@
   <h2>8) Фильтр «Тренер» в отчётах</h2>
   <div class="note">
     Параметр: <code>filter_trainer_profile_id</code> (id из <code>trainer_profiles</code>).
-    Логика: берутся <code>team_id</code> из <code>team_trainer</code> для выбранного профиля, затем отбираются ученики с <code>users.team_id</code> из этого списка.
+    Логика: берутся <code>team_id</code> из <code>team_trainer</code> для выбранного профиля, затем отбираются ученики, состоящие хотя бы в одной из этих групп (pivot <code>team_user</code>).
     Если у тренера нет групп — отчёт пустой (<code>whereRaw('1 = 0')</code>).
   </div>
   <p>Подробная таблица отчётов и отличие от фильтра локации: <a href="/docs/documentation/reports-admin#trainer-filter">Отчёты: фильтр по тренеру</a>.</p>

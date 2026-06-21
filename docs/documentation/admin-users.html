@@ -86,7 +86,7 @@
       <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td></tr>
       <tr><td>2</td><td><code>name</code></td><td>Имя (ученик)</td></tr>
       <tr><td>3</td><td><code>parent</code></td><td>Родитель (склейка ФИО)</td></tr>
-      <tr><td>4</td><td><code>teams</code></td><td>Группа</td></tr>
+      <tr><td>4</td><td><code>teams</code></td><td>Группы</td></tr>
       <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
       <tr><td>6</td><td><code>sex</code></td><td>Пол (только при <code>users.sex</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
       <tr><td>7</td><td><code>comment</code></td><td>Комментарий (только при <code>users.comment</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
@@ -108,7 +108,7 @@
       <tr><td>2</td><td><code>name</code></td><td>Имя</td><td>lastname, name</td></tr>
       <tr><td>3</td><td><code>parent</code></td><td>Родитель</td><td><code>parents.lastname, firstname</code></td></tr>
       <tr><td>4</td><td><code>contract</code></td><td>Договор</td><td>статус последнего договора (§<a href="#user-contract-column">2.3.5</a>)</td></tr>
-      <tr><td>5</td><td><code>teams</code></td><td>Группа</td><td><code>teams.title</code></td></tr>
+      <tr><td>5</td><td><code>teams</code></td><td>Группы</td><td><code>teams.title</code> (pivot, через запятую)</td></tr>
       <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td><td><code>users.birthday</code></td></tr>
       <tr><td>7</td><td><code>sex</code></td><td>Пол</td><td><code>users.sex</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.sex</code>)</td></tr>
       <tr><td>8</td><td><code>comment</code></td><td>Комментарий</td><td><code>users.comment</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.comment</code>)</td></tr>
@@ -502,11 +502,29 @@
     Запуск: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>
   </p>
 
-  <h2 id="user-location">3) Локация ученика</h2>
+  <h2 id="user-teams">3) Группы ученика (<code>team_ids</code>, pivot <code>team_user</code>)</h2>
+  <div class="note">
+    У ученика может быть <b>несколько групп</b>. Источник истины — pivot <code>team_user</code>.
+    Колонка <code>users.team_id</code> — legacy-архив (не обновляется при смене групп в CRM).
+    Полное описание по всем разделам CRM: <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
+  </div>
+  <table>
+    <thead><tr><th>Место</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>); право записи — <code>users.group.update</code></td></tr>
+      <tr><td>Колонка «Группы»</td><td>Все названия через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>)</td></tr>
+      <tr><td>Фильтр «Группа»</td><td><code>team_id</code> / <code>none</code> — по pivot; ученик с двумя группами попадает в фильтр по любой из них</td></tr>
+      <tr><td>JSON edit</td><td><code>user.team_ids</code> — массив id из pivot</td></tr>
+      <tr><td>Создание из лида</td><td>При одной группе в заявке — предзаполнение <code>team_ids</code> в create-модалке</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="user-location">4) Локация ученика</h2>
   <div class="note">
     Поле <code>users.location_id</code> удалено (миграция <code>2026_05_28_110000_drop_location_id_from_users_table</code>).
-    Локация ученика в CRM определяется через группу (<code>users.team_id</code>) и поле <code>teams.location_id</code>
+    Локация в CRM определяется через <b>группы ученика в pivot</b> и поле <code>teams.location_id</code>
     (<code>/admin/teams</code> и sync <code>team_ids</code> на <code>/admin/locations</code>).
+    При нескольких группах у ученика объект берётся из любой привязанной группы (фильтры отчётов — «хотя бы одна группа в объекте»).
     В расписании школы локация задаётся в слоте (<code>team_schedule_slots.location_id</code>).
   </div>
   <p>
@@ -518,7 +536,7 @@
     <a href="/docs/documentation/reports-payments">reports-payments.html</a>.
   </p>
 
-  <h2>4) Создание ученика (<code>POST /admin/users</code>)</h2>
+  <h2>5) Создание ученика (<code>POST /admin/users</code>)</h2>
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
     Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с аудитом (<code>event = user.created</code>) и опциональными <code>user_field_values</code>.
@@ -568,7 +586,7 @@
     <li>Отдельного маршрута у заявок для создания клиента нет — только <code>POST /admin/users</code> с middleware <code>can:users.view</code>.</li>
   </ul>
 
-  <h2>5) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
+  <h2>6) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
   <div class="note">
     Валидация: <code>UpdateRequest</code>. Поля с отдельными правами: имя (<code>users.name.update</code>), группа (<code>users.group.update</code>),
     email, телефон, роль, активность, дата рождения, дата начала — см. правила в Request.
@@ -578,7 +596,7 @@
     Поле <code>location_id</code> в запросе не используется (см. §3).
   </div>
 
-  <h3 id="user-trainer-teams">5.1) Роль «Тренер» и группы (<code>team_ids</code>)</h3>
+  <h3 id="user-trainer-teams">6.1) Роль «Тренер» и группы (<code>team_ids</code>)</h3>
   <div class="note">
     При <code>trainers.view</code> и роли <code>trainer</code> в модалке редактирования скрывается селект основной группы (<code>team_id</code>),
     показываются чекбоксы <code>team_ids[]</code> (те же, что на странице <code>/admin/trainers</code>).
@@ -591,11 +609,14 @@
     <li>Для роли <code>trainer</code> поле <code>team_id</code> в update не сохраняется (сбрасывается на сервере).</li>
   </ul>
 
-  <h2>6) Связанные файлы</h2>
+  <h2>7) Связанные файлы</h2>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserController.php</code></li>
     <li><code>app/Http/Requests/User/StoreRequest.php</code>, <code>UpdateRequest.php</code></li>
-    <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code>, <code>Location.php</code></li>
+    <li><code>app/Models/User.php</code>, <code>ParentProfile.php</code></li>
+    <li><code>app/Services/TeamUserSyncService.php</code></li>
+    <li><code>resources/views/admin/users/_student_teams_multiselect.blade.php</code></li>
+    <li><a href="/docs/documentation/student-team-membership">student-team-membership</a> — pivot M:N, все разделы CRM</li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — последний договор по <code>user_id</code> (§<a href="#user-contract-column">2.3</a>)</li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
     <li><code>app/Enums/UserSex.php</code></li>
@@ -617,7 +638,7 @@
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
   </ul>
 
-  <h2>7) Тесты (Feature)</h2>
+  <h2>8) Тесты (Feature)</h2>
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
@@ -659,6 +680,7 @@
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли</a> ·
     <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a> ·
+    <a href="/docs/documentation/student-team-membership">Ученик ↔ группы (M:N)</a> ·
     <a href="/docs/documentation/reports-admin#location-filter">Отчёты: фильтр по локации</a></p>
 </div>
 </body>

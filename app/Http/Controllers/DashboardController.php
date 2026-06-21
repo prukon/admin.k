@@ -16,6 +16,7 @@ use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\Weekday;
+use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,10 @@ use Illuminate\Support\Facades\Storage;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private readonly TeamUserSyncService $teamUserSync,
+    ) {
+    }
 
     public function index(FilterRequest $request)
     {
@@ -50,13 +55,18 @@ class DashboardController extends Controller
 
         $weekdays = Weekday::all();
         $curUser = app(FamilyStudentContextService::class)->activeStudent(auth()->user());
-        $curTeam = $curUser->team_id
-            ? Team::where('id', $curUser->team_id)->where('partner_id', $partnerId)->first()
-            : null;
+        $curUser->load([
+            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'),
+        ]);
+        $curTeamsLabel = $this->teamUserSync->teamTitlesLabel($curUser);
+        $curTeam = $curUser->teams->first();
 
         $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
         $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
-        $userPriceArray = UserPrice::where('user_id', $curUser->id)->get()->toArray();
+        $userPriceArray = UserPrice::with('team:id,title')
+            ->where('user_id', $curUser->id)
+            ->get()
+            ->toArray();
 
         $userAbonements = UserCustomPayment::query()
             ->where('partner_id', $partnerId)
@@ -88,6 +98,7 @@ class DashboardController extends Controller
             "allUsersSelect",
             "weekdays",
             "curTeam",
+            "curTeamsLabel",
             "curUser",
             "scheduleUser",
             "scheduleUserArray",
@@ -107,7 +118,15 @@ class DashboardController extends Controller
         $partnerId = app('current_partner')->id;
         $userId = $request->query('userId');
         $user = User::where('id', $userId)->first();
-        $userTeam = Team::where('id', $user->team_id)->first();
+        if (! $user) {
+            return response()->json(['success' => false]);
+        }
+
+        $user->load([
+            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'),
+        ]);
+        $userTeam = $user->teams->first();
+        $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
         $userPrice = UserPrice::where('user_id', $userId)->get();
         $scheduleUser = ScheduleUser::where('user_id', $userId)->get();
 
@@ -117,59 +136,48 @@ class DashboardController extends Controller
         $userFields = User::with('fields')->findOrFail($user->id);
         $userFieldValues = $user->fields->pluck('pivot.value', 'id');
 
-        if ($user) {
+        $formattedBirthday = $user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : null;
 
-            // Форматируем дату рождения (предполагаем, что дата хранится в поле 'birthday')
-            $formattedBirthday = $user->birthday ? Carbon::parse($user->birthday)->format('d.m.Y') : null;
-
-            return response()->json([
-                'success' => true,
-                'user' => $user,
-                'userTeam' => $userTeam,
-                'userPrice' => $userPrice,
-                'scheduleUser' => $scheduleUser,
-                'formattedBirthday' => $formattedBirthday, // Отправляем форматированную дату рождения
-                "userFields" => $userFields,
-                "userFieldValues" => $userFieldValues,
-                "allFields" => $allFields,
-
-            ]);
-        } else {
-            return response()->json([
-                'success' => false
-            ]);
-        }
+        return response()->json([
+            'success' => true,
+            'user' => $user,
+            'userTeam' => $userTeam,
+            'userTeamsLabel' => $userTeamsLabel !== '' ? $userTeamsLabel : null,
+            'userPrice' => $userPrice,
+            'scheduleUser' => $scheduleUser,
+            'formattedBirthday' => $formattedBirthday,
+            "userFields" => $userFields,
+            "userFieldValues" => $userFieldValues,
+            "allFields" => $allFields,
+        ]);
     }
+
     public function getUserDetails(Request $request)
     {
         $partnerId = app('current_partner')->id;
         $userId = $request->query('userId');
 
-        // ИЗМЕНЕНИЕ: базовая проверка входного параметра
         if (!$userId) {
             return response()->json([
                 'success' => false,
             ]);
         }
 
-        // ИЗМЕНЕНИЕ: учитываем партнёра при поиске юзера
         $user = User::where('id', $userId)
             ->where('partner_id', $partnerId)
             ->first();
 
-        // ИЗМЕНЕНИЕ: если пользователь не найден или не принадлежит текущему партнёру — не отдаём данные
         if (!$user) {
             return response()->json([
                 'success' => false,
             ]);
         }
 
-        // ИЗМЕНЕНИЕ: команда юзера тоже проверяется по partner_id
-        $userTeam = $user->team_id
-            ? Team::where('id', $user->team_id)
-                ->where('partner_id', $partnerId)
-                ->first()
-            : null;
+        $user->load([
+            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'),
+        ]);
+        $userTeam = $user->teams->first();
+        $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
 
         $userPrice = UserPrice::where('user_id', $user->id)->get();
         $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
@@ -180,7 +188,6 @@ class DashboardController extends Controller
         $userFields = User::with('fields')->findOrFail($user->id);
         $userFieldValues = $user->fields->pluck('pivot.value', 'id');
 
-        // (как и было) форматируем дату рождения
         $formattedBirthday = $user->birthday
             ? Carbon::parse($user->birthday)->format('d.m.Y')
             : null;
@@ -189,6 +196,7 @@ class DashboardController extends Controller
             'success'           => true,
             'user'              => $user,
             'userTeam'          => $userTeam,
+            'userTeamsLabel'    => $userTeamsLabel !== '' ? $userTeamsLabel : null,
             'userPrice'         => $userPrice,
             'scheduleUser'      => $scheduleUser,
             'formattedBirthday' => $formattedBirthday,
@@ -213,35 +221,40 @@ class DashboardController extends Controller
                 ->orderBy('name', 'asc')
                 ->get();
         } elseif ($teamName == 'withoutTeam') {
-            $usersTeam = User::where('is_enabled', 1)
-                ->where('team_id', null)
-                ->where('partner_id', $partnerId)
+            $usersTeam = $this->studentsWithoutTeamsQuery($partnerId)
+                ->where('is_enabled', 1)
                 ->orderBy('lastname', 'asc')
                 ->get();
         } else {
-            $usersTeam = User::where('team_id', $team->id)
-                ->where('is_enabled', 1)
-                ->where('partner_id', $partnerId)
-                ->orderBy('lastname', 'asc')
-                ->get();
-            foreach ($team->weekdays as $teamWeekDay) {
-                $teamWeekDayId[] = $teamWeekDay->id;
+            $usersTeam = $team
+                ? $team->students()
+                    ->where('users.partner_id', $partnerId)
+                    ->where('is_enabled', 1)
+                    ->orderBy('lastname', 'asc')
+                    ->get()
+                : collect();
+            if ($team) {
+                foreach ($team->weekdays as $teamWeekDay) {
+                    $teamWeekDayId[] = $teamWeekDay->id;
+                }
             }
         }
-        $userWithoutTeam = User::where('team_id', null)
-            ->where('partner_id', $partnerId)->get();
+        $userWithoutTeam = $this->studentsWithoutTeamsQuery($partnerId)->get();
 
         if ($teamWeekDayId) {
         } else {
             $teamWeekDayId = null;
         }
 
+        $this->loadPartnerTeamsForUsers($usersTeam, $partnerId);
+        $this->loadPartnerTeamsForUsers($userWithoutTeam, $partnerId);
+
         if ($usersTeam) {
             return response()->json([
                 'success' => true,
                 'team' => $team,
-                'teamWeekDayId' => $teamWeekDayId,  //fix сделать проверку на существование
-                'usersTeam' => $usersTeam,          //fix сделать проверку на существование
+                'teamWeekDayId' => $teamWeekDayId,
+                'usersTeam' => $usersTeam,
                 'userWithoutTeam' => $userWithoutTeam,
             ]);
         } else {
@@ -250,6 +263,7 @@ class DashboardController extends Controller
             ]);
         }
     }
+
     public function getTeamDetails(Request $request)
     {
         $partnerId = app('current_partner')->id;
@@ -261,41 +275,35 @@ class DashboardController extends Controller
         $usersTeam = collect();
 
         if ($teamName === 'all') {
-            // как и раньше: все включённые юзеры текущего партнёра
             $usersTeam = User::where('is_enabled', 1)
                 ->where('partner_id', $partnerId)
                 ->orderBy('name', 'asc')
                 ->get();
         } elseif ($teamName === 'withoutTeam') {
-            // как и раньше: юзеры без команды у текущего партнёра
-            $usersTeam = User::where('is_enabled', 1)
-                ->whereNull('team_id')
-                ->where('partner_id', $partnerId)
+            $usersTeam = $this->studentsWithoutTeamsQuery($partnerId)
+                ->where('is_enabled', 1)
                 ->orderBy('lastname', 'asc')
                 ->get();
         } else {
-            // ИЗМЕНЕНИЕ: без teamId и спец-значений teamName — считаем кейс невалидным
             if (!$teamId) {
                 return response()->json([
                     'success' => false,
                 ]);
             }
 
-            // ИЗМЕНЕНИЕ: ищем команду только у текущего партнёра
             $team = Team::where('id', $teamId)
                 ->where('partner_id', $partnerId)
                 ->first();
 
-            // ИЗМЕНЕНИЕ: если команда не найдена или принадлежит другому партнёру — не отдаём данные
             if (!$team) {
                 return response()->json([
                     'success' => false,
                 ]);
             }
 
-            $usersTeam = User::where('team_id', $team->id)
+            $usersTeam = $team->students()
+                ->where('users.partner_id', $partnerId)
                 ->where('is_enabled', 1)
-                ->where('partner_id', $partnerId)
                 ->orderBy('lastname', 'asc')
                 ->get();
 
@@ -304,16 +312,15 @@ class DashboardController extends Controller
             }
         }
 
-        $userWithoutTeam = User::whereNull('team_id')
-            ->where('partner_id', $partnerId)
-            ->get();
+        $userWithoutTeam = $this->studentsWithoutTeamsQuery($partnerId)->get();
 
         if (empty($teamWeekDayId)) {
             $teamWeekDayId = null;
         }
 
-        // ИЗМЕНЕНИЕ: тут больше нет странной проверки if ($usersTeam) — всегда success: true,
-        // если не сработали ранние return'ы с success:false
+        $this->loadPartnerTeamsForUsers($usersTeam, $partnerId);
+        $this->loadPartnerTeamsForUsers($userWithoutTeam, $partnerId);
+
         return response()->json([
             'success'        => true,
             'team'           => $team,
@@ -321,5 +328,37 @@ class DashboardController extends Controller
             'usersTeam'      => $usersTeam,
             'userWithoutTeam'=> $userWithoutTeam,
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, User>|iterable<int, User>  $users
+     */
+    private function loadPartnerTeamsForUsers(iterable $users, int $partnerId): void
+    {
+        if ($users instanceof \Illuminate\Support\Collection) {
+            $users->load([
+                'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->select('teams.id', 'teams.title'),
+            ]);
+
+            return;
+        }
+
+        foreach ($users as $user) {
+            if ($user instanceof User) {
+                $user->load([
+                    'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->select('teams.id', 'teams.title'),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Ученики партнёра без групп в pivot team_user.
+     */
+    private function studentsWithoutTeamsQuery(int $partnerId)
+    {
+        return User::query()
+            ->where('partner_id', $partnerId)
+            ->whereDoesntHave('teams', fn ($q) => $q->where('teams.partner_id', $partnerId));
     }
 }

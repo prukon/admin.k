@@ -72,7 +72,8 @@
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Сохранение одной ячейки (статус, комментарий, тренер для «Посетил»)</td></tr>
       <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи изменений (DataTables, категория <code>schedule</code> по <code>event</code> — <a href="/docs/documentation/audit-my-logs">аудит</a>)</td></tr>
       <tr><td>GET</td><td><code>/schedule/user-schedule/{user}</code></td><td><code>user.schedule.info</code></td><td>Данные для модалки «Личное расписание ученика»</td></tr>
-      <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Назначить ученику группу (<code>users.team_id</code>)</td></tr>
+      <tr><td>POST</td><td><code>/schedule/user/{user}/sync-teams</code></td><td><code>user.sync.teams</code></td><td>Sync полного списка групп ученика (<code>team_ids[]</code>, pivot <code>team_user</code>); пустой массив — снять со всех групп</td></tr>
+      <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Legacy: attach одной группы или detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code></td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
       <tr><td>GET</td><td><code>/schedule/statuses</code></td><td><code>statuses.index</code></td><td>JSON списка статусов (модалка «Настройки»)</td></tr>
       <tr><td>POST</td><td><code>/schedule/statuses</code></td><td><code>statuses.store</code></td><td>Создать кастомный статус партнёра</td></tr>
@@ -86,7 +87,7 @@
 
   <h2 id="student-list">2.1) Список строк в журнале: только активные ученики</h2>
   <div class="note">
-  В таблице вкладки «Журнал» и во всех user-эндпоинтах журнала (<code>cell-context</code>, <code>update</code>, <code>user-schedule</code>, <code>set-group</code>, <code>update-schedule-range</code>) участвуют <strong>только</strong> пользователи, которые одновременно:
+  В таблице вкладки «Журнал» и во всех user-эндпоинтах журнала (<code>cell-context</code>, <code>update</code>, <code>user-schedule</code>, <code>sync-teams</code>, <code>set-group</code>, <code>update-schedule-range</code>) участвуют <strong>только</strong> пользователи, которые одновременно:
   <ul>
     <li>принадлежат <code>current_partner</code>;</li>
     <li>имеют <code>users.is_enabled = 1</code>;</li>
@@ -115,7 +116,7 @@
   <h3>Реализация</h3>
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
-    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id).</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>).</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>
   <p>
@@ -184,10 +185,11 @@
 
   <h2>5) UI вкладки «Журнал расписания»</h2>
   <ul>
-    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы) — применяются <strong>после</strong> отбора активных учеников с системной ролью <code>user</code> (<a href="#student-list">§2.1</a>).</li>
-    <li>Таблица: строки — только такие ученики, столбцы — дни месяца; цвет/иконка из статуса.</li>
-    <li>Клик по ячейке → модалка <code>#cellEditModal</code>: статус (радио), комментарий, кнопка «Сохранить».</li>
-    <li>Иконка у строки ученика → «Личное расписание» (диапазон дат + дни недели).</li>
+    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы) — ученик в таблице, если состоит в выбранной группе (pivot); см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
+    <li>Таблица: строки — только такие ученики, столбцы — дни месяца; цвет/иконка из статуса. Под ФИО — подпись со списком групп (через запятую).</li>
+    <li>Клик по ячейке → модалка <code>#cellEditModal</code>: статус (радио), комментарий, подпись «Группы: …», кнопка «Сохранить».</li>
+    <li>Иконка «Изменить группы» у строки → модалка «Управление группами» (multiselect <code>team_ids[]</code>, сохранение через <code>POST …/sync-teams</code>).</li>
+    <li>Иконка у строки ученика → «Личное расписание» (диапазон дат + дни недели; дни группы — по <code>context_team_id</code> из фильтра журнала).</li>
     <li>Кнопка «Настройки» → список статусов, создание/редактирование кастомных.</li>
     <li>Полноэкранный режим, поиск по таблице (DataTables).</li>
   </ul>
@@ -204,18 +206,19 @@
     <li>При открытии ячейки — <code>GET /schedule/cell-context?user_id=&amp;date=</code>.</li>
     <li>Блок «Тренер» (<code>#cell-trainer-wrap</code>) показывается, если выбран статус «Посетил».</li>
     <li>В select — активные тренеры партнёра (<code>trainer_profiles.is_enabled</code>, user включён) + пункт «Без тренера» (<code>value=""</code>).</li>
-    <li>Если запись «Посетил» ещё не сохранялась — в UI подставляется <strong>первый тренер группы</strong> из <code>team_trainer</code> (минимальный <code>team_trainer.id</code> для <code>users.team_id</code> ученика).</li>
+    <li>Если запись «Посетил» ещё не сохранялась — в UI подставляется <strong>первый тренер группы</strong> из <code>team_trainer</code> (минимальный <code>team_trainer.id</code> для <code>context_team_id</code> — фильтр группы на странице журнала или query-параметр в <code>cell-context</code>).</li>
     <li>Если «Посетил» уже сохранён с <code>trainer_profile_id = null</code> — это явное «Без тренера» (не подменяется дефолтом группы).</li>
     <li>При смене статуса с «Посетил» на другой — поле тренера в запрос не уходит; в БД <code>trainer_profile_id</code> обнуляется на сервере.</li>
   </ol>
 
   <h3>6.2) API <code>GET /schedule/cell-context</code></h3>
-  <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>). <code>user_id</code> должен быть активным учеником партнёра (<a href="#student-list">§2.1</a>), иначе <b>404</b>.</p>
+  <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>, опционально <code>context_team_id</code>). <code>user_id</code> должен быть активным учеником партнёра (<a href="#student-list">§2.1</a>), иначе <b>404</b>.</p>
   <p>Ответ (основные поля):</p>
   <ul>
     <li><code>visited_status_id</code> — id системного «Посетил»</li>
     <li><code>current_status_id</code> — статус сохранённой ячейки, если есть</li>
-    <li><code>team_id</code>, <code>team_default_trainer_profile_id</code></li>
+    <li><code>team_ids</code>, <code>teams_label</code> — все группы ученика из pivot (подпись в модалке ячейки)</li>
+    <li><code>team_id</code>, <code>team_default_trainer_profile_id</code> — для группы <code>context_team_id</code> (или первой группы ученика)</li>
     <li><code>trainer_profile_id_for_select</code> — <code>null</code> (ещё не «Посетил»), строка id или <code>""</code> (без тренера)</li>
     <li><code>trainers</code> — массив <code>{ id, name }</code> (ФИО из <code>users.full_name</code>)</li>
   </ul>
@@ -231,9 +234,10 @@
 
   <h3>6.4) Связь с тренерами и группами</h3>
   <p>
-    Дефолтный тренер ячейки = первый в <code>team_trainer</code> для группы ученика — тот же порядок, что при одном тренере на группу в
+    Дефолтный тренер ячейки = первый в <code>team_trainer</code> для группы <code>context_team_id</code> (фильтр журнала или query) — тот же порядок, что при одном тренере на группу в
     <a href="/docs/documentation/admin-trainers#team-link">привязке тренера к группе</a>.
-    Если у ученика нет <code>team_id</code> или у группы нет тренера — дефолт пустой, можно выбрать любого тренера партнёра или «Без тренера».
+    Если у ученика нет групп в pivot или у выбранной группы нет тренера — дефолт пустой, можно выбрать любого тренера партнёра или «Без тренера».
+    Полное описание M:N групп: <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
   </p>
 
   <h2>7) Массовое «Личное расписание ученика»</h2>
@@ -262,7 +266,9 @@
     <li><code>app/Http/Controllers/Admin/ScheduleController.php</code> — <code>findScheduleStudentForPartner()</code>, <code>assertScheduleStudent()</code></li>
     <li><code>app/Models/User.php</code> — <code>scopeWithSystemRoleUser()</code></li>
     <li><code>app/Http/Controllers/Admin/StatusController.php</code></li>
-    <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code>, <code>GetScheduleCellContextRequest.php</code></li>
+    <li><code>app/Services/TeamUserSyncService.php</code></li>
+    <li><code>app/Http/Requests/Admin/SyncScheduleUserTeamsRequest.php</code></li>
+    <li><a href="/docs/documentation/student-team-membership">student-team-membership</a> — pivot M:N, sync-teams, context_team_id</li>
     <li><code>app/Models/Status.php</code>, <code>ScheduleUser.php</code></li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>schedule.view</code></li>
   </ul>
@@ -273,7 +279,9 @@
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права <code>schedule.view</code> → 403 на страницу и эндпоинты</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php</code> — со <code>schedule.view</code>: страница и каждый эндпоинт журнала отдельно → 200; сводный smoke всех API; гость на JSON → 401</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php</code> — в списке и API только активные ученики с системной ролью <code>user</code>; исключение тренера, админа, кастомной роли, отключённого; фильтры группы; 404 для не-учеников</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — sync-teams, teams_label, context_team_id, set-group legacy</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — контекст ячейки, сохранение тренера / «без тренера», сброс при смене статуса, изоляция партнёра, первый тренер группы</li>
+      <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFullAccessFeatureTest.php</code> — smoke <code>sync-teams</code> с <code>schedule.view</code></li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadAccessFeatureTest.php</code>, <code>ScheduleTrainerWorkloadFeatureTest.php</code> — отчёт нагрузки (см. <a href="/docs/documentation/schedule-trainer-workload#tests">отдельный раздел</a>)</li>
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code> на странице групп (дни недели)</li>
     </ul>
@@ -289,6 +297,7 @@
     <a href="/docs/documentation/admin-teams">Группы</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·
     <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a> ·
+    <a href="/docs/documentation/student-team-membership">Ученик ↔ группы (M:N)</a> ·
     <a href="/docs/documentation/school-schedule-calendar">Расписание школы</a>
   </p>
 </div>

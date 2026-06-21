@@ -45,15 +45,11 @@
                         </div>
 
                         <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="create-team" class="form-label">Группа</label>
-                                <select name="team_id" id="create-team" class="form-select">
-                                    <option value="" selected>Без группы</option>
-                                    @foreach($allTeams as $team)
-                                        <option value="{{ $team->id }}">{{ $team->title }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            @include('admin.users._student_teams_multiselect', [
+                                'teamsFieldId' => 'createStudentTeamIds',
+                                'teamOptions' => $allTeams,
+                                'canEditTeams' => true,
+                            ])
                         </div>
 
                         <div class="col-12 col-md-6">
@@ -318,6 +314,16 @@
                                 const slug = customMatch[1];
                                 $input = $form.find('[name="custom[' + slug + ']"]');
                             }
+                            if (!$input.length && (field === 'team_ids' || field.startsWith('team_ids.'))) {
+                                $input = $form.find('#createStudentTeamIds');
+                                const $teamError = $form.find('[data-error-for="team_ids"]');
+                                if ($teamError.length) {
+                                    $teamError.text(messages[0]);
+                                }
+                                if (window.KidsCrmGenericMultiselectSelect2 && $input.length) {
+                                    KidsCrmGenericMultiselectSelect2.markInvalid($input);
+                                }
+                            }
                             if (!$input.length) {
                                 const safe = field.replace(/\./g, '\\.').replace(/\*/g, '\\*');
                                 $input = $form.find('[name="' + safe + '"]');
@@ -328,10 +334,21 @@
 
                             if ($input.length) {
                                 $input.addClass('is-invalid');
-                                // просто «по-ларевелски»: .invalid-feedback сразу после поля
-                                $('<div class="invalid-feedback d-block"></div>')
-                                    .text(messages[0])
-                                    .insertAfter($input);
+                                if ($input.hasClass('js-generic-multiselect-select')) {
+                                    const $teamError = $form.find('[data-error-for="team_ids"]');
+                                    if ($teamError.length) {
+                                        $teamError.text(messages[0]);
+                                    }
+                                } else {
+                                    $('<div class="invalid-feedback d-block"></div>')
+                                        .text(messages[0])
+                                        .insertAfter($input);
+                                }
+                            } else if (field === 'team_ids' || field.startsWith('team_ids.')) {
+                                const $teamError = $form.find('[data-error-for="team_ids"]');
+                                if ($teamError.length) {
+                                    $teamError.text(messages[0]);
+                                }
                             }
                         });
 

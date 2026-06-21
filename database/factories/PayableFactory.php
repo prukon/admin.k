@@ -124,12 +124,26 @@ class PayableFactory extends Factory
                     ]);
 
                 // 2) users_prices
+                $teamId = null;
+                $user = \App\Models\User::query()->find($payable->user_id);
+                if ($user) {
+                    $teamId = \App\Support\UserPriceTeamMembership::primaryTeamIdForStudent($user, (int) $payable->partner_id);
+                }
+
+                if ($teamId) {
+                    $meta = $payable->meta;
+                    $meta['team_id'] = $teamId;
+                    $payable->meta = $meta;
+                    $payable->save();
+                }
+
                 \App\Models\UserPrice::factory()
                     ->forUserAndMonth(
                         $payable->user_id,
-                        $payable->month,                 // YYYY-MM-01
+                        $payable->month,
                         (float) $payable->amount,
-                        true
+                        true,
+                        $teamId
                     )
                     ->create();
 

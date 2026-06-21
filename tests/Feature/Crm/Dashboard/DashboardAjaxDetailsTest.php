@@ -183,13 +183,8 @@ class DashboardAjaxDetailsTest extends CrmTestCase
             );
         }
 
-        // 2) Все usersTeam должны принадлежать текущему партнёру и этой команде
-        $returnedUsers->each(function (array $user) use ($team) {
-            $this->assertEquals(
-                $team->id,
-                $user['team_id'],
-                "Все usersTeam должны принадлежать команде {$team->id}"
-            );
+        // 2) Все usersTeam должны принадлежать текущему партнёру
+        $returnedUsers->each(function (array $user) {
             $this->assertEquals(
                 $this->partner->id,
                 $user['partner_id'],
@@ -353,6 +348,10 @@ class DashboardAjaxDetailsTest extends CrmTestCase
                 $user['team_id'],
                 'Все usersTeam при teamName=withoutTeam должны быть без команды (team_id = null)'
             );
+            $this->assertDatabaseMissing('team_user', [
+                'user_id' => $user['id'],
+                'partner_id' => $this->partner->id,
+            ]);
             $this->assertEquals(
                 1,
                 $user['is_enabled'],

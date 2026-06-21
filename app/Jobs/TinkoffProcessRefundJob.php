@@ -146,15 +146,10 @@ class TinkoffProcessRefundJob implements ShouldQueue
                 ?: ($payable->meta['month'] ?? null);
 
             if (is_string($month) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $month) && strtotime($month)) {
-                UserPrice::updateOrCreate(
-                    [
-                        'user_id' => (int) $refund->user_id,
-                        'new_month' => $month,
-                    ],
-                    [
-                        'is_paid' => 0,
-                    ]
-                );
+                $teamId = isset($payable->meta['team_id']) && is_numeric($payable->meta['team_id'])
+                    ? (int) $payable->meta['team_id']
+                    : null;
+                UserPrice::markMonthlyPaid((int) $refund->user_id, $month, $teamId, false);
             } else {
                 Log::warning('T-Bank refund succeeded but month is invalid', [
                     'refund_id' => $refund->id,

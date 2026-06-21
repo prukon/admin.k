@@ -188,6 +188,14 @@ users (role=user) — ученик, вход в CRM
     <li>Тесты: <code>UserCommentAndSexFeatureTest</code> — раздел «Личный кабинет: пол через users.sex».</li>
   </ul>
 
+  <h3 id="account-groups">4.5) Группы ученика (только просмотр)</h3>
+  <div class="note">
+    Для роли <code>user</code> на <code>/account-settings/user/edit</code> (<code>resources/views/account/users.blade.php</code>) выводится блок «Группы»:
+    read-only поле со списком названий из pivot (<code>$user->teams</code>), подпись с иконкой замка «Изменение групп доступно только администратору CRM».
+    Поле не отправляется при PATCH; изменение состава групп — только в CRM (<code>/admin/users</code>, <code>team_ids[]</code>, право <code>users.group.update</code>).
+    См. <a href="/docs/documentation/student-team-membership">student-team-membership §6</a>.
+  </div>
+
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
 
   <h3>5.1) UI и условия показа</h3>

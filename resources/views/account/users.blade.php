@@ -247,24 +247,21 @@
             @endif
 
             @if($user->role?->name !== 'admin')
-            {{-- Поле "Группа" --}}
+            @php
+                $user->loadMissing('teams');
+                $studentTeamsLabel = $user->teams->pluck('title')->filter()->sort()->values()->implode(', ');
+            @endphp
             <div class="mb-3">
-                <label for="team" class="form-label">Группа</label>
-                <select id="team" name="team_id" class="form-select @error('team_id') is-invalid @enderror"
-                        @cannot('account.user.team.update') disabled aria-disabled="true" @endcannot>
-                    <option value="" {{ old('team_id', $user->team_id) == null ? 'selected' : '' }}>Без группы</option>
-                    @foreach($allTeams as $team)
-                        <option value="{{ $team->id }}" {{ old('team_id', $user->team_id) == $team->id ? 'selected' : '' }}>{{ $team->title }}</option>
-                    @endforeach
-                </select>
-                @error('team_id')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-                @cannot('account.user.team.update')
-                    <div class="form-text text-muted mt-1"><i class="fa-solid fa-lock me-1"></i>Нет прав на изменение
-                        группы
-                    </div>
-                @endcannot
+                <label class="form-label">Группы</label>
+                <input type="text"
+                       class="form-control"
+                       value="{{ $studentTeamsLabel !== '' ? $studentTeamsLabel : '—' }}"
+                       readonly
+                       disabled
+                       aria-disabled="true">
+                <div class="form-text text-muted mt-1">
+                    <i class="fa-solid fa-lock me-1"></i>Изменение групп доступно только администратору CRM
+                </div>
             </div>
             @endif
 

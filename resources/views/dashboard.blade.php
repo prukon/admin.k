@@ -100,8 +100,10 @@
                             @else
                                 -
                             @endif </span></div>
-                    <div class="group">Группа: <span class="group-value"> @if($curTeam)
-                                {{$curTeam->title}}
+                    <div class="group">Группа: <span class="group-value"> @if(!empty($curTeamsLabel))
+                                {{ $curTeamsLabel }}
+                            @elseif($curTeam)
+                                {{ $curTeam->title }}
                             @else
                                 -
                             @endif </span></div>
@@ -558,6 +560,7 @@
                         if (response.success) {
                             let user = response.user;
                             let userTeam = response.userTeam;
+                            let userTeamsLabel = response.userTeamsLabel;
                             let userPrice = response.userPrice;
                             let scheduleUser = response.scheduleUser;
                             // let inputDate = response.inputDate;
@@ -675,10 +678,8 @@
 
                             // Добавление название группы юзеру
                             function apendTeamNameToUser() {
-                                if (userTeam) {
-                                    $('.group-value').html(userTeam.title);
-                                } else
-                                    $('.group-value').html('-');
+                                const label = userTeamsLabel || (userTeam ? userTeam.title : null);
+                                $('.group-value').html(label || '-');
                             }
 
                             //отключение форм для юзеров и суперюзеров
@@ -828,7 +829,7 @@
                                     // .val(user.id) // предпочтительно хранить id
                                         .val(user.name)
                                         .attr('label', fullName || '-')
-                                        .attr('data-team', user.team_id ? 'true' : 'false')
+                                        .attr('data-team', (user.teams && user.teams.length > 0) ? 'true' : 'false')
                                         .attr('data-user-id', user.id)
                                         .text(counter + '. ' + (fullName || '-'));
 
@@ -910,6 +911,7 @@
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="paymentDate" value="${paymentDate}">
                         <input type="hidden" name="formatedPaymentDate" value="${formatedPaymentDate}">
+                        <input class="team-id" type="hidden" name="team_id" value="">
                         <input class="outSum" type="hidden" name="outSum" value="">
                         <button type="submit" disabled class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
                     </form>
@@ -1044,73 +1046,131 @@
 
             //Поиск и установка соответствующих установленных цен на странице
             function apendPrice(userPrice) {
-                if (userPrice) {
-                    for (j = 0; j < userPrice.length; j++) {
+                if (!userPrice) {
+                    return;
+                }
 
-                        // Получаем все блоки с классом border_price
-                        const borderPrices = document.querySelectorAll('.border_price');
+                const paymentUrl = window.Laravel.paymentUrl;
+                const csrfToken = window.Laravel.csrfToken;
 
-                        // Проходим по каждому блоку
-                        for (let i = 0; i < borderPrices.length; i++) {
-                            const borderPrice = borderPrices[i];
-                            const button = borderPrice.querySelector('.new-main-button');
+                const formatMonth = (dateString) => {
+                    const date = new Date(dateString);
+                    const monthNames = [
+                        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+                    ];
+                    const month = monthNames[date.getMonth()];
+                    const year = date.getFullYear();
+                    return `${month} ${year}`;
+                };
+
+                const teamTitle = (item) => {
+                    if (item.team && item.team.title) {
+                        return String(item.team.title).trim();
+                    }
+                    return '';
+                };
+
+                const borderPrices = document.querySelectorAll('.border_price');
+
+                for (let i = 0; i < borderPrices.length; i++) {
+                    const borderPrice = borderPrices[i];
+                    const newPriceDescription = borderPrice.querySelector('.new-price-description');
+                    const buttonWrap = borderPrice.querySelector('.new-main-button-wrap .justify-content-center');
+
+                    if (!newPriceDescription || !buttonWrap) {
+                        continue;
+                    }
+
+                    const monthText = newPriceDescription.textContent.trim();
+                    const matchedAll = userPrice.filter(item => formatMonth(item.new_month) === monthText);
+
+                    if (matchedAll.length === 0) {
+                        const priceValue = borderPrice.querySelector('.price-value');
+                        const button = borderPrice.querySelector('.new-main-button');
+                        if (priceValue) {
+                            priceValue.textContent = '0';
+                        }
+                        if (button) {
+                            button.textContent = 'Оплатить';
                             button.setAttribute('disabled', 'disabled');
+                            button.classList.remove('buttonPaided');
+                        }
+                        continue;
+                    }
 
-                            // Находим элемент с классом new-price-description внутри текущего блока
-                            const newPriceDescription = borderPrice.querySelector('.new-price-description');
+                    if (matchedAll.length === 1) {
+                        const matchedData = matchedAll[0];
+                        const priceValue = borderPrice.querySelector('.price-value');
+                        const outSum = borderPrice.querySelector('.outSum');
+                        const teamIdInput = borderPrice.querySelector('.team-id');
+                        const button = borderPrice.querySelector('.new-main-button');
 
-                            // Проверяем, есть ли такой элемент
-                            if (newPriceDescription) {
-                                // Получаем текст месяца из блока и убираем пробелы
-                                const monthText = newPriceDescription.textContent.trim();
+                        if (priceValue) {
+                            priceValue.textContent = matchedData.price > 0 ? matchedData.price : '0';
+                        }
+                        if (outSum) {
+                            outSum.value = matchedData.price > 0 ? matchedData.price : '';
+                        }
+                        if (teamIdInput && matchedData.team_id) {
+                            teamIdInput.value = matchedData.team_id;
+                        }
 
-                                // Преобразуем дату из БД (new_month) в строку вида "Месяц ГГГГ" для сравнения
-                                const formatMonth = (dateString) => {
-                                    const date = new Date(dateString);
-                                    const monthNames = [
-                                        "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-                                        "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-                                    ];
-                                    const month = monthNames[date.getMonth()];
-                                    const year = date.getFullYear();
-                                    return `${month} ${year}`;
-                                };
+                        buttonWrap.innerHTML = `
+                    <form action="${paymentUrl}" method="POST">
+                        <input type="hidden" name="_token" value="${csrfToken}">
+                        <input type="hidden" name="paymentDate" value="${monthText}">
+                        <input type="hidden" name="formatedPaymentDate" value="${matchedData.new_month}">
+                        <input type="hidden" name="team_id" value="${matchedData.team_id || ''}">
+                        <input class="outSum" type="hidden" name="outSum" value="${matchedData.price > 0 ? matchedData.price : ''}">
+                        <button type="submit" class="btn btn-lg btn-bd-primary new-main-button">Оплатить</button>
+                    </form>`;
 
-                                // Ищем объект в массиве, у которого преобразованная new_month совпадает с текстом месяца
-                                const matchedData = userPrice.find(item => formatMonth(item.new_month) === monthText);
-
-                                // Если найдено совпадение, обновляем цену
-                                if (matchedData) {
-
-                                    const priceValue = borderPrice.querySelector('.price-value');
-                                    const outSum = borderPrice.querySelector('.outSum');
-
-                                    if (priceValue) {
-                                        if (matchedData.price > 0) {
-                                            priceValue.textContent = matchedData.price;
-                                            outSum.value = matchedData.price;
-                                        }
-                                    }
-
-                                    // Получаем кнопку
-
-                                    // Проверяем, если is_paid == true, меняем текст и делаем кнопку неактивной
-                                    button.textContent = "Оплатить";
-
-                                    if (matchedData.is_paid) {
-                                        button.textContent = "Оплачено";
-                                        button.setAttribute('disabled', 'disabled');
-                                        button.classList.add('buttonPaided');
-                                    } else {
-                                        button.removeAttribute('disabled');
-                                    }
-                                    if (matchedData.price == 0) {
-                                        button.setAttribute('disabled', 'disabled');
-                                    }
-                                }
+                        const newButton = borderPrice.querySelector('.new-main-button');
+                        if (newButton) {
+                            newButton.textContent = 'Оплатить';
+                            if (matchedData.is_paid) {
+                                newButton.textContent = 'Оплачено';
+                                newButton.setAttribute('disabled', 'disabled');
+                                newButton.classList.add('buttonPaided');
+                            } else if (matchedData.price == 0) {
+                                newButton.setAttribute('disabled', 'disabled');
+                            } else {
+                                newButton.removeAttribute('disabled');
+                                newButton.classList.remove('buttonPaided');
                             }
                         }
+                        continue;
                     }
+
+                    let total = 0;
+                    let formsHtml = '';
+                    matchedAll.forEach(function (matchedData) {
+                        total += Number(matchedData.price) || 0;
+                        const title = teamTitle(matchedData);
+                        const label = title !== '' ? ('Оплатить (' + title + ')') : 'Оплатить';
+                        const paid = !!matchedData.is_paid;
+                        const disabled = paid || Number(matchedData.price) <= 0;
+                        formsHtml += `
+                    <form action="${paymentUrl}" method="POST" class="mb-1">
+                        <input type="hidden" name="_token" value="${csrfToken}">
+                        <input type="hidden" name="paymentDate" value="${monthText}">
+                        <input type="hidden" name="formatedPaymentDate" value="${matchedData.new_month}">
+                        <input type="hidden" name="team_id" value="${matchedData.team_id || ''}">
+                        <input type="hidden" name="outSum" value="${matchedData.price > 0 ? matchedData.price : ''}">
+                        <button type="submit" class="btn btn-sm btn-bd-primary new-main-button w-100"
+                            ${disabled ? 'disabled' : ''} ${paid ? 'class="btn btn-sm btn-bd-primary new-main-button w-100 buttonPaided"' : ''}>
+                            ${paid ? 'Оплачено' + (title ? ' (' + title + ')' : '') : label}
+                        </button>
+                    </form>`;
+                    });
+
+                    const priceValue = borderPrice.querySelector('.price-value');
+                    if (priceValue) {
+                        priceValue.textContent = total > 0 ? total : '0';
+                    }
+
+                    buttonWrap.innerHTML = formsHtml;
                 }
             }
 

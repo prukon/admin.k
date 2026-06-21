@@ -105,11 +105,25 @@
                 </thead>
                 <tbody>
                 @foreach($users as $index => $user)
+                    @php
+                        $studentTeamIds = $user->teams->pluck('id')->all();
+                        $journalContextTeamId = null;
+                        if (is_numeric($team_id) && $team_id !== 'none') {
+                            $journalContextTeamId = (int) $team_id;
+                        } elseif ($studentTeamIds !== []) {
+                            $journalContextTeamId = (int) $studentTeamIds[0];
+                        }
+                    @endphp
                     <tr data-user-id="{{ $user->id }}">
 
                         <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
                         {{--<td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>--}}
-                        <td class="schedule-user-name sticky-col-2">{{ $user?->full_name ?: 'Без имени' }}</td>
+                        <td class="schedule-user-name sticky-col-2">
+                            <div>{{ $user?->full_name ?: 'Без имени' }}</div>
+                            @if($user->teams->isNotEmpty())
+                                <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
+                            @endif
+                        </td>
                         <td class="text-center">
                             @if(isset($userPrices[$user->id]) && $userPrices[$user->id]->is_paid == 1)
                                 <i class="fas fa-circle-check text-success"></i>
@@ -161,7 +175,8 @@
 
                                 data-user-id="{{ $user->id }}"
                                 data-user-name="{{ $user?->full_name ?: 'Без имени' }}"
-                                data-team-id="{{ $user->team_id }}"
+                                data-context-team-id="{{ $journalContextTeamId ?? '' }}"
+                                data-team-ids="{{ implode(',', $studentTeamIds) }}"
                                 data-date="{{ $day->format('Y-m-d') }}"
                                 data-status-id="{{ $statusId }}"
                                 data-comment="{{ $entry?->description }}"
@@ -207,6 +222,7 @@
                     {{-- Добавленный блок: информация о редактируемой ячейке --}}
                     <div class="mb-3">
                         <div><span id="edit-user-name-display"></span></div>
+                        <div><small class="text-muted" id="edit-user-teams-display"></small></div>
                         <div><span id="edit-date-display"></span></div>
                     </div>
 
@@ -289,26 +305,23 @@
         </div>
     </div>
 
-    <!-- Модалка №2: выбор группы, если у пользователя группы нет -->
+    <!-- Модалка №2: добавление группы ученику -->
     <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel"
          aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 id="chooseGroupModalLabel" class="modal-title">Выбрать группу</h5>
+                    <h5 id="chooseGroupModalLabel" class="modal-title">Управление группами</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="selectGroup" class="form-label">Доступные группы:</label>
-                        <select class="form-select" id="selectGroup">
-                            <option value="">-- выбрать --</option>
-                            @foreach($teams as $team)
-                                <option value="{{ $team->id }}">{{ $team->title }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button id="btnSaveUserGroup" class="btn btn-primary">Сохранить</button>
+                    @include('admin.users._student_teams_multiselect', [
+                        'teamsFieldId' => 'journalUserTeamIds',
+                        'teamsLabel' => 'Группы ученика',
+                        'teamOptions' => $teams,
+                        'canEditTeams' => true,
+                    ])
+                    <button type="button" id="btnSaveUserGroup" class="btn btn-primary">Сохранить</button>
                 </div>
             </div>
         </div>

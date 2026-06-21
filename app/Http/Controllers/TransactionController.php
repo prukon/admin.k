@@ -126,14 +126,18 @@ class TransactionController extends Controller
         }
 
         // Месячный абонемент: сумма на экране и в скрытых полях — из users_prices (как при Init оплаты).
+        $monthlyTeamId = null;
         if ($formatedPaymentDate !== null) {
+            $teamIdParam = $request->filled('team_id') ? (int) $request->input('team_id') : null;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 (int) $user->id,
                 $partnerId,
-                $formatedPaymentDate
+                $formatedPaymentDate,
+                $teamIdParam
             );
             $outSum = $resolved['out_sum'];
             $formatedPaymentDate = $resolved['month_first_day'];
+            $monthlyTeamId = $resolved['team_id'];
         }
 
         // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
@@ -157,6 +161,7 @@ class TransactionController extends Controller
             'paymentKind',
             'userPeriodPriceId',
             'userLessonPackageId',
+            'monthlyTeamId',
         ));
     }
 
@@ -179,6 +184,7 @@ class TransactionController extends Controller
         $hasMonthly = $request->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+        $monthlyTeamId = null;
 
         if ($paymentKind === 'custom_payment') {
             $upp = null;
@@ -210,13 +216,16 @@ class TransactionController extends Controller
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
         } elseif ($hasMonthly) {
+            $teamIdParam = $request->filled('team_id') ? (int) $request->input('team_id') : null;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 $partnerId,
-                $rawFmt
+                $rawFmt,
+                $teamIdParam
             );
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
+            $monthlyTeamId = $resolved['team_id'];
         } else {
             $outSumRaw = (string) $request->input('outSum', '');
             $outSum = PaymentOutSumNormalizer::normalize($outSumRaw);
@@ -261,6 +270,9 @@ class TransactionController extends Controller
             // paymentDate уже в формате YYYY-MM-01
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
+            if (! empty($monthlyTeamId)) {
+                $payableMeta['team_id'] = (int) $monthlyTeamId;
+            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {

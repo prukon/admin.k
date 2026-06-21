@@ -381,6 +381,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
         Route::get('/schedule/user-schedule/{user}', [ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info');
         Route::post('/schedule/user/{user}/set-group', [ScheduleController::class, 'setUserGroup'])->name('user.set.group');
+        Route::post('/schedule/user/{user}/sync-teams', [ScheduleController::class, 'syncUserTeams'])->name('user.sync.teams');
         Route::post('/schedule/user/{user}/update-schedule-range', [ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule');
     });
 

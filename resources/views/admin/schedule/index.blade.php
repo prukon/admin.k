@@ -32,6 +32,7 @@
 @push('scripts')
     @vite(['resources/css/schedule.css'])
     @if(($activeTab ?? 'journal') === 'journal')
+        @include('partials.select2.generic-multiselect')
         <script>
             window.SCHEDULE_VISITED_STATUS_ID = @json($visitedStatusId ?? null);
         </script>

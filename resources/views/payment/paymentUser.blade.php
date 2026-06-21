@@ -261,6 +261,9 @@
                         <input type="hidden" name="outSum" value="{{ $outSum }}">
                         <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                         <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
+                        @if(!empty($monthlyTeamId))
+                            <input type="hidden" name="team_id" value="{{ $monthlyTeamId }}">
+                        @endif
                         <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                         <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
                         <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">
@@ -284,6 +287,9 @@
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
+                        @if(!empty($monthlyTeamId))
+                            <input type="hidden" name="team_id" value="{{ $monthlyTeamId }}">
+                        @endif
                                 <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                                 <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
                                 <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">
@@ -304,6 +310,9 @@
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
+                        @if(!empty($monthlyTeamId))
+                            <input type="hidden" name="team_id" value="{{ $monthlyTeamId }}">
+                        @endif
                                 <input type="hidden" name="payment_kind" value="{{ $paymentKind ?? '' }}">
                                 <input type="hidden" name="custom_payment_id" value="{{ $userPeriodPriceId ?? '' }}">
                                 <input type="hidden" name="user_lesson_package_id" value="{{ $userLessonPackageId ?? '' }}">

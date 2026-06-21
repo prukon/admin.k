@@ -7,9 +7,11 @@ use App\Models\Payable;
 use App\Models\Payment;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
+use App\Services\TeamUserSyncService;
 use App\Services\Tinkoff\TinkoffSignature;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -302,6 +304,9 @@ class TbankWebhookPaymentsTest extends CrmTestCase
     {
         $this->setupTbankKeysForPartner('TERM', 'PWD');
 
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
         TinkoffPayment::create([
             'order_id' => 'order-m1',
             'partner_id' => $this->partner->id,
@@ -353,9 +358,10 @@ class TbankWebhookPaymentsTest extends CrmTestCase
         $this->assertSame('paid', (string) $payable->status);
 
         $this->assertDatabaseHas('users_prices', [
-            'user_id' => $this->user->id,
+            'user_id'   => $this->user->id,
+            'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'is_paid' => 1,
+            'is_paid'   => 1,
         ]);
 
         $this->assertDatabaseHas('payments', [

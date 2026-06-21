@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\UserPriceTeamMembership;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +18,7 @@ class UserPrice extends Model
         'is_manual_paid'  => 'boolean',
         'manual_paid_at'  => 'datetime',
         'manual_paid_by'  => 'integer',
+        'team_id'         => 'integer',
     ];
 
     protected $appends = [
@@ -26,6 +28,11 @@ class UserPrice extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
     }
 
     public function manualPaidBy()
@@ -43,5 +50,42 @@ class UserPrice extends Model
         }
 
         return (bool) $this->is_paid;
+    }
+
+    /**
+     * Отметить месячное начисление оплаченным (webhook / refund).
+     */
+    public static function markMonthlyPaid(int $userId, string $month, ?int $teamId = null, bool $paid = true): void
+    {
+        if ($teamId === null || $teamId <= 0) {
+            $user = User::query()->find($userId);
+            if ($user && (int) $user->partner_id > 0) {
+                $teamId = UserPriceTeamMembership::primaryTeamIdForStudent($user, (int) $user->partner_id);
+            }
+        }
+
+        if ($teamId !== null && $teamId > 0) {
+            static::updateOrCreate(
+                [
+                    'user_id'   => $userId,
+                    'team_id'   => $teamId,
+                    'new_month' => $month,
+                ],
+                [
+                    'is_paid' => $paid ? 1 : 0,
+                ]
+            );
+
+            return;
+        }
+
+        $rows = static::query()
+            ->where('user_id', $userId)
+            ->whereDate('new_month', $month)
+            ->get();
+
+        if ($rows->count() === 1) {
+            $rows->first()->update(['is_paid' => $paid ? 1 : 0]);
+        }
     }
 }

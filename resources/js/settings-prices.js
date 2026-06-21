@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let usersPrice = [];
     let lastCanManageManualPaid = false;
     let lastUsersTeam = [];
+    let lastTeamId = null;
     /** @type {string|null} */
     let editingMonthlyUserId = null;
 
@@ -45,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return !!row.is_paid;
     }
 
-    function postManualPaid(userId, selectedDate, mode, comment, errorEl) {
+    function postManualPaid(userId, teamId, selectedDate, mode, comment, errorEl) {
         const csrf = $('meta[name="csrf-token"]').attr('content');
         return $.ajax({
             url: '/admin/setting-prices/manual-paid',
@@ -58,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             data: JSON.stringify({
                 user_id: userId,
+                team_id: teamId,
                 selectedDate: selectedDate,
                 mode: mode,
                 comment: comment
@@ -277,7 +279,14 @@ document.addEventListener('DOMContentLoaded', function () {
             'Подтверждение',
             'Будет установлен статус: «' + labelWant + '». Укажите комментарий.',
             function (comment) {
-                postManualPaid(userId, selectedDate, mode, comment, errBox);
+                if (!lastTeamId) {
+                    if (errorEl) {
+                        errorEl.style.display = 'block';
+                        errorEl.textContent = 'Не выбрана группа.';
+                    }
+                    return;
+                }
+                postManualPaid(userId, lastTeamId, selectedDate, mode, comment, errBox);
             }
         );
     });
@@ -303,6 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const csrf = $('meta[name="csrf-token"]').attr('content');
             if (parentDiv) {
+                lastTeamId = parentDiv.id || null;
 
                 $.ajax({
                     url: '/admin/setting-prices/get-team-price',
@@ -463,6 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     data: JSON.stringify({
                         selectedDate: selectedDate,
+                        teamId: lastTeamId,
                         usersPrice: usersPrice,
                     }),
                     success: function (response) {

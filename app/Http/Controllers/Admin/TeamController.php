@@ -12,6 +12,7 @@ use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\Weekday;
 use App\Services\TeamService;
+use App\Services\TeamUserSyncService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Enums\AuditEvent;
@@ -612,9 +613,8 @@ class TeamController extends AdminBaseController
             abort(403, 'Доступ запрещён.');
         }
 
-        DB::transaction(function () use ($team) {
-            // Обновляем пользователей, устанавливая team_id в null
-            User::where('team_id', $team->id)->update(['team_id' => null]);
+        DB::transaction(function () use ($team, $partnerId) {
+            app(TeamUserSyncService::class)->detachTeamFromAllStudents((int) $team->id, $partnerId);
 
             // Мягкое удаление группы
             $team->delete();

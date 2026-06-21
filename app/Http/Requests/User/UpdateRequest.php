@@ -123,8 +123,13 @@ class UpdateRequest extends FormRequest
             $rules['birthday'] = ['nullable', 'date', 'before_or_equal:today'];
         }
 
-        if ($this->user()->can('users.group.update')) {
-            $rules['team_id'] = ['sometimes', 'nullable', 'integer', 'exists:teams,id'];
+        if ($this->user()->can('users.group.update') && $this->isStudentRoleEffective()) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['team_ids'] = ['nullable', 'array'];
+            $rules['team_ids.*'] = [
+                'integer',
+                Rule::exists('teams', 'id')->where(fn ($q) => $q->where('partner_id', $partnerId)),
+            ];
         }
 
         if ($this->user()->can('users.startDate.update')) {
@@ -200,6 +205,20 @@ class UpdateRequest extends FormRequest
         return Role::query()->whereKey($roleId)->value('name') === 'trainer';
     }
 
+    private function isStudentRoleEffective(): bool
+    {
+        $targetUser = $this->route('user');
+        $roleId = $this->has('role_id')
+            ? (int) $this->input('role_id')
+            : (int) ($targetUser?->role_id ?? 0);
+
+        if ($roleId <= 0) {
+            return false;
+        }
+
+        return Role::query()->whereKey($roleId)->value('name') === 'user';
+    }
+
     /**
      * Дополнительные проверки.
      *
@@ -263,14 +282,13 @@ class UpdateRequest extends FormRequest
             'name' => 'Имя',
             'lastname' => 'Фамилия',
             'birthday' => 'Дата рождения',
-            'team_id' => 'Группа',
+            'team_ids' => 'Группы',
+            'team_ids.*' => 'Группа',
             'start_date' => 'Дата начала занятий',
             'email' => 'Email',
             'phone' => 'Телефон',
             'is_enabled' => 'Активность',
             'role_id' => 'Роль',
-            'team_ids' => 'группы тренера',
-            'team_ids.*' => 'группа',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
         ] + $this->studentParentAttributes()
             + $this->studentHealthFieldAttributes()
@@ -302,11 +320,9 @@ class UpdateRequest extends FormRequest
             'start_date.date' => 'Поле "Дата начала занятий" должно быть корректной датой.',
 
 
-            // Группа
-            'team_id.integer' => 'Поле "Группа" должно быть числом (ID группы).',
-            'team_id.exists' => 'Выбранная группа не существует в базе.',
-
+            // Группы
             'team_ids.*.exists' => 'Выберите группы из списка',
+            'team_ids.*.integer' => 'Некорректный формат группы.',
 
             // Email
             'email.required' => 'Поле "Email" обязательно для заполнения.',

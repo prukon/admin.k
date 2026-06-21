@@ -302,6 +302,7 @@
 @endsection
 
 @push('scripts')
+@include('partials.select2.generic-multiselect')
     <script>
         $(document).ready(function () {
 
@@ -552,6 +553,11 @@
 
             if (typeof KidsCrmTooltip !== 'undefined' && typeof KidsCrmTooltip.bindDataTable === 'function') {
                 KidsCrmTooltip.bindDataTable(table, '.js-dt-cell-ellipsis-tooltip');
+            }
+
+            if (window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.init($('#createStudentTeamIds'));
+                KidsCrmGenericMultiselectSelect2.init($('#editStudentTeamIds'));
             }
         });
     </script>

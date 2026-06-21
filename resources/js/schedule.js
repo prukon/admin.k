@@ -446,6 +446,48 @@ document.addEventListener('DOMContentLoaded', function () {
         syncTrainerBlock();
     });
 
+    function scheduleJournalContextTeamId(cellEl) {
+        var fromCell = cellEl ? $(cellEl).data('context-team-id') : null;
+        if (fromCell) {
+            return String(fromCell);
+        }
+        var filterVal = $('#filter-team').val();
+        if (filterVal && filterVal !== 'all' && filterVal !== 'none') {
+            return String(filterVal);
+        }
+        return '';
+    }
+
+    function showChooseGroupFieldError(message) {
+        var $select = $('#journalUserTeamIds');
+        var $feedback = $('[data-error-for="team_ids"]');
+        if (message) {
+            if (window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.markInvalid($select);
+            } else {
+                $select.addClass('is-invalid');
+            }
+            $feedback.text(message).show();
+        } else {
+            if (window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.clearInvalid($select);
+            } else {
+                $select.removeClass('is-invalid');
+            }
+            $feedback.text('').hide();
+        }
+    }
+
+    function initJournalTeamsMultiselect() {
+        var $select = $('#journalUserTeamIds');
+        if (!$select.length || !window.KidsCrmGenericMultiselectSelect2) {
+            return;
+        }
+        KidsCrmGenericMultiselectSelect2.init($select, {
+            dropdownParent: $('#chooseGroupModal'),
+        });
+    }
+
     //Вызов Редактирование ячейки
     $(document).on('click', '.schedule-cell', function () {
         currentCell = $(this);
@@ -467,6 +509,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         $('#edit-user-name-display').text(userName);
         $('#edit-date-display').text(formatDateHuman(date));
+        $('#edit-user-teams-display').text('');
 
         cellContextCache = null;
         populateTrainerSelect([], '');
@@ -476,12 +519,19 @@ document.addEventListener('DOMContentLoaded', function () {
         $.ajax({
             url: '/schedule/cell-context',
             method: 'GET',
-            data: { user_id: userId, date: date },
+            data: {
+                user_id: userId,
+                date: date,
+                context_team_id: scheduleJournalContextTeamId(currentCell)
+            },
             headers: { 'Accept': 'application/json' },
             success: function (ctx) {
                 cellContextCache = ctx;
                 populateTrainerSelect(ctx.trainers || [], '');
                 syncTrainerBlock();
+                if (ctx.teams_label) {
+                    $('#edit-user-teams-display').text('Группы: ' + ctx.teams_label);
+                }
             },
         });
 
@@ -577,9 +627,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         $('#userScheduleModalContent').html('Загрузка...');
         $.ajax({
-            // url: '/admin/user-schedule/' + userId,
             url: '/schedule/user-schedule/' + userId,
             method: 'GET',
+            data: {
+                context_team_id: scheduleJournalContextTeamId(null)
+            },
             success: function (resp) {
 
                 if (!resp.success) {
@@ -592,20 +644,36 @@ document.addEventListener('DOMContentLoaded', function () {
                 let groupWeekdays = resp.groupWeekdays;
                 let defaultFrom = resp.defaultFrom;
                 let defaultTo = resp.defaultTo;
+                let hasTeams = Array.isArray(user.team_ids) && user.team_ids.length > 0;
+                let teamsLabel = user.team_titles || user.team_title || '';
 
                 let html = `<div><p><strong>ФИО:</strong> ${user.name}</p>`;
-                if (!user.team_id) {
+                if (!hasTeams) {
                     html += `
-                        <p><strong>Группа:</strong> <span class="text-danger">не выбрана</span></p>
-                        <buton type="button"
-                                class="btn btn-primary mb-3"
-                                id="btnChooseGroup"
-                                data-user-id="${user.id}">
-                            Выбрать группу
-                        </buton>
+                        <p><strong>Группы:</strong> <span class="text-danger">не выбраны</span></p>
                     `;
                 } else {
-                    html += `<p><strong>Группа:</strong> ${user.team_title}</p>`;
+                    html += `<p><strong>Группы:</strong> ${teamsLabel}</p>`;
+                }
+
+                html += `
+                    <button type="button"
+                            class="btn btn-primary mb-3 me-2"
+                            id="btnChooseGroup"
+                            data-user-id="${user.id}"
+                            data-team-ids='${JSON.stringify(user.team_ids || [])}'>
+                        Изменить группы
+                    </button>
+                `;
+                if (hasTeams) {
+                    html += `
+                        <button type="button"
+                                class="btn btn-outline-danger mb-3"
+                                id="btnDetachAllGroups"
+                                data-user-id="${user.id}">
+                            Снять все группы
+                        </button>
+                    `;
                 }
 
                 let days = [
@@ -662,37 +730,83 @@ document.addEventListener('DOMContentLoaded', function () {
     let chooseGroupModalEl = document.getElementById('chooseGroupModal');
     let chooseGroupModal = new bootstrap.Modal(chooseGroupModalEl);
 
-  // Вызов Выбрать группу
+  // Вызов «Изменить группы»
     $(document).on('click', '#btnChooseGroup', function () {
         let userId = $(this).data('user-id');
+        let teamIds = [];
+        try {
+            teamIds = JSON.parse($(this).attr('data-team-ids') || '[]');
+        } catch (e) {
+            teamIds = [];
+        }
         $('#chooseGroupModal').data('user-id', userId);
-        $('#selectGroup').val('');
+        showChooseGroupFieldError('');
+        initJournalTeamsMultiselect();
+        if (window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.setValues($('#journalUserTeamIds'), teamIds);
+        } else {
+            $('#journalUserTeamIds').val(teamIds.map(String));
+        }
         chooseGroupModal.show();
     });
 
-
-    //Сохранить группу
-    $('#btnSaveUserGroup').on('click', function () {
-        let userId = $('#chooseGroupModal').data('user-id');
-        let teamId = $('#selectGroup').val();
-
+    function postUserTeamsSync(userId, teamIds, onSuccess) {
         $.ajax({
-            // url: '/admin/user/' + userId + '/set-group',
-            url: '/schedule/user/' + userId + '/set-group',
+            url: '/schedule/user/' + userId + '/sync-teams',
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             },
-            data: {team_id: teamId},
+            data: {team_ids: teamIds},
             success: function (resp) {
                 if (resp.success) {
-                    $('.edit-user-schedule[data-user-id="' + userId + '"]').trigger('click');
-                    chooseGroupModal.hide();
-                    showSuccessModal("Установка группы", "Группа успешно назначена пользователю.", 0);
+                    if (typeof onSuccess === 'function') {
+                        onSuccess(resp);
+                    }
                 } else {
                     $('#errorModal').modal('show');
                 }
+            },
+            error: function (xhr) {
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    var errors = xhr.responseJSON.errors;
+                    var teamErrors = errors.team_ids || errors['team_ids.0'] || [];
+                    var firstError = Array.isArray(teamErrors) ? teamErrors[0] : teamErrors;
+                    showChooseGroupFieldError(firstError || 'Проверьте выбранные группы.');
+                    return;
+                }
+                $('#errorModal').modal('show');
             }
+        });
+    }
+
+
+    $(document).on('click', '#btnDetachAllGroups', function () {
+        let userId = $(this).data('user-id');
+        postUserTeamsSync(userId, [], function (resp) {
+            showSuccessModal('Группы ученика', resp.message || 'Ученик снят со всех групп.', 1);
+        });
+    });
+
+
+    //Сохранить группы
+    $('#btnSaveUserGroup').on('click', function () {
+        let userId = $('#chooseGroupModal').data('user-id');
+        let teamIds = $('#journalUserTeamIds').val() || [];
+        if (!Array.isArray(teamIds)) {
+            teamIds = teamIds ? [teamIds] : [];
+        }
+        teamIds = teamIds.map(function (id) {
+            return parseInt(id, 10);
+        }).filter(function (id) {
+            return id > 0;
+        });
+
+        showChooseGroupFieldError('');
+
+        postUserTeamsSync(userId, teamIds, function (resp) {
+            chooseGroupModal.hide();
+            showSuccessModal('Группы ученика', resp.message || 'Группы успешно обновлены.', 1);
         });
     });
 

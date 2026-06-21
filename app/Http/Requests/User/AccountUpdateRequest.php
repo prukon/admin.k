@@ -91,10 +91,6 @@ class AccountUpdateRequest extends FormRequest
             $rules['birthday'] = ['nullable','date','before_or_equal:today'];
         }
 
-        if ($this->user()->can('account.user.team.update')) {
-            $rules['team_id'] = ['sometimes','nullable','integer','exists:teams,id'];
-        }
-
         if ($this->user()->can('account.user.email.update')) {
             $rules['email'] = ['sometimes', 'nullable', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($targetUserId),

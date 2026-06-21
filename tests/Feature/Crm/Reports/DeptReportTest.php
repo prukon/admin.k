@@ -28,15 +28,10 @@ class DeptReportTest extends CrmTestCase
         Carbon::setTestNow('2026-02-15');
 
         // Долги текущего партнёра
-        DB::table('users_prices')->insert([
-            [
-                'user_id'    => $this->user->id,
-                'is_paid'    => 0,
-                'price'      => 100,
-                'new_month'  => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($this->user, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => '2026-01-01',
         ]);
 
         // Другой партнёр и его пользователь с долгом
@@ -45,17 +40,13 @@ class DeptReportTest extends CrmTestCase
             'partner_id' => $otherPartner->id,
             'is_enabled' => 1,
         ]);
+        $otherTeam = Team::factory()->create(['partner_id' => $otherPartner->id]);
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id'    => $otherUser->id,
-                'is_paid'    => 0,
-                'price'      => 999,
-                'new_month'  => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $this->insertUserPrice($otherUser, [
+            'is_paid'   => 0,
+            'price'     => 999,
+            'new_month' => '2026-01-01',
+        ], $otherTeam);
 
         // Проверяем debts(): сумма только по текущему партнёру
         $viewResponse = $this->get(route('debts'));
@@ -98,44 +89,34 @@ class DeptReportTest extends CrmTestCase
 
         $month = '2026-01-01';
 
-        DB::table('users_prices')->insert([
-            // 1. Нужная запись: неоплачено, активный юзер, price > 0
-            [
-                'user_id'    => $activeUser->id,
-                'is_paid'    => 0,
-                'price'      => 100,
-                'new_month'  => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            // 2. Оплачено — не должно попасть
-            [
-                'user_id'    => $activeUser->id,
-                'is_paid'    => 1,
-                'price'      => 200,
-                'new_month'  => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            // 3. Неактивный пользователь — не должно попасть
-            [
-                'user_id'    => $disabledUser->id,
-                'is_paid'    => 0,
-                'price'      => 300,
-                'new_month'  => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            // 4. Нулевая цена — не должно попасть
-            [
-                'user_id'    => $activeUser->id,
-                'is_paid'    => 0,
-                'price'      => 0,
-                'new_month'  => $month,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $teamUnpaid = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamPaid = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamZero = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamDisabled = Team::factory()->create(['partner_id' => $this->partner->id]);
+
+        $this->insertUserPrice($activeUser, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => $month,
+        ], $teamUnpaid);
+
+        $this->insertUserPrice($activeUser, [
+            'is_paid'   => 1,
+            'price'     => 200,
+            'new_month' => $month,
+        ], $teamPaid);
+
+        $this->insertUserPrice($disabledUser, [
+            'is_paid'   => 0,
+            'price'     => 300,
+            'new_month' => $month,
+        ], $teamDisabled);
+
+        $this->insertUserPrice($activeUser, [
+            'is_paid'   => 0,
+            'price'     => 0,
+            'new_month' => $month,
+        ], $teamZero);
 
         $response = $this->get(route('debts.getDebts'), [
             'X-Requested-With' => 'XMLHttpRequest',
@@ -162,34 +143,20 @@ class DeptReportTest extends CrmTestCase
 
         $user = $this->user;
 
-        DB::table('users_prices')->insert([
-            // Прошлый месяц — должен попасть
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 100,
-                'new_month'  => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            // Текущий месяц — не должен попасть
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 200,
-                'new_month'  => '2026-02-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            // Более ранний месяц — должен попасть
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 300,
-                'new_month'  => '2025-12-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 200,
+            'new_month' => '2026-02-01',
+        ]);
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 300,
+            'new_month' => '2025-12-01',
         ]);
 
         $response = $this->get(route('debts.getDebts'), [
@@ -215,31 +182,20 @@ class DeptReportTest extends CrmTestCase
 
         $user = $this->user;
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 100,
-                'new_month'  => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 250,
-                'new_month'  => '2025-12-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id'    => $user->id,
-                'is_paid'    => 0,
-                'price'      => 500,
-                'new_month'  => '2025-11-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 100,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 250,
+            'new_month' => '2025-12-01',
+        ]);
+        $this->insertUserPrice($user, [
+            'is_paid'   => 0,
+            'price'     => 500,
+            'new_month' => '2025-11-01',
         ]);
 
         $jsonResponse = $this->get(route('debts.getDebts'), [
@@ -292,15 +248,10 @@ class DeptReportTest extends CrmTestCase
     {
         Carbon::setTestNow('2026-02-15');
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id'    => $this->user->id,
-                'is_paid'    => 0,
-                'price'      => 123.45,
-                'new_month'  => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($this->user, [
+            'is_paid'   => 0,
+            'price'     => 123.45,
+            'new_month' => '2026-01-01',
         ]);
 
         $response = $this->get(route('debts.getDebts', ['draw' => 1]), [
@@ -360,35 +311,23 @@ class DeptReportTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id]);
 
         // Долги текущего партнёра
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $this->user->id,
-                'price' => 1000,
-                'is_paid' => 0,
-                // Ставим далёкие месяцы, чтобы точно попасть под new_month < currentMonth
-                'new_month' => '2020-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $this->user->id,
-                'price' => 2000,
-                'is_paid' => 0,
-                'new_month' => '2020-02-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+        $this->insertUserPrice($this->user, [
+            'price'     => 1000,
+            'is_paid'   => 0,
+            'new_month' => '2020-01-01',
+        ]);
+        $this->insertUserPrice($this->user, [
+            'price'     => 2000,
+            'is_paid'   => 0,
+            'new_month' => '2020-02-01',
         ]);
 
-        // Чужой партнёр — не должен попасть
-        DB::table('users_prices')->insert([
-            'user_id' => $this->foreignUser->id,
-            'price' => 9999,
-            'is_paid' => 0,
+        $foreignTeam = Team::factory()->create(['partner_id' => $this->foreignPartner->id]);
+        $this->insertUserPrice($this->foreignUser, [
+            'price'     => 9999,
+            'is_paid'   => 0,
             'new_month' => now()->subMonths(1)->format('Y-m-01'),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        ], $foreignTeam);
 
         $expectedRaw = 3000.0;
         $expectedFormatted = number_format($expectedRaw, 0, '', ' ');
@@ -470,24 +409,16 @@ class DeptReportTest extends CrmTestCase
             'team_id' => $teamB->id,
         ]);
 
-        DB::table('users_prices')->insert([
-            [
-                'user_id' => $userA->id,
-                'is_paid' => 0,
-                'price' => 1000,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $userB->id,
-                'is_paid' => 0,
-                'price' => 2000,
-                'new_month' => '2026-01-01',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        ]);
+        $this->insertUserPrice($userA, [
+            'is_paid'   => 0,
+            'price'     => 1000,
+            'new_month' => '2026-01-01',
+        ], $teamA);
+        $this->insertUserPrice($userB, [
+            'is_paid'   => 0,
+            'price'     => 2000,
+            'new_month' => '2026-01-01',
+        ], $teamB);
 
         $this->get(route('reports.debts.total', ['filter_location_id' => $locA->id]))
             ->assertOk()
