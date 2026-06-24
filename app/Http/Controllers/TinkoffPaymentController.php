@@ -157,21 +157,20 @@ class TinkoffPaymentController extends Controller
             'status' => 'pending',
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta' => json_encode([
-                'user_name' => $userName,
-            ], JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->buildPaymentIntentMeta($userName, $monthlyTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
 
         // One-stage (PayType=O) + DATA.month для трассировки
-        $payment = $svc->initPayment($partnerId, $amountCents, $bankMethod, [
-            'month' => $month ?: null,
-            'payable_id' => (string) $payable->id,
-            'payment_intent_id' => (string) $intent->id,
-            'user_id' => (string) $userId,
-            'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
-            'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
-            'user_lesson_package_id' => $userLessonPackageId ? (string) $userLessonPackageId : null,
-        ]);
+        $payment = $svc->initPayment($partnerId, $amountCents, $bankMethod, $this->buildTbankInitData(
+            $month,
+            $payable->id,
+            $intent->id,
+            $userId,
+            $paymentKind,
+            $userPeriodPriceId,
+            $userLessonPackageId,
+            $monthlyTeamId,
+        ));
 
         if (! $payment->payment_url || empty($payment->tinkoff_payment_id)) {
             return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату T‑Bank']);
@@ -311,21 +310,22 @@ class TinkoffPaymentController extends Controller
             'status' => 'pending',
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta' => json_encode([
-                'user_name' => $userName,
-                'method' => 'sbp',
-            ], JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode(array_merge(
+                $this->buildPaymentIntentMeta($userName, $monthlyTeamId),
+                ['method' => 'sbp']
+            ), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
 
-        $payment = $svc->initPayment($partnerId, $amountCents, 'sbp', [
-            'month' => $month ?: null,
-            'payable_id' => (string) $payable->id,
-            'payment_intent_id' => (string) $intent->id,
-            'user_id' => (string) $userId,
-            'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
-            'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
-            'user_lesson_package_id' => $userLessonPackageId ? (string) $userLessonPackageId : null,
-        ]);
+        $payment = $svc->initPayment($partnerId, $amountCents, 'sbp', $this->buildTbankInitData(
+            $month,
+            $payable->id,
+            $intent->id,
+            $userId,
+            $paymentKind,
+            $userPeriodPriceId,
+            $userLessonPackageId,
+            $monthlyTeamId,
+        ));
 
         if (empty($payment->tinkoff_payment_id)) {
             return back()->withErrors(['tinkoff' => 'Не удалось инициализировать оплату T‑Bank (СБП)']);
@@ -380,5 +380,51 @@ class TinkoffPaymentController extends Controller
             'cabinetUrl' => route('dashboard'),
             'homeUrl' => url('/'),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPaymentIntentMeta(string $userName, ?int $monthlyTeamId): array
+    {
+        $meta = [
+            'user_name' => $userName,
+        ];
+
+        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
+            $meta['team_id'] = $monthlyTeamId;
+        }
+
+        return $meta;
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function buildTbankInitData(
+        ?string $month,
+        int $payableId,
+        int $intentId,
+        int $userId,
+        string $paymentKind,
+        ?int $userPeriodPriceId,
+        ?int $userLessonPackageId,
+        ?int $monthlyTeamId,
+    ): array {
+        $data = [
+            'month' => $month ?: null,
+            'payable_id' => (string) $payableId,
+            'payment_intent_id' => (string) $intentId,
+            'user_id' => (string) $userId,
+            'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
+            'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
+            'user_lesson_package_id' => $userLessonPackageId ? (string) $userLessonPackageId : null,
+        ];
+
+        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
+            $data['team_id'] = (string) $monthlyTeamId;
+        }
+
+        return $data;
     }
 }

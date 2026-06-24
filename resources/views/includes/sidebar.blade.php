@@ -112,6 +112,7 @@
         {{--Группы — вкладка в «Справочники»--}}
 
        {{--Справочники / один справочник по правам--}}
+        @can('directories.view')
         @php($directoriesMenu = \App\Support\DirectoriesMenu::forUser(auth()->user()))
         @if($directoriesMenu !== null)
             <li class="nav-item">
@@ -121,6 +122,7 @@
                 </a>
             </li>
         @endif
+        @endcan
           
         {{--Договоры--}}
         @can('contracts.view')

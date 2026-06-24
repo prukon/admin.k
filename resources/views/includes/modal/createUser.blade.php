@@ -1,5 +1,6 @@
 <!-- Модальное окно для создания пользователя -->
-<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true"
+     data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -10,23 +11,135 @@
                 <form id="create-user-form" class="text-start" method="post" action="{{ route('admin.user.store') }}">
                 @csrf
                 <input type="hidden" name="school_lead_id" id="create-school-lead-id" value="">
-                <!-- Поля для ввода данных пользователя -->
+                @include('includes.modal._user_modal_accordion_support')
+                @if(!empty($lockStudentRole) && !empty($studentRoleId))
+                    <input type="hidden" name="role_id" value="{{ (int) $studentRoleId }}">
+                @endif
                     <div class="row g-3">
+                        @if(empty($lockStudentRole) || empty($studentRoleId))
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
-                                <label for="create-name" class="form-label">Имя ученика*</label>
-                                <input type="text" name="name" class="form-control" id="create-name">
+                                <label for="create_role_id" class="form-label">Роль</label>
+                                <select name="role_id" class="form-select" id="create_role_id">
+                                    @foreach($roles as $role)
+                                        @continue($role->name === 'superadmin')
+                                        <option value="{{ $role->id }}">{{ $role->label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
+                        @endif
 
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="create-lastname" class="form-label">Фамилия ученика*</label>
-                                <input type="text"
-                                       name="lastname"
-                                       class="form-control"
-                                       id="create-lastname"
-                                       value="{{ old('lastname') }}">
+                        <div class="col-12">
+                            <div class="accordion accordion-flush user-modal-accordion js-user-student-accordion"
+                                 id="createUserStudentAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="createUserStudentHeading">
+                                        <button class="accordion-button collapsed js-user-student-accordion-btn"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#createUserStudentCollapse"
+                                                aria-expanded="false"
+                                                aria-controls="createUserStudentCollapse">
+                                            Ученик
+                                        </button>
+                                    </h2>
+                                    <div id="createUserStudentCollapse"
+                                         class="accordion-collapse collapse js-user-student-accordion-panel"
+                                         aria-labelledby="createUserStudentHeading"
+                                         data-bs-parent="#createUserStudentAccordion">
+                                        <div class="accordion-body pt-2">
+                                            <div class="row g-3">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-name" class="form-label">Имя ученика*</label>
+                                                        <input type="text" name="name" class="form-control" id="create-name">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-lastname" class="form-label">Фамилия ученика*</label>
+                                                        <input type="text"
+                                                               name="lastname"
+                                                               class="form-control"
+                                                               id="create-lastname"
+                                                               value="{{ old('lastname') }}">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-birthday" class="form-label">Дата рождения</label>
+                                                        <input type="date" name="birthday" class="form-control" id="create-birthday">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6 js-user-student-team-wrap">
+                                                    @include('admin.users._student_teams_multiselect', [
+                                                        'teamsFieldId' => 'createStudentTeamIds',
+                                                        'teamOptions' => $allTeams,
+                                                        'canEditTeams' => true,
+                                                    ])
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="create-email" class="form-label">Email</label>
+                                                        <input type="email" name="email" class="form-control" id="create-email">
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3 wrap-cur-password">
+                                                        <label for="create-password" class="form-label">Пароль</label>
+                                                        <div class="position-relative">
+                                                            <input type="password"
+                                                                   id="create-password"
+                                                                   name="password"
+                                                                   class="form-control"
+                                                                   placeholder="Пароль">
+                                                            <span toggle="#create-password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
+                                                    <div class="mb-3">
+                                                        <label for="create-phone" class="form-label">Телефон</label>
+
+                                                        @include('includes.fields.phone-input', [
+                                                            'name' => 'phone',
+                                                            'id' => 'create-phone',
+                                                            'disabled' => !$canPhone,
+                                                            'attributes' => [
+                                                                'data-can-phone' => $canPhone ? 1 : 0,
+                                                            ],
+                                                        ])
+
+                                                        @unless($canPhone)
+                                                            <div class="form-text text-muted mt-1">
+                                                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
+                                                            </div>
+                                                        @endunless
+                                                    </div>
+                                                </div>
+
+                                                @include('includes.modal._student_health_fields', [
+                                                    'prefix' => 'create',
+                                                    'variant' => 'checkbox',
+                                                ])
+                                                @include('includes.modal._student_comment_sex_fields', [
+                                                    'prefix' => 'create',
+                                                    'only' => 'sex',
+                                                    'canViewUserSex' => $canViewUserSex ?? null,
+                                                    'canViewUserComment' => $canViewUserComment ?? null,
+                                                ])
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -37,63 +150,12 @@
                             'parentMiddlename' => old('parent_middlename'),
                         ])
 
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="create-birthday" class="form-label">Дата рождения</label>
-                                <input type="date" name="birthday" class="form-control" id="create-birthday">
-                            </div>
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            @include('admin.users._student_teams_multiselect', [
-                                'teamsFieldId' => 'createStudentTeamIds',
-                                'teamOptions' => $allTeams,
-                                'canEditTeams' => true,
-                            ])
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="create-email" class="form-label">Email</label>
-                                <input type="email" name="email" class="form-control" id="create-email">
-                            </div>
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
-                            <div class="mb-3">
-                                <label for="create-phone" class="form-label">Телефон</label>
-
-                                @include('includes.fields.phone-input', [
-                                    'name' => 'phone',
-                                    'id' => 'create-phone',
-                                    'disabled' => !$canPhone,
-                                    'attributes' => [
-                                        'data-can-phone' => $canPhone ? 1 : 0,
-                                    ],
-                                ])
-
-                                @unless($canPhone)
-                                    <div class="form-text text-muted mt-1">
-                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
-                                    </div>
-                                @endunless
-                            </div>
-                        </div>
-
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3 wrap-cur-password">
-                                <label for="create-password" class="form-label">Пароль</label>
-                                <div class="position-relative">
-                                    <input type="password"
-                                           id="create-password"
-                                           name="password"
-                                           class="form-control"
-                                           placeholder="Пароль">
-                                    <span toggle="#create-password" class="fa fa-fw fa-eye field-icon toggle-password"></span>
-                                </div>
-                            </div>
-                        </div>
+                        @include('includes.modal._student_comment_sex_fields', [
+                            'prefix' => 'create',
+                            'only' => 'comment',
+                            'canViewUserSex' => $canViewUserSex ?? null,
+                            'canViewUserComment' => $canViewUserComment ?? null,
+                        ])
 
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -104,29 +166,6 @@
                                 </select>
                             </div>
                         </div>
-
-                        <div class="col-12 col-md-6">
-                            @if(!empty($lockStudentRole) && !empty($studentRoleId))
-                                <input type="hidden" name="role_id" value="{{ (int) $studentRoleId }}">
-                            @else
-                            <div class="mb-3">
-                                <label for="create_role_id" class="form-label">Роль</label>
-                                <select name="role_id" class="form-select" id="create_role_id">
-                                    @foreach($roles as $role)
-                                        @continue($role->name === 'superadmin')
-                                        <option value="{{ $role->id }}">{{ $role->label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @endif
-                        </div>
-
-                        @include('includes.modal._student_health_fields', ['prefix' => 'create'])
-                        @include('includes.modal._student_comment_sex_fields', [
-                            'prefix' => 'create',
-                            'canViewUserSex' => $canViewUserSex ?? null,
-                            'canViewUserComment' => $canViewUserComment ?? null,
-                        ])
                     </div>
 
                     @if(!empty($userFieldsPayload))
@@ -180,28 +219,39 @@
             return studentRoleId ? parseInt(studentRoleId, 10) : null;
         }
 
-        function boolToTriState(value) {
-            if (value === true || value === 1 || value === '1') {
-                return '1';
-            }
-            if (value === false || value === 0 || value === '0') {
-                return '0';
-            }
-            return '';
+        function isHealthCheckboxChecked(value) {
+            return value === true || value === 1 || value === '1';
         }
 
         function setCreateUserHealthFields(values) {
-            $('#create-is_individual_traits').val(boolToTriState(values.is_individual_traits));
-            $('#create-is_on_medical_register').val(boolToTriState(values.is_on_medical_register));
-            $('#create-is_with_disability').val(boolToTriState(values.is_with_disability));
+            $('#create-is_individual_traits').prop('checked', isHealthCheckboxChecked(values.is_individual_traits));
+            $('#create-is_on_medical_register').prop('checked', isHealthCheckboxChecked(values.is_on_medical_register));
+            $('#create-is_with_disability').prop('checked', isHealthCheckboxChecked(values.is_with_disability));
         }
 
         function resetCreateUserHealthFields() {
             setCreateUserHealthFields({
-                is_individual_traits: '',
-                is_on_medical_register: '',
-                is_with_disability: '',
+                is_individual_traits: false,
+                is_on_medical_register: false,
+                is_with_disability: false,
             });
+        }
+
+        function syncCreateUserStudentSection(roleId) {
+            const studentRoleId = createStudentRoleId();
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            if (typeof window.syncUserStudentAccordionMode === 'function') {
+                window.syncUserStudentAccordionMode('create', isStudent);
+            }
+
+            if (typeof window.syncStudentParentFieldsVisibility === 'function') {
+                window.syncStudentParentFieldsVisibility('create');
+            }
+
+            const $studentTeamWrap = $('#create-user-form .js-user-student-team-wrap');
+            $studentTeamWrap.toggleClass('d-none', !isStudent);
+            $studentTeamWrap.find('select, input, textarea').prop('disabled', !isStudent);
         }
 
         function syncCreateUserHealthFields(roleId) {
@@ -231,16 +281,13 @@
         }
 
         function syncCreateUserCommentSexFields(roleId) {
-            const $wrap = $('#create-user-form .js-user-comment-sex-wrap');
-            if (!$wrap.length) {
-                return;
-            }
-
             const studentRoleId = createStudentRoleId();
             const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
 
-            $wrap.toggleClass('d-none', !isStudent);
-            $wrap.find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+            $('#create-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap').each(function () {
+                $(this).toggleClass('d-none', !isStudent);
+                $(this).find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+            });
         }
 
         window.resetCreateUserCommentSexFields = resetCreateUserCommentSexFields;
@@ -263,12 +310,18 @@
 
         $createUserFormRoot.on('change', '#create_role_id', function () {
             const roleId = $(this).val();
+            syncCreateUserStudentSection(roleId);
             syncCreateUserHealthFields(roleId);
             syncCreateUserCommentSexFields(roleId);
         });
 
+        syncCreateUserStudentSection(currentCreateRoleId());
         syncCreateUserHealthFields(currentCreateRoleId());
         syncCreateUserCommentSexFields(currentCreateRoleId());
+
+        $('#createUserModal').on('shown.bs.modal', function () {
+            syncCreateUserStudentSection(currentCreateRoleId());
+        });
 
         $createUserFormRoot.on('submit', function (e) {
             e.preventDefault();
@@ -351,6 +404,12 @@
                                 }
                             }
                         });
+
+                        if (typeof window.syncStudentUserAccordionsForErrors === 'function') {
+                            window.syncStudentUserAccordionsForErrors('create', $form);
+                        } else if (typeof window.syncStudentParentAccordionForErrors === 'function') {
+                            window.syncStudentParentAccordionForErrors('create');
+                        }
 
                         // Фокус на первое неверное поле
                         $form.find('.is-invalid').first().trigger('focus');

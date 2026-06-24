@@ -453,36 +453,87 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   </ul>
 
   <h3>4.2) Select2 multiselect для модалок (<code>generic-multiselect</code>)</h3>
-  <p>Partial-обёртки: <code>teams-multiselect.blade.php</code>, <code>locations-multiselect.blade.php</code> → внутри <code>generic-multiselect.blade.php</code>.</p>
-  <p>Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, chip-теги, сводка «первая группа, ещё N шт.» при 3+ выбранных, dropdown не закрывается при клике в поиск.</p>
+  <p>
+    <b>Единый компонент</b> для всеичных multiselect в модалках CRM: partial
+    <code>resources/views/partials/select2/generic-multiselect.blade.php</code>.
+    Обёртки <code>teams-multiselect.blade.php</code>, <code>locations-multiselect.blade.php</code>,
+    <code>user-student-teams-multiselect.blade.php</code> — только <code>@include('partials.select2.generic-multiselect')</code>
+    (последний помечен deprecated, новый код подключает <code>generic-multiselect</code> напрямую).
+  </p>
+  <p>
+    Multiselect на Select2 (theme bootstrap-5): чекбоксы в dropdown, chip-теги, сводка «первая группа, ещё N шт.» при 3+ выбранных
+    (<code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>).
+    <b>Dropdown не закрывается</b> при выборе пункта (<code>closeOnSelect: false</code>).
+    Синхронизация галочек в списке — через <code>.select2-results__option[aria-selected]</code> (не через устаревший класс <code>--selectable</code>).
+    Оболочка поля — как у соседних <code>form-control</code> (класс-обёртка <code>.generic-multiselect-field</code>).
+  </p>
 
   <h4>Подключение (модалка)</h4>
-  <pre><code>@include('partials.select2.teams-multiselect')
+  <pre><code>@include('partials.select2.generic-multiselect')
 
-&lt;select name="team_ids[]"
-        class="form-select js-teams-multiselect-select"
-        multiple
-        data-placeholder="Выберите группы"&gt;
-  @foreach($teamOptions as $team)
-    &lt;option value="{{ $team->id }}"&gt;{{ $team->title }}&lt;/option&gt;
-  @endforeach
-&lt;/select&gt;</code></pre>
-  <p>Обобщённый multiselect с hover-list в chip: <code>partials/select2/generic-multiselect.blade.php</code> (сводка 3+ значений через <code>KidsCrmTooltip.renderList</code> / <code>init</code> / <code>dispose</code>). Класс на select: <code>js-generic-multiselect-select</code>.</p>
-  <p>Select2 подключается в layout <code>layouts/admin2.blade.php</code> (<code>select2.full.min.js</code> + bootstrap-5 theme).</p>
+&lt;div class="mb-3 generic-multiselect-field"&gt;
+  &lt;label class="form-label" for="exampleIds"&gt;Группы&lt;/label&gt;
+  &lt;select id="exampleIds"
+          name="team_ids[]"
+          class="form-select js-generic-multiselect-select"
+          multiple
+          data-placeholder="Выберите группы"&gt;
+    @foreach($teamOptions as $team)
+      &lt;option value="{{ $team->id }}"&gt;{{ $team->title }}&lt;/option&gt;
+    @endforeach
+  &lt;/select&gt;
+  &lt;div class="invalid-feedback d-block" data-error-for="team_ids"&gt;&lt;/div&gt;
+&lt;/div&gt;</code></pre>
+  <p>
+    Класс на <code>&lt;select&gt;</code>: <code>js-generic-multiselect-select</code>.
+    Для групп ученика в модалках пользователя — partial
+    <code>admin/users/_student_teams_multiselect.blade.php</code> (тот же класс и обёртка).
+    Select2 подключается в layout <code>layouts/admin2.blade.php</code> (<code>select2.full.min.js</code> + bootstrap-5 theme).
+  </p>
 
   <h3>JS API модалок (<code>window.KidsCrmGenericMultiselectSelect2</code>)</h3>
   <ul>
-    <li><code>init($select, { dropdownParent })</code> — инициализация; для модалок задавать <code>dropdownParent: $('#…Modal')</code>.</li>
+    <li><code>init($select, { dropdownParent, placeholder, allowClear })</code> — инициализация; <code>dropdownParent</code> по умолчанию — <code>.modal-content</code> ближайшей модалки (можно передать явно: <code>$('#districtEditModal')</code>).</li>
+    <li><code>initAll($root, options)</code> — все <code>.js-generic-multiselect-select</code> внутри <code>$root</code>.</li>
     <li><code>setValues($select, ids)</code> — заполнить при открытии edit.</li>
     <li><code>reset($select)</code> — очистить create-модалку.</li>
-    <li><code>markInvalid($select)</code> / <code>clearInvalid($select)</code> — подсветка ошибок валидации (<code>team_ids</code>).</li>
+    <li><code>markInvalid($select)</code> / <code>clearInvalid($select)</code> — подсветка ошибок валидации (<code>team_ids</code>, <code>location_ids</code> и т.д.).</li>
+  </ul>
+  <p class="small">
+    Алиасы (то же API): <code>KidsCrmUserStudentTeamsSelect2</code>, <code>KidsCrmTeamsMultiselectSelect2</code>,
+    <code>KidsCrmLocationsMultiselectSelect2</code> → <code>KidsCrmGenericMultiselectSelect2</code>.
+  </p>
+
+  <h3>AJAX-submit и safety-net (non-AJAX)</h3>
+  <p>
+    Модалки справочников и пользователей отправляют форму через <code>fetch</code> / <code>$.ajax</code> с
+    <code>X-Requested-With: XMLHttpRequest</code> (или <code>postJson</code> / <code>putJson</code> в тестах).
+    Ответ — JSON (<code>message</code>, <code>district</code> / <code>location</code> / <code>user</code> и т.д.), статус <b>200</b> или <b>422</b> с <code>errors</code>.
+  </p>
+  <p>
+    Если JS не загрузился и форма ушла нативным POST/PUT/PATCH <b>без</b> AJAX — контроллеры делают <b>redirect 302</b>
+    на страницу раздела (запись в БД сохраняется). Пустой <code>200</code> без тела не допускается.
+    Покрыто тестами: <code>GenericMultiselectFullAccessFeatureTest</code>, <code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>,
+    <code>TeamControllerTest::test_store_non_ajax_redirects_and_creates_team</code>.
+  </p>
+  <ul>
+    <li><code>POST /admin/districts</code> без AJAX → redirect <code>admin.districts.index</code></li>
+    <li><code>PUT /admin/districts/{id}</code> без AJAX → redirect <code>admin.districts.index</code></li>
+    <li><code>PUT /admin/locations/{id}</code> без AJAX → redirect <code>admin.locations.index</code></li>
+    <li><code>POST /admin/users</code> без AJAX → redirect <code>admin.user1</code></li>
   </ul>
 
   <h3>Где используется (модалки)</h3>
   <ul>
-    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — поля <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, администраторы (только при <code>locations.manage</code> и непустом списке групп партнёра).</li>
-    <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — multiselect объектов в create/edit модалках.</li>
+    <li><a href="/docs/documentation/admin-users#user-modals">/admin/users</a> — <code>team_ids[]</code> (<code>createStudentTeamIds</code>, <code>editStudentTeamIds</code>).</li>
+    <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — <code>locationCreateTeamIds</code>, <code>locationEditTeamIds</code>, <code>admin_user_ids[]</code> (при <code>locations.manage</code>).</li>
+    <li><a href="/docs/documentation/admin-districts">/admin/districts</a> — <code>districtCreateLocationIds</code>, <code>districtEditLocationIds</code> (<code>location_ids[]</code>).</li>
+    <li><a href="/docs/documentation/schedule-journal">/schedule</a> — модалка «Управление группами» (<code>journalUserTeamIds</code>).</li>
   </ul>
+  <p class="small">
+    Статическая проверка inline-JS в blade с AJAX-обработчиками — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code>
+    (<code>node --check</code>); в списке: <code>generic-multiselect.blade.php</code>, <code>admin/districts/index.blade.php</code>, <code>admin/user.blade.php</code>, модалки пользователей.
+  </p>
 
   <h2>5) Русификация Select2</h2>
   <p>Partial: <code>resources/views/partials/select2/ru.blade.php</code></p>

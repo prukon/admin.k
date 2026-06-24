@@ -8,6 +8,7 @@ use App\Models\Payment;
 use App\Models\Refund;
 use App\Models\Team;
 use App\Models\User;
+use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use Illuminate\Http\Request;
@@ -102,6 +103,7 @@ class ReportController extends Controller
 
             $payments = Payment::with([
                 'user.teams' => fn ($q) => $q->whereNull('teams.deleted_at'),
+                'paidTeam:id,title',
             ])
                 ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
                     $join->on('latest_income_fiscal_receipts.payment_id', '=', 'payments.id');
@@ -150,13 +152,7 @@ class ReportController extends Controller
                     return $row->user ? $row->user->id : null;
                 })
                 ->addColumn('team_title', function ($row) use ($teamUserSync) {
-                    if (! $row->user) {
-                        return 'Без команды';
-                    }
-
-                    $label = $teamUserSync->teamTitlesLabel($row->user);
-
-                    return $label !== '' ? $label : 'Без команды';
+                    return PaymentTeamTitleDisplay::forRow($row, $teamUserSync);
                 })
                 ->addColumn('summ', function ($row) {
                     return number_format($row->summ, 0) . ' руб'; // Формат суммы

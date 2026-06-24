@@ -170,6 +170,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('lessonPackages.manualPaid.manage');
         });
 
+        // Справочники: пункт меню
+        Gate::define('directories.view', function (User $user) {
+            return $user->hasPermission('directories.view');
+        });
+
         // Справочники: районы
         Gate::define('districts.view', function (User $user) {
             return $user->hasPermission('districts.view');

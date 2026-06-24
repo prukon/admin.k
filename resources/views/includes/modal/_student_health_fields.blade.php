@@ -5,7 +5,7 @@
         default  => 'edit-',
     };
     $variant = $variant ?? 'select';
-    $isLeadCheckbox = $variant === 'checkbox' && ($prefix ?? 'edit') === 'lead';
+    $isCheckbox = ($variant ?? 'select') === 'checkbox';
 @endphp
 
 @can('users.other.update')
@@ -13,11 +13,15 @@
         <div class="mb-2 mt-1">
             <span class="form-label d-block mb-2">Сведения об ученике</span>
         </div>
-        @if ($isLeadCheckbox)
+        @if ($isCheckbox)
             <div class="d-flex flex-column gap-2">
                 <div class="form-check mb-0">
+                    <input type="hidden"
+                           class="js-user-health-field"
+                           name="is_individual_traits"
+                           value="0">
                     <input type="checkbox"
-                           class="form-check-input js-user-health-field js-lead-health-checkbox"
+                           class="form-check-input js-user-health-field js-user-health-checkbox js-lead-health-checkbox"
                            id="{{ $fieldPrefix }}is_individual_traits"
                            name="is_individual_traits"
                            value="1">
@@ -26,8 +30,12 @@
                     </label>
                 </div>
                 <div class="form-check mb-0">
+                    <input type="hidden"
+                           class="js-user-health-field"
+                           name="is_on_medical_register"
+                           value="0">
                     <input type="checkbox"
-                           class="form-check-input js-user-health-field js-lead-health-checkbox"
+                           class="form-check-input js-user-health-field js-user-health-checkbox js-lead-health-checkbox"
                            id="{{ $fieldPrefix }}is_on_medical_register"
                            name="is_on_medical_register"
                            value="1">
@@ -36,8 +44,12 @@
                     </label>
                 </div>
                 <div class="form-check mb-0">
+                    <input type="hidden"
+                           class="js-user-health-field"
+                           name="is_with_disability"
+                           value="0">
                     <input type="checkbox"
-                           class="form-check-input js-user-health-field js-lead-health-checkbox"
+                           class="form-check-input js-user-health-field js-user-health-checkbox js-lead-health-checkbox"
                            id="{{ $fieldPrefix }}is_with_disability"
                            name="is_with_disability"
                            value="1">

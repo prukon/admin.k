@@ -37,6 +37,52 @@ abstract class CrmTestCase extends TestCase
     protected Partner $foreignPartner;
     protected User $foreignUser;
 
+    /** @var list<string> */
+    protected const DIRECTORY_ENTRY_PERMISSIONS = [
+        'groups.view',
+        'locations.view',
+        'districts.view',
+        'sport_types.view',
+    ];
+
+    /**
+     * Пункт сайдбара «Справочники» требует directories.view в дополнение к праву конкретного справочника.
+     *
+     * @param  list<string>  $permissions
+     * @return list<string>
+     */
+    protected function withDirectoriesMenuPermission(array $permissions): array
+    {
+        if ($permissions === []) {
+            return $permissions;
+        }
+
+        $hasDirectoryEntry = count(array_intersect($permissions, self::DIRECTORY_ENTRY_PERMISSIONS)) > 0;
+        if (! $hasDirectoryEntry) {
+            return $permissions;
+        }
+
+        return array_values(array_unique([...$permissions, 'directories.view']));
+    }
+
+    /**
+     * Writable storage path для тестов с Storage::fake (обход root-owned /tmp/kidscrm-storage).
+     */
+    protected function useWritableTestStoragePath(): void
+    {
+        $tmpStorage = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR
+            . 'kidscrm_storage_'
+            . (string) Str::uuid();
+
+        if (! is_dir($tmpStorage)) {
+            @mkdir($tmpStorage, 0777, true);
+        }
+        @chmod($tmpStorage, 0777);
+
+        $this->app->useStoragePath($tmpStorage);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

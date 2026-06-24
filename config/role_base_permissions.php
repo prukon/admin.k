@@ -42,6 +42,7 @@ return [
             'scheduleSlots.table',
             'lessonPackages.view',
             'lessonPackages.manualPaid.manage',
+            'directories.view',
             'districts.view',
             'locations.view',
             'locations.manage',

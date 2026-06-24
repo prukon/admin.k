@@ -250,9 +250,11 @@ class PaymentReportTest extends CrmTestCase
     {
         // Сценарий 1: есть payments.user_name, но приоритет у ФИО пользователя (lastname+name)
         $paymentWithCustomName = Payment::factory()->create([
-            'user_id' => $this->user->id,
-            'user_name' => 'Custom Payment Name',
-            'summ' => 1000,
+            'user_id'    => $this->user->id,
+            'user_name'  => 'Custom Payment Name',
+            'summ'       => 1000,
+            'team_id'    => null,
+            'team_title' => null,
         ]);
 
         // Сценарий 2: user_name пустой, есть user с ФИО и командой
@@ -266,11 +268,14 @@ class PaymentReportTest extends CrmTestCase
             'name' => 'Пётр',
             'team_id' => $team->id,
         ]);
+        app(\App\Services\TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($teamUser->fresh());
 
         $paymentWithUser = Payment::factory()->create([
-            'user_id' => $teamUser->id,
-            'user_name' => null,
-            'summ' => 2000,
+            'user_id'    => $teamUser->id,
+            'user_name'  => null,
+            'summ'       => 2000,
+            'team_id'    => null,
+            'team_title' => null,
         ]);
 
         // Сценарий 3: пользователь есть, но без ФИО и без команды
@@ -282,9 +287,11 @@ class PaymentReportTest extends CrmTestCase
         ]);
 
         $paymentNoData = Payment::factory()->create([
-            'user_id' => $userNoData->id,
-            'user_name' => null,
-            'summ' => 500,
+            'user_id'    => $userNoData->id,
+            'user_name'  => null,
+            'summ'       => 500,
+            'team_id'    => null,
+            'team_title' => null,
         ]);
 
         $response = $this

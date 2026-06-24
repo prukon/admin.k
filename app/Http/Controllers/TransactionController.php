@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
+use App\Models\Team;
 use App\Models\UserCustomPayment;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
@@ -127,6 +128,7 @@ class TransactionController extends Controller
 
         // Месячный абонемент: сумма на экране и в скрытых полях — из users_prices (как при Init оплаты).
         $monthlyTeamId = null;
+        $monthlyTeamTitle = null;
         if ($formatedPaymentDate !== null) {
             $teamIdParam = $request->filled('team_id') ? (int) $request->input('team_id') : null;
             $resolved = app(UserPriceMonthlyFeePaymentResolver::class)->resolveOrAbort(
@@ -138,6 +140,9 @@ class TransactionController extends Controller
             $outSum = $resolved['out_sum'];
             $formatedPaymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
+            if ($monthlyTeamId > 0) {
+                $monthlyTeamTitle = Team::query()->whereKey($monthlyTeamId)->value('title');
+            }
         }
 
         // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
@@ -162,6 +167,7 @@ class TransactionController extends Controller
             'userPeriodPriceId',
             'userLessonPackageId',
             'monthlyTeamId',
+            'monthlyTeamTitle',
         ));
     }
 
@@ -299,9 +305,7 @@ class TransactionController extends Controller
             'status' => 'pending',
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta' => json_encode([
-                'user_name' => $userName,
-            ], JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->buildPaymentIntentMeta($userName, $monthlyTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($request)));
 
         // На всякий случай (защита от future-regressions с fillable)
@@ -392,5 +396,21 @@ class TransactionController extends Controller
             'tbankAvailable',
             'tbankSbpAvailable'
         ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPaymentIntentMeta(string $userName, ?int $monthlyTeamId): array
+    {
+        $meta = [
+            'user_name' => $userName,
+        ];
+
+        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
+            $meta['team_id'] = $monthlyTeamId;
+        }
+
+        return $meta;
     }
 }

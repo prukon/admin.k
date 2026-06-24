@@ -536,6 +536,57 @@
     <a href="/docs/documentation/reports-payments">reports-payments.html</a>.
   </p>
 
+  <h2 id="user-modals">4.5) Модалки create/edit (разметка и UX)</h2>
+  <p>Partials: <code>includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code>,
+    <code>includes/modal/_user_modal_accordion_support.blade.php</code>,
+    <code>admin/users/_parent_form.blade.php</code>,
+    <code>admin/users/_student_teams_multiselect.blade.php</code>.</p>
+
+  <h3>4.5.1) Структура формы (роль «Ученик»)</h3>
+  <p>На вкладке «Пользователи» (<code>lockStudentRole</code>) роль передаётся скрытым <code>role_id</code>; аккордеоны и поля ученика видны сразу.</p>
+  <ol>
+    <li><b>Аккордеон «Ученик»</b> (по умолчанию свёрнут) — поля ученика и multiselect групп.</li>
+    <li><b>Аккордеон «Данные родителя»</b> (по умолчанию свёрнут) — блок из <code>_parent_form.blade.php</code>.</li>
+    <li><b>Комментарий</b> — вне аккордеонов (только при <code>users.comment</code>, роль <code>user</code>).</li>
+    <li><b>Активность</b> — вне аккордеонов.</li>
+    <li><b>Дополнительные поля</b> (<code>custom[…]</code>) — под формой, если настроены у партнёра.</li>
+  </ol>
+  <p>Порядок полей внутри «Ученик» (create и edit): имя, фамилия, дата рождения, <b>группы</b> (<code>team_ids[]</code>, Select2 — см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>), email, пароль (только create), телефон, флаги здоровья (чекбоксы), пол (<code>users.sex</code>).</p>
+
+  <h3>4.5.2) Multiselect «Группы»</h3>
+  <ul>
+    <li>Partial <code>_student_teams_multiselect.blade.php</code> — класс <code>js-generic-multiselect-select</code>, инициализация <code>KidsCrmGenericMultiselectSelect2.init</code> на странице <code>admin/user.blade.php</code>.</li>
+    <li>JSON edit: <code>user.team_ids</code> — массив id из pivot; заполнение — <code>setValues($('#editStudentTeamIds'), …)</code>.</li>
+    <li>Без <code>users.group.update</code> — select disabled, sync на сервере не выполняется.</li>
+    <li>При смене роли на «Тренер» блок групп ученика скрывается; для тренера — отдельные чекбоксы (§<a href="#user-trainer-teams">6.1</a>).</li>
+  </ul>
+
+  <h3>4.5.3) Пароль</h3>
+  <table>
+    <thead><tr><th>Модалка</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Create</b></td>
+        <td>Поле <code>password</code> в аккордеоне «Ученик» (после email), уходит в общий <code>POST /admin/users</code>. Необязательно: пустое → <code>NULL</code> (§5).</td>
+      </tr>
+      <tr>
+        <td><b>Edit</b></td>
+        <td>В основной форме <b>нет</b> <code>name="password"</code>. Кнопка «Изменить пароль» → поле + «Применить» / «Отмена» → отдельный <code>POST /admin/user/{id}/update-password</code> (<code>users.password.update</code>). PATCH профиля пароль не меняет.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>4.5.4) Закрытие модалки create</h3>
+  <p><code>#createUserModal</code> — атрибут <code>data-bs-backdrop="static"</code>: клик вне модалки не закрывает её (только «Закрыть» / крестик). Модалка edit — без static backdrop.</p>
+
+  <h3>4.5.5) AJAX-submit</h3>
+  <p>
+    Обе формы: <code>e.preventDefault()</code> + <code>$.ajax</code> с <code>Accept: application/json</code>.
+    Успех create — reload или callback заявки; edit — reload / success modal.
+    Ошибки 422 — подсветка полей, раскрытие аккордеонов с ошибками (<code>syncStudentUserAccordionsForErrors</code>).
+    Non-AJAX POST create → redirect на <code>admin.user1</code>, запись создаётся (<code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>).
+  </p>
+
   <h2>5) Создание ученика (<code>POST /admin/users</code>)</h2>
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
@@ -547,7 +598,7 @@
 
   <h3>Пароль</h3>
   <div class="note">
-    Поле <code>password</code> <b>необязательно</b>.
+    Поле <code>password</code> <b>необязательно</b> (см. также §<a href="#user-modals">4.5.3</a> — в edit пароль меняется отдельным запросом).
     Пустая строка → <code>password = NULL</code> в БД.
     Если указан: <code>min:8</code> / <code>max:255</code>; хеш — каст <code>hashed</code> модели <code>User</code>.
   </div>
@@ -656,7 +707,9 @@
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersAccessTest.php</code> — гость / без <code>users.view</code> → 403; smoke 200 раздела</li>
-      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data (только ученики в <code>recordsTotal</code>), сортировка (индексы с учётом «Родитель»; при <code>contracts.view</code> — §<a href="#user-contract-column">2.3</a>), <code>test_store_and_update_persist_parent_name_fields</code></li>
+      <li><code>tests/Feature/Crm/Users/UserControllerTest.php</code> — data (только ученики в <code>recordsTotal</code>), сортировка, parent, <code>test_store_non_ajax_redirects_and_creates_user</code></li>
+      <li><code>tests/Feature/Crm/Ui/GenericMultiselectFullAccessFeatureTest.php</code> — multiselect групп, UI модалок §<a href="#user-modals">4.5</a></li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline-JS create/edit user</li>
       <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code>, <code>RoleStaffUsersFeatureTest.php</code> — вкладки раздела, фиксация роли при create, CRUD сотрудников по ролям</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersCustomFieldsFeatureTest.php</code> — доп. поля (<code>UserField</code>, не путать с <code>parent_*</code>)</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPhoneOnCreateFeatureTest.php</code> — телефон при создании</li>

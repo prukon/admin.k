@@ -157,7 +157,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Юзер выбирает T‑Bank на странице <code>/payment</code>.</li>
     <li>Создаём <code>payables</code> и <code>payment_intents</code> (provider=tbank, pending).</li>
     <li>Вызов T‑Bank <code>/v2/Init</code> (PayType=O).
-      Передаём <code>DATA.month</code> (если monthly) и внутренние идентификаторы:
+      Передаём <code>DATA.month</code> (если monthly), <code>DATA.team_id</code> (если <code>monthly_fee</code>) и внутренние идентификаторы:
       <code>DATA.payment_intent_id</code>/<code>DATA.payable_id</code>/<code>DATA.user_id</code> для надёжной связки webhook → наша БД.</li>
     <li>Редирект на форму оплаты.</li>
     <li>Webhook <code>/webhooks/tinkoff/payments</code>:
@@ -187,7 +187,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ol>
     <li>Страницы <code>/payment</code> и <code>/payment/club-fee</code>: при доступном СБП показывается форма «T‑Bank СБП (QR)».</li>
     <li><code>POST /payments/tinkoff/sbp</code> (имя маршрута <code>payment.tinkoff.sbp</code>) → <code>TinkoffPaymentController::createSbp</code>:
-      создаются <code>payables</code> и <code>payment_intents</code> (как у карточной оплаты), вызывается <code>TinkoffPaymentsService::initPayment</code> с методом <code>sbp</code> и объектом <code>DATA</code> (<code>payment_intent_id</code>, <code>payable_id</code>, <code>user_id</code>, при необходимости <code>month</code>).</li>
+      создаются <code>payables</code> и <code>payment_intents</code> (как у карточной оплаты), вызывается <code>TinkoffPaymentsService::initPayment</code> с методом <code>sbp</code> и объектом <code>DATA</code> (<code>payment_intent_id</code>, <code>payable_id</code>, <code>user_id</code>, при необходимости <code>month</code>, <code>team_id</code> для <code>monthly_fee</code>).</li>
     <li>Редирект на <code>GET /tinkoff/qr/{PaymentId}</code> (маршрут <code>tinkoff.qr</code>), шаблон <code>resources/views/tinkoff/qr.blade.php</code>.</li>
     <li><b>Мобильный веб</b> (узкий экран и/или типичный mobile User-Agent): кнопка «Перейти к оплате СБП» запрашивает <code>GET /tinkoff/qr/{PaymentId}/payload</code> (маршрут <code>tinkoff.qr.payload</code>) — сервер вызывает <code>POST /v2/GetQr</code> с <code>DataType=PAYLOAD</code>; в <code>Data</code> — ссылка <code>https://qr.nspk.ru/…</code> (НСПК). QR для второго телефона: свёрнутый блок «Показать QR-код» подгружает <code>/json</code> (IMAGE).</li>
     <li><b>Десктоп</b>: браузер запрашивает <code>GET /tinkoff/qr/{PaymentId}/json</code> — сервер вызывает <code>POST /v2/GetQr</code> с <code>DataType=IMAGE</code>, JSON клиенту как есть.</li>

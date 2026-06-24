@@ -62,7 +62,7 @@
   <ul>
     <li><b>Toolbar</b> — «Добавить», «История», «Фильтры», «Колонки».</li>
     <li>Поля формы create/edit: <code>name</code>, <code>is_enabled</code>, <code>sort_order</code>.</li>
-    <li><b>Multiselect «Объекты»</b> (<code>location_ids[]</code>) — в модалках <b>создания и редактирования</b>, при <code>locations.view</code> и непустом справочнике объектов. Select2 через partial <code>generic-multiselect</code> (см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>). При сохранении — полная замена списка объектов района через <code>LocationDistrictSyncService</code>: выбранным проставляется <code>locations.district_id</code>, снятым с района — <code>null</code>.</li>
+    <li><b>Multiselect «Объекты»</b> (<code>location_ids[]</code>) — в модалках <b>создания и редактирования</b>, при <code>locations.view</code> и непустом справочнике объектов. Единый Select2 partial <code>generic-multiselect</code>, класс <code>js-generic-multiselect-select</code>, API <code>KidsCrmGenericMultiselectSelect2</code> (см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>). Dropdown не закрывается при выборе. При сохранении — полная замена списка объектов района через <code>LocationDistrictSyncService</code>: выбранным проставляется <code>locations.district_id</code>, снятым с района — <code>null</code>.</li>
     <li><code>GET /admin/districts/{id}</code> возвращает <code>location_ids</code> только при <code>locations.view</code>; без права ключ отсутствует.</li>
     <li>Колонка «Объекты» — при <code>locations.view</code> и непустом справочнике: тип DataTables <code>list</code>, ключ <code>locations_label</code> (сортировка по <code>locations_count</code>). До 2 названий — через запятую; при 3+ — «Первый, еще N шт.» + tooltip (<code>locations_label_full</code>, <code>locations_names</code>). Число объектов — <code>locations_count</code> (withCount).</li>
     <li>Фильтры: название/id, статус active/inactive.</li>
@@ -77,6 +77,17 @@
     <li>Объект может быть перенесён из другого района: при выборе в multiselect прежний <code>district_id</code> у других районов обнуляется автоматически (полная замена привязки).</li>
     <li>Без <code>locations.view</code> поле <code>location_ids</code> не принимается и не синхронизируется; привязку объектов можно менять на странице <a href="/docs/documentation/admin-locations">/admin/locations</a> (select «Район»).</li>
   </ul>
+
+  <h3>4.1) AJAX-submit и safety-net</h3>
+  <p>
+    Модалки create/edit отправляют форму через <code>fetch</code> + <code>FormData</code> (см. inline-JS в <code>admin/districts/index.blade.php</code>).
+    Успех — JSON <code>{ message, district? }</code>, статус <b>200</b>; валидация — <b>422</b> с <code>errors</code> (ошибки <code>location_ids</code> под multiselect через <code>KidsCrmGenericMultiselectSelect2.markInvalid</code>).
+  </p>
+  <ul>
+    <li><code>POST /admin/districts</code> без AJAX → <b>302</b> redirect <code>admin.districts.index</code>, район создан.</li>
+    <li><code>PUT /admin/districts/{id}</code> без AJAX → <b>302</b> redirect <code>admin.districts.index</code>, район обновлён (в т.ч. sync <code>location_ids</code> при <code>locations.view</code>).</li>
+  </ul>
+  <p class="small">Тесты: <code>GenericMultiselectFullAccessFeatureTest</code>, <code>DistrictsPageFullAccessFeatureTest</code>, <code>DistrictsFeatureTest</code>.</p>
 
   <h2>5) Аудит (<code>my_logs</code>)</h2>
   <p>Запись — через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>). События: <code>district.created</code>, <code>district.updated</code>, <code>district.deleted</code> (категория <code>district</code>).</p>
@@ -115,7 +126,8 @@
     <li><code>tests/Feature/Crm/Districts/DistrictsAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit, diff полей, запись в logs-data</li>
     <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>districts.view</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code> — в т.ч. multiselect <code>location_ids</code>, колонка <code>locations_label</code></li>
-    <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code> — full access + payloads с <code>location_ids</code></li>
+    <li><code>tests/Feature/Crm/Ui/GenericMultiselectFullAccessFeatureTest.php</code> — единый <code>generic-multiselect</code>, AJAX/non-AJAX store/update, UI assets</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline-JS модалок districts</li>
     <li><code>tests/Feature/Crm/Ui/DataTableClickableNameLinksFeatureTest.php</code> — кликабельное название + JSON show</li>
     <li><code>tests/Feature/Crm/Districts/DistrictHierarchyFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictLocationLandingIntegrationFeatureTest.php</code></li>

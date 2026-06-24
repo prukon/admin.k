@@ -22,16 +22,26 @@ class PermissionSeeder extends Seeder
 
         // Полный список прав с привязкой к group_slug.
         $permissions = [
-            // group_slug mainMenu
+            // group_slug mainMenu (sort_order — порядок пунктов бокового меню)
             ['name' => 'dashboard.view',                 'description' => 'Страница "Консоль"',                            'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 10],
-            ['name' => 'myPayments.view',                'description' => 'Страница "Мои платежи"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 16],
-            ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 17],
-            ['name' => 'messages.view',                  'description' => 'Страница "Сообщения"',                          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 73],
-            ['name' => 'blog.view',                      'description' => 'Страница "Блог"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 74],
-            ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 71],
+            ['name' => 'reports.view',                   'description' => 'Страница "Отчеты"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 20],
+            ['name' => 'myPayments.view',                'description' => 'Страница "Мои платежи"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'myGroup.view',                   'description' => 'Страница "Моя группа"',                         'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 35],
+            ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 40],
+            ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 50],
+            ['name' => 'scheduleSlots.view',             'description' => 'Страница "Расписание школы"',                   'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 52],
+            ['name' => 'schoolLeads.view',               'description' => 'Страница "Лиды"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 54],
+            ['name' => 'users.view',                     'description' => 'Страница "Пользователи"',                       'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 60],
+            ['name' => 'directories.view',               'description' => 'Страница "Справочники"',                        'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 65],
+            ['name' => 'groups.view',                    'description' => 'Страница "Группы"',                             'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 70],
+            ['name' => 'contracts.view',                 'description' => 'Страница "Договоры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 80],
+            ['name' => 'settings.view',                  'description' => 'Страница "Настройки"',                          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 90],
+            ['name' => 'blog.view',                      'description' => 'Страница "Блог"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 95],
+            ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 100],
+            ['name' => 'messages.view',                  'description' => 'Страница "Сообщения"',                          'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 110],
+            ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 120],
 
             // group_slug reports
-            ['name' => 'reports.view',                   'description' => 'Страница "Отчеты"',                             'group_slug' => 'reports', 'is_visible' => 1, 'sort_order' => 15],
             ['name' => 'reports.payment.intents.view',   'description' => 'Страница "Платежные запросы"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.fiscal.receipts.view',   'description' => 'Страница "Чеки"',                               'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
             ['name' => 'reports.emails.view',            'description' => 'Страница "Исходящие письма"',                  'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 16],
@@ -43,10 +53,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'reports.payments.payout_amount.column.view', 'description' => 'Отчёт «Платежи»: колонка «Выплата»', 'group_slug' => 'reports', 'is_visible' => 0, 'sort_order' => 22],
 
             // group_slug schedule
-            ['name' => 'schedule.view',                  'description' => 'Страница "Журнал расписания"',                  'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'schedule.trainerSalary.view',    'description' => 'ЗП тренеров: просмотр вкладки и черновика',     'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'schedule.trainerSalary.manage',  'description' => 'ЗП тренеров: редактирование и формирование слепков', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
-            ['name' => 'scheduleSlots.view',             'description' => 'Расписание школы: просмотр данных слота (календарь, карточка)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'scheduleSlots.table',            'description' => 'Расписание школы: вкладка «Таблица занятий»',   'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 33],
 
@@ -56,31 +64,25 @@ class PermissionSeeder extends Seeder
             ['name' => 'locations.manage',               'description' => 'Справочники: объекты (создание/редактирование)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 38],
             ['name' => 'sport_types.view',             'description' => 'Страница "Виды спорта"',                          'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 39],
             ['name' => 'sport_types.manage',           'description' => 'Виды спорта: создание/редактирование',          'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 40],
-            ['name' => 'groups.view',                    'description' => 'Страница "Группы"',                             'group_slug' => 'directories', 'is_visible' => 1, 'sort_order' => 50],
-
             // group_slug lessonPackages
             ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 35],
             ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],
 
             // group_slug setPrices
-            ['name' => 'setPrices.view',                 'description' => 'Страница "Установка цен"',                      'group_slug' => 'setPrices', 'is_visible' => 1, 'sort_order' => 20],
             ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
 
             // group_slug contracts
-            ['name' => 'contracts.view',                 'description' => 'Страница "Договоры"',                           'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 51],
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],
             ['name' => 'contracts.templates.fillSortOrder.edit', 'description' => 'Шаблоны договоров: редактировать порядок полей в форме родителя', 'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 53],
             ['name' => 'account.contracts.showFieldKeys', 'description' => 'Договор (форма): показывать технические ключи полей {{...}}', 'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 71],
 
             // group_slug leads
             ['name' => 'partnerLeads.view',              'description' => 'Страница "Лиды партнёров"',                     'group_slug' => 'leads', 'is_visible' => 0, 'sort_order' => 75],
-            ['name' => 'schoolLeads.view',               'description' => 'Страница "Заявки с сайта"',                     'group_slug' => 'leads', 'is_visible' => 0, 'sort_order' => 76],
             ['name' => 'schoolWidget.view',              'description' => 'Страница "Виджет заявок"',                      'group_slug' => 'leads', 'is_visible' => 0, 'sort_order' => 77],
             ['name' => 'schoolLeadLanding.view',         'description' => 'Страница заявки (CRM)',                         'group_slug' => 'leads', 'is_visible' => 0, 'sort_order' => 78],
 
             // group_slug partner
-            ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 55],
             ['name' => 'partner.switch',                 'description' => 'Переключение партнёра (контекст)',              'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 56],
             ['name' => 'servicePayments.view',           'description' => 'Страница "Оплата сервиса"',                     'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 80],
             ['name' => 'partnerWallet.view',             'description' => 'Страница "Кошелек"',                            'group_slug' => 'partner', 'is_visible' => 0, 'sort_order' => 90],
@@ -99,7 +101,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'account.partner.update',         'description' => 'Изменение данных организации',                   'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 70],
 
             // group_slug users
-            ['name' => 'users.view',                     'description' => 'Страница "Пользователи"',                       'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 40],
             ['name' => 'trainers.view',                  'description' => 'Страница "Тренеры"',                            'group_slug' => 'users',    'is_visible' => 0, 'sort_order' => 41],
             ['name' => 'users.name.update',              'description' => 'Изменение имени',                                'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.birthdate.update',         'description' => 'Изменение даты рождения',                        'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
@@ -115,7 +116,6 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.comment',                 'description' => 'Комментарий к ученику (просмотр и редактирование в CRM)', 'group_slug' => 'users', 'is_visible' => 1, 'sort_order' => 0],
 
             // group_slug settings
-            ['name' => 'settings.view',                  'description' => 'Страница "Настройки"',                          'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 60],
             ['name' => 'settings.roles.view',            'description' => 'Страница "Настройки  -> Права и роли"',         'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 61],
             ['name' => 'settings.paymentSystems.view',   'description' => 'Страница "Настройки  -> Платежные системы"',    'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 62],
             ['name' => 'settings.queues.view',           'description' => 'Страница "Настройки -> Очереди"',               'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 63],

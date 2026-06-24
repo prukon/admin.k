@@ -396,7 +396,11 @@ class LocationController extends AdminBaseController
             ], 422);
         }
 
-        return response()->json(['message' => 'Объект обновлён']);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => 'Объект обновлён']);
+        }
+
+        return redirect()->route('admin.locations.index');
     }
 
     public function destroy(Request $request, Location $location)

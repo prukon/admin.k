@@ -278,7 +278,7 @@ class MyPaymentsReportTest extends CrmTestCase
     }
 
     /**
-     * [P1] team_title — команда берётся из user->team или "Без команды".
+     * [P1] team_title — без снимка в payments берётся из pivot team_user ученика.
      *
      * В этом тесте проверяем кейс, когда у пользователя есть команда.
      */
@@ -295,7 +295,9 @@ class MyPaymentsReportTest extends CrmTestCase
         app(\App\Services\TeamUserSyncService::class)->syncLegacyTeamColumnToPivot($this->user->fresh());
 
         $payment = Payment::factory()->create([
-            'user_id' => $this->user->id,
+            'user_id'    => $this->user->id,
+            'team_id'    => null,
+            'team_title' => null,
         ]);
 
         $response = $this

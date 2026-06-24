@@ -124,7 +124,7 @@
     <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).</li>
     <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
     <li><b>Колонка «Администратор»</b> — тип <code>list</code>, тот же паттерн сокращения, что у «Группы».</li>
-    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code>.</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>).</li>
     <li><b>Колонка «Название»</b> — при <code>locations.manage</code> тип <code>link</code> (<code>js-location-edit</code>, модалка edit); без manage — обычный <code>text</code>. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
@@ -139,6 +139,10 @@
 
   <h2>6) Привязка групп (<code>team_ids</code>)</h2>
   <p>Sync через <code>TeamLocationSyncService::syncTeamsForLocation</code>: выбранным группам проставляется <code>teams.location_id</code> текущего объекта; снятым — <code>null</code>. Обратная сторона — select <code>location_id</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
+  <p class="small">
+    <code>PUT /admin/locations/{id}</code> без AJAX → redirect <code>admin.locations.index</code> (запись обновлена, в т.ч. sync <code>team_ids</code>).
+    Тест: <code>GenericMultiselectFullAccessFeatureTest::test_update_location_non_ajax_redirects_and_syncs_team_ids</code>.
+  </p>
 
   <h2>7) Связанные сущности</h2>
   <ul>

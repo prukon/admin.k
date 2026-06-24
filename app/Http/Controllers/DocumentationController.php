@@ -13,7 +13,7 @@ class DocumentationController extends Controller
      * @var array<string, string>
      */
     private const PAGE_TITLES = [
-        'payments'                    => 'Оплаты (payables/payment_intents/payments/users_prices)',
+        'payments'                    => 'Оплаты: payables/intents/payments/users_prices, снимок payments.team_id, multi-team витрина',
         'partner-scope-guide'         => 'Как работать с partner_id: обычный админ и страницы superadmin',
         'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
         'partners-permissions'        => 'Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)',
@@ -21,7 +21,7 @@ class DocumentationController extends Controller
         'settings-permission-groups'  => 'Матрица прав: группы permissions (permission_groups), аккордеон «Права и роли»',
         'audit-my-logs'               => 'Аудит CRM (my_logs): AuditEvent, AuditLogger, event/level, без legacy type/action в runtime',
         'settings-logs'               => 'Настройки → Логи: вкладка my_logs, фильтры event/level, доступ, SUPERADMIN_ALL_OR_FILTER',
-        'reports-payments'            => 'Отчёт «Платежи» (админка): таблица, «Поля списка», права (доп. колонки, история T‑Bank)',
+        'reports-payments'            => 'Отчёт «Платежи»: payments.team_id (колонка/фильтр), «Поля списка», права, история T‑Bank',
         'reports-admin'               => 'Отчёты (админка): KidsCrmDataTable, columns-settings, детализация, фильтры, AJAX/суммы',
         'reusable-ui-partials'        => 'Переиспользование UI: KidsCrmTooltip / KidsCrmDataTable (link, bindNavLinks, icon, inline-select, миграция custom), toolbar, logModal, Select2',
         'tbank'                       => 'T‑Bank (мультирасчёты): настройки/комиссии/flow, СБП (QR) в CRM',
@@ -45,7 +45,8 @@ class DocumentationController extends Controller
         'admin-users-section'         => 'Раздел «Пользователи» (вкладки): ученики, тренеры, администраторы, /admin/roles/{name}, UsersSectionTabsResolver',
         'admin-role-staff'            => 'Администраторы и кастомные роли: /admin/administrators, /admin/roles/{name}, RoleStaffUserController, users.role.update',
         'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
-        'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): multiselect, pivot, legacy users.team_id, журнал, договоры, отчёты, ЛК, My Group',
+        'dashboard-cabinet'           => 'Консоль (/cabinet): сезоны, оплата monthly_fee, селект «Выбор группы» при 2+ группах (sessionStorage), семейный контекст',
+        'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
         'admin-users'                 => 'Ученики (админка): /admin/users только role=user, родители, колонка «Договор», мед./особенности, пол (users.sex — CRM и кабинет), комментарий (users.comment), группы (team_ids)',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: модалки, fields_schema, fill_sort_order, email, версии',

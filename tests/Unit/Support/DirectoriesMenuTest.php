@@ -30,7 +30,7 @@ final class DirectoriesMenuTest extends TestCase
         ];
 
         foreach ($cases as [$permission, $expectedLabel, $expectedRoute]) {
-            $user = $this->mockUserWithPermissions([$permission]);
+            $user = $this->mockUserWithPermissions([$permission, 'directories.view']);
             $menu = DirectoriesMenu::forUser($user);
 
             $this->assertNotNull($menu, $permission);
@@ -42,6 +42,7 @@ final class DirectoriesMenuTest extends TestCase
     public function test_multiple_permissions_use_directories_label(): void
     {
         $user = $this->mockUserWithPermissions([
+            'directories.view',
             'groups.view',
             'districts.view',
         ]);
@@ -55,6 +56,7 @@ final class DirectoriesMenuTest extends TestCase
     public function test_url_follows_groups_locations_districts_sport_types_priority(): void
     {
         $user = $this->mockUserWithPermissions([
+            'directories.view',
             'districts.view',
             'sport_types.view',
             'locations.view',

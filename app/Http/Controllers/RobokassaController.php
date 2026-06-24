@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use App\Services\Payments\PaymentLedgerRecorder;
-use App\Services\TeamUserSyncService;
+use App\Services\Payments\PaymentLedgerTeamResolver;
 
 class RobokassaController extends Controller
 {
@@ -72,6 +72,7 @@ class RobokassaController extends Controller
         if (!$payable) {
             // Пытаемся восстановить связь для "исторических" intent-ов, созданных до появления payable_id.
             $typeGuess = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $intent->payment_date) ? 'monthly_fee' : 'club_fee';
+            $payable = null;
 
             $q = Payable::query()
                 ->where('partner_id', (int) $intent->partner_id)
@@ -89,9 +90,28 @@ class RobokassaController extends Controller
                 $q->whereBetween('created_at', [$intent->created_at->copy()->subMinutes(30), $intent->created_at->copy()->addMinutes(30)]);
             }
 
-            $candidates = $q->limit(2)->get();
-            if ($candidates->count() === 1) {
-                $payable = $candidates->first();
+            $candidates = $q->limit(5)->get();
+
+            $intentTeamId = $this->resolveTeamIdFromIntentMeta($intent);
+
+            if ($intentTeamId > 0 && $typeGuess === 'monthly_fee') {
+                $teamFiltered = $candidates->filter(function (Payable $candidate) use ($intentTeamId) {
+                    $metaTeamId = $candidate->meta['team_id'] ?? null;
+
+                    return is_numeric($metaTeamId) && (int) $metaTeamId === $intentTeamId;
+                })->values();
+                if ($teamFiltered->count() === 1) {
+                    $payable = $teamFiltered->first();
+                }
+            }
+
+            if (! isset($payable) || ! $payable) {
+                if ($candidates->count() === 1) {
+                    $payable = $candidates->first();
+                }
+            }
+
+            if (isset($payable) && $payable) {
                 $intent->payable_id = $payable->id;
                 $intent->save();
                 Log::warning('Robokassa result: payable_id restored for intent', [
@@ -245,9 +265,12 @@ class RobokassaController extends Controller
                     ->where('teams.partner_id', $partnerId)
                     ->whereNull('teams.deleted_at'),
             ])->find($shpUserId);
-            $teamName = $user
-                ? (app(TeamUserSyncService::class)->teamTitlesLabel($user) ?: 'Без команды')
-                : 'Без команды';
+
+            if (! $user) {
+                return;
+            }
+
+            $teamSnapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $user);
             $currentDateTime = now()->format('Y-m-d H:i:s');
 
             app(PaymentLedgerRecorder::class)->record(
@@ -256,13 +279,16 @@ class RobokassaController extends Controller
                 $shpUserId,
                 [
                     'user_id' => $shpUserId,
-                    'user_name' => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
-                    'team_title' => $teamName,
+                    'user_name' => ($user->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
+                    'team_id' => $teamSnapshot['team_id'],
+                    'team_title' => $teamSnapshot['team_title'],
                     'operation_date' => $currentDateTime,
                     'payment_month' => $shpPaymentDate,
                     'summ' => $outSumNorm,
                 ]
             );
+
+            $teamName = $teamSnapshot['team_title'];
 
             $this->auditLogger->record(
                 AuditEvent::PaymentReceived,
@@ -285,6 +311,22 @@ class RobokassaController extends Controller
         });
 
         return response("OK$invId\n", 200);
+    }
+
+    private function resolveTeamIdFromIntentMeta(PaymentIntent $intent): int
+    {
+        if (empty($intent->meta)) {
+            return 0;
+        }
+
+        $meta = json_decode((string) $intent->meta, true);
+        if (! is_array($meta)) {
+            return 0;
+        }
+
+        $raw = $meta['team_id'] ?? null;
+
+        return is_numeric($raw) && (int) $raw > 0 ? (int) $raw : 0;
     }
 
 }

@@ -308,7 +308,11 @@ class DistrictController extends AdminBaseController
             ], 422);
         }
 
-        return response()->json(['message' => 'Район обновлён']);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => 'Район обновлён']);
+        }
+
+        return redirect()->route('admin.districts.index');
     }
 
     public function destroy(Request $request, District $district)

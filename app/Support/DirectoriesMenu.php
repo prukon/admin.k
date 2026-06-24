@@ -23,6 +23,10 @@ final class DirectoriesMenu
             return null;
         }
 
+        if (! $user->can('directories.view')) {
+            return null;
+        }
+
         $available = array_values(array_filter(
             self::ENTRIES,
             static fn (array $entry): bool => $user->can($entry['permission'])

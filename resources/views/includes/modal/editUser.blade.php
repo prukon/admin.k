@@ -48,65 +48,156 @@
                     </div>
 
 
+                    @include('includes.modal._user_modal_accordion_support')
+
                     <!-- ДВЕ КОЛОНКИ -->
-                    <div class="row g-3"> <!-- g-3 = отступы между полями -->
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="accordion accordion-flush user-modal-accordion js-user-student-accordion"
+                                 id="editUserStudentAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="editUserStudentHeading">
+                                        <button class="accordion-button collapsed js-user-student-accordion-btn"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#editUserStudentCollapse"
+                                                aria-expanded="false"
+                                                aria-controls="editUserStudentCollapse">
+                                            Ученик
+                                        </button>
+                                    </h2>
+                                    <div id="editUserStudentCollapse"
+                                         class="accordion-collapse collapse js-user-student-accordion-panel"
+                                         aria-labelledby="editUserStudentHeading"
+                                         data-bs-parent="#editUserStudentAccordion">
+                                        <div class="accordion-body pt-2">
+                                            <div class="row g-3">
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-name" class="form-label">Имя ученика*</label>
+                                                        <input type="text"
+                                                               name="name"
+                                                               class="form-control"
+                                                               id="edit-name"
+                                                               @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
+                                                    </div>
+                                                </div>
 
-                        <!-- Поле "Имя" -->
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-name" class="form-label">Имя ученика*</label>
-                                <input type="text"
-                                       name="name"
-                                       class="form-control"
-                                       id="edit-name"
-                                       @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
-                            </div>
-                        </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-lastname" class="form-label">Фамилия ученика*</label>
+                                                        <input type="text"
+                                                               name="lastname"
+                                                               class="form-control"
+                                                               id="edit-lastname"
+                                                               @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
+                                                    </div>
+                                                </div>
 
-                        <!-- Поле "Фамилия" -->
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-lastname" class="form-label">Фамилия ученика*</label>
-                                <input type="text"
-                                       name="lastname"
-                                       class="form-control"
-                                       id="edit-lastname"
-                                       @cannot('users.name.update') disabled aria-disabled="true" @endcannot>
-                            </div>
-                        </div>
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-birthday" class="form-label">Дата рождения</label>
+                                                        <input
+                                                                type="date"
+                                                                name="birthday"
+                                                                id="edit-birthday"
+                                                                class="form-control"
+                                                                @cannot('users.birthdate.update') disabled aria-disabled="true" @endcannot
+                                                        >
+                                                        @cannot('users.birthdate.update')
+                                                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                                                изменение
+                                                                даты рождения
+                                                            </div>
+                                                        @endcannot
+                                                    </div>
+                                                </div>
 
+                                                <div class="col-12 col-md-6 js-user-student-team-wrap">
+                                                    @include('admin.users._student_teams_multiselect', [
+                                                        'teamsFieldId' => 'editStudentTeamIds',
+                                                        'teamOptions' => $allTeams,
+                                                        'canEditTeams' => auth()->user()->can('users.group.update'),
+                                                    ])
+                                                </div>
 
-                        <!-- Поле "Дата рождения" -->
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-birthday" class="form-label">Дата рождения</label>
-                                <input
-                                        type="date"
-                                        name="birthday"
-                                        id="edit-birthday"
-                                        class="form-control"
-                                        @cannot('users.birthdate.update') disabled aria-disabled="true" @endcannot
-                                >
-                                @cannot('users.birthdate.update')
-                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
-                                        изменение
-                                        даты рождения
+                                                <div class="col-12 col-md-6">
+                                                    <div class="mb-3">
+                                                        <label for="edit-email" class="form-label">Email</label>
+                                                        <input
+                                                                type="email"
+                                                                id="edit-email"
+                                                                name="email"
+                                                                class="form-control"
+                                                                @cannot('users.email.update') disabled aria-disabled="true" @endcannot
+                                                        >
+                                                        @cannot('users.email.update')
+                                                            <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
+                                                                изменение
+                                                                email
+                                                            </div>
+                                                        @endcannot
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+                                                    @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
+                                                    <div class="mb-3">
+                                                        <label for="edit-phone" class="form-label">Телефон</label>
+
+                                                        <div class="input-group">
+                                                            @include('includes.fields.phone-input', [
+                                                                'name' => 'phone',
+                                                                'id' => 'edit-phone',
+                                                                'value' => old('phone', $user->phone),
+                                                                'disabled' => !$canPhone,
+                                                                'attributes' => [
+                                                                    'data-can-phone' => $canPhone ? 1 : 0,
+                                                                ],
+                                                            ])
+
+                                                            <span id="phone-verify-icon" class="input-group-text d-none">
+                                                                <i class="fa-solid fa-circle-check"></i>
+                                                            </span>
+                                                        </div>
+
+                                                        @php
+                                                            $verifiedAt = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
+                                                        @endphp
+                                                        <small
+                                                                id="phone-verify-status"
+                                                                class="small {{ $verifiedAt ? 'text-success' : 'd-none' }}"
+                                                                data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}"
+                                                        >
+                                                            @if($verifiedAt)
+                                                                Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }}
+                                                            @endif
+                                                        </small>
+
+                                                        @unless($canPhone)
+                                                            <div class="form-text text-muted mt-1">
+                                                                <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
+                                                            </div>
+                                                        @endunless
+                                                    </div>
+                                                </div>
+
+                                                @include('includes.modal._student_health_fields', [
+                                                    'variant' => 'checkbox',
+                                                ])
+                                                @include('includes.modal._student_comment_sex_fields', [
+                                                    'only' => 'sex',
+                                                    'canViewUserSex' => $canViewUserSex ?? null,
+                                                    'canViewUserComment' => $canViewUserComment ?? null,
+                                                ])
+                                            </div>
+                                        </div>
                                     </div>
-                                @endcannot
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- Группы ученика -->
-                        <div class="col-12 col-md-6 js-user-student-team-wrap">
-                            @include('admin.users._student_teams_multiselect', [
-                                'teamsFieldId' => 'editStudentTeamIds',
-                                'teamOptions' => $allTeams,
-                                'canEditTeams' => auth()->user()->can('users.group.update'),
-                            ])
                         </div>
 
                         @can('trainers.view')
-                        <!-- Группы тренера -->
                         <div class="col-12 col-md-6 js-user-trainer-teams-wrap d-none">
                             @include('admin.trainers._teams_checkboxes', [
                                 'teamsFieldIdPrefix' => 'edit-user-trainer',
@@ -118,107 +209,12 @@
 
                         @include('admin.users._parent_form', ['prefix' => 'edit'])
 
-                        {{-- Поле "email" --}}
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="edit-email" class="form-label">Email</label>
-                                <input
-                                        type="email"
-                                        id="edit-email"
-                                        name="email"
-                                        class="form-control"
-                                        @cannot('users.email.update') disabled aria-disabled="true" @endcannot
-                                >
-                                @cannot('users.email.update')
-                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
-                                        изменение
-                                        email
-                                    </div>
-                                @endcannot
-                            </div>
-                        </div>
-
-                        {{-- Поле "Телефон" --}}
-                        <div class="col-12 col-md-6">
-                            @php $canPhone = auth()->user()->can('users.phone.update'); @endphp
-                            <div class="mb-3">
-                                <label for="edit-phone" class="form-label">Телефон</label>
-
-                                <div class="input-group">
-                                    @include('includes.fields.phone-input', [
-                                        'name' => 'phone',
-                                        'id' => 'edit-phone',
-                                        'value' => old('phone', $user->phone),
-                                        'disabled' => !$canPhone,
-                                        'attributes' => [
-                                            'data-can-phone' => $canPhone ? 1 : 0,
-                                        ],
-                                    ])
-
-                                    {{-- Индикатор статуса (галка/крест) --}}
-                                    <span id="phone-verify-icon" class="input-group-text d-none">
-            <i class="fa-solid fa-circle-check"></i>
-        </span>
-                                </div>
-
-                                @php
-                                    $verifiedAt = $user->phone_verified_at ? \Carbon\Carbon::parse($user->phone_verified_at) : null;
-                                @endphp
-                                <small
-                                        id="phone-verify-status"
-                                        class="small {{ $verifiedAt ? 'text-success' : 'd-none' }}"
-                                        data-verified-at="{{ $verifiedAt ? $verifiedAt->format('Y-m-d H:i:s') : '' }}"
-                                >
-                                    @if($verifiedAt)
-                                        Подтверждён {{ $verifiedAt->format('d.m.Y H:i') }}
-                                    @endif
-                                </small>
-
-                                @unless($canPhone)
-                                    <div class="form-text text-muted mt-1">
-                                        <i class="fa-solid fa-lock me-1"></i>Нет прав на изменение телефона
-                                    </div>
-                                @endunless
-                            </div>
-                        </div>
-
-                        <!-- Поле "Роль" -->
-                        <div class="col-12 col-md-6">
-                            <div class="mb-3">
-                                <label for="role_id" class="form-label">Роль</label>
-                                <select
-                                        id="role_id"
-                                        name="role_id"
-                                        class="form-select"
-                                        @cannot('users.role.update') disabled aria-disabled="true" @endcannot
-                                >
-                                    @foreach($roles as $role)
-                                        @continue($role->name === 'superadmin')
-                                        <option value="{{ $role->id }}"
-                                                @if(($editingUser->role_id ?? $user->role_id ?? null) === $role->id) selected @endif>
-                                            {{ $role->label }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <div id="edit-role-superadmin-lock" class="form-text text-muted d-none">
-                                    <i class="fa-solid fa-lock me-1"></i>Роль «Суперадмин» нельзя изменить через CRM
-                                </div>
-                                @cannot('users.role.update')
-                                    <div class="form-text text-muted"><i class="fa-solid fa-lock me-1"></i>Нет прав на
-                                        изменение
-                                        роли
-                                    </div>
-                                @endcannot
-                            </div>
-                        </div>
-
-                        @include('includes.modal._student_health_fields')
                         @include('includes.modal._student_comment_sex_fields', [
+                            'only' => 'comment',
                             'canViewUserSex' => $canViewUserSex ?? null,
                             'canViewUserComment' => $canViewUserComment ?? null,
                         ])
 
-                        <!-- Поле "Активность" -->
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
                                 <label for="edit-activity" class="form-label">Активность</label>
@@ -388,20 +384,14 @@
             return found ? parseInt(found.id, 10) : null;
         }
 
-        function triStateSelectValue(val) {
-            if (val === true || val === 1 || val === '1') {
-                return '1';
-            }
-            if (val === false || val === 0 || val === '0') {
-                return '0';
-            }
-            return '';
+        function isHealthCheckboxChecked(value) {
+            return value === true || value === 1 || value === '1';
         }
 
         function setEditUserHealthFields(user) {
-            $('#edit-is_individual_traits').val(triStateSelectValue(user.is_individual_traits));
-            $('#edit-is_on_medical_register').val(triStateSelectValue(user.is_on_medical_register));
-            $('#edit-is_with_disability').val(triStateSelectValue(user.is_with_disability));
+            $('#edit-is_individual_traits').prop('checked', isHealthCheckboxChecked(user.is_individual_traits));
+            $('#edit-is_on_medical_register').prop('checked', isHealthCheckboxChecked(user.is_on_medical_register));
+            $('#edit-is_with_disability').prop('checked', isHealthCheckboxChecked(user.is_with_disability));
         }
 
         function syncEditUserHealthFields(roleId, roles) {
@@ -429,32 +419,24 @@
         function applyEditUserCommentSexPermissions(ui) {
             const canSex = ui?.canViewUserSex === true;
             const canComment = ui?.canViewUserComment === true;
-            const $wrap = $('.js-user-comment-sex-wrap');
 
             if (!canSex) {
-                $wrap.find('.js-user-comment-sex-sex-field').remove();
+                $('.js-user-sex-wrap').remove();
             }
 
             if (!canComment) {
-                $wrap.find('.js-user-comment-sex-comment-field').remove();
-            }
-
-            if (!canSex && !canComment) {
-                $wrap.remove();
+                $('.js-user-comment-wrap').remove();
             }
         }
 
         function syncEditUserCommentSexFields(roleId, roles) {
-            const $wrap = $('.js-user-comment-sex-wrap');
-            if (!$wrap.length) {
-                return;
-            }
-
             const studentRoleId = studentRoleIdFromRoles(roles);
             const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
 
-            $wrap.toggleClass('d-none', !isStudent);
-            $wrap.find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+            $('#edit-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap').each(function () {
+                $(this).toggleClass('d-none', !isStudent);
+                $(this).find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+            });
         }
 
         function setEditUserStudentTeamIds(teamIds) {
@@ -474,31 +456,16 @@
             });
         }
 
-        function applyEditUserRoleSelect(response) {
-            const roleSelect = $('#edit-user-form #role_id');
-            const $lockHint = $('#edit-role-superadmin-lock');
-
-            roleSelect.empty().prop('disabled', false).removeAttr('aria-disabled');
-            $lockHint.addClass('d-none');
+        function setEditUserRoleContext(response) {
+            const $form = $('#edit-user-form');
 
             if (response.targetIsSuperadmin) {
-                roleSelect.append(
-                    $('<option>', {value: response.user.role_id, text: 'Суперадмин'})
-                );
-                roleSelect.val(String(response.user.role_id));
-                roleSelect.prop('disabled', true).attr('aria-disabled', 'true');
-                $lockHint.removeClass('d-none');
                 editUserRolesCache = [];
-                return;
+            } else {
+                editUserRolesCache = response.roles || [];
             }
 
-            (response.roles || []).forEach(function (role) {
-                roleSelect.append(
-                    $('<option>', {value: role.id, text: role.label})
-                );
-            });
-            roleSelect.val(response.user.role_id);
-            editUserRolesCache = response.roles || [];
+            $form.data('role-id', response.user.role_id);
         }
 
         function syncEditUserTeamFields(roleId, roles, trainerTeamIds, studentTeamIds) {
@@ -541,11 +508,18 @@
 
             syncEditUserHealthFields(roleId, roles);
             syncEditUserCommentSexFields(roleId, roles);
-        }
 
-        $(document).on('change', '#edit-user-form #role_id', function () {
-            syncEditUserTeamFields($(this).val(), editUserRolesCache, null, null);
-        });
+            const studentRoleId = studentRoleIdFromRoles(roles);
+            const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
+
+            if (typeof window.syncUserStudentAccordionMode === 'function') {
+                window.syncUserStudentAccordionMode('edit', isStudent);
+            }
+
+            if (typeof window.syncStudentParentFieldsVisibility === 'function') {
+                window.syncStudentParentFieldsVisibility('edit');
+            }
+        }
 
         function applyPhoneUI(user){
             const $phone    = $('#edit-phone');
@@ -710,8 +684,8 @@
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
-                        // 2) Роли
-                        applyEditUserRoleSelect(response);
+                        // 2) Контекст роли (без смены роли в модалке)
+                        setEditUserRoleContext(response);
                         syncEditUserTeamFields(
                             response.user.role_id,
                             editUserRolesCache,
@@ -832,8 +806,8 @@
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
-                        // 2) Роли
-                        applyEditUserRoleSelect(response);
+                        // 2) Контекст роли (без смены роли в модалке)
+                        setEditUserRoleContext(response);
                         syncEditUserTeamFields(
                             response.user.role_id,
                             editUserRolesCache,
@@ -963,6 +937,12 @@
                                     }
                                 });
 
+                                if (typeof window.syncStudentUserAccordionsForErrors === 'function') {
+                                    window.syncStudentUserAccordionsForErrors('edit', $form);
+                                } else if (typeof window.syncStudentParentAccordionForErrors === 'function') {
+                                    window.syncStudentParentAccordionForErrors('edit');
+                                }
+
                                 // Фокус на первое неверное поле
                                 $form.find('.is-invalid').first().trigger('focus');
                                 return;
@@ -1046,6 +1026,7 @@
             $form.find('.js-trainer-teams-checkboxes').removeClass('border-danger');
             $('.js-user-trainer-teams-wrap').addClass('d-none');
             $('.js-user-student-team-wrap').removeClass('d-none');
+            $form.removeData('role-id');
             editUserRolesCache = [];
         });
 

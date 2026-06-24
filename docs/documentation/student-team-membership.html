@@ -67,7 +67,7 @@
   <table>
     <thead><tr><th>UI / API</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> (<code>_student_teams_multiselect.blade.php</code>, Select2). Partial: <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials § multiselect</a>.</td></tr>
+      <tr><td>Модалки create/edit</td><td>Multiselect <code>team_ids[]</code> — partial <code>_student_teams_multiselect.blade.php</code> (класс <code>js-generic-multiselect-select</code>, API <code>KidsCrmGenericMultiselectSelect2</code>). См. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a> и <a href="/docs/documentation/admin-users#user-modals">admin-users §4.5</a>.</td></tr>
       <tr><td>Право записи</td><td><code>users.group.update</code> — без права поле disabled, sync не выполняется (<code>UpdateRequest</code>).</td></tr>
       <tr><td>Колонка DataTables</td><td>Ключ <code>teams</code>, заголовок «Группы» — все названия через запятую (<code>TeamUserSyncService::teamTitlesLabel</code>).</td></tr>
       <tr><td>Фильтр «Группа»</td><td><code>team_id</code> — ученик в списке, если состоит в выбранной группе; <code>none</code> — нет записей в pivot.</td></tr>
@@ -115,14 +115,16 @@
   <table>
     <thead><tr><th>Раздел</th><th>Правило</th></tr></thead>
     <tbody>
-      <tr><td>Платежи, LTV, monthly</td><td>Без фильтра по группе — <b>одна строка</b> на ученика/платёж; колонка «Группа» — все группы через запятую. Фильтр <code>filter_team_id</code> — ученик попадает, если состоит в группе (pivot).</td></tr>
+      <tr><td>Отчёт «Платежи» (админ)</td><td>Колонка «Группа»: при <code>payments.team_id</code> — оплаченная группа; legacy (<code>team_id IS NULL</code>) — все группы через запятую. Фильтр <code>filter_team_id</code> — по снимку <code>payments.team_id</code> с fallback на pivot (<code>applyPaymentLedgerTeamFilters</code>). См. <a href="/docs/documentation/reports-payments#team-filter">reports-payments §1.1</a>.</td></tr>
+      <tr><td>LTV, «Платежи по месяцам»</td><td>Без фильтра — одна строка на ученика/платёж; колонка «Группа» — все группы через запятую. Фильтр <code>filter_team_id</code> — ученик состоит в группе (pivot, <code>applyReportTeamFilters</code>).</td></tr>
       <tr><td>Задолженности (месячные)</td><td>Источник — <code>users_prices</code>: <b>отдельная строка</b> на каждую пару <code>(ученик, team_id, месяц)</code> с неоплаченным начислением. Фильтр <code>filter_team_id</code> — по <code>users_prices.team_id</code> (не pivot). Фильтр локации — по группам ученика в pivot (§ <a href="/docs/documentation/reports-admin#location-filter">reports-admin §2.1</a>).</td></tr>
       <tr><td>Фильтр тренера</td><td>Ученики из <b>любой</b> группы тренера (<code>team_trainer</code> + pivot), не <code>users.team_id</code>.</td></tr>
       <tr><td>Фильтр объекта</td><td>Ученик попадает, если <b>хотя бы одна</b> его группа привязана к объекту (<code>teams.location_id</code>). См. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
-      <tr><td>Dashboard AJAX</td><td><code>getUserDetails</code> → <code>userTeamsLabel</code>; <code>getTeamDetails</code> — ученик в группе, если состоит в ней (pivot).</td></tr>
+      <tr><td>Dashboard AJAX</td><td><code>getUserDetails</code> → <code>userTeamsLabel</code>, все <code>userPrice</code>; <code>getTeamDetails</code> — ученик в группе, если состоит в ней (pivot).</td></tr>
+      <tr><td>Консоль <code>/cabinet</code> (роль user)</td><td>При 2+ группах — селект «Выбор группы» над сезонами; фильтр месячных начислений по <code>team_id</code> на клиенте (<code>sessionStorage</code>). См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §4</a>.</td></tr>
       <tr><td>«Цены» → вкладка users</td><td>Контекст одной группы слева; в таблице — ученики этой группы; начисление/оплата месяца — строка <code>users_prices</code> с <code>team_id</code> выбранной группы. См. <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</td></tr>
       <tr><td>Chat API <code>/chat/api/users</code></td><td><code>team_title</code> — подписи всех групп ученика.</td></tr>
-      <tr><td>Журнал платежей (Robokassa / Tinkoff)</td><td><code>team_title</code> в ledger — через <code>TeamUserSyncService::teamTitlesLabel</code>.</td></tr>
+      <tr><td>Журнал платежей (<code>payments</code>)</td><td>Для <code>monthly_fee</code> после webhook — снимок <code>payments.team_id</code> / <code>team_title</code> (<code>PaymentLedgerTeamResolver</code>); отображение — <code>PaymentTeamTitleDisplay</code>. См. <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>.</td></tr>
       <tr><td>«Нагрузка тренеров»</td><td>Группировка в ячейках пока по legacy <code>users.team_id</code> (не pivot) — см. <a href="/docs/documentation/schedule-trainer-workload">schedule-trainer-workload</a>.</td></tr>
     </tbody>
   </table>
@@ -132,6 +134,7 @@
     <thead><tr><th>Страница</th><th>Поведение</th></tr></thead>
     <tbody>
       <tr><td><code>/account-settings/user/edit</code></td><td>Поле «Группы» — <b>только чтение</b> (<code>readonly</code> + <code>disabled</code>), значения из pivot через <code>$user->teams</code>. Подпись: «Изменение групп доступно только администратору CRM». В <code>AccountUpdateRequest</code> / PATCH нет <code>team_id</code>. Редактирование — <code>/admin/users</code> (<code>users.group.update</code>). См. <a href="/docs/documentation/parents-and-family-cabinet#account-groups">parents-and-family-cabinet §4.5</a>.</td></tr>
+      <tr><td><code>/cabinet</code> (<code>dashboard.view</code>)</td><td>Консоль: профиль, календарь, сезоны оплат. При 2+ группах у активного ученика (без <code>users.view</code>) — селект «Выбор группы», жирное выделение выбранной группы в шапке. Подробно: <a href="/docs/documentation/dashboard-cabinet">dashboard-cabinet</a>.</td></tr>
       <tr><td><code>/my-group</code> (<code>myGroup.view</code>)</td><td>Если несколько групп — select «Выберите группу для просмотра»; <code>GET /my-group/data?team_id=</code> возвращает одногруппников выбранной группы.</td></tr>
       <tr><td>«Мои документы»</td><td>Read-only подпись групп ученика (pivot).</td></tr>
     </tbody>
@@ -140,6 +143,7 @@
   <h2>7) Контекст группы (<code>context_team_id</code>)</h2>
   <p>Когда у ученика несколько групп, часть UI/API принимает явный контекст одной группы:</p>
   <ul>
+    <li>Консоль <code>/cabinet</code> — селект «Выбор группы» (client-side, <code>sessionStorage</code>); см. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §4</a>;</li>
     <li>Журнал — фильтр «Группа» на странице или <code>data-context-team-id</code> на ячейке;</li>
     <li><code>cell-context</code>, <code>user-schedule/info</code> — query <code>context_team_id</code>;</li>
     <li>Дефолтный тренер «Посетил» — тренер группы из контекста (<code>team_trainer</code>), не первой попавшей группы без контекста.</li>
@@ -160,9 +164,13 @@
   <ul class="small">
     <li><code>database/migrations/2026_06_20_160000_create_team_user_table.php</code></li>
     <li><code>database/migrations/2026_06_21_120000_add_team_id_to_users_prices_table.php</code></li>
+    <li><code>database/migrations/2026_06_21_140000_add_team_id_to_payments_table.php</code></li>
     <li><code>app/Services/TeamUserSyncService.php</code>, <code>app/Support/UserTeamQuery.php</code>, <code>app/Support/UserPriceTeamMembership.php</code></li>
+    <li><code>app/Services/Payments/PaymentLedgerTeamResolver.php</code>, <code>app/Support/Payments/PaymentTeamTitleDisplay.php</code></li>
     <li><code>app/Models/User.php</code> — <code>teams()</code>, hook create → legacy sync</li>
-    <li><code>resources/views/admin/users/_student_teams_multiselect.blade.php</code></li>
+    <li><code>resources/views/admin/users/_student_teams_multiselect.blade.php</code> — обёртка над <code>js-generic-multiselect-select</code></li>
+    <li><code>resources/views/partials/select2/generic-multiselect.blade.php</code> — единая реализация Select2 multiselect</li>
+    <li><code>resources/views/includes/dashboard_team_switcher.blade.php</code>, <code>resources/views/dashboard.blade.php</code></li>
     <li><code>app/Http/Requests/Admin/SyncScheduleUserTeamsRequest.php</code></li>
     <li><code>app/Services/Contracts/ContractCreationService.php</code> — <code>resolveGroupIdForStudent</code></li>
   </ul>
@@ -172,10 +180,13 @@
     <ul class="small">
       <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFeatureTest.php</code> — поведение во всех разделах</li>
       <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFullAccessFeatureTest.php</code> — доступ 200/403/401 по endpoint’ам</li>
+      <li><code>tests/Feature/Crm/Ui/GenericMultiselectFullAccessFeatureTest.php</code> — multiselect групп на <code>/admin/users</code>, AJAX store с <code>team_ids</code></li>
       <li><code>tests/Feature/Crm/Users/TeamUserSyncFeatureTest.php</code> — admin store/update/filter</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — журнал attach/sync/context</li>
       <li><code>tests/Feature/Crm/Contracts/ContractGroupPivotFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code>, <code>DashboardTeamSwitcherAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Payments/MultiTeamMonthlyPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code>, <code>LtvReportTeamPivotFeatureTest.php</code></li>
     </ul>
     <pre><code>php artisan test --env=testing tests/Feature/Crm/StudentTeams/</code></pre>

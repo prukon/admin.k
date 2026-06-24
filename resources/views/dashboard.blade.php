@@ -100,13 +100,17 @@
                             @else
                                 -
                             @endif </span></div>
-                    <div class="group">Группа: <span class="group-value"> @if(!empty($curTeamsLabel))
-                                {{ $curTeamsLabel }}
-                            @elseif($curTeam)
-                                {{ $curTeam->title }}
-                            @else
+                    <div class="group">Группа: <span class="group-value"@if($curUser->teams->count() >= 2) data-multi-team="1"@endif>
+                            @if($curUser->teams->isEmpty())
                                 -
-                            @endif </span></div>
+                            @elseif($curUser->teams->count() === 1)
+                                {{ $curUser->teams->first()->title }}
+                            @else
+                                @foreach($curUser->teams as $team)
+                                    <span class="dashboard-group-name" data-team-id="{{ $team->id }}">{{ $team->title }}</span>@if(!$loop->last), @endif
+                                @endforeach
+                            @endif
+                        </span></div>
 
 
                     <div class="fields-wrap">
@@ -315,6 +319,8 @@
             </div>
         @endif
 
+        @include('includes.dashboard_team_switcher')
+
         {{--Сезоны--}}
         <div class="row seasons">
             <div class="col-12">
@@ -383,7 +389,116 @@
             // передача расписания юзера для календаря
             var scheduleUser = {!! json_encode($scheduleUserArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
             updateGlobalScheduleData(scheduleUser);
-            var userPrice = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
+            var userPriceAll = {!! json_encode($userPriceArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_NUMERIC_CHECK) !!};
+            var userPrice = userPriceAll;
+            @cannot('users.view')
+            var dashboardTeams = {!! json_encode(
+                $curUser->teams->count() >= 2
+                    ? $curUser->teams->map(fn ($team) => ['id' => (int) $team->id, 'title' => (string) $team->title])->values()
+                    : [],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            ) !!};
+            @else
+            var dashboardTeams = [];
+            @endcannot
+            var dashboardStudentId = {{ (int) $curUser->id }};
+            var dashboardTeamStorageKey = 'dashboard_active_team_id_' + dashboardStudentId;
+
+            function refreshPrice() {
+                document.querySelectorAll('.price-value').forEach(function (element) {
+                    element.textContent = '0';
+                });
+                document.querySelectorAll('.new-main-button-wrap button').forEach(function (button) {
+                    button.classList.remove('buttonPaided');
+                });
+            }
+
+            function escapeHtml(text) {
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function getDashboardActiveTeamId() {
+                if (!dashboardTeams.length) {
+                    return null;
+                }
+
+                const stored = sessionStorage.getItem(dashboardTeamStorageKey);
+                if (stored && dashboardTeams.some(function (team) {
+                    return String(team.id) === String(stored);
+                })) {
+                    return Number(stored);
+                }
+
+                return Number(dashboardTeams[0].id);
+            }
+
+            function filterUserPriceByTeam(teamId) {
+                if (!teamId) {
+                    return userPriceAll;
+                }
+
+                return userPriceAll.filter(function (item) {
+                    return Number(item.team_id) === Number(teamId);
+                });
+            }
+
+            function updateDashboardGroupLabel(teamId) {
+                const label = document.querySelector('.group-value[data-multi-team="1"]');
+                if (!label || !dashboardTeams.length) {
+                    return;
+                }
+
+                label.innerHTML = dashboardTeams.map(function (team, index) {
+                    const title = escapeHtml(team.title);
+                    const part = Number(team.id) === Number(teamId)
+                        ? '<strong>' + title + '</strong>'
+                        : title;
+                    return index === 0 ? part : ', ' + part;
+                }).join('');
+            }
+
+            function applyDashboardTeamContext(teamId, persist) {
+                if (!dashboardTeams.length) {
+                    return;
+                }
+
+                if (persist) {
+                    sessionStorage.setItem(dashboardTeamStorageKey, String(teamId));
+                }
+
+                const select = document.getElementById('dashboard-active-team');
+                if (select) {
+                    select.value = String(teamId);
+                }
+
+                updateDashboardGroupLabel(teamId);
+                refreshPrice();
+                userPrice = filterUserPriceByTeam(teamId);
+                apendPrice(userPrice);
+                showSessons();
+                apendCreditTotalSumm();
+                apendCreditTotalSummtoNotice();
+                openFirstSeason();
+            }
+
+            function initDashboardTeamSwitcher() {
+                if (!dashboardTeams.length) {
+                    return;
+                }
+
+                const teamId = getDashboardActiveTeamId();
+                applyDashboardTeamContext(teamId, false);
+
+                $('#dashboard-active-team').on('change', function () {
+                    applyDashboardTeamContext(Number(this.value), true);
+                    disabledPaymentForm(currentUserRole);
+                });
+            }
 
             // закрытие плашки с задолженностью у юзера
             function closeNotice() {
@@ -571,18 +686,7 @@
                             let userFields = response.userFields;
 
                             //Сброс всех значений цен до нуля
-                            function refreshPrice() {
-                                // Получаем все элементы с классом 'price-value' и устанавливаем значение '0'
-                                document.querySelectorAll('.price-value').forEach(function (element) {
-                                    element.textContent = '0';
-                                });
-                                // Получаем все кнопки внутри 'new-main-button-wrap' и удаляем все классы
-                                document.querySelectorAll('.new-main-button-wrap button').forEach(function (button) {
-                                    button.classList.remove('buttonPaided');
-                                });
-                            }
-
-                            // Вставка имени
+                            refreshPrice();
                             function apendNameToUser2() {
                                 if (user.name) {
                                     $('.name-value').html(user.name);
@@ -1351,11 +1455,15 @@
             clickSeason();       //Измерение иконок при клике
             hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
             createCalendar();
-            apendPrice(userPrice);
-            showSessons();
-            apendCreditTotalSumm();
-            apendCreditTotalSummtoNotice();
-            openFirstSeason();
+            if (dashboardTeams.length) {
+                initDashboardTeamSwitcher();
+            } else {
+                apendPrice(userPrice);
+                showSessons();
+                apendCreditTotalSumm();
+                apendCreditTotalSummtoNotice();
+                openFirstSeason();
+            }
             closeNotice();
             showCreditNotice();
             disabledPaymentForm(currentUserRole);

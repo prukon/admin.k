@@ -25,6 +25,7 @@ use Yajra\DataTables\DataTables;
 use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
 use App\Support\UserTeamQuery;
+use App\Support\Payments\PaymentTeamTitleDisplay;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 
 
@@ -354,7 +355,11 @@ class PaymentReportController extends AdminBaseController
             ->groupBy('payment_id');
 
         return Payment::query()
-            ->with(['user.teams' => fn ($q) => $q->where('teams.partner_id', $partnerId), 'location'])
+            ->with([
+                'user.teams' => fn ($q) => $q->where('teams.partner_id', $partnerId),
+                'location',
+                'paidTeam:id,title,partner_id',
+            ])
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->leftJoin('locations as payment_location', 'payment_location.id', '=', 'payments.location_id')
             ->leftJoinSub($latestIncomeReceiptSub, 'latest_income_fiscal_receipts', function ($join) {
@@ -806,13 +811,7 @@ SQL;
                 return $row->user ? $row->user->id : null;
             })
             ->addColumn('team_title', function (Payment $row) use ($teamUserSync) {
-                if (! $row->user) {
-                    return 'Без команды';
-                }
-
-                $label = $teamUserSync->teamTitlesLabel($row->user);
-
-                return $label !== '' ? $label : 'Без команды';
+                return PaymentTeamTitleDisplay::forRow($row, $teamUserSync);
             })
             ->addColumn('location_title', function (Payment $row) use ($canViewLocations) {
                 if (! $canViewLocations) {
@@ -1250,7 +1249,7 @@ SQL;
             });
         }
 
-        UserTeamQuery::applyReportTeamFilters(
+        UserTeamQuery::applyPaymentLedgerTeamFilters(
             $paymentsQuery,
             $partnerId,
             $request->query('filter_team_id'),

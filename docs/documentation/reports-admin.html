@@ -57,6 +57,16 @@
     <li><b><code>locations.view</code></b> — не открывает отчёты само по себе, но даёт фильтр «Локация» в отчётах платежей и задолженностей (см. §2.1).</li>
   </ul>
 
+  <h2 id="team-filter-payments">2.0) Фильтр «Группа» в отчёте «Платежи»</h2>
+  <div class="note">
+    Параметр <code>filter_team_id</code> — id группы партнёра (Select2, <code>GET /admin/reports/payments/teams-search</code>).
+    Логика отличается от LTV и «Платежи по месяцам»: там фильтр только по членству ученика в pivot (<code>applyReportTeamFilters</code>).
+    В основном отчёте «Платежи» используется <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> — учитывается снимок <code>payments.team_id</code>
+    с fallback на pivot для legacy-строк (<code>payments.team_id IS NULL</code>).
+    Колонка «Группа» для новых месячных оплат показывает оплаченную группу, не все группы ученика.
+    Подробно: <a href="/docs/documentation/reports-payments#team-filter">reports-payments §1.1</a>, <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>.
+  </div>
+
   <h2 id="location-filter">2.1) Фильтр по локации в отчётах</h2>
   <div class="note">
     Единый параметр запроса: <code>filter_location_id</code>. Пустое значение — все записи; <code>none</code> — только без локации;

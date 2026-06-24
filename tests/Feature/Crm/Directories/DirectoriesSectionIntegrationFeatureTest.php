@@ -24,6 +24,8 @@ final class DirectoriesSectionIntegrationFeatureTest extends CrmTestCase
     /** @param list<string> $permissionNames */
     private function createUserWithPermissions(array $permissionNames): User
     {
+        $permissionNames = $this->withDirectoriesMenuPermission($permissionNames);
+
         $now = now();
         $roleId = DB::table('roles')->insertGetId([
             'name'       => 'test_dirs_section_' . strtolower(\Illuminate\Support\Str::random(8)),

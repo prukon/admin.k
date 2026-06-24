@@ -39,18 +39,18 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     private function expectedPermissionCountsByGroupSlug(): array
     {
         return [
-            'mainMenu'        => 6,
-            'reports'         => 10,
-            'schedule'        => 6,
-            'directories'     => 6,
+            'mainMenu'        => 17,
+            'reports'         => 9,
+            'schedule'        => 4,
+            'directories'     => 5,
             'lessonPackages'  => 2,
-            'setPrices'       => 3,
-            'contracts'       => 4,
-            'leads'           => 4,
-            'partner'         => 4,
+            'setPrices'       => 2,
+            'contracts'       => 3,
+            'leads'           => 3,
+            'partner'         => 3,
             'account'         => 11,
-            'users'           => 14,
-            'settings'        => 8,
+            'users'           => 13,
+            'settings'        => 7,
             'paymentMethods'  => 6,
             'misc'            => 2,
         ];
@@ -80,14 +80,24 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         return [
             'mainMenu' => [
                 'dashboard.view',
+                'reports.view',
                 'myPayments.view',
                 'myGroup.view',
-                'messages.view',
+                'setPrices.view',
+                'schedule.view',
+                'scheduleSlots.view',
+                'schoolLeads.view',
+                'users.view',
+                'directories.view',
+                'groups.view',
+                'contracts.view',
+                'settings.view',
                 'blog.view',
                 'documentations.view',
+                'messages.view',
+                'partner.view',
             ],
             'reports' => [
-                'reports.view',
                 'reports.payment.intents.view',
                 'reports.fiscal.receipts.view',
                 'reports.emails.view',
@@ -99,10 +109,8 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'reports.payments.payout_amount.column.view',
             ],
             'schedule' => [
-                'schedule.view',
                 'schedule.trainerSalary.view',
                 'schedule.trainerSalary.manage',
-                'scheduleSlots.view',
                 'scheduleSlots.manage',
                 'scheduleSlots.table',
             ],
@@ -112,31 +120,26 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'locations.manage',
                 'sport_types.view',
                 'sport_types.manage',
-                'groups.view',
             ],
             'lessonPackages' => [
                 'lessonPackages.view',
                 'lessonPackages.manualPaid.manage',
             ],
             'setPrices' => [
-                'setPrices.view',
                 'setPrices.customPayments.view',
                 'setPrices.manualPaid.manage',
             ],
             'contracts' => [
-                'contracts.view',
                 'contracts.sync',
                 'contracts.templates.fillSortOrder.edit',
                 'account.contracts.showFieldKeys',
             ],
             'leads' => [
                 'partnerLeads.view',
-                'schoolLeads.view',
                 'schoolWidget.view',
                 'schoolLeadLanding.view',
             ],
             'partner' => [
-                'partner.view',
                 'partner.switch',
                 'servicePayments.view',
                 'partnerWallet.view',
@@ -155,7 +158,6 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'account.partner.update',
             ],
             'users' => [
-                'users.view',
                 'trainers.view',
                 'users.name.update',
                 'users.birthdate.update',
@@ -171,7 +173,6 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'users.comment',
             ],
             'settings' => [
-                'settings.view',
                 'settings.roles.view',
                 'settings.paymentSystems.view',
                 'settings.queues.view',
@@ -317,11 +318,13 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         $slugs = $groups->pluck('slug')->all();
 
         $this->assertContains('mainMenu', $slugs);
-        $this->assertContains('reports', $slugs);
+        $this->assertNotContains('reports', $slugs);
         $this->assertContains('users', $slugs);
         $this->assertContains('account', $slugs);
         $this->assertNotContains('leads', $slugs);
         $this->assertNotContains('partner', $slugs);
+        $this->assertNotContains('setPrices', $slugs);
+        $this->assertNotContains('directories', $slugs);
     }
 
     public function test_rules_controller_passes_fourteen_groups_to_view_for_superadmin(): void

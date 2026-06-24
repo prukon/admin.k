@@ -223,7 +223,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
         $this->assertStringContainsString('Chat-B', $teamTitle);
     }
 
-    public function test_payment_report_team_title_lists_all_groups_without_duplicate_rows(): void
+    public function test_payment_report_team_title_shows_paid_group_when_team_id_set(): void
     {
         $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Pay-A']);
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Pay-B']);
@@ -231,6 +231,9 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
 
         $payment = Payment::factory()->create([
             'user_id' => $student->id,
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamA->id,
+            'team_title' => 'Pay-A',
             'summ'    => 2000,
         ]);
 
@@ -243,8 +246,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
         $this->assertCount(1, $matches);
 
         $teamTitle = html_entity_decode((string) ($matches->first()['team_title'] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $this->assertStringContainsString('Pay-A', $teamTitle);
-        $this->assertStringContainsString('Pay-B', $teamTitle);
+        $this->assertSame('Pay-A', $teamTitle);
     }
 
     public function test_dashboard_without_teams_query_excludes_students_with_pivot_groups(): void

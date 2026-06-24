@@ -35,6 +35,8 @@ final class DirectoriesSmokeFeatureTest extends CrmTestCase
     /** @param list<string> $permissionNames */
     private function createUserWithPermissions(array $permissionNames): User
     {
+        $permissionNames = $this->withDirectoriesMenuPermission($permissionNames);
+
         $now = now();
         $roleId = DB::table('roles')->insertGetId([
             'name'       => 'test_dirs_' . strtolower(\Illuminate\Support\Str::random(8)),
@@ -65,6 +67,7 @@ final class DirectoriesSmokeFeatureTest extends CrmTestCase
     public function test_sidebar_shows_directories_link_to_districts_when_districts_view_only(): void
     {
         $actor = $this->createUserWithoutPermission('districts.view', $this->partner);
+        $this->grantPermissionTo($actor, 'directories.view');
         $this->grantPermissionTo($actor, 'districts.view');
         $this->actingAs($actor);
 
@@ -81,6 +84,7 @@ final class DirectoriesSmokeFeatureTest extends CrmTestCase
     public function test_sidebar_shows_directories_link_to_locations_when_locations_view_only(): void
     {
         $actor = $this->createUserWithoutPermission('locations.view', $this->partner);
+        $this->grantPermissionTo($actor, 'directories.view');
         $this->grantPermissionTo($actor, 'locations.view');
         $this->actingAs($actor);
 

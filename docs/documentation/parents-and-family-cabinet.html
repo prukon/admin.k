@@ -237,7 +237,7 @@ users (role=user) — ученик, вход в CRM
       <tr><th>Компонент</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>DashboardController::index</code></td><td>Расписание, абонементы, поля — данные выбранного ребёнка</td></tr>
+      <tr><td><code>DashboardController::index</code></td><td>Расписание, абонементы, поля, сезоны — данные выбранного ребёнка; при 2+ группах — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
       <tr><td><code>AppServiceProvider</code> (view composer <code>admin2</code>)</td><td><code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code></td></tr>
     </tbody>
@@ -245,6 +245,20 @@ users (role=user) — ученик, вход в CRM
   <div class="warn">
     <b>Нюанс консоли.</b> На <code>/cabinet</code> имя/ДР/почта в блоке «личные данные» — из <code>activeStudent</code>; аватар в шаблоне — из <code>auth()->user()</code> (учётка входа).
   </div>
+
+  <h3 id="cabinet-team-switcher">5.6) Консоль: выбор группы при 2+ группах</h3>
+  <p>Подробная страница: <a href="/docs/documentation/dashboard-cabinet">dashboard-cabinet</a>.</p>
+  <table>
+    <thead><tr><th>Элемент</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>Условие</td><td>Активный ученик (<code>activeStudent</code>) состоит в <b>2+</b> группах pivot; залогиненный пользователь <b>без</b> <code>users.view</code>.</td></tr>
+      <tr><td>UI</td><td>Селект «Выбор группы» (<code>#dashboard-active-team</code>) над блоком сезонов.</td></tr>
+      <tr><td>Шапка «Группа:»</td><td>Все группы через запятую; выбранная в селекте — <b>жирным</b> (JS). При одной группе — без селекта и без жирного.</td></tr>
+      <tr><td>Хранение выбора</td><td><code>sessionStorage</code> ключ <code>dashboard_active_team_id_{userId}</code> (отдельно для каждого ребёнка в семье).</td></tr>
+      <tr><td>Backend</td><td>Отдельного POST/маршрута нет; фильтрация <code>users_prices</code> по <code>team_id</code> только на клиенте перед отрисовкой сезонов.</td></tr>
+      <tr><td>Не затрагивается</td><td>Календарь посещений; дополнительные платежи (<code>user_custom_payment</code>).</td></tr>
+    </tbody>
+  </table>
 
   <h3>5.5) <code>FamilyStudentContextService</code> (кратко)</h3>
   <table>

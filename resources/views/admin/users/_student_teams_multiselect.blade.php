@@ -6,11 +6,11 @@
 @endphp
 
 @if($teamOptions->isNotEmpty())
-<div class="mb-3 generic-multiselect-field js-user-student-teams-field">
+<div class="mb-3 generic-multiselect-field">
     <label class="form-label" for="{{ $teamsFieldId }}">{{ $teamsLabel }}</label>
     <select id="{{ $teamsFieldId }}"
             name="team_ids[]"
-            class="form-select js-generic-multiselect-select js-user-student-teams-select"
+            class="form-select js-generic-multiselect-select"
             multiple
             data-placeholder="Выберите группы"
             @unless($canEditTeams) disabled aria-disabled="true" @endunless>

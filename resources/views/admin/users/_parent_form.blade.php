@@ -17,13 +17,38 @@
             ? ParentProfile::query()->where('partner_id', $partnerId)->exists()
             : false;
     }
+
+    $useAccordion = in_array($prefix, ['create', 'edit'], true);
+    $parentAccordionId = $prefix . 'UserParentAccordion';
+    $parentAccordionCollapseId = $prefix . 'UserParentCollapse';
+    $parentAccordionHeadingId = $prefix . 'UserParentHeading';
 @endphp
 
 <div class="col-12 js-student-parent-fields {{ ($prefix ?? 'create') === 'lead' ? '' : 'd-none' }}"
      data-parent-prefix="{{ $prefix }}"
      data-student-role-id="{{ $studentRoleId }}"
      data-has-parent-profiles="{{ $hasParentProfiles ? '1' : '0' }}">
-    <div class="small text-muted mb-2 js-parent-section-title {{ !empty($hideSectionTitle) ? 'd-none' : '' }}">Данные родителя</div>
+    @if($useAccordion)
+        <div class="accordion accordion-flush user-parent-accordion" id="{{ $parentAccordionId }}">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="{{ $parentAccordionHeadingId }}">
+                    <button class="accordion-button collapsed js-user-parent-accordion-btn"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#{{ $parentAccordionCollapseId }}"
+                            aria-expanded="false"
+                            aria-controls="{{ $parentAccordionCollapseId }}">
+                        Данные родителя
+                    </button>
+                </h2>
+                <div id="{{ $parentAccordionCollapseId }}"
+                     class="accordion-collapse collapse js-user-parent-accordion-panel"
+                     aria-labelledby="{{ $parentAccordionHeadingId }}"
+                     data-bs-parent="#{{ $parentAccordionId }}">
+                    <div class="accordion-body pt-2">
+    @else
+        <div class="small text-muted mb-2 js-parent-section-title {{ !empty($hideSectionTitle) ? 'd-none' : '' }}">Данные родителя</div>
+    @endif
 
     @if($hasParentProfiles)
         <div class="js-parent-mode-toggle-wrap mb-2" data-parent-prefix="{{ $prefix }}">
@@ -173,6 +198,12 @@
             </div>
         </div>
     </div>
+    @if($useAccordion)
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 
 @once
@@ -223,6 +254,34 @@
             .parent-mode-segmented__btn:disabled {
                 opacity: 0.55;
             }
+
+            #createUserModal .user-parent-accordion,
+            #editUserModal .user-parent-accordion {
+                --bs-accordion-btn-padding-x: 0.75rem;
+                --bs-accordion-btn-padding-y: 0.65rem;
+                --bs-accordion-body-padding-x: 0.75rem;
+                --bs-accordion-body-padding-y: 0.85rem;
+            }
+
+            #createUserModal .user-parent-accordion .accordion-item,
+            #editUserModal .user-parent-accordion .accordion-item {
+                border: 1px solid #dee2e6;
+                border-radius: 0.375rem;
+                overflow: hidden;
+            }
+
+            #createUserModal .user-parent-accordion .accordion-button,
+            #editUserModal .user-parent-accordion .accordion-button {
+                font-weight: 600;
+                font-size: 0.875rem;
+                box-shadow: none;
+            }
+
+            #createUserModal .user-parent-accordion .accordion-button:not(.collapsed),
+            #editUserModal .user-parent-accordion .accordion-button:not(.collapsed) {
+                color: inherit;
+                background-color: #f8f9fa;
+            }
         </style>
     @endpush
 
@@ -259,6 +318,40 @@
                 function parentFieldsWrap(prefix) {
                     return $('.js-student-parent-fields[data-parent-prefix="' + prefix + '"]');
                 }
+
+                function parentAccordionPanel(prefix) {
+                    return document.getElementById(prefix + 'UserParentCollapse');
+                }
+
+                window.collapseStudentParentAccordion = function (prefix) {
+                    const panelEl = parentAccordionPanel(prefix);
+                    if (!panelEl || !window.bootstrap?.Collapse) {
+                        return;
+                    }
+
+                    const instance = bootstrap.Collapse.getInstance(panelEl)
+                        || bootstrap.Collapse.getOrCreateInstance(panelEl, { toggle: false });
+                    instance.hide();
+                };
+
+                window.expandStudentParentAccordion = function (prefix) {
+                    const panelEl = parentAccordionPanel(prefix);
+                    if (!panelEl || !window.bootstrap?.Collapse) {
+                        return;
+                    }
+
+                    const instance = bootstrap.Collapse.getInstance(panelEl)
+                        || bootstrap.Collapse.getOrCreateInstance(panelEl, { toggle: false });
+                    instance.show();
+                };
+
+                window.syncStudentParentAccordionForErrors = function (prefix) {
+                    if (!parentFieldsWrap(prefix).find('.is-invalid').length) {
+                        return;
+                    }
+
+                    window.expandStudentParentAccordion(prefix);
+                };
 
                 function hasParentProfilesFor(prefix) {
                     return String(parentFieldsWrap(prefix).data('has-parent-profiles')) === '1';
@@ -299,6 +392,25 @@
                     }
                 }
 
+                function resolveCurrentRoleIdFromForm($form) {
+                    const fromSelect = $form.find('select[name="role_id"]').val();
+                    if (fromSelect !== undefined && fromSelect !== null && String(fromSelect) !== '') {
+                        return String(fromSelect);
+                    }
+
+                    const fromHidden = $form.find('input[name="role_id"]').val();
+                    if (fromHidden !== undefined && fromHidden !== null && String(fromHidden) !== '') {
+                        return String(fromHidden);
+                    }
+
+                    const fromData = $form.data('role-id');
+                    if (fromData !== undefined && fromData !== null && String(fromData) !== '') {
+                        return String(fromData);
+                    }
+
+                    return '';
+                }
+
                 window.syncStudentParentFieldsVisibility = function (prefix) {
                     const $wrap = parentFieldsWrap(prefix);
                     if (prefix === 'lead') {
@@ -311,7 +423,7 @@
 
                     const $form = $wrap.closest('form');
                     const studentRoleId = String($wrap.data('student-role-id') || '');
-                    const currentRoleId = String($form.find('select[name="role_id"]').val() || '');
+                    const currentRoleId = resolveCurrentRoleIdFromForm($form);
                     const show = studentRoleId !== '' && currentRoleId === studentRoleId;
 
                     $wrap.toggleClass('d-none', !show);
@@ -515,14 +627,16 @@
                     syncParentModeButtons(prefix, 'directory');
                 });
 
-                $(document).on('change', '#create-user-form select[name="role_id"], #edit-user-form select[name="role_id"]', function () {
-                    const prefix = $(this).closest('#create-user-form').length ? 'create' : 'edit';
-                    window.syncStudentParentFieldsVisibility(prefix);
+                $(document).on('change', '#create-user-form select[name="role_id"]', function () {
+                    window.syncStudentParentFieldsVisibility('create');
                 });
 
                 $(function () {
                     $('#createUserModal').on('shown.bs.modal', function () {
                         initParentSelectsInModal($(this));
+                        if (typeof window.resetStudentUserAccordions === 'function') {
+                            window.resetStudentUserAccordions('create');
+                        }
                         window.syncStudentParentFieldsVisibility('create');
 
                         var $form = $('#create-user-form');
@@ -541,6 +655,9 @@
 
                     $('#editUserModal').on('shown.bs.modal', function () {
                         initParentSelectsInModal($(this));
+                        if (typeof window.resetStudentUserAccordions === 'function') {
+                            window.resetStudentUserAccordions('edit');
+                        }
                         window.syncStudentParentFieldsVisibility('edit');
                     });
 

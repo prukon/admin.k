@@ -22,6 +22,10 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'create team modal' => ['includes/modal/createTeam.blade.php'];
         yield 'edit team modal' => ['includes/modal/editTeam.blade.php'];
         yield 'setting prices users tab' => ['admin/SettingPrices/users.blade.php'];
+        yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
+        yield 'districts index modals' => ['admin/districts/index.blade.php'];
+        yield 'admin users page' => ['admin/user.blade.php'];
+        yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

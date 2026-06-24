@@ -109,7 +109,7 @@ final class RulesSettingsSectionFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'rule')
             ->assertViewHas(['roles', 'permissions', 'groups'])
             ->assertSee('id="permission-accordion"', false)
-            ->assertSee('Отчёты', false)
+            ->assertSee('Главное меню', false)
             ->assertSee('Управление пользователями', false);
     }
 

@@ -15,6 +15,7 @@ class Payment extends Model
 
     protected $casts = [
         'location_id' => 'integer',
+        'team_id' => 'integer',
     ];
 
     public function user()
@@ -25,5 +26,10 @@ class Payment extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    public function paidTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 }

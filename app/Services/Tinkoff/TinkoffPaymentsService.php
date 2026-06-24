@@ -25,7 +25,7 @@ use Carbon\CarbonInterface;
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
 use App\Services\Payments\PaymentLedgerRecorder;
-use App\Services\TeamUserSyncService;
+use App\Services\Payments\PaymentLedgerTeamResolver;
 
 
 
@@ -437,9 +437,12 @@ class TinkoffPaymentsService
                         ->where('teams.partner_id', $partnerIdForTeams)
                         ->whereNull('teams.deleted_at'),
                 ])->find((int) $locked->user_id);
-                $teamName = $user
-                    ? (app(TeamUserSyncService::class)->teamTitlesLabel($user) ?: 'Без команды')
-                    : 'Без команды';
+
+                if (! $user) {
+                    return;
+                }
+
+                $teamSnapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $user);
                 $currentDateTime = now()->format('Y-m-d H:i:s');
 
                 app(PaymentLedgerRecorder::class)->record(
@@ -448,8 +451,9 @@ class TinkoffPaymentsService
                     (int) $locked->user_id,
                     [
                         'user_id' => (int) $locked->user_id,
-                        'user_name' => ($user?->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
-                        'team_title' => $teamName,
+                        'user_name' => ($user->full_name ?: trim(($user->lastname ?? '').' '.($user->name ?? ''))) ?: 'Неизвестно',
+                        'team_id' => $teamSnapshot['team_id'],
+                        'team_title' => $teamSnapshot['team_title'],
                         'operation_date' => $currentDateTime,
                         'payment_month' => (string) match (true) {
                             (string) $payable->type === 'monthly_fee' => $payable->month?->format('Y-m-d') ?? '',

@@ -63,6 +63,8 @@ class DashboardAuthorizationTest extends CrmTestCase
         $actor = $this->createUserWithoutPermission('dashboard.view', $this->partner);
         $this->actingAs($actor);
 
+        $this->get(route('dashboard'))->assertForbidden();
+
         // /get-user-details
         $this->getJson(route('getUserDetails', ['userId' => $this->user->id]))
             ->assertStatus(403);
@@ -70,5 +72,28 @@ class DashboardAuthorizationTest extends CrmTestCase
         // /get-team-details
         $this->getJson(route('getTeamDetails', ['teamId' => 1, 'teamName' => 'test']))
             ->assertStatus(403);
+    }
+
+    /**
+     * P0.4 — Гость не имеет доступа к странице консоли
+     */
+    public function test_guest_cannot_access_dashboard_page(): void
+    {
+        auth()->logout();
+
+        $response = $this->get(route('dashboard'));
+
+        $this->assertNotEquals(200, $response->status());
+        $this->assertNotEquals(500, $response->status());
+    }
+
+    /**
+     * P0.5 — Авторизованный пользователь с dashboard.view получает 200 на /cabinet
+     */
+    public function test_user_with_dashboard_view_can_access_dashboard_page(): void
+    {
+        $this->withoutVite();
+
+        $this->get(route('dashboard'))->assertOk();
     }
 }

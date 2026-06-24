@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: консоль ученика (/cabinet)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    ul { margin: 8px 0 8px 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Консоль ученика (<code>/cabinet</code>)</h1>
+  <div class="small">Файл: <code>/docs/documentation/dashboard-cabinet.html</code> · маршрут: <code>dashboard</code> · view: <code>resources/views/dashboard.blade.php</code></div>
+
+  <div class="note">
+    <b>Кратко.</b> Страница «Консоль» — личный кабинет ученика (или семейный просмотр данных ребёнка): профиль, календарь посещений, дополнительные платежи, сезоны месячных абонементов с кнопками «Оплатить».
+    Для роли с правом <code>users.view</code> (админ CRM) на той же странице доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
+    При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме показывается селект <b>«Выбор группы»</b> — фильтрация месячных начислений по <code>users_prices.team_id</code> (только на клиенте).
+  </div>
+
+  <h2>1) Маршруты и права</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Имя</th><th>Permission</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>GET, POST</td><td><code>/cabinet</code></td><td><code>dashboard</code></td><td><code>dashboard.view</code></td><td>Страница консоли (<code>DashboardController@index</code>)</td></tr>
+      <tr><td>GET</td><td><code>/get-user-details</code></td><td><code>getUserDetails</code></td><td><code>dashboard.view</code></td><td>JSON: данные ученика для админского селекта (все <code>userPrice</code> без фильтра по группе)</td></tr>
+      <tr><td>GET</td><td><code>/get-team-details</code></td><td><code>getTeamDetails</code></td><td><code>dashboard.view</code></td><td>JSON: ученики группы (pivot <code>team_user</code>)</td></tr>
+      <tr><td>POST</td><td><code>/cabinet/active-student</code></td><td><code>cabinet.active-student.switch</code></td><td><code>auth</code> + <code>2fa</code></td><td>Семейный переключатель ребёнка (session). См. <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a></td></tr>
+    </tbody>
+  </table>
+  <p>Middleware группы: <code>auth</code>, <code>2fa</code>, <code>can:dashboard.view</code>. Без права — <b>403</b>; гость — redirect на login / не 200 на JSON.</p>
+  <p>Оплата с консоли: <code>POST /payment</code> (<code>paying.classes</code>). См. <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>.</p>
+
+  <h2>2) Контекст ученика на странице</h2>
+  <p><code>DashboardController::index</code> берёт ученика через <code>FamilyStudentContextService::activeStudent(auth()->user())</code> — тот же механизм, что «Мои платежи» и семейный переключатель в сайдбаре.</p>
+  <ul>
+    <li>Имя, дата рождения, почта, кастомные поля, расписание, <code>users_prices</code>, доп. платежи — из <code>activeStudent</code>.</li>
+    <li>Аватар в шаблоне — из <code>auth()->user()</code> (учётка входа), не из активного ребёнка. См. <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5.4</a>.</li>
+    <li>Группы в pivot загружаются с фильтром <code>teams.partner_id = current_partner</code>.</li>
+  </ul>
+
+  <h2 id="ui-modes">3) Два режима UI на одной странице</h2>
+  <table>
+    <thead><tr><th>Условие</th><th>Что видит пользователь</th></tr></thead>
+    <tbody>
+      <tr><td>Есть <code>users.view</code> (админ CRM)</td><td>Блок «Выбор ученика»: Select2 «Группа» + «ФИО», AJAX <code>getUserDetails</code> / <code>getTeamDetails</code>. Селект «Выбор группы» для ученика <b>не показывается</b>.</td></tr>
+      <tr><td>Нет <code>users.view</code> (роль <code>user</code>)</td><td>Только свои (или семейные) данные активного ученика; при 2+ группах — селект «Выбор группы» (§<a href="#team-switcher">4</a>).</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="team-switcher">4) Селект «Выбор группы» (2+ группы)</h2>
+  <div class="ok">
+    Отдельного backend-маршрута для переключения группы на консоли <b>нет</b>: выбор хранится в <code>sessionStorage</code> браузера и применяется в JavaScript при отрисовке сезонов.
+  </div>
+
+  <h3>4.1) Условия показа</h3>
+  <ul>
+    <li>Partial: <code>resources/views/includes/dashboard_team_switcher.blade.php</code>.</li>
+    <li>Пользователь <b>без</b> права <code>users.view</code> (<code>@cannot('users.view')</code>).</li>
+    <li>У <code>activeStudent</code> в pivot <b>2 и более</b> групп партнёра (<code>$curUser->teams->count() &gt;= 2</code>).</li>
+    <li>При одной группе селект скрыт; жирное выделение названия группы в шапке не используется.</li>
+  </ul>
+
+  <h3>4.2) Размещение и подпись</h3>
+  <ul>
+    <li>Блок расположен <b>сразу над</b> секцией сезонов (<code>.row.seasons</code>), после календаря и блока дополнительных платежей.</li>
+    <li>Label селекта: <b>«Выбор группы»</b>, элемент: <code>#dashboard-active-team</code>.</li>
+  </ul>
+
+  <h3>4.3) Поле «Группа:» в шапке профиля</h3>
+  <ul>
+    <li>При 2+ группах выводятся <b>все</b> названия через запятую (<code>span.dashboard-group-name</code>, атрибут <code>data-multi-team="1"</code> на <code>.group-value</code>).</li>
+    <li>Название группы, выбранной в селекте, выделяется <b>жирным</b> (<code>&lt;strong&gt;</code>) через JS (<code>updateDashboardGroupLabel</code>).</li>
+    <li>При одной группе — обычный текст без <code>data-multi-team</code> и без жирного.</li>
+  </ul>
+
+  <h3>4.4) Поведение при смене группы (клиент)</h3>
+  <ol>
+    <li>На загрузке страницы в JS передаются все строки <code>users_prices</code> (<code>userPriceAll</code>) и список групп (<code>dashboardTeams</code>).</li>
+    <li>Ключ <code>sessionStorage</code>: <code>dashboard_active_team_id_{userId}</code>, где <code>userId</code> — id активного ученика (важно при семейном переключении детей).</li>
+    <li>Если в storage нет валидного id — выбирается <b>первая</b> группа из pivot (как дефолт на «Моя группа»).</li>
+    <li>После выбора: фильтр <code>userPrice</code> по <code>team_id</code> → пересборка ячеек сезонов (<code>apendPrice</code>), скрытие пустых сезонов, пересчёт задолженностей.</li>
+    <li>В форме «Оплатить» за месяц в hidden <code>team_id</code> попадает группа отфильтрованной строки <code>users_prices</code> (согласовано с <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>).</li>
+  </ol>
+
+  <h3>4.5) Что селект группы <b>не</b> меняет</h3>
+  <table>
+    <thead><tr><th>Блок</th><th>Причина</th></tr></thead>
+    <tbody>
+      <tr><td>Календарь посещений</td><td>Данные <code>schedule_users</code> не привязаны к группе на консоли; фильтрация не реализована.</td></tr>
+      <tr><td>Дополнительные платежи (<code>user_custom_payment</code>)</td><td>Не связаны с <code>team_id</code> / pivot групп.</td></tr>
+      <tr><td>AJAX <code>getUserDetails</code> (админ)</td><td>По-прежнему отдаёт все <code>userPrice</code>; фильтр только в пользовательском режиме на клиенте.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.6) Связь с несколькими начислениями за один месяц</h3>
+  <p>До появления селекта при 2+ группах в одной ячейке месяца могли отображаться несколько кнопок «Оплатить (Группа …)». В пользовательском режиме с активным селектом за месяц показывается <b>одна</b> кнопка для выбранной группы. Логика нескольких кнопок в <code>apendPrice</code> сохранена для админского AJAX (без селекта «Выбор группы»).</p>
+
+  <h2>5) Сезоны и месячные оплаты</h2>
+  <ul>
+    <li>Ячейки месяцев генерируются в JS (<code>createSeasons</code>), цены подставляются из массива <code>userPrice</code> (или отфильтрованного под группу).</li>
+    <li>Каждая оплачиваемая ячейка содержит <code>paymentDate</code>, <code>formatedPaymentDate</code> (<code>YYYY-MM-01</code>), hidden <code>team_id</code>, <code>outSum</code> (на сервере для monthly_fee не источник истины).</li>
+    <li>Resolver оплаты: <code>UserPriceMonthlyFeePaymentResolver</code> — при нескольких начислениях за месяц без <code>team_id</code> в POST → <b>422</b> «Укажите группу…»; селект на консоли как раз передаёт нужный <code>team_id</code>.</li>
+  </ul>
+
+  <h2>6) Связанные файлы</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/DashboardController.php</code></li>
+    <li><code>resources/views/dashboard.blade.php</code> — сезоны, JS фильтра, блок «Группа:»</li>
+    <li><code>resources/views/includes/dashboard_team_switcher.blade.php</code></li>
+    <li><code>app/Services/Users/FamilyStudentContextService.php</code></li>
+    <li><code>app/Services/TeamUserSyncService.php</code> — подписи групп</li>
+    <li><code>app/Services/Payments/UserPriceMonthlyFeePaymentResolver.php</code></li>
+  </ul>
+
+  <h2>7) Feature-тесты</h2>
+  <div class="note">
+    <ul class="small">
+      <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code> — UI селекта, partial, client-only</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code> — pivot в AJAX</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>dashboard.blade.php</code></li>
+    </ul>
+    <pre><code>php artisan test --env=testing tests/Feature/Crm/Dashboard/</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/student-team-membership">Ученик ↔ группы</a> ·
+    <a href="/docs/documentation/parents-and-family-cabinet">Семейный кабинет</a> ·
+    <a href="/docs/documentation/payments">Оплаты</a>
+  </p>
+</div>
+</body>
+</html>

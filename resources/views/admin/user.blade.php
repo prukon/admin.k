@@ -8,7 +8,7 @@
 @endphp
 
 @section('content')
-    @vite(['resources/css/admin-list-toolbar.css'])
+    @vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])
 
     <div class="main-content text-start">
         <h4 class="pt-3 pb-3 text-start">Пользователи</h4>

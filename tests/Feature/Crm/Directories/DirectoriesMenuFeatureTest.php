@@ -40,7 +40,7 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
         string $pageRoute,
         string $expectedUrlRoute
     ): void {
-        $actor = $this->createUserWithPermissions($permissions);
+        $actor = $this->createUserWithPermissions($this->withDirectoriesMenuPermission($permissions));
         $this->actingAs($actor);
 
         $html = $this->get(route($pageRoute))->assertOk()->getContent();
@@ -56,7 +56,7 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
         string $pageRoute,
         string $expectedUrlRoute
     ): void {
-        $actor = $this->createUserWithPermissions([...$permissions, 'users.view']);
+        $actor = $this->createUserWithPermissions($this->withDirectoriesMenuPermission([...$permissions, 'users.view']));
         $this->actingAs($actor);
 
         $html = $this->get('/admin/users')->assertOk()->getContent();
@@ -87,7 +87,7 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
         array $permissions,
         string $expectedUrlRoute
     ): void {
-        $actor = $this->createUserWithPermissions($permissions);
+        $actor = $this->createUserWithPermissions($this->withDirectoriesMenuPermission($permissions));
         $this->actingAs($actor);
 
         $accessibleRoute = $this->firstAccessibleRoute($permissions);
@@ -98,7 +98,7 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
 
     public function test_sidebar_has_single_book_icon_menu_item_when_directories_available(): void
     {
-        $actor = $this->createUserWithPermissions(['groups.view']);
+        $actor = $this->createUserWithPermissions($this->withDirectoriesMenuPermission(['groups.view']));
         $this->actingAs($actor);
 
         $sidebar = $this->sidebarChunk(
@@ -106,6 +106,19 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
         );
 
         $this->assertSame(1, substr_count($sidebar, 'nav-icon fa-solid fa-book'));
+    }
+
+    public function test_sidebar_has_no_book_icon_menu_without_directories_view_even_with_directory_permissions(): void
+    {
+        $actor = $this->createUserWithPermissions(['groups.view']);
+        $this->actingAs($actor);
+
+        $sidebar = $this->sidebarChunk(
+            $this->get(route('admin.team.index'))->assertOk()->getContent()
+        );
+
+        $this->assertStringNotContainsString('nav-icon fa-solid fa-book', $sidebar);
+        $this->assertStringNotContainsString('<p>Группы</p>', $sidebar);
     }
 
     public function test_sidebar_has_no_book_icon_menu_when_no_directory_permissions(): void
@@ -127,7 +140,7 @@ final class DirectoriesMenuFeatureTest extends CrmTestCase
 
     public function test_locations_label_when_only_locations_view_even_with_unrelated_permissions(): void
     {
-        $actor = $this->createUserWithPermissions(['locations.view', 'users.view', 'reports.view']);
+        $actor = $this->createUserWithPermissions($this->withDirectoriesMenuPermission(['locations.view', 'users.view', 'reports.view']));
         $this->actingAs($actor);
 
         $html = $this->get(route('admin.locations.index'))->assertOk()->getContent();

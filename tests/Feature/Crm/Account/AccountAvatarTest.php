@@ -5,9 +5,7 @@ namespace Tests\Feature\Crm\Account;
 use App\Enums\AuditEvent;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\Feature\Crm\CrmTestCase;
 
 class AccountAvatarTest extends CrmTestCase
@@ -16,10 +14,7 @@ class AccountAvatarTest extends CrmTestCase
     {
         parent::setUp();
 
-        // Storage::fake пишет в storage/framework/testing. На этом стенде у тестового пользователя может не быть прав.
-        $tmpStorage = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'kidscrm-storage' . DIRECTORY_SEPARATOR . (string) Str::uuid();
-        File::ensureDirectoryExists($tmpStorage);
-        $this->app->useStoragePath($tmpStorage);
+        $this->useWritableTestStoragePath();
 
         Storage::fake('public');
     }

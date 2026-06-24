@@ -43,7 +43,50 @@ SQL;
     }
 
     /**
-     * Фильтр отчётов: filter_team_id или текстовый team_title.
+     * Фильтр отчёта «Платежи»: filter_team_id / team_title с учётом payments.team_id (снимок оплаты).
+     *
+     * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    public static function applyPaymentLedgerTeamFilters(
+        $query,
+        int $partnerId,
+        mixed $filterTeamId,
+        ?string $teamTitle,
+        string $usersAlias = 'users',
+    ): void {
+        if ($filterTeamId !== null && $filterTeamId !== '' && ctype_digit((string) $filterTeamId)) {
+            $tid = (int) $filterTeamId;
+            if ($tid > 0) {
+                $query->where(function ($q) use ($partnerId, $tid, $usersAlias) {
+                    $q->where('payments.team_id', $tid)
+                        ->orWhere(function ($q2) use ($partnerId, $tid, $usersAlias) {
+                            $q2->whereNull('payments.team_id');
+                            self::applyStudentInTeamExists($q2, $partnerId, $tid, $usersAlias);
+                        });
+                });
+            }
+
+            return;
+        }
+
+        if ($teamTitle !== null && trim($teamTitle) !== '') {
+            $like = '%'.trim($teamTitle).'%';
+            $query->where(function ($q) use ($like, $partnerId, $usersAlias) {
+                $q->where('payments.team_title', 'like', $like)
+                    ->orWhereExists(function (QueryBuilder $sub) use ($like) {
+                        $sub->selectRaw('1')
+                            ->from('teams')
+                            ->whereColumn('teams.id', 'payments.team_id')
+                            ->where('teams.title', 'like', $like)
+                            ->whereNull('teams.deleted_at');
+                    });
+                self::applyStudentTeamTitleLikeExists($q, $partnerId, $like, $usersAlias);
+            });
+        }
+    }
+
+    /**
+     * Фильтр отчётов: filter_team_id или текстовый team_title (членство ученика в pivot).
      *
      * @param  QueryBuilder|\Illuminate\Database\Eloquent\Builder  $query
      */

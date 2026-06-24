@@ -26,11 +26,28 @@
     <li>Страница: <code>/admin/reports/payments</code></li>
   </ul>
 
-  <h2>1.1) Группы ученика</h2>
+  <h2 id="team-filter">1.1) Группы ученика и оплаченная группа (<code>payments.team_id</code>)</h2>
+  <div class="note">
+    С миграции <code>2026_06_21_140000_add_team_id_to_payments_table.php</code> в журнале <code>payments</code> хранится снимок группы для месячных оплат.
+    Подробно о resolver, webhook и витрине — <a href="/docs/documentation/payments#payments-team-snapshot">payments §2.2</a>.
+  </div>
   <ul>
-    <li><b>Колонка</b> «Группа» (<code>team_title</code>) — все группы ученика через запятую (pivot <code>team_user</code>, подзапрос <code>UserTeamQuery::sqlStudentTeamTitlesSubquery</code>).</li>
-    <li><b>Фильтр</b>: <code>filter_team_id</code> — id группы партнёра; ученик попадает в отчёт, если состоит в выбранной группе.</li>
-    <li>Тот же фильтр и колонка — в monthly, LTV, задолженностях. Подробно: <a href="/docs/documentation/student-team-membership">student-team-membership</a>, <a href="/docs/documentation/reports-admin">reports-admin</a>.</li>
+    <li><b>Колонка</b> «Группа» (<code>team_title</code> в JSON DataTables):
+      <ul>
+        <li>если у платежа <code>payments.team_id &gt; 0</code> — показывается <b>только оплаченная группа</b> (<code>PaymentTeamTitleDisplay</code>, relation <code>paidTeam</code> или снимок <code>payments.team_title</code>);</li>
+        <li>если <code>payments.team_id IS NULL</code> (legacy до миграции) — все группы ученика через запятую (pivot <code>team_user</code>, <code>TeamUserSyncService::teamTitlesLabel</code>).</li>
+      </ul>
+    </li>
+    <li><b>Фильтр</b> <code>filter_team_id</code> (Select2, <code>GET …/payments/teams-search</code>):
+      <ul>
+        <li>платёж попадает, если <code>payments.team_id = выбранная группа</code>;</li>
+        <li><b>или</b> (<code>payments.team_id IS NULL</code> <i>и</i> ученик состоит в выбранной группе по pivot) — для старых записей без снимка;</li>
+        <li>реализация: <code>UserTeamQuery::applyPaymentLedgerTeamFilters</code> (отличается от LTV/monthly, где фильтр только по pivot — <code>applyReportTeamFilters</code>).</li>
+      </ul>
+    </li>
+    <li><b>Текстовый поиск</b> по колонке «Группа» (<code>team_title</code> в query): совпадение по снимку <code>payments.team_title</code>, названию <code>teams</code> для <code>payments.team_id</code> или любой группе ученика в pivot.</li>
+    <li><b>Пользовательский отчёт</b> <code>/reports/payments</code> (<code>myPayments.view</code>): та же логика колонки через <code>PaymentTeamTitleDisplay</code>.</li>
+    <li>LTV, «Платежи по месяцам», задолженности — см. <a href="/docs/documentation/student-team-membership">student-team-membership §5</a> и <a href="/docs/documentation/reports-admin">reports-admin</a>.</li>
   </ul>
 
   <h2>2) Локация (при праве <code>locations.view</code>)</h2>
@@ -231,6 +248,7 @@ net_to_partner   = gross - commission_total</pre>
     Фичтесты покрывают доступ к странице и эндпоинтам, зависимость кнопки «История» и API от <code>viewing.all.logs</code>, модалку в HTML,
     чекбоксы колонок от <code>reports.additional.value.view</code>, полный сценарий 200 при выдаче всех нужных прав:
     <br><code>tests/Feature/Crm/Reports/PaymentReportTest.php</code>,
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code> (колонка/фильтр с <code>payments.team_id</code> и legacy),
     <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
     <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> при оплате),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>,

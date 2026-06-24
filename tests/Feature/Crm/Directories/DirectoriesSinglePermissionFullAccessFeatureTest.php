@@ -207,6 +207,8 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
     /** @param list<string> $permissionNames */
     private function createUserWithOnlyPermissions(array $permissionNames): User
     {
+        $permissionNames = $this->withDirectoriesMenuPermission($permissionNames);
+
         $now = now();
         $roleId = DB::table('roles')->insertGetId([
             'name'       => 'test_dirs_single_' . strtolower(\Illuminate\Support\Str::random(8)),

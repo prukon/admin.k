@@ -58,18 +58,18 @@
       <tr><th><code>slug</code></th><th>Название в UI</th><th>Что внутри (примеры)</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации: <code>dashboard.view</code>, <code>myPayments.view</code>, <code>myGroup.view</code>, <code>messages.view</code>, <code>blog.view</code>, <code>documentations.view</code></td></tr>
-      <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code>, <code>reports.emails.view</code>, <code>reports.payments.*</code></td></tr>
-      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.view</code>, <code>schedule.trainerSalary.*</code>, <code>scheduleSlots.*</code></td></tr>
-      <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>groups.view</code>, <code>groups.training_base.view</code>, <code>groups.address.view</code></td></tr>
+      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …</td></tr>
+      <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.emails.view</code>, <code>reports.payments.*</code>, вложенные страницы отчётов</td></tr>
+      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.*</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
+      <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code></td></tr>
-      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code></td></tr>
-      <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.view</code>, <code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
-      <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code></td></tr>
-      <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.view</code>, <code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
+      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code></td></tr>
+      <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
+      <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
+      <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
       <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …</td></tr>
-      <tr><td><code>users</code></td><td>Управление пользователями</td><td>Страницы <code>users.view</code>, <code>trainers.view</code> и поля CRM: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, …</td></tr>
-      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.view</code>, <code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, …</td></tr>
+      <tr><td><code>users</code></td><td>Управление пользователями</td><td>Страница <code>trainers.view</code> и поля CRM: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, …</td></tr>
+      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, …</td></tr>
       <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
       <tr><td><code>misc</code></td><td>Разное</td><td><code>paying.classes</code>, <code>payment.clubfee</code></td></tr>
     </tbody>
@@ -97,6 +97,10 @@
     <li>Каталог прав и <code>group_slug</code>: <code>/database/seeders/PermissionSeeder.php</code> (upsert по <code>name</code>, обновляет <code>permission_group_id</code>).</li>
     <li>Миграция для уже существующих БД: <code>/database/migrations/2026_06_20_140000_reorganize_permission_groups.php</code>
       (создаёт группы и переназначает <code>permission_group_id</code> batch-update; <code>down()</code> намеренно пустой).</li>
+    <li>Миграция страничных прав в «Главное меню»: <code>/database/migrations/2026_06_23_120000_move_page_view_permissions_to_main_menu.php</code>
+      (<code>reports.view</code>, <code>schedule.view</code>, <code>groups.view</code>, <code>setPrices.view</code>, <code>contracts.view</code>, <code>partner.view</code>, <code>users.view</code>, <code>settings.view</code> + <code>sort_order</code> по боковому меню).</li>
+    <li>Миграция <code>directories.view</code> и пунктов «Расписание школы» / «Лиды» в mainMenu:
+      <code>/database/migrations/2026_06_23_140000_add_directories_view_and_menu_page_permissions.php</code>.</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>

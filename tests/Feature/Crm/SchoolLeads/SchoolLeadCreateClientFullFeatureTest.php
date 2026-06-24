@@ -69,7 +69,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
         $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertSee('id="lead-is_individual_traits"', false)
-            ->assertSee('form-check-input js-user-health-field js-lead-health-checkbox', false)
+            ->assertSee('js-lead-health-checkbox', false)
             ->assertSee('Индивидуальные особенности воспитанника', false)
             ->assertSee('Состоит на учёте у медицинских специалистов', false)
             ->assertSee('Наличие инвалидности', false);
