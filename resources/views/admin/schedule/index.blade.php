@@ -88,8 +88,12 @@
                                         + ' data-name="' + escapeHtml(st.name) + '"'
                                         + ' data-icon="' + escapeHtml(st.icon || '') + '"'
                                         + ' data-color="' + escapeHtml(st.color || '') + '"'
-                                        + ' data-sort-order="' + sortOrder + '">Изменить</button>'
-                                        + '<button type="button" class="btn btn-sm btn-danger" data-action="delete" data-id="' + st.id + '">Удалить</button>';
+                                        + ' data-sort-order="' + sortOrder + '"'
+                                        + ' title="Изменить" aria-label="Изменить">'
+                                        + '<i class="fa fa-edit" aria-hidden="true"></i></button>'
+                                        + '<button type="button" class="btn btn-sm btn-danger" data-action="delete" data-id="' + st.id + '"'
+                                        + ' title="Удалить" aria-label="Удалить">'
+                                        + '<i class="fa fa-trash" aria-hidden="true"></i></button>';
                                 }
 
                                 tr.innerHTML =
@@ -119,27 +123,6 @@
                 document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(function () {
                         bindSettingsButton();
-
-                        var tbody = document.getElementById('statuses-table-body');
-                        if (tbody) {
-                            tbody.addEventListener('click', function (e) {
-                                var target = e.target.closest('[data-action]');
-                                if (!target) {
-                                    return;
-                                }
-                                if (target.dataset.action === 'edit') {
-                                    document.getElementById('editStatusId').value = target.dataset.id;
-                                    document.getElementById('editName').value = target.dataset.name || '';
-                                    document.getElementById('editIcon').value = target.dataset.icon || '';
-                                    document.getElementById('editColor').value = target.dataset.color || '#ffffff';
-                                    var sortEl = document.getElementById('editSortOrder');
-                                    if (sortEl) {
-                                        sortEl.value = target.dataset.sortOrder || '0';
-                                    }
-                                    bootstrap.Modal.getOrCreateInstance(document.getElementById('editStatusModal')).show();
-                                }
-                            });
-                        }
                     }, 0);
                 });
             })();

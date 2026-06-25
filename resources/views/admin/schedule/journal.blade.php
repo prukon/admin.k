@@ -384,14 +384,18 @@
                                                 data-name="{{ $st->name }}"
                                                 data-icon="{{ $st->icon ?? '' }}"
                                                 data-color="{{ $st->color ?? '' }}"
-                                                data-sort-order="{{ (int) ($st->sort_order ?? 0) }}">
-                                            Изменить
+                                                data-sort-order="{{ (int) ($st->sort_order ?? 0) }}"
+                                                title="Изменить"
+                                                aria-label="Изменить">
+                                            <i class="fa fa-edit" aria-hidden="true"></i>
                                         </button>
                                         <button type="button"
                                                 class="btn btn-sm btn-danger"
                                                 data-action="delete"
-                                                data-id="{{ $st->id }}">
-                                            Удалить
+                                                data-id="{{ $st->id }}"
+                                                title="Удалить"
+                                                aria-label="Удалить">
+                                            <i class="fa fa-trash" aria-hidden="true"></i>
                                         </button>
                                     @endunless
                                 </td>

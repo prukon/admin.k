@@ -73,7 +73,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="creation_mode" id="mode_template"
                                        value="template" @checked(old('creation_mode') === 'template')>
-                                <label class="form-check-label" for="mode_template">Отправить шаболн договора</label>
+                                <label class="form-check-label" for="mode_template">Отправить шаблон договора</label>
                             </div>
                             <div class="field-error-msg text-danger small mt-1"
                                  data-field-error="creation_mode">@error('creation_mode'){{ $message }}@enderror</div>

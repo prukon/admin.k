@@ -10,6 +10,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var editStatusModalEl = document.getElementById('editStatusModal');
     var editStatusModal = new bootstrap.Modal(editStatusModalEl);
 
+    function showScheduleChildModal(modalId) {
+        if (typeof window.showModalQueued === 'function') {
+            window.showModalQueued(modalId);
+            return;
+        }
+
+        var el = document.getElementById(modalId);
+        if (el) {
+            bootstrap.Modal.getOrCreateInstance(el).show();
+        }
+    }
+
+    function hideScheduleChildModal(modalEl) {
+        var inst = bootstrap.Modal.getInstance(modalEl);
+        if (inst) {
+            inst.hide();
+        }
+    }
+
     // Кнопка "Настройки"
     var btnSettings = document.getElementById('btn-settings');
     // Таблица статусов
@@ -28,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Сбрасываем выбранные иконки
         document.querySelectorAll('#createIconList .icon-item').forEach(i => i.classList.remove('selected'));
         document.getElementById('createIcon').value = '';
-        createStatusModal.show();
+        showScheduleChildModal('createStatusModal');
     });
 
     function clearScheduleStatusFormErrors(form) {
@@ -128,7 +147,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         let btnEdit = document.createElement('button');
                         btnEdit.type = 'button';
                         btnEdit.className = 'btn btn-sm btn-success me-1';
-                        btnEdit.textContent = 'Изменить';
+                        btnEdit.title = 'Изменить';
+                        btnEdit.setAttribute('aria-label', 'Изменить');
+                        btnEdit.innerHTML = '<i class="fa fa-edit" aria-hidden="true"></i>';
                         btnEdit.dataset.action = 'edit';
                         btnEdit.dataset.id = String(st.id);
                         btnEdit.dataset.name = st.name || '';
@@ -139,7 +160,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         let btnDelete = document.createElement('button');
                         btnDelete.type = 'button';
                         btnDelete.className = 'btn btn-sm btn-danger';
-                        btnDelete.textContent = 'Удалить';
+                        btnDelete.title = 'Удалить';
+                        btnDelete.setAttribute('aria-label', 'Удалить');
+                        btnDelete.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
                         btnDelete.dataset.action = 'delete';
                         btnDelete.dataset.id = String(st.id);
 
@@ -177,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(({ ok, body }) => {
                 if (ok && body.success) {
                     loadStatuses();
-                    createStatusModal.hide();
+                    hideScheduleChildModal(createStatusModalEl);
                     showSuccessModal("Создание статуса", "Статус успешно создан.", 0);
                     return;
                 }
@@ -193,13 +216,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
     var editStatusForm = document.getElementById('editStatusForm');
     statusesTableBody.addEventListener('click', function (e) {
-        let action = e.target.dataset.action;
+        let target = e.target.closest('[data-action]');
+        if (!target) {
+            return;
+        }
+
+        let action = target.dataset.action;
         if (action === 'edit') {
-            let id = e.target.dataset.id;
-            let name = e.target.dataset.name;
-            let icon = e.target.dataset.icon;
-            let color = e.target.dataset.color || '#ffffff';
-            let sortOrder = e.target.dataset.sortOrder ?? '0';
+            let id = target.dataset.id;
+            let name = target.dataset.name;
+            let icon = target.dataset.icon;
+            let color = target.dataset.color || '#ffffff';
+            let sortOrder = target.dataset.sortOrder ?? '0';
 
             clearScheduleStatusFormErrors(editStatusForm);
             document.getElementById('editStatusId').value = id;
@@ -214,13 +242,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     item.classList.add('selected');
                 }
             });
-            editStatusModal.show();
+            showScheduleChildModal('editStatusModal');
         } else if (action === 'delete') {
             showConfirmDeleteModal(
                 "Удаление статуса",
                 "Вы уверены, что хотите удалить этот статус? (Ранее установленные значения для дней с этим статусом останутся без изменений.)",
                 function () {
-                    let id = e.target.dataset.id;
+                    let id = target.dataset.id;
 
                     fetch("/schedule/statuses/" + id, {
                         method: 'DELETE',
@@ -263,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(({ ok, body }) => {
                 if (ok && body.success) {
                     loadStatuses();
-                    editStatusModal.hide();
+                    hideScheduleChildModal(editStatusModalEl);
                     showSuccessModal("Редактирование статуса", "Статус успешно обновлен.", 0);
                     return;
                 }

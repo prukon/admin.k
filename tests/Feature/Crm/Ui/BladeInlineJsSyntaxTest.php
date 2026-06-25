@@ -26,6 +26,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
+        yield 'schedule journal statuses settings' => ['admin/schedule/index.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

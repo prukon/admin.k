@@ -142,11 +142,14 @@ class StatusController extends AdminBaseController
             );
         });
 
-        // 4) Возвращаем созданный статус
-        return response()->json([
-            'success' => true,
-            'status'  => $status,
-        ]);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'status'  => $status,
+            ]);
+        }
+
+        return redirect()->route('schedule.index');
     }
 
     public function update(UpdateScheduleStatusRequest $request, $id)
@@ -206,10 +209,14 @@ class StatusController extends AdminBaseController
             );
         });
 
-        return response()->json([
-            'success' => true,
-            'status'  => $status,
-        ]);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'status'  => $status,
+            ]);
+        }
+
+        return redirect()->route('schedule.index');
     }
 
     public function destroy($id)

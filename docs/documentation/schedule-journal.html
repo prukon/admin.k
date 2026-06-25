@@ -76,9 +76,9 @@
       <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Legacy: attach одной группы или detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code></td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
       <tr><td>GET</td><td><code>/schedule/statuses</code></td><td><code>statuses.index</code></td><td>JSON списка статусов (модалка «Настройки»)</td></tr>
-      <tr><td>POST</td><td><code>/schedule/statuses</code></td><td><code>statuses.store</code></td><td>Создать кастомный статус партнёра</td></tr>
-      <tr><td>PATCH</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.update</code></td><td>Изменить кастомный статус (не системный)</td></tr>
-      <tr><td>DELETE</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.destroy</code></td><td>Удалить кастомный статус (soft delete)</td></tr>
+      <tr><td>POST</td><td><code>/schedule/statuses</code></td><td><code>statuses.store</code></td><td>Создать кастомный статус партнёра (AJAX → JSON; без AJAX → <b>302</b> на <code>/schedule</code>, запись создаётся)</td></tr>
+      <tr><td>PATCH</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.update</code></td><td>Изменить кастомный статус партнёра (AJAX → JSON; без AJAX → <b>302</b> на <code>/schedule</code>)</td></tr>
+      <tr><td>DELETE</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.destroy</code></td><td>Удалить кастомный статус партнёра (soft delete, только AJAX/JSON)</td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Вкладка «Нагрузка тренеров» — см. <a href="/docs/documentation/schedule-trainer-workload">отдельный раздел</a></td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
     </tbody>
@@ -154,15 +154,52 @@
   <p>Модель: <code>App\Models\ScheduleUser</code>, связи <code>statusRelation</code>, <code>trainerProfile</code>.</p>
 
   <h3>3.2) <code>statuses</code> (справочник журнала)</h3>
+  <table>
+    <thead>
+      <tr><th>Тип</th><th><code>partner_id</code></th><th><code>is_system</code></th><th>Примеры</th><th>Кто создаёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Системные</strong> (общие на проект)</td>
+        <td><code>NULL</code></td>
+        <td><code>true</code></td>
+        <td>«Посетил», «Не был»</td>
+        <td>Один раз на проект (сидер на dev, на prod — вручную или data-миграция; см. <a href="#schedule-status-settings">§8</a>)</td>
+      </tr>
+      <tr>
+        <td><strong>Кастомные партнёра</strong></td>
+        <td><code>current_partner</code></td>
+        <td><code>false</code></td>
+        <td>«Заморозка», «Болезнь»</td>
+        <td>Админ в модалке «Настройки» или dev-сидер <code>DevScheduleStatusesSeeder::ensurePartnerCustomStatuses</code></td>
+      </tr>
+    </tbody>
+  </table>
   <ul>
-    <li><strong>Системные</strong> (общие на проект): <code>partner_id IS NULL</code>, <code>is_system = true</code> — «Посетил», «Не был». Редактирование и удаление через API запрещено (<b>403</b>).</li>
-    <li><strong>Кастомные партнёра</strong>: <code>partner_id = current_partner</code>, <code>is_system = false</code> — например «Заморозка», «Болезнь» (на dev создаёт <code>DevScheduleStatusesSeeder</code>).</li>
-    <li><strong>Сортировка</strong>: колонка <code>sort_order</code>; в UI настроек журнала — колонка «Сортировка» (только для несистемных статусов).</li>
+    <li><strong>Сортировка</strong>: колонка <code>sort_order</code>; в UI настроек — колонка «Сортировка» (редактируется только у кастомных).</li>
+    <li><strong>Цвет</strong>: HEX в поле <code>color</code> (например <code>#75EB81</code>); в ячейках журнала и в модалке настроек используется как <code>background-color</code> иконки (прозрачность в БД не хранится).</li>
   </ul>
   <p>
-    Выборка для журнала: <code>Status::forSchedulePartner($partnerId)</code> — кастомные партнёра + системные глобальные.
+    Выборка для журнала и API: <code>Status::forSchedulePartner($partnerId)</code> — кастомные партнёра + глобальные системные.
     ID «Посетил» для логики тренера: <code>Status::globalVisitedId()</code> (имя <code>Status::VISITED_NAME</code>).
   </p>
+  <h4>Ответы API при попытке изменить чужой или системный статус</h4>
+  <table>
+    <thead>
+      <tr><th>Ситуация</th><th>update</th><th>destroy</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Глобальный системный (<code>partner_id IS NULL</code>, «Посетил» / «Не был»)</td><td><b>404</b> (не в scope партнёра)</td><td><b>404</b></td></tr>
+      <tr><td>Legacy: системный с <code>partner_id = N</code> (устаревшая модель)</td><td><b>403</b> «Системные статусы нельзя редактировать»</td><td><b>403</b> «Системные статусы нельзя удалять»</td></tr>
+      <tr><td>Кастомный другого партнёра</td><td><b>404</b></td><td><b>404</b></td></tr>
+      <tr><td>Кастомный текущего партнёра</td><td><b>200</b></td><td><b>200</b> (soft delete)</td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    <strong>Production:</strong> у нового партнёра в модалке «Настройки» видны только <em>глобальные</em> системные статусы.
+    Если в БД системные записи ошибочно привязаны к <code>partner_id = 1</code> (старый сидер), другие партнёры увидят пустой список — исправление: <code>partner_id = NULL</code> для «Посетил» и «Не был».
+    При создании партнёра (<code>Partner::created</code>) статусы журнала <strong>не</strong> создаются автоматически (в отличие от <code>lesson_occurrence_statuses</code>).
+  </div>
 
   <h2>4) Вкладки раздела «Журнал расписания»</h2>
   <p>Оболочка: <code>resources/views/admin/schedule/index.blade.php</code> (вкладки по аналогии с <a href="/docs/documentation/reports-admin">отчётами админки</a>).</p>
@@ -190,7 +227,7 @@
     <li>Клик по ячейке → модалка <code>#cellEditModal</code>: статус (радио), комментарий, подпись «Группы: …», кнопка «Сохранить».</li>
     <li>Иконка «Изменить группы» у строки → модалка «Управление группами» (multiselect <code>team_ids[]</code>, сохранение через <code>POST …/sync-teams</code>).</li>
     <li>Иконка у строки ученика → «Личное расписание» (диапазон дат + дни недели; дни группы — по <code>context_team_id</code> из фильтра журнала).</li>
-    <li>Кнопка «Настройки» → список статусов, создание/редактирование кастомных.</li>
+    <li>Кнопка «Настройки» → модалка <code>#settingsModal</code>: таблица статусов (серверный рендер + перезагрузка через <code>GET /schedule/statuses</code>), создание/редактирование кастомных. В колонке «Действия» — иконки <code>fa-edit</code> / <code>fa-trash</code> (не текстовые кнопки). Подробно: <a href="#schedule-status-settings">§8</a>.</li>
     <li>Полноэкранный режим, поиск по таблице (DataTables).</li>
   </ul>
   <p>Шаблон вкладки: <code>resources/views/admin/schedule/journal.blade.php</code>, стили/скрипты: <code>resources/css/schedule.css</code>, <code>resources/js/schedule.js</code> (только на вкладке журнала).</p>
@@ -248,21 +285,109 @@
     Тренера для таких дней при необходимости задают вручную через модалку ячейки.
   </p>
 
-  <h2>8) Настройки статусов</h2>
-  <p>Модалка «Настройки» на странице журнала. Таблица статусов с сервера (в т.ч. колонка сортировки); CRUD только для кастомных.</p>
-  <p>Запросы: <code>StoreScheduleStatusRequest</code>, <code>UpdateScheduleStatusRequest</code> (обязательны <code>name</code>, для update — <code>sort_order</code>).</p>
-  <p>На dev: <code>php artisan db:seed --class=DevScheduleStatusesSeeder</code> (при <code>SEED_DEV_DATA=true</code> — в составе сидов).</p>
+  <h2 id="schedule-status-settings">8) Настройки статусов</h2>
+  <p>
+    Модалка «Настройки статусов» на вкладке журнала (<code>#settingsModal</code> в <code>journal.blade.php</code>).
+    Право: то же <code>schedule.view</code>, что и для страницы <code>/schedule</code>.
+  </p>
+
+  <h3>8.1) UI и вложенные модалки</h3>
+  <table>
+    <thead>
+      <tr><th>Элемент</th><th>ID / поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Кнопка в toolbar журнала</td><td><code>#btn-settings</code> → открывает <code>#settingsModal</code></td></tr>
+      <tr><td>Таблица статусов</td><td><code>#statuses-table-body</code> — при первом открытии заполняется с сервера (<code>$availableStatuses</code>); после create/update/delete — <code>loadStatuses()</code> / <code>reloadScheduleStatusesTable()</code> (<code>fetch GET /schedule/statuses</code>)</td></tr>
+      <tr><td>Новый статус</td><td><code>#btn-new-status</code> → <code>#createStatusModal</code></td></tr>
+      <tr><td>Редактирование</td><td>иконка карандаша (<code>fa-edit</code>, <code>data-action="edit"</code>) → <code>#editStatusModal</code></td></tr>
+      <tr><td>Удаление</td><td>иконка корзины (<code>fa-trash</code>, <code>data-action="delete"</code>) → <code>showConfirmDeleteModal</code> → <code>DELETE /schedule/statuses/{id}</code></td></tr>
+      <tr><td>Системные строки</td><td>подсказка у названия; колонка «Действия» пустая (нет edit/delete)</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Вложенные модалки («Создать» / «Редактировать» поверх «Настройки») открываются через <code>showModalQueued()</code>
+    (<code>layouts/admin2.blade.php</code>): родительская модалка временно скрывается, после закрытия дочерней (Escape, крестик, сохранение) — снова показывается «Настройки».
+    Реализация в <code>resources/js/schedule.js</code> (<code>showScheduleChildModal</code>).
+  </p>
+
+  <h3>8.2) AJAX-контракт (основной путь UI)</h3>
+  <p>Формы <code>#createStatusForm</code> и <code>#editStatusForm</code> — <code>preventDefault</code> + <code>fetch</code> с заголовком <code>X-Requested-With: XMLHttpRequest</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>Успех</th><th>Тело ответа</th><th>Ошибки</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>GET /schedule/statuses</code></td>
+        <td><b>200</b></td>
+        <td><code>{ "statuses": [ { id, partner_id, name, icon, color, is_system, sort_order }, … ] }</code></td>
+        <td>401 / 403</td>
+      </tr>
+      <tr>
+        <td><code>POST /schedule/statuses</code></td>
+        <td><b>200</b></td>
+        <td><code>{ "success": true, "status": { … } }</code></td>
+        <td><b>422</b> — валидация (<code>name</code> обязателен и др.)</td>
+      </tr>
+      <tr>
+        <td><code>PATCH /schedule/statuses/{id}</code></td>
+        <td><b>200</b></td>
+        <td><code>{ "success": true, "status": { … } }</code></td>
+        <td><b>422</b> валидация; <b>403</b> legacy-системный; <b>404</b> чужой / глобальный системный</td>
+      </tr>
+      <tr>
+        <td><code>DELETE /schedule/statuses/{id}</code></td>
+        <td><b>200</b></td>
+        <td><code>{ "success": true }</code></td>
+        <td><b>403</b> legacy-системный; <b>404</b> чужой / глобальный системный</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Валидация: <code>StoreScheduleStatusRequest</code>, <code>UpdateScheduleStatusRequest</code>
+    (обязателен <code>name</code>; для update — <code>sort_order</code> 0…65535).
+    Тексты ошибок — в JSON <code>errors</code>, на фронте выводятся под полями (<code>data-error-for</code>).
+    Если <code>sort_order</code> не передан при create — назначается автоматически (<code>nextCustomSortOrder</code>).
+  </p>
+
+  <h3>8.3) Safety-net: non-AJAX POST/PATCH</h3>
+  <p>
+    Если форма ушла нативным submit без <code>X-Requested-With</code> / без ожидания JSON
+    (<code>StatusController::store</code>, <code>update</code> — ветка <code>!ajax() &amp;&amp; !expectsJson()</code>):
+  </p>
+  <ul>
+    <li>запись в БД <strong>создаётся или обновляется</strong> (как при AJAX);</li>
+    <li>ответ — <strong>302 redirect</strong> на <code>route('schedule.index')</code> (<code>/schedule</code>), не пустой <b>200</b>.</li>
+  </ul>
+  <p class="small">Удаление (<code>DELETE</code>) в UI только через <code>fetch</code>; отдельного non-AJAX redirect для destroy нет.</p>
+
+  <h3>8.4) Инициализация данных</h3>
+  <ul>
+    <li><strong>Dev:</strong> <code>php artisan db:seed --class=DevScheduleStatusesSeeder</code> (при <code>SEED_DEV_DATA=true</code> — в составе <code>DatabaseSeeder</code>): глобальные «Посетил»/«Не был» + демо-кастомные по партнёрам.</li>
+    <li><strong>Production:</strong> глобальные системные статусы должны существовать с <code>partner_id IS NULL</code>, <code>is_system = 1</code>. Отдельной миграции с вставкой (как у <code>school_lead_statuses</code>) пока нет — при пустом списке проверьте БД.</li>
+    <li>Метод <code>DevScheduleStatusesSeeder::ensureGlobalSystemStatuses()</code> — идемпотентное создание/обновление глобальных системных; можно вызвать вручную на prod при необходимости.</li>
+    <li><code>DevScheduleStatusesSeeder::removeLegacyPerPartnerSystemDuplicates()</code> — удаляет ошибочные копии «Посетил»/«Не был» с <code>partner_id</code>; запускать только после появления глобальных записей.</li>
+  </ul>
+
+  <h3>8.5) Аудит</h3>
+  <p>События <code>AuditEvent</code>: <code>ScheduleStatusCreated</code>, <code>ScheduleStatusUpdated</code>, <code>ScheduleStatusDeleted</code> — в <code>my_logs</code> с <code>partner_id</code> автора.</p>
 
   <h2>9) Миграции и сиды</h2>
   <ul>
+    <li><code>2025_03_08_185841_create_statuses_table.php</code> — таблица <code>statuses</code>, поле <code>is_system</code></li>
     <li><code>2026_05_21_140000_add_sort_order_to_statuses_table.php</code></li>
     <li><code>2026_05_21_150000_add_trainer_profile_id_to_schedule_users_table.php</code></li>
-    <li><code>database/seeders/DevScheduleStatusesSeeder.php</code> — системные + кастомные статусы партнёров</li>
+    <li><code>database/seeders/DevScheduleStatusesSeeder.php</code> — глобальные системные + демо-кастомные (только dev)</li>
+    <li><code>database/seeders/StatusesSeeder.php</code> — <span class="small">устаревший: системные статусы на каждого партнёра; не использовать на новых стендах</span></li>
   </ul>
 
   <h2>10) Связанные файлы</h2>
   <ul class="small">
-    <li><code>resources/views/admin/schedule/index.blade.php</code>, <code>journal.blade.php</code></li>
+    <li><code>resources/views/admin/schedule/index.blade.php</code> — inline <code>reloadScheduleStatusesTable</code>, Vite <code>schedule.js</code></li>
+    <li><code>resources/views/admin/schedule/journal.blade.php</code> — модалки настроек/CRUD статусов</li>
+    <li><code>resources/js/schedule.js</code> — CRUD статусов, <code>showScheduleChildModal</code>, ячейки журнала</li>
+    <li><code>app/Http/Requests/Admin/StoreScheduleStatusRequest.php</code>, <code>UpdateScheduleStatusRequest.php</code></li>
     <li><code>app/Http/Controllers/Admin/ScheduleController.php</code> — <code>findScheduleStudentForPartner()</code>, <code>assertScheduleStudent()</code></li>
     <li><code>app/Models/User.php</code> — <code>scopeWithSystemRoleUser()</code></li>
     <li><code>app/Http/Controllers/Admin/StatusController.php</code></li>
@@ -276,7 +401,10 @@
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права <code>schedule.view</code> → 403 на страницу и эндпоинты</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleStatusesFeatureTest.php</code> — системные/кастомные статусы, CRUD, валидация 422, non-AJAX redirect store/update, 403/404 на системные и чужие, маркеры модалки на странице</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleStatusesFullAccessFeatureTest.php</code> — гость 302/401, без <code>schedule.view</code> → 403, с правом — все endpoint'ы статусов → 200</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>admin/schedule/index.blade.php</code> (<code>node --check</code>)</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права <code>schedule.view</code> → 403 на страницу и эндпоинты (в т.ч. <code>statuses.*</code>)</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php</code> — со <code>schedule.view</code>: страница и каждый эндпоинт журнала отдельно → 200; сводный smoke всех API; гость на JSON → 401</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php</code> — в списке и API только активные ученики с системной ролью <code>user</code>; исключение тренера, админа, кастомной роли, отключённого; фильтры группы; 404 для не-учеников</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — sync-teams, teams_label, context_team_id, set-group legacy</li>
@@ -287,6 +415,8 @@
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Schedule/ScheduleStatusesFeatureTest.php \
+  tests/Feature/Crm/Schedule/ScheduleStatusesFullAccessFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php \
