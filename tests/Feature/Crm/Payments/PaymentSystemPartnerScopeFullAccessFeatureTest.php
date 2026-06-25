@@ -148,9 +148,8 @@ final class PaymentSystemPartnerScopeFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'name'       => 'robokassa',
         ]);
-        PaymentSystem::factory()->create([
+        PaymentSystem::factory()->robokassa()->create([
             'partner_id' => $this->foreignPartner->id,
-            'name'       => 'tbank',
         ]);
 
         $this->get(route('admin.setting.paymentSystem'))
@@ -185,20 +184,18 @@ final class PaymentSystemPartnerScopeFullAccessFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_show_returns_404_for_other_partner_payment_system(): void
+    public function test_show_returns_global_tbank_regardless_of_partner_context(): void
     {
         $actor = $this->createUserWithoutPermission(self::PERM_VIEW, $this->partner);
         $this->grantPermission($actor, self::PERM_VIEW);
+        $this->grantPermission($actor, 'payment.method.tbankCard');
         $this->actingAs($actor);
 
-        PaymentSystem::factory()->create([
-            'partner_id' => $this->foreignPartner->id,
-            'name'       => 'tbank',
-            'settings'   => ['terminal_key' => 'foreign'],
-        ]);
+        $this->seedGlobalTbank(['terminal_key' => 'global-key']);
 
         $this->getJson(route('payment-systems.show', ['name' => 'tbank']))
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath('data.terminal_key', 'global-key');
     }
 
     public function test_destroy_returns_403_for_other_partner_payment_system(): void

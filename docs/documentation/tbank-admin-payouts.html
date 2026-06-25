@@ -58,7 +58,7 @@
 
   <h2>4) Блоки на странице списка</h2>
   <ul>
-    <li><b>Автовыплаты</b>: по данным <code>payment_systems</code> (name=<code>tbank</code>) — у каких партнёров в <code>settings.auto_payout_enabled</code> включено; для superadmin — сводка по выбранным в фильтре партнёрам, для обычного пользователя — по своему партнёру.</li>
+    <li><b>Автовыплаты</b>: по данным <code>tinkoff_commission_rules</code> — у каких партнёров включён <code>auto_payout_enabled</code> хотя бы для одного метода; для superadmin — сводка по выбранным в фильтре партнёрам, для обычного пользователя — по своему партнёру.</li>
     <li><b>Интервал обработки отложенных</b>: из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code> (см. <a href="/docs/documentation/tbank#payout-settings">глобальные настройки выплат</a>).</li>
     <li><b>Просроченные отложенные выплаты</b>: записи, которые должны подхватываться <code>TinkoffRunScheduledPayoutsJob</code>:
       <code>when_to_run &lt;= now()</code>, <code>status = INITIATED</code>, <code>tinkoff_payout_payment_id IS NULL</code>, <code>completed_at IS NULL</code>.

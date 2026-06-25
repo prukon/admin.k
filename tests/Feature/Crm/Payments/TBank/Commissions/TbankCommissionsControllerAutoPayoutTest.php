@@ -3,7 +3,6 @@
 namespace Tests\Feature\Crm\Payments\TBank\Commissions;
 
 use App\Models\Partner;
-use App\Models\PaymentSystem;
 use App\Models\TinkoffCommissionRule;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -12,8 +11,6 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // В проекте доступ к настройке "Комиссии Т-Банк" защищён can:settings.commission.
-        // Используем реальные права: суперадмин имеет доступ ко всем ability (Gate::before).
         $this->asSuperadmin();
     }
 
@@ -32,7 +29,48 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
 
             'min_fixed' => 0,
             'is_enabled' => 1,
+            'auto_payout_delay_hours' => 48,
         ], $overrides);
+    }
+
+    public function test_store_with_partner_id_saves_auto_payout_fields(): void
+    {
+        $payload = $this->payloadForUpdate([
+            'method' => 'sbp',
+            'auto_payout_enabled' => 1,
+            'auto_payout_delay_hours' => 12,
+        ]);
+
+        $this->post(route('admin.setting.tbankCommissions.store'), $payload)
+            ->assertRedirect(route('admin.setting.tbankCommissions'))
+            ->assertSessionHas('status', 'Правило создано');
+
+        $rule = TinkoffCommissionRule::where('partner_id', $this->partner->id)
+            ->where('method', 'sbp')
+            ->first();
+
+        $this->assertNotNull($rule);
+        $this->assertTrue($rule->auto_payout_enabled);
+        $this->assertSame(12, (int) $rule->auto_payout_delay_hours);
+    }
+
+    public function test_store_with_partner_id_without_delay_hours_returns_validation_error(): void
+    {
+        $payload = $this->payloadForUpdate(['method' => 'tpay']);
+        unset($payload['auto_payout_delay_hours']);
+
+        $this->post(route('admin.setting.tbankCommissions.store'), $payload)
+            ->assertStatus(302)
+            ->assertSessionHasErrors('auto_payout_delay_hours');
+    }
+
+    public function test_index_create_modal_includes_auto_payout_fields(): void
+    {
+        $this->get(route('admin.setting.tbankCommissions', ['open_create' => 1]))
+            ->assertOk()
+            ->assertSee('id="tbank-auto-payout-create-block"', false)
+            ->assertSee('id="tbank_create_auto_payout_delay_hours"', false)
+            ->assertSee('Задержка после оплаты (часы)', false);
     }
 
     private function makeRule(): TinkoffCommissionRule
@@ -40,10 +78,12 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
         return TinkoffCommissionRule::create($this->payloadForUpdate([
             'partner_id' => $this->partner->id,
             'method' => 'card',
+            'auto_payout_enabled' => false,
+            'auto_payout_delay_hours' => 0,
         ]));
     }
 
-    public function test_update_with_partner_id_creates_payment_system_and_sets_auto_payout_true(): void
+    public function test_update_with_partner_id_sets_auto_payout_on_rule(): void
     {
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
@@ -51,6 +91,7 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
         $payload = $this->payloadForUpdate([
             'partner_id' => $partner->id,
             'auto_payout_enabled' => 1,
+            'auto_payout_delay_hours' => 24,
         ]);
 
         $resp = $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload);
@@ -58,13 +99,9 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
         $resp->assertRedirect(route('admin.setting.tbankCommissions'));
         $resp->assertSessionHas('status', 'Правило обновлено');
 
-        $ps = PaymentSystem::where('name', 'tbank')->where('partner_id', $partner->id)->first();
-        $this->assertNotNull($ps);
-
-        $this->assertTrue((bool)($ps->settings['auto_payout_enabled'] ?? false));
-
-        $raw = $ps->getRawOriginal('settings');
-        $this->assertNotNull($raw, 'settings в БД не должен быть NULL после установки auto_payout_enabled');
+        $rule->refresh();
+        $this->assertTrue($rule->auto_payout_enabled);
+        $this->assertSame(24, (int) $rule->auto_payout_delay_hours);
     }
 
     public function test_update_auto_payout_checkbox_missing_means_false(): void
@@ -72,115 +109,85 @@ class TbankCommissionsControllerAutoPayoutTest extends CrmTestCase
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
 
-        // 1) включаем (1)
         $this->put(
             route('admin.setting.tbankCommissions.update', ['id' => $rule->id]),
             $this->payloadForUpdate([
                 'partner_id' => $partner->id,
                 'auto_payout_enabled' => 1,
+                'auto_payout_delay_hours' => 12,
             ])
-        )
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
+        )->assertRedirect(route('admin.setting.tbankCommissions'));
 
-        // 2) выключаем ЯВНО (0) — это реальная модель работы форм
         $this->put(
             route('admin.setting.tbankCommissions.update', ['id' => $rule->id]),
             $this->payloadForUpdate([
                 'partner_id' => $partner->id,
                 'auto_payout_enabled' => 0,
+                'auto_payout_delay_hours' => 12,
             ])
-        )
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
+        )->assertRedirect(route('admin.setting.tbankCommissions'));
 
-        $ps = PaymentSystem::where('name', 'tbank')
-            ->where('partner_id', $partner->id)
-            ->first();
-
-        $this->assertNotNull($ps);
-
-        $this->assertFalse((bool)($ps->settings['auto_payout_enabled'] ?? false));
+        $rule->refresh();
+        $this->assertFalse($rule->auto_payout_enabled);
+        $this->assertSame(12, (int) $rule->auto_payout_delay_hours);
     }
 
-    public function test_update_does_not_overwrite_other_settings_keys(): void
+    public function test_update_requires_delay_hours_for_partner_rule(): void
     {
         $rule = $this->makeRule();
         $partner = Partner::factory()->create();
 
-        $ps = PaymentSystem::create([
-            'partner_id' => $partner->id,
-            'name' => 'tbank',
-            'settings' => [
-                'foo' => 'bar',
-                'auto_payout_enabled' => 0,
-            ],
-            'test_mode' => false,
-        ]);
-
         $payload = $this->payloadForUpdate([
             'partner_id' => $partner->id,
-            'auto_payout_enabled' => 1, // включаем явно
+            'auto_payout_enabled' => 1,
         ]);
+        unset($payload['auto_payout_delay_hours']);
 
-        $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload)
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
-
-        $ps->refresh();
-
-        // ключ не затирается
-        $this->assertSame('bar', $ps->settings['foo'] ?? null);
-
-        // значение переключилось
-        $this->assertTrue((bool)($ps->settings['auto_payout_enabled'] ?? false));
+        $this->from(route('admin.setting.tbankCommissions.edit', ['id' => $rule->id]))
+            ->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload)
+            ->assertSessionHasErrors('auto_payout_delay_hours');
     }
 
-    public function test_update_partner_id_change_sets_auto_payout_for_new_partner(): void
+    public function test_update_partner_id_change_sets_auto_payout_for_new_partner_rule(): void
     {
         $rule = $this->makeRule();
 
         $partnerA = Partner::factory()->create();
         $partnerB = Partner::factory()->create();
 
-        // A = true
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $this->payloadForUpdate([
             'partner_id' => $partnerA->id,
             'auto_payout_enabled' => 1,
-        ]))
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
+            'auto_payout_delay_hours' => 6,
+        ]))->assertRedirect(route('admin.setting.tbankCommissions'));
 
-        // B = false (чекбокс не пришёл)
-        $payloadB = $this->payloadForUpdate(['partner_id' => $partnerB->id]);
+        $payloadB = $this->payloadForUpdate(['partner_id' => $partnerB->id, 'auto_payout_delay_hours' => 0]);
         unset($payloadB['auto_payout_enabled']);
 
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payloadB)
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
+            ->assertRedirect(route('admin.setting.tbankCommissions'));
 
-        $psB = PaymentSystem::where('name', 'tbank')->where('partner_id', $partnerB->id)->first();
-        $this->assertNotNull($psB);
-        $this->assertFalse((bool)($psB->settings['auto_payout_enabled'] ?? false));
+        $rule->refresh();
+        $this->assertFalse($rule->auto_payout_enabled);
+        $this->assertSame(0, (int) $rule->auto_payout_delay_hours);
     }
 
-    public function test_update_partner_id_zero_does_not_touch_payment_system_block(): void
+    public function test_update_partner_id_zero_resets_auto_payout_on_rule(): void
     {
         $rule = $this->makeRule();
 
         $payload = $this->payloadForUpdate([
-            'partner_id' => 0, // !empty(0) == false => блок не выполняется
+            'partner_id' => 0,
             'auto_payout_enabled' => 1,
+            'auto_payout_delay_hours' => 48,
         ]);
 
         $this->put(route('admin.setting.tbankCommissions.update', ['id' => $rule->id]), $payload)
-            ->assertRedirect(route('admin.setting.tbankCommissions'))
-            ->assertSessionHas('status', 'Правило обновлено');
+            ->assertRedirect(route('admin.setting.tbankCommissions'));
 
-        $this->assertDatabaseMissing('payment_systems', [
-            'name' => 'tbank',
-            'partner_id' => 0,
-        ]);
+        $rule->refresh();
+        $this->assertNull($rule->partner_id);
+        $this->assertFalse($rule->auto_payout_enabled);
+        $this->assertSame(0, (int) $rule->auto_payout_delay_hours);
     }
 }
-

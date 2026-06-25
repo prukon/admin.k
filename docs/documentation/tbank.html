@@ -22,7 +22,7 @@
 <body>
 <div class="wrap">
   <h1>T‑Bank (мультирасчёты): настройки, комиссии, workflow</h1>
-  <div class="small">Файл: <code>/docs/documentation/tbank.html</code></div>
+  <div class="small">Файл: <code>/docs/documentation/tbank.html</code> · ключи терминала: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a></div>
 
   <h2>1) Предпосылки</h2>
   <ul>
@@ -42,14 +42,20 @@
 
   <h2>3) Ключи T‑Bank и где они хранятся</h2>
   <div class="warn">
-    Ключи хранятся в <code>payment_systems.settings</code> в зашифрованном виде.
+    Ключи терминала T‑Bank — <b>глобальные для платформы</b>: одна запись <code>payment_systems</code> с <code>partner_id = NULL</code>, <code>name = 'tbank'</code>.
+    Поле <code>settings</code> хранится в зашифрованном виде. Fallback на <code>.env</code> / <code>config/tinkoff.php</code> не используется.
   </div>
   <ul>
-    <li><b>UI</b>: <code>/admin/settings/paymentSystem</code></li>
+    <li><b>UI</b>: <code>/admin/settings/paymentSystem</code> (подпись «терминал платформы»)</li>
     <li><b>Для приёма платежей (eacq)</b>: <code>terminal_key</code>, <code>token_password</code></li>
     <li><b>Для выплат партнёрам (e2c)</b>: <code>e2c_terminal_key</code>, <code>e2c_token_password</code></li>
-    <li><b>Показ метода оплаты</b>: T‑Bank на витрине оплаты показывается только если ключи заполнены и у партнёра есть <code>tinkoff_partner_id</code>.</li>
+    <li><b>Глобальный рубильник</b>: <code>is_enabled</code> на этой записи — вкл/выкл T‑Bank для всей платформы</li>
+    <li><b>Тестовый режим</b>: <code>test_mode</code> — глобальный флаг</li>
+    <li><b>Показ метода оплаты</b>: T‑Bank на витрине показывается, если глобальный терминал активен (<code>is_enabled</code> + ключи заполнены), у партнёра есть <code>tinkoff_partner_id</code>, и у пользователя есть права на метод (<code>payment.method.tbankCard</code> / <code>tbankSBP</code>). Подробнее — <a href="/docs/documentation/settings-payment-systems#tbank-global">настройки платёжных систем §4</a>.</li>
   </ul>
+
+  <h3>3.1 Сервис <code>TbankTerminalConfig</code></h3>
+  <p>Чтение ключей в коде (Init, webhook, e2c, публичная оплата абонементов) — только через <code>App\Services\Tinkoff\TbankTerminalConfig</code>, без <code>config/tinkoff.php</code> и без per-partner <code>payment_systems</code>. См. <a href="/docs/documentation/settings-payment-systems#tbank-global">settings-payment-systems §4.2</a>.</p>
 
   <h2>4) Комиссии (3 шт.)</h2>
   <ul>
@@ -62,6 +68,7 @@
     <li><b>Банк: выплата партнёру</b>: <code>payout_percent</code>, <code>payout_min_fixed</code></li>
     <li><b>Платформа</b>: <code>platform_percent</code>, <code>platform_min_fixed</code></li>
     <li><b>Режим</b>: <code>partner_id</code> (NULL = глобально) и <code>is_enabled</code></li>
+    <li><b>Автовыплата</b> (только для правил с <code>partner_id</code>): <code>auto_payout_enabled</code>, <code>auto_payout_delay_hours</code> — в разрезе партнёра и метода (<code>card</code>/<code>sbp</code>/<code>tpay</code>/<code>NULL</code>)</li>
   </ul>
 
   <h3>4.2 Формула</h3>
@@ -76,29 +83,31 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Доступ только при праве <code>settings.commission</code> (middleware <code>can:settings.commission</code>). Без права — <b>403</b>; гость — редирект на вход.
   </div>
   <ul>
-    <li><b>Шапка страницы</b>: кнопки <b>«Настройки выплат»</b> (открывает модальное окно с глобальными параметрами выплат) и <b>«Добавить комиссию»</b> (модалка создания нового правила). Стили кнопок согласованы с остальной админкой.</li>
-    <li><b>Глобальные настройки выплат</b> (задержка автовыплаты в часах, интервал джобы в минутах) — не отдельная карточка на странице, а форма внутри модалки «Настройки выплат»; отправка <code>POST /admin/settings/tbank-commissions/payout-settings</code>, см. п. <a href="#payout-settings">5.4</a>.</li>
-    <li><b>Создание правила</b>: модальное окно с тем же набором полей, что и при отдельном создании; синоним маршрута <code>GET …/create</code> делает редирект на список с <code>?open_create=1</code>, чтобы открыть модалку (закладки/старые ссылки).</li>
+    <li><b>Шапка страницы</b>: кнопки <b>«Настройки выплат»</b> (модальное окно с интервалом джобы) и <b>«Добавить комиссию»</b> (модалка создания нового правила). Стили кнопок согласованы с остальной админкой.</li>
+    <li><b>Глобальные настройки выплат</b> (интервал джобы в минутах) — форма внутри модалки «Настройки выплат»; отправка <code>POST /admin/settings/tbank-commissions/payout-settings</code>, см. п. <a href="#payout-settings">5.4</a>. Задержка автовыплаты настраивается <b>в каждом правиле комиссии</b> (п. <a href="#auto-payout">5</a>).</li>
+    <li><b>Создание правила</b>: модальное окно с тем же набором полей, что и при отдельном создании; при выборе партнёра — чекбокс автовыплаты и «Задержка после оплаты (часы)»; синоним маршрута <code>GET …/create</code> делает редирект на список с <code>?open_create=1</code>, чтобы открыть модалку (закладки/старые ссылки).</li>
     <li><b>Таблица правил</b>: <code>KidsCrmDataTable.create('#tbank-commissions-table', …)</code> — server-side пагинация и поиск;
       данные <code>GET /admin/settings/tbank-commissions/data</code> (формат DataTables: <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code>).
       Без dropdown «Колонки» / <code>columns-settings</code> (набор колонок фиксирован). Русификация — <code>@include('partials.datatables.ru')</code>.
       Подробнее о пресете: <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>.</li>
-    <li><b>Колонки таблицы</b>: №; Партнёр (название; при необходимости бейдж «ключи?» если T‑Bank не считается подключённым); Метод; три блока комиссий (эквайринг / выплата банка / платформа); <b>Автовыплата</b> (шильдики да/нет из настройки <code>auto_payout_enabled</code> у платёжной системы tbank партнёра; для глобального правила без <code>partner_id</code> — «—»); <b>Выплат за 30 дн.</b> (число автовыплат за 30 дней по партнёру, счётчик — ссылка на <code>/admin/tinkoff/payouts?partner_id=…&amp;source=auto</code>; для глобального правила — «—»); <b>Активность</b> (включено правило или нет); действия «Изменить» / «Удалить».</li>
+    <li><b>Колонки таблицы</b>: №; Партнёр (название; бейдж «ключи?» если глобальный T‑Bank не подключён); Метод; три блока комиссий (эквайринг / выплата банка / платформа); <b>Автовыплата</b> (сводка «да, N ч» / «нет» по правилам партнёра; для глобального правила без <code>partner_id</code> — «—»); <b>Выплат за 30 дн.</b> (число автовыплат за 30 дней по партнёру, счётчик — ссылка на <code>/admin/tinkoff/payouts?partner_id=…&amp;source=auto</code>; для глобального правила — «—»); <b>Активность</b> (включено правило или нет); действия «Изменить» / «Удалить».</li>
     <li><b>Фильтры</b> над таблицей (партнёр, метод) в сворачиваемом блоке в том же визуальном стиле, что отчёт по задолженностям; подключается <code>resources/css/admin-list-toolbar.css</code>. Фильтры передаются в запрос data как <code>filter_partner_id</code>, <code>filter_method</code>.</li>
-    <li><b>Редактирование</b> по-прежнему отдельная страница <code>/admin/settings/tbank-commissions/{id}/edit</code> (чекбокс автовыплаты партнёра, форма полей комиссий).</li>
+    <li><b>Редактирование</b> по-прежнему отдельная страница <code>/admin/settings/tbank-commissions/{id}/edit</code> (чекбокс автовыплаты, задержка в часах, форма полей комиссий).</li>
   </ul>
 
-  <h2>5) Автовыплата партнёру (e2c) — управление</h2>
+  <h2 id="auto-payout">5) Автовыплата партнёру (e2c) — управление</h2>
   <div class="note">
-    Настройка автовыплаты хранится <b>в разрезе партнёра</b> в <code>payment_systems.settings</code> (зашифрованный JSON):
-    <br><code>payment_systems(name=tbank, partner_id=...)</code> → <code>settings.auto_payout_enabled</code>.
+    Настройка автовыплаты хранится в таблице <code>tinkoff_commission_rules</code> в разрезе <b>партнёра + метода оплаты</b>:
+    <code>auto_payout_enabled</code>, <code>auto_payout_delay_hours</code>.
+    Per-partner записи <code>payment_systems(name=tbank)</code> больше не используются.
   </div>
   <ul>
     <li><b>Где включать/выключать</b>: на странице редактирования правила комиссии
-      <code>/admin/settings/tbank-commissions/{id}/edit</code> чекбокс “Автовыплата включена”.</li>
-    <li><b>Важно</b>: чекбокс применяется к <b>партнёру</b>, указанному в этом правиле (поле <code>partner_id</code>).
-      Для “глобального” правила (partner_id = NULL) чекбокс не применяется — сначала нужно выбрать партнёра и сохранить правило.</li>
-    <li><b>Что делает</b>: если включено — после успешной оплаты (<code>Status=CONFIRMED</code>) автоматически создаём выплату партнёру (e2c) с задержкой <b>из глобальной настройки</b> (часы, по умолчанию 48). При 0 — выплата уходит в банк сразу. Дальше фактический статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
+      <code>/admin/settings/tbank-commissions/{id}/edit</code> — чекбокс «Автовыплата включена» и поле «Задержка после оплаты (часы)».</li>
+    <li><b>Важно</b>: настройки применяются к <b>партнёру и методу</b>, указанным в правиле (<code>partner_id</code>, <code>method</code>).
+      Для «глобального» правила (<code>partner_id = NULL</code>) автовыплата не настраивается — сначала нужно выбрать партнёра и сохранить правило.</li>
+    <li><b>Выбор правила при webhook</b>: <code>TinkoffCommissionRule::pickForPartner($partnerId, $method)</code> — сначала точное совпадение по методу, иначе правило с <code>method = NULL</code>.</li>
+    <li><b>Что делает</b>: если <code>auto_payout_enabled = true</code> у подобранного правила — после <code>Status=CONFIRMED</code> создаётся выплата (e2c) с задержкой <code>auto_payout_delay_hours</code> из этого правила. При 0 — выплата уходит в банк сразу. Дальше статус доводится polling’ом (<code>GetState</code>) до <code>COMPLETED/REJECTED</code>.</li>
     <li><b>Если выключено</b>: выплаты запускаются только вручную (админ‑действиями).</li>
   </ul>
 
@@ -128,21 +137,21 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><b>СБП-выплата</b> (не используется для партнёров-юрлиц в kidscrm): <code>Payment</code> не требуется; выплата происходит в рамках одного <code>Init</code>, при необходимости статус уточняется через <code>GetState</code>.</li>
   </ul>
 
-  <h3 id="payout-settings">5.4 Глобальные настройки выплат (задержка и интервал джобы)</h3>
+  <h3 id="payout-settings">5.4 Глобальные настройки выплат (интервал джобы)</h3>
   <div class="note">
-    Два параметра хранятся в таблице <code>settings</code> (колонка <code>text</code>, ключи <code>name</code>): <code>tinkoff_payout_auto_delay_hours</code>, <code>tinkoff_payout_scheduled_interval_minutes</code>. При отсутствии записи используются значения из <code>config/tinkoff.php</code> (и .env).
+    Параметр хранится в таблице <code>settings</code> (ключ <code>tinkoff_payout_scheduled_interval_minutes</code>). При отсутствии записи — значение из <code>config/tinkoff.php</code>.
+    Задержка автовыплаты <b>не глобальная</b> — она в <code>tinkoff_commission_rules.auto_payout_delay_hours</code>.
   </div>
   <ul>
-    <li><b>Задержка автовыплаты (часы)</b>: через сколько часов после <code>CONFIRMED</code> создаётся/запускается выплата. 0 = сразу. По умолчанию 48 (окно возврата).</li>
     <li><b>Интервал джобы (минуты)</b>: как часто планировщик запускает <code>TinkoffRunScheduledPayoutsJob</code> и <code>TinkoffPollPayoutStatesJob</code>. По умолчанию 10.</li>
-    <li><b>Где управлять</b>: страница комиссий <code>/admin/settings/tbank-commissions</code> — кнопка <b>«Настройки выплат»</b> открывает модальное окно <b>«Глобальные настройки выплат Т‑Банк»</b>. Поля «Задержка автовыплаты после оплаты (часы)» и «Интервал запуска джобы (мин)», кнопка «Сохранить». Изменение интервала джобы применяется после перезапуска планировщика (cron/queue).</li>
+    <li><b>Где управлять</b>: страница комиссий <code>/admin/settings/tbank-commissions</code> — кнопка <b>«Настройки выплат»</b> → модальное окно <b>«Глобальные настройки выплат Т‑Банк»</b>. Поле «Интервал запуска джобы (мин)», кнопка «Сохранить». Изменение интервала применяется после перезапуска планировщика (cron/queue).</li>
   </ul>
 
   <h3>5.5 Где отображается информация об автовыплатах</h3>
   <ul>
     <li><b>Страница выплат</b> <code>/admin/tinkoff/payouts</code>: блок «Автовыплаты: включены у партнёров …» и «Обработка отложенных выплат: каждые N мин.»; таблица выплат (DataTables); блок просроченных отложенных выплат (см. отдельно <a href="/docs/documentation/tbank-admin-payouts">админка выплат</a>).</li>
-    <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — «Автовыплата: вкл/выкл», интервал, «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — это количество выплат в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code> (уже созданы и в процессе), а не «платежи, ожидающие создания выплаты».</li>
-    <li><b>Страница комиссий</b>: в таблице правил отдельные колонки <b>«Автовыплата»</b> (да/нет) и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); на форме редактирования правила — блок со счётчиком «За 30 дн.: N автовыплат» и ссылкой на выплаты под чекбоксом автовыплаты.</li>
+    <li><b>Страница партнёра</b> <code>/admin/tinkoff/partners/{id}</code>: в карточке слева — сводка автовыплат <b>по методам</b> (вкл/выкл, задержка в часах), «За 30 дн.: N автовыплат», ссылка «к выплатам». Счётчик <b>«Ожидают выплат»</b> — выплаты в статусах <code>INITIATED</code>/<code>CREDIT_CHECKING</code>.</li>
+    <li><b>Страница комиссий</b>: в таблице правил колонка <b>«Автовыплата»</b> («да, N ч» / «нет») и <b>«Выплат за 30 дн.»</b> (число со ссылкой на автовыплаты партнёра); на форме редактирования — чекбокс, поле задержки в часах, счётчик «За 30 дн.: N автовыплат».</li>
   </ul>
 
   <h3>5.6 Защита от повторной выплаты по одному платежу</h3>
@@ -166,7 +175,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
         <li>Если <code>payables.type=monthly_fee</code> → <code>UserPrice::markMonthlyPaid</code> по <code>(user_id, payables.meta.team_id, payables.month)</code> — см. <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</li>
       </ul>
     </li>
-    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если в момент обработки webhook у партнёра включена автовыплата</b> (<code>auto_payout_enabled</code>). Ретроактивно автовыплаты по старым платежам не создаются.</li>
+    <li>После CONFIRMED запускаем выплату партнёру (e2c) на сумму <code>net_to_partner</code> <b>только если у подобранного правила комиссии включена автовыплата</b> (<code>auto_payout_enabled</code> в <code>tinkoff_commission_rules</code>). Задержка — <code>auto_payout_delay_hours</code> этого правила. Ретроактивно автовыплаты по старым платежам не создаются.</li>
   </ol>
 
   <div class="note">
@@ -272,7 +281,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <ul>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
       <ul>
-        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка берётся из <code>Setting::getTinkoffPayoutAutoDelayHours()</code>.</li>
+        <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> в правиле комиссии запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка — <code>auto_payout_delay_hours</code> из <code>tinkoff_commission_rules</code>.</li>
       </ul>
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPollPayoutStatesJobTest.php</code>
@@ -326,9 +335,12 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAuthorizedEndpointsTest.php</code> — для пользователя с правом доступа успешные ответы по странице, <code>GET …/data</code>, редирект <code>create</code>, CRUD и настройки выплат; для роли admin с выданным <code>settings.commission</code> — 200 на index и data.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsFeatureCoverageTest.php</code> — разметка страницы (модалки, таблица, кнопки), структура JSON data (включая колонки автовыплаты и выплат за 30 дн.), фильтры и поиск, глобальное правило.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerCrudTest.php</code> — CRUD правил комиссий + валидация.</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — флаг <code>auto_payout_enabled</code> в <code>payment_systems.settings</code> и его корректное сохранение.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsControllerAutoPayoutTest.php</code> — поля <code>auto_payout_enabled</code> и <code>auto_payout_delay_hours</code> в <code>tinkoff_commission_rules</code> и их корректное сохранение.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionRulePriorityTest.php</code> — дефолт 2% и приоритет выбора правила (global → partner → partner+method).</li>
-    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение глобальных настроек выплат (задержка, интервал джобы); форма присутствует в разметке страницы (в т.ч. в модалке).</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsPayoutSettingsTest.php</code> — сохранение интервала джобы (<code>payout_scheduled_interval_minutes</code>); в модалке «Настройки выплат» нет поля глобальной задержки автовыплаты.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX store/update/payout-settings: redirect 302 + запись в БД / ошибки валидации.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsGlobalTerminalDataFeatureTest.php</code> — флаг <code>tbankGloballyConnected</code> и колонки <code>auto_payout_label</code> / <code>tbank_keys_connected</code> в DataTables.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TinkoffCommissionRuleAutoPayoutModelTest.php</code> — <code>pickForPartner</code> и <code>autoPayoutSummaryForPartner</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — счётчик автовыплат за 30 дней в JSON колонке таблицы и на форме редактирования правила.</li>
   </ul>
 
@@ -345,7 +357,15 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
   <h3>8.9 Планировщик и настройки выплат (Setting)</h3>
   <ul>
     <li><code>tests/Feature/Console/KernelPayoutScheduleTest.php</code> — в расписании зарегистрированы <code>tinkoff:run-scheduled-payouts</code> и <code>tinkoff:poll-payout-states</code> с интервалом из <code>Setting::getTinkoffPayoutScheduledIntervalMinutes()</code>.</li>
-    <li><code>tests/Feature/Setting/SettingTinkoffPayoutTest.php</code> — модель <code>Setting</code>: <code>getInt</code>/<code>setInt</code> и методы <code>getTinkoffPayoutAutoDelayHours</code>, <code>setTinkoffPayoutAutoDelayHours</code>, <code>getTinkoffPayoutScheduledIntervalMinutes</code>, <code>setTinkoffPayoutScheduledIntervalMinutes</code> (чтение из БД с fallback на config).</li>
+    <li><code>tests/Feature/Setting/SettingTinkoffPayoutTest.php</code> — модель <code>Setting</code>: <code>getInt</code>/<code>setInt</code> и методы <code>getTinkoffPayoutScheduledIntervalMinutes</code>, <code>setTinkoffPayoutScheduledIntervalMinutes</code> (чтение из БД с fallback на config). Глобальная задержка автовыплаты (<code>tinkoff_payout_auto_delay_hours</code>) в бизнес-логике не используется.</li>
+  </ul>
+
+  <h3>8.10 Глобальный терминал и настройки платёжных систем</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/PaymentSystemGlobalTbankFeatureTest.php</code> — UI глобального терминала, AJAX/non-AJAX store, доступы, destroy.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankTerminalConfigFeatureTest.php</code> — <code>TbankTerminalConfig</code> (без fallback на .env).</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — <code>PaymentService::isTbankAvailable</code> / СБП.</li>
+    <li>Документация раздела: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a>.</li>
   </ul>
 </div>
 </body>

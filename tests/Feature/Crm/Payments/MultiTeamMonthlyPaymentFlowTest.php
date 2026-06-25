@@ -120,18 +120,12 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-MULTI';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'is_enabled' => true,
-            'settings' => [
-                'terminal_key' => 'TERM_MULTI',
-                'token_password' => 'PWD_MULTI',
-                'e2c_terminal_key' => 'E2C',
-                'e2c_token_password' => 'E2CP',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_MULTI',
+                    'token_password' => 'PWD_MULTI',
+                    'e2c_terminal_key' => 'E2C',
+                    'e2c_token_password' => 'E2CP',
+                ]);
 
         [$teamA] = $this->attachTwoTeamsWithPrices('2026-11-01');
 
@@ -172,17 +166,11 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
     {
         Queue::fake();
 
-        PaymentSystem::query()->create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => [
-                'terminal_key' => 'TERM_WH',
-                'token_password' => 'PWD_WH',
-                'e2c_terminal_key' => 'E2C',
-                'e2c_token_password' => 'E2CP',
-            ],
-            'test_mode' => true,
-            'is_enabled' => true,
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_WH',
+            'token_password' => 'PWD_WH',
+            'e2c_terminal_key' => 'E2C',
+            'e2c_token_password' => 'E2CP',
         ]);
 
         [$teamA, $teamB] = $this->attachTwoTeamsWithPrices('2026-12-01');

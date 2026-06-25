@@ -290,7 +290,7 @@
   <ol>
     <li>На странице выбора оплаты (<code>POST /payment</code>, см. п. 3.1.1) метод T‑Bank показываем только если:
       <ul>
-        <li>в <code>payment_systems</code> для текущего партнёра есть запись <code>name=tbank</code> и она “подключена” (ключи заполнены)</li>
+        <li>глобальный терминал T‑Bank активен: <code>payment_systems(partner_id=NULL, name=tbank)</code> с заполненными ключами и <code>is_enabled=true</code></li>
         <li>у партнёра есть <code>partners.tinkoff_partner_id</code> (ShopCode/PartnerId из sm-register)</li>
       </ul>
     </li>
@@ -309,18 +309,25 @@
   <div class="warn">
     <b>Хранение ключей:</b> ключи платёжных систем хранятся в таблице <code>payment_systems</code> в поле <code>settings</code> в зашифрованном виде.
   </div>
-  <h3>4.1 T‑Bank ключи (для текущего партнёра)</h3>
+  <h3>4.1 T‑Bank ключи (глобальный терминал платформы)</h3>
+  <div class="note">
+    Полное описание страницы настроек, endpoint'ов, прав и миграции — в отдельном разделе
+    <a href="/docs/documentation/settings-payment-systems">«Настройки → Платёжные системы»</a>.
+  </div>
   <ul>
-    <li><b>Где вводим</b>: <code>/admin/settings/paymentSystem</code></li>
-    <li><b>Что нужно заполнить</b> (для “подключено”):
+    <li><b>Где вводим</b>: <code>/admin/settings/paymentSystem</code> (одна запись <code>partner_id = NULL</code>, <code>name = tbank</code>)</li>
+    <li><b>Что нужно заполнить</b> (для «подключено»):
       <ul>
         <li><code>terminal_key</code>, <code>token_password</code> — приём платежей (eacq)</li>
         <li><code>e2c_terminal_key</code>, <code>e2c_token_password</code> — выплаты партнёрам (e2c)</li>
+        <li><code>is_enabled</code> — глобальный вкл/выкл T‑Bank</li>
       </ul>
     </li>
+    <li><b>Per-partner</b> ключи T‑Bank не хранятся. Доступность метода у клуба — через <code>tinkoff_partner_id</code> и права пользователя.</li>
+    <li><b>Автовыплата</b> и задержка после оплаты — в <code>tinkoff_commission_rules</code> (не в <code>payment_systems</code>). См. <a href="/docs/documentation/tbank#auto-payout">tbank §5</a>.</li>
   </ul>
 
-  <h3>4.2 Комиссии (удерживаются с партнёра)</h3>
+  <h3>4.2 Комиссии и автовыплата (удерживаются с партнёра)</h3>
   <div class="note">
     Комиссии настраиваются на странице <code>/admin/settings/tbank-commissions</code> и хранятся в таблице <code>tinkoff_commission_rules</code>.
     Подробно про интерфейс (таблица DataTables, модалки, фильтры, права) — в
@@ -330,6 +337,7 @@
     <li><b>Комиссия банка (эквайринг)</b>: <code>acquiring_percent</code> / <code>acquiring_min_fixed</code> (по умолчанию 2.49% и мин 3.49 ₽)</li>
     <li><b>Комиссия банка (выплата партнёру)</b>: <code>payout_percent</code> / <code>payout_min_fixed</code> (по умолчанию 0.10%)</li>
     <li><b>Комиссия платформы</b>: <code>platform_percent</code> / <code>platform_min_fixed</code></li>
+    <li><b>Автовыплата партнёру</b> (после <code>CONFIRMED</code>): <code>auto_payout_enabled</code>, <code>auto_payout_delay_hours</code> в <code>tinkoff_commission_rules</code> (партнёр + метод <code>card</code>/<code>sbp</code>/<code>tpay</code>/<code>NULL</code>)</li>
     <li><b>Округление</b>: математическое (<code>round</code>) до копейки</li>
     <li><b>Формула выплаты партнёру</b>:
       <pre>net = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pre>

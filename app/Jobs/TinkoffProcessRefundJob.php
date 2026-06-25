@@ -4,9 +4,9 @@ namespace App\Jobs;
 
 use App\Models\Payable;
 use App\Models\PaymentIntent;
-use App\Models\PaymentSystem;
 use App\Models\FiscalReceipt;
 use App\Models\Refund;
+use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
@@ -59,24 +59,20 @@ class TinkoffProcessRefundJob implements ShouldQueue
                 return;
             }
 
-            // Настройки T-Bank (eacq) партнёра
-            $ps = PaymentSystem::where('partner_id', (int) $refund->partner_id)
-                ->where('name', 'tbank')
-                ->first();
-            if (!$ps || !$ps->is_connected) {
+            if (! TbankTerminalConfig::isGloballyActive()) {
                 $this->failRefund($refund, 'tbank_not_configured', []);
                 return;
             }
 
-            $settings = $ps->settings;
-            $terminalKey = (string) ($settings['terminal_key'] ?? '');
-            $password = (string) ($settings['token_password'] ?? '');
+            $cfg = TbankTerminalConfig::paymentConfig();
+            $terminalKey = (string) ($cfg['terminal_key'] ?? '');
+            $password = (string) ($cfg['password'] ?? '');
             if ($terminalKey === '' || $password === '') {
                 $this->failRefund($refund, 'tbank_keys_missing', []);
                 return;
             }
 
-            $baseUrl = (bool) $ps->test_mode ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru';
+            $baseUrl = (string) $cfg['base_url'];
 
             $paymentId = (int) ($refund->meta['tbank_payment_id'] ?? 0);
             if ($paymentId <= 0) {

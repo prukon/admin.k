@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Partner;
-use App\Models\PaymentSystem;
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayout;
 use App\Enums\AuditEvent;
 use App\Services\Audit\AuditContext;
@@ -35,12 +35,14 @@ class TinkoffAdminPayoutController extends Controller
             ? Partner::orderBy('title')->get(['id', 'title'])
             : Partner::query()->whereKey($currentPartnerId)->get(['id', 'title']);
 
-        $paymentSystems = PaymentSystem::query()
-            ->where('name', 'tbank')
-            ->get(['partner_id', 'settings']);
-        $autoPayoutByPartnerId = $paymentSystems->keyBy(fn ($ps) => (int) $ps->partner_id)
-            ->map(fn ($ps) => (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false));
-        $partnersWithAuto = $partners->filter(fn ($p) => $autoPayoutByPartnerId[(int) $p->id] ?? false);
+        $partnerIdsWithAuto = TinkoffCommissionRule::query()
+            ->whereNotNull('partner_id')
+            ->where('is_enabled', true)
+            ->where('auto_payout_enabled', true)
+            ->pluck('partner_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+        $partnersWithAuto = $partners->filter(fn ($p) => $partnerIdsWithAuto->contains((int) $p->id));
         $scheduledIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
 
         $overdueScheduledBase = TinkoffPayout::query()->overdueScheduled();
@@ -59,7 +61,6 @@ class TinkoffAdminPayoutController extends Controller
         return view('admin.partners.index', array_merge(compact(
             'partners',
             'isSuperadmin',
-            'autoPayoutByPartnerId',
             'partnersWithAuto',
             'scheduledIntervalMinutes',
             'overdueScheduledPayoutsCount',

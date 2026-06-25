@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Config;
 use App\Models\PaymentIntent;
-use App\Models\PaymentSystem;
+use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffSignature;
 use App\Models\TinkoffPayment;
@@ -168,23 +167,6 @@ class TinkoffQrController extends Controller
 
     private function resolvePaymentConfig(int $partnerId): array
     {
-        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if ($ps && $ps->is_connected) {
-            $s = $ps->settings;
-            $isTest = (bool) $ps->test_mode;
-
-            return [
-                'terminal_key' => (string) ($s['terminal_key'] ?? ''),
-                'password'     => (string) ($s['token_password'] ?? ''),
-                'base_url'     => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
-            ];
-        }
-
-        $cfg = Config::get('tinkoff.payment');
-        return [
-            'terminal_key' => (string) ($cfg['terminal_key'] ?? ''),
-            'password'     => (string) ($cfg['password'] ?? ''),
-            'base_url'     => (string) ($cfg['base_url'] ?? 'https://securepay.tinkoff.ru'),
-        ];
+        return TbankTerminalConfig::paymentConfig();
     }
 }

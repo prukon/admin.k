@@ -27,6 +27,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/schedule/index.blade.php'];
+        yield 'payment systems settings tab' => ['admin/setting/paymentSystem.blade.php'];
+        yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

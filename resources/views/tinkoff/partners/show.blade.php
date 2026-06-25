@@ -570,10 +570,22 @@
                         <hr class="my-2">
                         <div class="small">
                             <strong>Автовыплата:</strong>
-                            @if($autoPayoutEnabled ?? false)
-                                <span class="badge text-bg-success">вкл</span>
+                            @if($autoPayoutSummary->isEmpty())
+                                <span class="text-muted">нет правил комиссий</span>
                             @else
-                                <span class="badge text-bg-secondary">выкл</span>
+                                <ul class="mb-0 ps-3">
+                                    @foreach($autoPayoutSummary as $row)
+                                        <li>
+                                            {{ $row['method'] }} —
+                                            @if($row['enabled'])
+                                                <span class="badge text-bg-success">вкл</span>,
+                                                {{ $row['delay_hours'] }} ч
+                                            @else
+                                                <span class="badge text-bg-secondary">выкл</span>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                </ul>
                             @endif
                         </div>
                         <div class="small text-muted">Обработка отложенных: каждые {{ $scheduledIntervalMinutes }} мин.</div>

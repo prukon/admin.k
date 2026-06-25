@@ -16,15 +16,10 @@ class TbankPayoutDuplicatePreventionTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-DUP';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'e2c_terminal_key' => 'TERM_E2C',
-                'e2c_token_password' => 'PWD_E2C',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'e2c_terminal_key' => 'TERM_E2C',
+                    'e2c_token_password' => 'PWD_E2C',
+                ]);
 
         return TinkoffPayment::create([
             'order_id' => 'order-dup',

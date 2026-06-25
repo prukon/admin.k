@@ -26,6 +26,24 @@ class PaymentSystem extends Model
         'is_enabled' => 'boolean',
     ];
 
+    public function scopeGlobal($query)
+    {
+        return $query->whereNull('partner_id');
+    }
+
+    public function scopeForPartner($query, int $partnerId)
+    {
+        return $query->where('partner_id', $partnerId);
+    }
+
+    public static function globalTbank(): ?self
+    {
+        return static::query()
+            ->whereNull('partner_id')
+            ->where('name', 'tbank')
+            ->first();
+    }
+
     /**
      * Мутатор: шифруем массив настроек
      */

@@ -421,4 +421,42 @@ abstract class CrmTestCase extends TestCase
             'updated_at' => now(),
         ], $fields));
     }
+
+    /**
+     * Глобальный терминал T‑Bank (partner_id IS NULL).
+     *
+     * @param  array<string, mixed>  $settingsOverrides
+     * @param  array<string, mixed>  $attrs
+     */
+    protected function seedGlobalTbank(array $settingsOverrides = [], array $attrs = []): \App\Models\PaymentSystem
+    {
+        $defaults = [
+            'terminal_key' => 'TERM_PAY',
+            'token_password' => 'PWD_PAY',
+            'e2c_terminal_key' => 'TERM_E2C',
+            'e2c_token_password' => 'PWD_E2C',
+        ];
+
+        return \App\Models\PaymentSystem::query()->updateOrCreate(
+            ['partner_id' => null, 'name' => 'tbank'],
+            array_merge([
+                'test_mode' => true,
+                'is_enabled' => true,
+                'settings' => array_merge($defaults, $settingsOverrides),
+            ], $attrs)
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function seedTbankCommissionRule(int $partnerId, array $overrides = []): \App\Models\TinkoffCommissionRule
+    {
+        return \App\Models\TinkoffCommissionRule::factory()->create(array_merge([
+            'partner_id' => $partnerId,
+            'method' => 'card',
+            'auto_payout_enabled' => false,
+            'auto_payout_delay_hours' => 0,
+        ], $overrides));
+    }
 }

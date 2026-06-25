@@ -133,11 +133,9 @@ final class TbankPayoutsPageFeatureTest extends CrmTestCase
 
     public function test_index_shows_auto_payout_info_when_enabled(): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'tbank',
-            'test_mode'  => 1,
-            'settings'   => ['auto_payout_enabled' => true],
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 24,
         ]);
 
         $this->get(route('admin.tinkoff.payouts.index'))

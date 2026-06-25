@@ -17,17 +17,11 @@ class TinkoffCreatesFiscalReceiptTest extends CrmTestCase
     {
         Queue::fake();
 
-        PaymentSystem::query()->create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => [
-                'terminal_key' => 'TerminalKey',
-                'token_password' => 'Password',
-                'e2c_terminal_key' => 'E2C',
-                'e2c_token_password' => 'E2CPass',
-            ],
-            'test_mode' => true,
-            'is_enabled' => true,
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TerminalKey',
+            'token_password' => 'Password',
+            'e2c_terminal_key' => 'E2C',
+            'e2c_token_password' => 'E2CPass',
         ]);
 
         $this->partner->update([

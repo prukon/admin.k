@@ -43,9 +43,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $user = $this->createStudentForPartner($partner);
         $userId = $user->id;
@@ -131,9 +129,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $userId = 1002;
 
@@ -183,9 +179,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $userId = 1003;
 

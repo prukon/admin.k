@@ -11,18 +11,12 @@ class TbankDealCloseTest extends CrmTestCase
 {
     private function seedE2cKeysForPartner(): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                // чтобы $ps->is_connected === true
-                'terminal_key' => 'TERM_PAY',
-                'token_password' => 'PWD_PAY',
-                'e2c_terminal_key' => 'TERM_E2C',
-                'e2c_token_password' => 'PWD_E2C',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_PAY',
+                    'token_password' => 'PWD_PAY',
+                    'e2c_terminal_key' => 'TERM_E2C',
+                    'e2c_token_password' => 'PWD_E2C',
+                ]);
     }
 
     public function test_close_deal_success_writes_payload_to_all_payments_with_same_deal(): void

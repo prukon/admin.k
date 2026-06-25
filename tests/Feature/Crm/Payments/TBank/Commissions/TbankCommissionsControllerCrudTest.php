@@ -29,6 +29,7 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
             // опционально
             'min_fixed' => 0,
             'is_enabled' => 1,
+            'auto_payout_delay_hours' => 0,
         ], $overrides);
     }
 
@@ -42,8 +43,8 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $resp->assertViewHas('mode', 'list');
 
         $resp->assertViewHas('partners');
-        $resp->assertViewHas('autoPayoutByPartnerId');
-        $resp->assertViewHas('tbankConnectedByPartnerId');
+        $resp->assertViewHas('tbankGloballyConnected');
+        $resp->assertViewHas('autoPayoutStatsByPartnerId');
     }
 
     public function test_create_redirects_to_list_with_open_create_query(): void
@@ -137,8 +138,8 @@ class TbankCommissionsControllerCrudTest extends CrmTestCase
         $resp->assertViewHas('mode', 'edit');
         $resp->assertViewHas('rule');
         $resp->assertViewHas('partners');
-        $resp->assertViewHas('autoPayoutByPartnerId');
-        $resp->assertViewHas('tbankConnectedByPartnerId');
+        $resp->assertViewHas('tbankGloballyConnected');
+        $resp->assertViewHas('autoPayoutStatsByPartnerId');
     }
 
     public function test_update_updates_rule_when_partner_id_null_and_does_not_require_auto_payout_field(): void

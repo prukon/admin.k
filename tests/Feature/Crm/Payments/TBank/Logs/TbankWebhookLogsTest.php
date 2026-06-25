@@ -12,17 +12,11 @@ class TbankWebhookLogsTest extends CrmTestCase
 {
     private function setupTbankKeysForPartner(string $terminalKey = 'TERM', string $password = 'PWD'): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'terminal_key' => $terminalKey,
-                'token_password' => $password,
-                // чтобы $ps->is_connected === true и service брал ключи из БД
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
+        $this->seedGlobalTbank([
+            'terminal_key' => $terminalKey,
+            'token_password' => $password,
+            'e2c_terminal_key' => 'E2C_TERM',
+            'e2c_token_password' => 'E2C_PWD',
         ]);
     }
 

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Models\Location;
-use App\Models\PaymentSystem;
 use App\Models\Team;
+use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\PartnerContext;
@@ -43,11 +43,10 @@ class PaymentMonthlyReportController extends AdminBaseController
         $totalRaw = $totalQuery->sum('payments.summ');
         $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
 
-        $tbankPs = PaymentSystem::where('partner_id', $partnerId)
-            ->where('name', 'tbank')
-            ->first();
-
-        $tbankEnabled = (bool) $tbankPs;
+        $partner = \App\Models\Partner::query()->find($partnerId);
+        $tbankEnabled = TbankTerminalConfig::isGloballyActive()
+            && $partner
+            && trim((string) ($partner->tinkoff_partner_id ?? '')) !== '';
 
         $paymentsFilterUser = $this->resolveMonthlyFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveMonthlyFilterTeamLabel($partnerId, $filters);

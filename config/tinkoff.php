@@ -41,8 +41,6 @@ return [
     'payouts' => [
         // Джоба TinkoffRunScheduledPayoutsJob запускается каждые N минут
         'scheduled_interval_minutes' => (int) env('TINKOFF_PAYOUT_SCHEDULED_INTERVAL_MINUTES', 10),
-        // Задержка автовыплаты после CONFIRMED (часы). 0 = сразу, 48 = через 48 ч (окно возврата).
-        'auto_payout_delay_hours' => (int) env('TINKOFF_PAYOUT_AUTO_DELAY_HOURS', 48),
     ],
 
     // Тарифы для UI (можно править в .env или вынести в БД позже)

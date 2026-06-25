@@ -25,9 +25,7 @@ class TinkoffProcessRefundJobCloudKassirReturnReceiptTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $user = $this->createStudentForPartner($partner);
         $userId = $user->id;

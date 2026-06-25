@@ -36,17 +36,12 @@ class TbankQrFeatureTest extends CrmTestCase
 
     private function seedConnectedTbankForPartner(int $partnerId): void
     {
-        PaymentSystem::create([
-            'partner_id' => $partnerId,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'terminal_key' => 'TERM_QR_TEST',
-                'token_password' => 'PWD_QR_TEST',
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_QR_TEST',
+                    'token_password' => 'PWD_QR_TEST',
+                    'e2c_terminal_key' => 'E2C_TERM',
+                    'e2c_token_password' => 'E2C_PWD',
+                ]);
     }
 
     private function createTinkoffPaymentForCurrentPartner(): TinkoffPayment

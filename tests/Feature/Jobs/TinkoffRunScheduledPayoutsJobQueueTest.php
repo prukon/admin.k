@@ -40,9 +40,7 @@ class TinkoffRunScheduledPayoutsJobQueueTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $due = TinkoffPayout::create([
             'partner_id' => $partner->id,

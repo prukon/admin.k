@@ -27,11 +27,10 @@ class TbankPayoutsIndexAutoInfoTest extends CrmTestCase
 
     public function test_index_displays_auto_payout_status_when_partner_has_it_enabled(): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => ['auto_payout_enabled' => true],
+        $this->seedGlobalTbank();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
         ]);
 
         $resp = $this->get('/admin/tinkoff/payouts');
@@ -53,11 +52,27 @@ class TbankPayoutsIndexAutoInfoTest extends CrmTestCase
 
     public function test_index_displays_nobody_when_no_partner_has_auto_payout(): void
     {
-        PaymentSystem::query()->where('name', 'tbank')->delete();
+        $this->seedGlobalTbank();
         $resp = $this->get('/admin/tinkoff/payouts');
 
         $resp->assertOk();
         $resp->assertSee('ни у кого не включены');
+    }
+
+    public function test_index_ignores_auto_payout_on_disabled_commission_rule(): void
+    {
+        $this->seedGlobalTbank();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'is_enabled' => false,
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
+        ]);
+
+        $resp = $this->get('/admin/tinkoff/payouts');
+
+        $resp->assertOk();
+        $resp->assertSee('ни у кого не включены');
+        $resp->assertDontSee('включены у партнёров', false);
     }
 
     public function test_index_shows_overdue_scheduled_payouts_block(): void

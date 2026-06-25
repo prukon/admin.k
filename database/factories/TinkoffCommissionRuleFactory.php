@@ -23,6 +23,8 @@ class TinkoffCommissionRuleFactory extends Factory
             'platform_min_fixed' => 0.00,
             'min_fixed' => 0.00,
             'is_enabled' => 1,
+            'auto_payout_enabled' => false,
+            'auto_payout_delay_hours' => 0,
         ];
     }
 

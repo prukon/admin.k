@@ -45,6 +45,7 @@
         <div class="card-body text-center d-flex flex-column justify-content-center">
             <img src="{{ asset('img/partners/tbank.png') }}" alt="T-Банк" class="mb-3">
             <h5 class="card-title">T‑Банк (мультирасчёты)</h5>
+            <div class="small text-muted mb-2">Терминал платформы (общий для всех партнёров)</div>
 
             @if($tbank && $tbank->is_connected)
                 <button
@@ -206,6 +207,12 @@
                         <label class="form-check-label" for="tbank_test_mode">Тестовый режим</label>
                     </div>
 
+                    <div class="form-check mt-3">
+                        <input type="hidden" name="is_enabled" value="0">
+                        <input type="checkbox" class="form-check-input" name="is_enabled" id="tbank_is_enabled" value="1" checked>
+                        <label class="form-check-label" for="tbank_is_enabled">T‑Bank включён на платформе</label>
+                    </div>
+
                     <input type="hidden" name="name" value="tbank">
                 </div>
                 <div class="modal-footer">
@@ -277,6 +284,7 @@
             });
             // Приводим test_mode к числу 1 или 0 (Laravel это принимает как boolean)
             formData['test_mode'] = $('#tbank_test_mode').is(':checked') ? 1 : 0;
+            formData['is_enabled'] = $('#tbank_is_enabled').is(':checked') ? 1 : 0;
             $.ajax({
                 url: '{{ route('payment-systems.store') }}',
                 method: 'POST',

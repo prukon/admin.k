@@ -12,12 +12,43 @@
     <div class="text-start">
         <div class="mb-3">
             <label class="form-label">Партнёр (опционально)</label>
-            <select name="partner_id" class="form-select">
+            <select name="partner_id" class="form-select" id="tbank-commission-partner-id">
                 <option value="">— Глобально —</option>
                 @foreach($partners as $p)
                     <option value="{{ $p->id }}" @selected(old('partner_id', optional($rule)->partner_id) == $p->id)>{{ $p->title }}</option>
                 @endforeach
             </select>
+        </div>
+        <div class="mb-3 tbank-auto-payout-create-block d-none" id="tbank-auto-payout-create-block">
+            <div class="alert alert-light border mb-0">
+                <div class="fw-semibold mb-1">Автовыплата партнёру после успешной оплаты</div>
+                <div class="text-muted small mb-2">В разрезе выбранного партнёра и метода оплаты.</div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           role="switch"
+                           id="tbank_create_auto_payout_enabled"
+                           name="auto_payout_enabled"
+                           value="1"
+                           {{ old('auto_payout_enabled', optional($rule)->auto_payout_enabled) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="tbank_create_auto_payout_enabled">Автовыплата включена</label>
+                </div>
+                <div>
+                    <label for="tbank_create_auto_payout_delay_hours" class="form-label">Задержка после оплаты (часы)</label>
+                    <input type="number"
+                           class="form-control @error('auto_payout_delay_hours') is-invalid @enderror"
+                           id="tbank_create_auto_payout_delay_hours"
+                           name="auto_payout_delay_hours"
+                           min="0"
+                           max="720"
+                           style="max-width: 8rem;"
+                           value="{{ old('auto_payout_delay_hours', optional($rule)->auto_payout_delay_hours ?? 0) }}">
+                    <div class="form-text">0 = сразу, 48 = через 48 ч (окно возврата)</div>
+                    @error('auto_payout_delay_hours')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
         </div>
         <div class="mb-3">
             <label class="form-label">Метод</label>

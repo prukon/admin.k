@@ -4,10 +4,9 @@ namespace App\Services\Tinkoff;
 
 use App\Models\Partner;
 use App\Models\PaymentIntent;
-use App\Models\PaymentSystem;
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +22,7 @@ class TinkoffPayoutsService
     public function breakdownForPayment(TinkoffPayment $payment): array
     {
         $gross = (int) $payment->amount; // копейки
-        $rule = $this->pickCommissionRule((int) $payment->partner_id, $payment->method);
+        $rule = TinkoffCommissionRule::pickForPartner((int) $payment->partner_id, $payment->method);
 
         $bankAcceptFee = $this->calcFeeCents(
             $gross,
@@ -325,24 +324,7 @@ class TinkoffPayoutsService
 
     protected function resolveE2cConfig(int $partnerId): array
     {
-        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if ($ps && $ps->is_connected) {
-            $s = $ps->settings;
-            $isTest = (bool) $ps->test_mode;
-            return [
-                'terminal_key' => (string) ($s['e2c_terminal_key'] ?? ''),
-                'password'     => (string) ($s['e2c_token_password'] ?? ''),
-                'base_url'     => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
-            ];
-        }
-
-        // fallback
-        $cfg = Config::get('tinkoff.e2c');
-        return [
-            'terminal_key' => (string) ($cfg['terminal_key'] ?? ''),
-            'password'     => (string) ($cfg['password'] ?? ''),
-            'base_url'     => (string) ($cfg['base_url'] ?? 'https://securepay.tinkoff.ru'),
-        ];
+        return TbankTerminalConfig::e2cConfig();
     }
 
     // Формула: сумма − банковская комиссия − моя комиссия (мат. округление до копейки)
@@ -354,7 +336,7 @@ class TinkoffPayoutsService
         // - банк эквайринг (2.49% мин 3.49р по умолчанию)
         // - банк выплата (0.10% по умолчанию)
         // - платформа (настраивается)
-        $rule = $this->pickCommissionRule($payment->partner_id, $payment->method);
+        $rule = TinkoffCommissionRule::pickForPartner($payment->partner_id, $payment->method);
 
         $bankAcceptFee = $this->calcFeeCents(
             $gross,
@@ -377,29 +359,6 @@ class TinkoffPayoutsService
 
         $net = $gross - $bankAcceptFee - $bankPayoutFee - $platformFee;
         return max(0, (int)$net);
-    }
-
-    protected function pickCommissionRule(int $partnerId, ?string $method): \App\Models\TinkoffCommissionRule
-    {
-        $rules = \App\Models\TinkoffCommissionRule::query()
-            ->where('is_enabled', true)
-            ->orderByRaw('partner_id is null, method is null') // приоритет: конкретный партнер/метод
-            ->get();
-
-        $chosen = $rules->first(function ($r) use ($partnerId, $method) {
-            return ($r->partner_id === null || (int) $r->partner_id === (int) $partnerId)
-                && ($r->method === null || (string) $r->method === (string) $method);
-        });
-
-        // если правил нет вообще — используем "пустое" правило с дефолтами
-        return $chosen ?: new \App\Models\TinkoffCommissionRule([
-            'acquiring_percent'   => 2.49,
-            'acquiring_min_fixed' => 3.49,
-            'payout_percent'      => 0.10,
-            'payout_min_fixed'    => 0.00,
-            'platform_percent'    => 2.00,
-            'platform_min_fixed'  => 0.00,
-        ]);
     }
 
     protected function calcFeeCents(int $amountCents, float $percent, float $minFixedRub): int

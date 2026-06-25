@@ -31,7 +31,6 @@ class TbankCommissionsAuthorizedEndpointsTest extends CrmTestCase
             ->assertRedirect(route('admin.setting.tbankCommissions', ['open_create' => 1]));
 
         $this->post(route('admin.setting.tbankCommissions.payoutSettings'), [
-            'payout_auto_delay_hours' => 48,
             'payout_scheduled_interval_minutes' => 10,
         ])->assertRedirect(route('admin.setting.tbankCommissions'));
 
@@ -101,6 +100,8 @@ class TbankCommissionsAuthorizedEndpointsTest extends CrmTestCase
             'platform_min_fixed' => 0,
             'min_fixed' => 0,
             'is_enabled' => 1,
+            'auto_payout_enabled' => 0,
+            'auto_payout_delay_hours' => 0,
         ], $overrides);
     }
 }

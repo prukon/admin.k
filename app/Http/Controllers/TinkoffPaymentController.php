@@ -6,11 +6,11 @@ use App\Http\Requests\Tinkoff\CreatePaymentRequest;
 use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
-use App\Models\PaymentSystem;
 use App\Models\UserCustomPayment;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
+use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use Illuminate\Http\Request;
@@ -38,9 +38,8 @@ class TinkoffPaymentController extends Controller
         $partnerId = (int) app('current_partner')->id;
 
         // Показываем метод оплаты только если он реально настроен
-        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if (! $ps || ! $ps->is_connected) {
-            return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена для текущего партнёра']);
+        if (! TbankTerminalConfig::isGloballyActive()) {
+            return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
         if (empty(app('current_partner')->tinkoff_partner_id)) {
             return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
@@ -194,9 +193,8 @@ class TinkoffPaymentController extends Controller
         $partnerId = (int) app('current_partner')->id;
 
         // Показываем метод оплаты только если он реально настроен
-        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if (! $ps || ! $ps->is_connected) {
-            return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена для текущего партнёра']);
+        if (! TbankTerminalConfig::isGloballyActive()) {
+            return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
         if (empty(app('current_partner')->tinkoff_partner_id)) {
             return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);

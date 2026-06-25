@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Setting;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Models\PaymentSystem;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,14 +25,12 @@ class PaymentSystemController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        // Все платёжные системы текущего партнёра
         $paymentSystems = PaymentSystem::where('partner_id', $partnerId)->get();
 
         $curUser = Auth::user();
 
-        // Выборки по имени для удобства
         $robokassa = $paymentSystems->firstWhere('name', 'robokassa');
-        $tbank = $paymentSystems->firstWhere('name', 'tbank');
+        $tbank = PaymentSystem::globalTbank();
 
         return view('admin.setting.index', [
             'activeTab' => 'paymentSystem',
@@ -65,6 +64,7 @@ class PaymentSystemController extends AdminBaseController
             'password2'        => 'nullable|string',
             'password3'        => 'nullable|string',
             'test_mode'        => 'nullable',
+            'is_enabled'       => 'nullable',
             // T-Bank (eacq)
             'terminal_key'     => 'nullable|string',
             'token_password'   => 'nullable|string',
@@ -83,19 +83,24 @@ class PaymentSystemController extends AdminBaseController
         $validated = $validator->validated();
         $this->authorizePaymentSystemMethod($validated['name']);
 
-        $partnerId = $this->requirePartnerId();
-
         Log::debug('store payment settings', [
-            'partnerId' => $partnerId,
-            'payload'   => $validated,
+            'name'    => $validated['name'],
+            'payload' => $validated,
         ]);
 
-        $paymentSystem = PaymentSystem::firstOrNew([
-            'partner_id' => $partnerId,
-            'name'       => $validated['name'],
-        ]);
+        if ($validated['name'] === 'tbank') {
+            $paymentSystem = PaymentSystem::firstOrNew([
+                'partner_id' => null,
+                'name'       => 'tbank',
+            ]);
+        } else {
+            $partnerId = $this->requirePartnerId();
+            $paymentSystem = PaymentSystem::firstOrNew([
+                'partner_id' => $partnerId,
+                'name'       => $validated['name'],
+            ]);
+        }
 
-        // берём старые настройки
         $settings = $paymentSystem->settings ?? [];
 
         switch ($validated['name']) {
@@ -103,17 +108,13 @@ class PaymentSystemController extends AdminBaseController
                 $settings['merchant_login'] = $validated['merchant_login'] ?? null;
                 $settings['password1']      = $validated['password1'] ?? null;
                 $settings['password2']      = $validated['password2'] ?? null;
-                // Password3 нужен для Refund API (JWT, HMAC)
                 $settings['password3']      = $validated['password3'] ?? ($settings['password3'] ?? null);
                 $settings['test_mode']      = !empty($validated['test_mode']);
                 break;
 
             case 'tbank':
-                // Прием платежей (eacq)
                 $settings['terminal_key']   = $validated['terminal_key'] ?? null;
                 $settings['token_password'] = $validated['token_password'] ?? null;
-
-                // Выплаты (e2c)
                 $settings['e2c_terminal_key']   = $validated['e2c_terminal_key'] ?? null;
                 $settings['e2c_token_password'] = $validated['e2c_token_password'] ?? null;
                 break;
@@ -121,6 +122,9 @@ class PaymentSystemController extends AdminBaseController
 
         $paymentSystem->settings  = $settings;
         $paymentSystem->test_mode = !empty($validated['test_mode']);
+        if ($validated['name'] === 'tbank') {
+            $paymentSystem->is_enabled = $request->boolean('is_enabled', true);
+        }
         $paymentSystem->save();
 
         Log::debug('DB write check', [
@@ -129,22 +133,35 @@ class PaymentSystemController extends AdminBaseController
             'row' => $paymentSystem->toArray(),
         ]);
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => "Настройки [{$validated['name']}] успешно сохранены для партнёра #{$partnerId}",
-        ]);
+        $message = $validated['name'] === 'tbank'
+            ? "Настройки [{$validated['name']}] успешно сохранены (глобальный терминал платформы)"
+            : "Настройки [{$validated['name']}] успешно сохранены для партнёра #{$paymentSystem->partner_id}";
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'status'  => 'success',
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.setting.paymentSystem')
+            ->with('status', $message);
     }
 
     public function show(Request $request, string $name)
     {
         $this->authorizePaymentSystemMethod($name);
 
-        $partnerId = $this->requirePartnerId();
-
-        $paymentSystem = PaymentSystem::where([
-            ['partner_id', '=', $partnerId],
-            ['name', '=', $name],
-        ])->first();
+        if ($name === 'tbank') {
+            $paymentSystem = PaymentSystem::globalTbank();
+        } else {
+            $partnerId = $this->requirePartnerId();
+            $paymentSystem = PaymentSystem::where([
+                ['partner_id', '=', $partnerId],
+                ['name', '=', $name],
+            ])->first();
+        }
 
         if (!$paymentSystem) {
             return response()->json(['status' => 'not_found'], 404);
@@ -152,19 +169,32 @@ class PaymentSystemController extends AdminBaseController
 
         return response()->json([
             'status' => 'success',
-            'data' => $paymentSystem->settings,    // автоматически расшифруется через accessor
+            'data' => $paymentSystem->settings,
             'test_mode' => $paymentSystem->test_mode,
+            'is_enabled' => $paymentSystem->is_enabled,
         ]);
     }
 
     public function destroy(int $id)
     {
-        $partnerId = $this->requirePartnerId();
-
         $paymentSystem = PaymentSystem::findOrFail($id);
 
-        if ($paymentSystem->partner_id !== $partnerId) {
-            return response()->json(['message' => 'Доступ запрещён'], 403);
+        if ($paymentSystem->name === 'tbank') {
+            if ($paymentSystem->partner_id !== null) {
+                return response()->json(['message' => 'Доступ запрещён'], 403);
+            }
+
+            $user = Auth::user();
+            if (! $user instanceof User || ! $user->hasRole('superadmin')) {
+                return response()->json([
+                    'message' => 'Удаление глобального терминала T‑Bank доступно только superadmin',
+                ], 403);
+            }
+        } else {
+            $partnerId = $this->requirePartnerId();
+            if ($paymentSystem->partner_id !== $partnerId) {
+                return response()->json(['message' => 'Доступ запрещён'], 403);
+            }
         }
 
         $this->authorizePaymentSystemMethod($paymentSystem->name);

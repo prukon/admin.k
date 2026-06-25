@@ -40,9 +40,7 @@ class TinkoffPollPayoutStatesJobQueueTest extends JobsTestCase
         PaymentSystem::factory()
             ->tbank()
             ->testMode()
-            ->create([
-                'partner_id' => $partner->id,
-            ]);
+            ->create();
 
         $p = TinkoffPayout::create([
             'payment_id' => 1,

@@ -22,8 +22,6 @@ class DevPaymentSystemsSeeder extends Seeder
             'partner_id' => $randomPartnerId,
         ]);
 
-        PaymentSystem::factory()->tbank()->testMode()->create([
-            'partner_id' => $randomPartnerId,
-        ]);
+        PaymentSystem::factory()->tbank()->testMode()->create();
     }
 }

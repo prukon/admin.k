@@ -98,21 +98,6 @@ class Setting extends Model
         }
     }
 
-    /** Задержка автовыплаты после CONFIRMED (часы). 0 = сразу. БД с fallback на config. */
-    public static function getTinkoffPayoutAutoDelayHours(): int
-    {
-        return static::getInt(
-            'tinkoff_payout_auto_delay_hours',
-            (int) config('tinkoff.payouts.auto_payout_delay_hours', 48),
-            null
-        );
-    }
-
-    public static function setTinkoffPayoutAutoDelayHours(int $hours): bool
-    {
-        return static::setInt('tinkoff_payout_auto_delay_hours', $hours, null);
-    }
-
     /** Интервал запуска джобы отложенных выплат (минуты). БД с fallback на config. */
     public static function getTinkoffPayoutScheduledIntervalMinutes(): int
     {

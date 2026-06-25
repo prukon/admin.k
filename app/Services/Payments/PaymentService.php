@@ -4,7 +4,8 @@ namespace App\Services\Payments;
 
 use App\Models\Partner;
 use App\Models\PaymentSystem;
- 
+use App\Services\Tinkoff\TbankTerminalConfig;
+
 class PaymentService
 {
     /**
@@ -21,19 +22,13 @@ class PaymentService
     }
 
     /**
-     * Т-Банк доступен, если:
-     * - есть запись в payment_systems для партнёра
-     * - is_enabled = 1
-     * - у партнёра заполнен tinkoff_partner_id
+     * T‑Bank доступен, если:
+     * - глобальный терминал настроен и включён (payment_systems partner_id IS NULL)
+     * - у партнёра заполнен tinkoff_partner_id (ShopCode)
      */
     public function isTbankAvailable(Partner $partner): bool
     {
-        $exists = PaymentSystem::where('partner_id', $partner->id)
-            ->where('name', 'tbank')
-            ->where('is_enabled', true)
-            ->exists();
-
-        if (!$exists) {
+        if (! TbankTerminalConfig::isGloballyActive()) {
             return false;
         }
 

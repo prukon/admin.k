@@ -12,7 +12,7 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Models\Location;
 use App\Models\Partner;
-use App\Models\PaymentSystem;
+use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
@@ -516,15 +516,13 @@ final class LessonPackageController extends AdminBaseController
 
     private function ulpAssignmentPublicPayTbankReady(int $partnerId): bool
     {
-        $partnerRow = Partner::query()->find($partnerId);
-        $tbankPs = PaymentSystem::query()
-            ->where('partner_id', $partnerId)
-            ->where('name', 'tbank')
-            ->first();
+        if (! TbankTerminalConfig::isGloballyActive()) {
+            return false;
+        }
 
-        return $tbankPs
-            && $tbankPs->is_connected
-            && $partnerRow
+        $partnerRow = Partner::query()->find($partnerId);
+
+        return $partnerRow
             && trim((string) ($partnerRow->tinkoff_partner_id ?? '')) !== '';
     }
 

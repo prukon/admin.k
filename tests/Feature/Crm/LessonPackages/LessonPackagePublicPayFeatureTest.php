@@ -40,16 +40,11 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
 
     private function seedTbankForPartner(): void
     {
-        PaymentSystem::query()->create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'terminal_key' => 'TERM_PUBLIC_PAY',
-                'token_password' => 'PWD_PUBLIC_PAY',
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_PUBLIC_PAY',
+            'token_password' => 'PWD_PUBLIC_PAY',
+            'e2c_terminal_key' => 'E2C_TERM',
+            'e2c_token_password' => 'E2C_PWD',
         ]);
 
         Partner::query()->whereKey($this->partner->id)->update([

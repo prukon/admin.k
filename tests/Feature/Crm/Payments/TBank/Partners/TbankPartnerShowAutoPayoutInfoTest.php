@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Payments\TBank\Partners;
 
-use App\Models\PaymentSystem;
 use App\Models\Setting;
 use App\Models\TinkoffPayout;
 use Tests\Feature\Crm\CrmTestCase;
@@ -16,13 +15,13 @@ class TbankPartnerShowAutoPayoutInfoTest extends CrmTestCase
         $this->withSession(['current_partner' => $this->partner->id]);
     }
 
-    public function test_show_displays_auto_payout_enabled_when_payment_system_has_flag(): void
+    public function test_show_displays_auto_payout_enabled_when_commission_rule_has_flag(): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => ['auto_payout_enabled' => true],
+        $this->seedGlobalTbank();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
         ]);
 
         $resp = $this->get('/admin/tinkoff/partners/' . $this->partner->id);
@@ -30,15 +29,16 @@ class TbankPartnerShowAutoPayoutInfoTest extends CrmTestCase
         $resp->assertOk();
         $resp->assertSee('Автовыплата');
         $resp->assertSee('вкл');
+        $resp->assertSee('48 ч');
     }
 
-    public function test_show_displays_auto_payout_disabled_when_no_flag(): void
+    public function test_show_displays_auto_payout_disabled_when_rule_flag_off(): void
     {
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => ['auto_payout_enabled' => false],
+        $this->seedGlobalTbank();
+        $this->seedTbankCommissionRule((int) $this->partner->id, [
+            'method' => 'card',
+            'auto_payout_enabled' => false,
+            'auto_payout_delay_hours' => 0,
         ]);
 
         $resp = $this->get('/admin/tinkoff/partners/' . $this->partner->id);

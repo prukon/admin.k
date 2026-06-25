@@ -4,8 +4,8 @@ namespace App\Services\Tinkoff;
 
 use App\Models\PaymentIntent;
 use App\Models\Payable;
-use App\Models\PaymentSystem;
 use App\Models\Payment;
+use App\Models\TinkoffCommissionRule;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
@@ -18,9 +18,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Config;
-use App\Services\Tinkoff\SmRegisterClient;
 use Carbon\CarbonInterface;
+use App\Services\Tinkoff\SmRegisterClient;
 
 use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
@@ -112,7 +111,7 @@ class TinkoffPaymentsService
     /**
      * Webhook по оплатам (T‑Bank eacq).
      * Важно:
-     * - подтверждаем подпись по ключу партнёра (из payment_systems), поэтому сначала ищем order_id → partner_id.
+     * - подтверждаем подпись по глобальному ключу терминала (payment_systems partner_id IS NULL).
      * - идемпотентность бизнес-эффекта обеспечиваем через payment_intents(provider, provider_inv_id) + транзакцию.
      */
     public function handleWebhook(array $data, bool $skipSignature = false): void
@@ -203,14 +202,15 @@ class TinkoffPaymentsService
             // не падаем: webhook должен быть максимально "мягким", чтобы не блокировать выплаты/повторы
         }
 
-        // Автовыплата партнёру (управляется чекбоксом в /admin/settings/tbank-commissions)
+        // Автовыплата партнёру (настройка в tinkoff_commission_rules)
         if ($payment->status === 'CONFIRMED' && $payment->deal_id) {
             try {
-                $ps = PaymentSystem::where('partner_id', (int) $payment->partner_id)->where('name', 'tbank')->first();
-                $enabled = $ps ? (bool) ($ps->settings['auto_payout_enabled'] ?? false) : false;
-                if (!$enabled) {
+                $method = (string) ($payment->method ?? '');
+                $rule = TinkoffCommissionRule::pickForPartner((int) $payment->partner_id, $method !== '' ? $method : null);
+                if (! $rule->auto_payout_enabled) {
                     return;
                 }
+                $delayHours = (int) $rule->auto_payout_delay_hours;
             } catch (\Throwable $e) {
                 Log::channel('tinkoff')->error('[auto-payout flag read failed] ' . $e->getMessage());
                 return;
@@ -229,8 +229,7 @@ class TinkoffPaymentsService
                 Log::channel('tinkoff')->error('[sm-register PATCH failed] ' . $e->getMessage());
             }
 
-            // 2) Создаём выплату с задержкой после CONFIRMED (часы из БД/config, 0 = сразу).
-            $delayHours = \App\Models\Setting::getTinkoffPayoutAutoDelayHours();
+            // 2) Создаём выплату с задержкой после CONFIRMED (часы из правила комиссии; 0 = сразу).
             $runAt = $delayHours > 0
                 ? ($payment->confirmed_at ?? now())->clone()->addHours($delayHours)
                 : null;
@@ -251,32 +250,7 @@ class TinkoffPaymentsService
 
     protected function resolvePaymentConfig(int $partnerId): array
     {
-        // 1) Пытаемся взять ключи из БД (payment_systems) для текущего партнёра
-        $ps = PaymentSystem::where('partner_id', $partnerId)->where('name', 'tbank')->first();
-        if ($ps && $ps->is_connected) {
-            $s = $ps->settings;
-            $isTest = (bool) $ps->test_mode;
-
-            return [
-                'terminal_key' => (string) ($s['terminal_key'] ?? ''),
-                'password'     => (string) ($s['token_password'] ?? ''),
-                'base_url'     => $isTest ? 'https://rest-api-test.tinkoff.ru' : 'https://securepay.tinkoff.ru',
-                'success_url'  => url('/payments/tinkoff/{order}/success'),
-                'fail_url'     => url('/payments/tinkoff/{order}/fail'),
-                'notify_url'   => url('/webhooks/tinkoff/payments'),
-            ];
-        }
-
-        // 2) fallback (исторически могло быть в .env/config)
-        $cfg = Config::get('tinkoff.payment');
-        return [
-            'terminal_key' => (string) ($cfg['terminal_key'] ?? ''),
-            'password'     => (string) ($cfg['password'] ?? ''),
-            'base_url'     => (string) ($cfg['base_url'] ?? 'https://securepay.tinkoff.ru'),
-            'success_url'  => (string) ($cfg['success_url'] ?? url('/payments/tinkoff/{order}/success')),
-            'fail_url'     => (string) ($cfg['fail_url'] ?? url('/payments/tinkoff/{order}/fail')),
-            'notify_url'   => (string) ($cfg['notify_url'] ?? url('/webhooks/tinkoff/payments')),
-        ];
+        return TbankTerminalConfig::paymentConfig();
     }
 
     protected function applyDomainEffects(TinkoffPayment $payment, array $webhook, string $initTinkoffMethod = ''): void

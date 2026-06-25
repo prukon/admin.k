@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Partner;
-use App\Models\PaymentSystem;
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayout;
 use App\Models\TinkoffPayment;
 use App\Services\Tinkoff\SmRegisterClient;
@@ -37,8 +37,7 @@ class TinkoffAdminPartnerController extends Controller
         $latestPayments = TinkoffPayment::where('partner_id', $partner->id)
             ->latest()->limit(20)->get();
 
-        $ps = PaymentSystem::where('partner_id', $partner->id)->where('name', 'tbank')->first();
-        $autoPayoutEnabled = $ps ? (bool) (($ps->settings ?: [])['auto_payout_enabled'] ?? false) : false;
+        $autoPayoutSummary = TinkoffCommissionRule::autoPayoutSummaryForPartner((int) $partner->id);
         $scheduledIntervalMinutes = \App\Models\Setting::getTinkoffPayoutScheduledIntervalMinutes();
 
         $autoPayoutStats = TinkoffPayout::query()
@@ -55,7 +54,7 @@ class TinkoffAdminPartnerController extends Controller
             'partner',
             'waiting',
             'latestPayments',
-            'autoPayoutEnabled',
+            'autoPayoutSummary',
             'scheduledIntervalMinutes',
             'autoPayoutCount30',
             'autoPayoutLastAt'

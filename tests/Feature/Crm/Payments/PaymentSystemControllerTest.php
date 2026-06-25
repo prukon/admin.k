@@ -98,9 +98,8 @@ class PaymentSystemControllerTest extends CrmTestCase
 
     public function test_destroy_forbidden_without_permission(): void
     {
-        $ps = PaymentSystem::factory()->create([
+        $ps = PaymentSystem::factory()->robokassa()->create([
             'partner_id' => $this->partner->id,
-            'name'       => 'tbank',
         ]);
 
         $this->deleteJson(route('payment-systems.destroy', ['payment_system' => $ps->id]))
@@ -122,9 +121,8 @@ class PaymentSystemControllerTest extends CrmTestCase
             'name'       => 'robokassa',
         ]);
 
-        PaymentSystem::factory()->create([
+        PaymentSystem::factory()->robokassa()->create([
             'partner_id' => $otherPartner->id,
-            'name'       => 'tbank',
         ]);
 
         $response = $this->get(route('admin.setting.paymentSystem'));
@@ -135,21 +133,19 @@ class PaymentSystemControllerTest extends CrmTestCase
         });
     }
 
-    public function test_show_returns_404_for_other_partner_even_with_permission(): void
+    public function test_show_returns_global_tbank_when_configured(): void
     {
         $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, 'payment.method.tbankCard');
 
-        $otherPartner = Partner::factory()->create();
-
-        PaymentSystem::factory()->create([
-            'partner_id' => $otherPartner->id,
-            'name'       => 'tbank',
-            'settings'   => ['terminal_key' => 'x'],
-            'test_mode'  => 1,
+        $this->seedGlobalTbank([
+            'terminal_key' => 'global-term',
+            'token_password' => 'global-pass',
         ]);
 
         $this->getJson(route('payment-systems.show', ['name' => 'tbank']))
-            ->assertStatus(404);
+            ->assertStatus(200)
+            ->assertJsonPath('data.terminal_key', 'global-term');
     }
 
     public function test_destroy_forbidden_for_other_partner_even_with_permission(): void
@@ -198,26 +194,28 @@ class PaymentSystemControllerTest extends CrmTestCase
         ]);
     }
 
-    public function test_store_updates_existing_record_not_duplicate(): void
+    public function test_store_updates_global_tbank_not_per_partner(): void
     {
         $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, 'payment.method.tbankCard');
 
-        PaymentSystem::factory()->create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'tbank',
-        ]);
+        $this->seedGlobalTbank(['terminal_key' => 'old-term']);
 
         $this->postJson(route('payment-systems.store'), [
             'name'         => 'tbank',
-            'terminal_key' => 'term1',
+            'terminal_key' => 'new-term',
+            'token_password' => 'pwd',
+            'e2c_terminal_key' => 'e2c',
+            'e2c_token_password' => 'e2cpwd',
         ])->assertStatus(200);
 
         $this->assertSame(
             1,
-            PaymentSystem::query()
-                ->where('partner_id', $this->partner->id)
-                ->where('name', 'tbank')
-                ->count()
+            PaymentSystem::query()->whereNull('partner_id')->where('name', 'tbank')->count()
+        );
+        $this->assertSame(
+            0,
+            PaymentSystem::query()->where('partner_id', $this->partner->id)->where('name', 'tbank')->count()
         );
     }
 
@@ -241,9 +239,10 @@ class PaymentSystemControllerTest extends CrmTestCase
         $this->assertSame('old_secret', $ps->settings['password3'] ?? null);
     }
 
-    public function test_store_saves_tbank_eacq_and_e2c_settings(): void
+    public function test_store_saves_tbank_eacq_and_e2c_settings_globally(): void
     {
         $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, 'payment.method.tbankCard');
 
         $payload = [
             'name'               => 'tbank',
@@ -251,6 +250,7 @@ class PaymentSystemControllerTest extends CrmTestCase
             'token_password'     => 'eacq_token',
             'e2c_terminal_key'   => 'e2c_term',
             'e2c_token_password' => 'e2c_token',
+            'is_enabled'         => 1,
         ];
 
         $this->postJson(route('payment-systems.store'), $payload)
@@ -258,7 +258,7 @@ class PaymentSystemControllerTest extends CrmTestCase
             ->assertJson(['status' => 'success']);
 
         $row = PaymentSystem::query()
-            ->where('partner_id', $this->partner->id)
+            ->whereNull('partner_id')
             ->where('name', 'tbank')
             ->firstOrFail();
 
@@ -266,6 +266,7 @@ class PaymentSystemControllerTest extends CrmTestCase
         $this->assertSame('eacq_token', $row->settings['token_password'] ?? null);
         $this->assertSame('e2c_term', $row->settings['e2c_terminal_key'] ?? null);
         $this->assertSame('e2c_token', $row->settings['e2c_token_password'] ?? null);
+        $this->assertTrue($row->is_enabled);
     }
 
     public function test_store_validation_fails_without_name(): void
@@ -275,6 +276,26 @@ class PaymentSystemControllerTest extends CrmTestCase
         $this->post(route('payment-systems.store'), [])
             ->assertStatus(302)
             ->assertSessionHasErrors('name');
+    }
+
+    public function test_store_non_ajax_redirects_and_creates_robokassa(): void
+    {
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_VIEW);
+        $this->grantPermissionToRoleForPartner($this->actor->role_id, $this->partner->id, self::PERM_ROBOKASSA_METHOD);
+
+        $this->post(route('payment-systems.store'), [
+            'name' => 'robokassa',
+            'merchant_login' => 'non-ajax-login',
+            'password1' => 'p1',
+            'password2' => 'p2',
+        ])
+            ->assertRedirect(route('admin.setting.paymentSystem'))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('payment_systems', [
+            'partner_id' => $this->partner->id,
+            'name' => 'robokassa',
+        ]);
     }
 
     public function test_user_without_partner_is_blocked_by_set_partner(): void

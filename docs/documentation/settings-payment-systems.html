@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Настройки → Платёжные системы</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Настройки → Платёжные системы (<code>/admin/settings/paymentSystem</code>)</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/settings-payment-systems.html</code> ·
+    оплаты: <a href="/docs/documentation/payments">payments</a> ·
+    T‑Bank flow: <a href="/docs/documentation/tbank">tbank</a> ·
+    комиссии и автовыплата: <a href="/docs/documentation/tbank#auto-payout">tbank §5</a>
+  </div>
+
+  <div class="note">
+    <b>Изменение архитектуры (2026‑06):</b> ключи терминала T‑Bank (eacq + e2c) хранятся <b>один раз на всю платформу</b>
+    (<code>payment_systems.partner_id IS NULL</code>). Робокасса по-прежнему настраивается <b>отдельно для каждого партнёра</b>.
+    Автовыплата и задержка после оплаты перенесены в <code>tinkoff_commission_rules</code> (партнёр + метод), а не в <code>payment_systems</code> и не в глобальную настройку <code>settings</code>.
+  </div>
+
+  <h2>1) Доступ</h2>
+  <table>
+    <thead><tr><th>Действие</th><th>Право</th><th>Ответ без права</th></tr></thead>
+    <tbody>
+      <tr><td>Открыть страницу</td><td><code>settings.paymentSystems.view</code></td><td><b>403</b></td></tr>
+      <tr><td>Сохранить Robokassa</td><td><code>settings.paymentSystems.view</code> + <code>payment.method.robokassa</code></td><td><b>403</b></td></tr>
+      <tr><td>Сохранить / показать / удалить T‑Bank</td><td><code>settings.paymentSystems.view</code> + (<code>payment.method.tbankCard</code> или <code>payment.method.tbankSBP</code>)</td><td><b>403</b></td></tr>
+      <tr><td>Гость</td><td>—</td><td><b>302</b> на вход / <b>401</b></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Карточка T‑Bank на странице видна только при наличии одного из прав на метод T‑Bank. Карточка Robokassa — при <code>payment.method.robokassa</code>.</p>
+
+  <h2>2) Эндпоинты</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th><th>Ответ</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/settings/paymentSystem</code></td><td>HTML вкладки «Платёжные системы»</td><td>200 / 403</td></tr>
+      <tr><td>POST</td><td><code>/payment-systems/store</code></td><td>Сохранение Robokassa или глобального T‑Bank</td><td>AJAX/JSON 200 или redirect 302</td></tr>
+      <tr><td>GET</td><td><code>/payment-systems/{name}</code></td><td>JSON настроек (<code>name=robokassa|tbank</code>)</td><td>200 / 404 / 403</td></tr>
+      <tr><td>DELETE</td><td><code>/payment-systems/{id}</code></td><td>«Отключить» платёжную систему</td><td>JSON 200 / 403</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3) Robokassa (per-partner)</h2>
+  <ul>
+    <li><b>Запись в БД</b>: <code>payment_systems(partner_id = текущий партнёр, name = robokassa)</code>.</li>
+    <li><b>Поля</b> в <code>settings</code> (зашифрованный JSON): <code>merchant_login</code>, <code>password1</code>, <code>password2</code>, <code>password3</code>; флаг <code>test_mode</code> на модели.</li>
+    <li><b>Доступность на витрине</b>: <code>PaymentService::isRobokassaAvailable()</code> — запись есть и <code>is_enabled = true</code>.</li>
+    <li><b>Форма</b>: модалка «Подключить», submit через <code>$.ajax</code> на <code>payment-systems.store</code>.</li>
+  </ul>
+
+  <h2 id="tbank-global">4) T‑Bank — глобальный терминал платформы</h2>
+  <div class="warn">
+    <b>Одна запись на платформу:</b> <code>payment_systems(partner_id = NULL, name = 'tbank')</code>.
+    Старые строки <code>payment_systems(name=tbank, partner_id=…)</code> в коде <b>не читаются</b> — их нужно удалить вручную после переноса ключей.
+    Fallback на <code>.env</code> / <code>config/tinkoff.php</code> для ключей терминала <b>отключён</b>.
+  </div>
+
+  <h3>4.1 Поля записи</h3>
+  <table>
+    <thead><tr><th>Поле</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>settings.terminal_key</code>, <code>settings.token_password</code></td><td>Приём платежей (eacq)</td></tr>
+      <tr><td><code>settings.e2c_terminal_key</code>, <code>settings.e2c_token_password</code></td><td>Выплаты партнёрам (e2c)</td></tr>
+      <tr><td><code>test_mode</code></td><td>Тестовый API банка (глобально)</td></tr>
+      <tr><td><code>is_enabled</code></td><td>Глобальный рубильник T‑Bank для всей платформы</td></tr>
+    </tbody>
+  </table>
+  <p>Признак «подключено» в UI: аксессор <code>PaymentSystem::is_connected</code> — все четыре ключа заполнены.</p>
+
+  <h3>4.2 Сервис чтения конфигурации</h3>
+  <p>Единая точка для бизнес-кода и webhook'ов — <code>App\Services\Tinkoff\TbankTerminalConfig</code>:</p>
+  <ul>
+    <li><code>globalRecord()</code> — модель или <code>null</code></li>
+    <li><code>isGloballyActive()</code> — запись есть, <code>is_enabled</code> и <code>is_connected</code></li>
+    <li><code>paymentConfig()</code> / <code>e2cConfig()</code> — ключи и base URL (test/prod); бросают <code>RuntimeException</code>, если терминал не настроен</li>
+    <li><code>tryPaymentConfig()</code> / <code>tryE2cConfig()</code> — без исключения, <code>null</code> если не настроено</li>
+  </ul>
+
+  <h3>4.3 Доступность T‑Bank у партнёра на витрине</h3>
+  <p><code>PaymentService::isTbankAvailable($partner)</code> возвращает <code>true</code>, если одновременно:</p>
+  <ol>
+    <li><code>TbankTerminalConfig::isGloballyActive()</code> — глобальный терминал включён и ключи заполнены;</li>
+    <li>у партнёра заполнен <code>partners.tinkoff_partner_id</code> (ShopCode из sm-register);</li>
+    <li>на витрине дополнительно проверяются права пользователя: <code>payment.method.tbankCard</code> / <code>payment.method.tbankSBP</code>.</li>
+  </ol>
+  <p>СБП: <code>isTbankSbpAvailable($partner, $amountCents)</code> — то же + сумма от 10 ₽ (1000 коп.).</p>
+
+  <h3>4.4 UI на странице настроек</h3>
+  <ul>
+    <li>Карточка «T‑Bank (мультирасчёты)» с подписью <b>«Терминал платформы (общий для всех партнёров)»</b>.</li>
+    <li>Чекбокс <b>«T‑Bank включён на платформе»</b> (<code>is_enabled</code>).</li>
+    <li>Модалка подключения: eacq-ключи, e2c-ключи, тестовый режим.</li>
+    <li>Переменная Blade <code>$tbank</code> всегда из <code>PaymentSystem::globalTbank()</code>, не из списка <code>$paymentSystems</code> текущего партнёра.</li>
+  </ul>
+
+  <h3>4.5 Сохранение (AJAX и safety-net)</h3>
+  <ul>
+    <li>Формы Robokassa и T‑Bank: <code>e.preventDefault()</code> + <code>$.ajax POST payment-systems.store</code>.</li>
+    <li><b>AJAX / JSON</b> (<code>X-Requested-With</code> или <code>Accept: application/json</code>): ответ <code>{ "status": "success", "message": "…" }</code>, статус <b>200</b>.</li>
+    <li><b>Non-AJAX POST</b> (нативная отправка формы без JS): redirect <b>302</b> на <code>/admin/settings/paymentSystem</code> с flash <code>status</code>; запись в БД создаётся/обновляется. Пустой 200 не возвращается.</li>
+    <li>Ошибки валидации: redirect back с ошибками в сессии (302).</li>
+  </ul>
+
+  <h2>5) Связь с комиссиями и автовыплатой</h2>
+  <div class="note">
+    Ключи терминала — <b>здесь</b> (глобально). Комиссии, автовыплата и задержка после оплаты — в
+    <a href="/docs/documentation/tbank#commissions-ui"><code>/admin/settings/tbank-commissions</code></a>
+    (<code>tinkoff_commission_rules.auto_payout_enabled</code>, <code>auto_payout_delay_hours</code> per партнёр + метод).
+    Интервал джобы отложенных выплат — в модалке «Настройки выплат» на странице комиссий
+    (<code>settings.tinkoff_payout_scheduled_interval_minutes</code>).
+  </div>
+
+  <h2>6) Миграция с per-partner T‑Bank (ручные шаги)</h2>
+  <ol>
+    <li>Создать глобальную запись <code>payment_systems(partner_id=NULL, name=tbank)</code> через UI или SQL.</li>
+    <li>Перенести ключи из любой рабочей per-partner строки в глобальную.</li>
+    <li>Выставить <code>is_enabled</code> и при необходимости <code>test_mode</code>.</li>
+    <li>Удалить устаревшие <code>payment_systems(name=tbank, partner_id IS NOT NULL)</code>.</li>
+    <li>Для каждого партнёра настроить автовыплату в правилах комиссий (<code>/admin/settings/tbank-commissions/{id}/edit</code>).</li>
+    <li>Убедиться, что у партнёров заполнен <code>tinkoff_partner_id</code>.</li>
+  </ol>
+  <p class="small">Автоматической миграции данных в релизе нет — по решению владельца платформы.</p>
+
+  <h2>7) Миграции БД</h2>
+  <ul>
+    <li><code>2026_06_25_100000_make_payment_systems_partner_id_nullable.php</code> — <code>payment_systems.partner_id</code> nullable для глобальной строки.</li>
+    <li><code>2026_06_25_100001_add_auto_payout_fields_to_tinkoff_commission_rules_table.php</code> — <code>auto_payout_enabled</code>, <code>auto_payout_delay_hours</code> в правилах комиссий.</li>
+  </ul>
+
+  <h2>8) Тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Payments/PaymentSystemControllerTest.php</code> — права, Robokassa, глобальный T‑Bank store, non-AJAX redirect.</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentSystemPartnerScopeFullAccessFeatureTest.php</code> — guest / 403 / 200 по всем endpoint'ам раздела.</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentSystemGlobalTbankFeatureTest.php</code> — глобальный терминал: UI, AJAX-контракт, non-AJAX safety-net, матрица доступа T‑Bank.</li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankTerminalConfigFeatureTest.php</code> — сервис <code>TbankTerminalConfig</code>.</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — <code>isTbankAvailable</code> / СБП.</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>paymentSystem.blade.php</code>.</li>
+  </ul>
+</div>
+</body>
+</html>

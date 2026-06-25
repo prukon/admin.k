@@ -13,18 +13,12 @@ class TbankPollPayoutStatesJobTest extends CrmTestCase
     public function test_job_polls_intermediate_payouts_and_updates_to_completed(): void
     {
         // e2c keys
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                // чтобы $ps->is_connected === true и service брал ключи из БД
-                'terminal_key' => 'TERM_PAY',
-                'token_password' => 'PWD_PAY',
-                'e2c_terminal_key' => 'TERM_E2C',
-                'e2c_token_password' => 'PWD_E2C',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_PAY',
+                    'token_password' => 'PWD_PAY',
+                    'e2c_terminal_key' => 'TERM_E2C',
+                    'e2c_token_password' => 'PWD_E2C',
+                ]);
 
         $p = TinkoffPayout::create([
             'payment_id' => 1,

@@ -99,18 +99,12 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-ACCESS';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'is_enabled' => true,
-            'settings' => [
-                'terminal_key' => 'TERM_ACCESS',
-                'token_password' => 'PWD_ACCESS',
-                'e2c_terminal_key' => 'E2C',
-                'e2c_token_password' => 'E2CP',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_ACCESS',
+                    'token_password' => 'PWD_ACCESS',
+                    'e2c_terminal_key' => 'E2C',
+                    'e2c_token_password' => 'E2CP',
+                ]);
     }
 
     private function monthlyPaymentPayload(int $teamId): array
@@ -645,17 +639,11 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
     {
         Queue::fake();
 
-        PaymentSystem::query()->create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => [
-                'terminal_key' => 'TERM_HTTP',
-                'token_password' => 'PWD_HTTP',
-                'e2c_terminal_key' => 'E2C',
-                'e2c_token_password' => 'E2CP',
-            ],
-            'test_mode' => true,
-            'is_enabled' => true,
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_HTTP',
+            'token_password' => 'PWD_HTTP',
+            'e2c_terminal_key' => 'E2C',
+            'e2c_token_password' => 'E2CP',
         ]);
 
         TinkoffPayment::create([

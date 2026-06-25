@@ -44,30 +44,11 @@ class TbankQrSecurityTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-CURRENT';
         $this->partner->save();
 
-        // Настроим разные ключи для текущего и чужого партнёра
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'terminal_key' => 'TERM_CURRENT',
-                'token_password' => 'PWD_CURRENT',
-                // PaymentSystem::is_connected вычисляется из наличия и e2c ключей тоже
-                'e2c_terminal_key' => 'E2C_TERM_CURRENT',
-                'e2c_token_password' => 'E2C_PWD_CURRENT',
-            ],
-        ]);
-
-        PaymentSystem::create([
-            'partner_id' => $this->foreignPartner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'settings' => [
-                'terminal_key' => 'TERM_FOREIGN',
-                'token_password' => 'PWD_FOREIGN',
-                'e2c_terminal_key' => 'E2C_TERM_FOREIGN',
-                'e2c_token_password' => 'E2C_PWD_FOREIGN',
-            ],
+        $this->seedGlobalTbank([
+            'terminal_key' => 'TERM_CURRENT',
+            'token_password' => 'PWD_CURRENT',
+            'e2c_terminal_key' => 'E2C_TERM_CURRENT',
+            'e2c_token_password' => 'E2C_PWD_CURRENT',
         ]);
 
         $sentTerminalKeys = [];

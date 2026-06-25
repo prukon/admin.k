@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Services\Tinkoff\TinkoffPayoutsService;
@@ -44,11 +45,19 @@ class TinkoffAdminPaymentController extends Controller
         // Калькуляция (поступило/банк/платформа/партнёру)
         $breakdown = $svc->breakdownForPayment($payment);
 
-        // Окно возврата (часы из БД/config, то же значение что и задержка автовыплаты)
+        // Окно возврата — только при включённой автовыплате и задержке > 0 (правило комиссии: партнёр + метод).
         $refundUntil = null;
         if ($payment->confirmed_at) {
-            $delayHours = \App\Models\Setting::getTinkoffPayoutAutoDelayHours();
-            $refundUntil = $payment->confirmed_at->clone()->addHours($delayHours);
+            $rule = TinkoffCommissionRule::pickForPartner(
+                (int) $payment->partner_id,
+                $payment->method ? (string) $payment->method : null
+            );
+            if ($rule->auto_payout_enabled) {
+                $delayHours = (int) $rule->auto_payout_delay_hours;
+                if ($delayHours > 0) {
+                    $refundUntil = $payment->confirmed_at->clone()->addHours($delayHours);
+                }
+            }
         }
 
         // История статусов (оплата + выплаты) из лог-таблиц

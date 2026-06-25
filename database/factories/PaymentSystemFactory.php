@@ -54,6 +54,7 @@ class PaymentSystemFactory extends Factory
     {
         return $this->state(function () {
             return [
+                'partner_id' => null,
                 'name' => 'tbank',
                 'settings' => [
                     'terminal_key' => 'term_key',
@@ -63,6 +64,12 @@ class PaymentSystemFactory extends Factory
                 ],
             ];
         });
+    }
+
+    /** Глобальный терминал T‑Bank (partner_id IS NULL). */
+    public function globalTbank(): self
+    {
+        return $this->tbank();
     }
 
     public function testMode(): self

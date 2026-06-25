@@ -27,13 +27,11 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'platform_percent' => 2,
             'platform_min_fixed' => 0,
             'is_enabled' => true,
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
         ]);
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => ['auto_payout_enabled' => true],
-        ]);
+        $this->seedGlobalTbank();
 
         TinkoffPayout::create([
             'payment_id' => 1,
@@ -71,13 +69,11 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'platform_percent' => 2,
             'platform_min_fixed' => 0,
             'is_enabled' => true,
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
         ]);
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => [],
-        ]);
+        $this->seedGlobalTbank();
 
         $resp = $this->getJson(route('admin.setting.tbankCommissions.data', [
             'draw' => 1,
@@ -105,13 +101,11 @@ class TbankCommissionsAutoPayoutStatsTest extends CrmTestCase
             'platform_percent' => 2,
             'platform_min_fixed' => 0,
             'is_enabled' => true,
+            'auto_payout_enabled' => true,
+            'auto_payout_delay_hours' => 48,
         ]);
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'settings' => ['auto_payout_enabled' => true],
-        ]);
+        $this->seedGlobalTbank();
 
         TinkoffPayout::create([
             'payment_id' => 2,

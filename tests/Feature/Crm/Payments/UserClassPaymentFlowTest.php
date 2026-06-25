@@ -246,18 +246,12 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-TEST';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'is_enabled' => true,
-            'settings' => [
-                'terminal_key' => 'TERM_TEST',
-                'token_password' => 'PWD_TEST',
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_TEST',
+                    'token_password' => 'PWD_TEST',
+                    'e2c_terminal_key' => 'E2C_TERM',
+                    'e2c_token_password' => 'E2C_PWD',
+                ]);
 
         UserPrice::factory()
             ->forUserAndMonth((int) $this->user->id, '2025-06-01', 123, false)
@@ -291,18 +285,12 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-TEST';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'is_enabled' => true,
-            'settings' => [
-                'terminal_key' => 'TERM_TEST',
-                'token_password' => 'PWD_TEST',
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_TEST',
+                    'token_password' => 'PWD_TEST',
+                    'e2c_terminal_key' => 'E2C_TERM',
+                    'e2c_token_password' => 'E2C_PWD',
+                ]);
 
         $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
@@ -398,18 +386,12 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->partner->tinkoff_partner_id = 'SHOP-TEST';
         $this->partner->save();
 
-        PaymentSystem::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'tbank',
-            'test_mode' => 1,
-            'is_enabled' => true,
-            'settings' => [
-                'terminal_key' => 'TERM_TEST',
-                'token_password' => 'PWD_TEST',
-                'e2c_terminal_key' => 'E2C_TERM',
-                'e2c_token_password' => 'E2C_PWD',
-            ],
-        ]);
+        $this->seedGlobalTbank([
+                    'terminal_key' => 'TERM_TEST',
+                    'token_password' => 'PWD_TEST',
+                    'e2c_terminal_key' => 'E2C_TERM',
+                    'e2c_token_password' => 'E2C_PWD',
+                ]);
 
         $ulp = $this->seedLessonPackageAssignment(612.5);
 

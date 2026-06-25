@@ -13,7 +13,6 @@ class SettingTinkoffPayoutTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['tinkoff.payouts.auto_payout_delay_hours' => 48]);
         config(['tinkoff.payouts.scheduled_interval_minutes' => 10]);
     }
 
@@ -45,24 +44,6 @@ class SettingTinkoffPayoutTest extends TestCase
         Setting::setInt('payout_interval_test', 10, null);
         Setting::setInt('payout_interval_test', 15, null);
         $this->assertSame(15, Setting::getInt('payout_interval_test', 0, null));
-    }
-
-    public function test_getTinkoffPayoutAutoDelayHours_returns_config_default_when_no_db_row(): void
-    {
-        Setting::query()->where('name', 'tinkoff_payout_auto_delay_hours')->delete();
-        $this->assertSame(48, Setting::getTinkoffPayoutAutoDelayHours());
-    }
-
-    public function test_getTinkoffPayoutAutoDelayHours_returns_db_value_when_row_exists(): void
-    {
-        Setting::setTinkoffPayoutAutoDelayHours(24);
-        $this->assertSame(24, Setting::getTinkoffPayoutAutoDelayHours());
-    }
-
-    public function test_setTinkoffPayoutAutoDelayHours_persists_and_get_returns_value(): void
-    {
-        Setting::setTinkoffPayoutAutoDelayHours(72);
-        $this->assertSame(72, Setting::getTinkoffPayoutAutoDelayHours());
     }
 
     public function test_getTinkoffPayoutScheduledIntervalMinutes_returns_config_default_when_no_db_row(): void

@@ -84,7 +84,6 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $ruleId]))->assertForbidden();
 
         $this->post(route('admin.setting.tbankCommissions.payoutSettings'), [
-            'payout_auto_delay_hours' => 48,
             'payout_scheduled_interval_minutes' => 10,
         ])->assertForbidden();
 
@@ -110,7 +109,6 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             fn () => $this->get(route('admin.setting.tbankCommissions.create')),
             fn () => $this->get(route('admin.setting.tbankCommissions.edit', ['id' => $ruleId])),
             fn () => $this->post(route('admin.setting.tbankCommissions.payoutSettings'), [
-                'payout_auto_delay_hours' => 48,
                 'payout_scheduled_interval_minutes' => 10,
             ]),
             fn () => $this->post(route('admin.setting.tbankCommissions.store'), $payload),
@@ -156,7 +154,6 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             ->assertOk();
 
         $this->post(route('admin.setting.tbankCommissions.payoutSettings'), [
-            'payout_auto_delay_hours' => 48,
             'payout_scheduled_interval_minutes' => 10,
         ])->assertRedirect(route('admin.setting.tbankCommissions'));
 
@@ -216,6 +213,8 @@ final class TbankCommissionsPageFullAccessFeatureTest extends CrmTestCase
             'platform_min_fixed' => 0,
             'min_fixed' => 0,
             'is_enabled' => 1,
+            'auto_payout_enabled' => 0,
+            'auto_payout_delay_hours' => 0,
         ], $overrides);
     }
 }

@@ -14,9 +14,8 @@
 
         @php
             $rulePartnerId = (int) ($rule->partner_id ?? 0);
-            $auto = !empty($autoPayoutByPartnerId) ? (bool) ($autoPayoutByPartnerId[$rulePartnerId] ?? false) : false;
-            $conn = !empty($tbankConnectedByPartnerId) ? (bool) ($tbankConnectedByPartnerId[$rulePartnerId] ?? false) : false;
             $ruleStats = ($autoPayoutStatsByPartnerId ?? collect())->get($rulePartnerId);
+            $tbankGloballyConnected = (bool) ($tbankGloballyConnected ?? false);
         @endphp
 
         <form method="post" action="{{ route('admin.setting.tbankCommissions.update', ['id' => $rule->id]) }}">
@@ -27,17 +26,17 @@
                 <div class="card-body">
                     <div class="fw-semibold">Автовыплата партнёру после успешной оплаты</div>
                     <div class="text-muted small">
-                        Настройка сохранится вместе с правилами по кнопке <b>Сохранить</b>.
+                        Настройка сохранится вместе с правилами по кнопке <b>Сохранить</b> (в разрезе партнёра и метода оплаты).
                     </div>
 
                     @if($rulePartnerId <= 0)
                         <div class="text-warning small mt-2">
-                            Для “глобального” правила partner_id не задан. Сначала выбери партнёра в правиле и сохрани — тогда появится чекбокс автовыплаты.
+                            Для «глобального» правила partner_id не задан. Сначала выбери партнёра в правиле и сохрани — тогда появятся настройки автовыплаты.
                         </div>
                     @else
-                        @if(!$conn)
+                        @if(!$tbankGloballyConnected)
                             <div class="text-warning small mt-2">
-                                T‑Bank у партнёра не считается “подключённым” (проверь ключи eacq/e2c в “Платёжных системах”).
+                                T‑Bank на платформе не считается «подключённым» (проверь глобальные ключи eacq/e2c в «Платёжных системах»).
                             </div>
                         @endif
 
@@ -48,8 +47,24 @@
                                    id="autoPayoutEnabled"
                                    name="auto_payout_enabled"
                                    value="1"
-                                   {{ $auto ? 'checked' : '' }}>
+                                   {{ old('auto_payout_enabled', $rule->auto_payout_enabled) ? 'checked' : '' }}>
                             <label class="form-check-label" for="autoPayoutEnabled">Автовыплата включена</label>
+                        </div>
+                        <div class="mb-3 mt-3">
+                            <label for="auto_payout_delay_hours" class="form-label">Задержка после оплаты (часы)</label>
+                            <input type="number"
+                                   class="form-control @error('auto_payout_delay_hours') is-invalid @enderror"
+                                   id="auto_payout_delay_hours"
+                                   name="auto_payout_delay_hours"
+                                   min="0"
+                                   max="720"
+                                   style="max-width: 8rem;"
+                                   value="{{ old('auto_payout_delay_hours', $rule->auto_payout_delay_hours) }}"
+                                   required>
+                            <div class="form-text">0 = сразу, 48 = через 48 ч (окно возврата)</div>
+                            @error('auto_payout_delay_hours')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
                         </div>
                         <div class="small text-muted mt-2">
                             За 30 дн.: {{ $ruleStats['count'] ?? 0 }} автовыплат
@@ -185,12 +200,6 @@
                             @csrf
                             <input type="hidden" name="tbank_payout_settings_form" value="1">
                             <div class="mb-3">
-                                <label for="payout_auto_delay_hours" class="form-label">Задержка автовыплаты после оплаты (часы)</label>
-                                <input type="number" class="form-control" id="payout_auto_delay_hours" name="payout_auto_delay_hours"
-                                       value="{{ old('payout_auto_delay_hours', $payoutAutoDelayHours ?? 48) }}" min="0" max="720" style="max-width: 8rem;">
-                                <div class="form-text">0 = сразу, 48 = через 48 ч (окно возврата)</div>
-                            </div>
-                            <div class="mb-3">
                                 <label for="payout_scheduled_interval_minutes" class="form-label">Интервал запуска джобы (мин)</label>
                                 <input type="number" class="form-control" id="payout_scheduled_interval_minutes" name="payout_scheduled_interval_minutes"
                                        value="{{ old('payout_scheduled_interval_minutes', $payoutScheduledIntervalMinutes ?? 10) }}" min="1" max="1440" style="max-width: 8rem;">
@@ -236,7 +245,29 @@
 @if(($mode ?? 'list') === 'list')
     @push('scripts')
         <script type="text/javascript">
+            function syncTbankCreateAutoPayoutFields() {
+                var $createForm = $('#tbank-commission-create-form');
+                if (!$createForm.length) {
+                    return;
+                }
+                var partnerId = String($createForm.find('select[name=partner_id]').val() || '');
+                var hasPartner = partnerId !== '' && parseInt(partnerId, 10) > 0;
+                var $block = $('#tbank-auto-payout-create-block');
+                var $delay = $('#tbank_create_auto_payout_delay_hours');
+                if (hasPartner) {
+                    $block.removeClass('d-none');
+                    $delay.prop('required', true);
+                } else {
+                    $block.addClass('d-none');
+                    $delay.prop('required', false);
+                }
+            }
+
             $(function () {
+                $('#tbank-commission-create-form').on('change', 'select[name=partner_id]', syncTbankCreateAutoPayoutFields);
+                $('#tbankCommissionCreateModal').on('shown.bs.modal', syncTbankCreateAutoPayoutFields);
+                syncTbankCreateAutoPayoutFields();
+
                 var $form = $('#tbank-commissions-filters-form');
                 var tbankCommissionRoutes = {
                     edit: @json(route('admin.setting.tbankCommissions.edit', ['id' => '__ID__'])),
@@ -476,6 +507,7 @@
                         var createEl = document.getElementById('tbankCommissionCreateModal');
                         if (createEl) {
                             bootstrap.Modal.getOrCreateInstance(createEl).show();
+                            syncTbankCreateAutoPayoutFields();
                         }
                     }
                 }
