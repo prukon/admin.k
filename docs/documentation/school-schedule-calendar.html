@@ -174,8 +174,25 @@
         <td><code>#schoolCalSlotSingleCreateFields</code></td>
         <td>Блок создания нового назначения (<code>mode=create_new</code>): select шаблона <code>#schoolCalSlotSingleTemplate</code>, поле стоимости <code>#schoolCalSlotSingleFee</code> (₽, по умолчанию из <code>fee_amount_default</code> шаблона; при ручном вводе дефолт при смене шаблона не перезаписывается). Submit — <code>#schoolCalSlotSingleSubmit</code> «Записать в расписание».</td>
       </tr>
+      <tr>
+        <td><code>#schoolCalOpenFlexible</code></td>
+        <td>Кнопка «Привязать гибкий абонемент». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>flexible</code>. При одном подходящем назначении (<code>existing_assignments.length === 1</code>) текст кнопки дополняется label в скобках, привязка — одним кликом; при нескольких — раскрывается inline-форма ниже.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotFlexFormWrap</code></td>
+        <td>Inline-форма выбора гибкого назначения (внутри модалки слота, без отдельной модалки). Скрыта по умолчанию; показывается, если у ученика два и более подходящих гибких абонемента на выбранную дату.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalSlotFlexUlp</code> / <code>#schoolCalSlotFlexSubmit</code></td>
+        <td>Select «Назначение абонемента» и кнопка «Привязать абонемент». Ошибки валидации — в <code>#schoolCalSlotFlexUlpErr</code> (<code>data-err="user_lesson_package_id"</code>). Ученик не выбирается повторно — берётся из <code>#schoolCalSlotUserSelect</code>.</td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalOpenFixed</code></td>
+        <td>Кнопка «Привязать фиксированный абонемент». Открывает отдельную модалку <code>#schoolCalFixedModal</code> (шаблон занятий, выбор назначения). Доступность — <code>slot-user-bind-actions</code> → <code>fixed</code>.</td>
+      </tr>
     </tbody>
   </table>
+  <p class="small">Поиск ученика в блоке «Добавить запись» — <code>#schoolCalSlotUserSelect</code> (Select2, <code>GET …/lesson-packages/assignments/users-search</code>). Отдельная модалка «Гибкий абонемент» (<code>#schoolCalFlexModal</code>) снята с UI; списки для inline-привязки гибкого приходят в ответе <code>slot-user-bind-actions</code>.</p>
 
   <h2>Привязка абонементов и лимит строк календаря</h2>
   <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="/docs/documentation/lesson-packages">разделе «Абонементы»</a>.</p>
@@ -208,10 +225,11 @@
     <tbody>
       <tr><td>Неделя сетки</td><td><code>GET …/school-schedule/week</code></td></tr>
       <tr><td>Настройки отображения времени</td><td><code>GET/POST …/school-schedule/view-settings</code></td></tr>
-      <tr><td>Флаги доступности типов привязки</td><td><code>GET …/school-schedule/assignment-availability</code></td></tr>
-      <tr><td>Списки назначений для модалок</td><td><code>GET …/school-schedule/fixed-packages</code>, <code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code></td></tr>
-      <tr><td>Поиск учеников</td><td><code>GET …/school-schedule/flexible-users-search</code>, <code>single-lesson-users-search</code>, <code>…/lesson-packages/assignments/users-search</code></td></tr>
-      <tr><td>Привязка</td><td><code>POST …/assign-flexible</code>, <code>assign-fixed</code>, <code>assign-single-lesson</code></td></tr>
+      <tr><td>Флаги доступности типов привязки (глобально по партнёру)</td><td><code>GET …/school-schedule/assignment-availability</code></td></tr>
+      <tr><td>Списки назначений (вспомогательные JSON)</td><td><code>GET …/school-schedule/fixed-packages</code>, <code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code> — для фиксированной модалки и legacy; гибкий inline в модалке слота берёт список из <code>slot-user-bind-actions</code></td></tr>
+      <tr><td>Поиск учеников</td><td><code>GET …/lesson-packages/assignments/users-search</code> (модалка слота); <code>flexible-users-search</code>, <code>single-lesson-users-search</code> — legacy-модалки и API</td></tr>
+      <tr><td>Привязка из модалки слота</td><td><code>POST …/assign-flexible</code> (гибкий, inline), <code>assign-fixed</code> (отдельная модалка), <code>single-lesson-registration</code> (разовое)</td></tr>
+      <tr><td>Legacy-привязка разового</td><td><code>POST …/assign-single-lesson</code> — модалка <code>#schoolCalSingleModal</code></td></tr>
       <tr><td>Разовое: запись из модалки слота</td><td><code>POST …/single-lesson-registration</code> (<code>SchoolCalendarSingleLessonRegistrationService</code>)</td></tr>
       <tr><td>Пробное: доступность / создание / отмена</td><td><code>GET …/trial-registration-eligibility</code>, <code>POST …/trial-registration</code>, <code>DELETE …/trial-registration/{id}</code></td></tr>
       <tr><td>Разовое: отмена записи в календаре</td><td><code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code> — строка календаря удаляется, <code>user_lesson_packages</code> сохраняется</td></tr>
@@ -221,6 +239,42 @@
     </tbody>
   </table>
   <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
+
+  <h2>Гибкие абонементы в модалке слота</h2>
+  <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>. Назначение ученику должно существовать на странице «Назначения»; привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота. Период <code>starts_at</code>/<code>ends_at</code> при первой привязке задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>). <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
+
+  <h3>Доступность (<code>GET …/slot-user-bind-actions</code>)</h3>
+  <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). В ответе объект <code>flexible</code>:</p>
+  <ul>
+    <li><code>allowed</code>, <code>reason</code> — можно ли привязать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
+    <li><code>existing_assignments[]</code> — подходящие назначения на <strong>эту дату</strong>: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFlexibleAssignmentLabel</code> — единый формат <strong>«Название №{id} — осталось {lessons_remaining}»</strong>.</li>
+  </ul>
+  <p>Отбор назначений (сервис <code>SchoolCalendarSlotUserBindActionsService::evaluateFlexible</code>):</p>
+  <ul>
+    <li>шаблон <code>flexible</code>, ученик партнёра, <code>lessons_total &gt; 0</code>;</li>
+    <li>число строк <code>user_team_schedule_slots</code> по <code>user_lesson_package_id</code> &lt; <code>lessons_total</code>;</li>
+    <li>дата занятия попадает в период назначения (<code>starts_at</code>/<code>ends_at</code> NULL или дата внутри интервала);</li>
+    <li>нет записи ученика на этот слот и дату.</li>
+  </ul>
+  <p>Если подходящих назначений нет — <code>allowed=false</code>, <code>existing_assignments</code> пустой, в <code>reason</code> пояснение (лимит, период, отсутствие абонемента).</p>
+
+  <h3>UI-поток (inline, без второй модалки)</h3>
+  <ol>
+    <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
+    <li>Одно назначение в <code>existing_assignments</code> — кнопка «Привязать гибкий абонемент (<em>label</em>)», клик сразу вызывает <code>POST …/assign-flexible</code>.</li>
+    <li>Два и более — кнопка с базовым текстом «Привязать гибкий абонемент»; по клику раскрывается <code>#schoolCalSlotFlexFormWrap</code> с select и submit.</li>
+    <li>Ошибки валидации (<code>422</code>, объект <code>errors</code>) выводятся под полем назначения; общий <code>message</code> — во flash/alert.</li>
+  </ol>
+  <p>Inline-форма гибкого и форма разового занятия в одной модалке не показываются одновременно — открытие одной скрывает другую.</p>
+
+  <h3>API: привязка (<code>POST …/assign-flexible</code>)</h3>
+  <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.assign-flexible</code>. Request: <code>AssignSchoolCalendarFlexibleRequest</code>. Контроллер: <code>LessonPackageSchoolCalendarAssignmentController::assignFlexible</code>.</p>
+  <p>Обязательные поля: <code>user_lesson_package_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). Поле <code>user_id</code> не передаётся — ученик определяется по назначению.</p>
+  <ul>
+    <li><strong>AJAX</strong> (<code>X-Requested-With: XMLHttpRequest</code> или <code>Accept: application/json</code>): успех — <code>200</code>, JSON с полем <code>message</code> (текст об успешной привязке); ошибка бизнес-логики — <code>422</code>, <code>{ message, errors }</code>.</li>
+    <li><strong>Non-AJAX safety-net</strong> (обычный POST формы без AJAX): успех — редирект <code>302</code> на <code>/admin/lesson-packages/school-schedule</code> с flash <code>status</code>; ошибка валидации FormRequest — редирект с <code>errors</code> в сессии (не пустой <code>200</code>). Метод <code>schoolScheduleMutationResponse</code>.</li>
+  </ul>
+  <p>Аудит: <code>schedule.flexible_linked</code>. Вспомогательный <code>GET …/flexible-assignments?user_id=</code> по-прежнему доступен (тот же формат label), но <strong>не используется</strong> основным UI модалки слота после перехода на inline.</p>
 
   <h2>Разовые занятия в модалке слота</h2>
   <p>Разовое занятие — назначение абонемента с шаблоном <code>schedule_type = no_schedule</code> (<code>user_lesson_packages</code> + строка <code>user_team_schedule_slots</code>). В отличие от гибкого/фиксированного абонемента, запись доступна <strong>без предварительного назначения</strong> на странице «Назначения»: при отсутствии свободного назначения создаётся новое в той же операции.</p>
@@ -310,11 +364,14 @@
     Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>; фиксированные шаблоны — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
     статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
-    разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>.
+    разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
+    <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
+    синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>).
     Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php \
-  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code></pre>
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code></pre>
 </div>
 </body>
 </html>

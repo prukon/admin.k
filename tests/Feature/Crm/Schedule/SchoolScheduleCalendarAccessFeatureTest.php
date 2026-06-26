@@ -237,7 +237,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
             'occurrence_date' => '',
         ]))->assertOk()
             ->assertJsonStructure([
-                'flexible' => ['allowed', 'reason'],
+                'flexible' => ['allowed', 'reason', 'existing_assignments'],
                 'fixed' => ['allowed', 'reason'],
                 'single_lesson' => ['allowed', 'reason', 'mode', 'existing_assignments', 'templates'],
                 'trial' => ['allowed', 'reason'],
@@ -324,7 +324,7 @@ final class SchoolScheduleCalendarAccessFeatureTest extends CrmTestCase
         ]))
             ->assertOk()
             ->assertJsonStructure([
-                'flexible' => ['allowed', 'reason'],
+                'flexible' => ['allowed', 'reason', 'existing_assignments'],
                 'fixed' => ['allowed', 'reason'],
                 'single_lesson' => ['allowed', 'reason', 'mode', 'existing_assignments', 'templates'],
                 'trial' => ['allowed', 'reason'],

@@ -34,6 +34,7 @@
 
   <h2>Гибкое расписание</h2>
   <p>Эндпоинт привязки одного занятия (<code>assign-flexible</code>) выставляет период при первом успешном сохранении привязки, если даты ещё были NULL. Одна успешная операция добавляет одну строку в <code>user_team_schedule_slots</code>; при достижении лимита по числу строк (равному <code>lessons_total</code>) следующая привязка возвращает ошибку валидации.</p>
+  <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (без отдельной модалки «Гибкий абонемент»). Список подходящих назначений на дату — в <code>GET …/slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>; одно назначение — один клик, несколько — select в <code>#schoolCalSlotFlexFormWrap</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Гибкие абонементы в модалке слота»).</p>
 
   <h2>Фиксированное расписание</h2>
   <p>В модалке календаря выбирается уже существующее назначение (<code>user_lesson_package_id</code>) без периода; затем по якорной дате и шаблону (<code>patterns[]</code>: день недели и интервал времени) строится цепочка занятий и создаются строки <code>user_team_schedule_slots</code>. Период назначения задаётся в той же транзакции перед построением цепочки (<code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>).</p>

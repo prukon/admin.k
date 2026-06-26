@@ -149,7 +149,7 @@
                                     <button type="button" class="btn btn-primary w-100" id="schoolCalOpenSingle" disabled>Добавить разовое занятие</button>
                                 </span>
                                 <span class="d-inline-block school-cal-slot-action-host" title="">
-                                    <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFlexible" disabled>Привязать гибкий абонемент</button>
+                                    <button type="button" class="btn btn-primary w-100 text-wrap" id="schoolCalOpenFlexible" disabled>Привязать гибкий абонемент</button>
                                 </span>
                                 <span class="d-inline-block school-cal-slot-action-host" title="">
                                     <button type="button" class="btn btn-primary w-100" id="schoolCalOpenFixed" disabled>Привязать фиксированный абонемент</button>
@@ -175,6 +175,14 @@
                                 </div>
                                 <button type="button" class="btn btn-primary w-100 btn-sm" id="schoolCalSlotSingleSubmit">Записать в расписание</button>
                             </div>
+                            <div class="d-none mt-3 border-top pt-3" id="schoolCalSlotFlexFormWrap">
+                                <div class="mb-3" id="schoolCalSlotFlexBindFields">
+                                    <label class="form-label small mb-1" for="schoolCalSlotFlexUlp">Назначение абонемента</label>
+                                    <select class="form-select form-select-sm" id="schoolCalSlotFlexUlp" aria-describedby="schoolCalSlotFlexUlpErr"></select>
+                                    <div class="small text-danger mt-1 d-none" id="schoolCalSlotFlexUlpErr" data-err="user_lesson_package_id" role="alert"></div>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100 btn-sm" id="schoolCalSlotFlexSubmit">Привязать абонемент</button>
+                            </div>
                         </div>
                     </div>
                     {{-- <hr class="my-3"> --}}
@@ -188,41 +196,6 @@
                             Изменить занятие
                         </button>
                     @endcan
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Гибкое назначение --}}
-    <div class="modal fade" id="schoolCalFlexModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0">
-                    <h5 class="modal-title">Гибкий абонемент</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="schoolCalFlexForm">
-                        @csrf
-                        <input type="hidden" name="team_schedule_slot_id" id="schoolCalFlexSlotId">
-                        <input type="hidden" name="occurrence_date" id="schoolCalFlexDate">
-                        <div class="mb-3">
-                            <label class="form-label">Ученик</label>
-                            <select class="form-select" id="schoolCalFlexUser" style="width:100%" required></select>
-                            <div class="invalid-feedback d-block" data-err="user_id"></div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Назначение абонемента</label>
-                            <select class="form-select" name="user_lesson_package_id" id="schoolCalFlexUlp" required>
-                                <option value="">Сначала выберите ученика</option>
-                            </select>
-                            <div class="invalid-feedback d-block" data-err="user_lesson_package_id"></div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" class="btn btn-primary" id="schoolCalFlexSubmit">Привязать</button>
                 </div>
             </div>
         </div>
@@ -349,9 +322,7 @@
                 usersSearch: @json(route('admin.lesson-packages.assignments.users-search')),
                 flexAssign: @json(route('admin.lesson-packages.school-schedule.assign-flexible')),
                 fixedAssign: @json(route('admin.lesson-packages.school-schedule.assign-fixed')),
-                flexUlps: @json(route('admin.lesson-packages.school-schedule.flexible-assignments')),
                 fixedUlps: @json(route('admin.lesson-packages.school-schedule.fixed-assignments')),
-                flexUsersSearch: @json(route('admin.lesson-packages.school-schedule.flexible-users-search')),
                 singleAssign: @json(route('admin.lesson-packages.school-schedule.assign-single-lesson')),
                 singleUlps: @json(route('admin.lesson-packages.school-schedule.single-lesson-assignments')),
                 singleUsersSearch: @json(route('admin.lesson-packages.school-schedule.single-lesson-users-search')),
@@ -483,6 +454,8 @@
 
             let schoolCalSlotSinglePayload = null;
             let schoolCalSlotSingleFeeTouched = false;
+            let schoolCalSlotFlexiblePayload = null;
+            const schoolCalFlexibleButtonDefaultLabel = 'Привязать гибкий абонемент';
 
             /** ISO weekday 1=Пн … 7=Вс для локальной даты Y-m-d */
             function isoWeekdayFromYmd(ymd) {
@@ -1435,7 +1408,168 @@
             function showSchoolCalSlotSingleFormIfNeeded() {
                 const formWrap = document.getElementById('schoolCalSlotSingleFormWrap');
                 if (formWrap && schoolCalSlotSingleNeedsForm()) {
+                    resetSchoolCalSlotFlexibleForm();
                     formWrap.classList.remove('d-none');
+                }
+            }
+
+            function clearSchoolCalSlotFlexibleFieldErrs() {
+                const wrap = document.getElementById('schoolCalSlotFlexFormWrap');
+                if (!wrap) {
+                    return;
+                }
+                wrap.querySelectorAll('[data-err]').forEach(function (el) {
+                    el.textContent = '';
+                    el.classList.add('d-none');
+                });
+                document.getElementById('schoolCalSlotFlexUlp')?.classList.remove('is-invalid');
+            }
+
+            function showSchoolCalSlotFlexibleFieldErrs(errors) {
+                clearSchoolCalSlotFlexibleFieldErrs();
+                if (!errors || typeof errors !== 'object') {
+                    return;
+                }
+                Object.keys(errors).forEach(function (key) {
+                    const msg = errors[key] && errors[key][0] ? errors[key][0] : '';
+                    if (!msg) {
+                        return;
+                    }
+                    const el = document.querySelector('#schoolCalSlotFlexFormWrap [data-err="' + key + '"]');
+                    if (el) {
+                        el.textContent = msg;
+                        el.classList.remove('d-none');
+                    }
+                    if (key === 'user_lesson_package_id') {
+                        document.getElementById('schoolCalSlotFlexUlp')?.classList.add('is-invalid');
+                    }
+                });
+            }
+
+            function resetSchoolCalSlotFlexibleForm() {
+                schoolCalSlotFlexiblePayload = null;
+                clearSchoolCalSlotFlexibleFieldErrs();
+                const formWrap = document.getElementById('schoolCalSlotFlexFormWrap');
+                const ulpSel = document.getElementById('schoolCalSlotFlexUlp');
+                if (formWrap) {
+                    formWrap.classList.add('d-none');
+                }
+                if (ulpSel) {
+                    ulpSel.innerHTML = '';
+                }
+            }
+
+            function populateSchoolCalSlotFlexibleForm(flex) {
+                schoolCalSlotFlexiblePayload = flex || null;
+                clearSchoolCalSlotFlexibleFieldErrs();
+                const formWrap = document.getElementById('schoolCalSlotFlexFormWrap');
+                const ulpSel = document.getElementById('schoolCalSlotFlexUlp');
+                if (formWrap) {
+                    formWrap.classList.add('d-none');
+                }
+                if (!flex || !flex.allowed) {
+                    return;
+                }
+                const existing = flex.existing_assignments || [];
+                if (existing.length > 1 && ulpSel) {
+                    ulpSel.innerHTML = existing.map(function (item) {
+                        return '<option value="' + String(item.id) + '">' + escapeHtml(item.label || ('#' + item.id)) + '</option>';
+                    }).join('');
+                }
+            }
+
+            function schoolCalSlotFlexibleNeedsForm() {
+                const flex = schoolCalSlotFlexiblePayload || {};
+                const existing = flex.existing_assignments || [];
+                return !!flex.allowed && existing.length > 1;
+            }
+
+            function showSchoolCalSlotFlexibleFormIfNeeded() {
+                const formWrap = document.getElementById('schoolCalSlotFlexFormWrap');
+                if (formWrap && schoolCalSlotFlexibleNeedsForm()) {
+                    resetSchoolCalSlotSingleForm();
+                    formWrap.classList.remove('d-none');
+                }
+            }
+
+            function applyFlexibleBindButtonState(flex) {
+                const btn = document.getElementById('schoolCalOpenFlexible');
+                if (!btn) {
+                    return;
+                }
+                const existing = flex && flex.existing_assignments ? flex.existing_assignments : [];
+                if (flex && flex.allowed && existing.length === 1) {
+                    const assignmentLabel = existing[0].label || ('#' + existing[0].id);
+                    btn.innerHTML = escapeHtml(schoolCalFlexibleButtonDefaultLabel) + '<br>' + escapeHtml(assignmentLabel);
+                } else {
+                    btn.textContent = schoolCalFlexibleButtonDefaultLabel;
+                }
+                setSlotBindActionButtonState('schoolCalOpenFlexible', !!(flex && flex.allowed), (flex && flex.reason) || '');
+            }
+
+            async function submitSchoolCalSlotFlexibleRegistration() {
+                if (!selectedOccurrence) {
+                    return;
+                }
+                clearSchoolCalSlotFlexibleFieldErrs();
+                const flex = schoolCalSlotFlexiblePayload || {};
+                const existing = flex.existing_assignments || [];
+                if (!flex.allowed || existing.length < 1) {
+                    showAlert('danger', 'Гибкий абонемент недоступен для выбранного ученика.');
+                    return;
+                }
+                let ulpId = existing.length === 1
+                    ? String(existing[0].id)
+                    : String(document.getElementById('schoolCalSlotFlexUlp')?.value || '');
+                if (!ulpId) {
+                    showSchoolCalSlotFlexibleFieldErrs({ user_lesson_package_id: ['Выберите назначение абонемента.'] });
+                    showSchoolCalSlotFlexibleFormIfNeeded();
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('_token', token);
+                fd.append('user_lesson_package_id', ulpId);
+                fd.append('team_schedule_slot_id', String(selectedOccurrence.id));
+                fd.append('occurrence_date', String(selectedOccurrence.date));
+                const submitBtn = document.getElementById('schoolCalSlotFlexSubmit');
+                const openBtn = document.getElementById('schoolCalOpenFlexible');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                }
+                if (openBtn) {
+                    openBtn.disabled = true;
+                }
+                try {
+                    const res = await fetch(routes.flexAssign, {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    });
+                    const data = await res.json().catch(function () { return {}; });
+                    if (!res.ok) {
+                        const err = data.errors || {};
+                        showSchoolCalSlotFlexibleFieldErrs(err);
+                        if (data.message) {
+                            showAlert('danger', data.message);
+                        } else if (!Object.keys(err).length) {
+                            showAlert('danger', 'Не удалось привязать гибкий абонемент.');
+                        }
+                        showSchoolCalSlotFlexibleFormIfNeeded();
+                        return;
+                    }
+                    showAlert('success', data.message || 'Готово');
+                    bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
+                    loadWeek();
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                    }
+                    if (openBtn && schoolCalSlotFlexiblePayload && schoolCalSlotFlexiblePayload.allowed) {
+                        openBtn.disabled = false;
+                    }
                 }
             }
 
@@ -1531,6 +1665,11 @@
             function resetSlotModalUserPicker() {
                 clearSchoolCalSlotTrialFieldErr();
                 resetSchoolCalSlotSingleForm();
+                resetSchoolCalSlotFlexibleForm();
+                const flexBtn = document.getElementById('schoolCalOpenFlexible');
+                if (flexBtn) {
+                    flexBtn.textContent = schoolCalFlexibleButtonDefaultLabel;
+                }
                 const loading = document.getElementById('schoolCalSlotBindActionsLoading');
                 const err = document.getElementById('schoolCalSlotBindActionsError');
                 const wrap = document.getElementById('schoolCalSlotBindButtonsWrap');
@@ -1558,11 +1697,12 @@
                 const fixed = data.fixed || {};
                 const single = data.single_lesson || {};
                 const trial = data.trial || {};
-                setSlotBindActionButtonState('schoolCalOpenFlexible', !!flex.allowed, flex.reason || '');
+                applyFlexibleBindButtonState(flex);
                 setSlotBindActionButtonState('schoolCalOpenFixed', !!fixed.allowed, fixed.reason || '');
                 setSlotBindActionButtonState('schoolCalOpenSingle', !!single.allowed, single.reason || '');
                 setSlotBindActionButtonState('schoolCalOpenTrial', !!trial.allowed, trial.reason || '');
                 populateSchoolCalSlotSingleForm(single);
+                populateSchoolCalSlotFlexibleForm(flex);
             }
 
             function scheduleFetchSlotUserBindActions() {
@@ -1682,18 +1822,23 @@
                 });
             });
 
-            document.getElementById('schoolCalOpenFlexible')?.addEventListener('click', () => {
+            document.getElementById('schoolCalOpenFlexible')?.addEventListener('click', async function () {
                 const btn = document.getElementById('schoolCalOpenFlexible');
                 if (btn && btn.disabled) {
                     return;
                 }
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalSlotModal'))?.hide();
-                if (!selectedOccurrence) return;
-                document.getElementById('schoolCalFlexSlotId').value = selectedOccurrence.id;
-                document.getElementById('schoolCalFlexDate').value = selectedOccurrence.date;
-                document.getElementById('schoolCalFlexUlp').innerHTML = '<option value="">Сначала выберите ученика</option>';
-                syncUserSelectFromSlotTo(window.jQuery('#schoolCalFlexUser'));
-                new bootstrap.Modal(document.getElementById('schoolCalFlexModal')).show();
+                if (!selectedOccurrence) {
+                    return;
+                }
+                if (schoolCalSlotFlexibleNeedsForm()) {
+                    showSchoolCalSlotFlexibleFormIfNeeded();
+                    return;
+                }
+                await submitSchoolCalSlotFlexibleRegistration();
+            });
+
+            document.getElementById('schoolCalSlotFlexSubmit')?.addEventListener('click', function () {
+                submitSchoolCalSlotFlexibleRegistration();
             });
 
             function schoolCalFixedRenumberPatternRows() {
@@ -1794,6 +1939,7 @@
                     return;
                 }
                 if (schoolCalSlotSingleNeedsForm()) {
+                    resetSchoolCalSlotFlexibleForm();
                     showSchoolCalSlotSingleFormIfNeeded();
                     return;
                 }
@@ -2080,34 +2226,6 @@
                 form.querySelectorAll('[data-err]').forEach(e => e.textContent = '');
             }
 
-            document.getElementById('schoolCalFlexSubmit')?.addEventListener('click', async () => {
-                const form = document.getElementById('schoolCalFlexForm');
-                clearFieldErrors(form);
-                const fd = new FormData(form);
-                const res = await fetch(routes.flexAssign, {
-                    method: 'POST',
-                    body: fd,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': token,
-                        'Accept': 'application/json',
-                    }
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                    const err = data.errors || {};
-                    Object.keys(err).forEach(k => {
-                        const n = form.querySelector('[data-err="' + k + '"]');
-                        if (n) n.textContent = (err[k] && err[k][0]) ? err[k][0] : '';
-                    });
-                    if (data.message) showAlert('danger', data.message);
-                    return;
-                }
-                showAlert('success', data.message || 'Готово');
-                bootstrap.Modal.getInstance(document.getElementById('schoolCalFlexModal'))?.hide();
-                loadWeek();
-            });
-
             document.getElementById('schoolCalFixedSubmit')?.addEventListener('click', async () => {
                 const form = document.getElementById('schoolCalFixedForm');
                 clearFieldErrors(form);
@@ -2244,27 +2362,6 @@
                         scheduleFetchSlotUserBindActions();
                     });
                 }
-
-                bindUserSelect($('#schoolCalFlexUser'), routes.flexUsersSearch, async function () {
-                    const uid = $('#schoolCalFlexUser').val();
-                    const ulp = document.getElementById('schoolCalFlexUlp');
-                    ulp.innerHTML = '<option value="">Загрузка…</option>';
-                    if (!uid) {
-                        ulp.innerHTML = '<option value="">Сначала выберите ученика</option>';
-                        return;
-                    }
-                    const res = await fetch(routes.flexUlps + '?user_id=' + encodeURIComponent(uid), {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    ulp.innerHTML = '<option value="">Выберите назначение</option>';
-                    (data.assignments || []).forEach(function (a) {
-                        const o = document.createElement('option');
-                        o.value = a.id;
-                        o.textContent = a.label;
-                        ulp.appendChild(o);
-                    });
-                });
 
                 bindUserSelect($('#schoolCalFixedUser'), routes.usersSearch, async function () {
                     const uid = $('#schoolCalFixedUser').val();

@@ -27,6 +27,7 @@ use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -61,7 +62,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             $r = 'Укажите ученика, слот и дату.';
 
             return response()->json([
-                'flexible' => ['allowed' => false, 'reason' => $r],
+                'flexible' => [
+                    'allowed' => false,
+                    'reason' => $r,
+                    'existing_assignments' => [],
+                ],
                 'fixed' => ['allowed' => false, 'reason' => $r],
                 'single_lesson' => [
                     'allowed' => false,
@@ -79,7 +84,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         return response()->json($payload);
     }
 
-    public function assignFlexible(AssignSchoolCalendarFlexibleRequest $request): JsonResponse
+    public function assignFlexible(AssignSchoolCalendarFlexibleRequest $request): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
@@ -91,61 +96,68 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ->first();
 
         if (! $ulp || ! $ulp->user || (int) $ulp->user->partner_id !== $partnerId) {
-            return response()->json([
-                'message' => 'Назначение не найдено или недоступно.',
-                'errors' => ['user_lesson_package_id' => ['Назначение не найдено или недоступно.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Назначение не найдено или недоступно.',
+                ['user_lesson_package_id' => ['Назначение не найдено или недоступно.']],
+            );
         }
 
         $package = $ulp->lessonPackage;
         if (! $package || (string) $package->schedule_type !== 'flexible') {
-            return response()->json([
-                'message' => 'Привязка из календаря доступна только для абонементов с гибким расписанием.',
-                'errors' => ['user_lesson_package_id' => ['Выберите назначение с типом «гибкое расписание».']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Привязка из календаря доступна только для абонементов с гибким расписанием.',
+                ['user_lesson_package_id' => ['Выберите назначение с типом «гибкое расписание».']],
+            );
         }
 
         $scheduledForUlp = UserTeamScheduleSlot::query()
             ->where('user_lesson_package_id', (int) $ulp->id)
             ->count();
         if ($scheduledForUlp >= (int) $ulp->lessons_total) {
-            return response()->json([
-                'message' => 'Достигнут лимит занятий в календаре для этого абонемента.',
-                'errors' => ['user_lesson_package_id' => ['Достигнут лимит занятий в календаре для этого абонемента.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Достигнут лимит занятий в календаре для этого абонемента.',
+                ['user_lesson_package_id' => ['Достигнут лимит занятий в календаре для этого абонемента.']],
+            );
         }
 
         /** @var TeamScheduleSlot|null $slot */
         $slot = TeamScheduleSlot::query()->whereKey((int) $data['team_schedule_slot_id'])->first();
 
         if (! $slot || (int) $slot->partner_id !== $partnerId) {
-            return response()->json([
-                'message' => 'Слот расписания не найден.',
-                'errors' => ['team_schedule_slot_id' => ['Слот расписания не найден.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Слот расписания не найден.',
+                ['team_schedule_slot_id' => ['Слот расписания не найден.']],
+            );
         }
 
         $occurrence = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['occurrence_date'])->startOfDay();
 
         if ((int) $slot->weekday !== (int) $occurrence->format('N')) {
-            return response()->json([
-                'message' => 'Дата не соответствует дню недели выбранного слота.',
-                'errors' => ['occurrence_date' => ['Дата не соответствует дню недели выбранного слота.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Дата не соответствует дню недели выбранного слота.',
+                ['occurrence_date' => ['Дата не соответствует дню недели выбранного слота.']],
+            );
         }
 
         if (! $this->calendarService->slotActiveOnDate($slot, $occurrence)) {
-            return response()->json([
-                'message' => 'Слот недействителен на выбранную дату.',
-                'errors' => ['occurrence_date' => ['Слот недействителен на выбранную дату.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Слот недействителен на выбранную дату.',
+                ['occurrence_date' => ['Слот недействителен на выбранную дату.']],
+            );
         }
 
         if ($this->calendarService->isOccurrenceSkipped((int) $slot->id, $occurrence)) {
-            return response()->json([
-                'message' => 'На эту дату занятие исключено из расписания школы.',
-                'errors' => ['occurrence_date' => ['На эту дату занятие исключено из расписания школы.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'На эту дату занятие исключено из расписания школы.',
+                ['occurrence_date' => ['На эту дату занятие исключено из расписания школы.']],
+            );
         }
 
         $exists = UserTeamScheduleSlot::query()
@@ -155,10 +167,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ->exists();
 
         if ($exists) {
-            return response()->json([
-                'message' => 'Это занятие уже привязано к ученику.',
-                'errors' => ['occurrence_date' => ['Это занятие уже привязано к ученику.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Это занятие уже привязано к ученику.',
+                ['occurrence_date' => ['Это занятие уже привязано к ученику.']],
+            );
         }
 
         try {
@@ -183,17 +196,19 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 ]);
             });
         } catch (InvalidArgumentException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['occurrence_date' => [$e->getMessage()]],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['occurrence_date' => [$e->getMessage()]],
+            );
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json([
-                'message' => 'Не удалось сохранить привязку. Попробуйте ещё раз.',
-                'errors' => ['occurrence_date' => ['Не удалось сохранить привязку.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Не удалось сохранить привязку. Попробуйте ещё раз.',
+                ['occurrence_date' => ['Не удалось сохранить привязку.']],
+            );
         }
 
         $userLabel = $this->scheduleUserLabel($ulp->user);
@@ -204,7 +219,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             (int) $ulp->user_id,
         );
 
-        return response()->json(['message' => 'Занятие привязано к абонементу.']);
+        return $this->schoolScheduleMutationResponse($request, 'Занятие привязано к абонементу.');
     }
 
     /**
@@ -947,5 +962,38 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         ]);
 
         return $parts !== [] ? '; '.implode('; ', $parts) : '';
+    }
+
+    /**
+     * @param  array<string, list<string>>  $errors
+     */
+    private function schoolScheduleMutationResponse(
+        Request $request,
+        string $message,
+        array $errors = [],
+        int $status = 422,
+    ): JsonResponse|RedirectResponse {
+        if ($errors === []) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => $message]);
+            }
+
+            return redirect()
+                ->route('admin.lesson-packages.school-schedule')
+                ->with('status', $message);
+        }
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'errors' => $errors,
+            ], $status);
+        }
+
+        return redirect()
+            ->route('admin.lesson-packages.school-schedule')
+            ->withInput()
+            ->withErrors($errors)
+            ->with('error', $message);
     }
 }

@@ -158,4 +158,11 @@ final class SchoolCalendarAssignmentEligibilityService
 
         return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
     }
+
+    public function formatFlexibleAssignmentLabel(UserLessonPackage $ulp): string
+    {
+        $name = $ulp->lessonPackage?->name ?? 'Абонемент';
+
+        return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
+    }
 }

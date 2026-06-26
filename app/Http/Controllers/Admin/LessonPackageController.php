@@ -182,11 +182,9 @@ final class LessonPackageController extends AdminBaseController
             ->get();
 
         $assignments = $rows->map(function (UserLessonPackage $ulp) {
-            $name = $ulp->lessonPackage?->name ?? 'Абонемент';
-
             return [
                 'id' => (int) $ulp->id,
-                'label' => $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining,
+                'label' => $this->schoolCalendarAssignmentEligibility->formatFlexibleAssignmentLabel($ulp),
                 'lessons_remaining' => (int) $ulp->lessons_remaining,
                 'starts_at' => $ulp->starts_at?->format('Y-m-d'),
                 'ends_at' => $ulp->ends_at?->format('Y-m-d'),

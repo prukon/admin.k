@@ -85,10 +85,7 @@ final class SchoolCalendarSlotUserBindActionsService
         $trial = $this->trialEligibility->evaluate($partnerId, $userId, (int) $slot->id, $occurrence);
 
         return [
-            'flexible' => [
-                'allowed' => $flexible['allowed'],
-                'reason' => $flexible['reason'],
-            ],
+            'flexible' => $flexible,
             'fixed' => [
                 'allowed' => $fixed['allowed'],
                 'reason' => $fixed['reason'],
@@ -112,7 +109,11 @@ final class SchoolCalendarSlotUserBindActionsService
         string $calendarBlockReason,
     ): array {
         if ($calendarRowExists) {
-            return ['allowed' => false, 'reason' => $calendarBlockReason];
+            return [
+                'allowed' => false,
+                'reason' => $calendarBlockReason,
+                'existing_assignments' => [],
+            ];
         }
 
         $d = $occurrence->toDateString();
@@ -128,14 +129,26 @@ final class SchoolCalendarSlotUserBindActionsService
                 });
             });
 
-        if (! $occurrenceAware->exists()) {
+        $existingRows = $occurrenceAware->get();
+
+        if ($existingRows->isEmpty()) {
             return [
                 'allowed' => false,
                 'reason' => 'Нет гибкого абонемента со свободной записью в календаре (лимит занятий или период), подходящего для этой даты.',
+                'existing_assignments' => [],
             ];
         }
 
-        return ['allowed' => true, 'reason' => null];
+        $existing = $existingRows->map(fn ($ulp) => [
+            'id' => (int) $ulp->id,
+            'label' => $this->assignmentEligibility->formatFlexibleAssignmentLabel($ulp),
+        ])->values()->all();
+
+        return [
+            'allowed' => true,
+            'reason' => null,
+            'existing_assignments' => $existing,
+        ];
     }
 
     /**
@@ -232,6 +245,11 @@ final class SchoolCalendarSlotUserBindActionsService
     private function allBlocked(string $reason): array
     {
         $simple = ['allowed' => false, 'reason' => $reason];
+        $flexBlocked = [
+            'allowed' => false,
+            'reason' => $reason,
+            'existing_assignments' => [],
+        ];
         $singleBlocked = [
             'allowed' => false,
             'reason' => $reason,
@@ -241,7 +259,7 @@ final class SchoolCalendarSlotUserBindActionsService
         ];
 
         return [
-            'flexible' => $simple,
+            'flexible' => $flexBlocked,
             'fixed' => $simple,
             'single_lesson' => $singleBlocked,
             'trial' => $simple,
