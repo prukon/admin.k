@@ -273,6 +273,12 @@
                             @endif
                             <th>Группа</th>
                             <th>Дата рождения</th>
+                            @if($canViewUserSex)
+                            <th>Пол</th>
+                            @endif
+                            @if($canViewUserComment)
+                            <th>Комментарий</th>
+                            @endif
                             <th>Email</th>
                             <th>Телефон</th>
                             <th>Статус</th>
@@ -462,19 +468,17 @@
                         key: 'comment',
                         type: 'text',
                         data: 'comment',
-                        className: 'dt-col-text dt-cell-ellipsis',
+                        className: 'dt-col-text',
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data || '';
                             }
 
-                            const text = data || '';
-                            if (!text) {
+                            if (!data) {
                                 return '';
                             }
 
-                            const escaped = KidsCrmTooltip.escapeHtml(text);
-                            return '<span class="js-dt-cell-ellipsis-tooltip" data-bs-toggle="tooltip" title="' + escaped + '">' + escaped + '</span>';
+                            return window.KidsCrmTooltip.renderText(data);
                         },
                     }] : []),
                     { key: 'email', type: 'text', data: 'email' },
