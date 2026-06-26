@@ -83,7 +83,42 @@
     </ul>
     Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="/docs/documentation/partners-permissions">партнёры: базовые права</a>).
   </div>
-  <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункт «Заявки с сайта» под <code>@can('schoolLeads.view')</code>. Вкладки «Страница заявки» и «Виджет для сайта» — под <code>@can('schoolLeadLanding.view')</code> и <code>@can('schoolWidget.view')</code> соответственно.</p>
+  <p class="small">Меню: <code>resources/views/includes/sidebar.blade.php</code> — пункт <b>«Лиды»</b> (ссылка на <code>/admin/school-leads</code>) под <code>@can('schoolLeads.view')</code>; заголовок страницы — «Заявки с сайта». Счётчик новых лидов в сайдбаре — §3.1. Вкладки «Страница заявки» и «Виджет для сайта» — под <code>@can('schoolLeadLanding.view')</code> и <code>@can('schoolWidget.view')</code> соответственно.</p>
+
+  <h3 id="school-leads-sidebar-counter">3.1) Счётчик «Новых» в сайдбаре</h3>
+  <p>У пункта левого меню <b>«Лиды»</b> справа может отображаться badge с числом неудалённых заявок текущего партнёра в системном статусе «Новый» (<code>school_lead_status_id</code> = id записи с <code>code = new</code>). Критерий тот же, что у счётчика <b>«Новых»</b> в toolbar вкладки «Заявки» (<code>leadStats.new</code> / <code>stats.new</code> в JSON, метод <code>SchoolLeadController::buildPartnerLeadStats</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Аспект</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Когда показывается</td>
+        <td>Только если <code>newSchoolLeadsCount &gt; 0</code>. При нуле badge <b>не выводится</b> (в отличие от пункта «Пользователи», где счётчик показывается всегда).</td>
+      </tr>
+      <tr>
+        <td>Оформление</td>
+        <td><code>&lt;span class="badge badge-info right"&gt;</code> — тот же класс, что у счётчика пользователей в сайдбаре.</td>
+      </tr>
+      <tr>
+        <td>Права</td>
+        <td>Пункт меню — при <code>schoolLeads.view</code>. Запрос в БД выполняется только если у пользователя есть это право.</td>
+      </tr>
+      <tr>
+        <td>Изоляция партнёра</td>
+        <td>Считаются только заявки с <code>school_leads.partner_id</code> = <code>session('current_partner')</code> или <code>auth()-&gt;user()-&gt;partner_id</code>. Soft-deleted (<code>deleted_at</code>) не учитываются.</td>
+      </tr>
+      <tr>
+        <td>Без партнёра</td>
+        <td>Если <code>partner_id</code> не определён — счётчик <code>0</code>, badge не показывается.</td>
+      </tr>
+      <tr>
+        <td>Обновление</td>
+        <td>При каждой отрисовке layout (полная перезагрузка страницы). Не обновляется «на лету» после inline-смены статуса в таблице без reload — как и toolbar-счётчики до следующего ответа <code>GET …/data</code> или перезагрузки.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Реализация: View composer для <code>includes.sidebar</code> в <code>App\Providers\AppServiceProvider</code> → переменная <code>newSchoolLeadsCount</code>; разметка — <code>resources/views/includes/sidebar.blade.php</code>. Тест: <code>SchoolLeadsSidebarCounterFeatureTest</code>.</p>
 
   <h2>4) Публичный виджет (iframe)</h2>
   <p class="small">Отдельная полная форма на <code>/lead/{landingSlug}</code> — не этот раздел; см. <a href="/docs/documentation/school-leads-landing">school-leads-landing.html</a>.</p>
@@ -141,7 +176,7 @@
   <ul>
     <li><b>Toolbar</b> — заголовок «Заявки», счётчики по всему партнёру (не зависят от фильтров таблицы), кнопки «Настройки» (модалка статусов, §5.4) и «История»:
       <ul>
-        <li><b>Новых</b> — заявки в системном статусе «Новый» (<code>school_lead_status_id</code> = id системной записи <code>code = new</code>);</li>
+        <li><b>Новых</b> — заявки в системном статусе «Новый» (<code>school_lead_status_id</code> = id системной записи <code>code = new</code>); то же значение, что badge у пункта «Лиды» в сайдбаре (<a href="#school-leads-sidebar-counter">§3.1</a>);</li>
         <li><b>Всего</b> — все неудалённые заявки партнёра.</li>
       </ul>
       При первой загрузке значения из <code>leadStats</code> (контроллер). При каждом ответе <code>GET …/data</code> поле <code>stats</code> в JSON обновляет счётчики на клиенте.
@@ -651,7 +686,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
     <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
     <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code></li>
-    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
+    <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
@@ -694,6 +729,7 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolWidgetAccessFeatureTest.php</code>, <code>SchoolWidgetTelegramAutoLinkTest.php</code> — вкладка виджета и Telegram</li>
     <li><code>SchoolLeadLandingAdminAccessFeatureTest.php</code> — вкладка «Страница заявки»</li>
     <li><code>SchoolLeadsTabsFeatureTest.php</code> — вкладки раздела «Заявки с сайта»</li>
+    <li><code>SchoolLeadsSidebarCounterFeatureTest.php</code> — §3.1: badge «Новых» у пункта «Лиды» в сайдбаре (показ при count &gt; 0, изоляция по партнёру)</li>
   </ul>
 
   <h2>11) Запланировано позже (не в текущей версии)</h2>

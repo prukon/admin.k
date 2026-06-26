@@ -94,7 +94,7 @@
         <li class="nav-item">
             <a href="{{ route('admin.school-leads') }}" class="nav-link">
                 <i class="nav-icon fa-solid fa-inbox"></i>
-                <p>Лиды</p>
+                <p>Лиды@if(($newSchoolLeadsCount ?? 0) > 0)<span class="badge badge-info right">{{ $newSchoolLeadsCount }}</span>@endif</p>
             </a>
         </li>
     @endcan

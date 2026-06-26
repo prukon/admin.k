@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\MenuItem;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
+use App\Models\SchoolLead;
+use App\Models\SchoolLeadStatus;
 use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
@@ -160,9 +162,19 @@ class AppServiceProvider extends ServiceProvider
                 $usersCount = User::count();
             }
 
+            $newSchoolLeadsCount = 0;
+            if ($partnerId && auth()->user()?->can('schoolLeads.view')) {
+                $newSchoolLeadsCount = (int) SchoolLead::query()
+                    ->where('partner_id', $partnerId)
+                    ->whereNull('deleted_at')
+                    ->where('school_lead_status_id', SchoolLeadStatus::systemNewId())
+                    ->count();
+            }
+
             $view->with([
                 'allTeamsCount' => $teamsCount,
                 'allUsersCount' => $usersCount,
+                'newSchoolLeadsCount' => $newSchoolLeadsCount,
             ]);
         });
 
