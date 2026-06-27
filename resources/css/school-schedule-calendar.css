@@ -291,6 +291,67 @@ body.no-scroll {
     background-color: #b8bec5 !important;
     border-color: #a8b0b8 !important;
 }
+/* Модалка слота: плавное раскрытие форм привязки абонемента */
+.school-cal-slot-bind-panels-host {
+    margin: 0;
+    padding: 0;
+}
+.school-cal-slot-bind-panel {
+    display: none;
+    margin: 0;
+}
+.school-cal-slot-bind-panel--open {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: grid-template-rows 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+.school-cal-slot-bind-panel > .school-cal-slot-bind-panel__inner {
+    min-height: 0;
+    overflow: hidden;
+}
+.school-cal-slot-bind-panel--visible {
+    grid-template-rows: 1fr;
+    margin-top: 1rem;
+    opacity: 1;
+    pointer-events: auto;
+}
+#schoolCalSlotModal.school-cal-slot-modal--bind-focus .school-cal-slot-bind-panel--visible {
+    margin-top: 1.25rem;
+}
+.school-cal-slot-bind-panel--visible.school-cal-slot-bind-panel--active {
+    overflow: visible;
+}
+.school-cal-slot-bind-panel--active > .school-cal-slot-bind-panel__inner {
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.85rem 0.75rem 0.35rem;
+    background: #fff;
+    border: 1px solid rgba(59, 130, 246, 0.32);
+    border-radius: 0.75rem;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(59, 130, 246, 0.06);
+}
+.school-cal-slot-bind-panel__fields:not(.d-none) {
+    padding-top: 0.25rem;
+}
+#schoolCalSlotModal .school-cal-slot-bind-dimmable {
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+#schoolCalSlotModal.school-cal-slot-modal--bind-focus .school-cal-slot-bind-dimmable {
+    opacity: 0.32;
+    filter: grayscale(0.12);
+    pointer-events: none;
+    user-select: none;
+}
+#schoolCalSlotModal.school-cal-slot-modal--bind-focus .modal-body {
+    position: relative;
+}
 .school-cal__reg-card--compact {
     padding: 0.5rem 0.65rem !important;
     margin-bottom: 0.45rem !important;

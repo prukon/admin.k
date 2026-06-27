@@ -251,7 +251,7 @@ final class LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest extends C
             ->assertOk()
             ->assertJsonPath('flexible.allowed', true)
             ->assertJsonPath('flexible.existing_assignments.0.id', $ulp->id)
-            ->assertJsonPath('flexible.existing_assignments.0.label', 'Гибкий 8 занятий №'.$ulp->id.' — осталось 5')
+            ->assertJsonPath('flexible.existing_assignments.0.label', '"Гибкий 8 занятий" (остаток 5)')
             ->assertJsonCount(1, 'flexible.existing_assignments');
     }
 
@@ -380,7 +380,7 @@ final class LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest extends C
         ]))
             ->assertOk()
             ->assertJsonPath('assignments.0.id', $ulp->id)
-            ->assertJsonPath('assignments.0.label', 'Единый label №'.$ulp->id.' — осталось 2');
+            ->assertJsonPath('assignments.0.label', '"Единый label" (остаток 2)');
     }
 
     public function test_assign_flexible_ajax_success_returns_message_json_and_creates_row(): void

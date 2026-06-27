@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание школы: календарь, статусы, пробное, разовое, inline-привязка абонементов, API</title>
+  <title>Расписание школы: календарь, модалка слота, inline-привязка, подписи кнопок, API</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -160,7 +160,7 @@
       </tr>
       <tr>
         <td><code>#schoolCalOpenSingle</code></td>
-        <td>Кнопка «Добавить разовое занятие». Доступность и подсказка (<code>title</code>) берутся из <code>GET …/slot-user-bind-actions</code> → <code>single_lesson</code>. При одном свободном назначении (<code>mode=bind_existing</code>, одна строка в <code>existing_assignments</code>) запись выполняется одним кликом; иначе раскрывается форма ниже.</td>
+        <td>Кнопка «Добавить разовое занятие». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>single_lesson</code>. При <code>mode=bind_existing</code> и одной строке в <code>existing_assignments</code> на кнопке две строки: базовый текст и <code>label</code> назначения (см. <a href="#school-schedule-assignment-labels">формат подписи</a>); клик сразу вызывает POST. При нескольких назначениях — базовый однострочный текст, по клику раскрывается inline-форма. При <code>mode=create_new</code> — однострочный текст, по клику форма шаблона и стоимости.</td>
       </tr>
       <tr>
         <td><code>#schoolCalSlotSingleFormWrap</code></td>
@@ -176,7 +176,7 @@
       </tr>
       <tr>
         <td><code>#schoolCalOpenFlexible</code></td>
-        <td>Кнопка «Привязать гибкий абонемент». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>flexible</code>. При одном подходящем назначении (<code>existing_assignments.length === 1</code>) текст кнопки дополняется <code>label</code> на второй строке, привязка — одним кликом; при нескольких — раскрывается inline-форма ниже.</td>
+        <td>Кнопка «Привязать гибкий абонемент». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>flexible</code>. При одном подходящем назначении (<code>existing_assignments.length === 1</code>) — две строки на кнопке (базовый текст + <code>label</code>, см. <a href="#school-schedule-assignment-labels">формат подписи</a>); привязка одним кликом без формы. При нескольких — однострочный базовый текст, по клику inline-форма с select.</td>
       </tr>
       <tr>
         <td><code>#schoolCalSlotFlexFormWrap</code></td>
@@ -188,7 +188,7 @@
       </tr>
       <tr>
         <td><code>#schoolCalOpenFixed</code></td>
-        <td>Кнопка «Привязать фиксированный абонемент». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>fixed</code>. При одном подходящем назначении (<code>existing_assignments.length === 1</code>) текст кнопки дополняется label на второй строке; по клику раскрывается inline-форма с шаблоном привязки. При нескольких назначениях — inline-форма с выбором абонемента и шаблоном привязки.</td>
+        <td>Кнопка «Привязать фиксированный абонемент». Доступность и подсказка (<code>title</code>) — из <code>GET …/slot-user-bind-actions</code> → <code>fixed</code>. При одном подходящем назначении — две строки на кнопке (базовый текст + <code>label</code>); по клику раскрывается inline-форма только с блоком «Шаблон привязки». При нескольких — однострочный базовый текст, форма с select назначения и шаблоном.</td>
       </tr>
       <tr>
         <td><code>#schoolCalSlotFixedFormWrap</code></td>
@@ -200,7 +200,71 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Поиск ученика в блоке «Добавить запись» — <code>#schoolCalSlotUserSelect</code> (Select2, <code>GET …/lesson-packages/assignments/users-search</code>). Отдельные модалки «Гибкий абонемент» (<code>#schoolCalFlexModal</code>) и «Фиксированный абонемент» (<code>#schoolCalFixedModal</code>) сняты с UI; списки для inline-привязки гибкого и фиксированного приходят в ответе <code>slot-user-bind-actions</code>.</p>
+  <p class="small">Поиск ученика в блоке «Добавить запись» — <code>#schoolCalSlotUserSelect</code> (Select2, <code>GET …/lesson-packages/assignments/users-search</code>). Отдельные модалки «Гибкий абонемент» (<code>#schoolCalFlexModal</code>) и «Фиксированный абонемент» (<code>#schoolCalFixedModal</code>) сняты с UI; списки для inline-привязки гибкого и фиксированного приходят в ответе <code>slot-user-bind-actions</code>. Inline-панели привязки, режим фокуса и формат подписей — см. разделы ниже.</p>
+
+  <h2 id="school-schedule-bind-panels-ui">Inline-панели привязки: UX и поведение</h2>
+  <p>Формы гибкого, фиксированного и разового занятия встроены в модалку слота (<code>#schoolCalSlotBindPanelsHost</code>) и не открывают вторую модалку. Стили — <code>resources/css/school-schedule-calendar.css</code>, логика — inline JS во вкладке <code>schoolSchedule.blade.php</code>.</p>
+
+  <h3>Разметка и контейнеры</h3>
+  <table>
+    <thead><tr><th>Элемент</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>#schoolCalSlotBindPanelsHost</code></td><td>Общий контейнер трёх панелей (<code>data-bind-mode</code>: <code>single</code>, <code>flex</code>, <code>fixed</code>)</td></tr>
+      <tr><td><code>#schoolCalSlotSingleFormWrap</code></td><td>Разовое: select назначения и/или блок создания (<code>#schoolCalSlotSingleCreateFields</code>)</td></tr>
+      <tr><td><code>#schoolCalSlotFlexFormWrap</code></td><td>Гибкий: select назначения (если несколько)</td></tr>
+      <tr><td><code>#schoolCalSlotFixedFormWrap</code></td><td>Фиксированный: select назначения (если несколько) + шаблон <code>patterns[]</code></td></tr>
+      <tr><td><code>data-school-cal-bind-cancel</code></td><td>Кнопка «Отмена» слева от submit в каждой панели — сворачивает панель без сброса кэша bind-actions</td></tr>
+      <tr><td><code>.school-cal-slot-bind-dimmable</code></td><td>Элементы модалки, которые затемняются в режиме фокуса (заголовок, сводка, select ученика, кнопки действий, список записей)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Анимация и режим фокуса</h3>
+  <ul>
+    <li>Раскрытие/сворачивание панели — CSS-классы <code>school-cal-slot-bind-panel--open</code>, <code>--visible</code>, <code>--active</code>; анимация через <code>grid-template-rows</code> и <code>opacity</code>, длительность <strong>300&nbsp;ms</strong> (<code>SchoolCalSlotBindAnimMs</code>).</li>
+    <li>При открытой панели на <code>#schoolCalSlotModal</code> включается класс <code>school-cal-slot-modal--bind-focus</code>: затемнение (<code>opacity</code> + лёгкий <code>grayscale</code>) всех <code>.school-cal-slot-bind-dimmable</code>, <code>pointer-events: none</code> на них; активная панель (<code>--active</code>) остаётся на белой карточке с рамкой и тенью (<code>z-index: 2</code>).</li>
+    <li>Одновременно видна только одна панель: при открытии новой остальные скрываются мгновенно (<code>instant: true</code>), без анимации закрытия.</li>
+  </ul>
+
+  <h3>Закрытие модалки и Esc</h3>
+  <ul>
+    <li>Модалка слота: <code>data-bs-backdrop="static"</code> и <code>data-bs-keyboard="false"</code> — клик по затемнению фона и стандартный Esc Bootstrap <strong>не закрывают</strong> модалку (защита от misclick).</li>
+    <li>Собственный обработчик <code>schoolCalSlotModalEscKeydown</code> (capture): если открыта inline-панель — Esc сворачивает её (<code>cancelSchoolCalSlotBindPanel</code>); если панелей нет — закрывает модалку. Если открыт выпадающий Select2 — Esc не перехватывается.</li>
+    <li>Кнопка «Отмена» в панели очищает ошибки полей этой панели и вызывает <code>hideSchoolCalSlotBindPanel</code> (анимация 300&nbsp;ms).</li>
+  </ul>
+
+  <h3>Кэш ответа bind-actions</h3>
+  <p>После выбора ученика ответ <code>GET …/slot-user-bind-actions</code> сохраняется в <code>schoolCalSlotBindActionsCache</code>. Переключение между панелями (например, отмена формы гибкого и повторный клик «Фиксированный») <strong>не сбрасывает</strong> payload и не перезапрашивает API — данные обнуляются только при смене ученика, закрытии модалки или успешной привязке. Чтение секций — <code>schoolCalSlotBindAction('flexible'|'fixed'|'single_lesson')</code>.</p>
+  <p>Скрытие UI (<code>hideSchoolCalSlot*FormUI</code>) отделено от сброса форм (<code>resetSchoolCalSlot*Form</code>): отмена панели не уничтожает списки назначений в памяти.</p>
+
+  <h2 id="school-schedule-assignment-labels">Формат подписи назначений и кнопок</h2>
+  <p>Для гибкого, фиксированного и разового занятия используется один метод <code>SchoolCalendarAssignmentEligibilityService::formatCalendarAssignmentLabel</code> (обёртки: <code>formatFlexibleAssignmentLabel</code>, <code>formatFixedAssignmentLabel</code>, <code>formatSingleLessonAssignmentLabel</code>). Поле <code>label</code> в <code>existing_assignments[]</code> и во вспомогательных JSON (<code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code>):</p>
+  <p><code>"{название шаблона абонемента}" (остаток {lessons_remaining})</code></p>
+  <p>Пример: <code>"Фикс 8 занятий" (остаток 9)</code>. Номер назначения (<code>№{id}</code>) в подписи <strong>не выводится</strong>. Если у назначения нет связанного шаблона — подставляется «Абонемент» (для разового — «Разовое занятие»).</p>
+
+  <h3>Две строки на кнопках действий</h3>
+  <p>Если у ученика ровно одно подходящее назначение (и действие разрешено), соответствующая кнопка показывает <strong>две строки</strong> через <code>&lt;br&gt;</code> (<code>schoolCalSlotBindButtonHtml</code>):</p>
+  <table>
+    <thead><tr><th>Кнопка</th><th>Условие</th><th>Пример текста на кнопке</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>#schoolCalOpenFlexible</code></td>
+        <td><code>flexible.allowed</code> и <code>existing_assignments.length === 1</code></td>
+        <td>Привязать гибкий абонемент<br><code>"Гибкий 8 занятий" (остаток 5)</code></td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalOpenFixed</code></td>
+        <td><code>fixed.allowed</code> и <code>existing_assignments.length === 1</code></td>
+        <td>Привязать фиксированный абонемент<br><code>"Фикс 8 занятий" (остаток 9)</code></td>
+      </tr>
+      <tr>
+        <td><code>#schoolCalOpenSingle</code></td>
+        <td><code>single_lesson.allowed</code>, <code>mode=bind_existing</code>, одно назначение</td>
+        <td>Добавить разовое занятие<br><code>"Разовое занятие" (остаток 1)</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>При двух и более назначениях или при <code>create_new</code> (разовое) кнопка остаётся с <strong>однострочным</strong> базовым текстом; подробности — в select или inline-форме. Тот же <code>label</code> используется в option select при нескольких назначениях.</p>
+  <p>Функции обновления кнопок: <code>applyFlexibleBindButtonState</code>, <code>applyFixedBindButtonState</code>, <code>applySingleBindButtonState</code> — вызываются из <code>applySlotUserBindActionsPayload</code> после каждого ответа <code>slot-user-bind-actions</code>.</p>
 
   <h2>Привязка абонементов и лимит строк календаря</h2>
   <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="/docs/documentation/lesson-packages">разделе «Абонементы»</a>.</p>
@@ -255,7 +319,7 @@
   <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). В ответе объект <code>flexible</code>:</p>
   <ul>
     <li><code>allowed</code>, <code>reason</code> — можно ли привязать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
-    <li><code>existing_assignments[]</code> — подходящие назначения на <strong>эту дату</strong>: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFlexibleAssignmentLabel</code> — единый формат <strong>«Название №{id} — осталось {lessons_remaining}»</strong>.</li>
+    <li><code>existing_assignments[]</code> — подходящие назначения на <strong>эту дату</strong>: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFlexibleAssignmentLabel</code> — единый формат <strong>«"Название" (остаток {lessons_remaining})»</strong>.</li>
   </ul>
   <p>Отбор назначений (сервис <code>SchoolCalendarSlotUserBindActionsService::evaluateFlexible</code>):</p>
   <ul>
@@ -269,8 +333,8 @@
   <h3>UI-поток (inline, без второй модалки)</h3>
   <ol>
     <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
-    <li>Одно назначение в <code>existing_assignments</code> — кнопка «Привязать гибкий абонемент» + <code>label</code> на второй строке; клик сразу вызывает <code>POST …/assign-flexible</code> (без формы patterns).</li>
-    <li>Два и более — кнопка с базовым текстом «Привязать гибкий абонемент»; по клику раскрывается <code>#schoolCalSlotFlexFormWrap</code> с select и submit.</li>
+    <li>Одно назначение в <code>existing_assignments</code> — кнопка в две строки (см. <a href="#school-schedule-assignment-labels">формат подписи</a>); клик сразу вызывает <code>POST …/assign-flexible</code> (без формы patterns).</li>
+    <li>Два и более — однострочная кнопка «Привязать гибкий абонемент»; по клику раскрывается <code>#schoolCalSlotFlexFormWrap</code> с select и submit.</li>
     <li>Ошибки валидации (<code>422</code>, объект <code>errors</code>) выводятся под полем назначения; общий <code>message</code> — во flash/alert.</li>
   </ol>
   <p>Inline-форма гибкого, фиксированного и разового занятия в одной модалке не показываются одновременно — открытие одной скрывает остальные (payload при этом сохраняется до смены ученика или закрытия модалки).</p>
@@ -291,7 +355,7 @@
   <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). В ответе объект <code>fixed</code>:</p>
   <ul>
     <li><code>allowed</code>, <code>reason</code> — можно ли привязать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
-    <li><code>existing_assignments[]</code> — назначения без периода и без записей в календаре: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFixedAssignmentLabel</code> — тот же формат, что у гибкого: <strong>«Название №{id} — осталось {lessons_remaining}»</strong>.</li>
+    <li><code>existing_assignments[]</code> — назначения без периода и без записей в календаре: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFixedAssignmentLabel</code> — тот же формат, что у гибкого: <strong>«"Название" (остаток {lessons_remaining})»</strong>.</li>
   </ul>
   <p>Отбор назначений (<code>SchoolCalendarSlotUserBindActionsService::evaluateFixed</code>, запрос <code>fixedAssignmentsQuery</code>):</p>
   <ul>
@@ -306,8 +370,8 @@
   <h3>UI-поток (inline, без второй модалки)</h3>
   <ol>
     <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
-    <li><strong>Одно</strong> назначение в <code>existing_assignments</code> — кнопка «Привязать фиксированный абонемент» + <code>label</code> на второй строке; по клику раскрывается <code>#schoolCalSlotFixedFormWrap</code> только с блоком «Шаблон привязки» (select абонемента скрыт, <code>user_lesson_package_id</code> подставляется автоматически).</li>
-    <li><strong>Два и более</strong> — кнопка с базовым текстом «Привязать фиксированный абонемент»; по клику раскрывается форма с select «Назначение абонемента» (<code>#schoolCalSlotFixedUlp</code>) и шаблоном привязки.</li>
+    <li><strong>Одно</strong> назначение — кнопка в две строки (базовый текст + <code>label</code>); по клику раскрывается <code>#schoolCalSlotFixedFormWrap</code> только с блоком «Шаблон привязки» (select абонемента скрыт, <code>user_lesson_package_id</code> подставляется автоматически).</li>
+    <li><strong>Два и более</strong> — однострочная кнопка «Привязать фиксированный абонемент»; по клику форма с select «Назначение абонемента» (<code>#schoolCalSlotFixedUlp</code>) и шаблоном привязки.</li>
     <li>Первая строка шаблона (<code>#schoolCalFixedPatternsHost</code>) по умолчанию совпадает с открытым слотом (день недели, время начала/окончания из occurrence). Кнопка «+ Добавить слот» (<code>#schoolCalFixedAddPattern</code>) добавляет строки для остальных дней группы в неделе.</li>
     <li>Submit — <code>#schoolCalSlotFixedSubmit</code> «Привязать абонемент» → <code>POST …/assign-fixed</code> (ученик из <code>#schoolCalSlotUserSelect</code>, не повторный select).</li>
     <li>Ошибки валидации (<code>422</code>, объект <code>errors</code>, в т.ч. <code>patterns.0.weekday</code>, <code>patterns</code>, <code>user_lesson_package_id</code>) выводятся под полями inline-блока (<code>data-err</code>); общий <code>message</code> — во flash/alert.</li>
@@ -340,7 +404,7 @@
   <ul>
     <li><code>allowed</code>, <code>reason</code> — можно ли записать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
     <li><code>mode</code> — <code>bind_existing</code> (есть «свободное» назначение: число строк в <code>user_team_schedule_slots</code> по этому <code>user_lesson_package_id</code> &lt; <code>lessons_total</code>) или <code>create_new</code>;</li>
-    <li><code>existing_assignments[]</code> — <code>{ id, label }</code> для select (если несколько); label формирует <code>formatSingleLessonAssignmentLabel</code>;</li>
+    <li><code>existing_assignments[]</code> — <code>{ id, label }</code> для select (если несколько) и для второй строки кнопки (если одно); <code>label</code> — <code>formatSingleLessonAssignmentLabel</code>, формат <strong>«"Название" (остаток {lessons_remaining})»</strong> (как у гибкого/фиксированного);</li>
     <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с <code>{ id, label, fee_amount_default }</code> (<code>price_cents / 100</code>). При <code>bind_existing</code> массив пустой.</li>
   </ul>
   <p>Если свободных назначений нет и активных шаблонов разового занятия тоже нет — <code>allowed=false</code>, <code>reason</code> про отсутствие шаблонов.</p>
@@ -349,8 +413,8 @@
   <h3>UI-поток</h3>
   <ol>
     <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
-    <li><code>bind_existing</code>, одно назначение — клик «Добавить разовое занятие» сразу вызывает POST без формы.</li>
-    <li><code>bind_existing</code>, несколько назначений — раскрывается select «Назначение», затем «Записать в расписание».</li>
+    <li><code>bind_existing</code>, одно назначение — кнопка в две строки (см. <a href="#school-schedule-assignment-labels">формат подписи</a>); клик «Добавить разовое занятие» сразу вызывает POST без формы.</li>
+    <li><code>bind_existing</code>, несколько назначений — однострочная кнопка, по клику раскрывается select «Назначение», затем «Записать в расписание».</li>
     <li><code>create_new</code> — всегда форма: шаблон + стоимость (редактируемая), затем submit.</li>
   </ol>
   <p>Ошибки валидации с бэкенда (<code>422</code>, объект <code>errors</code>) выводятся под соответствующими полями формы. Legacy-модалка <code>#schoolCalSingleModal</code> и <code>POST …/assign-single-lesson</code> по-прежнему привязывают уже созданное назначение; основной сценарий — модалка слота.</p>
@@ -422,7 +486,8 @@
     статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
-    <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, доступ гость/403);
+    <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
+    <strong>панели привязки в модалке слота (UX)</strong> — <code>LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php</code> (маркеры <code>#schoolCalSlotBindPanelsHost</code>, <code>data-school-cal-bind-cancel</code>, <code>school-cal-slot-modal--bind-focus</code>, static backdrop, кэш <code>schoolCalSlotBindActionsCache</code>, Esc/отмена, независимость flexible/single в одном ответе bind-actions, AJAX/non-AJAX контракты);
     шаблоны и цепочка фикса — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
     синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>).
     Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
@@ -431,6 +496,7 @@
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code></pre>
 </div>
 </body>

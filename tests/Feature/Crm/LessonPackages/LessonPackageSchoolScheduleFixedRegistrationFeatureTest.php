@@ -272,7 +272,7 @@ final class LessonPackageSchoolScheduleFixedRegistrationFeatureTest extends CrmT
             ->assertOk()
             ->assertJsonPath('fixed.allowed', true)
             ->assertJsonPath('fixed.existing_assignments.0.id', $ulp->id)
-            ->assertJsonPath('fixed.existing_assignments.0.label', 'Фикс 8 занятий №'.$ulp->id.' — осталось 5')
+            ->assertJsonPath('fixed.existing_assignments.0.label', '"Фикс 8 занятий" (остаток 5)')
             ->assertJsonCount(1, 'fixed.existing_assignments');
     }
 
@@ -362,7 +362,7 @@ final class LessonPackageSchoolScheduleFixedRegistrationFeatureTest extends CrmT
         ]))
             ->assertOk()
             ->assertJsonPath('assignments.0.id', $ulp->id)
-            ->assertJsonPath('assignments.0.label', 'Единый label fixed №'.$ulp->id.' — осталось 2');
+            ->assertJsonPath('assignments.0.label', '"Единый label fixed" (остаток 2)');
     }
 
     public function test_assign_fixed_ajax_success_returns_message_json_and_creates_row(): void

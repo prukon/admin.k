@@ -154,22 +154,23 @@ final class SchoolCalendarAssignmentEligibilityService
 
     public function formatSingleLessonAssignmentLabel(UserLessonPackage $ulp): string
     {
-        $name = $ulp->lessonPackage?->name ?? 'Разовое занятие';
-
-        return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
+        return $this->formatCalendarAssignmentLabel($ulp, 'Разовое занятие');
     }
 
     public function formatFlexibleAssignmentLabel(UserLessonPackage $ulp): string
     {
-        $name = $ulp->lessonPackage?->name ?? 'Абонемент';
-
-        return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
+        return $this->formatCalendarAssignmentLabel($ulp, 'Абонемент');
     }
 
     public function formatFixedAssignmentLabel(UserLessonPackage $ulp): string
     {
-        $name = $ulp->lessonPackage?->name ?? 'Абонемент';
+        return $this->formatCalendarAssignmentLabel($ulp, 'Абонемент');
+    }
 
-        return $name.' №'.(int) $ulp->id.' — осталось '.(int) $ulp->lessons_remaining;
+    private function formatCalendarAssignmentLabel(UserLessonPackage $ulp, string $defaultName): string
+    {
+        $name = $ulp->lessonPackage?->name ?? $defaultName;
+
+        return '"'.$name.'" (остаток '.(int) $ulp->lessons_remaining.')';
     }
 }
