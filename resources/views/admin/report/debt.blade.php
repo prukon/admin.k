@@ -8,6 +8,7 @@
     $activeLocations = $activeLocations ?? collect();
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'debt_month'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -15,6 +16,9 @@
             $payHasActiveFilters = true;
             break;
         }
+    }
+    if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $payHasActiveFilters = true;
     }
 @endphp
 
@@ -150,6 +154,14 @@
                 <input class="form-control" id="pay-debt-filter-debt-month" type="month" name="debt_month"
                        value="{{ $filters['debt_month'] ?? '' }}">
             </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-debt-filter-user-status">Активность ученика</label>
+                <select class="form-select" id="pay-debt-filter-user-status" name="status">
+                    <option value="">Все ученики</option>
+                    <option value="active" {{ $payFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
+                    <option value="inactive" {{ $payFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
+                </select>
+            </div>
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="debtReportFiltersResetBtn">Сброс</button>
@@ -173,6 +185,7 @@
     <script type="text/javascript">
         $(function () {
             var canViewLocations = @json($canViewLocations);
+            var defaultFilterUserStatus = 'active';
             var $debtFiltersForm = $('#debt-report-filters');
             var $debtFilterUser = $('#pay-debt-filter-user');
             var $debtFilterTeam = $('#pay-debt-filter-team');
@@ -303,6 +316,7 @@
                     filter_location_id: canViewLocations
                         ? ($debtFiltersForm.find('[name="filter_location_id"]').val() || '')
                         : '',
+                    status: $debtFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
                     team_title: '',
                     debt_month: $debtFiltersForm.find('[name="debt_month"]').val() || ''
@@ -393,6 +407,7 @@
                 $debtFilterUser.val(null).trigger('change');
                 $debtFilterTeam.val(null).trigger('change');
                 $debtFilterTrainer.val(null).trigger('change');
+                $('#pay-debt-filter-user-status').val(defaultFilterUserStatus);
                 if (canViewLocations) {
                     $('#pay-debt-filter-location').val('');
                 }

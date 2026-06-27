@@ -8,6 +8,7 @@
     $activeLocations = $activeLocations ?? collect();
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -15,6 +16,9 @@
             $payHasActiveFilters = true;
             break;
         }
+    }
+    if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $payHasActiveFilters = true;
     }
 @endphp
 
@@ -185,6 +189,14 @@
                     <option value="robokassa" {{ $fpProvider === 'robokassa' ? 'selected' : '' }}>Robokassa</option>
                 </select>
             </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-ltv-filter-user-status">Активность ученика</label>
+                <select class="form-select" id="pay-ltv-filter-user-status" name="status">
+                    <option value="">Все ученики</option>
+                    <option value="active" {{ $payFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
+                    <option value="inactive" {{ $payFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
+                </select>
+            </div>
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="ltvReportFiltersResetBtn">Сброс</button>
@@ -213,6 +225,7 @@
         $(function() {
 
             var canViewLocations = @json($canViewLocations);
+            var defaultFilterUserStatus = 'active';
             var $ltvFiltersForm = $('#ltv-report-filters');
             var $ltvFilterUser = $('#pay-ltv-filter-user');
             var $ltvFilterTeam = $('#pay-ltv-filter-team');
@@ -314,6 +327,7 @@
                     filter_location_id: canViewLocations
                         ? ($ltvFiltersForm.find('[name="filter_location_id"]').val() || '')
                         : '',
+                    status: $ltvFiltersForm.find('[name="status"]').val() || '',
                     user_name: '',
                     team_title: '',
                     payment_month: $ltvFiltersForm.find('[name="payment_month"]').val() || '',
@@ -677,6 +691,7 @@
                 $ltvFilterUser.val(null).trigger('change');
                 $ltvFilterTeam.val(null).trigger('change');
                 $ltvFilterTrainer.val(null).trigger('change');
+                $('#pay-ltv-filter-user-status').val(defaultFilterUserStatus);
                 if (canViewLocations) {
                     $('#pay-ltv-filter-location').val('');
                 }

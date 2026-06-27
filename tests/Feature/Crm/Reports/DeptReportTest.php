@@ -428,4 +428,83 @@ class DeptReportTest extends CrmTestCase
             ->assertOk()
             ->assertJson(['total_raw' => 2000.0]);
     }
+
+    public function test_debts_filters_by_user_status_default_active(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 0,
+        ]);
+
+        $this->insertUserPrice($activeStudent, [
+            'is_paid' => 0,
+            'price' => 1000,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($inactiveStudent, [
+            'is_paid' => 0,
+            'price' => 2000,
+            'new_month' => '2026-01-01',
+        ]);
+
+        $this->get(route('reports.debts.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $response = $this->get(route('debts.getDebts'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+        $response->assertOk();
+        $userIds = collect($response->json('data'))->pluck('user_id')->unique()->all();
+        $this->assertContains($activeStudent->id, $userIds);
+        $this->assertNotContains($inactiveStudent->id, $userIds);
+    }
+
+    public function test_debts_filters_by_user_status_inactive_and_all(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 0,
+        ]);
+
+        $this->insertUserPrice($activeStudent, [
+            'is_paid' => 0,
+            'price' => 500,
+            'new_month' => '2026-01-01',
+        ]);
+        $this->insertUserPrice($inactiveStudent, [
+            'is_paid' => 0,
+            'price' => 700,
+            'new_month' => '2026-01-01',
+        ]);
+
+        $this->get(route('reports.debts.total', ['status' => 'inactive']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 700.0]);
+
+        $this->get(route('reports.debts.total', ['status' => '']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1200.0]);
+    }
+
+    public function test_debts_page_shows_user_status_filter(): void
+    {
+        $this->get(route('debts'))
+            ->assertOk()
+            ->assertSee('pay-debt-filter-user-status', false)
+            ->assertSee('Активность ученика', false);
+    }
 }

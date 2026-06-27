@@ -133,5 +133,82 @@ class PaymentMonthlyReportTest extends CrmTestCase
                 'total_raw' => 2500.0,
             ]);
     }
+
+    public function test_payment_monthly_filters_by_user_status_default_active(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create([
+            'summ' => 1000,
+            'payment_month' => '2025-04-01',
+        ]);
+        Payment::factory()->forUser($inactiveStudent)->create([
+            'summ' => 2000,
+            'payment_month' => '2025-04-01',
+        ]);
+
+        $this->get(route('reports.payments.monthly.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.payments.monthly.data', ['draw' => 1]))
+            ->assertOk()
+            ->json();
+
+        $totalSum = collect($response['data'])->sum(fn ($row) => (float) $row['total_sum']);
+        $this->assertEquals(1000.0, $totalSum);
+    }
+
+    public function test_payment_monthly_filters_by_user_status_inactive_and_all(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create([
+            'summ' => 500,
+            'payment_month' => '2025-05-01',
+        ]);
+        Payment::factory()->forUser($inactiveStudent)->create([
+            'summ' => 700,
+            'payment_month' => '2025-05-01',
+        ]);
+
+        $this->get(route('reports.payments.monthly.total', ['status' => 'inactive']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 700.0]);
+
+        $this->get(route('reports.payments.monthly.total', ['status' => '']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1200.0]);
+    }
+
+    public function test_payment_monthly_page_shows_user_status_filter(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->get(route('reports.payments.monthly'))
+            ->assertOk()
+            ->assertSee('pay-monthly-filter-user-status', false)
+            ->assertSee('Активность ученика', false);
+    }
 }
 

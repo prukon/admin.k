@@ -15,6 +15,7 @@
     $canViewTrainers = $canViewTrainers ?? (auth()->user() && auth()->user()->can('trainers.view'));
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider', 'payment_method', 'payment_refund_status', 'bank_commission_acquiring_min', 'bank_commission_acquiring_max', 'bank_commission_payout_min', 'bank_commission_payout_max'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -22,6 +23,9 @@
             $payHasActiveFilters = true;
             break;
         }
+    }
+    if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $payHasActiveFilters = true;
     }
 @endphp
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
@@ -409,6 +413,14 @@
                            value="{{ $filters['bank_commission_payout_max'] ?? '' }}">
                 </div>
             @endif
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-filter-user-status">Активность ученика</label>
+                <select class="form-select" id="pay-filter-user-status" name="status">
+                    <option value="">Все ученики</option>
+                    <option value="active" {{ $payFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
+                    <option value="inactive" {{ $payFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
+                </select>
+            </div>
                     <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentsReportFiltersResetBtn">Сброс</button>
@@ -554,6 +566,7 @@
             const canCommissionTotal = @json($canCommissionTotal);
             const canPayoutColumn = @json($canPayoutColumn);
             const canViewLocations = @json($canViewLocations);
+            const defaultFilterUserStatus = 'active';
             const paymentsReportDefaultOrderColumnIndex = canViewLocations ? 6 : 5;
             const paymentsToolbarFlags = {
                 net: @json($canPaymentsToolbarNetToPartner),
@@ -671,6 +684,7 @@
                     filter_location_id: canViewLocations
                         ? ($payFiltersForm.find('[name="filter_location_id"]').val() || '')
                         : '',
+                    status: $payFiltersForm.find('[name="status"]').val() || '',
                     user_name: uid ? '' : (payReportLegacyFilters.user_name || ''),
                     team_title: tid ? '' : (payReportLegacyFilters.team_title || ''),
                     payment_month: $payFiltersForm.find('[name="payment_month"]').val(),
@@ -1337,6 +1351,7 @@ columns.push(
                 $payFilterUser.val(null).trigger('change');
                 $payFilterTeam.val(null).trigger('change');
                 $payFilterTrainer.val(null).trigger('change');
+                $('#pay-filter-user-status').val(defaultFilterUserStatus);
                 if (canViewLocations) {
                     $('#pay-filter-location').val('');
                 }

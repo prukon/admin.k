@@ -493,6 +493,96 @@ class LtvReportTest extends CrmTestCase
             ->assertJson(['total_raw' => 2000.0]);
     }
 
+    public function test_ltv_filters_by_user_status_default_active(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create(['summ' => 1000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 2000]);
+
+        $this->get(route('reports.ltv.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', ['draw' => 1]))
+            ->assertOk()
+            ->json();
+
+        $userIds = collect($response['data'])->pluck('user_id')->all();
+        $this->assertContains($activeStudent->id, $userIds);
+        $this->assertNotContains($inactiveStudent->id, $userIds);
+    }
+
+    public function test_ltv_filters_by_user_status_inactive_and_all(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create(['summ' => 500]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 700]);
+
+        $inactiveResponse = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', [
+                'draw' => 1,
+                'status' => 'inactive',
+            ]))
+            ->assertOk()
+            ->json();
+
+        $inactiveUserIds = collect($inactiveResponse['data'])->pluck('user_id')->all();
+        $this->assertNotContains($activeStudent->id, $inactiveUserIds);
+        $this->assertContains($inactiveStudent->id, $inactiveUserIds);
+
+        $this->get(route('reports.ltv.total', ['status' => 'inactive']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 700.0]);
+
+        $allResponse = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.ltv.data', [
+                'draw' => 1,
+                'status' => '',
+            ]))
+            ->assertOk()
+            ->json();
+
+        $allUserIds = collect($allResponse['data'])->pluck('user_id')->all();
+        $this->assertContains($activeStudent->id, $allUserIds);
+        $this->assertContains($inactiveStudent->id, $allUserIds);
+
+        $this->get(route('reports.ltv.total', ['status' => '']))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1200.0]);
+    }
+
+    public function test_ltv_page_shows_user_status_filter(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->get(route('reports.ltv'))
+            ->assertOk()
+            ->assertSee('pay-ltv-filter-user-status', false)
+            ->assertSee('Активность ученика', false);
+    }
+
     public function test_ltv_data_aggregates_only_payments_matching_location_filter(): void
     {
         $this->asAdmin();

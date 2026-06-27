@@ -405,6 +405,13 @@ class LtvReportController extends AdminBaseController
             $paymentsQuery->whereDate('payments.operation_date', '<=', (string) $request->query('operation_date_to'));
         }
 
+        $userStatus = $this->resolveLtvUserStatusFilter($request);
+        if ($userStatus === 'active') {
+            $paymentsQuery->where('users.is_enabled', 1);
+        } elseif ($userStatus === 'inactive') {
+            $paymentsQuery->where('users.is_enabled', 0);
+        }
+
         if ($request->filled('payment_provider')) {
             $p = (string) $request->query('payment_provider');
             if ($p === 'tbank') {
@@ -429,6 +436,28 @@ class LtvReportController extends AdminBaseController
                 });
             }
         }
+    }
+
+    /**
+     * active / inactive — фильтр по users.is_enabled; null — все ученики.
+     * Без параметра status в запросе по умолчанию только активные.
+     */
+    private function resolveLtvUserStatusFilter(Request $request): ?string
+    {
+        if (! $request->has('status')) {
+            return 'active';
+        }
+
+        $status = (string) $request->query('status', '');
+        if ($status === '') {
+            return null;
+        }
+
+        if ($status === 'active' || $status === 'inactive') {
+            return $status;
+        }
+
+        return 'active';
     }
 
     /**

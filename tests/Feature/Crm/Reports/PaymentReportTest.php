@@ -167,6 +167,65 @@ class PaymentReportTest extends CrmTestCase
         $this->assertEquals(100, (float) ($json['total_raw'] ?? 0));
     }
 
+    public function test_payments_report_filters_by_user_status_default_active(): void
+    {
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create(['summ' => 1000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 2000]);
+
+        $response = $this->getJson(route('reports.payments.total'));
+        $response->assertOk();
+        $this->assertEquals(1000.0, (float) ($response->json('sum_payments_raw') ?? 0));
+
+        $dataResponse = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('payments.getPayments', array_merge($this->dataTablesBaseParams(), [
+                'status' => 'active',
+            ])))
+            ->assertOk()
+            ->json();
+
+        $userIds = collect($dataResponse['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($activeStudent->id, $userIds);
+        $this->assertNotContains($inactiveStudent->id, $userIds);
+    }
+
+    public function test_payments_report_filters_by_user_status_inactive_and_all(): void
+    {
+        $activeStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $inactiveStudent = User::factory()->disabled()->create([
+            'partner_id' => $this->partner->id,
+        ]);
+
+        Payment::factory()->forUser($activeStudent)->create(['summ' => 500]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 700]);
+
+        $inactiveTotal = $this->getJson(route('reports.payments.total', ['status' => 'inactive']));
+        $inactiveTotal->assertOk();
+        $this->assertEquals(700.0, (float) ($inactiveTotal->json('sum_payments_raw') ?? 0));
+
+        $allTotal = $this->getJson(route('reports.payments.total', ['status' => '']));
+        $allTotal->assertOk();
+        $this->assertEquals(1200.0, (float) ($allTotal->json('sum_payments_raw') ?? 0));
+    }
+
+    public function test_payments_page_shows_user_status_filter(): void
+    {
+        $this->get(route('payments'))
+            ->assertOk()
+            ->assertSee('pay-filter-user-status', false)
+            ->assertSee('Активность ученика', false);
+    }
+
     /**
      * (P0) Только AJAX-доступ к getPayments.
      */

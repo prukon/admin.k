@@ -67,6 +67,15 @@
     <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#trainer-filter">reports-admin.html</a> (§2.2) и <a href="/docs/documentation/admin-trainers">Тренеры (админка)</a>.</li>
   </ul>
 
+  <h2 id="user-status-filter">2.2) Фильтр «Активность ученика»</h2>
+  <ul>
+    <li><b>Параметр</b>: <code>status</code> — <code>active</code> (только <code>users.is_enabled = 1</code>), <code>inactive</code> (только отключённые), пустая строка — все ученики.</li>
+    <li><b>По умолчанию</b> (первый заход / без параметра в URL): как <code>active</code> — только активные ученики.</li>
+    <li><b>UI</b>: select «Активность ученика» (<code>pay-filter-user-status</code>), последний в панели фильтров; «Сброс» возвращает «Только активные».</li>
+    <li>Параметр передаётся в <code>GET /admin/reports/getPayments</code>, <code>GET /admin/reports/payments/total</code> вместе с остальными фильтрами формы.</li>
+    <li>Тот же фильтр в monthly, LTV, debts — см. <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin.html</a> (§2.3).</li>
+  </ul>
+
   <h2>3) Поля списка (управление видимостью колонок)</h2>
   <div class="note">
     На странице отчёта доступна кнопка <b>“Поля списка”</b> (dropdown «Колонки» в toolbar).

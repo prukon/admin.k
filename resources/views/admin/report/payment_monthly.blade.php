@@ -8,6 +8,7 @@
     $activeLocations = $activeLocations ?? collect();
     $payFilterKeys = ['filter_user_id', 'filter_team_id', 'filter_trainer_profile_id', 'filter_location_id', 'user_name', 'team_title', 'payment_month', 'operation_date_from', 'operation_date_to', 'payment_provider'];
     $payFilterLocation = $filters['filter_location_id'] ?? '';
+    $payFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $payHasActiveFilters = false;
     foreach ($payFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -15,6 +16,9 @@
             $payHasActiveFilters = true;
             break;
         }
+    }
+    if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $payHasActiveFilters = true;
     }
     $groupMode = request('mode', 'subscription');
     if (! in_array($groupMode, ['operation', 'subscription'], true)) {
@@ -189,6 +193,14 @@
                     <option value="robokassa" {{ $fpProvider === 'robokassa' ? 'selected' : '' }}>Robokassa</option>
                 </select>
             </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label" for="pay-monthly-filter-user-status">Активность ученика</label>
+                <select class="form-select" id="pay-monthly-filter-user-status" name="status">
+                    <option value="">Все ученики</option>
+                    <option value="active" {{ $payFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
+                    <option value="inactive" {{ $payFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
+                </select>
+            </div>
             <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                 <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                 <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="paymentsMonthlyFiltersResetBtn">Сброс</button>
@@ -214,6 +226,7 @@
 
             var canViewLocations = @json($canViewLocations);
             var currentMode = @json($groupMode);
+            var defaultFilterUserStatus = 'active';
 
             var $payMonthlyFiltersForm = $('#payments-monthly-filters');
             var $payMonthlyFilterUser = $('#pay-monthly-filter-user');
@@ -317,6 +330,7 @@
                     filter_location_id: canViewLocations
                         ? ($payMonthlyFiltersForm.find('[name=\"filter_location_id\"]').val() || '')
                         : '',
+                    status: $payMonthlyFiltersForm.find('[name=\"status\"]').val() || '',
                     user_name: '',
                     team_title: '',
                     payment_month: $payMonthlyFiltersForm.find('[name=\"payment_month\"]').val() || '',
@@ -628,6 +642,7 @@
                 $payMonthlyFilterUser.val(null).trigger('change');
                 $payMonthlyFilterTeam.val(null).trigger('change');
                 $payMonthlyFilterTrainer.val(null).trigger('change');
+                $('#pay-monthly-filter-user-status').val(defaultFilterUserStatus);
                 if (canViewLocations) {
                     $('#pay-monthly-filter-location').val('');
                 }

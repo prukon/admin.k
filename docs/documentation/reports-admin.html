@@ -170,6 +170,89 @@
     <li>Отличие от фильтра локации (§2.1): на сервере фильтр по тренеру <b>не привязан</b> к проверке <code>trainers.view</code> в query — UI скрыт без права; при ручной подстановке параметра в URL фильтрация может сработать (см. тесты в <code>PaymentReportTrainerFilterFeatureTest</code>).</li>
   </ul>
 
+  <h2 id="user-status-filter">2.3) Фильтр «Активность ученика» в отчётах</h2>
+  <div class="note">
+    Единый параметр запроса: <code>status</code> — фильтрация по полю <code>users.is_enabled</code> ученика (роль «user» в контексте платежей/долгов).
+    Параметр уходит во все связанные запросы: DataTables, <code>…/total</code>, детализацию (LTV — платежи ученика; «Платежи по месяцам» — платежи месяца).
+    Отдельного permission для блока <b>нет</b>: при <code>reports.view</code> фильтр всегда виден (в отличие от локации §2.1 и тренера §2.2).
+    В панели фильтров — <b>последним</b> перед кнопками «Применить» / «Сброс».
+  </div>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr>
+        <th>Значение <code>status</code></th>
+        <th>UI</th>
+        <th>SQL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><i>параметр отсутствует</i> в query (первый заход на страницу)</td>
+        <td>«Только активные» (selected)</td>
+        <td><code>users.is_enabled = 1</code></td>
+      </tr>
+      <tr>
+        <td><code>active</code></td>
+        <td>«Только активные»</td>
+        <td><code>users.is_enabled = 1</code></td>
+      </tr>
+      <tr>
+        <td><code>inactive</code></td>
+        <td>«Только неактивные»</td>
+        <td><code>users.is_enabled = 0</code></td>
+      </tr>
+      <tr>
+        <td><code>status=</code> (пустая строка, явный выбор «Все ученики»)</td>
+        <td>«Все ученики»</td>
+        <td>без фильтра по <code>is_enabled</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;margin-top:12px;">
+    <thead>
+      <tr>
+        <th>Отчёт</th>
+        <th>Страница</th>
+        <th>Элемент UI (<code>id</code>)</th>
+        <th>Контроллер (resolve / apply)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Платежи</td>
+        <td><code>/admin/reports/payments</code></td>
+        <td><code>pay-filter-user-status</code></td>
+        <td><code>PaymentReportController::resolvePaymentsUserStatusFilter</code></td>
+      </tr>
+      <tr>
+        <td>Платежи по месяцам</td>
+        <td><code>/admin/reports/payments/monthly</code></td>
+        <td><code>pay-monthly-filter-user-status</code></td>
+        <td><code>PaymentMonthlyReportController::resolveMonthlyUserStatusFilter</code></td>
+      </tr>
+      <tr>
+        <td>LTV</td>
+        <td><code>/admin/reports/ltv</code></td>
+        <td><code>pay-ltv-filter-user-status</code></td>
+        <td><code>LtvReportController::resolveLtvUserStatusFilter</code></td>
+      </tr>
+      <tr>
+        <td>Задолженности</td>
+        <td><code>/admin/reports/debts</code></td>
+        <td><code>pay-debt-filter-user-status</code></td>
+        <td><code>DeptReportController::resolveDebtUserStatusFilter</code> → <code>applyDebtReportUserStatusFilter</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>JS:</b> параметр <code>status</code> добавляется в объект фильтров при AJAX (<code>…FilterParams()</code>); кнопка «Сброс» возвращает значение <code>active</code> (не «Все ученики»). Значение <code>active</code> не считается «нестандартным» фильтром — панель фильтров по умолчанию свёрнута.</li>
+    <li><b>LTV — не путать с колонкой «Статус»:</b> колонка <code>is_enabled</code> (badge «Активен» / «Отключен») показывает статус ученика в строке таблицы; фильтр «Активность ученика» задаёт, <i>каких</i> учеников включать в выборку.</li>
+    <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется только в отчётах Платежи / monthly / LTV / Задолженности.</li>
+    <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.</li>
+    <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403.</li>
+    <li>Подробнее про отчёт «Платежи»: <a href="/docs/documentation/reports-payments#user-status-filter">reports-payments §2.2</a>.</li>
+  </ul>
+
   <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
@@ -193,6 +276,7 @@
   <div class="note">
     <b>Фильтр «Группа» (<code>filter_team_id</code>):</b> для месячных долгов — <code>users_prices.team_id = …</code>; для периодных доп. платежей — ученик состоит в группе (pivot). Текстовый <code>team_title</code> — по любой группе ученика в pivot.
     <br><b>Фильтр локации</b> — §2.1: через группы ученика в pivot (<code>team_user</code> → <code>teams.location_id</code>), не по <code>users_prices.team_id</code>. Платёжные отчёты — <code>payments.location_id</code>.
+    <br><b>Фильтр «Активность ученика»</b> — §2.3: параметр <code>status</code>; по умолчанию только активные (<code>users.is_enabled = 1</code>).
     <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
   </div>
 
@@ -224,6 +308,7 @@
   <div class="note">
     “Общая сумма” в LTV — это <code>sum(payments.summ)</code> по тем же фильтрам (и по текущему партнёру), что и таблица.
     Фильтр локации — §2.1: <code>payments.location_id</code> (опциональный снимок при create); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
+    Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints; при <code>status=active</code> детализация неактивного ученика возвращает пустой набор / нулевую сумму.
   </div>
   <div class="note">
     <b>Колонка chevron (раскрытие детализации):</b> единственная колонка с <code>type: 'custom'</code> — <code>details-control</code> (кнопка «+» / «−»).
@@ -254,6 +339,7 @@
     Режим группировки (по дате операции / по месяцу абонемента) в UI хранится в форме/JS и не обязан отражаться в URL.
     В запросы DataTables/детализации/total передаётся параметр <code>mode</code> (<code>subscription</code> по умолчанию).
     Фильтр локации — §2.1: <code>payments.location_id</code>; параметр <code>filter_location_id</code> уходит в <code>monthly/data</code>, <code>monthly/total</code> и <code>monthly/{yearMonth}/payments</code>.
+    Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints.
   </div>
   <div class="note">
     Как в LTV (§4): первая колонка <code>details-control</code> — пока <code>type: 'custom'</code>; данные месяца — <code>text</code>, <code>count</code>, <code>money</code>.
@@ -381,9 +467,11 @@
   <h2>10) Автотесты</h2>
   <div class="note">
     Feature‑тесты покрывают: контроль доступа (403 без права; smoke 200 при наличии прав на страницу и все AJAX endpoints),
-    работу <code>…/total</code>, columns-settings (save/load), server-side детализацию с <code>draw</code>, Select2 search, фильтр по локации (§2.1).
+    работу <code>…/total</code>, columns-settings (save/load), server-side детализацию с <code>draw</code>, Select2 search,
+    фильтр по локации (§2.1), фильтр «Активность ученика» (§2.3).
   </div>
   <ul>
+    <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code></li>
     <li><code>tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php</code> — <b>KidsCrmDataTable</b> для debt/LTV/monthly: UI, columns-settings, детализация с <code>draw</code> и legacy JSON, полный доступ 200; smoke emails/fiscal/payment-intents</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code></li>
@@ -397,7 +485,8 @@
     <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, <code>trainers-search</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php
 php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentReportLocationFeatureTest|PaymentLedgerLocationTest)"</code></pre>
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/reusable-ui-partials">UI: KidsCrmDataTable</a> · <a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></p>

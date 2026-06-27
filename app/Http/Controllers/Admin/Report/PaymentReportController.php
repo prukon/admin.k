@@ -241,6 +241,28 @@ class PaymentReportController extends AdminBaseController
     }
 
     /**
+     * active / inactive — фильтр по users.is_enabled; null — все ученики.
+     * Без параметра status в запросе по умолчанию только активные.
+     */
+    private function resolvePaymentsUserStatusFilter(Request $request): ?string
+    {
+        if (! $request->has('status')) {
+            return 'active';
+        }
+
+        $status = (string) $request->query('status', '');
+        if ($status === '') {
+            return null;
+        }
+
+        if ($status === 'active' || $status === 'inactive') {
+            return $status;
+        }
+
+        return 'active';
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      */
     private function resolvePaymentsFilterUserLabel(int $partnerId, array $filters): ?array
@@ -1290,6 +1312,13 @@ SQL;
         }
         if ($request->filled('operation_date_to')) {
             $paymentsQuery->whereDate('payments.operation_date', '<=', (string) $request->query('operation_date_to'));
+        }
+
+        $userStatus = $this->resolvePaymentsUserStatusFilter($request);
+        if ($userStatus === 'active') {
+            $paymentsQuery->where('users.is_enabled', 1);
+        } elseif ($userStatus === 'inactive') {
+            $paymentsQuery->where('users.is_enabled', 0);
         }
 
         if ($request->filled('payment_provider')) {

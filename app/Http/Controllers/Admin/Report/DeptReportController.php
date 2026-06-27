@@ -42,7 +42,6 @@ class DeptReportController extends AdminBaseController
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->where('users_prices.is_paid', 0)
-            ->where('users.is_enabled', 1)
             ->where('users_prices.price', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
@@ -55,7 +54,6 @@ class DeptReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
-            ->where('users.is_enabled', 1)
             ->where('user_custom_payment.amount', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
@@ -108,7 +106,6 @@ class DeptReportController extends AdminBaseController
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->where('users_prices.is_paid', 0)
-            ->where('users.is_enabled', 1)
             ->where('users_prices.price', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
@@ -120,7 +117,6 @@ class DeptReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
-            ->where('users.is_enabled', 1)
             ->where('user_custom_payment.amount', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
@@ -154,7 +150,6 @@ class DeptReportController extends AdminBaseController
                     DB::raw('0 as is_period')
                 )
                 ->where('users_prices.is_paid', 0)
-                ->where('users.is_enabled', 1)
                 ->where('users_prices.price', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->where('users.partner_id', $partnerId);
@@ -172,7 +167,6 @@ class DeptReportController extends AdminBaseController
                 )
                 ->where('user_custom_payment.partner_id', $partnerId)
                 ->where('user_custom_payment.is_paid', 0)
-                ->where('users.is_enabled', 1)
                 ->where('user_custom_payment.amount', '>', 0)
                 ->where('user_custom_payment.date_end', '<', $today);
 
@@ -270,6 +264,7 @@ class DeptReportController extends AdminBaseController
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
+        $this->applyDebtReportUserStatusFilter($query, $request);
 
         if ($request->filled('debt_month')) {
             $ym = trim((string) $request->query('debt_month'));
@@ -313,6 +308,7 @@ class DeptReportController extends AdminBaseController
 
         $this->applyDebtReportTrainerFilter($query, $request, $partnerId);
         $this->applyDebtReportLocationFilter($query, $request, $partnerId);
+        $this->applyDebtReportUserStatusFilter($query, $request);
 
         // debt_month применяем по start/end месяцу
         if ($request->filled('debt_month')) {
@@ -324,6 +320,41 @@ class DeptReportController extends AdminBaseController
                 });
             }
         }
+    }
+
+    /**
+     * @param  \Illuminate\Database\Query\Builder  $query
+     */
+    private function applyDebtReportUserStatusFilter($query, Request $request): void
+    {
+        $userStatus = $this->resolveDebtUserStatusFilter($request);
+        if ($userStatus === 'active') {
+            $query->where('users.is_enabled', 1);
+        } elseif ($userStatus === 'inactive') {
+            $query->where('users.is_enabled', 0);
+        }
+    }
+
+    /**
+     * active / inactive — фильтр по users.is_enabled; null — все ученики.
+     * Без параметра status в запросе по умолчанию только активные.
+     */
+    private function resolveDebtUserStatusFilter(Request $request): ?string
+    {
+        if (! $request->has('status')) {
+            return 'active';
+        }
+
+        $status = (string) $request->query('status', '');
+        if ($status === '') {
+            return null;
+        }
+
+        if ($status === 'active' || $status === 'inactive') {
+            return $status;
+        }
+
+        return 'active';
     }
 
     /**
