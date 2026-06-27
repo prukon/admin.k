@@ -207,7 +207,7 @@ final class LessonPackageSchoolScheduleAccessAndMutationsFeatureTest extends Crm
         ]))->assertOk()
             ->assertJsonStructure([
                 'flexible' => ['allowed', 'reason', 'existing_assignments'],
-                'fixed' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason', 'existing_assignments'],
                 'single_lesson' => [
                     'allowed',
                     'reason',

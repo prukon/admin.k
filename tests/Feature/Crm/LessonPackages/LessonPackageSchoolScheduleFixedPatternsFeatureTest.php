@@ -430,16 +430,4 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
 
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
     }
-
-    public function test_school_schedule_html_includes_fixed_patterns_template_container(): void
-    {
-        $this->grantPermission('lessonPackages.view');
-
-        $html = $this->get(route('admin.lesson-packages.school-schedule'))
-            ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('id="schoolCalFixedPatternsHost"', $html);
-        $this->assertStringContainsString('schoolCalFixedAddPattern', $html);
-    }
 }

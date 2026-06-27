@@ -31,7 +31,7 @@ class DocumentationController extends Controller
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
         'lesson-packages'             => 'Абонементы: назначения (фильтры, колонки), период, календарь, lessons_remaining',
-        'school-schedule-calendar'    => 'Расписание школы: календарь, фильтр «Объект» (Все/Без объекта), слоты, JSON/API',
+        'school-schedule-calendar'    => 'Расписание школы: календарь, фильтр «Объект», inline-привязка гибкого/фиксированного, JSON/API',
         'location-team-bindings'      => 'Объекты ↔ группы (teams.location_id): одна группа — один объект, sync, лендинг, слоты, отчёты',
         'directories-hierarchy'       => 'Справочники: иерархия Район → Объект → Группа; вкладки, DirectoriesMenu (подпись сайдбара), права, БД, лендинг',
         'admin-districts'             => 'Районы (админка): /admin/districts — districts.view, CRUD, hard delete, вкладка в «Справочники»',

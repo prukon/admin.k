@@ -86,10 +86,7 @@ final class SchoolCalendarSlotUserBindActionsService
 
         return [
             'flexible' => $flexible,
-            'fixed' => [
-                'allowed' => $fixed['allowed'],
-                'reason' => $fixed['reason'],
-            ],
+            'fixed' => $fixed,
             'single_lesson' => $single,
             'trial' => [
                 'allowed' => $trial['allowed'],
@@ -157,22 +154,36 @@ final class SchoolCalendarSlotUserBindActionsService
     private function evaluateFixed(int $partnerId, int $userId, bool $calendarRowExists, string $calendarBlockReason): array
     {
         if ($calendarRowExists) {
-            return ['allowed' => false, 'reason' => $calendarBlockReason];
-        }
-
-        $has = $this->assignmentEligibility
-            ->fixedAssignmentsQuery($partnerId)
-            ->where('user_id', $userId)
-            ->exists();
-
-        if (! $has) {
             return [
                 'allowed' => false,
-                'reason' => 'Нет фиксированного абонемента без привязки к календарю с доступным объёмом занятий.',
+                'reason' => $calendarBlockReason,
+                'existing_assignments' => [],
             ];
         }
 
-        return ['allowed' => true, 'reason' => null];
+        $existingRows = $this->assignmentEligibility
+            ->fixedAssignmentsQuery($partnerId)
+            ->where('user_id', $userId)
+            ->get();
+
+        if ($existingRows->isEmpty()) {
+            return [
+                'allowed' => false,
+                'reason' => 'Нет фиксированного абонемента без привязки к календарю с доступным объёмом занятий.',
+                'existing_assignments' => [],
+            ];
+        }
+
+        $existing = $existingRows->map(fn ($ulp) => [
+            'id' => (int) $ulp->id,
+            'label' => $this->assignmentEligibility->formatFixedAssignmentLabel($ulp),
+        ])->values()->all();
+
+        return [
+            'allowed' => true,
+            'reason' => null,
+            'existing_assignments' => $existing,
+        ];
     }
 
     /**
@@ -258,9 +269,15 @@ final class SchoolCalendarSlotUserBindActionsService
             'templates' => [],
         ];
 
+        $fixedBlocked = [
+            'allowed' => false,
+            'reason' => $reason,
+            'existing_assignments' => [],
+        ];
+
         return [
             'flexible' => $flexBlocked,
-            'fixed' => $simple,
+            'fixed' => $fixedBlocked,
             'single_lesson' => $singleBlocked,
             'trial' => $simple,
         ];

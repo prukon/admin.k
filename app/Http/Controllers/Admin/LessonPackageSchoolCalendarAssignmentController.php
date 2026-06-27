@@ -67,7 +67,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'reason' => $r,
                     'existing_assignments' => [],
                 ],
-                'fixed' => ['allowed' => false, 'reason' => $r],
+                'fixed' => ['allowed' => false, 'reason' => $r, 'existing_assignments' => []],
                 'single_lesson' => [
                     'allowed' => false,
                     'reason' => $r,
@@ -380,7 +380,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         return response()->json(['message' => 'Запись разового занятия отменена. Назначение абонемента сохранено.']);
     }
 
-    public function assignFixed(AssignSchoolCalendarFixedRequest $request): JsonResponse
+    public function assignFixed(AssignSchoolCalendarFixedRequest $request): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
@@ -392,9 +392,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ->first();
 
         if (! $user) {
-            return response()->json([
-                'errors' => ['user_id' => ['Ученик не найден.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Ученик не найден.',
+                ['user_id' => ['Ученик не найден.']],
+            );
         }
 
         /** @var UserLessonPackage|null $ulp */
@@ -404,46 +406,56 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             ->first();
 
         if (! $ulp || (int) $ulp->user_id !== (int) $user->id) {
-            return response()->json([
-                'errors' => ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит выбранному ученику.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Назначение не найдено или не принадлежит выбранному ученику.',
+                ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит выбранному ученику.']],
+            );
         }
 
         /** @var LessonPackage|null $package */
         $package = $ulp->lessonPackage;
         if (! $package || (int) $package->partner_id !== $partnerId || (string) $package->schedule_type !== 'fixed') {
-            return response()->json([
-                'errors' => ['user_lesson_package_id' => ['Выберите назначение с фиксированным расписанием текущего партнёра.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Выберите назначение с фиксированным расписанием текущего партнёра.',
+                ['user_lesson_package_id' => ['Выберите назначение с фиксированным расписанием текущего партнёра.']],
+            );
         }
 
         if ($ulp->starts_at !== null || $ulp->ends_at !== null) {
-            return response()->json([
-                'message' => 'У этого назначения уже задан период действия.',
-                'errors' => ['user_lesson_package_id' => ['Назначение уже имеет даты периода — повторная привязка недоступна.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'У этого назначения уже задан период действия.',
+                ['user_lesson_package_id' => ['Назначение уже имеет даты периода — повторная привязка недоступна.']],
+            );
         }
 
         if (UserTeamScheduleSlot::query()->where('user_lesson_package_id', (int) $ulp->id)->exists()) {
-            return response()->json([
-                'errors' => ['user_lesson_package_id' => ['У назначения уже есть записи в расписании школы.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'У назначения уже есть записи в расписании школы.',
+                ['user_lesson_package_id' => ['У назначения уже есть записи в расписании школы.']],
+            );
         }
 
         if ((int) $ulp->lessons_total < 1) {
-            return response()->json([
-                'message' => 'У абонемента не задан объём занятий.',
-                'errors' => ['user_lesson_package_id' => ['У абонемента не задан объём занятий.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'У абонемента не задан объём занятий.',
+                ['user_lesson_package_id' => ['У абонемента не задан объём занятий.']],
+            );
         }
 
         /** @var TeamScheduleSlot|null $anchorSlot */
         $anchorSlot = TeamScheduleSlot::query()->whereKey((int) $data['team_schedule_slot_id'])->first();
 
         if (! $anchorSlot || (int) $anchorSlot->partner_id !== $partnerId) {
-            return response()->json([
-                'errors' => ['team_schedule_slot_id' => ['Слот расписания не найден.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Слот расписания не найден.',
+                ['team_schedule_slot_id' => ['Слот расписания не найден.']],
+            );
         }
 
         $locationFilter = isset($data['location_id']) ? (int) $data['location_id'] : null;
@@ -453,9 +465,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         if ($locationFilter !== null && $locationFilter > 0
             && (int) ($anchorSlot->location_id ?? 0) !== $locationFilter) {
-            return response()->json([
-                'errors' => ['location_id' => ['Выбранный слот не относится к этой локации.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Выбранный слот не относится к этой локации.',
+                ['location_id' => ['Выбранный слот не относится к этой локации.']],
+            );
         }
 
         $effectiveLocationFilter = $locationFilter;
@@ -468,26 +482,29 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         $patterns = $this->dedupeFixedPatternsFromValidated($data['patterns'] ?? []);
         if ($patterns->isEmpty()) {
-            return response()->json([
-                'message' => 'Укажите хотя бы один слот шаблона привязки.',
-                'errors' => ['patterns' => ['Укажите хотя бы один слот шаблона привязки.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Укажите хотя бы один слот шаблона привязки.',
+                ['patterns' => ['Укажите хотя бы один слот шаблона привязки.']],
+            );
         }
 
         if ((int) $anchorSlot->weekday !== (int) $anchorDate->format('N')) {
-            return response()->json([
-                'message' => 'Дата якоря не соответствует дню недели выбранного слота.',
-                'errors' => ['anchor_date' => ['Дата якоря не соответствует дню недели выбранного слота.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Дата якоря не соответствует дню недели выбранного слота.',
+                ['anchor_date' => ['Дата якоря не соответствует дню недели выбранного слота.']],
+            );
         }
 
         if (! $this->calendarService->patternMatchesSlot($patterns, $anchorSlot, (int) $anchorDate->format('N'))) {
-            return response()->json([
-                'message' => 'Шаблон привязки должен включать слот занятия, на которое вы кликнули (день недели и время).',
-                'errors' => [
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Шаблон привязки должен включать слот занятия, на которое вы кликнули (день недели и время).',
+                [
                     'patterns' => ['Добавьте в шаблон строку с днём недели и временем слота, с которого открыто окно.'],
                 ],
-            ], 422);
+            );
         }
 
         /** @var object{weekday: int, time_start: string, time_end: string}|null $matchingPattern */
@@ -496,9 +513,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         });
 
         if ($matchingPattern === null) {
-            return response()->json([
-                'errors' => ['patterns' => ['Не удалось сопоставить шаблон с выбранным слотом.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Не удалось сопоставить шаблон с выбранным слотом.',
+                ['patterns' => ['Не удалось сопоставить шаблон с выбранным слотом.']],
+            );
         }
 
         $resolvedAnchorSlot = $this->calendarService->findMatchingTeamSlotForPatternOnDay(
@@ -510,28 +529,31 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         );
 
         if (! $resolvedAnchorSlot || (int) $resolvedAnchorSlot->id !== (int) $anchorSlot->id) {
-            return response()->json([
-                'message' => 'Для группы на выбранную дату не найдено занятие с указанным днём и временем.',
-                'errors' => [
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Для группы на выбранную дату не найдено занятие с указанным днём и временем.',
+                [
                     'patterns' => [
                         'Для группы на выбранную дату не найдено занятие с указанным временем в расписании школы.',
                     ],
                 ],
-            ], 422);
+            );
         }
 
         if (! $this->calendarService->slotActiveOnDate($anchorSlot, $anchorDate)) {
-            return response()->json([
-                'message' => 'Слот недействителен на выбранную дату.',
-                'errors' => ['anchor_date' => ['Слот недействителен на выбранную дату.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Слот недействителен на выбранную дату.',
+                ['anchor_date' => ['Слот недействителен на выбранную дату.']],
+            );
         }
 
         if ($this->calendarService->isOccurrenceSkipped((int) $anchorSlot->id, $anchorDate)) {
-            return response()->json([
-                'message' => 'На эту дату занятие исключено из расписания школы.',
-                'errors' => ['anchor_date' => ['На эту дату занятие исключено из расписания школы.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'На эту дату занятие исключено из расписания школы.',
+                ['anchor_date' => ['На эту дату занятие исключено из расписания школы.']],
+            );
         }
 
         try {
@@ -614,22 +636,25 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $field = 'patterns';
             }
 
-            return response()->json([
-                'message' => $msg,
-                'errors' => [$field => [$msg]],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                $msg,
+                [$field => [$msg]],
+            );
         } catch (\RuntimeException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => ['anchor_date' => [$e->getMessage()]],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['anchor_date' => [$e->getMessage()]],
+            );
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json([
-                'message' => 'Не удалось создать привязку. Попробуйте ещё раз.',
-                'errors' => ['user_lesson_package_id' => ['Не удалось создать привязку.']],
-            ], 422);
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                'Не удалось создать привязку. Попробуйте ещё раз.',
+                ['user_lesson_package_id' => ['Не удалось создать привязку.']],
+            );
         }
 
         $userLabel = $this->scheduleUserLabel($user);
@@ -641,7 +666,10 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             (int) $user->id,
         );
 
-        return response()->json(['message' => 'Абонемент назначен, занятия привязаны к расписанию школы.']);
+        return $this->schoolScheduleMutationResponse(
+            $request,
+            'Абонемент назначен, занятия привязаны к расписанию школы.',
+        );
     }
 
     /**

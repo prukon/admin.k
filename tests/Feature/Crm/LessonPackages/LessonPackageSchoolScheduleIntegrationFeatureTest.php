@@ -222,7 +222,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
             ->assertOk()
             ->assertJsonStructure([
                 'flexible' => ['allowed', 'reason', 'existing_assignments'],
-                'fixed' => ['allowed', 'reason'],
+                'fixed' => ['allowed', 'reason', 'existing_assignments'],
                 'single_lesson' => ['allowed', 'reason'],
                 'trial' => ['allowed', 'reason'],
             ]);
