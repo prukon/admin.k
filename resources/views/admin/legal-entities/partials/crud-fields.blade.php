@@ -138,7 +138,15 @@
 
     <div class="col-md-6">
         <label class="form-label">Назначение платежа</label>
-        <textarea class="form-control js-legal-entity-sm-locked" name="sm_details_template" rows="2">{{ $field('sm_details_template', $smDetailsDefault) }}</textarea>
+        <input type="text"
+               class="form-control bg-light js-legal-entity-sm-details-display"
+               value="{{ $smDetailsDefault }}"
+               disabled
+               aria-disabled="true">
+        <input type="hidden"
+               name="sm_details_template"
+               class="js-legal-entity-sm-details-value"
+               value="{{ trim((string) $field('sm_details_template', $smDetailsDefault)) !== '' ? $field('sm_details_template', $smDetailsDefault) : $smDetailsDefault }}">
         <div class="invalid-feedback d-block" data-error-for="sm_details_template"></div>
     </div>
 

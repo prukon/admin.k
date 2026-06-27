@@ -251,10 +251,17 @@
                         type: 'link',
                         data: 'title',
                         className: 'dt-col-text',
-                        linkClass: 'js-legal-entity-open',
-                        linkAttrs: function (row) {
-                            return 'href="' + row.show_url + '"';
-                        },
+                        ...(canManage ? {
+                            linkClass: 'js-legal-entity-edit',
+                            linkAttrs: function (row) {
+                                return 'href="#" data-id="' + row.id + '"';
+                            },
+                        } : {
+                            linkClass: 'js-legal-entity-open',
+                            linkAttrs: function (row) {
+                                return 'href="' + row.show_url + '"';
+                            },
+                        }),
                     },
                     { key: 'business_type_label', type: 'text', data: 'business_type_label' },
                     { key: 'tax_id', type: 'text', data: 'tax_id' },
@@ -382,6 +389,8 @@
                 return { ok: res.ok, status: res.status, data };
             }
 
+            const smDetailsDefault = @json('Выплата по договору, НДС не облагается');
+
             function fillForm(form, data) {
                 const map = {
                     business_type: data.business_type,
@@ -397,7 +406,6 @@
                     bank_bik: data.bank_bik,
                     bank_account: data.bank_account,
                     sms_name: data.sms_name,
-                    sm_details_template: data.sm_details_template,
                     taxation_system: data.taxation_system,
                     vat: data.vat,
                     is_default: String(data.is_default ?? 0),
@@ -422,6 +430,15 @@
                     }
                 }
 
+                const smDetailsHidden = form.querySelector('.js-legal-entity-sm-details-value');
+                if (smDetailsHidden) {
+                    smDetailsHidden.value = data.sm_details_template || smDetailsDefault;
+                }
+                const smDetailsDisplay = form.querySelector('.js-legal-entity-sm-details-display');
+                if (smDetailsDisplay) {
+                    smDetailsDisplay.value = smDetailsDefault;
+                }
+
                 setRegisteredFieldsLocked(form, !!data.is_registered);
             }
 
@@ -430,6 +447,10 @@
 
             document.getElementById('legalEntityCreateModal')?.addEventListener('show.bs.modal', () => {
                 setRegisteredFieldsLocked(createForm, false);
+                const smDetailsHidden = createForm.querySelector('.js-legal-entity-sm-details-value');
+                if (smDetailsHidden) {
+                    smDetailsHidden.value = smDetailsDefault;
+                }
             });
 
             document.getElementById('legalEntityCreateSubmit')?.addEventListener('click', async () => {
@@ -442,15 +463,17 @@
                 if (ok) {
                     createForm.reset();
                     setRegisteredFieldsLocked(createForm, false);
+                    const smDetailsHidden = createForm.querySelector('.js-legal-entity-sm-details-value');
+                    if (smDetailsHidden) {
+                        smDetailsHidden.value = smDetailsDefault;
+                    }
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityCreateModal'))?.hide();
                     reloadTable();
                 }
             });
 
-            $('#legal-entities-table').on('click', '.js-legal-entity-edit', async function (e) {
-                e.preventDefault();
+            async function openLegalEntityEditModal(id) {
                 clearErrors(editForm);
-                const id = $(this).data('id');
                 const res = await fetch(@json(url('/admin/legal-entities')) + '/' + id, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
@@ -462,6 +485,15 @@
                 fillForm(editForm, data);
                 document.getElementById('legalEntityOpenShowLink').href = @json(url('/admin/legal-entities')) + '/' + id;
                 new bootstrap.Modal(document.getElementById('legalEntityEditModal')).show();
+            }
+
+            $('#legal-entities-table').on('click', '.js-legal-entity-edit', async function (e) {
+                e.preventDefault();
+                const id = $(this).data('id');
+                if (!id) {
+                    return;
+                }
+                await openLegalEntityEditModal(id);
             });
 
             document.getElementById('legalEntityEditSubmit')?.addEventListener('click', async () => {
