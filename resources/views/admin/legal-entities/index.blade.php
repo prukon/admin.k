@@ -149,7 +149,7 @@
 
     @can('legal_entities.manage')
         <div class="modal fade" id="legalEntityCreateModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered modal-xl directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Добавить юр. лицо</h5>
@@ -170,7 +170,7 @@
         </div>
 
         <div class="modal fade" id="legalEntityEditModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg directories-form-modal-dialog">
+            <div class="modal-dialog modal-dialog-centered modal-xl directories-form-modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Редактировать юр. лицо</h5>
@@ -319,14 +319,52 @@
                 form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
             }
 
+            function resolveFormInput(form, key) {
+                let input = form.querySelector('[name="' + key + '"]');
+                if (input) {
+                    return input;
+                }
+                const parts = key.split('.');
+                if (parts.length === 2) {
+                    return form.querySelector('[name="' + parts[0] + '[' + parts[1] + ']"]');
+                }
+
+                return null;
+            }
+
             function applyErrors(form, errors) {
                 Object.entries(errors || {}).forEach(([key, messages]) => {
                     const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
-                    const input = form.querySelector('[name="' + key + '"]');
+                    const input = resolveFormInput(form, key);
                     const err = form.querySelector('[data-error-for="' + key + '"]');
                     if (input) input.classList.add('is-invalid');
                     if (err) err.textContent = message;
                 });
+            }
+
+            function setRegisteredFieldsLocked(form, locked) {
+                form.querySelectorAll('.js-legal-entity-sm-locked-mirror').forEach(el => el.remove());
+                form.querySelectorAll('.js-legal-entity-sm-locked').forEach(el => {
+                    if (el.tagName === 'SELECT') {
+                        el.disabled = locked;
+                        if (locked) {
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = el.name;
+                            hidden.value = el.value;
+                            hidden.className = 'js-legal-entity-sm-locked-mirror';
+                            el.parentNode.insertBefore(hidden, el.nextSibling);
+                        }
+                    } else {
+                        el.readOnly = locked;
+                    }
+                    el.classList.toggle('bg-light', locked);
+                });
+
+                const hint = form.querySelector('.js-legal-entity-registered-hint');
+                if (hint) {
+                    hint.classList.toggle('d-none', !locked);
+                }
             }
 
             async function postForm(url, form, method = 'POST') {
@@ -355,19 +393,44 @@
                     city: data.city,
                     zip: data.zip,
                     address: data.address,
+                    bank_name: data.bank_name,
+                    bank_bik: data.bank_bik,
+                    bank_account: data.bank_account,
+                    sms_name: data.sms_name,
+                    sm_details_template: data.sm_details_template,
                     taxation_system: data.taxation_system,
                     vat: data.vat,
                     is_default: String(data.is_default ?? 0),
                     is_enabled: String(data.is_enabled ?? 1),
                 };
                 Object.entries(map).forEach(([key, value]) => {
-                    const input = form.querySelector('[name="' + key + '"]');
+                    const input = resolveFormInput(form, key);
                     if (input) input.value = value ?? '';
                 });
+
+                const ceo = data.ceo || {};
+                ['lastName', 'firstName', 'middleName'].forEach((part) => {
+                    const input = form.querySelector('[name="ceo[' + part + ']"]');
+                    if (input) input.value = ceo[part] ?? '';
+                });
+                const ceoPhoneInput = form.querySelector('[name="ceo[phone]"]');
+                if (ceoPhoneInput) {
+                    if (window.PhoneInputMask?.setValue) {
+                        window.PhoneInputMask.setValue('#' + ceoPhoneInput.id, ceo.phone || '');
+                    } else {
+                        ceoPhoneInput.value = ceo.phone ?? '';
+                    }
+                }
+
+                setRegisteredFieldsLocked(form, !!data.is_registered);
             }
 
             const createForm = document.getElementById('legalEntityCreateForm');
             const editForm = document.getElementById('legalEntityEditForm');
+
+            document.getElementById('legalEntityCreateModal')?.addEventListener('show.bs.modal', () => {
+                setRegisteredFieldsLocked(createForm, false);
+            });
 
             document.getElementById('legalEntityCreateSubmit')?.addEventListener('click', async () => {
                 clearErrors(createForm);
@@ -378,6 +441,7 @@
                 }
                 if (ok) {
                     createForm.reset();
+                    setRegisteredFieldsLocked(createForm, false);
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityCreateModal'))?.hide();
                     reloadTable();
                 }

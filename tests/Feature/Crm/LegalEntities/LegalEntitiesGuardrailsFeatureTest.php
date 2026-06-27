@@ -120,6 +120,38 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->assertSame(20, (int) $fresh->vat);
     }
 
+    public function test_registered_entity_rejects_ceo_change_via_crud(): void
+    {
+        $entity = PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-GUARD-CEO')
+            ->create([
+                'ceo' => [
+                    'lastName' => 'Иванов',
+                    'firstName' => 'Иван',
+                    'middleName' => 'Иванович',
+                    'phone' => '+79990000000',
+                ],
+            ]);
+
+        $this->putJson(route('admin.legal-entities.update', $entity), [
+            'business_type' => PartnerLegalEntityBusinessType::OOO->value,
+            'title' => $entity->title,
+            'tax_id' => $entity->tax_id,
+            'ceo' => [
+                'lastName' => 'Петров',
+                'firstName' => 'Иван',
+                'middleName' => 'Иванович',
+                'phone' => '+79990000000',
+            ],
+            'is_default' => true,
+            'is_enabled' => true,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['ceo']);
+
+        $this->assertSame('Иванов', $entity->fresh()->ceo['lastName'] ?? null);
+    }
+
     public function test_unregistered_entity_allows_tax_id_change_via_crud(): void
     {
         $entity = PartnerLegalEntity::factory()->for($this->partner)->create([

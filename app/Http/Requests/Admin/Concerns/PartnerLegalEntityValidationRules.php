@@ -44,9 +44,31 @@ trait PartnerLegalEntityValidationRules
             'taxation_system' => ['nullable', 'integer', 'in:0,1,2,3,4,5'],
             'vat' => ['nullable', 'integer', 'in:0,5,7,10,20,22,105,107,110,120,122'],
             'sms_name' => ['nullable', 'string', 'max:14'],
+            'ceo' => ['nullable', 'array'],
+            'ceo.lastName' => ['nullable', 'string', 'max:100'],
+            'ceo.firstName' => ['nullable', 'string', 'max:100'],
+            'ceo.middleName' => ['nullable', 'string', 'max:100'],
+            'ceo.phone' => ['nullable', 'string', 'max:32'],
             'is_default' => ['nullable', 'boolean'],
             'is_enabled' => ['nullable', 'boolean'],
         ];
+    }
+
+    protected function normalizeLegalEntityCeoInput(): void
+    {
+        $ceo = $this->input('ceo', []);
+        if (! is_array($ceo)) {
+            return;
+        }
+
+        $this->merge([
+            'ceo' => [
+                'lastName' => trim((string) ($ceo['lastName'] ?? $ceo['last_name'] ?? '')),
+                'firstName' => trim((string) ($ceo['firstName'] ?? $ceo['first_name'] ?? '')),
+                'middleName' => trim((string) ($ceo['middleName'] ?? $ceo['middle_name'] ?? '')),
+                'phone' => trim((string) ($ceo['phone'] ?? '')),
+            ],
+        ]);
     }
 
     /**
@@ -71,6 +93,10 @@ trait PartnerLegalEntityValidationRules
             'taxation_system' => 'система налогообложения',
             'vat' => 'ставка НДС',
             'sms_name' => 'название для SMS/выписок',
+            'ceo.lastName' => 'фамилия руководителя',
+            'ceo.firstName' => 'имя руководителя',
+            'ceo.middleName' => 'отчество руководителя',
+            'ceo.phone' => 'телефон руководителя',
             'is_default' => 'основное юр. лицо',
             'is_enabled' => 'активность',
         ];

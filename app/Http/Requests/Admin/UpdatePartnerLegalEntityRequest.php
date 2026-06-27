@@ -18,6 +18,8 @@ class UpdatePartnerLegalEntityRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $this->normalizeLegalEntityCeoInput();
+
         if ($this->has('taxation_system') && $this->taxation_system === '') {
             $this->merge(['taxation_system' => null]);
         }

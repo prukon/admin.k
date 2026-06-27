@@ -401,6 +401,16 @@ class PartnerLegalEntityController extends AdminBaseController
             $data['organization_name'] = null;
         }
 
+        if (array_key_exists('ceo', $data) && is_array($data['ceo'])) {
+            $ceo = $data['ceo'];
+            $data['ceo'] = [
+                'lastName' => (string) ($ceo['lastName'] ?? ''),
+                'firstName' => (string) ($ceo['firstName'] ?? ''),
+                'middleName' => (string) ($ceo['middleName'] ?? ''),
+                'phone' => (string) ($ceo['phone'] ?? ''),
+            ];
+        }
+
         return $data;
     }
 
@@ -447,9 +457,11 @@ class PartnerLegalEntityController extends AdminBaseController
             'bank_bik' => $entity->bank_bik,
             'bank_account' => $entity->bank_account,
             'sm_details_template' => $entity->sm_details_template,
+            'ceo' => $this->normalizeCeoForJson($entity->ceo),
             'taxation_system' => $entity->taxation_system,
             'vat' => $entity->vat,
             'sms_name' => $entity->sms_name,
+            'is_registered' => $entity->is_registered ? 1 : 0,
             'tinkoff_shop_code' => $entity->tinkoff_shop_code,
             'sm_register_status' => $entity->sm_register_status,
             'is_default' => (int) $entity->is_default,
@@ -575,6 +587,7 @@ class PartnerLegalEntityController extends AdminBaseController
         'bank_account',
         'sm_details_template',
         'sms_name',
+        'ceo',
     ];
 
     /**
@@ -644,7 +657,47 @@ class PartnerLegalEntityController extends AdminBaseController
             return $old !== $new;
         }
 
+        if ($field === 'ceo') {
+            return $this->ceoPayloadChanged(
+                is_array($oldValue) ? $oldValue : null,
+                is_array($newValue) ? $newValue : null,
+            );
+        }
+
         return trim((string) ($oldValue ?? '')) !== trim((string) ($newValue ?? ''));
+    }
+
+    /**
+     * @return array{lastName: string, firstName: string, middleName: string, phone: string}
+     */
+    private function normalizeCeoForJson(mixed $ceo): array
+    {
+        $src = is_array($ceo) ? $ceo : [];
+
+        return [
+            'lastName' => (string) ($src['lastName'] ?? $src['last_name'] ?? ''),
+            'firstName' => (string) ($src['firstName'] ?? $src['first_name'] ?? ''),
+            'middleName' => (string) ($src['middleName'] ?? $src['middle_name'] ?? ''),
+            'phone' => (string) ($src['phone'] ?? ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
+    private function ceoPayloadChanged(?array $before, ?array $after): bool
+    {
+        $normalizedBefore = $this->normalizeCeoForJson($before);
+        $normalizedAfter = $this->normalizeCeoForJson($after);
+
+        foreach (['lastName', 'firstName', 'middleName', 'phone'] as $key) {
+            if ($normalizedBefore[$key] !== $normalizedAfter[$key]) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
