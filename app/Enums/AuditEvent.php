@@ -50,6 +50,11 @@ enum AuditEvent: string
     case SportTypeUpdated = 'sport_type.updated';
     case SportTypeDeleted = 'sport_type.deleted';
 
+    // --- legal_entity (legacy type 90) ---
+    case LegalEntityCreated = 'legal_entity.created';
+    case LegalEntityUpdated = 'legal_entity.updated';
+    case LegalEntityDeleted = 'legal_entity.deleted';
+
     // --- school_lead (legacy type 89) ---
     case SchoolLeadUpdated = 'school_lead.updated';
     case SchoolLeadDeleted = 'school_lead.deleted';
@@ -162,6 +167,10 @@ enum AuditEvent: string
             self::SportTypeUpdated => 'Изменение вида спорта',
             self::SportTypeDeleted => 'Удаление вида спорта',
 
+            self::LegalEntityCreated => 'Создание юр. лица',
+            self::LegalEntityUpdated => 'Изменение юр. лица',
+            self::LegalEntityDeleted => 'Удаление юр. лица',
+
             self::SchoolLeadUpdated => 'Изменение заявки с сайта',
             self::SchoolLeadDeleted => 'Удаление заявки с сайта',
             self::SchoolLeadStatusCreated => 'Создание статуса заявки',
@@ -238,6 +247,7 @@ enum AuditEvent: string
             self::LocationDeleted,
             self::DistrictDeleted,
             self::SportTypeDeleted,
+            self::LegalEntityDeleted,
             self::SchoolLeadDeleted,
             self::ContractRevoked,
             self::AuthLogin,
@@ -302,6 +312,10 @@ enum AuditEvent: string
             self::SportTypeCreated,
             self::SportTypeUpdated,
             self::SportTypeDeleted => 'sport_type',
+
+            self::LegalEntityCreated,
+            self::LegalEntityUpdated,
+            self::LegalEntityDeleted => 'legal_entity',
 
             self::SchoolLeadUpdated,
             self::SchoolLeadDeleted,
@@ -411,6 +425,10 @@ enum AuditEvent: string
             self::SportTypeUpdated,
             self::SportTypeDeleted => 88,
 
+            self::LegalEntityCreated,
+            self::LegalEntityUpdated,
+            self::LegalEntityDeleted => 90,
+
             self::SchoolLeadUpdated,
             self::SchoolLeadDeleted,
             self::SchoolLeadStatusCreated,
@@ -515,6 +533,10 @@ enum AuditEvent: string
             self::SportTypeCreated => 881,
             self::SportTypeUpdated => 882,
             self::SportTypeDeleted => 883,
+
+            self::LegalEntityCreated => 901,
+            self::LegalEntityUpdated => 902,
+            self::LegalEntityDeleted => 903,
 
             self::SchoolLeadUpdated => 891,
             self::SchoolLeadDeleted => 892,
@@ -751,6 +773,10 @@ enum AuditEvent: string
             881 => self::SportTypeCreated,
             882 => self::SportTypeUpdated,
             883 => self::SportTypeDeleted,
+
+            901 => self::LegalEntityCreated,
+            902 => self::LegalEntityUpdated,
+            903 => self::LegalEntityDeleted,
 
             891 => self::SchoolLeadUpdated,
             892 => self::SchoolLeadDeleted,

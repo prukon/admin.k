@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AuditEvent;
+use App\Models\PartnerLegalEntity;
 use App\Models\SportType;
 use App\Models\Team;
 use App\Services\Audit\AuditContext;
@@ -71,6 +72,15 @@ class TeamService
             );
         }
 
+        if (array_key_exists('legal_entity_id', $data)) {
+            $data['legal_entity_id'] = $this->resolveLegalEntityIdForPartner(
+                (int) $partnerId,
+                $data['legal_entity_id'] !== null && $data['legal_entity_id'] !== ''
+                    ? (int) $data['legal_entity_id']
+                    : null,
+            );
+        }
+
         $team = Team::create($data);
 
         if (!empty($weekdays) && $team->id) {
@@ -115,6 +125,15 @@ class TeamService
                 $partnerId,
                 $data['sport_type_id'] !== null && $data['sport_type_id'] !== ''
                     ? (int) $data['sport_type_id']
+                    : null,
+            );
+        }
+
+        if (array_key_exists('legal_entity_id', $data)) {
+            $data['legal_entity_id'] = $this->resolveLegalEntityIdForPartner(
+                $partnerId,
+                $data['legal_entity_id'] !== null && $data['legal_entity_id'] !== ''
+                    ? (int) $data['legal_entity_id']
                     : null,
             );
         }
@@ -214,5 +233,26 @@ class TeamService
         }
 
         return $sportTypeId;
+    }
+
+    private function resolveLegalEntityIdForPartner(int $partnerId, ?int $legalEntityId): ?int
+    {
+        if ($legalEntityId === null || $legalEntityId <= 0) {
+            return null;
+        }
+
+        $isValid = PartnerLegalEntity::query()
+            ->whereKey($legalEntityId)
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', true)
+            ->exists();
+
+        if (! $isValid) {
+            throw ValidationException::withMessages([
+                'legal_entity_id' => ['Выберите активное юр. лицо из списка текущего партнёра'],
+            ]);
+        }
+
+        return $legalEntityId;
     }
 }

@@ -32,9 +32,9 @@
   <div class="note">
     Страница входит в раздел CRM <strong>«Справочники»</strong> — вкладка <strong>«Группы»</strong> (первая в порядке вкладок; <code>/admin/teams</code>, <code>admin.team.index</code>, <code>$activeTab = 'groups'</code>). Обзор: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.<br>
     <strong>Сайдбар:</strong> при единственном праве <code>groups.view</code> пункт меню называется <b>«Группы»</b>; при двух и более правах справочников — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Отдельного второго пункта «Группы» в сайдбаре нет.<br>
-    Порядок вкладок на всех страницах справочников: <b>Группы → Объекты → Районы → Виды спорта</b> (partial <code>admin/directories/_section_tabs.blade.php</code>).<br>
+    Порядок вкладок на всех страницах справочников: <b>Группы → Объекты → Районы → Виды спорта → Юр. лица</b> (partial <code>admin/directories/_section_tabs.blade.php</code>).<br>
     <strong>Доступ к странице и ко всем эндпоинтам раздела</strong> — одно право <code>groups.view</code> (middleware <code>can:groups.view</code> в <code>routes/web.php</code>). Без него — <b>403</b>; для гостя — редирект/401.<br>
-    Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
+    Дополнительные права (<code>schedule.view</code>, <code>trainers.view</code>, <code>locations.view</code>, <code>sport_types.view</code>, <code>legal_entities.view</code>) <strong>не открывают</strong> страницу групп и <strong>не заменяют</strong> <code>groups.view</code> — они только включают отдельные элементы UI на этой странице.<br>
     Поле «Тренировочная база» (<code>teams.training_base</code>) и право <code>groups.training_base.view</code> удалены миграцией <code>2026_06_13_150000_drop_training_base_from_teams.php</code>.
   </div>
 
@@ -70,7 +70,7 @@
   </div>
 
   <h2>2) Таблица групп и «Поля списка»</h2>
-  <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные); при <code>locations.view</code> — также объект, район объекта и администратор объекта; при <code>trainers.view</code> — тренер; при <code>sport_types.view</code> — вид спорта. Колонка «#» (нумерация) не настраивается.</p>
+  <p>Таблица — DataTables (serverSide), фильтры: название группы, статус (активные/неактивные); при <code>locations.view</code> — также объект, район объекта и администратор объекта; при <code>trainers.view</code> — тренер; при <code>sport_types.view</code> — вид спорта; при ≥2 активных юр. лиц и <code>legal_entities.view</code> — колонка «Юр. лицо». Колонка «#» (нумерация) не настраивается.</p>
 
   <h3>Порядок колонок (при всех правах)</h3>
   <ol>
@@ -80,6 +80,7 @@
     <li><strong>Тренер</strong> (<code>trainer_label</code>) — только при <code>trainers.view</code></li>
     <li><strong>Объект</strong> (<code>locations_label</code>) — только при <code>locations.view</code> и непустом справочнике объектов</li>
     <li><strong>Вид спорта</strong> (<code>sport_type_label</code>) — только при <code>sport_types.view</code> и непустом справочнике видов спорта</li>
+    <li><strong>Юр. лицо</strong> (<code>legal_entity_label</code>) — только при <code>legal_entities.view</code> и ≥2 активных юр. лиц партнёра; см. <a href="#legal-entities">§5.2</a></li>
     <li><strong>Расписание</strong> (<code>weekdays_label</code>) — только при <code>schedule.view</code></li>
     <li><strong>Стоимость</strong> (<code>month_price</code>) — всегда (см. <a href="#month-price">§2.1</a>)</li>
     <li>Статус (<code>status_label</code>)</li>
@@ -288,7 +289,35 @@
 
   <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>sport_type_id</code> через <code>PartnerSportTypeId</code> (только при <code>sport_types.view</code> в rules): id должен принадлежать партнёру и быть активным (<code>is_enabled</code>). Дополнительная проверка — <code>TeamService::resolveSportTypeIdForPartner()</code>. Права <code>sport_types.view</code> / <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>).</p>
 
-  <h2 id="removed-legacy-fields">5.2) Удалённые поля (история)</h2>
+  <h2 id="legal-entities">5.2) Право <code>legal_entities.view</code> — юр. лицо группы</h2>
+  <div class="note">
+    Справочник и sm-register: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>. Резолвер для оплат: <code>LegalEntityResolver</code>.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Элемент UI</th><th>Условие показа</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Селект <code>legal_entity_id</code> в модалках create/edit</td>
+        <td><code>legal_entities.view</code> и ≥2 активных юр. лиц</td>
+        <td>Необязательный; пусто — используется default/fallback при оплате. Без права ключ удаляется в <code>TeamController</code>.</td>
+      </tr>
+      <tr>
+        <td>Колонка «Юр. лицо»</td>
+        <td>Те же условия</td>
+        <td>JSON: <code>legal_entity_label</code>, <code>legal_entity_fallback</code>. Явная привязка — название; иначе «По умолчанию: {title}».</td>
+      </tr>
+      <tr>
+        <td>JSON edit</td>
+        <td>Те же условия</td>
+        <td><code>legal_entity_id</code> — число или <code>null</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Валидация: <code>PartnerLegalEntityId</code>, <code>TeamService::resolveLegalEntityIdForPartner()</code>.</p>
+
+  <h2 id="removed-legacy-fields">5.3) Удалённые поля (история)</h2>
   <div class="warn">
     Следующие возможности <strong>сняты</strong> и в текущей версии CRM отсутствуют:
     <ul>
@@ -310,9 +339,9 @@
   <ul>
     <li>Фильтры запроса: <code>title</code>, <code>status</code> (<code>active</code> / <code>inactive</code>), <code>trainer_profile_id</code> (id или <code>none</code>), <code>location_id</code> (id или <code>none</code>, только при <code>locations.view</code>), <code>district_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по <code>location.district_id</code>), <code>admin_user_id</code> (id или <code>none</code>, только при <code>locations.view</code> — фильтр по pivot <code>location_admin_user</code>), <code>sport_type_id</code> (id или <code>none</code>, только при <code>sport_types.view</code>), параметры DataTables.</li>
     <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>location</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
-    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_label_full</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
+    <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_label_full</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>legal_entity_label</code> / <code>legal_entity_fallback</code> (при multi legal entity mode), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
     <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>locations</code> по <code>teams.location_id</code>), <code>month_price</code>, <code>status_label</code>.</li>
-    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_id</code> / <code>sport_type_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.1). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_id</code> / <code>sport_type_id</code> / <code>legal_entity_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.2). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
   </ul>
 
   <h2>8) Базовые роли и конфиг</h2>
@@ -352,6 +381,7 @@
       <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code> — селект/колонка юр. лица, fallback «По умолчанию: …», CRUD <code>legal_entity_id</code>.</li>
       <li><code>tests/Feature/Crm/Teams/TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code> — <code>location_id</code>, фильтры <code>district_id</code> / <code>admin_user_id</code> (pivot <code>location_admin_user</code>), sync, лендинг, school-schedule, smoke 200</li>
       <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 страницы объектов и фильтра групп по M2M-админу</li>
       <li><code>tests/Feature/Crm/LocationTeam/</code> — интеграция объектов и групп, долги, доступ к страницам.</li>

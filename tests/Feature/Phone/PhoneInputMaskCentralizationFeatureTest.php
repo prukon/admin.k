@@ -74,7 +74,7 @@ final class PhoneInputMaskCentralizationFeatureTest extends TestCase
             'includes/modal/editUser.blade.php',
             'includes/modal/order.blade.php',
             'landing/partner-lead.blade.php',
-            'tinkoff/partners/show.blade.php',
+            'admin/legal-entities/partials/sm-form-fields.blade.php',
             'widget/school-lead-form.blade.php',
         ];
 

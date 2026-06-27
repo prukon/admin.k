@@ -102,12 +102,9 @@ final class PhoneFormCrmPagesAccessFeatureTest extends CrmTestCase
     {
         $this->asSuperadmin();
 
-        $html = (string) $this->get('/admin/tinkoff/partners/' . $this->partner->id)
+        $this->get('/admin/tinkoff/partners/' . $this->partner->id)
             ->assertOk()
-            ->getContent();
-
-        $this->assertStringContainsString('js-phone-mask', $html);
-        $this->assertStringContainsString('jquery.inputmask', $html);
+            ->assertSee('Справочник «Юр. лица»', false);
     }
 
     public function test_admin_user_edit_endpoint_returns_200_json(): void

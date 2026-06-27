@@ -25,6 +25,7 @@ use App\Jobs\SendCloudKassirReceiptJob;
 use App\Models\FiscalReceipt;
 use App\Services\Payments\PaymentLedgerRecorder;
 use App\Services\Payments\PaymentLedgerTeamResolver;
+use App\Services\PartnerLegalEntities\LegalEntityResolver;
 
 
 
@@ -33,16 +34,19 @@ class TinkoffPaymentsService
     public function __construct(
         private readonly TbankWebhookPaymentMethodResolver $webhookPaymentMethodResolver,
         private readonly AuditLogger $auditLogger,
+        private readonly LegalEntityResolver $legalEntityResolver,
     ) {
     }
 
     public function initPayment(int $partnerId, int $amountCents, ?string $method = null, array $data = [], ?CarbonInterface $redirectDueDate = null): TinkoffPayment
     {
         $orderId = Str::uuid()->toString();
+        $legalEntityId = $this->legalEntityResolver->resolveLegalEntityIdFromInitData($partnerId, $data);
 
         $payment = TinkoffPayment::create([
             'order_id' => $orderId,
             'partner_id' => $partnerId,
+            'legal_entity_id' => $legalEntityId,
             'amount' => $amountCents,
             'method' => $method,
             'status' => 'NEW',
@@ -219,9 +223,11 @@ class TinkoffPaymentsService
             // 1) Обновим назначение платежа (details) перед выплатой
             try {
                 $partner = $payment->partner;
-                if (!empty($partner->tinkoff_partner_id)) {
+                $resolution = $this->legalEntityResolver->forTinkoffPayment($payment);
+                $shopCode = $this->legalEntityResolver->shopCode($partner, $resolution);
+                if ($shopCode) {
                     $details = \App\Helpers\TinkoffDetailsHelper::makeDetailsForPeriod($payment);
-                    app(SmRegisterClient::class)->patch($partner->tinkoff_partner_id, [
+                    app(SmRegisterClient::class)->patch($shopCode, [
                         'bankAccount' => ['details' => $details],
                     ]);
                 }
@@ -479,13 +485,23 @@ class TinkoffPaymentsService
             ->first();
     
         $idempotencyKey = $this->makeIncomeFiscalReceiptIdempotencyKey($intent, $payable);
-    
+
+        $user = User::query()->find((int) $intent->user_id);
+        $legalEntityResolution = $this->legalEntityResolver->forPayable($payable, $user);
+        $legalEntityId = $this->legalEntityResolver->resolveLegalEntityId($legalEntityResolution);
+
+        if (! $tinkoffPayment->legal_entity_id && $legalEntityId) {
+            $tinkoffPayment->legal_entity_id = $legalEntityId;
+            $tinkoffPayment->save();
+        }
+
         $fiscalReceipt = FiscalReceipt::query()->firstOrCreate(
             [
                 'idempotency_key' => $idempotencyKey,
             ],
             [
                 'partner_id' => (int) $intent->partner_id,
+                'legal_entity_id' => $legalEntityId,
                 'payment_intent_id' => (int) $intent->id,
                 'payment_id' => $paymentRow?->id,
                 'payable_id' => (int) $payable->id,
@@ -499,8 +515,13 @@ class TinkoffPaymentsService
         );
     
         // Если запись уже была и payment_id ещё пустой — дособерём связь.
-        if ($paymentRow && !$fiscalReceipt->payment_id) {
+        if ($paymentRow && ! $fiscalReceipt->payment_id) {
             $fiscalReceipt->payment_id = $paymentRow->id;
+            $fiscalReceipt->save();
+        }
+
+        if (! $fiscalReceipt->legal_entity_id && $legalEntityId) {
+            $fiscalReceipt->legal_entity_id = $legalEntityId;
             $fiscalReceipt->save();
         }
     

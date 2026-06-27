@@ -37,9 +37,12 @@ final class UserLessonPackagePublicPayService
         }
 
         $partner = Partner::query()->find($partnerId);
-        $shop = trim((string) ($partner?->tinkoff_partner_id ?? ''));
+        if (! $partner) {
+            return false;
+        }
 
-        return $shop !== '';
+        return app(\App\Services\PartnerLegalEntities\LegalEntityResolver::class)
+            ->hasRegisteredShopCode($partner);
     }
 
     /**

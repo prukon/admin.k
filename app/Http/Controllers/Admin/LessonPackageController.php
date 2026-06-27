@@ -566,14 +566,10 @@ final class LessonPackageController extends AdminBaseController
 
     private function ulpAssignmentPublicPayTbankReady(int $partnerId): bool
     {
-        if (! TbankTerminalConfig::isGloballyActive()) {
-            return false;
-        }
+        $partner = Partner::query()->find($partnerId);
 
-        $partnerRow = Partner::query()->find($partnerId);
-
-        return $partnerRow
-            && trim((string) ($partnerRow->tinkoff_partner_id ?? '')) !== '';
+        return $partner !== null
+            && app(\App\Services\Payments\PaymentService::class)->isTbankAvailable($partner);
     }
 
     /**

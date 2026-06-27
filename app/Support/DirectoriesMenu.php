@@ -12,6 +12,7 @@ final class DirectoriesMenu
         ['permission' => 'locations.view', 'label' => 'Объекты', 'route' => 'admin.locations.index'],
         ['permission' => 'districts.view', 'label' => 'Районы', 'route' => 'admin.districts.index'],
         ['permission' => 'sport_types.view', 'label' => 'Виды спорта', 'route' => 'admin.sport-types.index'],
+        ['permission' => 'legal_entities.view', 'label' => 'Юр. лица', 'route' => 'admin.legal-entities.index'],
     ];
 
     /**

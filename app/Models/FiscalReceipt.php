@@ -36,6 +36,11 @@ class FiscalReceipt extends Model
         return $this->belongsTo(Partner::class, 'partner_id');
     }
 
+    public function legalEntity()
+    {
+        return $this->belongsTo(PartnerLegalEntity::class, 'legal_entity_id');
+    }
+
     public function paymentIntent()
     {
         return $this->belongsTo(PaymentIntent::class, 'payment_intent_id');

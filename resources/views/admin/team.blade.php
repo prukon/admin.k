@@ -173,6 +173,19 @@
                                 @endif
                                 @endcan
 
+                                @can('legal_entities.view')
+                                @if(($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty())
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="legal_entity_label"
+                                           id="colLegalEntity"
+                                           checked>
+                                    <label class="form-check-label" for="colLegalEntity">Юр. лицо</label>
+                                </div>
+                                @endif
+                                @endcan
+
                                 @can('schedule.view')
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
@@ -334,6 +347,11 @@
                     <th>Вид спорта</th>
                     @endif
                     @endcan
+                    @can('legal_entities.view')
+                    @if(($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty())
+                    <th>Юр. лицо</th>
+                    @endif
+                    @endcan
                     @can('schedule.view')
                     <th>Расписание</th>
                     @endcan
@@ -362,6 +380,7 @@
             const canFilterByDistrict = @json(auth()->user()->can('locations.view') && $districtOptions->isNotEmpty());
             const canFilterByAdmin = @json(auth()->user()->can('locations.view') && $adminOptions->isNotEmpty());
             const canViewSportTypes = @json(auth()->user()->can('sport_types.view') && $sportTypeOptions->isNotEmpty());
+            const canViewLegalEntities = @json(auth()->user()->can('legal_entities.view') && ($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty());
             const defaultFilterStatus = 'active';
 
             function escapeHtml(text) {
@@ -434,6 +453,7 @@
                             address: true,
                         } : {}),
                         ...(canViewSportTypes ? { sport_type_label: true } : {}),
+                        ...(canViewLegalEntities ? { legal_entity_label: true } : {}),
                         ...(canViewSchedule ? { weekdays_label: true } : {}),
                         month_price: true,
                         status_label: true,
@@ -498,6 +518,26 @@
                     { key: 'district_name', type: 'text', data: 'district_name', when: canViewLocations, searchable: false },
                     { key: 'address', type: 'text-long', data: 'address', when: canViewLocations, searchable: false },
                     { key: 'sport_type_label', type: 'text', data: 'sport_type_label', when: canViewSportTypes, searchable: false },
+                    {
+                        key: 'legal_entity_label',
+                        type: 'text',
+                        data: 'legal_entity_label',
+                        when: canViewLegalEntities,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (type === 'sort' || type === 'filter') {
+                                return data || '';
+                            }
+                            if (!data) {
+                                return '<span class="text-muted">—</span>';
+                            }
+                            if (row.legal_entity_fallback) {
+                                return escapeHtml(data) +
+                                    ' <span class="badge text-bg-warning" title="Для платежей используется юр. лицо по умолчанию">fallback</span>';
+                            }
+                            return escapeHtml(data);
+                        },
+                    },
                     {
                         key: 'weekdays_label',
                         type: 'list',

@@ -6,14 +6,22 @@ use App\Models\FiscalReceipt;
 use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
+use App\Models\User;
+use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use RuntimeException;
 
 class CloudKassirReceiptBuilder
 {
+    public function __construct(
+        private readonly LegalEntityResolver $legalEntityResolver,
+    ) {
+    }
+
     public function build(FiscalReceipt $fiscalReceipt): array
     {
         $fiscalReceipt->loadMissing([
             'partner',
+            'legalEntity',
             'payable',
             'paymentIntent',
         ]);
@@ -35,8 +43,15 @@ class CloudKassirReceiptBuilder
             throw new RuntimeException('FiscalReceipt payable not found.');
         }
 
-        if (!$partner->tax_id) {
-            throw new RuntimeException("Partner #{$partner->id} has no tax_id.");
+        $user = $paymentIntent?->user_id
+            ? User::query()->find((int) $paymentIntent->user_id)
+            : null;
+
+        $resolution = $this->legalEntityResolver->forFiscalReceipt($fiscalReceipt, $user);
+
+        $taxId = $this->legalEntityResolver->fiscalTaxId($partner, $resolution);
+        if ($taxId === null || $taxId === '') {
+            throw new RuntimeException("Partner #{$partner->id} has no tax_id for fiscal receipt.");
         }
 
         $platformInn = (string) config('services.cloudkassir.inn', '');
@@ -57,12 +72,12 @@ class CloudKassirReceiptBuilder
             'Price' => $amount,
             'Quantity' => 1,
             'Amount' => $amount,
-            'Vat' => $this->resolveVatForPartner($partner),
+            'Vat' => $this->resolveVat($partner, $resolution),
             'Method' => $this->resolveMethod(),
             'Object' => $this->resolveObject(),
         ];
 
-        $item = $this->appendAgentFieldsOnItem($item, $partner);
+        $item = $this->appendAgentFieldsOnItem($item, $partner, $resolution);
 
         $customerReceipt = [
             'Items' => [$item],
@@ -94,24 +109,22 @@ class CloudKassirReceiptBuilder
     }
 
     /**
-     * Ставка НДС по данным принципала (партнёра). null — «НДС не облагается» (см. документацию CloudKassir, Vat).
+     * Ставка НДС по данным принципала (юр. лицо / legacy partner).
      */
-    protected function resolveVatForPartner(Partner $partner): ?int
+    protected function resolveVat(Partner $partner, \App\Services\PartnerLegalEntities\LegalEntityResolution $resolution): ?int
     {
-        if ($partner->vat === null) {
-            return null;
-        }
-
-        return (int) $partner->vat;
+        return $this->legalEntityResolver->fiscalVat($partner, $resolution);
     }
 
     /**
-     * Признак агента (AgentSign), данные принципала (PurveyorData) и платёжного агента (AgentData) — на уровне позиции.
-     * Для ККТ с ФФД 1.2 признак на весь чек (CustomerReceipt / тег 1057 на документ) может не поддерживаться;
-     * передача в Items[] согласуется с фактическим поведением кассы.
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
      */
-    protected function appendAgentFieldsOnItem(array $item, Partner $partner): array
-    {
+    protected function appendAgentFieldsOnItem(
+        array $item,
+        Partner $partner,
+        \App\Services\PartnerLegalEntities\LegalEntityResolution $resolution,
+    ): array {
         $agentEnabled = (bool) config('services.cloudkassir.agent.enabled', false);
         if (!$agentEnabled) {
             return $item;
@@ -129,8 +142,8 @@ class CloudKassirReceiptBuilder
             $purveyorPhone = $this->normalizePhone($partner->phone);
 
             $item['PurveyorData'] = [
-                'Name' => (string) ($partner->organization_name ?: $partner->title),
-                'Inn' => (string) $partner->tax_id,
+                'Name' => $this->legalEntityResolver->fiscalOrganizationName($partner, $resolution),
+                'Inn' => (string) $this->legalEntityResolver->fiscalTaxId($partner, $resolution),
                 'Phone' => $purveyorPhone,
             ];
         }

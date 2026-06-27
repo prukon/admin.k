@@ -31,6 +31,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
         yield 'school schedule calendar tab' => ['admin/lessonPackages/tabs/schoolSchedule.blade.php'];
         yield 'lesson package assignments tab' => ['admin/lessonPackages/tabs/assignments.blade.php'];
+        yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
+        yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

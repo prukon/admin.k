@@ -7,7 +7,9 @@ use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\UserCustomPayment;
+use App\Services\Payments\PaymentService;
 use App\Services\Payments\PaymentIntentClientContext;
+use App\Models\Team;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TbankTerminalConfig;
@@ -33,16 +35,14 @@ class TinkoffPaymentController extends Controller
         return back()->with('error', 'Не удалось инициализировать оплату');
     }
 
-    public function create(CreatePaymentRequest $r, TinkoffPaymentsService $svc)
+    public function create(CreatePaymentRequest $r, TinkoffPaymentsService $svc, PaymentService $paymentService)
     {
         $partnerId = (int) app('current_partner')->id;
+        $partner = app('current_partner');
 
         // Показываем метод оплаты только если он реально настроен
         if (! TbankTerminalConfig::isGloballyActive()) {
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
-        }
-        if (empty(app('current_partner')->tinkoff_partner_id)) {
-            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
         $user = $r->user();
@@ -106,6 +106,14 @@ class TinkoffPaymentController extends Controller
                 return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
             }
             $paymentDate = 'Клубный взнос';
+        }
+
+        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
+            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
+            : null;
+
+        if (! $paymentService->isTbankAvailable($partner, $monthlyTeam)) {
+            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
         $amountCents = (int) round(((float) $outSum) * 100);
@@ -188,16 +196,14 @@ class TinkoffPaymentController extends Controller
      * Оплата учеником через T‑Bank СБП (QR).
      * Flow: Init → показываем QR → ждём CONFIRMED (webhook/проверка статуса) → success.
      */
-    public function createSbp(CreateSbpPaymentRequest $r, TinkoffPaymentsService $svc)
+    public function createSbp(CreateSbpPaymentRequest $r, TinkoffPaymentsService $svc, PaymentService $paymentService)
     {
         $partnerId = (int) app('current_partner')->id;
+        $partner = app('current_partner');
 
         // Показываем метод оплаты только если он реально настроен
         if (! TbankTerminalConfig::isGloballyActive()) {
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
-        }
-        if (empty(app('current_partner')->tinkoff_partner_id)) {
-            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
         $user = $r->user();
@@ -261,6 +267,14 @@ class TinkoffPaymentController extends Controller
                 return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
             }
             $paymentDate = 'Клубный взнос';
+        }
+
+        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
+            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
+            : null;
+
+        if (! $paymentService->isTbankAvailable($partner, $monthlyTeam)) {
+            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
         $amountCents = (int) round(((float) $outSum) * 100);

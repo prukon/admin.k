@@ -43,6 +43,7 @@ abstract class CrmTestCase extends TestCase
         'locations.view',
         'districts.view',
         'sport_types.view',
+        'legal_entities.view',
     ];
 
     /**

@@ -11,7 +11,7 @@
     <div class="container py-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h1 class="h5 mb-0">Платёж #{{ $payment->id }} (Order {{ $payment->order_id }})</h1>
-            <a href="/admin/tinkoff/partners/{{ $payment->partner_id }}" class="btn btn-outline-secondary btn-sm">К партнёру</a>
+            <a href="{{ route('admin.legal-entities.index') }}" class="btn btn-outline-secondary btn-sm">К юр. лицам</a>
         </div>
 
         <div class="row g-3">

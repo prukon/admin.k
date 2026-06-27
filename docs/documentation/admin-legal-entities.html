@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: юр. лица (админка) — /admin/legal-entities</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Юр. лица (админка): <code>/admin/legal-entities</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-legal-entities.html</code> · T‑Bank sm-register: <a href="/docs/documentation/tbank#legal-entities-shopcode">tbank §2.1</a> · группы: <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a> · обзор справочников: <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a></div>
+
+  <div class="note">
+    Справочник <strong>«Юр. лица»</strong> — реквизиты и ShopCode T‑Bank (sm-register) для каждого юридического лица партнёра (школы). Один партнёр может иметь несколько юр. лиц; одна группа привязана к одному юр. лицу (<code>teams.legal_entity_id</code>), одно юр. лицо — ко многим группам.<br>
+    Страница входит в раздел CRM <b>«Справочники»</b> — вкладка <b>«Юр. лица»</b> (<code>$activeTab = 'legal-entities'</code>). Пункт сайдбара «Справочники» / «Юр. лица» — через <code>directories.view</code> + право конкретного справочника (<code>App\Support\DirectoriesMenu</code>).<br>
+    Регистрация в sm-register выполняется <b>только здесь</b>, не на карточке партнёра. Legacy-маршруты <code>tinkoff/partners/sm-*</code> отключены (410 JSON / redirect с предупреждением).
+  </div>
+
+  <div class="warn">
+    <b>Переходный период:</b> поле legacy <code>partners.tinkoff_partner_id</code> и реквизиты на партнёре сохранены. При оплатах ShopCode берётся из активного юр. лица (<code>partner_legal_entities.tinkoff_shop_code</code>), при отсутствии — fallback на <code>partners.tinkoff_partner_id</code> (<code>LegalEntityResolver::shopCode()</code>). Данные из <code>partners</code> в <code>partner_legal_entities</code> <b>не мигрируются автоматически</b> — заполняются вручную в CRM.
+  </div>
+
+  <h2>1) Модель данных</h2>
+  <p>Миграции (DDL only, без INSERT из <code>partners</code>):</p>
+  <ul>
+    <li><code>2026_06_27_*_create_partner_legal_entities_table.php</code> — таблица <code>partner_legal_entities</code> (soft delete);</li>
+    <li><code>2026_06_27_*_add_legal_entity_id_to_teams_table.php</code> — <code>teams.legal_entity_id</code>, FK <code>nullOnDelete</code>;</li>
+    <li>снимки <code>legal_entity_id</code> на <code>tinkoff_payments</code>, <code>tinkoff_payouts</code>, <code>fiscal_receipts</code>;</li>
+    <li><code>2026_06_27_160000_add_legal_entities_permissions.php</code> — права <code>legal_entities.view</code>, <code>legal_entities.manage</code>.</li>
+  </ul>
+
+  <table>
+    <thead>
+      <tr><th>Таблица / поле</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>partner_legal_entities</code></td>
+        <td><code>partner_id</code>, <code>business_type</code> (enum: <code>OOO</code>, <code>IP</code>, <code>ANO</code>, <code>NKO</code>), <code>title</code>, реквизиты, <code>tinkoff_shop_code</code>, <code>sm_register_status</code>, <code>taxation_system</code>, <code>vat</code>, <code>is_default</code>, <code>is_enabled</code>, soft delete. Уникальность ИНН: <code>(partner_id, tax_id)</code> среди не удалённых.</td>
+      </tr>
+      <tr>
+        <td><code>teams.legal_entity_id</code></td>
+        <td>Необязательная явная привязка группы к юр. лицу. При удалении юр. лица — <code>SET NULL</code>. См. <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a>.</td>
+      </tr>
+      <tr>
+        <td><code>is_default</code></td>
+        <td>Основное юр. лицо партнёра (ровно одно при нескольких активных). Первое созданное становится default автоматически.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>1.1) Выбор юр. лица для оплаты (<code>LegalEntityResolver</code>)</h3>
+  <pre><code>группа.legal_entity_id (активное) → это юр. лицо
+иначе, если активных юр. лиц = 1 → единственное
+иначе, если есть is_default → default (fallback=true)
+иначе → первое активное (fallback=true)
+
+ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</code></pre>
+  <p>Сервис: <code>App\Services\PartnerLegalEntities\LegalEntityResolver</code>. Используется в <code>PaymentService</code>, Init T‑Bank, выплатах, CloudKassir. DTO: <code>LegalEntityResolution</code> (<code>entity</code>, <code>usedDefaultFallback</code>).</p>
+
+  <h2>2) Права доступа</h2>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Описание</th><th>Что открывает</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>directories.view</code></td>
+        <td>Пункт меню «Справочники»</td>
+        <td>Обязателен для отображения пункта сайдбара вместе с любым правом справочника (см. <a href="/docs/documentation/directories-hierarchy#1-1">directories-hierarchy §1.1</a>)</td>
+      </tr>
+      <tr>
+        <td><code>legal_entities.view</code></td>
+        <td>Просмотр справочника юр. лиц</td>
+        <td>Страница, data, columns-settings, logs-data, show (HTML/JSON); при единственном праве справочников — пункт «Юр. лица»</td>
+      </tr>
+      <tr>
+        <td><code>legal_entities.manage</code></td>
+        <td>Создание/изменение/удаление, sm-register</td>
+        <td>POST store, PUT update, DELETE destroy, <code>sm-register</code> / <code>sm-patch</code> / <code>sm-refresh</code> / <code>sm-pull</code>; кнопки и модалки на index/show</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Без <code>legal_entities.view</code> — <b>403</b> на все эндпоинты раздела; гость — редирект/401. При только <code>view</code> мутации и sm-* → <b>403</b>.</p>
+  <p>Права добавляются миграцией; в базовый набор admin (<code>config/role_base_permissions.php</code>) <strong>не входят</strong> по умолчанию — назначаются вручную.</p>
+
+  <h2>3) Эндпоинты раздела</h2>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Право</th><th>Назначение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/legal-entities</code></td><td><code>legal_entities.view</code></td><td>HTML, DataTables (<code>admin.legal-entities.index</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/legal-entities/data</code></td><td><code>legal_entities.view</code></td><td>JSON таблицы (serverSide)</td></tr>
+      <tr><td>GET</td><td><code>/admin/legal-entities/columns-settings</code></td><td><code>legal_entities.view</code></td><td>Настройки колонок (<code>legal_entities_index</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/columns-settings</code></td><td><code>legal_entities.view</code></td><td>Сохранение настроек колонок</td></tr>
+      <tr><td>GET</td><td><code>/admin/legal-entities/logs-data</code></td><td><code>legal_entities.view</code></td><td>JSON модалки «История» (категория <code>legal_entity</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/legal-entities/{id}</code></td><td><code>legal_entities.view</code></td><td>HTML карточка или JSON (при AJAX / <code>Accept: application/json</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities</code></td><td><code>legal_entities.view</code> + <code>legal_entities.manage</code></td><td>Создание (<code>StorePartnerLegalEntityRequest</code>)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/legal-entities/{id}</code></td><td><code>legal_entities.view</code> + <code>legal_entities.manage</code></td><td>Обновление (<code>UpdatePartnerLegalEntityRequest</code>)</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/legal-entities/{id}</code></td><td><code>legal_entities.view</code> + <code>legal_entities.manage</code></td><td>Soft delete; 422 если есть привязанные группы</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-register</code></td><td><code>legal_entities.manage</code></td><td>Регистрация в sm-register (<code>SmRegisterPartnerLegalEntityRequest</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-patch</code></td><td><code>legal_entities.manage</code></td><td>Обновление реквизитов в sm-register</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-refresh</code></td><td><code>legal_entities.manage</code></td><td>Обновить статус ShopCode из банка</td></tr>
+      <tr><td>POST</td><td><code>/admin/legal-entities/{id}/sm-pull</code></td><td><code>legal_entities.manage</code></td><td>Подтянуть реквизиты из sm-register в CRM</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Изоляция: <code>PartnerContext</code> / <code>current_partner</code>. Чужое юр. лицо → <b>404</b>.</p>
+
+  <h2>4) Интерфейс</h2>
+  <h3>4.1) Список (<code>admin/legal-entities/index.blade.php</code>)</h3>
+  <ul>
+    <li>DataTables (<code>KidsCrmDataTable</code>), фильтры: поиск, статус active/inactive.</li>
+    <li>Колонки: наименование (ссылка на карточку), форма, ИНН, ShopCode, зарегистрировано, основное, число групп, активность, действия (<code>legal_entities.manage</code>).</li>
+    <li>Модалки create/edit — AJAX (<code>fetch</code> + <code>X-Requested-With</code>); ошибки 422 под полями.</li>
+    <li><b>Non-AJAX safety-net:</b> нативный POST/PUT без JS → redirect 302, запись в БД создана/обновлена (см. тесты <code>LegalEntitiesNonAjaxSafetyNetFeatureTest</code>).</li>
+  </ul>
+
+  <h3>4.2) Карточка (<code>admin/legal-entities/show.blade.php</code>)</h3>
+  <ul>
+    <li>Блок CRM-полей (<code>legalEntityCrudForm</code>, PUT через AJAX) — налогообложение, НДС, default, enabled.</li>
+    <li>Блок sm-register (<code>legalEntitySmForm</code>) — полный профиль для T‑Bank; после получения ShopCode часть полей CRM блокируется (guardrails).</li>
+    <li>Кнопки «Обновить статус» / «Подтянуть из банка» — для зарегистрированных записей.</li>
+  </ul>
+
+  <h3 id="legal-entities-sm-register">4.3) sm-register / sm-patch</h3>
+  <p>Сервис: <code>App\Services\Tinkoff\PartnerLegalEntitySmRegisterService</code>, клиент: <code>SmRegisterClient</code>.</p>
+  <ul>
+    <li>После успешной регистрации сохраняются <code>tinkoff_shop_code</code>, <code>sm_register_status</code>, реквизиты, <code>registered_at</code>.</li>
+    <li>Форма организации в CRM (<code>OOO/IP/ANO/NKO</code>) маппится в тип API sm-register (<code>company</code> / <code>individual_entrepreneur</code> / <code>non_commercial_organization</code>) — см. <code>PartnerLegalEntityBusinessType::smRegisterApiType()</code>.</li>
+    <li>AJAX-ответ register: <code>{ "ok": true, "shopCode": "…", "status": "…" }</code>; patch: <code>{ "ok": true }</code>; ошибки — 422 JSON с <code>message</code> и <code>errors</code>.</li>
+    <li>Non-AJAX sm-register → redirect на show с flash <code>ok</code>.</li>
+  </ul>
+
+  <h2>5) Guardrails (ограничения CRM)</h2>
+  <table>
+    <thead>
+      <tr><th>Ситуация</th><th>Ответ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DELETE при привязанных группах</td>
+        <td>422, поле <code>legal_entity</code></td>
+      </tr>
+      <tr>
+        <td><code>is_enabled = false</code> при привязанных группах</td>
+        <td>422, поле <code>is_enabled</code></td>
+      </tr>
+      <tr>
+        <td>Изменение sm/bank-полей через CRM после ShopCode</td>
+        <td>422 — менять через sm-patch на карточке</td>
+      </tr>
+      <tr>
+        <td>После ShopCode через CRM разрешены</td>
+        <td><code>taxation_system</code>, <code>vat</code>, <code>is_default</code>, <code>is_enabled</code> (если нет групп)</td>
+      </tr>
+      <tr>
+        <td>Повторный sm-register при наличии ShopCode</td>
+        <td>422 — использовать sm-patch</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="legal-entities-audit">6) Аудит (<code>my_logs</code>)</h2>
+  <p>События: <code>legal_entity.created</code>, <code>legal_entity.updated</code>, <code>legal_entity.deleted</code> (категория <code>legal_entity</code>). Кнопка «История» на index → <code>GET /admin/legal-entities/logs-data</code> (<code>logs.data.legal-entity</code>).</p>
+
+  <h2>7) Связь с группами и оплатами</h2>
+  <ul>
+    <li>Селект юр. лица в модалках create/edit группы — только если у партнёра ≥2 <b>активных</b> юр. лиц (<code>legal_entities.view</code>). Подробнее — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams § legal-entities</a>.</li>
+    <li>В таблице групп колонка «Юр. лицо»: явная привязка или бейдж fallback «По умолчанию: {title}».</li>
+    <li>Доступность T‑Bank на витрине: <code>PaymentService::isTbankAvailable()</code> — глобальный терминал + ShopCode через resolver (см. <a href="/docs/documentation/settings-payment-systems#tbank-availability">settings-payment-systems §4.3</a>).</li>
+    <li>Интеграция с договорами — отдельная фаза (prefill из юр. лица в модалке договора пока не реализован).</li>
+  </ul>
+
+  <h2>8) Legacy partner sm-register</h2>
+  <p>Маршруты <code>POST tinkoff/partners/{id}/sm-register</code> и аналоги возвращают redirect/410 с указанием перейти в «Юр. лица». UI sm-register на карточке партнёра скрыт. Поле <code>partners.tinkoff_partner_id</code> остаётся fallback для оплат до полного перехода.</p>
+
+  <h2>9) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Models/PartnerLegalEntity.php</code>, <code>app/Enums/PartnerLegalEntityBusinessType.php</code></li>
+    <li><code>app/Http/Controllers/Admin/PartnerLegalEntityController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/PartnerLegalEntityColumnsSettingsController.php</code></li>
+    <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code></li>
+    <li><code>app/Services/Tinkoff/PartnerLegalEntitySmRegisterService.php</code></li>
+    <li><code>app/Http/Requests/Admin/StorePartnerLegalEntityRequest.php</code>, <code>UpdatePartnerLegalEntityRequest.php</code></li>
+    <li><code>app/Http/Requests/PartnerLegalEntity/SmRegisterPartnerLegalEntityRequest.php</code></li>
+    <li><code>resources/views/admin/legal-entities/</code></li>
+    <li><code>app/Support/DirectoriesMenu.php</code> — приоритет вкладки «Юр. лица» последний</li>
+  </ul>
+
+  <h2>10) Автотесты</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesFeatureTest.php</code> — базовый CRUD, права store</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAccessFeatureTest.php</code> — guest / view / manage</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesAjaxContractFeatureTest.php</code> — JSON-контракт, columns-settings, data</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code> — redirect 302 без AJAX</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesSmRegisterFeatureTest.php</code> — sm-register/patch/refresh/pull</li>
+      <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesGuardrailsFeatureTest.php</code> — guardrails CRM</li>
+      <li><code>tests/Feature/Crm/PartnerLegalEntities/LegalEntityResolverTest.php</code>, <code>LegalEntityResolverGuardrailsTest.php</code></li>
+      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code> — привязка группы, fallback-метка</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show</li>
+    </ul>
+  </div>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/LegalEntities/ tests/Feature/Crm/PartnerLegalEntities/ tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code></pre>
+</div>
+</body>
+</html>

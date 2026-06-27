@@ -22,6 +22,7 @@ class Team extends Model
     protected $casts = [
         'is_enabled' => 'bool',
         'partner_id' => 'int',
+        'legal_entity_id' => 'int',
         'location_id' => 'int',
         'sport_type_id' => 'int',
         'default_duration_minutes' => 'int',
@@ -61,6 +62,11 @@ class Team extends Model
     public function partner()
     {
         return $this->belongsTo(Partner::class, 'partner_id');
+    }
+
+    public function legalEntity(): BelongsTo
+    {
+        return $this->belongsTo(PartnerLegalEntity::class, 'legal_entity_id');
     }
 
     public function sportType()

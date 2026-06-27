@@ -6,6 +6,7 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
 use App\Models\District;
 use App\Models\Location;
+use App\Models\PartnerLegalEntity;
 use App\Models\SportType;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -26,6 +27,7 @@ use App\Support\BuildsLogTable;
 use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\Auth;
 use App\Services\PartnerContext;
+use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use App\Support\PartnerAdminUserOptions;
 
 class TeamController extends AdminBaseController
@@ -39,6 +41,7 @@ class TeamController extends AdminBaseController
         TeamService $service,
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly LegalEntityResolver $legalEntityResolver,
     )
     {
         parent::__construct($partnerContext);
@@ -57,11 +60,22 @@ class TeamController extends AdminBaseController
         $locationOptions = $this->locationOptionsForPartner($partnerId);
         $districtOptions = $this->districtOptionsForPartner($partnerId);
         $sportTypeOptions = $this->sportTypeOptionsForPartner($partnerId);
+        $legalEntityOptions = $this->legalEntityOptionsForPartner($partnerId);
+        $multiLegalEntityMode = $legalEntityOptions->count() >= 2;
         $adminOptions = auth()->user()?->can('locations.view')
             ? PartnerAdminUserOptions::forPartner($partnerId)
             : collect();
 
-        return view('admin.team', compact('weekdays', 'trainerOptions', 'locationOptions', 'districtOptions', 'sportTypeOptions', 'adminOptions'));
+        return view('admin.team', compact(
+            'weekdays',
+            'trainerOptions',
+            'locationOptions',
+            'districtOptions',
+            'sportTypeOptions',
+            'legalEntityOptions',
+            'multiLegalEntityMode',
+            'adminOptions',
+        ));
     }
 
     /**
@@ -129,6 +143,8 @@ class TeamController extends AdminBaseController
         $filterActor = auth()->user();
         $canViewLocations = $filterActor?->can('locations.view') ?? false;
         $canViewSportTypes = $filterActor?->can('sport_types.view') ?? false;
+        $canViewLegalEntities = $filterActor?->can('legal_entities.view') ?? false;
+        $multiLegalEntityMode = $canViewLegalEntities && $this->activeLegalEntitiesCount($partnerId) >= 2;
 
         // фильтр: объект
         $locationFilter = $validated['location_id'] ?? null;
@@ -305,6 +321,9 @@ class TeamController extends AdminBaseController
         if ($canViewSportTypes) {
             $with[] = 'sportType';
         }
+        if ($multiLegalEntityMode) {
+            $with[] = 'legalEntity';
+        }
 
         $teams = $baseQuery
             ->with($with)
@@ -312,7 +331,7 @@ class TeamController extends AdminBaseController
             ->take($length)
             ->get();
 
-        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes) {
+        $data = $teams->map(function (Team $team) use ($canViewLocations, $canViewSportTypes, $multiLegalEntityMode) {
             // Собираем список дней недели (title)
             $weekdaysLabel = '';
             $weekdaysItems = [];
@@ -344,6 +363,26 @@ class TeamController extends AdminBaseController
                 $address = (string) ($team->location->address ?? '');
             }
 
+            $legalEntityLabel = '';
+            $legalEntityFallback = false;
+            if ($multiLegalEntityMode) {
+                $resolution = $this->legalEntityResolver->forTeam($team);
+                $explicitBindingActive = $team->legal_entity_id
+                    && $resolution->entity
+                    && (int) $resolution->entity->id === (int) $team->legal_entity_id;
+
+                if ($explicitBindingActive) {
+                    $legalEntityLabel = (string) $resolution->entity->title;
+                    $legalEntityFallback = false;
+                } else {
+                    $legalEntityFallback = true;
+                    $legalEntityLabel = 'По умолчанию';
+                    if ($resolution->entity !== null) {
+                        $legalEntityLabel = 'По умолчанию: ' . $resolution->entity->title;
+                    }
+                }
+            }
+
             return [
                 'id'             => $team->id,
                 'order_by'       => $team->order_by,
@@ -351,6 +390,8 @@ class TeamController extends AdminBaseController
                 'sport_type_label' => ($canViewSportTypes && $team->relationLoaded('sportType'))
                     ? ($team->sportType?->name ?? '')
                     : '',
+                'legal_entity_label' => $legalEntityLabel,
+                'legal_entity_fallback' => $legalEntityFallback,
                 'trainer_label'  => $trainerLabel,
                 'locations_label'      => $locationName,
                 'locations_label_full' => $locationName,
@@ -390,6 +431,10 @@ class TeamController extends AdminBaseController
             unset($data['sport_type_id']);
         }
 
+        if (! $request->user()->can('legal_entities.view')) {
+            unset($data['legal_entity_id']);
+        }
+
         $team = $this->service->storeWithLogging($data, $authorId);
 
         if ($request->ajax()) {
@@ -416,6 +461,9 @@ class TeamController extends AdminBaseController
         }
         if (auth()->user()?->can('sport_types.view')) {
             $with[] = 'sportType';
+        }
+        if (auth()->user()?->can('legal_entities.view')) {
+            $with[] = 'legalEntity';
         }
 
         $team = Team::with($with)
@@ -444,6 +492,10 @@ class TeamController extends AdminBaseController
 
         if (auth()->user()?->can('sport_types.view')) {
             $payload['sport_type_id'] = $team->sport_type_id ? (int) $team->sport_type_id : null;
+        }
+
+        if (auth()->user()?->can('legal_entities.view')) {
+            $payload['legal_entity_id'] = $team->legal_entity_id ? (int) $team->legal_entity_id : null;
         }
 
         return response()->json($payload);
@@ -477,6 +529,10 @@ class TeamController extends AdminBaseController
 
         if (! $request->user()->can('sport_types.view')) {
             unset($data['sport_type_id']);
+        }
+
+        if (! $request->user()->can('legal_entities.view')) {
+            unset($data['legal_entity_id']);
         }
 
         // Попытка загрузить команду по ID и партнёру
@@ -587,6 +643,24 @@ class TeamController extends AdminBaseController
                 }
             }
 
+            if (array_key_exists('legal_entity_id', $data)) {
+                $oldLegalEntityId = $oldData->legal_entity_id;
+                $newLegalEntityId = $data['legal_entity_id'] !== null && $data['legal_entity_id'] !== ''
+                    ? (int) $data['legal_entity_id']
+                    : null;
+
+                if ((string) ($oldLegalEntityId ?? '') !== (string) ($newLegalEntityId ?? '')) {
+                    $entityNames = PartnerLegalEntity::query()
+                        ->where('partner_id', $partnerId)
+                        ->whereIn('id', array_filter([$oldLegalEntityId, $newLegalEntityId]))
+                        ->pluck('title', 'id');
+
+                    $oldLabel = $oldLegalEntityId ? ($entityNames[$oldLegalEntityId] ?? "ID {$oldLegalEntityId}") : 'по умолчанию';
+                    $newLabel = $newLegalEntityId ? ($entityNames[$newLegalEntityId] ?? "ID {$newLegalEntityId}") : 'по умолчанию';
+                    $changes[] = "Юр. лицо: {$oldLabel} → {$newLabel}";
+                }
+            }
+
             // ✅ Обновление данных через сервис
             $this->service->update($team, $data);
 
@@ -682,6 +756,28 @@ class TeamController extends AdminBaseController
             ->orderBy('sort')
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    private function legalEntityOptionsForPartner(int $partnerId)
+    {
+        if (! auth()->user()?->can('legal_entities.view')) {
+            return collect();
+        }
+
+        return PartnerLegalEntity::query()
+            ->where('partner_id', $partnerId)
+            ->active()
+            ->orderByDesc('is_default')
+            ->orderBy('title')
+            ->get(['id', 'title', 'is_default']);
+    }
+
+    private function activeLegalEntitiesCount(int $partnerId): int
+    {
+        return PartnerLegalEntity::query()
+            ->where('partner_id', $partnerId)
+            ->active()
+            ->count();
     }
 
     public function log(FilterRequest $request)

@@ -30,4 +30,12 @@
                role="tab">Виды спорта</a>
         </li>
     @endcan
+
+    @can('legal_entities.view')
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ ($activeTab ?? '') === 'legal-entities' ? 'active' : '' }}"
+               href="{{ route('admin.legal-entities.index') }}"
+               role="tab">Юр. лица</a>
+        </li>
+    @endcan
 </ul>

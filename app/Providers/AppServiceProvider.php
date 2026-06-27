@@ -17,7 +17,9 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
+use App\Models\PartnerLegalEntity;
 
 use App\Services\Signatures\SignatureProvider;
 use App\Services\Signatures\Providers\PodpislonProvider;
@@ -73,6 +75,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Route::bind('legalEntity', fn (string $value) => PartnerLegalEntity::query()->whereKey($value)->firstOrFail());
+
         if (app()->environment(['local','development','testing'])) {
 
 //            DB::listen(function ($query) {

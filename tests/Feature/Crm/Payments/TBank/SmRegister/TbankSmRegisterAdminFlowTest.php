@@ -6,6 +6,9 @@ use App\Services\Tinkoff\SmRegisterClient;
 use Mockery;
 use Tests\Feature\Crm\CrmTestCase;
 
+/**
+ * Legacy partner sm-register маршруты отключены — регистрация в справочнике «Юр. лица».
+ */
 class TbankSmRegisterAdminFlowTest extends CrmTestCase
 {
     private function validRegisterPayload(array $overrides = []): array
@@ -30,72 +33,47 @@ class TbankSmRegisterAdminFlowTest extends CrmTestCase
         ], $overrides);
     }
 
-    public function test_sm_register_success_saves_shopcode_and_partner_fields(): void
+    public function test_legacy_sm_register_redirects_to_legal_entities_index(): void
     {
         $this->asSuperadmin();
-
-        $sm = Mockery::mock(SmRegisterClient::class);
-        $sm->shouldReceive('register')->andReturn(['shopCode' => 'SHOP-777', 'status' => 'registered']);
-        $this->app->instance(SmRegisterClient::class, $sm);
 
         $this->post(route('tinkoff.partners.smRegister', ['id' => $this->partner->id]), $this->validRegisterPayload())
-            ->assertStatus(302)
-            ->assertSessionHas('ok');
+            ->assertRedirect(route('admin.legal-entities.index'))
+            ->assertSessionHas('warning');
 
         $this->partner->refresh();
-        $this->assertSame('SHOP-777', (string) $this->partner->tinkoff_partner_id);
-        $this->assertSame('Назначение платежа', (string) $this->partner->sm_details_template);
-        $this->assertSame('044525974', (string) $this->partner->bank_bik);
+        $this->assertNull($this->partner->tinkoff_partner_id);
     }
 
-    public function test_sm_register_validation_errors_return_302_with_session_errors(): void
-    {
-        $this->asSuperadmin();
-
-        $payload = $this->validRegisterPayload();
-        unset($payload['tax_id']);
-
-        $this->post(route('tinkoff.partners.smRegister', ['id' => $this->partner->id]), $payload)
-            ->assertStatus(302)
-            ->assertSessionHasErrors(['tax_id']);
-    }
-
-    public function test_sm_register_client_error_returns_422_json_for_ajax(): void
+    public function test_legacy_sm_register_returns_410_json_for_ajax(): void
     {
         $this->asSuperadmin();
 
         $sm = Mockery::mock(SmRegisterClient::class);
-        $sm->shouldReceive('register')->andThrow(new \RuntimeException('boom'));
+        $sm->shouldNotReceive('register');
         $this->app->instance(SmRegisterClient::class, $sm);
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->postJson(route('tinkoff.partners.smRegister', ['id' => $this->partner->id]), $this->validRegisterPayload())
-            ->assertStatus(422)
+            ->assertStatus(410)
             ->assertJson(['ok' => false]);
     }
 
-    public function test_sm_patch_requires_existing_partner_id(): void
+    public function test_legacy_sm_patch_is_deprecated(): void
     {
         $this->asSuperadmin();
-
-        $this->partner->tinkoff_partner_id = null;
-        $this->partner->save();
 
         $this->post(route('tinkoff.partners.smPatch', ['id' => $this->partner->id]), $this->validRegisterPayload())
-            ->assertStatus(302)
-            ->assertSessionHasErrors(['sm']);
+            ->assertRedirect(route('admin.legal-entities.index'))
+            ->assertSessionHas('warning');
     }
 
-    public function test_sm_refresh_requires_existing_partner_id(): void
+    public function test_legacy_sm_refresh_is_deprecated(): void
     {
         $this->asSuperadmin();
 
-        $this->partner->tinkoff_partner_id = null;
-        $this->partner->save();
-
         $this->post(route('tinkoff.partners.smRefresh', ['id' => $this->partner->id]))
-            ->assertStatus(302)
-            ->assertSessionHasErrors(['sm']);
+            ->assertRedirect(route('admin.legal-entities.index'))
+            ->assertSessionHas('warning');
     }
 }
-

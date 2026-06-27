@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class TinkoffPayment extends Model
 {
     protected $fillable = [
-        'order_id','partner_id','amount','method','status','tinkoff_payment_id',
+        'order_id','partner_id','legal_entity_id','amount','method','status','tinkoff_payment_id',
         'deal_id','payment_url','payload','confirmed_at','canceled_at',
     ];
 
@@ -18,5 +18,6 @@ class TinkoffPayment extends Model
     ];
 
     public function partner() { return $this->belongsTo(\App\Models\Partner::class); }
+    public function legalEntity() { return $this->belongsTo(PartnerLegalEntity::class, 'legal_entity_id'); }
     public function payout()  { return $this->hasOne(TinkoffPayout::class, 'payment_id'); }
 }

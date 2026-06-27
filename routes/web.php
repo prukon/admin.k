@@ -653,6 +653,43 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.sport-types.destroy');
     });
 
+    // Юр. лица
+    Route::middleware('can:legal_entities.view')->group(function () {
+        Route::get('admin/legal-entities', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'index'])->name('admin.legal-entities.index');
+        Route::get('admin/legal-entities/data', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'data'])->name('admin.legal-entities.data');
+        Route::get('admin/legal-entities/columns-settings', [\App\Http\Controllers\Admin\PartnerLegalEntityColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.legal-entities.columns-settings.get');
+        Route::post('admin/legal-entities/columns-settings', [\App\Http\Controllers\Admin\PartnerLegalEntityColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.legal-entities.columns-settings.save');
+        Route::get('admin/legal-entities/logs-data', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'log'])->name('logs.data.legal-entity');
+        Route::get('admin/legal-entities/{legalEntity}', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'show'])->whereNumber('legalEntity')->name('admin.legal-entities.show');
+        Route::post('admin/legal-entities', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'store'])
+            ->middleware('can:legal_entities.manage')
+            ->name('admin.legal-entities.store');
+        Route::put('admin/legal-entities/{legalEntity}', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'update'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.update');
+        Route::delete('admin/legal-entities/{legalEntity}', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'destroy'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.destroy');
+        Route::post('admin/legal-entities/{legalEntity}/sm-register', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'smRegister'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.sm-register');
+        Route::post('admin/legal-entities/{legalEntity}/sm-patch', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'smPatch'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.sm-patch');
+        Route::post('admin/legal-entities/{legalEntity}/sm-refresh', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'smRefresh'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.sm-refresh');
+        Route::post('admin/legal-entities/{legalEntity}/sm-pull', [\App\Http\Controllers\Admin\PartnerLegalEntityController::class, 'smPull'])
+            ->middleware('can:legal_entities.manage')
+            ->whereNumber('legalEntity')
+            ->name('admin.legal-entities.sm-pull');
+    });
+
     // Расписание школы (слоты)
     Route::middleware('can:scheduleSlots.table')->group(function () {
         Route::get('admin/team-schedule-slots', function () {

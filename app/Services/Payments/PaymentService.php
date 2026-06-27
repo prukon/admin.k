@@ -3,11 +3,20 @@
 namespace App\Services\Payments;
 
 use App\Models\Partner;
+use App\Models\Payable;
 use App\Models\PaymentSystem;
+use App\Models\Team;
+use App\Models\User;
+use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use App\Services\Tinkoff\TbankTerminalConfig;
 
 class PaymentService
 {
+    public function __construct(
+        private readonly LegalEntityResolver $legalEntityResolver,
+    ) {
+    }
+
     /**
      * Робокасса доступна, если:
      * - есть запись в payment_systems для партнёра
@@ -23,25 +32,32 @@ class PaymentService
 
     /**
      * T‑Bank доступен, если:
-     * - глобальный терминал настроен и включён (payment_systems partner_id IS NULL)
-     * - у партнёра заполнен tinkoff_partner_id (ShopCode)
+     * - глобальный терминал настроен и включён
+     * - у юр. лица (или legacy partners.tinkoff_partner_id) есть ShopCode
      */
-    public function isTbankAvailable(Partner $partner): bool
+    public function isTbankAvailable(Partner $partner, ?Team $team = null): bool
     {
         if (! TbankTerminalConfig::isGloballyActive()) {
             return false;
         }
 
-        if (empty($partner->tinkoff_partner_id)) {
+        return $this->legalEntityResolver->hasRegisteredShopCode($partner, $team);
+    }
+
+    public function isTbankAvailableForPayable(Partner $partner, Payable $payable, ?User $user = null): bool
+    {
+        if (! TbankTerminalConfig::isGloballyActive()) {
             return false;
         }
 
-        return true;
+        $resolution = $this->legalEntityResolver->forPayable($payable, $user);
+
+        return $this->legalEntityResolver->shopCode($partner, $resolution) !== null;
     }
 
-        public function isTbankSbpAvailable(Partner $partner, ?int $amountCents): bool
+    public function isTbankSbpAvailable(Partner $partner, ?int $amountCents, ?Team $team = null): bool
     {
-        if (!$this->isTbankAvailable($partner)) {
+        if (! $this->isTbankAvailable($partner, $team)) {
             return false;
         }
 
@@ -52,20 +68,18 @@ class PaymentService
         return $amountCents >= 1000;
     }
 
-
     public function amountToCents(?string $outSum): ?int
-{
-    if ($outSum === null) {
-        return null;
-    } 
+    {
+        if ($outSum === null) {
+            return null;
+        }
 
-    $norm = str_replace(',', '.', trim($outSum));
+        $norm = str_replace(',', '.', trim($outSum));
 
-    if ($norm === '' || !is_numeric($norm)) {
-        return null;
+        if ($norm === '' || ! is_numeric($norm)) {
+            return null;
+        }
+
+        return (int) round(((float) $norm) * 100);
     }
-
-    return (int) round(((float) $norm) * 100);
-}
-
 }

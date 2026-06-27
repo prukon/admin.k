@@ -223,13 +223,6 @@
                         </p>
                     </a>
                 </li>
-            <li class="nav-item">
-                <a href="/admin/tinkoff/partners/1" class="nav-link">
-                    <i class="nav-icon fa-solid fa-user-tie"></i>
-                    <p>Партнеры (новое)
-                    </p>
-                </a>
-            </li>
             @endcan
 
             {{-- T‑Bank: выплаты --}}

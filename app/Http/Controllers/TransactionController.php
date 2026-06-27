@@ -146,13 +146,17 @@ class TransactionController extends Controller
         }
 
         // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
+        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
+            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
+            : null;
+
         $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
             && $user->can('payment.method.robokassa');
-        $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
+        $tbankAvailable = $paymentService->isTbankAvailable($curPartner, $monthlyTeam)
             && $user->can('payment.method.tbankCard');
         // На странице клубного взноса сумма вводится пользователем позже,
         // поэтому не скрываем СБП по amountCents на этапе рендера.
-        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner)
+        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner, $monthlyTeam)
             && $user->can('payment.method.tbankSBP');
 
         return view('payment.paymentUser', compact(

@@ -7,12 +7,18 @@ use App\Models\PaymentIntent;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
+use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class TinkoffPayoutsService
 {
+    public function __construct(
+        private readonly LegalEntityResolver $legalEntityResolver,
+    ) {
+    }
+
     /**
      * Раскладка по комиссиям для UI/диагностики.
      *
@@ -136,8 +142,18 @@ class TinkoffPayoutsService
             }
 
             $partner = Partner::findOrFail($payment->partner_id);
-            if (!$partner->tinkoff_partner_id || !$payment->deal_id) {
+            $resolution = $this->legalEntityResolver->forTinkoffPayment($payment);
+            $shopCode = $this->legalEntityResolver->shopCode($partner, $resolution);
+
+            if (! $shopCode || ! $payment->deal_id) {
                 throw new \RuntimeException('Missing PartnerId or DealId');
+            }
+
+            $legalEntityId = $this->legalEntityResolver->resolveLegalEntityId($resolution);
+
+            if (! $payment->legal_entity_id && $legalEntityId) {
+                $payment->legal_entity_id = $legalEntityId;
+                $payment->save();
             }
 
             $breakdown = $this->breakdownForPayment($payment);
@@ -147,6 +163,7 @@ class TinkoffPayoutsService
             $payout = TinkoffPayout::create([
                 'payment_id' => (int) $payment->id,
                 'partner_id' => (int) $partner->id,
+                'legal_entity_id' => $legalEntityId,
                 'deal_id'    => (string) $payment->deal_id,
 
                 // amount (как было) — сумма к выплате (net, копейки)
@@ -194,10 +211,28 @@ class TinkoffPayoutsService
         $partner = Partner::findOrFail($payout->partner_id);
         $cfg = $this->resolveE2cConfig($partner->id);
 
+        $payment = TinkoffPayment::query()->find($payout->payment_id);
+        $resolution = $payment
+            ? $this->legalEntityResolver->forTinkoffPayment($payment)
+            : $this->legalEntityResolver->forPartner((int) $partner->id);
+
+        if ($payout->legal_entity_id === null) {
+            $legalEntityId = $this->legalEntityResolver->resolveLegalEntityId($resolution);
+            if ($legalEntityId !== null) {
+                $payout->legal_entity_id = $legalEntityId;
+                $payout->save();
+            }
+        }
+
+        $shopCode = $this->legalEntityResolver->shopCode($partner, $resolution);
+        if (! $shopCode) {
+            throw new \RuntimeException('Missing PartnerId (ShopCode)');
+        }
+
         // e2c/v2/Init
         $init = [
             'TerminalKey'  => $cfg['terminal_key'],
-            'PartnerId'    => $partner->tinkoff_partner_id,
+            'PartnerId'    => $shopCode,
             'DealId'       => $payout->deal_id,
             // Важно: банк требует OrderId (иначе ErrorCode=9999 "Поле OrderId не должно быть пустым")
             // Используем стабильный id для идемпотентности ретраев.

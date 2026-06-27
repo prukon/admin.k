@@ -99,13 +99,14 @@
     <li><code>tryPaymentConfig()</code> / <code>tryE2cConfig()</code> — без исключения, <code>null</code> если не настроено</li>
   </ul>
 
-  <h3>4.3 Доступность T‑Bank у партнёра на витрине</h3>
-  <p><code>PaymentService::isTbankAvailable($partner)</code> возвращает <code>true</code>, если одновременно:</p>
+  <h3 id="tbank-availability">4.3 Доступность T‑Bank у партнёра на витрине</h3>
+  <p><code>PaymentService::isTbankAvailable($partner, ?Team $team)</code> возвращает <code>true</code>, если одновременно:</p>
   <ol>
     <li><code>TbankTerminalConfig::isGloballyActive()</code> — глобальный терминал включён и ключи заполнены;</li>
-    <li>у партнёра заполнен <code>partners.tinkoff_partner_id</code> (ShopCode из sm-register);</li>
+    <li>есть ShopCode у юр. лица, выбранного <code>LegalEntityResolver</code> для партнёра/группы, <b>или</b> (legacy fallback) заполнен <code>partners.tinkoff_partner_id</code>;</li>
     <li>на витрине дополнительно проверяются права пользователя: <code>payment.method.tbankCard</code> / <code>payment.method.tbankSBP</code>.</li>
   </ol>
+  <p>Для payable с контекстом группы: <code>isTbankAvailableForPayable()</code>. См. <a href="/docs/documentation/admin-legal-entities#1-1">admin-legal-entities §1.1</a>.</p>
   <p>СБП: <code>isTbankSbpAvailable($partner, $amountCents)</code> — то же + сумма от 10 ₽ (1000 коп.).</p>
 
   <h3>4.4 UI на странице настроек</h3>
@@ -140,7 +141,7 @@
     <li>Выставить <code>is_enabled</code> и при необходимости <code>test_mode</code>.</li>
     <li>Удалить устаревшие <code>payment_systems(name=tbank, partner_id IS NOT NULL)</code>.</li>
     <li>Для каждого партнёра настроить автовыплату в правилах комиссий (<code>/admin/settings/tbank-commissions/{id}/edit</code>).</li>
-    <li>Убедиться, что у партнёров заполнен <code>tinkoff_partner_id</code>.</li>
+    <li>Убедиться, что у партнёра зарегистрировано хотя бы одно юр. лицо с ShopCode в справочнике <a href="/docs/documentation/admin-legal-entities">«Юр. лица»</a> (или временно заполнен legacy <code>partners.tinkoff_partner_id</code>).</li>
   </ol>
   <p class="small">Автоматической миграции данных в релизе нет — по решению владельца платформы.</p>
 

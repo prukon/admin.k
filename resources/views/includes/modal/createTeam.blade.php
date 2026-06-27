@@ -54,6 +54,26 @@
                     @endif
                     @endcan
 
+                    @can('legal_entities.view')
+                    @if(($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label for="legal_entity_id" class="form-label">Юр. лицо</label>
+                        <select name="legal_entity_id" class="form-select" id="legal_entity_id">
+                            <option value="">— По умолчанию —</option>
+                            @foreach($legalEntityOptions as $legalEntity)
+                                <option value="{{ $legalEntity->id }}">
+                                    {{ $legalEntity->title }}@if($legalEntity->is_default) (основное)@endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text text-warning-emphasis" id="legal-entity-fallback-hint">
+                            Если не выбрано — для платежей группы используется юр. лицо с флагом «Основное».
+                        </div>
+                        <div id="legal_entity_id-error" class="invalid-feedback"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="mb-3">
                         <label for="default_duration_minutes" class="form-label">
                             Длительность по умолчанию (мин)
@@ -228,6 +248,14 @@
                             if (errors.location_id?.length) {
                                 if (locationIdInput) locationIdInput.classList.add('is-invalid');
                                 if (locationIdError) locationIdError.textContent = errors.location_id[0];
+                            }
+                            const legalEntityInput = document.getElementById('legal_entity_id');
+                            const legalEntityError = document.getElementById('legal_entity_id-error');
+                            if (legalEntityInput) legalEntityInput.classList.remove('is-invalid');
+                            if (legalEntityError) legalEntityError.textContent = '';
+                            if (errors.legal_entity_id?.length) {
+                                if (legalEntityInput) legalEntityInput.classList.add('is-invalid');
+                                if (legalEntityError) legalEntityError.textContent = errors.legal_entity_id[0];
                             }
                             return;
                         }

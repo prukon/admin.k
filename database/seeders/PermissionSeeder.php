@@ -64,6 +64,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'locations.manage',               'description' => 'Справочники: объекты (создание/редактирование)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 38],
             ['name' => 'sport_types.view',             'description' => 'Страница "Виды спорта"',                          'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 39],
             ['name' => 'sport_types.manage',           'description' => 'Виды спорта: создание/редактирование',          'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 40],
+            ['name' => 'legal_entities.view',          'description' => 'Справочники: юр. лица (просмотр)',              'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 41],
+            ['name' => 'legal_entities.manage',        'description' => 'Справочники: юр. лица (создание/редактирование)', 'group_slug' => 'directories', 'is_visible' => 0, 'sort_order' => 42],
             // group_slug lessonPackages
             ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 35],
             ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],

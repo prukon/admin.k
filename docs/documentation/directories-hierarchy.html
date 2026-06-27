@@ -35,11 +35,12 @@
     «<b>Объект</b>» = модель <code>Location</code>, таблица <code>locations</code> (в старой документации могло быть «локация» — в UI CRM с 2026-06 заменено на «Объект»).<br>
     «<b>Группа</b>» / «Услуга» = модель <code>Team</code> (секция на лендинге).<br>
     «<b>Вид спорта</b>» = модель <code>SportType</code>, таблица <code>sport_types</code> — <b>плоский</b> справочник партнёра (не в иерархии район→объект), но в CRM объединён с районами и объектами в одном разделе меню.<br>
-    Меню CRM: один пункт сайдбара (иконка «книга») — при одном доступном справочнике называется как он (<b>Группы</b>, <b>Объекты</b>, <b>Районы</b>, <b>Виды спорта</b>), при двух и более — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). На страницах CRM заголовок раздела всегда «Справочники»; вкладки: <b>Группы</b> · <b>Объекты</b> · <b>Районы</b> · <b>Виды спорта</b> (каждая — по своему permission).
+    «<b>Юр. лицо</b>» = модель <code>PartnerLegalEntity</code>, таблица <code>partner_legal_entities</code> — реквизиты и ShopCode T‑Bank (sm-register); привязка к группам через <code>teams.legal_entity_id</code> (см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>).<br>
+    Меню CRM: один пункт сайдбара (иконка «книга») — при одном доступном справочнике называется как он (<b>Группы</b>, <b>Объекты</b>, <b>Районы</b>, <b>Виды спорта</b>, <b>Юр. лица</b>), при двух и более — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Для пункта меню дополнительно нужно право <code>directories.view</code>. На страницах CRM заголовок раздела всегда «Справочники»; вкладки: <b>Группы</b> · <b>Объекты</b> · <b>Районы</b> · <b>Виды спорта</b> · <b>Юр. лица</b> (каждая — по своему permission).
   </div>
 
   <h2>1) Единый UI раздела «Справочники»</h2>
-  <p>Четыре справочные страницы CRM объединены одним заголовком, общим partial вкладок и одним пунктом сайдбара. URL страниц <strong>не менялись</strong>.</p>
+  <p>Пять справочных страниц CRM объединены одним заголовком, общим partial вкладок и одним пунктом сайдбара. URL страниц <strong>не менялись</strong>. С 2026-06 добавлена вкладка <b>«Юр. лица»</b> (<code>/admin/legal-entities</code>).</p>
   <table>
     <thead>
       <tr><th>Вкладка</th><th>URL</th><th>View</th><th><code>$activeTab</code></th><th>Permission</th></tr>
@@ -49,9 +50,10 @@
       <tr><td>Объекты</td><td><code>/admin/locations</code></td><td><code>admin/locations/index.blade.php</code></td><td><code>objects</code></td><td><code>locations.view</code></td></tr>
       <tr><td>Районы</td><td><code>/admin/districts</code></td><td><code>admin/districts/index.blade.php</code></td><td><code>districts</code></td><td><code>districts.view</code></td></tr>
       <tr><td>Виды спорта</td><td><code>/admin/sport-types</code></td><td><code>admin/sport-types/index.blade.php</code></td><td><code>sport-types</code></td><td><code>sport_types.view</code></td></tr>
+      <tr><td>Юр. лица</td><td><code>/admin/legal-entities</code></td><td><code>admin/legal-entities/index.blade.php</code></td><td><code>legal-entities</code></td><td><code>legal_entities.view</code></td></tr>
     </tbody>
   </table>
-  <p>Порядок вкладок на всех страницах: <b>Группы → Объекты → Районы → Виды спорта</b>. Partial: <code>resources/views/admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). На каждой странице — заголовок «Справочники», ниже вкладки, ниже toolbar конкретного справочника.</p>
+  <p>Порядок вкладок на всех страницах: <b>Группы → Объекты → Районы → Виды спорта → Юр. лица</b>. Partial: <code>resources/views/admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). На каждой странице — заголовок «Справочники», ниже вкладки, ниже toolbar конкретного справочника.</p>
 
   <h3 id="1-1">1.1) Подпись пункта сайдбара — <code>DirectoriesMenu</code></h3>
   <p>Класс <code>App\Support\DirectoriesMenu</code>, метод <code>forUser(?Authenticatable $user): ?array</code>. Возвращает <code>null</code>, если нет ни одного из прав справочников; иначе <code>['url' => …, 'label' => …]</code>.</p>
@@ -64,10 +66,11 @@
       <tr><td>1 — только <code>locations.view</code></td><td><b>Объекты</b></td><td><code>/admin/locations</code></td></tr>
       <tr><td>1 — только <code>districts.view</code></td><td><b>Районы</b></td><td><code>/admin/districts</code></td></tr>
       <tr><td>1 — только <code>sport_types.view</code></td><td><b>Виды спорта</b></td><td><code>/admin/sport-types</code></td></tr>
+      <tr><td>1 — только <code>legal_entities.view</code></td><td><b>Юр. лица</b></td><td><code>/admin/legal-entities</code></td></tr>
       <tr><td>2 и более</td><td><b>Справочники</b></td><td>первая доступная вкладка по приоритету (см. ниже)</td></tr>
     </tbody>
   </table>
-  <p>Приоритет URL (независимо от подписи): <b>группы</b> → <b>объекты</b> → <b>районы</b> → <b>виды спорта</b>. Подключение: <code>resources/views/includes/sidebar.blade.php</code> — один пункт с иконкой <code>fa-book</code>. Отдельных пунктов «Группы» / «Виды спорта» в сайдбаре <strong>нет</strong> (ни при одном, ни при нескольких справочниках).</p>
+  <p>Приоритет URL (независимо от подписи): <b>группы</b> → <b>объекты</b> → <b>районы</b> → <b>виды спорта</b> → <b>юр. лица</b>. Подключение: <code>resources/views/includes/sidebar.blade.php</code> — один пункт с иконкой <code>fa-book</code> при наличии <code>directories.view</code>. Отдельных пунктов «Группы» / «Виды спорта» / «Юр. лица» в сайдбаре <strong>нет</strong> (ни при одном, ни при нескольких справочниках).</p>
   <div class="note">
     <b>Заголовок страницы vs сайдбар:</b> на HTML-страницах справочников (<code>&lt;h4&gt;Справочники&lt;/h4&gt;</code>) заголовок <strong>не меняется</strong> — динамическая подпись только у пункта левого меню. У партнёра с единственным правом, например, <code>groups.view</code>, в сайдбаре «Группы», на странице <code>/admin/teams</code> — «Справочники» и вкладка «Группы».
   </div>
@@ -114,6 +117,16 @@ school_leads.district_id + school_leads.location_id — снимок на мом
         <td>Дополнительно к <code>sport_types.view</code>.</td>
       </tr>
       <tr>
+        <td><code>legal_entities.view</code></td>
+        <td><code>/admin/legal-entities</code>, read API юр. лиц</td>
+        <td>Без <code>legal_entities.manage</code> — только просмотр и columns-settings; sm-register и CRUD — 403. Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td>
+      </tr>
+      <tr>
+        <td><code>legal_entities.manage</code></td>
+        <td>POST/PUT/DELETE юр. лиц, sm-register/sm-patch/sm-refresh/sm-pull</td>
+        <td>Дополнительно к <code>legal_entities.view</code>.</td>
+      </tr>
+      <tr>
         <td><code>groups.view</code></td>
         <td><code>/admin/teams</code>, CRUD и data групп</td>
         <td>Вкладка «Группы» в «Справочники»; поле <code>teams.location_id</code> — см. <a href="/docs/documentation/admin-teams">admin-teams</a>. В базовых правах роли <code>admin</code>.</td>
@@ -130,7 +143,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       </tr>
     </tbody>
   </table>
-  <p><b>Сайдбар:</b> виден, если есть хотя бы одно из прав справочников. Логика подписи и URL — <code>DirectoriesMenu</code> (§1.1). Другие права пользователя (<code>users.view</code>, <code>reports.view</code> и т.д.) на подпись не влияют.</p>
+  <p><b>Сайдбар:</b> виден при <code>directories.view</code> и хотя бы одном праве справочника из таблицы выше. Логика подписи и URL — <code>DirectoriesMenu</code> (§1.1).</p>
   <p><b>Вкладки на страницах:</b> partial <code>admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). Каждая вкладка рендерится только при своём permission. Доступ к URL без права → <b>403</b> (например, <code>/admin/sport-types</code> при только <code>districts.view</code>).</p>
   <table>
     <thead>
@@ -141,8 +154,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td>только <code>locations.view</code></td><td>Объекты</td><td><code>/admin/locations</code></td><td>Объекты</td></tr>
       <tr><td>только <code>groups.view</code></td><td>Группы</td><td><code>/admin/teams</code></td><td>Группы</td></tr>
       <tr><td>только <code>sport_types.view</code></td><td>Виды спорта</td><td><code>/admin/sport-types</code></td><td>Виды спорта</td></tr>
+      <tr><td>только <code>legal_entities.view</code></td><td>Юр. лица</td><td><code>/admin/legal-entities</code></td><td>Юр. лица</td></tr>
       <tr><td>комбинация из 2+ прав</td><td>Справочники</td><td>первая по приоритету (§1.1)</td><td>только разрешённые вкладки</td></tr>
-      <tr><td>нет ни одного из четырёх</td><td>— (пункт скрыт)</td><td>—</td><td>—</td></tr>
+      <tr><td>нет <code>directories.view</code> или ни одного справочника</td><td>— (пункт скрыт)</td><td>—</td><td>—</td></tr>
     </tbody>
   </table>
 
@@ -160,6 +174,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>school_leads.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>.</td></tr>
       <tr><td><code>teams.location_id</code></td><td>Nullable FK → <code>locations</code>, <code>nullOnDelete</code>. Одна группа — один объект — см. <a href="/docs/documentation/location-team-bindings">location-team-bindings</a>.</td></tr>
       <tr><td><code>sport_types</code></td><td>Плоский справочник партнёра; <code>teams.sport_type_id</code> (nullable), <code>school_leads.sport_type_id</code> — см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>.</td></tr>
+      <tr><td><code>partner_legal_entities</code></td><td>Юр. лица партнёра: реквизиты, <code>tinkoff_shop_code</code>, <code>is_default</code>, soft delete. <code>teams.legal_entity_id</code> (nullable FK) — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td></tr>
     </tbody>
   </table>
   <p>Миграции: <code>2026_06_13_100000_create_districts_table.php</code>, <code>100001_add_district_id_to_locations_table.php</code>, <code>100002_add_district_id_to_school_leads_table.php</code>, <code>110000_add_districts_permissions.php</code>, <code>120000_remove_soft_deletes_from_districts_table.php</code>, <code>160000_add_admin_user_id_to_locations_table.php</code> (заменена на M2M), <code>170000_create_location_admin_user_table.php</code>.</p>
@@ -201,6 +216,15 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>DataTables: фильтры <code>name</code>, <code>status</code>; колонка <code>teams_count</code>.</li>
     <li>Привязка к группам — на странице <code>/admin/teams</code>, не в этом справочнике.</li>
     <li>На лендинге заявки — необязательный селект «Вид спорта» (если есть активные записи).</li>
+  </ul>
+
+  <h3>5.5) Юр. лица — <code>/admin/legal-entities</code></h3>
+  <p>Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities.html</a>.</p>
+  <ul>
+    <li>Пятая вкладка раздела «Справочники»; sm-register T‑Bank и ShopCode — на карточке юр. лица, не на партнёре.</li>
+    <li>DataTables: фильтры поиск / active-inactive; колонка <code>teams_count</code>, ShopCode, флаг «основное».</li>
+    <li>Привязка к группам — селект в модалках <code>/admin/teams</code> (если ≥2 активных юр. лиц).</li>
+    <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> (с legacy fallback на <code>partners.tinkoff_partner_id</code>).</li>
   </ul>
 
   <h2>6) Публичный лендинг — каскад выбора</h2>

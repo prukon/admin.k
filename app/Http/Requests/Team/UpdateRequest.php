@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Team;
 
+use App\Rules\PartnerLegalEntityId;
 use App\Rules\PartnerSportTypeId;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,6 +27,10 @@ class UpdateRequest extends FormRequest
 
         if ($this->has('sport_type_id') && $this->input('sport_type_id') === '') {
             $this->merge(['sport_type_id' => null]);
+        }
+
+        if ($this->has('legal_entity_id') && $this->input('legal_entity_id') === '') {
+            $this->merge(['legal_entity_id' => null]);
         }
 
         if ($this->has('month_price') && $this->input('month_price') === '') {
@@ -80,6 +85,15 @@ class UpdateRequest extends FormRequest
             ];
         }
 
+        if ($this->user()?->can('legal_entities.view')) {
+            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $rules['legal_entity_id'] = [
+                'nullable',
+                'integer',
+                new PartnerLegalEntityId($partnerId),
+            ];
+        }
+
         return $rules;
     }
 
@@ -90,6 +104,7 @@ class UpdateRequest extends FormRequest
             'trainer_profile_id' => 'тренер',
             'location_id' => 'объект',
             'sport_type_id' => 'вид спорта',
+            'legal_entity_id' => 'юр. лицо',
             'month_price' => 'стоимость по умолчанию',
         ];
     }
@@ -107,6 +122,7 @@ class UpdateRequest extends FormRequest
             'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_id.exists' => 'Выберите объект из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
+            'legal_entity_id.integer' => 'Выберите юр. лицо из списка',
         ];
     }
 }

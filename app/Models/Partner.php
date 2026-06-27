@@ -212,6 +212,11 @@ class Partner extends Model
         return $this->hasMany(SchoolLead::class);
     }
 
+    public function legalEntities()
+    {
+        return $this->hasMany(PartnerLegalEntity::class, 'partner_id');
+    }
+
     public function districts()
     {
         return $this->hasMany(District::class, 'partner_id');

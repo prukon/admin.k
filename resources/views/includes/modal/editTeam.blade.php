@@ -51,6 +51,26 @@
                     @endif
                     @endcan
 
+                    @can('legal_entities.view')
+                    @if(($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty())
+                    <div class="mb-3">
+                        <label for="edit-legal-entity-id" class="form-label">Юр. лицо</label>
+                        <select name="legal_entity_id" class="form-select" id="edit-legal-entity-id">
+                            <option value="">— По умолчанию —</option>
+                            @foreach($legalEntityOptions as $legalEntity)
+                                <option value="{{ $legalEntity->id }}">
+                                    {{ $legalEntity->title }}@if($legalEntity->is_default) (основное)@endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text text-warning-emphasis">
+                            Если не выбрано — для платежей группы используется юр. лицо с флагом «Основное».
+                        </div>
+                        <div class="invalid-feedback" id="edit-legal-entity-id-error"></div>
+                    </div>
+                    @endif
+                    @endcan
+
                     <div class="mb-3">
                         <label for="edit-default_duration_minutes" class="form-label">
                             Длительность по умолчанию (мин)
@@ -174,7 +194,11 @@
                     if ($('#edit-location-id').length) {
                         $('#edit-location-id').val(response.location_id ?? '');
                     }
-                    $('#edit-location_id-error').text('');
+
+                    if ($('#edit-legal-entity-id').length) {
+                        $('#edit-legal-entity-id').val(response.legal_entity_id ?? '');
+                    }
+                    $('#edit-legal-entity-id-error').text('');
 
                     // Расписание: чекбоксы дней недели
                     if (canViewTeamSchedule && $('#edit-weekdays').length) {
@@ -234,6 +258,8 @@
             $('#edit-sport-type-id-error').text('');
             $('#edit-location_id-error').text('');
             $('#edit-location-id').removeClass('is-invalid');
+            $('#edit-legal-entity-id').removeClass('is-invalid');
+            $('#edit-legal-entity-id-error').text('');
 
             $.ajax({
                 url: `/admin/team/${teamId}`,
@@ -273,6 +299,10 @@
                         if (errors.location_id && errors.location_id.length) {
                             $('#edit-location-id').addClass('is-invalid');
                             $('#edit-location_id-error').text(errors.location_id[0]);
+                        }
+                        if (errors.legal_entity_id && errors.legal_entity_id.length) {
+                            $('#edit-legal-entity-id').addClass('is-invalid');
+                            $('#edit-legal-entity-id-error').text(errors.legal_entity_id[0]);
                         }
                         return;
                     }
