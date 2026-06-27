@@ -175,6 +175,14 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'q' => '',
         ]))->assertOk();
 
+        $this->getJson(route('admin.lesson-packages.assignments.columns-settings.get'))
+            ->assertOk()
+            ->assertExactJson([]);
+
+        $this->postJson(route('admin.lesson-packages.assignments.columns-settings.save'), [
+            'columns' => ['student' => true, 'fee' => true],
+        ])->assertOk()->assertJson(['success' => true]);
+
         $this->getJson(route('admin.lesson-packages.school-schedule.trial-registration-eligibility', [
             'user_id' => 0,
             'team_schedule_slot_id' => 0,
@@ -302,6 +310,10 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'start' => 0,
             'length' => 10,
         ]))->assertForbidden();
+        $this->getJson(route('admin.lesson-packages.assignments.columns-settings.get'))->assertForbidden();
+        $this->postJson(route('admin.lesson-packages.assignments.columns-settings.save'), [
+            'columns' => ['student' => true],
+        ])->assertForbidden();
         $this->get(route('admin.lesson-packages.school-schedule'))->assertForbidden();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
 

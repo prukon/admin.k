@@ -1,21 +1,181 @@
+@php
+    $filters = $filters ?? [];
+    $assignmentsFilterUser = $assignmentsFilterUser ?? null;
+    $canViewLocations = $canViewLocations ?? (auth()->user() && auth()->user()->can('locations.view'));
+    $activeLocations = $activeLocations ?? collect();
+    $assignmentsFilterKeys = ['filter_user_id', 'filter_schedule_type', 'filter_payment_status', 'filter_lessons_remaining', 'filter_location_id'];
+    $assignmentsFilterLocation = $filters['filter_location_id'] ?? '';
+    $assignmentsHasActiveFilters = false;
+    foreach ($assignmentsFilterKeys as $k) {
+        $v = $filters[$k] ?? null;
+        if ($v !== null && $v !== '') {
+            $assignmentsHasActiveFilters = true;
+            break;
+        }
+    }
+@endphp
+
+@vite(['resources/css/admin-list-toolbar.css'])
+
 <div class="tab-content">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-        <h4 class="mb-0">Назначение абонементов</h4>
-        @can('lessonPackages.view')
-            <button type="button"
-                    class="btn btn-primary"
-                    data-bs-toggle="modal"
-                    data-bs-target="#ulpAssignmentCreateModal">
-                Назначить абонемент
-            </button>
-        @endcan
+    <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+        <div class="card-body px-3 py-3">
+            <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Назначение абонементов</h1>
+                <div class="d-flex flex-nowrap align-items-center gap-2 gap-md-3 min-w-0 flex-shrink-0">
+                    <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions flex-shrink-0">
+                        @can('lessonPackages.view')
+                            <button type="button"
+                                    class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#ulpAssignmentCreateModal"
+                                    title="Назначить абонемент">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-plus payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Назначить абонемент</span>
+                            </button>
+                        @endcan
+
+                        <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#ulpAssignmentsFiltersCollapse"
+                                aria-expanded="{{ $assignmentsHasActiveFilters ? 'true' : 'false' }}"
+                                aria-controls="ulpAssignmentsFiltersCollapse"
+                                id="ulpAssignmentsFiltersToggle">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown payments-report-toolbar-dropdown">
+                            <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                    type="button"
+                                    id="columnsDropdownUlpAssignments"
+                                    data-bs-toggle="dropdown"
+                                    data-bs-auto-close="outside"
+                                    aria-expanded="false"
+                                    aria-haspopup="true"
+                                    title="Какие колонки показывать в таблице">
+                                <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                    <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                                </span>
+                                <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                                <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                            </button>
+
+                            <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                                 aria-labelledby="columnsDropdownUlpAssignments">
+                                <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColStudent" data-column-key="student" checked>
+                                    <label class="form-check-label" for="ulpColStudent">Ученик</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColFee" data-column-key="fee" checked>
+                                    <label class="form-check-label" for="ulpColFee">Сумма</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPaid" data-column-key="paid" checked>
+                                    <label class="form-check-label" for="ulpColPaid">Оплачен</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColBalance" data-column-key="balance" checked>
+                                    <label class="form-check-label" for="ulpColBalance">Остаток</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPayLink" data-column-key="pay_link" checked>
+                                    <label class="form-check-label" for="ulpColPayLink">Ссылка на оплату</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPackage" data-column-key="package_name" checked>
+                                    <label class="form-check-label" for="ulpColPackage">Абонемент</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColType" data-column-key="type_label" checked>
+                                    <label class="form-check-label" for="ulpColType">Тип абонемента</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColActions" data-column-key="actions" checked>
+                                    <label class="form-check-label" for="ulpColActions">Действия</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="collapse {{ $assignmentsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="ulpAssignmentsFiltersCollapse">
+        <form id="ulp-assignments-filters" method="GET" action="{{ route('admin.lesson-packages.assignments') }}" class="border rounded p-2 p-md-3 bg-light">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="ulp-filter-user">Ученик</label>
+                    <select class="form-select"
+                            id="ulp-filter-user"
+                            name="filter_user_id"
+                            data-placeholder="Все ученики"
+                            data-search-url="{{ route('admin.lesson-packages.assignments.users-search') }}">
+                        <option value=""></option>
+                        @if($assignmentsFilterUser)
+                            <option value="{{ $assignmentsFilterUser['id'] }}" selected>{{ $assignmentsFilterUser['text'] }}</option>
+                        @endif
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="ulp-filter-schedule-type">Тип абонемента</label>
+                    <select class="form-select" id="ulp-filter-schedule-type" name="filter_schedule_type">
+                        <option value="">Все типы</option>
+                        <option value="fixed" @selected(($filters['filter_schedule_type'] ?? '') === 'fixed')>Фиксированный</option>
+                        <option value="flexible" @selected(($filters['filter_schedule_type'] ?? '') === 'flexible')>Гибкий</option>
+                        <option value="no_schedule" @selected(($filters['filter_schedule_type'] ?? '') === 'no_schedule')>Разовое занятие</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="ulp-filter-payment-status">Статус оплаты</label>
+                    <select class="form-select" id="ulp-filter-payment-status" name="filter_payment_status">
+                        <option value="">Все</option>
+                        <option value="paid" @selected(($filters['filter_payment_status'] ?? '') === 'paid')>Оплачено</option>
+                        <option value="unpaid" @selected(($filters['filter_payment_status'] ?? '') === 'unpaid')>Не оплачено</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label" for="ulp-filter-lessons-remaining">Остаток занятий</label>
+                    <select class="form-select" id="ulp-filter-lessons-remaining" name="filter_lessons_remaining">
+                        <option value="">Все</option>
+                        <option value="has" @selected(($filters['filter_lessons_remaining'] ?? '') === 'has')>Есть остаток</option>
+                        <option value="zero" @selected(($filters['filter_lessons_remaining'] ?? '') === 'zero')>Без остатка</option>
+                    </select>
+                </div>
+                @if($canViewLocations)
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="ulp-filter-location">Объект</label>
+                        <select class="form-select" id="ulp-filter-location" name="filter_location_id">
+                            <option value="">Все объекты</option>
+                            <option value="none" {{ (string) $assignmentsFilterLocation === 'none' ? 'selected' : '' }}>Без объекта</option>
+                            @foreach($activeLocations as $location)
+                                <option value="{{ $location->id }}" {{ (string) $assignmentsFilterLocation === (string) $location->id ? 'selected' : '' }}>
+                                    {{ $location->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
+                <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                    <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
+                    <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="ulpAssignmentsFiltersResetBtn">Сброс</button>
+                </div>
+            </div>
+        </form>
     </div>
 
     <div id="ulp-copy-pay-toast" class="alert alert-success py-2 px-3 small d-none mt-2 mb-0" role="status">
         Ссылка скопирована
     </div>
-
-    <hr>
 
     @if (session('success'))
         <div class="alert alert-success">
@@ -104,13 +264,12 @@
             <tr>
                 <th class="d-none">ID</th>
                 <th>Ученик</th>
-                <th>Абонемент</th>
-                <th class="text-center text-nowrap" style="width: 1%">Тип</th>
-                <th class="text-center text-nowrap" style="width: 1%">Период</th>
                 <th class="text-center text-nowrap" style="width: 1%">Сумма</th>
                 <th class="text-center" style="width: 1%">Оплачен</th>
                 <th class="text-center text-nowrap" style="width: 1%">Остаток</th>
                 <th class="text-start text-nowrap" style="width: 1%">Ссылка на оплату</th>
+                <th>Абонемент</th>
+                <th class="text-center text-nowrap" style="width: 1%">Тип абонемента</th>
                 <th class="text-start text-nowrap" style="width: 1%">Действия</th>
             </tr>
             </thead>
@@ -272,20 +431,75 @@
                 $ulpUser.append(option).trigger('change');
             }
 
-            @if ($errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount'))
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            const shouldOpenCreateModal = @json(
+                $errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount')
+            );
+            if (shouldOpenCreateModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                 const createModalEl = document.getElementById('ulpAssignmentCreateModal');
                 if (createModalEl) {
                     bootstrap.Modal.getOrCreateInstance(createModalEl).show();
                 }
             }
-            @endif
         });
     </script>
 
     @can('lessonPackages.view')
         <script>
             $(function () {
+                var canViewLocations = @json($canViewLocations);
+                var $ulpFiltersForm = $('#ulp-assignments-filters');
+                var $ulpFilterUser = $('#ulp-filter-user');
+
+                function initUlpAssignmentFilterSelect2($el) {
+                    var searchUrl = $el.data('search-url');
+                    if (!$el.length || !searchUrl || !$.fn.select2) {
+                        return;
+                    }
+                    $el.select2({
+                        theme: 'bootstrap-5',
+                        width: '100%',
+                        placeholder: $el.data('placeholder') || '',
+                        language: @include('partials.select2.ru'),
+                        allowClear: true,
+                        ajax: {
+                            url: searchUrl,
+                            delay: 250,
+                            data: function (params) {
+                                return {q: params.term || ''};
+                            },
+                            processResults: function (data) {
+                                return data;
+                            }
+                        },
+                        minimumInputLength: 0
+                    });
+                }
+
+                initUlpAssignmentFilterSelect2($ulpFilterUser);
+
+                function ulpAssignmentFilterParams() {
+                    return {
+                        filter_user_id: $ulpFiltersForm.find('[name="filter_user_id"]').val() || '',
+                        filter_schedule_type: $ulpFiltersForm.find('[name="filter_schedule_type"]').val() || '',
+                        filter_payment_status: $ulpFiltersForm.find('[name="filter_payment_status"]').val() || '',
+                        filter_lessons_remaining: $ulpFiltersForm.find('[name="filter_lessons_remaining"]').val() || '',
+                        filter_location_id: canViewLocations
+                            ? ($ulpFiltersForm.find('[name="filter_location_id"]').val() || '')
+                            : ''
+                    };
+                }
+
+                function ulpStudentRender(data, type, row) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return data != null ? data : '';
+                    }
+
+                    return window.KidsCrmTooltip.renderLink(data, {
+                        linkClass: 'js-ulp-assignment-edit',
+                        extraAttrs: 'data-assignment-id="' + window.KidsCrmTooltip.escapeHtml(String(row.id)) + '" role="button"',
+                    });
+                }
+
                 function ulpTextRender(data, type) {
                     if (type !== 'display' && type !== 'filter') {
                         return data != null ? data : '';
@@ -335,14 +549,38 @@
                 }
 
                 var dtApi = KidsCrmDataTable.create('#ulp-assignments-table', {
+                    columnsSettings: {
+                        defaults: {
+                            student: true,
+                            fee: true,
+                            paid: true,
+                            balance: true,
+                            pay_link: true,
+                            package_name: true,
+                            type_label: true,
+                            actions: true
+                        },
+                        urls: {
+                            get: @json(route('admin.lesson-packages.assignments.columns-settings.get')),
+                            save: @json(route('admin.lesson-packages.assignments.columns-settings.save'))
+                        },
+                        toggleSelector: '.ulp-column-toggle',
+                        csrfToken: '{{ csrf_token() }}'
+                    },
                     dataTable: {
                         pageLength: 20,
                         lengthMenu: [[10, 20, 50, 100], [10, 20, 50, 100]],
-                        searching: true,
+                        searching: false,
                         order: [[0, 'desc']],
                         ajax: {
                             url: @json(route('admin.lesson-packages.assignments.data')),
-                            type: 'GET'
+                            type: 'GET',
+                            data: function (d) {
+                                var extra = ulpAssignmentFilterParams();
+                                Object.keys(extra).forEach(function (key) {
+                                    d[key] = extra[key];
+                                });
+                            }
                         },
                         language: @include('partials.datatables.ru'),
                     },
@@ -359,34 +597,15 @@
                             key: 'student',
                             type: 'text',
                             data: 'student',
+                            name: 'student',
                             className: 'text-start',
-                            render: ulpTextRender,
-                        },
-                        {
-                            key: 'package_name',
-                            type: 'text',
-                            data: 'package_name',
-                            className: 'text-start',
-                            render: ulpTextRender,
-                        },
-                        {
-                            key: 'type_label',
-                            type: 'text',
-                            data: 'type_label',
-                            className: 'text-center text-nowrap',
-                            render: ulpTextRender,
-                        },
-                        {
-                            key: 'period',
-                            type: 'text',
-                            data: 'period',
-                            className: 'text-center text-nowrap',
-                            render: ulpTextRender,
+                            render: ulpStudentRender,
                         },
                         {
                             key: 'fee',
                             type: 'text',
                             data: 'fee',
+                            name: 'fee',
                             className: 'text-center text-nowrap',
                             render: ulpTextRender,
                         },
@@ -402,6 +621,7 @@
                             key: 'balance',
                             type: 'text',
                             data: 'balance',
+                            name: 'balance',
                             className: 'text-center text-nowrap',
                             render: ulpTextRender,
                         },
@@ -416,8 +636,27 @@
                             render: ulpPayLinkRender,
                         },
                         {
+                            key: 'package_name',
+                            type: 'text',
+                            data: 'package_name',
+                            name: 'package',
+                            className: 'text-start',
+                            render: ulpTextRender,
+                        },
+                        {
+                            key: 'type_label',
+                            type: 'text',
+                            data: 'type_label',
+                            name: 'type',
+                            className: 'text-center text-nowrap',
+                            render: ulpTextRender,
+                        },
+                        {
                             key: 'actions',
                             type: 'actions',
+                            name: 'actions',
+                            orderable: false,
+                            searchable: false,
                             className: 'text-start text-nowrap',
                             render: function (data, type, row) {
                                 if (type !== 'display') {
@@ -429,6 +668,20 @@
                             },
                         },
                     ],
+                });
+
+                $ulpFiltersForm.on('submit', function (e) {
+                    e.preventDefault();
+                    dtApi.reload({ keepPage: true });
+                });
+
+                $('#ulpAssignmentsFiltersResetBtn').on('click', function () {
+                    $ulpFiltersForm[0].reset();
+                    $ulpFilterUser.val(null).trigger('change');
+                    if (canViewLocations) {
+                        $('#ulp-filter-location').val('');
+                    }
+                    dtApi.reload();
                 });
 
                 const assignmentsBase = @json(rtrim(route('admin.lesson-packages.assignments'), '/'));

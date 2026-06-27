@@ -241,7 +241,7 @@
   <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
 
   <h2>Гибкие абонементы в модалке слота</h2>
-  <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>. Назначение ученику должно существовать на странице «Назначения»; привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота. Период <code>starts_at</code>/<code>ends_at</code> при первой привязке задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>). <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
+  <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>. Назначение ученику должно существовать на <a href="/docs/documentation/lesson-packages#assignments-tab">странице «Назначение абонементов»</a>; привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота. Период <code>starts_at</code>/<code>ends_at</code> при первой привязке задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>). <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
 
   <h3>Доступность (<code>GET …/slot-user-bind-actions</code>)</h3>
   <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). В ответе объект <code>flexible</code>:</p>

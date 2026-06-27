@@ -13,6 +13,10 @@
     a:hover { text-decoration: underline; }
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    .small { color: #555; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -58,12 +62,144 @@
   <h2>Разовое занятие (<code>no_schedule</code>)</h2>
   <p>Шаблон абонемента с <code>lesson_packages.schedule_type = no_schedule</code>. Назначение ученику — строка <code>user_lesson_packages</code> с <code>lessons_total</code> / <code>lessons_remaining</code> (обычно 1/1) и индивидуальной стоимостью <code>fee_amount</code>.</p>
   <ul>
-    <li><strong>Страница «Назначения»</strong> (<code>POST /admin/lesson-packages/assignments</code>): создаётся назначение без периода (<code>starts_at</code>/<code>ends_at</code> = NULL). Привязка к календарю — отдельным шагом.</li>
+    <li><strong>Страница «Назначения»</strong> (<code>POST /admin/lesson-packages/assignments</code>, UI — <a href="/docs/documentation/lesson-packages#assignments-tab">§assignments-tab</a>): создаётся назначение без периода (<code>starts_at</code>/<code>ends_at</code> = NULL). Привязка к календарю — отдельным шагом.</li>
     <li><strong>Модалка слота календаря школы</strong> (<code>POST …/school-schedule/single-lesson-registration</code>): если у ученика уже есть свободное назначение (<code>mode=bind_existing</code>), выполняется только привязка к слоту; иначе (<code>mode=create_new</code>) в одной транзакции создаётся назначение и строка календаря. Подробности UI и API — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a>.</li>
     <li><strong>Legacy-модалка</strong> <code>#schoolCalSingleModal</code>: привязка уже существующего назначения через <code>POST …/assign-single-lesson</code> (выбор <code>user_lesson_package_id</code>). Основной сценарий для администратора — модалка слота.</li>
   </ul>
   <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у гибкого абонемента. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
   <p><strong>Отмена записи в календаре</strong> (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>) удаляет строку <code>user_team_schedule_slots</code>, но <strong>не удаляет</strong> назначение <code>user_lesson_packages</code> — его можно снова привязать к другому слоту. Если статус уже списывал занятие, остаток восстанавливается (+1).</p>
+
+  <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
+  <div class="note">
+    Вкладка раздела «Расписание школы» → «Назначение абонементов». View: <code>admin/lessonPackages/tabs/assignments.blade.php</code>.
+    Доступ ко <b>всем</b> endpoint'ам вкладки — право <code>lessonPackages.view</code> (middleware на группе маршрутов).
+    Дополнительно: <code>POST …/assignments/{id}/manual-paid</code> — <code>lessonPackages.manualPaid.manage</code>.
+    Паттерн UI — общий toolbar списков (<a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>), как у отчётов и <code>/admin/users</code>.
+  </div>
+
+  <h3>Шапка (toolbar)</h3>
+  <ul>
+    <li>Карточка <code>payments-report-surface</code> + CSS <code>admin-list-toolbar.css</code>.</li>
+    <li>Кнопки в едином стиле <code>payments-report-toolbar-action</code>: «Назначить абонемент» (иконка <code>fa-plus</code>, модалка создания), «Фильтры» (collapse), «Колонки» (dropdown).</li>
+    <li>Встроенный поиск DataTables на странице <b>отключён</b> (<code>searching: false</code>) — отбор только через панель фильтров.</li>
+  </ul>
+
+  <h3>Фильтры (серверные, без перезагрузки страницы)</h3>
+  <p>Форма <code>#ulp-assignments-filters</code>, collapse <code>#ulpAssignmentsFiltersCollapse</code>.
+    При submit: <code>preventDefault()</code> → параметры уходят в AJAX <code>GET …/assignments/data</code> → <code>dtApi.reload({ keepPage: true })</code>.
+    При активных query-параметрах в URL (первичная загрузка) панель фильтров раскрыта (<code>collapse show</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Параметр</th><th>UI (<code>id</code>)</th><th>Значения</th><th>Логика на сервере</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>filter_user_id</code></td>
+        <td><code>ulp-filter-user</code></td>
+        <td>Select2, поиск ученика</td>
+        <td><code>users.id</code> текущего партнёра</td>
+      </tr>
+      <tr>
+        <td><code>filter_schedule_type</code></td>
+        <td><code>ulp-filter-schedule-type</code></td>
+        <td><code>fixed</code> / <code>flexible</code> / <code>no_schedule</code></td>
+        <td><code>lesson_packages.schedule_type</code></td>
+      </tr>
+      <tr>
+        <td><code>filter_payment_status</code></td>
+        <td><code>ulp-filter-payment-status</code></td>
+        <td><code>paid</code> / <code>unpaid</code></td>
+        <td>Эффективная оплата: <code>is_manual_paid</code>, если не NULL, иначе <code>is_paid</code> (как <code>effective_is_paid</code> в модели)</td>
+      </tr>
+      <tr>
+        <td><code>filter_lessons_remaining</code></td>
+        <td><code>ulp-filter-lessons-remaining</code></td>
+        <td><code>has</code> — остаток &gt; 0; <code>zero</code> — остаток = 0</td>
+        <td><code>user_lesson_packages.lessons_remaining</code></td>
+      </tr>
+      <tr>
+        <td><code>filter_location_id</code></td>
+        <td><code>ulp-filter-location</code></td>
+        <td>Пусто / <code>none</code> / id объекта</td>
+        <td>Только при <code>locations.view</code>: через pivot <code>team_user</code> → <code>teams.location_id</code>, тот же сервис, что в отчёте «Задолженности» (<code>TeamLocationAvailabilityService::applyDebtUserTeamLocationFilter</code>). Без права блок скрыт, параметр игнорируется.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Поиск ученика в фильтре и в модалке «Назначить» — один endpoint: <code>GET /admin/lesson-packages/assignments/users-search?q=</code> (Select2, подпись с остатками абонементов). Тот же endpoint используется в календаре школы для <code>#schoolCalSlotUserSelect</code> — см. <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.</p>
+
+  <h3>Таблица и колонки</h3>
+  <p>Таблица <code>#ulp-assignments-table</code>, пресет <code>KidsCrmDataTable.create</code>, класс <code>dt-columns-managed</code>.</p>
+  <p>Порядок колонок по умолчанию:</p>
+  <ol>
+    <li>Ученик — клик по имени открывает модалку «Изменение абонемента» (класс <code>js-ulp-assignment-edit</code>, <code>KidsCrmTooltip.renderLink</code>)</li>
+    <li>Сумма (<code>fee_amount</code>, формат «N руб»)</li>
+    <li>Оплачен (бейдж; ручная отметка — подпись «руч.» и tooltip с комментарием)</li>
+    <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
+    <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
+    <li>Абонемент (название шаблона)</li>
+    <li>Тип абонемента (фиксированный / гибкий / разовое занятие)</li>
+    <li>Действия (кнопка «Изменить»)</li>
+  </ol>
+  <p class="small">Колонка «Период» (<code>starts_at</code>–<code>ends_at</code>) в таблице не выводится; период по-прежнему виден в модалке редактирования и в JSON строки DataTables (поле <code>period</code>).</p>
+  <p>Настройки видимости колонок — per user в <code>user_table_settings</code>, ключ <code>lesson_packages_assignments</code>:</p>
+  <ul>
+    <li><code>GET /admin/lesson-packages/assignments/columns-settings</code> — <code>admin.lesson-packages.assignments.columns-settings.get</code></li>
+    <li><code>POST /admin/lesson-packages/assignments/columns-settings</code> — body <code>{ "columns": { "student": true, … } }</code></li>
+  </ul>
+  <p>Ключи колонок: <code>student</code>, <code>fee</code>, <code>paid</code>, <code>balance</code>, <code>pay_link</code>, <code>package_name</code>, <code>type_label</code>, <code>actions</code>. Скрытая служебная колонка <code>id</code> без переключателя.</p>
+
+  <h3>Модалки и контракты API</h3>
+  <table>
+    <thead>
+      <tr><th>Действие</th><th>UI</th><th>Метод</th><th>Контракт ответа</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Создать назначение</td>
+        <td>Модалка <code>#ulpAssignmentCreateModal</code>, обычная HTML-форма</td>
+        <td><code>POST /admin/lesson-packages/assignments</code></td>
+        <td><b>Non-AJAX safety-net:</b> успех → <code>302</code> redirect на вкладку + flash «Абонемент назначен ученику»; валидация → redirect back с <code>errors</code> в сессии (не пустой <code>200</code>). Request: <code>StoreUserLessonPackageRequest</code>. Создаёт запись без периода (<code>starts_at</code>/<code>ends_at</code> = NULL), <code>lessons_remaining = lessons_total</code> из шаблона.</td>
+      </tr>
+      <tr>
+        <td>Открыть / изменить</td>
+        <td>Модалка <code>#ulpAssignmentEditModal</code>, загрузка и сохранение через <code>fetch</code></td>
+        <td><code>GET …/assignments/{id}</code>, <code>PUT …/assignments/{id}</code></td>
+        <td>JSON: <code>{ assignment: { … } }</code> / <code>{ success, assignment }</code>. Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте). Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса.</td>
+      </tr>
+      <tr>
+        <td>Удалить</td>
+        <td>Кнопка в модалке редактирования</td>
+        <td><code>DELETE …/assignments/{id}</code></td>
+        <td><code>{ success: true }</code> или <code>422</code>, если часть занятий уже списана (<code>lessons_remaining &lt; lessons_total</code>)</td>
+      </tr>
+      <tr>
+        <td>Ссылка на оплату</td>
+        <td>Кнопка в строке таблицы</td>
+        <td><code>POST …/assignments/{id}/public-pay-link</code></td>
+        <td>JSON <code>{ url }</code> — см. <a href="/docs/documentation/payments">payments</a> (§3.4, <code>lesson_package_fee</code>)</td>
+      </tr>
+      <tr>
+        <td>DataTables</td>
+        <td>Основная таблица</td>
+        <td><code>GET …/assignments/data</code></td>
+        <td>Server-side: <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code> + query-параметры фильтров</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show/update/destroy/public-pay-link.</p>
+
+  <h3>Код</h3>
+  <ul>
+    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>.</li>
+    <li>Фильтры списка: <code>applyAssignmentListFilters()</code> в том же контроллере.</li>
+  </ul>
+
+  <h3>Тесты</h3>
+  <ul>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры, columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки (<code>node --check</code>).</li>
+  </ul>
 </div>
 </body>
 </html>

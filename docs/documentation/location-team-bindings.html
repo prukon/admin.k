@@ -62,7 +62,7 @@
       </tr>
       <tr>
         <td>Ученик без групп в pivot</td>
-        <td colspan="2">В отчёте «Задолженности» при фильтре по конкретному объекту <b>не попадает</b> (кроме режима «Без локации»)</td>
+        <td colspan="2">В отчёте «Задолженности» и на вкладке «Назначение абонементов» при фильтре по конкретному объекту <b>не попадает</b> (кроме режима «Без объекта» / <code>none</code>)</td>
       </tr>
     </tbody>
   </table>
@@ -148,9 +148,13 @@ team_schedule_slots.location_id — объект слота расписания
         <td>Задолженности</td>
         <td>pivot <code>team_user</code> → <code>teams.location_id</code>. <code>filter_location_id=none</code> — нет групп в pivot или группа с <code>location_id IS NULL</code></td>
       </tr>
+      <tr>
+        <td>Назначение абонементов</td>
+        <td>Тот же pivot и тот же <code>filter_location_id</code>, что у «Задолженностей» (<code>applyDebtUserTeamLocationFilter</code>). См. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a></td>
+      </tr>
     </tbody>
   </table>
-  <p>Единый параметр UI: <code>filter_location_id</code> (пусто / <code>none</code> / id). Право: <code>locations.view</code>. См. <a href="/docs/documentation/reports-admin#location-filter">Отчёты §2.1</a>.</p>
+  <p>Единый параметр UI: <code>filter_location_id</code> (пусто / <code>none</code> / id). Право: <code>locations.view</code>. См. <a href="/docs/documentation/reports-admin#location-filter">Отчёты §2.1</a> и <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.</p>
 
   <h2>9) Права (кратко)</h2>
   <table>
@@ -159,7 +163,7 @@ team_schedule_slots.location_id — объект слота расписания
     </thead>
     <tbody>
       <tr><td><code>groups.view</code></td><td>Страница и CRUD групп; без <code>locations.view</code> — без поля «Объект» и без сохранения <code>location_id</code></td></tr>
-      <tr><td><code>locations.view</code></td><td>Справочник объектов, поле/фильтр объекта у групп, multiselect групп на объекте (просмотр), фильтры в отчётах/календаре</td></tr>
+      <tr><td><code>locations.view</code></td><td>Справочник объектов, поле/фильтр объекта у групп, multiselect групп на объекте (просмотр), фильтры в отчётах, календаре и на вкладке «Назначение абонементов»</td></tr>
       <tr><td><code>locations.manage</code></td><td>Создание, изменение, удаление <code>locations</code>; sync <code>team_ids</code></td></tr>
       <tr><td><code>scheduleSlots.manage</code></td><td>Слоты с проверкой пары группа+объект</td></tr>
     </tbody>

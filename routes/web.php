@@ -393,6 +393,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.assignments.data');
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
             ->name('admin.lesson-packages.assignments.users-search');
+        Route::get('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsGet'])
+            ->name('admin.lesson-packages.assignments.columns-settings.get');
+        Route::post('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsSave'])
+            ->name('admin.lesson-packages.assignments.columns-settings.save');
         Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
             ->name('admin.lesson-packages.assignments.store');
         Route::get('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'showAssignment'])

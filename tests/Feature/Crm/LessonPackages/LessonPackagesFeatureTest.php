@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm\LessonPackages;
 use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
+use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserLessonPackageFreeze;
 use App\Models\UserLessonPackageTimeSlot;
@@ -336,7 +337,133 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('ulp_user_id')
             ->assertSee('ulp_lesson_package_id')
             ->assertSee('ulp-assignments-table')
+            ->assertSee('ulpAssignmentsFiltersCollapse', false)
+            ->assertSee('columnsDropdownUlpAssignments', false)
             ->assertSee('KidsCrmDataTable.create', false);
+    }
+
+    public function test_assignments_columns_settings_save_and_get(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $payload = [
+            'columns' => [
+                'student' => true,
+                'package_name' => false,
+                'actions' => true,
+            ],
+        ];
+
+        $this->postJson(route('admin.lesson-packages.assignments.columns-settings.save'), $payload)
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('user_table_settings', [
+            'user_id' => $this->user->id,
+            'table_key' => 'lesson_packages_assignments',
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.assignments.columns-settings.get'))
+            ->assertOk()
+            ->assertJson([
+                'student' => true,
+                'package_name' => false,
+                'actions' => true,
+            ]);
+    }
+
+    public function test_assignments_data_applies_list_filters(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $studentA = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванов',
+            'name' => 'А',
+        ]);
+        $studentB = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Петров',
+            'name' => 'Б',
+        ]);
+
+        $fixedPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Фикс пакет',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $flexPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Гибкий пакет',
+            'schedule_type' => 'flexible',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $matchId = (int) UserLessonPackage::query()->insertGetId([
+            'user_id' => $studentA->id,
+            'lesson_package_id' => $fixedPackage->id,
+            'lessons_total' => 8,
+            'lessons_remaining' => 3,
+            'fee_amount' => '100.00',
+            'is_paid' => 0,
+            'created_by' => $this->user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        UserLessonPackage::query()->insert([
+            'user_id' => $studentB->id,
+            'lesson_package_id' => $flexPackage->id,
+            'lessons_total' => 8,
+            'lessons_remaining' => 0,
+            'fee_amount' => '200.00',
+            'is_paid' => 1,
+            'created_by' => $this->user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $base = [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+        ];
+
+        $all = $this->getJson(route('admin.lesson-packages.assignments.data', $base))
+            ->assertOk()
+            ->json();
+        $this->assertSame(2, (int) ($all['recordsFiltered'] ?? 0));
+
+        $byUser = $this->getJson(route('admin.lesson-packages.assignments.data', $base + [
+            'filter_user_id' => $studentA->id,
+        ]))->assertOk()->json();
+        $this->assertSame(1, (int) ($byUser['recordsFiltered'] ?? 0));
+        $this->assertSame($matchId, (int) ($byUser['data'][0]['id'] ?? 0));
+
+        $byType = $this->getJson(route('admin.lesson-packages.assignments.data', $base + [
+            'filter_schedule_type' => 'fixed',
+        ]))->assertOk()->json();
+        $this->assertSame(1, (int) ($byType['recordsFiltered'] ?? 0));
+
+        $byPaid = $this->getJson(route('admin.lesson-packages.assignments.data', $base + [
+            'filter_payment_status' => 'unpaid',
+        ]))->assertOk()->json();
+        $this->assertSame(1, (int) ($byPaid['recordsFiltered'] ?? 0));
+
+        $byBalance = $this->getJson(route('admin.lesson-packages.assignments.data', $base + [
+            'filter_lessons_remaining' => 'has',
+        ]))->assertOk()->json();
+        $this->assertSame(1, (int) ($byBalance['recordsFiltered'] ?? 0));
     }
 
     public function test_store_assignment_creates_user_lesson_package_and_sets_remaining(): void

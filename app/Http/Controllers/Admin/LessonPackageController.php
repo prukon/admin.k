@@ -16,9 +16,11 @@ use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
+use App\Models\UserTableSetting;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\PartnerContext;
+use App\Services\TeamLocationAvailabilityService;
 use App\Services\Payments\UserLessonPackagePublicPayService;
 use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
@@ -39,9 +41,15 @@ final class LessonPackageController extends AdminBaseController
 {
     use BuildsLogTable;
 
+    private const ASSIGNMENTS_TABLE_KEY = 'lesson_packages_assignments';
+
+    /** @var list<string> */
+    private const ASSIGNMENT_SCHEDULE_TYPES = ['fixed', 'flexible', 'no_schedule'];
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly SchoolCalendarAssignmentEligibilityService $schoolCalendarAssignmentEligibility,
+        private readonly TeamLocationAvailabilityService $teamLocationAvailability,
     ) {
         parent::__construct($partnerContext);
     }
@@ -376,9 +384,10 @@ final class LessonPackageController extends AdminBaseController
         return response()->json(['results' => $results]);
     }
 
-    public function assignments()
+    public function assignments(Request $request)
     {
         $partnerId = $this->requirePartnerId();
+        $filters = $request->query();
 
         $packagesList = LessonPackage::query()
             ->where('partner_id', $partnerId)
@@ -386,11 +395,73 @@ final class LessonPackageController extends AdminBaseController
             ->orderBy('name')
             ->get(['id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents']);
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $canViewLocations = $authUser?->can('locations.view') ?? false;
+        $activeLocations = $canViewLocations
+            ? Location::query()
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
         return view('admin.lessonPackages.index', [
             'activeTab' => 'assignments',
             'packagesList' => $packagesList,
             'weekdays' => self::weekdaysMap(),
+            'filters' => $filters,
+            'assignmentsFilterUser' => $this->resolveAssignmentFilterUserLabel($partnerId, $filters),
+            'canViewLocations' => $canViewLocations,
+            'activeLocations' => $activeLocations,
         ]);
+    }
+
+    public function assignmentsColumnsSettingsGet(): JsonResponse
+    {
+        $this->requirePartnerId();
+
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::ASSIGNMENTS_TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function assignmentsColumnsSettingsSave(Request $request): JsonResponse
+    {
+        $this->requirePartnerId();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $normalized = [];
+        foreach ((array) $data['columns'] as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool === null) {
+                $bool = false;
+            }
+            $normalized[(string) $key] = $bool;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::ASSIGNMENTS_TABLE_KEY,
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
     }
 
     public function assignmentsData(Request $request): JsonResponse
@@ -422,22 +493,7 @@ final class LessonPackageController extends AdminBaseController
         $recordsTotal = (clone $baseQuery)->count();
 
         $filteredQuery = clone $baseQuery;
-
-        $searchTerm = trim((string) $request->input('search.value', ''));
-        if ($searchTerm !== '') {
-            $like = '%'.addcslashes($searchTerm, '%_\\').'%';
-            $filteredQuery->where(function ($q) use ($like) {
-                $q->where('users.lastname', 'like', $like)
-                    ->orWhere('users.name', 'like', $like)
-                    ->orWhere('lesson_packages.name', 'like', $like)
-                    ->orWhere('lesson_packages.schedule_type', 'like', $like)
-                    ->orWhereRaw('CAST(user_lesson_packages.fee_amount AS CHAR) LIKE ?', [$like])
-                    ->orWhereRaw('CAST(user_lesson_packages.lessons_remaining AS CHAR) LIKE ?', [$like])
-                    ->orWhereRaw('CAST(user_lesson_packages.lessons_total AS CHAR) LIKE ?', [$like])
-                    ->orWhereRaw('CAST(user_lesson_packages.starts_at AS CHAR) LIKE ?', [$like])
-                    ->orWhereRaw('CAST(user_lesson_packages.ends_at AS CHAR) LIKE ?', [$like]);
-            });
-        }
+        $this->applyAssignmentListFilters($filteredQuery, $request, $partnerId);
 
         $recordsFiltered = (clone $filteredQuery)->count();
 
@@ -1109,6 +1165,85 @@ final class LessonPackageController extends AdminBaseController
             5 => 'Пт',
             6 => 'Сб',
             7 => 'Вс',
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<UserLessonPackage>  $query
+     */
+    private function applyAssignmentListFilters($query, Request $request, int $partnerId): void
+    {
+        $filterUserId = $request->query('filter_user_id');
+        if ($filterUserId !== null && $filterUserId !== '' && ctype_digit((string) $filterUserId)) {
+            $uid = (int) $filterUserId;
+            if ($uid > 0) {
+                $query->where('users.id', $uid);
+            }
+        }
+
+        $scheduleType = trim((string) $request->query('filter_schedule_type', ''));
+        if ($scheduleType !== '' && in_array($scheduleType, self::ASSIGNMENT_SCHEDULE_TYPES, true)) {
+            $query->where('lesson_packages.schedule_type', $scheduleType);
+        }
+
+        $paymentStatus = trim((string) $request->query('filter_payment_status', ''));
+        if ($paymentStatus === 'paid') {
+            $query->whereRaw(
+                '(CASE WHEN user_lesson_packages.is_manual_paid IS NOT NULL THEN user_lesson_packages.is_manual_paid ELSE user_lesson_packages.is_paid END) = 1'
+            );
+        } elseif ($paymentStatus === 'unpaid') {
+            $query->whereRaw(
+                '(CASE WHEN user_lesson_packages.is_manual_paid IS NOT NULL THEN user_lesson_packages.is_manual_paid ELSE user_lesson_packages.is_paid END) = 0'
+            );
+        }
+
+        $lessonsRemaining = trim((string) $request->query('filter_lessons_remaining', ''));
+        if ($lessonsRemaining === 'has') {
+            $query->where('user_lesson_packages.lessons_remaining', '>', 0);
+        } elseif ($lessonsRemaining === 'zero') {
+            $query->where('user_lesson_packages.lessons_remaining', 0);
+        }
+
+        /** @var \App\Models\User|null $filterActor */
+        $filterActor = Auth::user();
+        if ($filterActor?->can('locations.view')) {
+            $this->teamLocationAvailability->applyDebtUserTeamLocationFilter(
+                $query,
+                $partnerId,
+                $request->query('filter_location_id')
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{id: int, text: string}|null
+     */
+    private function resolveAssignmentFilterUserLabel(int $partnerId, array $filters): ?array
+    {
+        $raw = $filters['filter_user_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $uid = (int) $raw;
+        if ($uid <= 0) {
+            return null;
+        }
+
+        $u = User::query()
+            ->where('partner_id', $partnerId)
+            ->where('id', $uid)
+            ->first(['id', 'name', 'lastname']);
+
+        if (! $u) {
+            return null;
+        }
+
+        $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+
+        return [
+            'id' => $u->id,
+            'text' => $text !== '' ? $text : '—',
         ];
     }
 }
