@@ -172,8 +172,8 @@
 
   <h2 id="user-status-filter">2.3) Фильтр «Активность ученика» в отчётах</h2>
   <div class="note">
-    Единый параметр запроса: <code>status</code> — фильтрация по полю <code>users.is_enabled</code> ученика (роль «user» в контексте платежей/долгов).
-    Параметр уходит во все связанные запросы: DataTables, <code>…/total</code>, детализацию (LTV — платежи ученика; «Платежи по месяцам» — платежи месяца).
+    Единый параметр запроса: <code>status</code> — фильтрация по полю <code>users.is_enabled</code> ученика (роль «user» в контексте платежей/долгов/назначений абонементов).
+    Параметр уходит во все связанные запросы: DataTables, <code>…/total</code>, детализацию (LTV — платежи ученика; «Платежи по месяцам» — платежи месяца); на вкладке «Назначение абонементов» — только <code>GET …/assignments/data</code>.
     Отдельного permission для блока <b>нет</b>: при <code>reports.view</code> фильтр всегда виден (в отличие от локации §2.1 и тренера §2.2).
     В панели фильтров — <b>последним</b> перед кнопками «Применить» / «Сброс».
   </div>
@@ -242,6 +242,12 @@
         <td><code>pay-debt-filter-user-status</code></td>
         <td><code>DeptReportController::resolveDebtUserStatusFilter</code> → <code>applyDebtReportUserStatusFilter</code></td>
       </tr>
+      <tr>
+        <td>Назначение абонементов</td>
+        <td><code>/admin/lesson-packages/assignments</code></td>
+        <td><code>ulp-filter-user-status</code></td>
+        <td><code>LessonPackageController::resolveAssignmentUserStatusFilter</code></td>
+      </tr>
     </tbody>
   </table>
   <ul>
@@ -249,7 +255,7 @@
     <li><b>LTV — не путать с колонкой «Статус»:</b> колонка <code>is_enabled</code> (badge «Активен» / «Отключен») показывает статус ученика в строке таблицы; фильтр «Активность ученика» задаёт, <i>каких</i> учеников включать в выборку.</li>
     <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется только в отчётах Платежи / monthly / LTV / Задолженности.</li>
     <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.</li>
-    <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403.</li>
+    <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403. На вкладке «Назначение абонементов» — право <code>lessonPackages.view</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>).</li>
     <li>Подробнее про отчёт «Платежи»: <a href="/docs/documentation/reports-payments#user-status-filter">reports-payments §2.2</a>.</li>
   </ul>
 
@@ -471,7 +477,7 @@
     фильтр по локации (§2.1), фильтр «Активность ученика» (§2.3).
   </div>
   <ul>
-    <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code></li>
+    <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
     <li><code>tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php</code> — <b>KidsCrmDataTable</b> для debt/LTV/monthly: UI, columns-settings, детализация с <code>draw</code> и legacy JSON, полный доступ 200; smoke emails/fiscal/payment-intents</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code></li>

@@ -5,6 +5,7 @@
     $activeLocations = $activeLocations ?? collect();
     $assignmentsFilterKeys = ['filter_user_id', 'filter_schedule_type', 'filter_payment_status', 'filter_lessons_remaining', 'filter_location_id'];
     $assignmentsFilterLocation = $filters['filter_location_id'] ?? '';
+    $assignmentsFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $assignmentsHasActiveFilters = false;
     foreach ($assignmentsFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -12,6 +13,9 @@
             $assignmentsHasActiveFilters = true;
             break;
         }
+    }
+    if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $assignmentsHasActiveFilters = true;
     }
 @endphp
 
@@ -165,6 +169,14 @@
                         </select>
                     </div>
                 @endif
+                <div class="col-12 col-md-2">
+                    <label class="form-label" for="ulp-filter-user-status">Активность ученика</label>
+                    <select class="form-select" id="ulp-filter-user-status" name="status">
+                        <option value="">Все ученики</option>
+                        <option value="active" {{ $assignmentsFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
+                        <option value="inactive" {{ $assignmentsFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
+                    </select>
+                </div>
                 <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                     <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                     <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="ulpAssignmentsFiltersResetBtn">Сброс</button>
@@ -447,6 +459,7 @@
         <script>
             $(function () {
                 var canViewLocations = @json($canViewLocations);
+                var defaultFilterUserStatus = 'active';
                 var $ulpFiltersForm = $('#ulp-assignments-filters');
                 var $ulpFilterUser = $('#ulp-filter-user');
 
@@ -485,7 +498,8 @@
                         filter_lessons_remaining: $ulpFiltersForm.find('[name="filter_lessons_remaining"]').val() || '',
                         filter_location_id: canViewLocations
                             ? ($ulpFiltersForm.find('[name="filter_location_id"]').val() || '')
-                            : ''
+                            : '',
+                        status: $ulpFiltersForm.find('[name="status"]').val() || '',
                     };
                 }
 
@@ -681,6 +695,7 @@
                     if (canViewLocations) {
                         $('#ulp-filter-location').val('');
                     }
+                    $('#ulp-filter-user-status').val(defaultFilterUserStatus);
                     dtApi.reload();
                 });
 

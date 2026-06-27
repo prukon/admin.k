@@ -123,9 +123,16 @@
         <td>Пусто / <code>none</code> / id объекта</td>
         <td>Только при <code>locations.view</code>: через pivot <code>team_user</code> → <code>teams.location_id</code>, тот же сервис, что в отчёте «Задолженности» (<code>TeamLocationAvailabilityService::applyDebtUserTeamLocationFilter</code>). Без права блок скрыт, параметр игнорируется.</td>
       </tr>
+      <tr>
+        <td><code>status</code></td>
+        <td><code>ulp-filter-user-status</code></td>
+        <td>Пусто — все ученики; <code>active</code> — только активные; <code>inactive</code> — только отключённые</td>
+        <td><code>users.is_enabled</code>. Без параметра в URL (первый заход) — как <code>active</code>. Отдельного permission нет. «Сброс» возвращает «Только активные». См. <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>.</td>
+      </tr>
     </tbody>
   </table>
   <p class="small">Поиск ученика в фильтре и в модалке «Назначить» — один endpoint: <code>GET /admin/lesson-packages/assignments/users-search?q=</code> (Select2, подпись с остатками абонементов). Тот же endpoint используется в календаре школы для <code>#schoolCalSlotUserSelect</code> — см. <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.</p>
+  <p class="small">Фильтр «Активность ученика» — последний в панели (перед «Применить» / «Сброс»), как в отчётах § <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>. При нестандартном <code>status</code> (не <code>active</code>) панель фильтров раскрыта (<code>collapse show</code>).</p>
 
   <h3>Таблица и колонки</h3>
   <p>Таблица <code>#ulp-assignments-table</code>, пресет <code>KidsCrmDataTable.create</code>, класс <code>dt-columns-managed</code>.</p>
@@ -191,15 +198,18 @@
   <h3>Код</h3>
   <ul>
     <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>.</li>
-    <li>Фильтры списка: <code>applyAssignmentListFilters()</code> в том же контроллере.</li>
+    <li>Фильтры списка: <code>applyAssignmentListFilters()</code>, <code>resolveAssignmentUserStatusFilter()</code> в том же контроллере.</li>
   </ul>
 
   <h3>Тесты</h3>
   <ul>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры, columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры (кроме детальной логики <code>status</code> — см. файл выше), columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки (<code>node --check</code>).</li>
   </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code></pre>
 </div>
 </body>
 </html>

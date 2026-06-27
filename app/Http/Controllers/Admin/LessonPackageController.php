@@ -1213,6 +1213,35 @@ final class LessonPackageController extends AdminBaseController
                 $request->query('filter_location_id')
             );
         }
+
+        $userStatus = $this->resolveAssignmentUserStatusFilter($request);
+        if ($userStatus === 'active') {
+            $query->where('users.is_enabled', 1);
+        } elseif ($userStatus === 'inactive') {
+            $query->where('users.is_enabled', 0);
+        }
+    }
+
+    /**
+     * active / inactive — фильтр по users.is_enabled; null — все ученики.
+     * Без параметра status в запросе по умолчанию только активные.
+     */
+    private function resolveAssignmentUserStatusFilter(Request $request): ?string
+    {
+        if (! $request->has('status')) {
+            return 'active';
+        }
+
+        $status = (string) $request->query('status', '');
+        if ($status === '') {
+            return null;
+        }
+
+        if ($status === 'active' || $status === 'inactive') {
+            return $status;
+        }
+
+        return 'active';
     }
 
     /**

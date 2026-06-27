@@ -189,6 +189,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ->assertSee('ulp-filter-schedule-type', false)
             ->assertSee('ulp-filter-payment-status', false)
             ->assertSee('ulp-filter-lessons-remaining', false)
+            ->assertSee('ulp-filter-user-status', false)
             ->assertSee('columnsDropdownUlpAssignments', false)
             ->assertSee('ulp-column-toggle', false)
             ->assertSee('ulp-assignments-table', false)
@@ -205,6 +206,12 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         ]))
             ->assertOk()
             ->assertSee('id="ulpAssignmentsFiltersCollapse"', false)
+            ->assertSee('collapse show mb-2 mb-md-3', false);
+
+        $this->get(route('admin.lesson-packages.assignments', [
+            'status' => 'inactive',
+        ]))
+            ->assertOk()
             ->assertSee('collapse show mb-2 mb-md-3', false);
     }
 
