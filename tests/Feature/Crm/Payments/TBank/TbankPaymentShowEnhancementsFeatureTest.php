@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Payments\TBank;
 
+use App\Models\FiscalReceipt;
 use App\Models\PartnerLegalEntity;
+use App\Models\Payment;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Carbon;
@@ -158,6 +160,61 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             ->assertSee('tbank-payment-timeline__step--done', false)
             ->assertSee('tbank-payment-timeline__step--pending', false)
             ->assertSee('Deal ' . $this->payment->deal_id, false);
+    }
+
+    public function test_show_displays_fiscal_receipt_link_when_valid_url_exists(): void
+    {
+        $this->asSuperadmin();
+
+        $this->payment->update(['tinkoff_payment_id' => 261000001]);
+
+        $ledgerPayment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payment_number' => '261000001',
+            'deal_id' => $this->payment->deal_id,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => 100.00,
+            'receipt_url' => 'https://receipts.ru/payment-show-income',
+        ]);
+
+        $this->get('/admin/tinkoff/payments/' . $this->payment->id)
+            ->assertOk()
+            ->assertSee('Фискальный чек:', false)
+            ->assertSee('https://receipts.ru/payment-show-income', false)
+            ->assertSee('Открыть чек', false);
+    }
+
+    public function test_show_displays_fiscal_receipt_pending_hint_without_valid_url(): void
+    {
+        $this->asSuperadmin();
+
+        $this->payment->update(['tinkoff_payment_id' => 261000002]);
+
+        $ledgerPayment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payment_number' => '261000002',
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_QUEUED,
+            'amount' => 100.00,
+        ]);
+
+        $this->get('/admin/tinkoff/payments/' . $this->payment->id)
+            ->assertOk()
+            ->assertSee('Фискальный чек:', false)
+            ->assertSee('Чек формируется (CloudKassir)', false);
     }
 
     public function test_show_timeline_marks_payout_steps_done_when_completed(): void

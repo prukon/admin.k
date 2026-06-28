@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
+use App\Services\Tinkoff\TinkoffPaymentFiscalReceiptResolver;
 use App\Services\Tinkoff\TinkoffPaymentTimelineBuilder;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use Carbon\Carbon;
@@ -39,7 +40,7 @@ class TinkoffAdminPaymentController extends Controller
 
 
 
-    public function show($id, TinkoffPayoutsService $svc, TinkoffPaymentTimelineBuilder $timelineBuilder)
+    public function show($id, TinkoffPayoutsService $svc, TinkoffPaymentTimelineBuilder $timelineBuilder, TinkoffPaymentFiscalReceiptResolver $fiscalReceiptResolver)
     {
         $payment = TinkoffPayment::with([
             'partner',
@@ -145,7 +146,8 @@ class TinkoffAdminPaymentController extends Controller
         $hasCompletedPayout = $payouts->contains(fn (TinkoffPayout $p) => (string) $p->status === 'COMPLETED');
 
         $paymentTimeline = $timelineBuilder->build($payment, $payouts);
+        $fiscalReceipts = $fiscalReceiptResolver->resolve($payment);
 
-        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'hasCompletedPayout', 'paymentTimeline'));
+        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'hasCompletedPayout', 'paymentTimeline', 'fiscalReceipts'));
     }
 }

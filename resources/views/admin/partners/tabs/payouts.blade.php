@@ -74,6 +74,7 @@
                                     <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
                                     @php
                                         $cols = [
+                                            'payment' => 'Платёж',
                                             'id' => 'ID',
                                             'status' => 'Статус',
                                             'source' => 'Источник',
@@ -81,7 +82,6 @@
                                             'legal_entity_organization' => 'Организация',
                                             'payer' => 'Плательщик',
                                             'initiator' => 'Инициатор',
-                                            'payment' => 'Платёж',
                                             'provider_inv_id' => 'ID провайдера',
                                             'deal_id' => 'DealId',
                                             'gross' => 'Сумма платежа',
@@ -318,7 +318,7 @@
             <table id="payouts-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
-                    <th>№</th>
+                    <th>Платёж</th>
                     <th>ID</th>
                     <th>Статус</th>
                     <th>Источник</th>
@@ -326,7 +326,6 @@
                     <th>Организация</th>
                     <th>Плательщик</th>
                     <th>Инициатор</th>
-                    <th>Платёж</th>
                     <th>ID провайдера</th>
                     <th>DealId</th>
                     <th>Сумма платежа</th>
@@ -585,6 +584,7 @@
             const dtApi = KidsCrmDataTable.create('#payouts-table', {
                 columnsSettings: {
                     defaults: {
+                        payment: true,
                         id: true,
                         status: true,
                         source: true,
@@ -592,7 +592,6 @@
                         legal_entity_organization: true,
                         payer: true,
                         initiator: true,
-                        payment: true,
                         provider_inv_id: true,
                         deal_id: true,
                         gross: true,
@@ -627,7 +626,24 @@
                     language: @include('partials.datatables.ru'),
                 },
                 columns: [
-                    { type: 'rownum' },
+                    {
+                        key: 'payment',
+                        type: 'link',
+                        data: 'payment_id',
+                        name: 'payment_id',
+                        className: 'dt-col-id text-center',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return row.payment_id || '';
+                            }
+
+                            if (!row.payment_id) {
+                                return '<span class="dt-cell-empty text-muted">—</span>';
+                            }
+
+                            return '<a href="/admin/tinkoff/payments/' + row.payment_id + '">#' + row.payment_id + '</a>';
+                        },
+                    },
                     { key: 'id', type: 'id', data: 'id' },
                     {
                         key: 'status',
@@ -671,24 +687,6 @@
                     },
                     { key: 'payer', type: 'text', data: 'payer', name: 'payer' },
                     { key: 'initiator', type: 'text', data: 'initiator', name: 'initiator' },
-                    {
-                        key: 'payment',
-                        type: 'link',
-                        data: 'payment_id',
-                        name: 'payment_id',
-                        className: 'dt-col-id text-center',
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return row.payment_id || '';
-                            }
-
-                            if (!row.payment_id) {
-                                return '<span class="dt-cell-empty text-muted">—</span>';
-                            }
-
-                            return '<a href="/admin/tinkoff/payments/' + row.payment_id + '" target="_blank">#' + row.payment_id + '</a>';
-                        },
-                    },
                     {
                         key: 'provider_inv_id',
                         type: 'text',
