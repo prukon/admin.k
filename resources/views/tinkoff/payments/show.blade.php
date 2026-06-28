@@ -33,6 +33,20 @@
                                 <div>Метод: {{ $payment->method ?? '—' }}</div>
                                 <div>Партнёр: {{ optional($payment->partner)->title ?? '#'.$payment->partner_id }}</div>
                                 @php
+                                    $legalEntity = $payment->legalEntity;
+                                    $legalEntityLabel = '—';
+                                    if ($legalEntity) {
+                                        $legalEntityLabel = trim((string) ($legalEntity->organization_name ?? ''));
+                                        if ($legalEntityLabel === '') {
+                                            $legalEntityLabel = trim((string) ($legalEntity->title ?? ''));
+                                        }
+                                        if ($legalEntityLabel === '') {
+                                            $legalEntityLabel = '—';
+                                        }
+                                    }
+                                @endphp
+                                <div>Организация: <strong>{{ $legalEntityLabel }}</strong></div>
+                                @php
                                     $pPartner = $payment->partner;
                                     $taxVal = $pPartner ? $pPartner->taxation_system : null;
                                     $taxLabel = $taxVal !== null && $taxVal !== '' ? (match((int)$taxVal) { 0=>'ОСН', 1=>'УСН доход', 2=>'УСН доход − расход', 3=>'ЕНВД', 4=>'ЕСХН', 5=>'Патент', default=>(string)$taxVal }) : '—';
@@ -260,5 +274,7 @@
                 </div>
             </div>
         </div>
+
+        @include('tinkoff.payments.partials.timeline')
     </div>
 @endsection

@@ -191,6 +191,35 @@ ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</cod
     <li>Интеграция с договорами — отдельная фаза (prefill из юр. лица в модалке договора пока не реализован).</li>
   </ul>
 
+  <h3 id="legal-entities-snapshots-ui">7.1) Снимки <code>legal_entity_id</code> в UI T‑Bank</h3>
+  <div class="note">
+    При Init, webhook и создании выплаты в <code>tinkoff_payments</code>, <code>tinkoff_payouts</code>, <code>fiscal_receipts</code> сохраняется снимок <code>legal_entity_id</code> (миграции 2026‑06). В админке отображение идёт по снимку, а не через повторный вызов <code>LegalEntityResolver</code>.
+  </div>
+  <table>
+    <thead><tr><th>Экран</th><th>Источник</th><th>Подпись</th><th>Документация</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Список выплат <code>/admin/tinkoff/payouts</code>, колонка «Организация»</td>
+        <td><code>tinkoff_payouts.legal_entity_id</code> → JOIN <code>partner_legal_entities</code></td>
+        <td><code>organization_name</code> → <code>title</code> → «—»</td>
+        <td><a href="/docs/documentation/tbank-admin-payouts#payouts-table-columns">tbank-admin-payouts §4.1</a></td>
+      </tr>
+      <tr>
+        <td>Карточка платежа <code>/admin/tinkoff/payments/{id}</code>, строка «Организация»</td>
+        <td><code>tinkoff_payments.legal_entity_id</code>, eager <code>legalEntity</code> (<code>withTrashed</code>)</td>
+        <td>то же</td>
+        <td><a href="/docs/documentation/tbank#payment-show-card">tbank §5.7.1</a></td>
+      </tr>
+      <tr>
+        <td>Колонка «Партнёр» на выплатах / «Партнёр» на карточке платежа</td>
+        <td><code>partners.title</code></td>
+        <td>название клуба в CRM, <b>не</b> юр. лицо</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Карточка выплаты <code>/admin/tinkoff/payouts/{id}</code> строку «Организация» не выводит.</p>
+
   <h2>8) Legacy partner sm-register</h2>
   <p>Маршруты <code>POST tinkoff/partners/{id}/sm-register</code> и аналоги возвращают redirect/410 с указанием перейти в «Юр. лица». UI sm-register на карточке партнёра скрыт. Поле <code>partners.tinkoff_partner_id</code> остаётся fallback для оплат до полного перехода.</p>
 

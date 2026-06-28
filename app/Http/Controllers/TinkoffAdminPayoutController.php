@@ -281,6 +281,7 @@ class TinkoffAdminPayoutController extends Controller
 
         $baseQuery = TinkoffPayout::query()
             ->leftJoin('partners', 'partners.id', '=', 'tinkoff_payouts.partner_id')
+            ->leftJoin('partner_legal_entities as ple', 'ple.id', '=', 'tinkoff_payouts.legal_entity_id')
             ->leftJoin('tinkoff_payments', 'tinkoff_payments.id', '=', 'tinkoff_payouts.payment_id')
             ->leftJoin('payment_intents as pi_tbank', function ($join) {
                 $join->on('pi_tbank.tbank_order_id', '=', 'tinkoff_payments.order_id')
@@ -292,6 +293,8 @@ class TinkoffAdminPayoutController extends Controller
             ->select([
                 'tinkoff_payouts.*',
                 'partners.title as partner_title',
+                'ple.organization_name as legal_entity_organization_name',
+                'ple.title as legal_entity_title',
                 'tinkoff_payments.order_id as payment_order_id',
                 'tinkoff_payments.status as payment_status',
                 'tinkoff_payments.tinkoff_payment_id as tbank_payment_id',
@@ -337,46 +340,51 @@ class TinkoffAdminPayoutController extends Controller
                 case 4: // partner
                     $baseQuery->orderBy('partners.title', $orderDir);
                     break;
-                case 5: // payer
+                case 5: // legal entity organization
+                    $baseQuery->orderByRaw(
+                        "COALESCE(NULLIF(TRIM(ple.organization_name), ''), NULLIF(TRIM(ple.title), '')) " . $orderDir
+                    );
+                    break;
+                case 6: // payer
                     $baseQuery->orderBy('payer.lastname', $orderDir)->orderBy('payer.name', $orderDir);
                     break;
-                case 6: // initiator
+                case 7: // initiator
                     $baseQuery->orderBy('initiator.lastname', $orderDir)->orderBy('initiator.name', $orderDir);
                     break;
-                case 7: // payment id
+                case 8: // payment id
                     $baseQuery->orderBy('tinkoff_payouts.payment_id', $orderDir);
                     break;
-                case 8: // provider_inv_id (payment_intents)
+                case 9: // provider_inv_id (payment_intents)
                     $baseQuery->orderBy('pi_tbank.provider_inv_id', $orderDir);
                     break;
-                case 9: // deal_id
+                case 10: // deal_id
                     $baseQuery->orderBy('tinkoff_payouts.deal_id', $orderDir);
                     break;
-                case 10: // gross
+                case 11: // gross
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.gross_amount, tinkoff_payments.amount) ' . $orderDir);
                     break;
-                case 11: // комиссия оплаты (эквайринг)
+                case 12: // комиссия оплаты (эквайринг)
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.bank_accept_fee, 0) ' . $orderDir);
                     break;
-                case 12: // комиссия выплаты
+                case 13: // комиссия выплаты
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.bank_payout_fee, 0) ' . $orderDir);
                     break;
-                case 13: // platform fee
+                case 14: // platform fee
                     $baseQuery->orderBy('tinkoff_payouts.platform_fee', $orderDir);
                     break;
-                case 14: // net
+                case 15: // net
                     $baseQuery->orderByRaw('COALESCE(tinkoff_payouts.net_amount, tinkoff_payouts.amount) ' . $orderDir);
                     break;
-                case 15: // when_to_run
+                case 16: // when_to_run
                     $baseQuery->orderBy('tinkoff_payouts.when_to_run', $orderDir);
                     break;
-                case 16: // created_at
+                case 17: // created_at
                     $baseQuery->orderBy('tinkoff_payouts.created_at', $orderDir);
                     break;
-                case 17: // completed_at
+                case 18: // completed_at
                     $baseQuery->orderBy('tinkoff_payouts.completed_at', $orderDir);
                     break;
-                case 18: // tinkoff_payout_payment_id
+                case 19: // tinkoff_payout_payment_id
                     $baseQuery->orderBy('tinkoff_payouts.tinkoff_payout_payment_id', $orderDir);
                     break;
                 default:
@@ -416,11 +424,20 @@ class TinkoffAdminPayoutController extends Controller
                 $initLabel = '—';
             }
 
+            $legalEntityOrganization = trim((string) ($row->legal_entity_organization_name ?? ''));
+            if ($legalEntityOrganization === '') {
+                $legalEntityOrganization = trim((string) ($row->legal_entity_title ?? ''));
+            }
+            if ($legalEntityOrganization === '') {
+                $legalEntityOrganization = '—';
+            }
+
             return [
                 'id' => (int) $row->id,
                 'status' => (string) $row->status,
                 'source' => (string) ($row->source ?? ''),
                 'partner' => (string) ($row->partner_title ?? ('#' . $row->partner_id)),
+                'legal_entity_organization' => $legalEntityOrganization,
                 'payer' => $payerLabel,
                 'initiator' => $initLabel,
                 'payment_id' => (int) ($row->payment_id ?? 0),

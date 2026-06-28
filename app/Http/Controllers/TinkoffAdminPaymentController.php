@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TinkoffCommissionRule;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
+use App\Services\Tinkoff\TinkoffPaymentTimelineBuilder;
 use App\Services\Tinkoff\TinkoffPayoutsService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -38,9 +39,13 @@ class TinkoffAdminPaymentController extends Controller
 
 
 
-    public function show($id, TinkoffPayoutsService $svc)
+    public function show($id, TinkoffPayoutsService $svc, TinkoffPaymentTimelineBuilder $timelineBuilder)
     {
-        $payment = TinkoffPayment::with(['partner','payout'])->findOrFail($id);
+        $payment = TinkoffPayment::with([
+            'partner',
+            'payout',
+            'legalEntity' => static fn ($q) => $q->withTrashed(),
+        ])->findOrFail($id);
 
         // Калькуляция (поступило/банк/платформа/партнёру)
         $breakdown = $svc->breakdownForPayment($payment);
@@ -139,6 +144,8 @@ class TinkoffAdminPaymentController extends Controller
 
         $hasCompletedPayout = $payouts->contains(fn (TinkoffPayout $p) => (string) $p->status === 'COMPLETED');
 
-        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'hasCompletedPayout'));
+        $paymentTimeline = $timelineBuilder->build($payment, $payouts);
+
+        return view('tinkoff.payments.show', compact('payment', 'breakdown', 'refundUntil', 'historyEvents', 'payouts', 'showPayoutActions', 'hasCompletedPayout', 'paymentTimeline'));
     }
 }

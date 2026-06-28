@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Payments\TBank\Payouts;
 
+use App\Models\PartnerLegalEntity;
 use App\Models\TinkoffPayout;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -107,6 +108,7 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
                         'status',
                         'source',
                         'partner',
+                        'legal_entity_organization',
                         'payer',
                         'initiator',
                         'payment_id',
@@ -204,6 +206,36 @@ class TbankAdminPayoutsAccessFeatureTest extends CrmTestCase
         $resp->assertOk();
         $this->assertSame(1, $resp->json('recordsTotal'));
         $this->assertCount(1, $resp->json('data'));
+    }
+
+    public function test_tbank_payouts_data_includes_legal_entity_organization_from_snapshot(): void
+    {
+        $this->grantPayoutManageToUser($this->user);
+
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'Краткое название',
+            'organization_name' => 'ООО Выплата Тест',
+        ]);
+
+        TinkoffPayout::query()->create([
+            'payment_id' => null,
+            'partner_id' => $this->partner->id,
+            'legal_entity_id' => $entity->id,
+            'deal_id' => 'le-org-' . uniqid(),
+            'amount' => 100,
+            'is_final' => false,
+            'status' => 'COMPLETED',
+            'tinkoff_payout_payment_id' => null,
+            'when_to_run' => null,
+            'completed_at' => now(),
+        ]);
+
+        $resp = $this->get('/admin/tinkoff/payouts/data?draw=1&start=0&length=10');
+        $resp->assertOk();
+
+        $row = collect($resp->json('data'))->firstWhere('legal_entity_organization', 'ООО Выплата Тест');
+        $this->assertNotNull($row, 'Expected payout row with legal entity organization name');
+        $this->assertSame('ООО Выплата Тест', $row['legal_entity_organization']);
     }
 
     public function test_tbank_payouts_superadmin_sees_foreign_partner_in_data_when_filtered(): void

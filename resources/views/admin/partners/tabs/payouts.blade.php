@@ -78,6 +78,7 @@
                                             'status' => 'Статус',
                                             'source' => 'Источник',
                                             'partner' => 'Партнёр',
+                                            'legal_entity_organization' => 'Организация',
                                             'payer' => 'Плательщик',
                                             'initiator' => 'Инициатор',
                                             'payment' => 'Платёж',
@@ -322,6 +323,7 @@
                     <th>Статус</th>
                     <th>Источник</th>
                     <th>Партнёр</th>
+                    <th>Организация</th>
                     <th>Плательщик</th>
                     <th>Инициатор</th>
                     <th>Платёж</th>
@@ -587,6 +589,7 @@
                         status: true,
                         source: true,
                         partner: true,
+                        legal_entity_organization: true,
                         payer: true,
                         initiator: true,
                         payment: true,
@@ -659,6 +662,13 @@
                         },
                     },
                     { key: 'partner', type: 'text', data: 'partner', name: 'partner' },
+                    {
+                        key: 'legal_entity_organization',
+                        type: 'text',
+                        data: 'legal_entity_organization',
+                        name: 'legal_entity_organization',
+                        className: 'dt-col-text dt-col-text--wrap',
+                    },
                     { key: 'payer', type: 'text', data: 'payer', name: 'payer' },
                     { key: 'initiator', type: 'text', data: 'initiator', name: 'initiator' },
                     {

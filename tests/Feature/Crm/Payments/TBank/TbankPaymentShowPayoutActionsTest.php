@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\Payments\TBank;
 
+use App\Models\PartnerLegalEntity;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Tests\Feature\Crm\CrmTestCase;
@@ -26,6 +27,43 @@ class TbankPaymentShowPayoutActionsTest extends CrmTestCase
             'deal_id' => 'deal-payout-actions',
             'confirmed_at' => now(),
         ]);
+    }
+
+    public function test_show_displays_payment_timeline(): void
+    {
+        $payment = $this->createPaymentWithDeal();
+
+        $this->get('/admin/tinkoff/payments/' . $payment->id)
+            ->assertOk()
+            ->assertSee('Ход платежа и выплаты', false)
+            ->assertSee('Платёжный запрос', false)
+            ->assertSee('Оплата подтверждена', false)
+            ->assertSee('Создана выплата', false)
+            ->assertSee('Выплата выполнена', false);
+    }
+
+    public function test_show_displays_legal_entity_organization_below_partner(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'Краткое название',
+            'organization_name' => 'ООО Платёж Тест',
+        ]);
+
+        $payment = TinkoffPayment::create([
+            'order_id' => 'order-legal-entity-label',
+            'partner_id' => $this->partner->id,
+            'legal_entity_id' => $entity->id,
+            'amount' => 10000,
+            'method' => 'card',
+            'status' => 'CONFIRMED',
+            'deal_id' => 'deal-legal-entity-label',
+            'confirmed_at' => now(),
+        ]);
+
+        $this->get('/admin/tinkoff/payments/' . $payment->id)
+            ->assertOk()
+            ->assertSee('Организация:', false)
+            ->assertSee('ООО Платёж Тест', false);
     }
 
     public function test_show_displays_payout_buttons_when_no_payout_exists(): void

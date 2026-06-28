@@ -245,9 +245,10 @@ final class TbankPayoutsSectionFullAccessFeatureTest extends CrmTestCase
                 'url'    => '/admin/tinkoff/payouts/columns-settings',
                 'data'   => [
                     'columns' => [
-                        'status'  => true,
-                        'partner' => true,
-                        'net'     => true,
+                        'status'                  => true,
+                        'partner'                 => true,
+                        'legal_entity_organization' => true,
+                        'net'                     => true,
                     ],
                 ],
             ],

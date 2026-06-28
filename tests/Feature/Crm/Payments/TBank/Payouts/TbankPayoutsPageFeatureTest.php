@@ -90,7 +90,29 @@ final class TbankPayoutsPageFeatureTest extends CrmTestCase
                 'draw',
                 'recordsTotal',
                 'recordsFiltered',
-                'data',
+                'data' => [
+                    '*' => [
+                        'id',
+                        'status',
+                        'source',
+                        'partner',
+                        'legal_entity_organization',
+                        'payer',
+                        'initiator',
+                        'payment_id',
+                        'provider_inv_id',
+                        'deal_id',
+                        'gross',
+                        'bank_accept_fee',
+                        'bank_payout_fee',
+                        'platform_fee',
+                        'net',
+                        'when_to_run',
+                        'created_at',
+                        'completed_at',
+                        'tinkoff_payout_payment_id',
+                    ],
+                ],
             ]);
     }
 
