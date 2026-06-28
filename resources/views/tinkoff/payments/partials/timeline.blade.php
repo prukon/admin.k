@@ -11,8 +11,8 @@
     }
 
     .tbank-payment-timeline__step {
-        flex: 1 1 140px;
-        min-width: 120px;
+        flex: 1 1 120px;
+        min-width: 105px;
         border: 1px solid var(--bs-border-color, #dee2e6);
         border-radius: 0.5rem;
         padding: 0.75rem 0.65rem;
@@ -83,6 +83,16 @@
         user-select: none;
     }
 
+    .tbank-payment-timeline__hint a {
+        color: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    .tbank-payment-timeline__hint a:hover {
+        opacity: 1;
+    }
+
     @media (max-width: 767.98px) {
         .tbank-payment-timeline__arrow {
             display: none;
@@ -96,8 +106,8 @@
 
 <div class="card shadow-sm mt-3">
     <div class="card-body">
-        <h6 class="mb-3">Ход платежа и выплаты</h6>
-        <div class="tbank-payment-timeline" role="list" aria-label="Ход платежа и выплаты">
+        <h6 class="mb-3">Ход платежа, чеков и выплаты</h6>
+        <div class="tbank-payment-timeline" role="list" aria-label="Ход платежа, чеков и выплаты">
             @foreach ($paymentTimeline as $index => $step)
                 <div class="tbank-payment-timeline__step tbank-payment-timeline__step--{{ $step['state'] }}" role="listitem">
                     <div class="tbank-payment-timeline__num">{{ $index + 1 }}</div>
@@ -108,16 +118,19 @@
                         <div class="tbank-payment-timeline__time text-muted">—</div>
                     @endif
                     @if (! empty($step['hint']))
-                        <div class="tbank-payment-timeline__hint">{{ $step['hint'] }}</div>
+                        <div class="tbank-payment-timeline__hint">
+                            @if (! empty($step['url']))
+                                <a href="{{ $step['url'] }}" target="_blank" rel="noopener noreferrer">{{ $step['hint'] }}</a>
+                            @else
+                                {{ $step['hint'] }}
+                            @endif
+                        </div>
                     @endif
                 </div>
                 @if (! $loop->last)
                     <div class="tbank-payment-timeline__arrow" aria-hidden="true">→</div>
                 @endif
             @endforeach
-        </div>
-        <div class="small text-muted mt-3 mb-0">
-            Отдельно от этой цепочки может идти фискальный чек (CloudKassir) — он не показан здесь.
         </div>
     </div>
 </div>

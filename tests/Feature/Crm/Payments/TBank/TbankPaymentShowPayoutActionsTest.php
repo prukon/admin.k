@@ -35,9 +35,10 @@ class TbankPaymentShowPayoutActionsTest extends CrmTestCase
 
         $this->get('/admin/tinkoff/payments/' . $payment->id)
             ->assertOk()
-            ->assertSee('Ход платежа и выплаты', false)
+            ->assertSee('Ход платежа, чеков и выплаты', false)
             ->assertSee('Платёжный запрос', false)
             ->assertSee('Оплата подтверждена', false)
+            ->assertSee('Чек оплаты', false)
             ->assertSee('Создана выплата', false)
             ->assertSee('Выплата выполнена', false);
     }

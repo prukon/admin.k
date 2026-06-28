@@ -6,7 +6,9 @@ namespace Tests\Feature\Crm\Payments\TBank;
 
 use App\Models\FiscalReceipt;
 use App\Models\PartnerLegalEntity;
+use App\Models\Payable;
 use App\Models\Payment;
+use App\Models\Refund;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Carbon;
@@ -98,7 +100,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
 
         $this->get('/admin/tinkoff/payments/' . $this->payment->id)
             ->assertOk()
-            ->assertSee('Ход платежа и выплаты', false)
+            ->assertSee('Ход платежа, чеков и выплаты', false)
             ->assertSee('tbank-payment-timeline', false);
     }
 
@@ -153,13 +155,15 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('Платёжный запрос', false)
             ->assertSee('Оплата подтверждена', false)
+            ->assertSee('Чек оплаты', false)
             ->assertSee('Создана выплата', false)
             ->assertSee('Выплата выполнена', false)
             ->assertSee('20.06.2026 14:00', false)
             ->assertSee('20.06.2026 14:30', false)
             ->assertSee('tbank-payment-timeline__step--done', false)
             ->assertSee('tbank-payment-timeline__step--pending', false)
-            ->assertSee('Deal ' . $this->payment->deal_id, false);
+            ->assertSee('Deal ' . $this->payment->deal_id, false)
+            ->assertDontSee('Отдельно от этой цепочки может идти фискальный чек', false);
     }
 
     public function test_show_displays_fiscal_receipt_link_when_valid_url_exists(): void
@@ -217,6 +221,68 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             ->assertSee('Чек формируется (CloudKassir)', false);
     }
 
+    public function test_show_timeline_includes_refund_and_return_receipt_steps(): void
+    {
+        $this->asSuperadmin();
+
+        $this->payment->update(['tinkoff_payment_id' => 261000003]);
+
+        $ledgerPayment = Payment::factory()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payment_number' => '261000003',
+            'deal_id' => $this->payment->deal_id,
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => 100.00,
+            'receipt_url' => 'https://receipts.ru/timeline-show-income',
+            'receipt_datetime' => Carbon::parse('2026-06-20 15:00:00'),
+        ]);
+
+        Refund::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->user->id,
+            'payable_id' => Payable::create([
+                'partner_id' => $this->partner->id,
+                'user_id' => $this->user->id,
+                'type' => 'club_fee',
+                'amount' => '100.00',
+                'currency' => 'RUB',
+                'status' => 'paid',
+            ])->id,
+            'payment_id' => $ledgerPayment->id,
+            'amount' => 100.00,
+            'currency' => 'RUB',
+            'status' => 'succeeded',
+            'provider' => 'tbank',
+            'processed_at' => Carbon::parse('2026-06-21 09:00:00'),
+        ]);
+
+        FiscalReceipt::query()->create([
+            'partner_id' => $this->partner->id,
+            'payment_id' => $ledgerPayment->id,
+            'type' => FiscalReceipt::TYPE_INCOME_RETURN,
+            'status' => FiscalReceipt::STATUS_PROCESSED,
+            'amount' => 100.00,
+            'receipt_url' => 'https://receipts.ru/timeline-show-return',
+            'receipt_datetime' => Carbon::parse('2026-06-21 09:05:00'),
+        ]);
+
+        $this->get('/admin/tinkoff/payments/' . $this->payment->id)
+            ->assertOk()
+            ->assertSee('Чек оплаты', false)
+            ->assertSee('https://receipts.ru/timeline-show-income', false)
+            ->assertSee('Возврат', false)
+            ->assertSee('Чек возврата', false)
+            ->assertSee('https://receipts.ru/timeline-show-return', false)
+            ->assertSee('21.06.2026 09:00', false);
+    }
+
     public function test_show_timeline_marks_payout_steps_done_when_completed(): void
     {
         $this->asSuperadmin();
@@ -243,7 +309,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
         $this->assertGreaterThanOrEqual(
             4,
             substr_count($html, 'tbank-payment-timeline__step tbank-payment-timeline__step--done'),
-            'Все 4 шага timeline должны быть выполнены'
+            'Минимум 4 выполненных шага timeline (оплата и выплата)'
         );
     }
 

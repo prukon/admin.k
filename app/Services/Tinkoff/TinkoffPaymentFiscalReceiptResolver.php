@@ -25,12 +25,22 @@ final class TinkoffPaymentFiscalReceiptResolver
         ];
     }
 
+    public function resolveLedgerPaymentId(TinkoffPayment $payment): ?int
+    {
+        return $this->resolveLedgerPaymentIdInternal($payment);
+    }
+
+    public function findLatestReceipt(TinkoffPayment $payment, string $type): ?FiscalReceipt
+    {
+        return $this->findLatestReceiptInternal($payment, $type);
+    }
+
     /**
      * @return array{status: ?string, url: ?string, has_url: bool, receipt_datetime: ?\Illuminate\Support\Carbon, hint: string}
      */
     private function resolveByType(TinkoffPayment $payment, string $type): array
     {
-        $receipt = $this->findLatestReceipt($payment, $type);
+        $receipt = $this->findLatestReceiptInternal($payment, $type);
         $url = FiscalReceiptUrl::isPublicDisplayUrl($receipt?->receipt_url)
             ? trim((string) $receipt->receipt_url)
             : null;
@@ -44,10 +54,10 @@ final class TinkoffPaymentFiscalReceiptResolver
         ];
     }
 
-    private function findLatestReceipt(TinkoffPayment $payment, string $type): ?FiscalReceipt
+    private function findLatestReceiptInternal(TinkoffPayment $payment, string $type): ?FiscalReceipt
     {
         $partnerId = (int) $payment->partner_id;
-        $ledgerPaymentId = $this->resolveLedgerPaymentId($payment);
+        $ledgerPaymentId = $this->resolveLedgerPaymentIdInternal($payment);
         $intentLinks = $this->resolvePaymentIntentLinks($payment);
 
         $intentIds = $intentLinks->pluck('id')->filter()->values()->all();
@@ -75,7 +85,7 @@ final class TinkoffPaymentFiscalReceiptResolver
             ->first();
     }
 
-    private function resolveLedgerPaymentId(TinkoffPayment $payment): ?int
+    private function resolveLedgerPaymentIdInternal(TinkoffPayment $payment): ?int
     {
         if (! empty($payment->tinkoff_payment_id)) {
             $paymentId = Payment::query()
