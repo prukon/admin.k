@@ -23,7 +23,7 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
-        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage']);
+        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage', 'legal_entities.sm_register']);
     }
 
     /** @param list<string> $permissions */
@@ -44,7 +44,7 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
     {
         $payload = [
             'business_type' => 'IP',
-            'title' => 'ИП без ajax',
+            'organization_name' => 'ИП Non Ajax',
             'tax_id' => '123456789012',
             'is_enabled' => 1,
         ];
@@ -54,7 +54,7 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $entity = PartnerLegalEntity::query()
             ->where('partner_id', $this->partner->id)
-            ->where('title', 'ИП без ajax')
+            ->where('tax_id', '123456789012')
             ->first();
 
         $this->assertNotNull($entity);
@@ -67,10 +67,9 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $this->from(route('admin.legal-entities.index'))
             ->post(route('admin.legal-entities.store'), [
                 'business_type' => 'INVALID',
-                'title' => '',
             ])
             ->assertStatus(302)
-            ->assertSessionHasErrors(['business_type', 'title']);
+            ->assertSessionHasErrors(['business_type']);
 
         $this->assertDatabaseMissing('partner_legal_entities', [
             'partner_id' => $this->partner->id,
@@ -87,7 +86,7 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $payload = [
             'business_type' => 'OOO',
-            'title' => 'После non-ajax update',
+            'organization_name' => 'После non-ajax update',
             'is_default' => true,
             'is_enabled' => true,
         ];
@@ -96,7 +95,7 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
             ->assertRedirect(route('admin.legal-entities.show', $entity))
             ->assertSessionHas('ok', 'Юр. лицо обновлено');
 
-        $this->assertSame('После non-ajax update', $entity->fresh()->title);
+        $this->assertSame('После non-ajax update', $entity->fresh()->organization_name);
     }
 
     public function test_update_non_ajax_validation_failure_redirects_with_errors_not_empty_200(): void
@@ -108,11 +107,42 @@ final class LegalEntitiesNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $this->from(route('admin.legal-entities.show', $entity))
             ->put(route('admin.legal-entities.update', $entity), [
                 'business_type' => 'BAD',
-                'title' => '',
             ])
             ->assertStatus(302)
-            ->assertSessionHasErrors(['business_type', 'title']);
+            ->assertSessionHasErrors(['business_type']);
 
         $this->assertSame('Валидация non-ajax', $entity->fresh()->title);
+    }
+
+    public function test_update_non_ajax_validation_failure_includes_organization_name(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'Валидация org name non-ajax',
+            'organization_name' => 'Было заполнено',
+        ]);
+
+        $this->from(route('admin.legal-entities.show', $entity))
+            ->put(route('admin.legal-entities.update', $entity), [
+                'business_type' => 'OOO',
+                'organization_name' => '',
+                'is_default' => true,
+                'is_enabled' => true,
+            ])
+            ->assertStatus(302)
+            ->assertSessionHasErrors(['organization_name']);
+
+        $this->assertSame('Было заполнено', $entity->fresh()->organization_name);
+    }
+
+    public function test_destroy_non_ajax_redirects_and_soft_deletes_entity(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'На удаление non-ajax',
+        ]);
+
+        $this->delete(route('admin.legal-entities.destroy', $entity))
+            ->assertRedirect(route('admin.legal-entities.index'));
+
+        $this->assertSoftDeleted('partner_legal_entities', ['id' => $entity->id]);
     }
 }

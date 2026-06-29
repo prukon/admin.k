@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Partner;
 
+use App\Enums\CloudKassirVatRate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePartnerRequest extends FormRequest
 {
@@ -28,9 +30,6 @@ class StorePartnerRequest extends FormRequest
                 ]
             ]);
         }
-        if ($this->has('taxation_system') && $this->taxation_system === '') {
-            $this->merge(['taxation_system' => null]);
-        }
         if ($this->has('vat') && $this->vat === '') {
             $this->merge(['vat' => null]);
         }
@@ -43,9 +42,8 @@ class StorePartnerRequest extends FormRequest
             'title'               => 'required|string|max:255',
             'organization_name'   => 'nullable|string|max:255',
             'tax_id'              => 'nullable|string|max:12',
-            'taxation_system'     => 'nullable|integer|in:0,1,2,3,4,5',
             /** Коды CloudKassir Items.Vat; пусто = не облагается */
-            'vat'                 => 'nullable|integer|in:0,5,7,10,20,22,105,107,110,120,122',
+            'vat'                 => ['nullable', 'integer', Rule::in(CloudKassirVatRate::codes())],
             'kpp'                 => 'nullable|string|max:9',
             'registration_number' => 'nullable|string|max:20',
 
@@ -90,7 +88,6 @@ class StorePartnerRequest extends FormRequest
             'organization_name'   => 'Наименование организации',
             'tax_id'              => 'ИНН',
             'kpp'                 => 'КПП',
-            'taxation_system'     => 'Система налогообложения (СНО)',
             'vat'                 => 'Ставка НДС (онлайн-чек)',
             'registration_number' => 'ОГРН (ОГРНИП)',
 

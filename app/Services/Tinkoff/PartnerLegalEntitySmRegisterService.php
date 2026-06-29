@@ -30,8 +30,7 @@ final class PartnerLegalEntitySmRegisterService
         $status = data_get($response, 'status') ?? 'REGISTERED';
 
         $legalName = trim((string) $validated['organization_name']);
-        $bd = $entity->sms_name ?: $this->makeDescriptor($legalName);
-        $smsToSave = $entity->sms_name ?: $bd;
+        $bd = $this->resolveBillingDescriptor($partner, $legalName);
 
         [$ceoFirst, $ceoLast, $ceoMiddle, $ceoPhone] = $this->resolveCeo($entity, $validated, $partner, $legalName);
 
@@ -40,7 +39,6 @@ final class PartnerLegalEntitySmRegisterService
                 'tinkoff_shop_code' => $shopCode,
                 'sm_register_status' => $status,
                 'registered_at' => $entity->registered_at ?? now(),
-                'sms_name' => $smsToSave,
                 'bank_details_version' => (int) ($entity->bank_details_version ?? 0) + 1,
                 'bank_details_last_updated_at' => now(),
             ])
@@ -123,8 +121,6 @@ final class PartnerLegalEntitySmRegisterService
         $phone = data_get($phones, '0.phone');
         $details = (string) data_get($bank, 'details', '');
 
-        $smsName = $entity->sms_name ?: (string) data_get($remote, 'billingDescriptor');
-
         $toWrite = [
             'organization_name' => (string) data_get($remote, 'fullName', $entity->organization_name),
             'tax_id' => (string) data_get($remote, 'inn', $entity->tax_id),
@@ -138,7 +134,6 @@ final class PartnerLegalEntitySmRegisterService
             'bank_account' => (string) data_get($bank, 'account', $entity->bank_account),
             'sm_details_template' => $details !== '' ? $details : $entity->sm_details_template,
             'sm_register_status' => (string) data_get($remote, 'status', $entity->sm_register_status),
-            'sms_name' => $smsName ?: $entity->sms_name,
         ];
 
         if ($phone) {
@@ -176,7 +171,7 @@ final class PartnerLegalEntitySmRegisterService
     private function buildRegisterPayload(PartnerLegalEntity $entity, Partner $partner, array $validated): array
     {
         $legalName = trim((string) $validated['organization_name']);
-        $bd = $entity->sms_name ?: $this->makeDescriptor($legalName);
+        $bd = $this->resolveBillingDescriptor($partner, $legalName);
         $businessType = PartnerLegalEntityBusinessType::from((string) $validated['business_type']);
 
         $phone = $this->normalizePhone($validated['phone'] ?? $partner->phone);
@@ -322,8 +317,21 @@ final class PartnerLegalEntitySmRegisterService
         Partner $partner,
         string $legalName,
     ): array {
-        $existingCeo = is_array($entity->ceo) ? $entity->ceo : null;
         $normalizePhone = fn (?string $raw) => $this->normalizePhone($raw) ?: '+70000000000';
+
+        $ceoFromForm = is_array($validated['ceo'] ?? null) ? $validated['ceo'] : null;
+        if (! empty($ceoFromForm['firstName']) && ! empty($ceoFromForm['lastName'])) {
+            return [
+                (string) $ceoFromForm['firstName'],
+                (string) $ceoFromForm['lastName'],
+                isset($ceoFromForm['middleName']) && trim((string) $ceoFromForm['middleName']) !== ''
+                    ? (string) $ceoFromForm['middleName']
+                    : null,
+                $normalizePhone($ceoFromForm['phone'] ?? ($validated['phone'] ?? $partner->phone)),
+            ];
+        }
+
+        $existingCeo = is_array($entity->ceo) ? $entity->ceo : null;
 
         if ($existingCeo && ! empty($existingCeo['firstName']) && ! empty($existingCeo['lastName'])) {
             return [
@@ -383,6 +391,16 @@ final class PartnerLegalEntitySmRegisterService
     private function normalizeCity(string $city): string
     {
         return preg_match('/^(\s*spb|\s*спб)$/iu', $city) ? 'Санкт-Петербург' : $city;
+    }
+
+    private function resolveBillingDescriptor(Partner $partner, string $legalName): string
+    {
+        $partnerSms = trim((string) ($partner->sms_name ?? ''));
+        if ($partnerSms !== '') {
+            return $partnerSms;
+        }
+
+        return $this->makeDescriptor($legalName);
     }
 
     private function makeDescriptor(string $src): string

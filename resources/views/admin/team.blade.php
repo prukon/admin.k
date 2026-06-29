@@ -387,6 +387,21 @@
                 return KidsCrmTooltip.escapeHtml(text);
             }
 
+            function renderLegalEntityDefaultHint() {
+                const hint = 'Юр лицо установленное по умолчанию';
+
+                return ' <span class="kids-tooltip-hint d-inline-block ms-1"'
+                    + ' tabindex="0"'
+                    + ' data-kids-tooltip-hint'
+                    + ' data-bs-toggle="tooltip"'
+                    + ' data-bs-placement="top"'
+                    + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                    + ' title="' + escapeHtml(hint) + '"'
+                    + ' aria-label="' + escapeHtml(hint) + '">'
+                    + '<i class="fa fa-info-circle" aria-hidden="true"></i>'
+                    + '</span>';
+            }
+
             function renderTeamWeekdayBadges(row) {
                 const items = Array.isArray(row.weekdays_items) ? row.weekdays_items : [];
                 if (!items.length) {
@@ -532,8 +547,10 @@
                                 return '<span class="text-muted">—</span>';
                             }
                             if (row.legal_entity_fallback) {
-                                return escapeHtml(data) +
-                                    ' <span class="badge text-bg-warning" title="Для платежей используется юр. лицо по умолчанию">fallback</span>';
+                                return '<span class="d-inline-flex align-items-center">'
+                                    + escapeHtml(data)
+                                    + renderLegalEntityDefaultHint()
+                                    + '</span>';
                             }
                             return escapeHtml(data);
                         },
@@ -579,6 +596,18 @@
             });
 
             const table = dtApi.table;
+
+            function initTeamsLegalEntityHints() {
+                requestAnimationFrame(function () {
+                    KidsCrmTooltip.init(table.table().body(), { scopes: ['hint'] });
+                });
+            }
+
+            $(table.table().node())
+                .off('draw.dt.kidsCrmTeamsLegalEntityHint')
+                .on('draw.dt.kidsCrmTeamsLegalEntityHint', initTeamsLegalEntityHints);
+
+            initTeamsLegalEntityHints();
 
             function reloadTeamsTable() {
                 dtApi.reload();

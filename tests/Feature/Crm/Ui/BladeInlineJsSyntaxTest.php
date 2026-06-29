@@ -33,6 +33,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'lesson package assignments tab' => ['admin/lessonPackages/tabs/assignments.blade.php'];
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
+        yield 'teams index legal entity column' => ['admin/team.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

@@ -49,9 +49,9 @@
 @endphp
 
 <div class="row g-3">
-    <div class="col-md-6">
+    <div class="col-md-3">
         <label class="form-label">Форма организации*</label>
-        <select name="business_type" class="form-select js-legal-entity-sm-locked" required>
+        <select name="business_type" class="form-select js-legal-entity-business-type js-legal-entity-sm-locked" required>
             @foreach ($businessTypes as $type)
                 <option value="{{ $type->value }}" @selected((string) $field('business_type', $selectedBusinessType) === $type->value)>{{ $type->label() }}</option>
             @endforeach
@@ -59,99 +59,79 @@
         <div class="invalid-feedback d-block" data-error-for="business_type"></div>
     </div>
 
-    <div class="col-md-6">
-        <label class="form-label">Наименование*</label>
-        <input class="form-control js-legal-entity-sm-locked" name="title" required value="{{ $field('title') }}" />
-        <div class="invalid-feedback d-block" data-error-for="title"></div>
-    </div>
-
-    <div class="col-md-12">
-        <label class="form-label">Наименование организации</label>
-        <input class="form-control js-legal-entity-sm-locked" name="organization_name" value="{{ $field('organization_name') }}" />
+    <div class="col-md-3">
+        <label class="form-label">Наименование организации*</label>
+        <input class="form-control js-legal-entity-sm-locked" name="organization_name" placeholder="ИП Иванов Иван..." value="{{ $field('organization_name') }}" required />
         <div class="invalid-feedback d-block" data-error-for="organization_name"></div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">ИНН</label>
         <input class="form-control js-legal-entity-sm-locked" name="tax_id" maxlength="12" value="{{ $field('tax_id') }}" />
         <div class="invalid-feedback d-block" data-error-for="tax_id"></div>
     </div>
 
-    <div class="col-md-4">
-        <label class="form-label">КПП</label>
-        <input class="form-control js-legal-entity-sm-locked" name="kpp" maxlength="9" value="{{ $field('kpp') }}" />
-        <div class="invalid-feedback d-block" data-error-for="kpp"></div>
-    </div>
-
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">ОГРН/ОГРНИП</label>
         <input class="form-control js-legal-entity-sm-locked" name="registration_number" maxlength="20" value="{{ $field('registration_number') }}" />
         <div class="invalid-feedback d-block" data-error-for="registration_number"></div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3 js-kpp-field">
+        <label class="form-label">КПП</label>
+        <input class="form-control js-legal-entity-sm-locked" name="kpp" maxlength="9" value="{{ $field('kpp') }}" />
+        <div class="invalid-feedback d-block" data-error-for="kpp"></div>
+    </div>
+
+    <div class="col-md-3">
         <label class="form-label">Город</label>
         <input class="form-control js-legal-entity-sm-locked" name="city" value="{{ $field('city') }}" />
         <div class="invalid-feedback d-block" data-error-for="city"></div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">Индекс</label>
         <input class="form-control js-legal-entity-sm-locked" name="zip" maxlength="6" pattern="\d{6}" value="{{ $field('zip') }}" />
         <div class="invalid-feedback d-block" data-error-for="zip"></div>
     </div>
 
-    <div class="col-md-12">
+    <div class="col-md-3">
         <label class="form-label">Адрес</label>
         <input class="form-control js-legal-entity-sm-locked" name="address" value="{{ $field('address') }}" />
         <div class="invalid-feedback d-block" data-error-for="address"></div>
     </div>
 
     <div class="col-12">
-        <h6 class="mb-0 mt-1">Реквизиты для sm-register</h6>
+        <h6 class="mb-0 mt-1">Реквизиты для банка</h6>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">Наименование банка</label>
         <input class="form-control js-legal-entity-sm-locked" name="bank_name" maxlength="255" value="{{ $field('bank_name') }}" />
         <div class="invalid-feedback d-block" data-error-for="bank_name"></div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">БИК</label>
         <input class="form-control js-legal-entity-sm-locked" name="bank_bik" maxlength="20" value="{{ $field('bank_bik') }}" />
         <div class="invalid-feedback d-block" data-error-for="bank_bik"></div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label class="form-label">Расчётный счёт</label>
         <input class="form-control js-legal-entity-sm-locked" name="bank_account" maxlength="32" value="{{ $field('bank_account') }}" />
         <div class="invalid-feedback d-block" data-error-for="bank_account"></div>
     </div>
 
-    <div class="col-md-6">
-        <label class="form-label">Название для SMS/выписок</label>
-        <input class="form-control js-legal-entity-sm-locked" name="sms_name" maxlength="14" value="{{ $field('sms_name') }}" />
-        <div class="form-text">До 14 символов, латиница (A–Z, 0–9, пробел, <code>.-_</code>).</div>
-        <div class="invalid-feedback d-block" data-error-for="sms_name"></div>
-    </div>
-
-    <div class="col-md-6">
-        <label class="form-label">Назначение платежа</label>
-        <input type="text"
-               class="form-control bg-light js-legal-entity-sm-details-display"
-               value="{{ $smDetailsDefault }}"
-               disabled
-               aria-disabled="true">
-        <input type="hidden"
-               name="sm_details_template"
-               class="js-legal-entity-sm-details-value"
-               value="{{ trim((string) $field('sm_details_template', $smDetailsDefault)) !== '' ? $field('sm_details_template', $smDetailsDefault) : $smDetailsDefault }}">
-        <div class="invalid-feedback d-block" data-error-for="sm_details_template"></div>
-    </div>
-
-    <div class="col-12">
-        <h6 class="mb-0 mt-1">Данные руководителя / ИП</h6>
+    <div class="col-md-3">
+        <label class="form-label">Ставка НДС (онлайн-чек)</label>
+        <select name="vat" class="form-select">
+            <option value="" @selected($field('vat') === '' || $field('vat') === null)>НДС не облагается</option>
+            @foreach (\App\Enums\CloudKassirVatRate::selectOptions() as $vatOption)
+                <option value="{{ $vatOption['value'] }}" @selected((string) $field('vat') === (string) $vatOption['value'])>{{ $vatOption['label'] }}</option>
+            @endforeach
+        </select>
+        <div class="invalid-feedback d-block" data-error-for="vat"></div>
     </div>
 
     <div class="col-md-3">
@@ -183,35 +163,7 @@
         <div class="invalid-feedback d-block" data-error-for="ceo.phone"></div>
     </div>
 
-    <div class="col-12">
-        <div class="alert alert-info d-none py-2 mb-0 js-legal-entity-registered-hint" role="status">
-            После регистрации в T‑Bank реквизиты и данные руководителя меняются на карточке через «Обновить в sm-register».
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <label class="form-label">СНО (для чеков)</label>
-        <select name="taxation_system" class="form-select">
-            <option value="">—</option>
-            @foreach ([0 => 'ОСН', 1 => 'УСН доход', 2 => 'УСН доход − расход', 3 => 'ЕНВД', 4 => 'ЕСХН', 5 => 'Патент'] as $val => $label)
-                <option value="{{ $val }}" @selected((string) $field('taxation_system') === (string) $val)>{{ $label }}</option>
-            @endforeach
-        </select>
-        <div class="invalid-feedback d-block" data-error-for="taxation_system"></div>
-    </div>
-
-    <div class="col-md-6">
-        <label class="form-label">Ставка НДС (онлайн-чек)</label>
-        <select name="vat" class="form-select">
-            <option value="">Не облагается</option>
-            @foreach ([0, 5, 7, 10, 20, 22, 105, 107, 110, 120, 122] as $val)
-                <option value="{{ $val }}" @selected((string) $field('vat') === (string) $val)>{{ $val }}</option>
-            @endforeach
-        </select>
-        <div class="invalid-feedback d-block" data-error-for="vat"></div>
-    </div>
-
-    <div class="col-md-6">
+    <div class="col-md-3">
         <label class="form-label">Основное юр. лицо</label>
         <select class="form-select" name="is_default">
             <option value="0" @selected((int) $field('is_default', 0) === 0)>Нет</option>
@@ -220,12 +172,23 @@
         <div class="invalid-feedback d-block" data-error-for="is_default"></div>
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-3">
         <label class="form-label">Активен</label>
         <select class="form-select" name="is_enabled">
             <option value="1" @selected((int) $field('is_enabled', 1) === 1)>Да</option>
             <option value="0" @selected((int) $field('is_enabled', 1) === 0)>Нет</option>
         </select>
         <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
+    </div>
+
+    <input type="hidden"
+           name="sm_details_template"
+           class="js-legal-entity-sm-details-value"
+           value="{{ trim((string) $field('sm_details_template', $smDetailsDefault)) !== '' ? $field('sm_details_template', $smDetailsDefault) : $smDetailsDefault }}">
+
+    <div class="col-12">
+        <div class="alert alert-info d-none py-2 mb-0 js-legal-entity-registered-hint" role="status">
+            После регистрации в T‑Bank реквизиты и данные руководителя меняются на карточке через «Обновить в sm-register».
+        </div>
     </div>
 </div>

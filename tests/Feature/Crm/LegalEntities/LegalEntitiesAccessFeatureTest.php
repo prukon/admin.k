@@ -144,12 +144,10 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->get(route('admin.legal-entities.show', $this->entity))
-            ->assertOk()
-            ->assertSee('Access test entity', false);
+            ->assertForbidden();
 
         $this->getJson(route('admin.legal-entities.show', $this->entity))
-            ->assertOk()
-            ->assertJsonPath('id', $this->entity->id);
+            ->assertForbidden();
 
         $this->postJson(route('admin.legal-entities.store'), $this->minimalStorePayload())
             ->assertForbidden();
@@ -174,14 +172,70 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
             ->assertForbidden();
     }
 
+    public function test_user_with_view_and_sm_register_can_open_card_but_not_mutate(): void
+    {
+        $actor = $this->createUserWithoutPermission('legal_entities.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissions($actor, ['legal_entities.view', 'legal_entities.sm_register']);
+
+        $this->get(route('admin.legal-entities.show', $this->entity))
+            ->assertOk()
+            ->assertSee('Access test entity', false);
+
+        $this->getJson(route('admin.legal-entities.show', $this->entity))
+            ->assertForbidden();
+
+        $this->postJson(route('admin.legal-entities.store'), $this->minimalStorePayload())
+            ->assertForbidden();
+    }
+
     public function test_user_with_view_and_manage_can_access_read_endpoints(): void
     {
         $this->asAdmin();
-        $this->grantPermissions($this->user, ['legal_entities.view', 'legal_entities.manage']);
+        $this->grantPermissions($this->user, ['legal_entities.view', 'legal_entities.manage', 'legal_entities.sm_register']);
 
         $this->get(route('admin.legal-entities.index'))->assertOk();
         $this->getJson(route('admin.legal-entities.data', ['draw' => 1, 'start' => 0, 'length' => 10]))->assertOk();
         $this->get(route('admin.legal-entities.show', $this->entity))->assertOk();
+    }
+
+    public function test_user_with_manage_but_without_sm_register_cannot_open_show_html(): void
+    {
+        $actor = $this->createUserWithoutPermission('legal_entities.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissions($actor, ['legal_entities.view', 'legal_entities.manage']);
+
+        $this->get(route('admin.legal-entities.show', $this->entity))
+            ->assertForbidden();
+    }
+
+    public function test_user_with_manage_but_without_sm_register_can_load_entity_json_for_edit_modal(): void
+    {
+        $actor = $this->createUserWithoutPermission('legal_entities.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissions($actor, ['legal_entities.view', 'legal_entities.manage']);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->getJson(route('admin.legal-entities.show', $this->entity))
+            ->assertOk()
+            ->assertJsonPath('id', $this->entity->id)
+            ->assertJsonPath('title', 'Access test entity');
+    }
+
+    public function test_user_with_sm_register_but_without_manage_cannot_call_sm_register(): void
+    {
+        $actor = $this->createUserWithoutPermission('legal_entities.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermissions($actor, ['legal_entities.view', 'legal_entities.sm_register']);
+
+        $this->get(route('admin.legal-entities.show', $this->entity))->assertOk();
+
+        $this->postJson(route('admin.legal-entities.sm-register', $this->entity), $this->minimalSmPayload())
+            ->assertForbidden();
     }
 
     /**
@@ -191,7 +245,7 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
     {
         return [
             'business_type' => 'OOO',
-            'title' => 'Новое из access-теста',
+            'organization_name' => 'ООО Access',
             'is_enabled' => 1,
         ];
     }
@@ -203,7 +257,7 @@ final class LegalEntitiesAccessFeatureTest extends CrmTestCase
     {
         return [
             'business_type' => 'OOO',
-            'title' => 'Access test entity (updated)',
+            'organization_name' => $this->entity->organization_name ?: 'Access test entity',
             'is_default' => true,
             'is_enabled' => true,
         ];

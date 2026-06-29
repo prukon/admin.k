@@ -132,7 +132,7 @@ class PartnerLegalEntityController extends AdminBaseController
 
             return [
                 'id' => $entity->id,
-                'title' => $entity->title,
+                'title' => $entity->displayTitle(),
                 'business_type' => $businessType?->value ?? (string) $entity->business_type,
                 'business_type_label' => $businessType?->label() ?? '—',
                 'tax_id' => $entity->tax_id ?? '',
@@ -160,7 +160,7 @@ class PartnerLegalEntityController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
 
-        $data = $this->normalizeEntityPayload($request->validated());
+        $data = $this->normalizeEntityPayload($request->validated(), $partnerId, true);
         $data['partner_id'] = $partnerId;
 
         if (! PartnerLegalEntity::where('partner_id', $partnerId)->exists()) {
@@ -199,8 +199,12 @@ class PartnerLegalEntityController extends AdminBaseController
         $this->assertEntityBelongsToPartner($legalEntity, $partnerId);
 
         if (request()->ajax() || request()->expectsJson()) {
+            abort_unless(auth()->user()?->can('legal_entities.manage'), 403);
+
             return response()->json($this->entityJsonPayload($legalEntity));
         }
+
+        abort_unless(auth()->user()?->can('legal_entities.sm_register'), 403);
 
         $partner = Partner::findOrFail($partnerId);
 
@@ -217,7 +221,7 @@ class PartnerLegalEntityController extends AdminBaseController
 
         $beforeSnapshot = $this->entityAuditSnapshot($legalEntity);
 
-        $data = $this->normalizeEntityPayload($request->validated());
+        $data = $this->normalizeEntityPayload($request->validated(), $partnerId, false);
 
         if ($guardResponse = $this->rejectDisableWhenTeamsLinked($legalEntity, $data, $request)) {
             return $guardResponse;
@@ -392,8 +396,18 @@ class PartnerLegalEntityController extends AdminBaseController
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function normalizeEntityPayload(array $data): array
+    private function normalizeEntityPayload(array $data, int $partnerId, bool $isCreate): array
     {
+        unset($data['sms_name'], $data['title']);
+
+        if ($isCreate) {
+            $partner = Partner::query()->find($partnerId);
+            $partnerTitle = trim((string) ($partner->title ?? ''));
+            $data['title'] = $partnerTitle !== ''
+                ? $partnerTitle
+                : (trim((string) ($data['organization_name'] ?? '')) ?: 'Юр. лицо');
+        }
+
         $data['is_default'] = (bool) ($data['is_default'] ?? false);
         $data['is_enabled'] = (bool) ($data['is_enabled'] ?? true);
 
@@ -409,6 +423,11 @@ class PartnerLegalEntityController extends AdminBaseController
                 'middleName' => (string) ($ceo['middleName'] ?? ''),
                 'phone' => (string) ($ceo['phone'] ?? ''),
             ];
+        }
+
+        $smDetailsDefault = 'Выплата по договору, НДС не облагается';
+        if (trim((string) ($data['sm_details_template'] ?? '')) === '') {
+            $data['sm_details_template'] = $smDetailsDefault;
         }
 
         return $data;
@@ -458,9 +477,7 @@ class PartnerLegalEntityController extends AdminBaseController
             'bank_account' => $entity->bank_account,
             'sm_details_template' => $entity->sm_details_template,
             'ceo' => $this->normalizeCeoForJson($entity->ceo),
-            'taxation_system' => $entity->taxation_system,
             'vat' => $entity->vat,
-            'sms_name' => $entity->sms_name,
             'is_registered' => $entity->is_registered ? 1 : 0,
             'tinkoff_shop_code' => $entity->tinkoff_shop_code,
             'sm_register_status' => $entity->sm_register_status,
@@ -574,7 +591,6 @@ class PartnerLegalEntityController extends AdminBaseController
      */
     private const REGISTERED_CRUD_LOCKED_FIELDS = [
         'business_type',
-        'title',
         'organization_name',
         'tax_id',
         'kpp',
@@ -586,7 +602,6 @@ class PartnerLegalEntityController extends AdminBaseController
         'bank_bik',
         'bank_account',
         'sm_details_template',
-        'sms_name',
         'ceo',
     ];
 

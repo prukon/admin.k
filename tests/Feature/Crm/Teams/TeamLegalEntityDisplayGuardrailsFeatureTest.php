@@ -42,18 +42,30 @@ final class TeamLegalEntityDisplayGuardrailsFeatureTest extends CrmTestCase
         PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-TEAM-OTHER')
-            ->create(['title' => 'Второе активное', 'is_default' => false]);
+            ->create([
+                'title' => 'Второе активное',
+                'organization_name' => 'Второе активное',
+                'is_default' => false,
+            ]);
 
         PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-TEAM-DEFAULT')
-            ->create(['title' => 'Основное юрлицо', 'is_default' => true]);
+            ->create([
+                'title' => 'Основное юрлицо',
+                'organization_name' => 'Основное юрлицо',
+                'is_default' => true,
+            ]);
 
         $disabled = PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-TEAM-DISPLAY')
             ->disabled()
-            ->create(['title' => 'Отключённое юрлицо', 'is_default' => false]);
+            ->create([
+                'title' => 'Отключённое юрлицо',
+                'organization_name' => 'Отключённое юрлицо',
+                'is_default' => false,
+            ]);
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -68,7 +80,7 @@ final class TeamLegalEntityDisplayGuardrailsFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertTrue($row['legal_entity_fallback']);
-        $this->assertStringContainsString('По умолчанию', (string) $row['legal_entity_label']);
+        $this->assertSame('Основное юрлицо', $row['legal_entity_label']);
         $this->assertStringNotContainsString('Отключённое юрлицо', (string) $row['legal_entity_label']);
     }
 
@@ -77,12 +89,20 @@ final class TeamLegalEntityDisplayGuardrailsFeatureTest extends CrmTestCase
         $entity = PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-TEAM-EXPLICIT')
-            ->create(['title' => 'Явное юрлицо', 'is_default' => false]);
+            ->create([
+                'title' => 'Явное юрлицо',
+                'organization_name' => 'Явное юрлицо',
+                'is_default' => false,
+            ]);
 
         PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-TEAM-OTHER')
-            ->create(['title' => 'Другое', 'is_default' => true]);
+            ->create([
+                'title' => 'Другое',
+                'organization_name' => 'Другое',
+                'is_default' => true,
+            ]);
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,

@@ -36,7 +36,6 @@ class SendCloudKassirReceiptJobTest extends CrmTestCase
             'tax_id' => '7700000000',
             'phone' => '+79990000002',
             'website' => 'https://school.example',
-            'taxation_system' => 1,
             'vat' => 10,
         ]);
 

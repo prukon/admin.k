@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin\Concerns;
 
+use App\Enums\CloudKassirVatRate;
 use App\Enums\PartnerLegalEntityBusinessType;
 use Illuminate\Validation\Rule;
 
@@ -29,8 +30,7 @@ trait PartnerLegalEntityValidationRules
 
         return [
             'business_type' => ['required', 'string', Rule::in($this->businessTypeRuleValues())],
-            'title' => ['required', 'string', 'max:255'],
-            'organization_name' => ['nullable', 'string', 'max:255'],
+            'organization_name' => ['required', 'string', 'max:255'],
             'tax_id' => ['nullable', 'string', 'max:12', $taxIdUnique],
             'kpp' => ['nullable', 'string', 'max:9'],
             'registration_number' => ['nullable', 'string', 'max:20'],
@@ -41,9 +41,7 @@ trait PartnerLegalEntityValidationRules
             'bank_bik' => ['nullable', 'string', 'max:20'],
             'bank_account' => ['nullable', 'string', 'max:32'],
             'sm_details_template' => ['nullable', 'string', 'max:500'],
-            'taxation_system' => ['nullable', 'integer', 'in:0,1,2,3,4,5'],
-            'vat' => ['nullable', 'integer', 'in:0,5,7,10,20,22,105,107,110,120,122'],
-            'sms_name' => ['nullable', 'string', 'max:14'],
+            'vat' => ['nullable', 'integer', Rule::in(CloudKassirVatRate::codes())],
             'ceo' => ['nullable', 'array'],
             'ceo.lastName' => ['nullable', 'string', 'max:100'],
             'ceo.firstName' => ['nullable', 'string', 'max:100'],
@@ -71,6 +69,13 @@ trait PartnerLegalEntityValidationRules
         ]);
     }
 
+    protected function normalizeLegalEntityOrganizationNameInput(): void
+    {
+        if ($this->has('organization_name')) {
+            $this->merge(['organization_name' => trim((string) $this->input('organization_name'))]);
+        }
+    }
+
     /**
      * @return array<string, string>
      */
@@ -78,7 +83,6 @@ trait PartnerLegalEntityValidationRules
     {
         return [
             'business_type' => 'форма организации',
-            'title' => 'наименование',
             'organization_name' => 'наименование организации',
             'tax_id' => 'ИНН',
             'kpp' => 'КПП',
@@ -90,9 +94,7 @@ trait PartnerLegalEntityValidationRules
             'bank_bik' => 'БИК',
             'bank_account' => 'расчётный счёт',
             'sm_details_template' => 'назначение платежа',
-            'taxation_system' => 'система налогообложения',
             'vat' => 'ставка НДС',
-            'sms_name' => 'название для SMS/выписок',
             'ceo.lastName' => 'фамилия руководителя',
             'ceo.firstName' => 'имя руководителя',
             'ceo.middleName' => 'отчество руководителя',
@@ -110,7 +112,7 @@ trait PartnerLegalEntityValidationRules
         return [
             'business_type.required' => 'Выберите форму организации',
             'business_type.in' => 'Недопустимая форма организации',
-            'title.required' => 'Введите наименование',
+            'organization_name.required' => 'Введите наименование организации',
             'tax_id.unique' => 'Юр. лицо с таким ИНН уже существует',
             'zip.regex' => 'Индекс должен содержать 6 цифр',
         ];

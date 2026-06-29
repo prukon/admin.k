@@ -23,7 +23,7 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
-        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage']);
+        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage', 'legal_entities.sm_register']);
     }
 
     /** @param list<string> $permissions */
@@ -44,7 +44,7 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
     {
         $response = $this->postJson(route('admin.legal-entities.store'), [
             'business_type' => 'ANO',
-            'title' => 'АНО Ajax Contract',
+            'organization_name' => 'АНО Ajax Contract',
             'tax_id' => '7701234567',
             'is_enabled' => 1,
         ]);
@@ -55,7 +55,7 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
                 'message',
                 'legal_entity' => ['id', 'title', 'business_type', 'partner_id'],
             ])
-            ->assertJsonPath('legal_entity.title', 'АНО Ajax Contract');
+            ->assertJsonPath('legal_entity.title', $this->partner->title);
 
         $this->assertNotSame('', trim((string) $response->getContent()));
     }
@@ -64,10 +64,15 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
     {
         $this->postJson(route('admin.legal-entities.store'), [
             'business_type' => 'UNKNOWN',
-            'title' => '',
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['business_type', 'title']);
+            ->assertJsonValidationErrors(['business_type']);
+
+        $this->postJson(route('admin.legal-entities.store'), [
+            'business_type' => 'OOO',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['organization_name']);
     }
 
     public function test_show_ajax_returns_entity_json_payload(): void
@@ -102,14 +107,14 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
 
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => 'OOO',
-            'title' => 'После ajax update',
+            'organization_name' => 'После ajax update',
             'is_default' => true,
             'is_enabled' => true,
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Юр. лицо обновлено');
 
-        $this->assertSame('После ajax update', $entity->fresh()->title);
+        $this->assertSame('После ajax update', $entity->fresh()->organization_name);
     }
 
     public function test_destroy_ajax_json_contract(): void
@@ -124,6 +129,23 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
             ->assertJsonPath('success', true);
 
         $this->assertSoftDeleted('partner_legal_entities', ['id' => $entity->id]);
+    }
+
+    public function test_destroy_ajax_returns_422_when_teams_linked(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
+            'organization_name' => 'ООО Ajax destroy blocked',
+        ]);
+
+        \App\Models\Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'legal_entity_id' => $entity->id,
+        ]);
+
+        $this->deleteJson(route('admin.legal-entities.destroy', $entity))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['legal_entity'])
+            ->assertJsonPath('errors.legal_entity.0', 'Сначала отвяжите группы от этого юр. лица');
     }
 
     public function test_columns_settings_ajax_contract(): void
@@ -174,6 +196,8 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
                         'id',
                         'title',
                         'business_type_label',
+                        'is_registered',
+                        'is_registered_label',
                         'show_url',
                     ],
                 ],
@@ -209,11 +233,13 @@ final class LegalEntitiesAjaxContractFeatureTest extends CrmTestCase
             ['POST', route('admin.legal-entities.store'), [
                 'business_type' => 'OOO',
                 'title' => 'Matrix store',
+                'organization_name' => 'ООО Matrix store',
                 'is_enabled' => 1,
             ], 200],
             ['PUT', route('admin.legal-entities.update', $entity), [
                 'business_type' => 'OOO',
                 'title' => 'Matrix updated',
+                'organization_name' => $entity->organization_name ?: $entity->title,
                 'is_default' => true,
                 'is_enabled' => true,
             ], 200],

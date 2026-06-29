@@ -46,12 +46,6 @@
                                     }
                                 @endphp
                                 <div>Организация: <strong>{{ $legalEntityLabel }}</strong></div>
-                                @php
-                                    $pPartner = $payment->partner;
-                                    $taxVal = $pPartner ? $pPartner->taxation_system : null;
-                                    $taxLabel = $taxVal !== null && $taxVal !== '' ? (match((int)$taxVal) { 0=>'ОСН', 1=>'УСН доход', 2=>'УСН доход − расход', 3=>'ЕНВД', 4=>'ЕСХН', 5=>'Патент', default=>(string)$taxVal }) : '—';
-                                @endphp
-                                <div class="small text-muted">СНО (для чеков): {{ $taxLabel }}</div>
                                 @include('tinkoff.payments.partials.fiscal-receipts')
                                 @if($refundUntil)
                                     <div class="mt-2">

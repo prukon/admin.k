@@ -60,20 +60,6 @@
 
         @can('legal_entities.manage')
             <div class="card mb-3">
-                <div class="card-header">Реквизиты CRM</div>
-                <div class="card-body">
-                    <form id="legalEntityCrudForm" method="POST" action="{{ route('admin.legal-entities.update', $entity) }}">
-                        @csrf
-                        @method('PUT')
-                        @include('admin.legal-entities.partials.crud-fields', ['prefix' => 'show', 'entity' => $entity])
-                        <div class="mt-3">
-                            <button type="submit" class="btn btn-primary">Сохранить реквизиты CRM</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card mb-3">
                 <div class="card-header">{{ $isRegistered ? 'Обновление в sm-register' : 'Регистрация в sm-register' }}</div>
                 <div class="card-body">
                     <form id="legalEntitySmForm"
@@ -122,7 +108,13 @@
             function applySmErrors(form, errors) {
                 Object.entries(errors || {}).forEach(([key, messages]) => {
                     const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
-                    const input = form.querySelector('[name="' + key + '"]');
+                    let input = form.querySelector('[name="' + key + '"]');
+                    if (!input) {
+                        const parts = key.split('.');
+                        if (parts.length === 2) {
+                            input = form.querySelector('[name="' + parts[0] + '[' + parts[1] + ']"]');
+                        }
+                    }
                     const err = form.querySelector('[data-error-for="' + key + '"]');
                     if (input) input.classList.add('is-invalid');
                     if (err) err.textContent = message;
@@ -153,37 +145,6 @@
                     return;
                 }
                 window.location.reload();
-            });
-
-            $('#legalEntityCrudForm').on('submit', async function (e) {
-                e.preventDefault();
-                const form = this;
-                form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-                form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
-                const fd = new FormData(form);
-                fd.set('_method', 'PUT');
-                const res = await fetch(form.action, {
-                    method: 'POST',
-                    body: fd,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': token,
-                    }
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok && res.status === 422) {
-                    Object.entries(data.errors || {}).forEach(([key, messages]) => {
-                        const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
-                        const input = form.querySelector('[name="' + key + '"]');
-                        const err = form.querySelector('[data-error-for="' + key + '"]');
-                        if (input) input.classList.add('is-invalid');
-                        if (err) err.textContent = message;
-                    });
-                    return;
-                }
-                if (res.ok) {
-                    window.location.reload();
-                }
             });
 
             $('.js-sm-action-form').on('submit', async function (e) {

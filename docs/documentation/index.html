@@ -26,9 +26,13 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
-  <h2>Изменения в справочниках (юр. лица, 2026‑06)</h2>
+  <h2>Изменения в справочниках (юр. лица и группы, 2026‑06)</h2>
   <div class="note">
-    <b>Справочник «Юр. лица»</b> (<code>/admin/legal-entities</code>): несколько юр. лиц на партнёра, sm-register/ShopCode T‑Bank на карточке юр. лица, привязка к группам (<code>teams.legal_entity_id</code>), <code>LegalEntityResolver</code> для оплат. Legacy <code>partners.tinkoff_partner_id</code> — fallback. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
+    <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
+    <br><br>
+    <b>Группы</b> (<code>/admin/teams</code>): колонка «Юр. лицо» показывает <code>displayTitle()</code>; при fallback (юр. лицо по умолчанию) — иконка <code>i</code> с подсказкой «Юр лицо установленное по умолчанию» (без префикса «По умолчанию:» в ячейке). Селекты в модалках группы — те же публичные названия. Подробно — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.
+    <br><br>
+    <b>Общее:</b> несколько юр. лиц на партнёра; CRUD в модалках; sm-register на карточке <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>); <code>LegalEntityResolver</code> для оплат. Legacy <code>partners.tinkoff_partner_id</code> — fallback.
   </div>
 
   <h2>Изменения в оплатах (T‑Bank, 2026‑06)</h2>
@@ -98,7 +102,7 @@
     <li><a href="/docs/documentation/admin-districts">Районы (админка): <code>/admin/districts</code> — <code>districts.view</code>, CRUD, multiselect объектов, аудит <code>district.*</code></a></li>
     <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, M2M админов, привязка групп, аудит <code>location.*</code></a></li>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники», аудит <code>sport_type.*</code></a></li>
-    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>legal_entities.manage</code>, sm-register/ShopCode T‑Bank, привязка к группам, <code>LegalEntityResolver</code>, guardrails CRM</a></li>
+    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>legal_entities.manage</code> / <code>legal_entities.sm_register</code>, модалки CRUD, карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, фильтр в отчётах</a></li>

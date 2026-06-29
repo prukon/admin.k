@@ -14,13 +14,27 @@ class PartnerLegalEntityFactory extends Factory
 {
     protected $model = PartnerLegalEntity::class;
 
+    public function configure(): static
+    {
+        return $this->afterMaking(function (PartnerLegalEntity $entity): void {
+            $title = trim((string) ($entity->title ?? ''));
+            $organizationName = trim((string) ($entity->organization_name ?? ''));
+
+            if ($title !== '' && $organizationName === '') {
+                $entity->organization_name = $title;
+            }
+        });
+    }
+
     public function definition(): array
     {
+        $title = 'ООО «Тест ' . $this->faker->numberBetween(100000, 999999999) . '»';
+
         return [
             'partner_id' => Partner::factory(),
             'business_type' => PartnerLegalEntityBusinessType::OOO,
-            'title' => 'ООО «Тест ' . $this->faker->numberBetween(100000, 999999999) . '»',
-            'organization_name' => null,
+            'title' => $title,
+            'organization_name' => $title,
             'tax_id' => (string) $this->faker->numerify('##########'),
             'kpp' => (string) $this->faker->numerify('#########'),
             'registration_number' => (string) $this->faker->numerify('#############'),
@@ -38,7 +52,6 @@ class PartnerLegalEntityFactory extends Factory
             'bank_details_version' => null,
             'bank_details_last_updated_at' => null,
             'registration_verified_at' => null,
-            'taxation_system' => null,
             'vat' => null,
             'sms_name' => null,
             'is_default' => true,
@@ -48,11 +61,16 @@ class PartnerLegalEntityFactory extends Factory
 
     public function individualEntrepreneur(): static
     {
-        return $this->state(fn () => [
-            'business_type' => PartnerLegalEntityBusinessType::IP,
-            'kpp' => null,
-            'title' => 'ИП Тест ' . $this->faker->numberBetween(100000, 999999999),
-        ]);
+        return $this->state(function () {
+            $title = 'ИП Тест ' . $this->faker->numberBetween(100000, 999999999);
+
+            return [
+                'business_type' => PartnerLegalEntityBusinessType::IP,
+                'kpp' => null,
+                'title' => $title,
+                'organization_name' => $title,
+            ];
+        });
     }
 
     public function registered(string $shopCode = 'SHOP-TEST-001'): static

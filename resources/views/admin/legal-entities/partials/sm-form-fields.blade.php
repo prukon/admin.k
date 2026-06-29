@@ -8,6 +8,29 @@
     $orgName = old('organization_name', $entity->organization_name ?: $entity->title);
     $isRegistered = trim((string) ($entity->tinkoff_shop_code ?? '')) !== '';
     $smDetailsDefault = 'Выплата по договору, НДС не облагается';
+
+    $ceoData = is_array($entity->ceo ?? null) ? $entity->ceo : [];
+    $ceoField = function (string $key) use ($ceoData): string {
+        $aliases = match ($key) {
+            'lastName' => ['lastName', 'last_name'],
+            'firstName' => ['firstName', 'first_name'],
+            'middleName' => ['middleName', 'middle_name'],
+            default => [$key],
+        };
+
+        foreach ($aliases as $alias) {
+            $old = old('ceo.' . $alias);
+            if ($old !== null) {
+                return (string) $old;
+            }
+            if (array_key_exists($alias, $ceoData)) {
+                return (string) $ceoData[$alias];
+            }
+        }
+
+        return (string) old('ceo.' . $key, '');
+    };
+    $ceoReadonlyAttr = $isRegistered ? 'readonly' : '';
 @endphp
 
 <div class="row g-3">
@@ -85,7 +108,8 @@
 
     <div class="col-md-4">
         <label class="form-label">Название для SMS/выписок</label>
-        <input class="form-control" value="{{ $entity->sms_name ?? '—' }}" readonly>
+        <input class="form-control bg-light" value="{{ $partner->sms_name ?: '—' }}" readonly>
+        <div class="form-text">Редактируется в <a href="{{ route('admin.cur.company.edit') }}">учётной записи → Организация</a>.</div>
         @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'billingDescriptor'])
     </div>
 
@@ -108,6 +132,12 @@
         <input name="address" class="form-control" required value="{{ old('address', $entity->address) }}">
         @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'addresses[].street'])
         <div class="invalid-feedback d-block" data-error-for="address"></div>
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Страна (адрес)</label>
+        <input class="form-control bg-light" value="RUS" readonly aria-readonly="true">
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'addresses[].country'])
     </div>
 
     <div class="col-md-4">
@@ -143,6 +173,54 @@
                value="{{ old('sm_details_template', $entity->sm_details_template ?: $smDetailsDefault) }}">
         @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'bankAccount.details'])
         <div class="invalid-feedback d-block" data-error-for="sm_details_template"></div>
+    </div>
+
+    <div class="col-12">
+        <h6 class="mb-0 mt-1">Руководитель / ИП (ceo)</h6>
+        @if ($isRegistered)
+            <div class="form-text">При обновлении в sm-register блок ceo в API не передаётся — данные только для просмотра.</div>
+        @endif
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Фамилия{{ $isRegistered ? '' : '*' }}</label>
+        <input name="ceo[lastName]" class="form-control" maxlength="100" value="{{ $ceoField('lastName') }}" {{ $ceoReadonlyAttr }} @disabled($isRegistered) @required(!$isRegistered)>
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'ceo.lastName'])
+        <div class="invalid-feedback d-block" data-error-for="ceo.lastName"></div>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Имя{{ $isRegistered ? '' : '*' }}</label>
+        <input name="ceo[firstName]" class="form-control" maxlength="100" value="{{ $ceoField('firstName') }}" {{ $ceoReadonlyAttr }} @disabled($isRegistered) @required(!$isRegistered)>
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'ceo.firstName'])
+        <div class="invalid-feedback d-block" data-error-for="ceo.firstName"></div>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Отчество</label>
+        <input name="ceo[middleName]" class="form-control" maxlength="100" value="{{ $ceoField('middleName') }}" {{ $ceoReadonlyAttr }} @disabled($isRegistered)>
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'ceo.middleName'])
+        <div class="invalid-feedback d-block" data-error-for="ceo.middleName"></div>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Телефон руководителя</label>
+        @include('includes.fields.phone-input', [
+            'name' => 'ceo[phone]',
+            'id' => 'legal_entity_sm_ceo_phone',
+            'value' => $ceoField('phone'),
+            'class' => $isRegistered ? 'bg-light' : '',
+            'readonly' => $isRegistered,
+            'disabled' => $isRegistered,
+        ])
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'ceo.phone'])
+        <div class="invalid-feedback d-block" data-error-for="ceo.phone"></div>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Страна</label>
+        <input class="form-control bg-light" value="RUS" readonly aria-readonly="true">
+        @include('admin.legal-entities.partials.sm-api-field-hint', ['code' => 'ceo.country'])
     </div>
 </div>
 

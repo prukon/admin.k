@@ -74,6 +74,37 @@
     });
 
 
+    function showErrorModal(headerText, messageText, reloadOnClose = 0) {
+        const el = document.getElementById('errorModal');
+        if (!el) {
+            return;
+        }
+
+        const titleEl = document.getElementById('errorModalLabel');
+        const msgEl = document.getElementById('error-modal-message');
+        if (titleEl) {
+            titleEl.textContent = headerText || 'Ошибка';
+        }
+        if (msgEl) {
+            msgEl.textContent = messageText || 'Произошла ошибка.';
+        }
+
+        const btn = document.getElementById('btn-modal-error');
+        if (btn) {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', function () {
+                if (reloadOnClose === 1) {
+                    location.reload();
+                }
+            }, { once: true });
+        }
+
+        document.body.appendChild(el);
+        showModalQueued('errorModal', { backdrop: 'static', keyboard: false });
+    }
+
+
     function eroorRespone(response) {
         // 1) Собираем сообщение
         let message = 'Ошибка при создании пользователя!';

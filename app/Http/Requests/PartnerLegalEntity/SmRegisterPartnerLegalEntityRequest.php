@@ -32,6 +32,19 @@ class SmRegisterPartnerLegalEntityRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:32'],
             'website' => ['nullable', 'url', 'max:255'],
             'kpp' => ['nullable', 'string', 'max:12'],
+            'ceo' => ['nullable', 'array'],
+            'ceo.lastName' => [
+                $this->routeIs('admin.legal-entities.sm-patch') ? 'nullable' : 'required',
+                'string',
+                'max:100',
+            ],
+            'ceo.firstName' => [
+                $this->routeIs('admin.legal-entities.sm-patch') ? 'nullable' : 'required',
+                'string',
+                'max:100',
+            ],
+            'ceo.middleName' => ['nullable', 'string', 'max:100'],
+            'ceo.phone' => ['nullable', 'string', 'max:32'],
         ];
     }
 
@@ -54,6 +67,10 @@ class SmRegisterPartnerLegalEntityRequest extends FormRequest
             'phone' => 'телефон',
             'website' => 'сайт',
             'kpp' => 'КПП',
+            'ceo.lastName' => 'фамилия руководителя',
+            'ceo.firstName' => 'имя руководителя',
+            'ceo.middleName' => 'отчество руководителя',
+            'ceo.phone' => 'телефон руководителя',
         ];
     }
 

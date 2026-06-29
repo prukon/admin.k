@@ -152,6 +152,22 @@
   <p class="small"><b>Важно:</b> единственное место создания <code>new bootstrap.Tooltip(...)</code> в проекте — модуль <code>kids-tooltip.js</code>. На страницах не вызывать Bootstrap Tooltip напрямую.</p>
   <p class="small">Исключение из правила «tooltip только при обрезке»: элементы с <code>js-dt-cell-ellipsis-tooltip</code>, но <b>без</b> класса <code>dt-cell-ellipsis</code> (например иконка договора в <code>/admin/users</code>) — tooltip с явным <code>data-bs-toggle="tooltip"</code> и <code>title</code> включается всегда.</p>
 
+  <h3 id="tooltip-hint-datatable">2.1) Подсказки hint в ячейках DataTables</h3>
+  <p>Для иконок <code>i</code> рядом с бейджами (не ellipsis) — класс <code>kids-tooltip-hint</code>, атрибут <code>title</code> с текстом подсказки. После каждого <code>draw.dt</code> таблицы вызывать <code>KidsCrmTooltip.init(document, { scopes: ['hint'] })</code> (или узел контейнера таблицы).</p>
+  <table>
+    <thead><tr><th>Страница</th><th>Колонка / контекст</th><th>Текст подсказки</th></tr></thead>
+    <tbody>
+      <tr><td><code>/admin/legal-entities</code></td><td>«Регистрация в банке» = Нет</td><td>«Обратитесь к администратору платформы»</td></tr>
+      <tr><td><code>/admin/teams</code></td><td>«Юр. лицо», <code>legal_entity_fallback</code></td><td>«Юр лицо установленное по умолчанию»</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="error-modal">2.2) Модалка ошибки (<code>showErrorModal</code>)</h3>
+  <p>Partial: <code>resources/views/includes/modal/errorModal.blade.php</code> (подключается в layout). Глобальная функция:</p>
+  <pre><code>showErrorModal(headerText, messageText, reloadOnClose = 0)</code></pre>
+  <p>Открывает <code>#errorModal</code> через <code>showModalQueued('errorModal', …)</code>. Третий аргумент <code>reloadOnClose = 1</code> — перезагрузка страницы после закрытия. Используется вместо <code>alert()</code> для ошибок AJAX (например удаление юр. лица с привязанными группами — <a href="/docs/documentation/admin-legal-entities#legal-entities-list">admin-legal-entities §4.1</a>).</p>
+  <p class="small">Тест: <code>tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code>.</p>
+
   <h2 id="kidscrm-datatable">3) DataTables: пресет <code>KidsCrmDataTable</code></h2>
   <p>Файл: <code>resources/js/kids-datatable.js</code>. Документация в коде: <code>partials/datatables/kids-datatable.blade.php</code>.</p>
   <p>Объединяет: декларативные колонки, ширины (<code>datatables-columns.css</code>), tooltip'ы, настройки видимости колонок (<code>columns-settings</code>).</p>

@@ -25,7 +25,6 @@ class PartnerLegalEntity extends Model
         'ceo' => 'array',
         'is_default' => 'bool',
         'is_enabled' => 'bool',
-        'taxation_system' => 'int',
         'vat' => 'int',
         'bank_details_version' => 'int',
         'registered_at' => 'datetime',
@@ -41,6 +40,19 @@ class PartnerLegalEntity extends Model
     public function teams(): HasMany
     {
         return $this->hasMany(Team::class, 'legal_entity_id');
+    }
+
+    /**
+     * Подпись для списков и привязок: как в справочнике юр. лиц.
+     */
+    public function displayTitle(): string
+    {
+        $organizationName = trim((string) ($this->organization_name ?? ''));
+        if ($organizationName !== '') {
+            return $organizationName;
+        }
+
+        return trim((string) ($this->title ?? ''));
     }
 
     /**

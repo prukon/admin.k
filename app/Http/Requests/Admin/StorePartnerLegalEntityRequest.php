@@ -18,10 +18,8 @@ class StorePartnerLegalEntityRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->normalizeLegalEntityCeoInput();
+        $this->normalizeLegalEntityOrganizationNameInput();
 
-        if ($this->has('taxation_system') && $this->taxation_system === '') {
-            $this->merge(['taxation_system' => null]);
-        }
         if ($this->has('vat') && $this->vat === '') {
             $this->merge(['vat' => null]);
         }

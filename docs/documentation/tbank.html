@@ -183,7 +183,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Eager load: <code>legalEntity</code> с <code>withTrashed()</code> — для исторических платежей, если запись юр. лица soft-deleted.</li>
     <li>Подпись: <code>organization_name</code> → fallback <code>title</code> → «—». Без снимка (<code>legal_entity_id IS NULL</code>) — «—».</li>
     <li><b>Не путать</b> с «Партнёр»: партнёр — клуб в CRM; организация — юр. лицо из справочника на момент оплаты. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-snapshots-ui">admin-legal-entities §7.1</a>.</li>
-    <li><b>СНО (для чеков)</b> на карточке по-прежнему берётся из legacy <code>partners.taxation_system</code>, не из юр. лица — переходный период (см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>).</li>
+    <li><b>СНО (для чеков CloudKassir)</b> — из конфига платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>config/services.cloudkassir.taxation_system</code>), не из партнёра и не из юр. лица. <b>Ставка НДС</b> в позиции чека — из поля <code>partner_legal_entities.vat</code> (или legacy партнёра через <code>LegalEntityResolver::fiscalVat()</code>). См. <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.</li>
   </ul>
 
   <h3 id="payment-show-timeline">5.7.2 Timeline «Путь платежа → выплата»</h3>

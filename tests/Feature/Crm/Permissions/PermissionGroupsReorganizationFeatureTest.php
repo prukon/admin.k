@@ -42,7 +42,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'mainMenu'        => 17,
             'reports'         => 9,
             'schedule'        => 4,
-            'directories'     => 7,
+            'directories'     => 8,
             'lessonPackages'  => 2,
             'setPrices'       => 2,
             'contracts'       => 3,
@@ -122,6 +122,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'sport_types.manage',
                 'legal_entities.view',
                 'legal_entities.manage',
+                'legal_entities.sm_register',
             ],
             'lessonPackages' => [
                 'lessonPackages.view',

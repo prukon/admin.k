@@ -36,8 +36,16 @@ final class TeamLegalEntityFeatureTest extends CrmTestCase
 
     public function test_teams_index_shows_legal_entity_selector_when_two_or_more_entities(): void
     {
-        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'ЮЛ 1', 'is_default' => true]);
-        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'ЮЛ 2', 'is_default' => false]);
+        PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'ЮЛ 1',
+            'organization_name' => 'ЮЛ 1',
+            'is_default' => true,
+        ]);
+        PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'ЮЛ 2',
+            'organization_name' => 'ЮЛ 2',
+            'is_default' => false,
+        ]);
 
         $this->get(route('admin.team.index'))
             ->assertOk()
@@ -98,8 +106,16 @@ final class TeamLegalEntityFeatureTest extends CrmTestCase
 
     public function test_data_marks_fallback_when_no_legal_entity_bound(): void
     {
-        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'Основное', 'is_default' => true]);
-        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'Второе', 'is_default' => false]);
+        PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'Основное',
+            'organization_name' => 'Основное',
+            'is_default' => true,
+        ]);
+        PartnerLegalEntity::factory()->for($this->partner)->create([
+            'title' => 'Второе',
+            'organization_name' => 'Второе',
+            'is_default' => false,
+        ]);
 
         $team = Team::factory()->create([
             'partner_id' => $this->partner->id,
@@ -113,7 +129,7 @@ final class TeamLegalEntityFeatureTest extends CrmTestCase
         $row = collect($response->json('data'))->firstWhere('id', $team->id);
         $this->assertNotNull($row);
         $this->assertTrue($row['legal_entity_fallback']);
-        $this->assertSame('По умолчанию: Основное', $row['legal_entity_label']);
+        $this->assertSame('Основное', $row['legal_entity_label']);
     }
 
     public function test_update_team_legal_entity_id(): void

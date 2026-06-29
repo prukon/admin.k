@@ -119,12 +119,17 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr>
         <td><code>legal_entities.view</code></td>
         <td><code>/admin/legal-entities</code>, read API юр. лиц</td>
-        <td>Без <code>legal_entities.manage</code> — только просмотр и columns-settings; sm-register и CRUD — 403. Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td>
+        <td>Без <code>legal_entities.manage</code> — только просмотр и columns-settings; CRUD и sm-* — 403. HTML карточки sm-register — отдельно право <code>legal_entities.sm_register</code>. Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td>
       </tr>
       <tr>
         <td><code>legal_entities.manage</code></td>
-        <td>POST/PUT/DELETE юр. лиц, sm-register/sm-patch/sm-refresh/sm-pull</td>
-        <td>Дополнительно к <code>legal_entities.view</code>.</td>
+        <td>POST/PUT/DELETE юр. лиц, sm-register/sm-patch/sm-refresh/sm-pull, модалки CRUD, JSON edit</td>
+        <td>Дополнительно к <code>legal_entities.view</code>. HTML карточки — ещё <code>legal_entities.sm_register</code>.</td>
+      </tr>
+      <tr>
+        <td><code>legal_entities.sm_register</code></td>
+        <td>HTML <code>/admin/legal-entities/{id}</code>, колонка ShopCode, кнопка «Регистрация»</td>
+        <td>Не заменяет <code>manage</code> для sm-* POST и CRUD. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-sm-register">admin-legal-entities §4</a>.</td>
       </tr>
       <tr>
         <td><code>groups.view</code></td>
@@ -221,8 +226,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <h3>5.5) Юр. лица — <code>/admin/legal-entities</code></h3>
   <p>Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities.html</a>.</p>
   <ul>
-    <li>Пятая вкладка раздела «Справочники»; sm-register T‑Bank и ShopCode — на карточке юр. лица, не на партнёре.</li>
-    <li>DataTables: фильтры поиск / active-inactive; колонка <code>teams_count</code>, ShopCode, флаг «основное».</li>
+    <li>Пятая вкладка раздела «Справочники»; CRUD — модалки на списке (<code>legal_entities.manage</code>); sm-register T‑Bank — карточка <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>).</li>
+    <li>DataTables: фильтры поиск / active-inactive; колонки «Регистрация в банке» (бейдж + hint при «Нет»), наименование через <code>displayTitle()</code>, <code>teams_count</code>, «Основное»; колонка ShopCode и кнопка «Регистрация» — только при <code>legal_entities.sm_register</code>.</li>
     <li>Привязка к группам — селект в модалках <code>/admin/teams</code> (если ≥2 активных юр. лиц).</li>
     <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> (с legacy fallback на <code>partners.tinkoff_partner_id</code>).</li>
   </ul>

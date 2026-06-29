@@ -4,6 +4,23 @@
     $activeTab = 'legal-entities';
     $legalEntitiesHasActiveFilters = false;
     $businessTypes = \App\Enums\PartnerLegalEntityBusinessType::cases();
+    $canSmRegisterColumn = auth()->user()->can('legal_entities.sm_register');
+
+    $legalEntityColumnLabels = [
+        'title' => 'Наименование организации',
+        'business_type_label' => 'Форма',
+        'tax_id' => 'ИНН',
+    ];
+    if ($canSmRegisterColumn) {
+        $legalEntityColumnLabels['tinkoff_shop_code'] = 'ShopCode';
+    }
+    $legalEntityColumnLabels = array_merge($legalEntityColumnLabels, [
+        'is_registered_label' => 'Регистрация в банке',
+        'is_default_label' => 'Основное',
+        'teams_count' => 'Группы',
+        'is_enabled_label' => 'Активен',
+        'actions' => 'Действия',
+    ]);
 @endphp
 
 @section('content')
@@ -77,17 +94,7 @@
                                  aria-labelledby="legalEntitiesColumnsDropdown">
                                 <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
-                                @foreach ([
-                                    'title' => 'Наименование',
-                                    'business_type_label' => 'Форма',
-                                    'tax_id' => 'ИНН',
-                                    'tinkoff_shop_code' => 'ShopCode',
-                                    'is_registered_label' => 'sm-register',
-                                    'is_default_label' => 'Основное',
-                                    'teams_count' => 'Группы',
-                                    'is_enabled_label' => 'Активен',
-                                    'actions' => 'Действия',
-                                ] as $key => $label)
+                                @foreach ($legalEntityColumnLabels as $key => $label)
                                     <div class="form-check">
                                         <input class="form-check-input column-toggle" type="checkbox" data-column-key="{{ $key }}" id="colLegalEntity{{ ucfirst(str_replace('_', '', $key)) }}" checked>
                                         <label class="form-check-label" for="colLegalEntity{{ ucfirst(str_replace('_', '', $key)) }}">{{ $label }}</label>
@@ -105,7 +112,7 @@
                 <div class="row g-2 align-items-end">
                     <div class="col-12 col-md-4">
                         <label class="form-label" for="filter-search">Поиск</label>
-                        <input id="filter-search" class="form-control" type="text" placeholder="Название, ИНН, ShopCode">
+                        <input id="filter-search" class="form-control" type="text" placeholder="{{ $canSmRegisterColumn ? 'Название, ИНН, ShopCode' : 'Название, ИНН' }}">
                     </div>
 
                     <div class="col-12 col-md-4">
@@ -129,11 +136,13 @@
             <table id="legal-entities-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
                 <thead>
                 <tr>
-                    <th>Наименование</th>
+                    <th>Наименование организации</th>
                     <th>Форма</th>
                     <th>ИНН</th>
-                    <th>ShopCode</th>
-                    <th>sm-register</th>
+                    @if ($canSmRegisterColumn)
+                        <th>ShopCode</th>
+                    @endif
+                    <th>Регистрация в банке</th>
                     <th>Основное</th>
                     <th>Группы</th>
                     <th>Активен</th>
@@ -184,7 +193,9 @@
                             @include('admin.legal-entities.partials.crud-fields', ['prefix' => 'edit'])
                         </form>
                         <div class="mt-3">
-                            <a href="#" id="legalEntityOpenShowLink" class="btn btn-sm btn-outline-secondary">Открыть карточку (T‑Bank / sm-register)</a>
+                            @can('legal_entities.sm_register')
+                                <a href="#" id="legalEntityOpenShowLink" class="btn btn-sm btn-outline-secondary">Открыть карточку (T‑Bank / sm-register)</a>
+                            @endcan
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -204,7 +215,18 @@
     <script>
         $(document).ready(function () {
             const canManage = @json(auth()->user()->can('legal_entities.manage'));
+            const canSmRegister = @json(auth()->user()->can('legal_entities.sm_register'));
             const defaultFilterStatus = 'active';
+
+            function toggleLegalEntityKpp(form) {
+                if (!form) {
+                    return;
+                }
+                const showKpp = form.querySelector('[name="business_type"]')?.value === 'OOO';
+                form.querySelectorAll('.js-kpp-field').forEach(function (el) {
+                    el.style.display = showKpp ? '' : 'none';
+                });
+            }
 
             function filterParams() {
                 return {
@@ -219,7 +241,7 @@
                         title: true,
                         business_type_label: true,
                         tax_id: true,
-                        tinkoff_shop_code: true,
+                        ...(canSmRegister ? { tinkoff_shop_code: true } : {}),
                         is_registered_label: true,
                         is_default_label: true,
                         teams_count: true,
@@ -256,22 +278,52 @@
                             linkAttrs: function (row) {
                                 return 'href="#" data-id="' + row.id + '"';
                             },
-                        } : {
+                        } : (canSmRegister ? {
                             linkClass: 'js-legal-entity-open',
                             linkAttrs: function (row) {
                                 return 'href="' + row.show_url + '"';
                             },
-                        }),
+                        } : {})),
                     },
                     { key: 'business_type_label', type: 'text', data: 'business_type_label' },
                     { key: 'tax_id', type: 'text', data: 'tax_id' },
-                    { key: 'tinkoff_shop_code', type: 'text', data: 'tinkoff_shop_code' },
+                    ...(canSmRegister ? [{ key: 'tinkoff_shop_code', type: 'text', data: 'tinkoff_shop_code' }] : []),
                     {
                         key: 'is_registered_label',
                         type: 'badge',
                         data: 'is_registered_label',
                         badgeKey: 'is_registered',
                         className: 'dt-col-badge text-center',
+                        render: function (value, type, row) {
+                            if (type !== 'display') {
+                                return value || '';
+                            }
+
+                            const badgeClass = row.is_registered ? 'bg-success' : 'bg-secondary';
+                            const badgeHtml = '<span class="badge ' + badgeClass + '">'
+                                + window.KidsCrmTooltip.escapeHtml(value) + '</span>';
+
+                            if (row.is_registered) {
+                                return badgeHtml;
+                            }
+
+                            const hint = 'Обратитесь к администратору платформы';
+                            const esc = window.KidsCrmTooltip.escapeHtml;
+
+                            return '<span class="d-inline-flex align-items-center gap-1">'
+                                + badgeHtml
+                                + '<span class="kids-tooltip-hint d-inline-block"'
+                                + ' tabindex="0"'
+                                + ' data-kids-tooltip-hint'
+                                + ' data-bs-toggle="tooltip"'
+                                + ' data-bs-placement="top"'
+                                + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                                + ' title="' + esc(hint) + '"'
+                                + ' aria-label="' + esc(hint) + '">'
+                                + '<i class="fa fa-info-circle" aria-hidden="true"></i>'
+                                + '</span>'
+                                + '</span>';
+                        },
                     },
                     {
                         key: 'is_default_label',
@@ -293,12 +345,30 @@
                         type: 'actions',
                         when: canManage,
                         render: function (data, type, row) {
-                            return '<a class="btn btn-sm btn-outline-primary" href="' + row.show_url + '">Карточка</a> ' +
-                                '<button type="button" class="btn btn-sm btn-outline-secondary js-legal-entity-edit" data-id="' + row.id + '">Изменить</button>';
+                            let html = '';
+                            if (canSmRegister) {
+                                html += '<a class="btn btn-sm btn-outline-primary" href="' + row.show_url + '">Регистрация</a> ';
+                            }
+                            html += '<button type="button" class="btn btn-sm btn-outline-secondary js-legal-entity-edit" data-id="' + row.id + '">Изменить</button>';
+                            return html;
                         }
                     },
                 ],
             });
+
+            const table = dtApi.table;
+
+            function initLegalEntitiesRegisteredHints() {
+                requestAnimationFrame(function () {
+                    KidsCrmTooltip.init(table.table().body(), { scopes: ['hint'] });
+                });
+            }
+
+            $(table.table().node())
+                .off('draw.dt.kidsCrmLegalEntitiesHint')
+                .on('draw.dt.kidsCrmLegalEntitiesHint', initLegalEntitiesRegisteredHints);
+
+            initLegalEntitiesRegisteredHints();
 
             function reloadTable() {
                 dtApi.reload({ keepPage: true });
@@ -394,7 +464,6 @@
             function fillForm(form, data) {
                 const map = {
                     business_type: data.business_type,
-                    title: data.title,
                     organization_name: data.organization_name,
                     tax_id: data.tax_id,
                     kpp: data.kpp,
@@ -405,8 +474,6 @@
                     bank_name: data.bank_name,
                     bank_bik: data.bank_bik,
                     bank_account: data.bank_account,
-                    sms_name: data.sms_name,
-                    taxation_system: data.taxation_system,
                     vat: data.vat,
                     is_default: String(data.is_default ?? 0),
                     is_enabled: String(data.is_enabled ?? 1),
@@ -434,19 +501,26 @@
                 if (smDetailsHidden) {
                     smDetailsHidden.value = data.sm_details_template || smDetailsDefault;
                 }
-                const smDetailsDisplay = form.querySelector('.js-legal-entity-sm-details-display');
-                if (smDetailsDisplay) {
-                    smDetailsDisplay.value = smDetailsDefault;
-                }
 
+                toggleLegalEntityKpp(form);
                 setRegisteredFieldsLocked(form, !!data.is_registered);
             }
 
             const createForm = document.getElementById('legalEntityCreateForm');
             const editForm = document.getElementById('legalEntityEditForm');
 
+            [createForm, editForm].forEach(function (form) {
+                if (!form) {
+                    return;
+                }
+                form.querySelector('[name="business_type"]')?.addEventListener('change', function () {
+                    toggleLegalEntityKpp(form);
+                });
+            });
+
             document.getElementById('legalEntityCreateModal')?.addEventListener('show.bs.modal', () => {
                 setRegisteredFieldsLocked(createForm, false);
+                toggleLegalEntityKpp(createForm);
                 const smDetailsHidden = createForm.querySelector('.js-legal-entity-sm-details-value');
                 if (smDetailsHidden) {
                     smDetailsHidden.value = smDetailsDefault;
@@ -483,7 +557,10 @@
                 const data = await res.json();
                 editForm.querySelector('[name="id"]').value = data.id;
                 fillForm(editForm, data);
-                document.getElementById('legalEntityOpenShowLink').href = @json(url('/admin/legal-entities')) + '/' + id;
+                const showLink = document.getElementById('legalEntityOpenShowLink');
+                if (showLink) {
+                    showLink.href = @json(url('/admin/legal-entities')) + '/' + id;
+                }
                 new bootstrap.Modal(document.getElementById('legalEntityEditModal')).show();
             }
 
@@ -513,25 +590,40 @@
             $(document).on('click', '#legalEntityDeleteBtn', function () {
                 const id = editForm.querySelector('[name="id"]').value;
                 if (!id) return;
-                const name = (editForm.querySelector('[name="title"]').value || '').trim();
+                const name = (editForm.querySelector('[name="organization_name"]')?.value || '').trim();
                 const messageText = name !== ''
                     ? 'Вы уверены, что хотите удалить юр. лицо «' + name + '»?'
                     : 'Вы уверены, что хотите удалить юр. лицо?';
 
                 showConfirmDeleteModal('Удаление юр. лица', messageText, function () {
+                    const confirmEl = document.getElementById('confirmDeleteModal');
+                    const editEl = document.getElementById('legalEntityEditModal');
+
+                    // Не возвращать модалку редактирования после закрытия подтверждения
+                    $(confirmEl).off('hidden.bs.modal.return');
+
                     $.ajax({
                         url: @json(url('/admin/legal-entities')) + '/' + id,
                         type: 'DELETE',
                         data: { _token: token },
                         success: function () {
-                            bootstrap.Modal.getInstance(document.getElementById('legalEntityEditModal'))?.hide();
+                            $(editEl).off('hidden.bs.modal.openNext');
+                            bootstrap.Modal.getInstance(editEl)?.hide();
                             reloadTable();
                         },
                         error: function (xhr) {
+                            $(editEl).off('hidden.bs.modal.openNext');
+                            bootstrap.Modal.getInstance(editEl)?.hide();
+
                             const msg = xhr.responseJSON?.errors?.legal_entity?.[0]
                                 || xhr.responseJSON?.message
                                 || 'Не удалось удалить';
-                            alert(msg);
+
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal('Удаление юр. лица', msg, 0);
+                            } else if (typeof eroorRespone === 'function') {
+                                eroorRespone(xhr);
+                            }
                         }
                     });
                 });

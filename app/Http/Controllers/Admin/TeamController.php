@@ -372,13 +372,12 @@ class TeamController extends AdminBaseController
                     && (int) $resolution->entity->id === (int) $team->legal_entity_id;
 
                 if ($explicitBindingActive) {
-                    $legalEntityLabel = (string) $resolution->entity->title;
+                    $legalEntityLabel = $resolution->entity->displayTitle();
                     $legalEntityFallback = false;
                 } else {
                     $legalEntityFallback = true;
-                    $legalEntityLabel = 'По умолчанию';
                     if ($resolution->entity !== null) {
-                        $legalEntityLabel = 'По умолчанию: ' . $resolution->entity->title;
+                        $legalEntityLabel = $resolution->entity->displayTitle();
                     }
                 }
             }
@@ -769,7 +768,7 @@ class TeamController extends AdminBaseController
             ->active()
             ->orderByDesc('is_default')
             ->orderBy('title')
-            ->get(['id', 'title', 'is_default']);
+            ->get(['id', 'title', 'organization_name', 'is_default']);
     }
 
     private function activeLegalEntitiesCount(int $partnerId): int

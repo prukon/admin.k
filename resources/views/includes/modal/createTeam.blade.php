@@ -62,7 +62,7 @@
                             <option value="">— По умолчанию —</option>
                             @foreach($legalEntityOptions as $legalEntity)
                                 <option value="{{ $legalEntity->id }}">
-                                    {{ $legalEntity->title }}@if($legalEntity->is_default) (основное)@endif
+                                    {{ $legalEntity->displayTitle() }}@if($legalEntity->is_default) (основное)@endif
                                 </option>
                             @endforeach
                         </select>

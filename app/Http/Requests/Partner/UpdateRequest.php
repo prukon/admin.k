@@ -114,6 +114,11 @@ class UpdateRequest extends FormRequest
                 'regex:/^[0-9]+$/',
                 'max:50',
             ],
+            'sms_name' => [
+                'nullable',
+                'string',
+                'max:14',
+            ],
         ];
     }
 
@@ -124,7 +129,7 @@ class UpdateRequest extends FormRequest
     {
         return [
             'business_type'       => 'Тип бизнеса',
-            'title'               => 'Наименование',
+            'title'               => 'Название школы/секции',
             'tax_id'              => 'ИНН',
             'kpp'                 => 'КПП',
             'registration_number' => 'Регистрационный номер',
@@ -135,6 +140,7 @@ class UpdateRequest extends FormRequest
             'bank_name'           => 'Наименование банка',
             'bank_bik'            => 'БИК',
             'bank_account'        => 'Расчетный счет',
+            'sms_name'            => 'Название для SMS/выписок',
 
         ];
     }

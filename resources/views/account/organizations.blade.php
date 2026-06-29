@@ -36,9 +36,9 @@
                     @enderror
                 </div>
 
-                {{-- Наименование (или ФИО) --}}
+                {{-- Название школы / секции (бренд партнёра в CRM) --}}
                 <div class="mb-3">
-                    <label for="title" class="form-label">Наименование*</label>
+                    <label for="title" class="form-label">Название школы/секции*</label>
                     <input type="text" class="form-control" id="title" name="title"
                            value="{{ old('title', $partner->title) }}">
                     @error('title')
@@ -127,6 +127,18 @@
                     <input type="text" class="form-control" id="website" name="website"
                            value="{{ old('website', $partner->website) }}">
                     @error('website')
+                    <p class="text-danger">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Название для SMS/выписок (billingDescriptor T‑Bank) --}}
+                <div class="mb-3">
+                    <label for="sms_name" class="form-label">Название для SMS/выписок</label>
+                    <input type="text" class="form-control" id="sms_name" name="sms_name" maxlength="14"
+                           value="{{ old('sms_name', $partner->sms_name) }}"
+                           placeholder="ИП IVANOV">
+                    <div class="form-text">До 14 символов, латиница (A–Z, 0–9, пробел, <code>.-_</code>).</div>
+                    @error('sms_name')
                     <p class="text-danger">{{ $message }}</p>
                     @enderror
                 </div>

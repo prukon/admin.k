@@ -35,6 +35,11 @@ class PartnerLegalEntitySchemaFeatureTest extends CrmTestCase
                 "Missing column partner_legal_entities.{$column}"
             );
         }
+
+        $this->assertFalse(
+            Schema::hasColumn('partner_legal_entities', 'taxation_system'),
+            'Column partner_legal_entities.taxation_system must be removed'
+        );
     }
 
     public function test_snapshot_and_team_foreign_keys_exist(): void

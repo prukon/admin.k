@@ -203,6 +203,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('legal_entities.manage', function (User $user) {
             return $user->hasPermission('legal_entities.manage');
         });
+        Gate::define('legal_entities.sm_register', function (User $user) {
+            return $user->hasPermission('legal_entities.sm_register');
+        });
 
         // Тренеры
         Gate::define('trainers.view', function (User $user) {

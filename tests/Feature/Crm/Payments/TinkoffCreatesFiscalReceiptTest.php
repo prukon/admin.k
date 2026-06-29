@@ -26,7 +26,6 @@ class TinkoffCreatesFiscalReceiptTest extends CrmTestCase
 
         $this->partner->update([
             'tax_id' => '7701234567',
-            'taxation_system' => 1,
         ]);
 
         $payable = Payable::query()->create([

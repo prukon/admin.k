@@ -24,7 +24,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
-        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage']);
+        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage', 'legal_entities.sm_register']);
     }
 
     /** @param list<string> $permissions */
@@ -55,6 +55,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'is_default' => true,
             'is_enabled' => false,
         ])->assertStatus(422)
@@ -72,6 +73,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'is_default' => true,
             'is_enabled' => false,
         ])->assertOk();
@@ -89,6 +91,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'tax_id' => '7700000099',
             'is_default' => true,
             'is_enabled' => true,
@@ -100,32 +103,35 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
 
     public function test_registered_entity_allows_fiscal_fields_via_crud(): void
     {
+        $smDetails = 'Выплата по договору, НДС не облагается';
         $entity = PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-GUARD-2')
-            ->create(['vat' => null, 'taxation_system' => null]);
+            ->create(['vat' => null, 'sm_details_template' => $smDetails]);
 
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'tax_id' => $entity->tax_id,
-            'taxation_system' => 1,
+            'sm_details_template' => $smDetails,
             'vat' => 20,
             'is_default' => true,
             'is_enabled' => true,
         ])->assertOk();
 
         $fresh = $entity->fresh();
-        $this->assertSame(1, (int) $fresh->taxation_system);
         $this->assertSame(20, (int) $fresh->vat);
     }
 
     public function test_registered_entity_rejects_ceo_change_via_crud(): void
     {
+        $smDetails = 'Выплата по договору, НДС не облагается';
         $entity = PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-GUARD-CEO')
             ->create([
+                'sm_details_template' => $smDetails,
                 'ceo' => [
                     'lastName' => 'Иванов',
                     'firstName' => 'Иван',
@@ -137,7 +143,9 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'tax_id' => $entity->tax_id,
+            'sm_details_template' => $smDetails,
             'ceo' => [
                 'lastName' => 'Петров',
                 'firstName' => 'Иван',
@@ -162,6 +170,7 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->putJson(route('admin.legal-entities.update', $entity), [
             'business_type' => PartnerLegalEntityBusinessType::OOO->value,
             'title' => $entity->title,
+            'organization_name' => $entity->organization_name ?: $entity->title,
             'tax_id' => '7700000099',
             'is_default' => true,
             'is_enabled' => true,

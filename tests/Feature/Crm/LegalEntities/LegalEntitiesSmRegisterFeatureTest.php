@@ -24,7 +24,7 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
             '2fa:passed' => true,
         ]);
         $this->asAdmin();
-        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage']);
+        $this->grantPermissions(['legal_entities.view', 'legal_entities.manage', 'legal_entities.sm_register']);
     }
 
     /** @param list<string> $permissions */
@@ -64,6 +64,12 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
             'phone' => '+79990000000',
             'website' => 'https://example.test',
             'kpp' => '770101001',
+            'ceo' => [
+                'lastName' => 'Иванов',
+                'firstName' => 'Иван',
+                'middleName' => 'Иванович',
+                'phone' => '+79990000001',
+            ],
         ], $overrides);
     }
 
@@ -230,5 +236,27 @@ final class LegalEntitiesSmRegisterFeatureTest extends CrmTestCase
             ->assertSessionHas('ok');
 
         $this->assertSame('SC-NON-AJAX', $entity->fresh()->tinkoff_shop_code);
+    }
+
+    public function test_sm_patch_non_ajax_redirects_to_show_after_success(): void
+    {
+        $entity = PartnerLegalEntity::factory()->for($this->partner)->registered('SC-PATCH-NON-AJAX')->create([
+            'title' => 'До non-ajax patch',
+        ]);
+
+        $sm = $this->bindSmMock();
+        $sm->shouldReceive('patch')
+            ->once()
+            ->with('SC-PATCH-NON-AJAX', Mockery::type('array'))
+            ->andReturn(['ok' => true]);
+
+        $this->post(route('admin.legal-entities.sm-patch', $entity), $this->validSmPayload([
+            'title' => 'После non-ajax patch',
+            'organization_name' => 'После non-ajax patch',
+        ]))
+            ->assertRedirect(route('admin.legal-entities.show', $entity))
+            ->assertSessionHas('ok');
+
+        $this->assertSame('После non-ajax patch', $entity->fresh()->title);
     }
 }

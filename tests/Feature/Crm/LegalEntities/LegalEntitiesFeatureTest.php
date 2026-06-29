@@ -56,6 +56,7 @@ final class LegalEntitiesFeatureTest extends CrmTestCase
 
         $own = PartnerLegalEntity::factory()->for($this->partner)->create([
             'title' => 'ООО Тестовое',
+            'organization_name' => 'ООО Тестовое',
             'business_type' => PartnerLegalEntityBusinessType::OOO,
             'tax_id' => '7701234567',
         ]);
@@ -94,6 +95,7 @@ final class LegalEntitiesFeatureTest extends CrmTestCase
         $this->postJson(route('admin.legal-entities.store'), [
             'business_type' => 'IP',
             'title' => 'ИП Иванов',
+            'organization_name' => 'ИП Иванов',
             'tax_id' => '123456789012',
             'is_enabled' => 1,
         ])
@@ -113,10 +115,9 @@ final class LegalEntitiesFeatureTest extends CrmTestCase
 
         $this->postJson(route('admin.legal-entities.store'), [
             'business_type' => 'INVALID',
-            'title' => '',
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['business_type', 'title']);
+            ->assertJsonValidationErrors(['business_type']);
     }
 
     public function test_destroy_blocked_when_teams_linked(): void
@@ -138,6 +139,7 @@ final class LegalEntitiesFeatureTest extends CrmTestCase
     public function test_show_page_accessible_for_own_entity(): void
     {
         $this->grantPermission('legal_entities.view');
+        $this->grantPermission('legal_entities.sm_register');
 
         $entity = PartnerLegalEntity::factory()->for($this->partner)->create([
             'title' => 'АНО Спорт',
@@ -153,6 +155,7 @@ final class LegalEntitiesFeatureTest extends CrmTestCase
     public function test_show_foreign_entity_returns_404(): void
     {
         $this->grantPermission('legal_entities.view');
+        $this->grantPermission('legal_entities.sm_register');
 
         $foreign = PartnerLegalEntity::factory()->for($this->foreignPartner)->create();
 
