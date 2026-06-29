@@ -16,6 +16,7 @@ final class UserCustomPayment extends Model
     protected $casts = [
         'partner_id'      => 'integer',
         'user_id'         => 'integer',
+        'team_id'         => 'integer',
         'date_start'      => 'date:Y-m-d',
         'date_end'        => 'date:Y-m-d',
         'amount'          => 'decimal:2',
@@ -32,6 +33,11 @@ final class UserCustomPayment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function team()
+    {
+        return $this->belongsTo(Team::class);
     }
 
     public function manualPaidBy()

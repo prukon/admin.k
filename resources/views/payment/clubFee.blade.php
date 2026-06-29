@@ -226,12 +226,34 @@
     <div class="main-content text-start payment-page">
         <h4 class="payment-title">Оплата клубного взноса</h4>
 
+        @if(!empty($clubFeeBlocked))
+            <div class="alert alert-warning">
+                Оплата недоступна: вы не состоите ни в одной группе. Обратитесь в школу.
+            </div>
+        @else
         <div class="payment-summary">
             <div class="summary-grid">
                 <div>
                     <div class="summary-item-label">Плательщик</div>
                     <div class="summary-item-value">{{ auth()->user()->name }}</div>
                 </div>
+                @if(!empty($clubFeeRequiresTeamChoice))
+                    <div>
+                        <div class="summary-item-label">Группа</div>
+                        <select id="clubFeeTeamId" class="form-select" required>
+                            <option value="">Выберите группу</option>
+                            @foreach($studentTeams as $team)
+                                <option value="{{ $team['id'] }}">{{ $team['title'] }}</option>
+                            @endforeach
+                        </select>
+                        <div id="clubFeeTeamError" class="amount-error"></div>
+                    </div>
+                @elseif(!empty($clubFeeDefaultTeamId))
+                    <div>
+                        <div class="summary-item-label">Группа</div>
+                        <div class="summary-item-value">{{ $studentTeams[0]['title'] ?? '—' }}</div>
+                    </div>
+                @endif
                 <div>
                     <div class="summary-item-label">Сумма оплаты</div>
                     <div class="amount-row">
@@ -321,10 +343,56 @@
                 </div>
             </div>
         </div>
+        @endif
     </div>
 
     <script>
+        function appendClubFeeTeamField(form) {
+            if (!form) return true;
+            var existing = form.querySelector('input[name="team_id"]');
+            if (existing) {
+                existing.remove();
+            }
+
+            @if(!empty($clubFeeDefaultTeamId))
+                var hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'team_id';
+                hidden.value = @json((int) $clubFeeDefaultTeamId);
+                form.appendChild(hidden);
+                return true;
+            @endif
+
+            @if(!empty($clubFeeRequiresTeamChoice))
+                var teamSelect = document.getElementById('clubFeeTeamId');
+                var teamError = document.getElementById('clubFeeTeamError');
+                if (teamError) {
+                    teamError.style.display = 'none';
+                    teamError.textContent = '';
+                }
+                if (!teamSelect || !teamSelect.value) {
+                    if (teamError) {
+                        teamError.textContent = 'Выберите группу для оплаты.';
+                        teamError.style.display = 'block';
+                    }
+                    if (teamSelect) teamSelect.focus();
+                    return false;
+                }
+                var teamHidden = document.createElement('input');
+                teamHidden.type = 'hidden';
+                teamHidden.name = 'team_id';
+                teamHidden.value = teamSelect.value;
+                form.appendChild(teamHidden);
+            @endif
+
+            return true;
+        }
+
         function validateAndSetAmount(form) {
+            if (!appendClubFeeTeamField(form)) {
+                return false;
+            }
+
             var paymentAmountInput = document.getElementById('paymentAmount');
             var paymentAmount = paymentAmountInput.value;
             var paymentAmountError = document.getElementById('paymentAmountError');

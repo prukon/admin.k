@@ -115,6 +115,12 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
+                'url' => route('admin.lesson-packages.assignments.teams-for-user', [
+                    'user_id' => $student->id,
+                ]),
+            ],
+            [
+                'method' => 'GET',
                 'url' => route('admin.lesson-packages.assignments.columns-settings.get'),
             ],
             [
@@ -302,6 +308,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         $row = $json['data'][0] ?? [];
         $this->assertSame((int) $ctx['assignment']->id, (int) ($row['id'] ?? 0));
         $this->assertArrayHasKey('student', $row);
+        $this->assertArrayHasKey('team_label', $row);
         $this->assertArrayHasKey('fee', $row);
         $this->assertArrayHasKey('effective_is_paid', $row);
         $this->assertArrayHasKey('balance', $row);
@@ -446,6 +453,12 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->getJson(route('admin.lesson-packages.assignments.users-search', ['q' => '']))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $this->getJson(route('admin.lesson-packages.assignments.teams-for-user', [
+            'user_id' => $student->id,
+        ]))
             ->assertOk()
             ->assertJsonStructure(['results']);
 

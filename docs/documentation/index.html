@@ -46,6 +46,8 @@
     колонка «Организация» в списке выплат (<a href="/docs/documentation/tbank-admin-payouts#payouts-table-columns">tbank-admin-payouts §4.1</a>);
     строка «Организация» и timeline из 4 шагов на карточке платежа (<a href="/docs/documentation/tbank#payment-show-card">tbank §5.7</a>).
     Колонка «Партнёр» — по-прежнему название клуба (<code>partners.title</code>), не юр. лицо.
+    <br><br>
+    <b>Группа платежа (<code>team_id</code>):</b> для всех типов оплат (месячный взнос, клубный, доп. платёж, абонемент) юр. лицо и выплата определяются через группу в <code>payables.meta.team_id</code> — <code>PayableTeamResolver</code> (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>). В админке: колонка «Группа» в <a href="/docs/documentation/setting-prices-custom-payments">доп. платежах</a> и <a href="/docs/documentation/lesson-packages#assignments-tab">назначениях абонементов</a>; backfill — миграции <code>2026_06_29_150000</code> + <code>2026_06_29_160000</code>.
   </div>
 
   <h2>История изменений на страницах CRM</h2>
@@ -73,7 +75,8 @@
 
   <h2>Разделы</h2>
   <ul>
-    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, снимок <code>payments.team_id</code>, витрина, webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина, webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: обязательный <code>team_id</code>, колонка «Группа», <code>teams-for-user</code>, store JSON, права <code>setPrices.customPayments.view</code></a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (руководство для рефакторинга)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
@@ -91,7 +94,7 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: вкладка «Назначение абонементов» (фильтры, в т.ч. <b>активность ученика</b> <code>status</code>, колонки, DataTable), период, календарь, разовое (<code>no_schedule</code>), <code>lessons_remaining</code></a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: вкладка «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), фильтры, DataTable, календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>statuses</code> (системные + кастомные), модалка настроек, тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>

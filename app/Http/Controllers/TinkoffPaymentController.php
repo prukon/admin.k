@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesPaymentCheckoutTeam;
 use App\Http\Requests\Tinkoff\CreatePaymentRequest;
 use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
@@ -9,17 +10,19 @@ use App\Models\PaymentIntent;
 use App\Models\UserCustomPayment;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\PaymentIntentClientContext;
-use App\Models\Team;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use App\Models\UserLessonPackage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class TinkoffPaymentController extends Controller
 {
+    use ResolvesPaymentCheckoutTeam;
     public function create2(Request $r, TinkoffPaymentsService $svc)
     {
         // TODO: получить partner_id/amount/method из твоей формы
@@ -58,9 +61,10 @@ class TinkoffPaymentController extends Controller
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
         $monthlyTeamId = null;
+        $upp = null;
+        $lessonPackage = null;
 
         if ($paymentKind === 'custom_payment') {
-            $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
@@ -79,12 +83,12 @@ class TinkoffPaymentController extends Controller
             $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
-            // Amount Init — из fee_amount; outSum из формы не используется.
             $resolvedLp = app(UserLessonPackageFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
                 $userLessonPackageId ?? 0,
             );
+            $lessonPackage = $resolvedLp['ulp'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -108,34 +112,45 @@ class TinkoffPaymentController extends Controller
             $paymentDate = 'Клубный взнос';
         }
 
-        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
-            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
-            : null;
-
-        if (! $paymentService->isTbankAvailable($partner, $monthlyTeam)) {
-            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
-        }
-
-        $amountCents = (int) round(((float) $outSum) * 100);
-
         $type = $paymentKind === 'custom_payment'
             ? 'custom_payment_fee'
             : ($paymentKind === 'lesson_package'
                 ? 'lesson_package_fee'
                 : ($hasMonthly ? 'monthly_fee' : 'club_fee'));
+
+        try {
+            $paymentTeamId = $this->resolvePaymentTeamId(
+                $type,
+                $partnerId,
+                $user,
+                $r->filled('team_id') ? (int) $r->input('team_id') : null,
+                $monthlyTeamId,
+                $upp,
+                $lessonPackage,
+            );
+        } catch (HttpException $e) {
+            return back()->withErrors(['tinkoff' => $e->getMessage()]);
+        }
+
+        $checkoutTeam = $this->checkoutTeamOrNull($paymentTeamId, $partnerId);
+
+        if (! $paymentService->isTbankAvailable($partner, $checkoutTeam)) {
+            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
+        }
+
+        $amountCents = (int) round(((float) $outSum) * 100);
+
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-            if (! empty($monthlyTeamId)) {
-                $payableMeta['team_id'] = (int) $monthlyTeamId;
-            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {
             $payableMeta['user_lesson_package_id'] = $userLessonPackageId;
         }
+        $payableMeta = $this->payableMetaWithTeam($payableMeta, $paymentTeamId);
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
@@ -164,7 +179,7 @@ class TinkoffPaymentController extends Controller
             'status' => 'pending',
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta' => json_encode($this->buildPaymentIntentMeta($userName, $monthlyTeamId), JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
 
         // One-stage (PayType=O) + DATA.month для трассировки
@@ -176,7 +191,7 @@ class TinkoffPaymentController extends Controller
             $paymentKind,
             $userPeriodPriceId,
             $userLessonPackageId,
-            $monthlyTeamId,
+            $paymentTeamId,
         ));
 
         if (! $payment->payment_url || empty($payment->tinkoff_payment_id)) {
@@ -219,9 +234,10 @@ class TinkoffPaymentController extends Controller
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
         $monthlyTeamId = null;
+        $upp = null;
+        $lessonPackage = null;
 
         if ($paymentKind === 'custom_payment') {
-            $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
@@ -240,12 +256,12 @@ class TinkoffPaymentController extends Controller
             $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
-            // Amount Init — из fee_amount; outSum из формы не используется.
             $resolvedLp = app(UserLessonPackageFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 (int) $partnerId,
                 $userLessonPackageId ?? 0,
             );
+            $lessonPackage = $resolvedLp['ulp'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -269,11 +285,29 @@ class TinkoffPaymentController extends Controller
             $paymentDate = 'Клубный взнос';
         }
 
-        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
-            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
-            : null;
+        $type = $paymentKind === 'custom_payment'
+            ? 'custom_payment_fee'
+            : ($paymentKind === 'lesson_package'
+                ? 'lesson_package_fee'
+                : ($hasMonthly ? 'monthly_fee' : 'club_fee'));
 
-        if (! $paymentService->isTbankAvailable($partner, $monthlyTeam)) {
+        try {
+            $paymentTeamId = $this->resolvePaymentTeamId(
+                $type,
+                $partnerId,
+                $user,
+                $r->filled('team_id') ? (int) $r->input('team_id') : null,
+                $monthlyTeamId,
+                $upp,
+                $lessonPackage,
+            );
+        } catch (HttpException $e) {
+            return back()->withErrors(['tinkoff' => $e->getMessage()]);
+        }
+
+        $checkoutTeam = $this->checkoutTeamOrNull($paymentTeamId, $partnerId);
+
+        if (! $paymentService->isTbankAvailable($partner, $checkoutTeam)) {
             return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
         }
 
@@ -283,24 +317,17 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
         }
 
-        $type = $paymentKind === 'custom_payment'
-            ? 'custom_payment_fee'
-            : ($paymentKind === 'lesson_package'
-                ? 'lesson_package_fee'
-                : ($hasMonthly ? 'monthly_fee' : 'club_fee'));
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-            if (! empty($monthlyTeamId)) {
-                $payableMeta['team_id'] = (int) $monthlyTeamId;
-            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {
             $payableMeta['user_lesson_package_id'] = $userLessonPackageId;
         }
+        $payableMeta = $this->payableMetaWithTeam($payableMeta, $paymentTeamId);
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
@@ -323,7 +350,7 @@ class TinkoffPaymentController extends Controller
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
             'meta' => json_encode(array_merge(
-                $this->buildPaymentIntentMeta($userName, $monthlyTeamId),
+                $this->paymentIntentMetaWithTeam($userName, $paymentTeamId),
                 ['method' => 'sbp']
             ), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
@@ -336,7 +363,7 @@ class TinkoffPaymentController extends Controller
             $paymentKind,
             $userPeriodPriceId,
             $userLessonPackageId,
-            $monthlyTeamId,
+            $paymentTeamId,
         ));
 
         if (empty($payment->tinkoff_payment_id)) {
@@ -395,22 +422,6 @@ class TinkoffPaymentController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function buildPaymentIntentMeta(string $userName, ?int $monthlyTeamId): array
-    {
-        $meta = [
-            'user_name' => $userName,
-        ];
-
-        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
-            $meta['team_id'] = $monthlyTeamId;
-        }
-
-        return $meta;
-    }
-
-    /**
      * @return array<string, string|null>
      */
     private function buildTbankInitData(
@@ -421,7 +432,7 @@ class TinkoffPaymentController extends Controller
         string $paymentKind,
         ?int $userPeriodPriceId,
         ?int $userLessonPackageId,
-        ?int $monthlyTeamId,
+        int $paymentTeamId,
     ): array {
         $data = [
             'month' => $month ?: null,
@@ -431,11 +442,8 @@ class TinkoffPaymentController extends Controller
             'payment_kind' => $paymentKind !== '' ? $paymentKind : null,
             'user_period_price_id' => $userPeriodPriceId ? (string) $userPeriodPriceId : null,
             'user_lesson_package_id' => $userLessonPackageId ? (string) $userLessonPackageId : null,
+            'team_id' => (string) $paymentTeamId,
         ];
-
-        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
-            $data['team_id'] = (string) $monthlyTeamId;
-        }
 
         return $data;
     }

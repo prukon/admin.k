@@ -377,9 +377,13 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'status' => 'FORM',
         ]);
 
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
         $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
+            'team_id' => $team->id,
             'date_start' => '2026-11-01',
             'date_end' => '2026-11-30',
             'amount' => '321.00',
@@ -395,6 +399,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'status' => 'pending',
             'meta' => [
                 'user_period_price_id' => $upp->id,
+                'team_id' => (int) $team->id,
             ],
         ]);
 

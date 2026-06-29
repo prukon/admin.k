@@ -86,6 +86,7 @@
                 columns: [
                     { key: 'id', type: 'id' },
                     { key: 'user_name', type: 'text', data: 'user_name' },
+                    { key: 'team_label', type: 'text', data: 'team_label', orderable: false },
                     {
                         key: 'period',
                         type: 'text',
@@ -178,6 +179,7 @@
 
                 var payload = {
                     user_id: form.querySelector('[name="user_id"]').value,
+                    team_id: form.querySelector('[name="team_id"]').value,
                     date_start: form.querySelector('[name="date_start"]').value,
                     date_end: form.querySelector('[name="date_end"]').value,
                     amount: form.querySelector('[name="amount"]').value,
@@ -214,6 +216,9 @@
                         form.reset();
                         if (window.$ && $('#custom-payment-user-id').length) {
                             $('#custom-payment-user-id').val(null).trigger('change');
+                        }
+                        if (window.$ && $('#custom-payment-team-id').length) {
+                            $('#custom-payment-team-id').val(null).trigger('change').prop('disabled', true);
                         }
                         var modalEl = document.getElementById('customPaymentCreateModal');
                         if (modalEl && window.bootstrap && bootstrap.Modal) {

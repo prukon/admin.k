@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 //use App\Models\ClientPayment;
 
+use App\Http\Controllers\Concerns\ResolvesPaymentCheckoutTeam;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
@@ -16,9 +17,12 @@ use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class TransactionController extends Controller
 {
+    use ResolvesPaymentCheckoutTeam;
+
     public function __construct()
     {
         $this->middleware('auth');
@@ -195,9 +199,10 @@ class TransactionController extends Controller
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
         $monthlyTeamId = null;
+        $upp = null;
+        $lessonPackage = null;
 
         if ($paymentKind === 'custom_payment') {
-            $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
@@ -216,12 +221,12 @@ class TransactionController extends Controller
             $paymentDate = (string) $request->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
-            // Сумма payable/intent — только из fee_amount (POST outSum игнорируется).
             $resolvedLp = app(UserLessonPackageFeePaymentResolver::class)->resolveOrAbort(
                 $userId,
                 $partnerId,
                 $userLessonPackageId ?? 0,
             );
+            $lessonPackage = $resolvedLp['ulp'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -274,20 +279,33 @@ class TransactionController extends Controller
             : ($paymentKind === 'lesson_package'
                 ? 'lesson_package_fee'
                 : ($hasMonthly ? 'monthly_fee' : 'club_fee'));
+
+        try {
+            $paymentTeamId = $this->resolvePaymentTeamId(
+                $type,
+                $partnerId,
+                $user,
+                $request->filled('team_id') ? (int) $request->input('team_id') : null,
+                $monthlyTeamId,
+                $upp,
+                $lessonPackage,
+            );
+        } catch (HttpException $e) {
+            abort($e->getStatusCode(), $e->getMessage());
+        }
+
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
             // paymentDate уже в формате YYYY-MM-01
             $month = $paymentDate;
             $payableMeta['month'] = $paymentDate;
-            if (! empty($monthlyTeamId)) {
-                $payableMeta['team_id'] = (int) $monthlyTeamId;
-            }
         } elseif ($type === 'custom_payment_fee') {
             $payableMeta['user_period_price_id'] = $userPeriodPriceId;
         } elseif ($type === 'lesson_package_fee') {
             $payableMeta['user_lesson_package_id'] = $userLessonPackageId;
         }
+        $payableMeta = $this->payableMetaWithTeam($payableMeta, $paymentTeamId);
 
         $payable = Payable::create([
             'partner_id' => $partnerId,
@@ -309,7 +327,7 @@ class TransactionController extends Controller
             'status' => 'pending',
             'out_sum' => $outSum,
             'payment_date' => $paymentDate,
-            'meta' => json_encode($this->buildPaymentIntentMeta($userName, $monthlyTeamId), JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($request)));
 
         // На всякий случай (защита от future-regressions с fillable)
@@ -379,18 +397,31 @@ class TransactionController extends Controller
     public function clubFee(Request $request, PaymentService $paymentService)
     {
         $curPartner = app('current_partner');
-        $partnerId = app('current_partner')->id;
+        $partnerId = (int) app('current_partner')->id;
         $outSum = (string) $request->input('outSum', '');
 
         $user = $request->user();
+        $studentTeams = app(\App\Services\Payments\PayableTeamResolver::class)
+            ->studentTeams($user, $partnerId)
+            ->map(fn (Team $team) => ['id' => (int) $team->id, 'title' => (string) $team->title])
+            ->values()
+            ->all();
 
-        $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
+        $clubFeeBlocked = $studentTeams === [];
+        $clubFeeRequiresTeamChoice = count($studentTeams) > 1;
+        $clubFeeDefaultTeamId = count($studentTeams) === 1 ? (int) $studentTeams[0]['id'] : null;
+        $checkoutTeam = $clubFeeDefaultTeamId
+            ? Team::query()->whereKey($clubFeeDefaultTeamId)->where('partner_id', $partnerId)->first()
+            : null;
+
+        $robokassaAvailable = ! $clubFeeBlocked
+            && $paymentService->isRobokassaAvailable($curPartner)
             && $user->can('payment.method.robokassa');
-        $tbankAvailable = $paymentService->isTbankAvailable($curPartner)
+        $tbankAvailable = ! $clubFeeBlocked
+            && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
             && $user->can('payment.method.tbankCard');
-        // На странице клубного взноса сумма вводится пользователем после рендера,
-        // поэтому отображаем СБП по правам и подключению метода, без проверки суммы.
-        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner)
+        $tbankSbpAvailable = ! $clubFeeBlocked
+            && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
             && $user->can('payment.method.tbankSBP');
 
         return view('payment.clubFee', compact(
@@ -398,23 +429,11 @@ class TransactionController extends Controller
             'partnerId',
             'robokassaAvailable',
             'tbankAvailable',
-            'tbankSbpAvailable'
+            'tbankSbpAvailable',
+            'studentTeams',
+            'clubFeeBlocked',
+            'clubFeeRequiresTeamChoice',
+            'clubFeeDefaultTeamId',
         ));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function buildPaymentIntentMeta(string $userName, ?int $monthlyTeamId): array
-    {
-        $meta = [
-            'user_name' => $userName,
-        ];
-
-        if ($monthlyTeamId !== null && $monthlyTeamId > 0) {
-            $meta['team_id'] = $monthlyTeamId;
-        }
-
-        return $meta;
     }
 }

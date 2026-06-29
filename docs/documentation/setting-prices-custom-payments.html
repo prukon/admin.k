@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Установка цен: дополнительные платежи</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="custom-payments-tab">Установка цен → Дополнительные платежи</h1>
+  <div class="small">Файл: <code>/docs/documentation/setting-prices-custom-payments.html</code>. Страница CRM: <code>/admin/setting-prices/custom-payments</code> (вкладка <code>custom_payments</code> в <code>admin/SettingPrices/index</code>).</div>
+
+  <div class="note">
+    <b>Группа платежа:</b> с 2026‑06 у каждой записи <code>user_custom_payment</code> обязателен <code>team_id</code>. Группа определяет юр. лицо и маршрут выплаты T‑Bank при оплате (<code>PayableTeamResolver</code> → <code>payables.meta.team_id</code>). Подробно — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.
+  </div>
+
+  <h2>1) Права доступа</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>setPrices.view</code></td><td>Родительский middleware раздела «Установка цен» (обязателен для всех URL вкладки)</td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи», все endpoint'ы ниже, ручная отметка оплаты (<code>setting-prices.custom-payments.manual-paid</code>)</td></tr>
+    </tbody>
+  </table>
+  <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на весь раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> только на endpoint'ы доп. платежей. С правами — ожидаемые <b>200</b> / <b>302</b> (не <b>500</b>, не пустой <b>200</b> на store).</p>
+
+  <h2>2) Endpoint'ы</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Route name</th><th>Контракт</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/custom-payments</code></td>
+        <td><code>admin.settingPrices.customPayments</code></td>
+        <td>HTML вкладки; view <code>admin.SettingPrices.index</code>, <code>activeTab=custom_payments</code></td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/custom-payments/data</code></td>
+        <td><code>admin.settingPrices.customPayments.data</code></td>
+        <td>DataTables JSON: поля строки включают <code>team_label</code> (название группы или «—»)</td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/custom-payments/users-search?q=</code></td>
+        <td><code>admin.settingPrices.customPayments.users-search</code></td>
+        <td>Select2: <code>{ results: [{ id, text }] }</code></td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/custom-payments/teams-for-user?user_id=</code></td>
+        <td><code>admin.settingPrices.customPayments.teams-for-user</code></td>
+        <td>Select2 групп ученика: <code>{ results: [{ id, text }] }</code>; пустой массив при <code>user_id ≤ 0</code> или чужом партнёре</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/custom-payments</code></td>
+        <td><code>admin.settingPrices.customPayments.store</code></td>
+        <td>JSON <code>{ success: true, custom_payment: { …, team_id } }</code>; валидация — <b>422</b> + <code>errors</code> (в т.ч. <code>team_id</code>). Ответ всегда JSON (не redirect), в т.ч. без <code>X-Requested-With</code></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/custom-payments/{id}/manual-paid</code></td>
+        <td><code>setting-prices.custom-payments.manual-paid</code></td>
+        <td>Тот же permission <code>setPrices.customPayments.view</code>; JSON success / 404</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3) UI</h2>
+  <ul>
+    <li>Таблица <code>#custom-payments-table</code> — колонки: ученик, <b>Группа</b>, период, сумма, комментарий, статус, действия. JS: <code>resources/js/setting-prices-custom-payments.js</code>.</li>
+    <li>Модалка «Добавить дополнительный платёж»: Select2 ученика → после выбора подгружаются группы через <code>teams-for-user</code>; поле <code>team_id</code> <b>обязательно</b>.</li>
+    <li>Валидация: <code>UserCustomPaymentStoreRequest</code> — <code>team_id</code> required, exists в <code>teams</code> партнёра, ученик состоит в группе (сообщение под полем «Ученик не состоит в выбранной группе.»).</li>
+  </ul>
+
+  <h2>4) База данных</h2>
+  <ul>
+    <li>Колонка <code>user_custom_payment.team_id</code> (nullable FK → <code>teams</code>) — миграция <code>2026_06_29_150000_add_team_id_to_custom_payment_and_lesson_package_assignments.php</code>.</li>
+    <li>Backfill для старых строк — <code>2026_06_29_160000_backfill_team_id_on_payment_assignments.php</code>, сервис <code>PaymentAssignmentTeamBackfill</code> (primary group ученика).</li>
+  </ul>
+
+  <h2>5) Связь с оплатой</h2>
+  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>, пишет в <code>payables.meta.team_id</code> и <code>payment_intents.meta</code>. Без группы на записи — <b>422</b> при старте оплаты. См. <a href="/docs/documentation/payments#custom-payment-fee">payments §3.3</a>.</p>
+  <p class="small">На консоли (<code>/cabinet</code>) селект «Выбор группы» <b>не</b> фильтрует список доп. платежей — группа зафиксирована в админке при создании записи. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §4.5</a>.</p>
+
+  <h2>6) Код</h2>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>customPayments</code>, <code>customPaymentsData</code>, <code>customPaymentsTeamsForUser</code>, <code>storeCustomPayment</code></li>
+    <li><code>app/Http/Requests/Admin/UserCustomPaymentStoreRequest.php</code></li>
+    <li><code>app/Models/UserCustomPayment.php</code> — relation <code>team()</code></li>
+    <li><code>resources/views/admin/SettingPrices/custom-payments.blade.php</code></li>
+  </ul>
+
+  <h2>7) Feature-тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php</code> — колонка «Группа»</li>
+    <li><code>tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php</code> — доступ, <code>teams-for-user</code>, store JSON, валидация <code>team_id</code></li>
+    <li><code>tests/Feature/Crm/SettingPrices/SettingPricesSectionFullAccessFeatureTest.php</code> — матрица прав раздела «Установка цен»</li>
+    <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentFlowTest.php</code>, <code>PayableTeamPaymentInitFeatureTest.php</code> — resolver и HTTP Init</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentAssignmentTeamBackfillTest.php</code> — backfill</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — inline JS вкладки</li>
+  </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php</code></pre>
+</div>
+</body>
+</html>

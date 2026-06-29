@@ -23,6 +23,7 @@ class UserLessonPackage extends Model
         'manual_paid_at' => 'datetime',
         'manual_paid_by' => 'integer',
         'user_id' => 'int',
+        'team_id' => 'int',
         'lesson_package_id' => 'int',
         'created_by' => 'int',
     ];
@@ -34,6 +35,11 @@ class UserLessonPackage extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     public function lessonPackage(): BelongsTo

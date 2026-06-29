@@ -204,6 +204,24 @@ final class UserLessonPackagePublicPayService
             }
         }
 
+        $studentUser = $ulp->user ?? $ulp->user()->first();
+        if (! $studentUser) {
+            return '__FAIL__';
+        }
+
+        try {
+            $paymentTeamId = app(PayableTeamResolver::class)->resolveOrAbort(
+                'lesson_package_fee',
+                $partnerId,
+                $studentUser,
+                null,
+                null,
+                $ulp,
+            );
+        } catch (HttpException) {
+            return '__FAIL__';
+        }
+
         $payable = Payable::create([
             'partner_id' => $partnerId,
             'user_id' => $studentUserId,
@@ -212,7 +230,10 @@ final class UserLessonPackagePublicPayService
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => null,
-            'meta' => ['user_lesson_package_id' => $ulpId],
+            'meta' => [
+                'user_lesson_package_id' => $ulpId,
+                'team_id' => $paymentTeamId,
+            ],
         ]);
 
         $intent = PaymentIntent::create(array_merge([
@@ -236,6 +257,7 @@ final class UserLessonPackagePublicPayService
             'user_id' => (string) $studentUserId,
             'payment_kind' => 'lesson_package',
             'user_lesson_package_id' => (string) $ulpId,
+            'team_id' => (string) $paymentTeamId,
             'ulp_public_pay' => '1',
         ], $redirectDue);
 

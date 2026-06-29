@@ -140,6 +140,7 @@
   <p>Порядок колонок по умолчанию:</p>
   <ol>
     <li>Ученик — клик по имени открывает модалку «Изменение абонемента» (класс <code>js-ulp-assignment-edit</code>, <code>KidsCrmTooltip.renderLink</code>)</li>
+    <li>Группа (<code>user_lesson_packages.team_id</code> → <code>teams.title</code>; при отсутствии — «—»)</li>
     <li>Сумма (<code>fee_amount</code>, формат «N руб»)</li>
     <li>Оплачен (бейдж; ручная отметка — подпись «руч.» и tooltip с комментарием)</li>
     <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
@@ -154,7 +155,8 @@
     <li><code>GET /admin/lesson-packages/assignments/columns-settings</code> — <code>admin.lesson-packages.assignments.columns-settings.get</code></li>
     <li><code>POST /admin/lesson-packages/assignments/columns-settings</code> — body <code>{ "columns": { "student": true, … } }</code></li>
   </ul>
-  <p>Ключи колонок: <code>student</code>, <code>fee</code>, <code>paid</code>, <code>balance</code>, <code>pay_link</code>, <code>package_name</code>, <code>type_label</code>, <code>actions</code>. Скрытая служебная колонка <code>id</code> без переключателя.</p>
+  <p>Ключи колонок: <code>student</code>, <code>team_label</code>, <code>fee</code>, <code>paid</code>, <code>balance</code>, <code>pay_link</code>, <code>package_name</code>, <code>type_label</code>, <code>actions</code>. Скрытая служебная колонка <code>id</code> без переключателя.</p>
+  <p class="small">При создании назначения поле «Группа» обязательно, если у партнёра ≥2 активных юр. лиц (<code>PartnerLegalEntityMode::isMultiEntity</code>); список групп — <code>GET …/assignments/teams-for-user?user_id=</code>. Маршрутизация оплаты — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.</p>
 
   <h3>Модалки и контракты API</h3>
   <table>
@@ -162,6 +164,12 @@
       <tr><th>Действие</th><th>UI</th><th>Метод</th><th>Контракт ответа</th></tr>
     </thead>
     <tbody>
+      <tr>
+        <td>Список групп для формы</td>
+        <td>Select2 в модалке «Назначить»</td>
+        <td><code>GET …/assignments/teams-for-user?user_id=</code></td>
+        <td>JSON <code>{ results: [{ id, text }] }</code></td>
+      </tr>
       <tr>
         <td>Создать назначение</td>
         <td>Модалка <code>#ulpAssignmentCreateModal</code>, обычная HTML-форма</td>
@@ -198,12 +206,14 @@
 
   <h3>Код</h3>
   <ul>
-    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>.</li>
+    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
     <li>Фильтры списка: <code>applyAssignmentListFilters()</code>, <code>resolveAssignmentUserStatusFilter()</code> в том же контроллере.</li>
   </ul>
 
   <h3>Тесты</h3>
   <ul>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamColumnFeatureTest.php</code> — колонка «Группа» в DataTables и на странице</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamAccessFeatureTest.php</code> — <code>teams-for-user</code>, store с <code>team_id</code> в multi legal entity, доступ</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры (кроме детальной логики <code>status</code> — см. файл выше), columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>

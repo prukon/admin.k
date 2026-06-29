@@ -6,9 +6,11 @@ use App\Models\LessonPackage;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Payable;
+use App\Models\Team;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserCustomPayment;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -52,11 +54,21 @@ class UserClassPaymentFlowTest extends CrmTestCase
         ]);
     }
 
+    private function defaultStudentTeam(): Team
+    {
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
+        return $team;
+    }
+
     public function test_payment_index_ok_and_out_sum_comes_from_user_period_prices_when_custom_payment(): void
     {
+        $team = $this->defaultStudentTeam();
         $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
+            'team_id' => $team->id,
             'date_start' => '2026-09-01',
             'date_end' => '2026-09-30',
             'amount' => '777.00',
@@ -292,9 +304,11 @@ class UserClassPaymentFlowTest extends CrmTestCase
                     'e2c_token_password' => 'E2C_PWD',
                 ]);
 
+        $team = $this->defaultStudentTeam();
         $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
+            'team_id' => $team->id,
             'date_start' => '2026-10-01',
             'date_end' => '2026-10-31',
             'amount' => '321.00',
@@ -331,10 +345,13 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertNotNull($payable);
         $this->assertSame('custom_payment_fee', (string) $payable->type);
         $this->assertSame((int) $upp->id, (int) ($payable->meta['user_period_price_id'] ?? 0));
+        $this->assertSame((int) $team->id, (int) ($payable->meta['team_id'] ?? 0));
     }
 
     private function seedLessonPackageAssignment(float $feeAmount): UserLessonPackage
     {
+        $team = $this->defaultStudentTeam();
+
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'ULP payment flow',

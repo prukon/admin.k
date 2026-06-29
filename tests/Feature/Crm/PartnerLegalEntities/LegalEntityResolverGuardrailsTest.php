@@ -11,6 +11,7 @@ use App\Models\PaymentIntent;
 use App\Models\Team;
 use App\Services\CloudKassir\CloudKassirReceiptBuilder;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Config;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -66,10 +67,18 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
 
         $active = PartnerLegalEntity::factory()
             ->for($this->partner)
+            ->registered('SHOP-FISCAL-ACTIVE')
             ->create([
                 'tax_id' => '2222222222',
                 'is_default' => true,
             ]);
+
+        $team = Team::factory()->for($this->partner)->create([
+            'legal_entity_id' => $active->id,
+        ]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
+        $this->partner->update(['tax_id' => null, 'tinkoff_partner_id' => null]);
 
         $payable = Payable::query()->create([
             'partner_id' => $this->partner->id,
@@ -78,7 +87,7 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
             'amount' => '1000.00',
             'currency' => 'RUB',
             'status' => 'paid',
-            'meta' => [],
+            'meta' => ['team_id' => $team->id],
             'paid_at' => now(),
         ]);
 
@@ -118,6 +127,8 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
         $this->partner->update([
             'email' => 'school@example.test',
             'website' => 'https://school.example',
+            'tax_id' => null,
+            'tinkoff_partner_id' => null,
         ]);
 
         $disabled = PartnerLegalEntity::factory()
@@ -126,13 +137,19 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
             ->disabled()
             ->create(['tax_id' => '3333333333', 'organization_name' => 'Disabled Org']);
 
-        PartnerLegalEntity::factory()
+        $active = PartnerLegalEntity::factory()
             ->for($this->partner)
+            ->registered('SHOP-CK-ACTIVE')
             ->create([
                 'tax_id' => '4444444444',
                 'organization_name' => 'Active Org',
                 'is_default' => true,
             ]);
+
+        $team = Team::factory()->for($this->partner)->create([
+            'legal_entity_id' => $active->id,
+        ]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
 
         $payable = Payable::query()->create([
             'partner_id' => $this->partner->id,
@@ -142,7 +159,7 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => '2026-03-01',
-            'meta' => ['month' => '2026-03-01'],
+            'meta' => ['month' => '2026-03-01', 'team_id' => $team->id],
             'paid_at' => now(),
         ]);
 

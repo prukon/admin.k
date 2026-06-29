@@ -25,6 +25,7 @@ use App\Services\Payments\UserLessonPackagePublicPayService;
 use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
+use App\Support\PartnerLegalEntityMode;
 use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
@@ -410,6 +411,7 @@ final class LessonPackageController extends AdminBaseController
             'assignmentsFilterUser' => $this->resolveAssignmentFilterUserLabel($partnerId, $filters),
             'canViewLocations' => $canViewLocations,
             'activeLocations' => $activeLocations,
+            'multiLegalEntityMode' => PartnerLegalEntityMode::isMultiEntity($partnerId),
         ]);
     }
 
@@ -484,6 +486,11 @@ final class LessonPackageController extends AdminBaseController
             ->select('user_lesson_packages.*')
             ->join('users', 'users.id', '=', 'user_lesson_packages.user_id')
             ->join('lesson_packages', 'lesson_packages.id', '=', 'user_lesson_packages.lesson_package_id')
+            ->leftJoin('teams', function ($join) use ($partnerId) {
+                $join->on('teams.id', '=', 'user_lesson_packages.team_id')
+                    ->where('teams.partner_id', '=', $partnerId)
+                    ->whereNull('teams.deleted_at');
+            })
             ->where('users.partner_id', $partnerId);
 
         $recordsTotal = (clone $baseQuery)->count();
@@ -508,6 +515,10 @@ final class LessonPackageController extends AdminBaseController
             case 'student':
                 $orderedQuery->orderBy('users.lastname', $orderDir)
                     ->orderBy('users.name', $orderDir)
+                    ->orderBy('user_lesson_packages.id', 'desc');
+                break;
+            case 'team':
+                $orderedQuery->orderBy('teams.title', $orderDir)
                     ->orderBy('user_lesson_packages.id', 'desc');
                 break;
             case 'package':
@@ -549,7 +560,7 @@ final class LessonPackageController extends AdminBaseController
             ->clone()
             ->skip($start)
             ->take($length)
-            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type'])
+            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type', 'team:id,title,partner_id'])
             ->get();
 
         $ulpPublicPayTbankReady = $this->ulpAssignmentPublicPayTbankReady($partnerId);
@@ -604,9 +615,12 @@ final class LessonPackageController extends AdminBaseController
         $feeInt = (int) round((float) ($a->fee_amount ?? 0));
         $feeDisplay = number_format($feeInt, 0, '.', ',').' руб';
 
+        $teamTitle = trim((string) ($a->team?->title ?? ''));
+
         return [
             'id' => $id,
             'student' => $student,
+            'team_label' => $teamTitle !== '' ? $teamTitle : '—',
             'package_name' => (string) ($a->lessonPackage->name ?? '—'),
             'period' => $period,
             'fee' => $feeDisplay,
@@ -899,6 +913,34 @@ final class LessonPackageController extends AdminBaseController
         return response()->json(['results' => $results]);
     }
 
+    public function assignmentTeamsForUser(Request $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $userId = (int) $request->query('user_id', 0);
+        if ($userId <= 0) {
+            return response()->json(['results' => []]);
+        }
+
+        $user = User::query()
+            ->whereKey($userId)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $user) {
+            return response()->json(['results' => []]);
+        }
+
+        $teams = app(\App\Services\Payments\PayableTeamResolver::class)
+            ->studentTeams($user, $partnerId)
+            ->map(fn (Team $team) => [
+                'id' => (int) $team->id,
+                'text' => (string) $team->title,
+            ])
+            ->values();
+
+        return response()->json(['results' => $teams]);
+    }
+
     public function storeAssignment(StoreUserLessonPackageRequest $request)
     {
         $partnerId = $this->requirePartnerId();
@@ -926,6 +968,7 @@ final class LessonPackageController extends AdminBaseController
                 /** @var UserLessonPackage $assignment */
                 UserLessonPackage::query()->create([
                     'user_id' => (int) $user->id,
+                    'team_id' => ! empty($data['team_id']) ? (int) $data['team_id'] : null,
                     'lesson_package_id' => (int) $package->id,
                     'starts_at' => null,
                     'ends_at' => null,

@@ -284,9 +284,15 @@ class SettingPricesController extends AdminBaseController
         $q = UserCustomPayment::query()
             ->where('user_custom_payment.partner_id', $partnerId)
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
+            ->leftJoin('teams', function ($join) use ($partnerId) {
+                $join->on('teams.id', '=', 'user_custom_payment.team_id')
+                    ->where('teams.partner_id', '=', $partnerId)
+                    ->whereNull('teams.deleted_at');
+            })
             ->select([
                 'user_custom_payment.id',
                 'user_custom_payment.user_id',
+                'user_custom_payment.team_id',
                 'user_custom_payment.date_start',
                 'user_custom_payment.date_end',
                 DB::raw('ROUND(user_custom_payment.amount) as amount'),
@@ -296,6 +302,7 @@ class SettingPricesController extends AdminBaseController
                 'user_custom_payment.manual_paid_note',
                 DB::raw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name"),
                 DB::raw("CASE WHEN user_custom_payment.is_manual_paid IS NULL THEN user_custom_payment.is_paid ELSE user_custom_payment.is_manual_paid END as effective_is_paid"),
+                DB::raw("COALESCE(NULLIF(TRIM(teams.title), ''), '') as team_title"),
             ]);
 
         return DataTables::of($q)
@@ -310,6 +317,11 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 return $start !== '' ? $start : $end;
+            })
+            ->addColumn('team_label', function ($row) {
+                $title = trim((string) ($row->team_title ?? ''));
+
+                return $title !== '' ? $title : '—';
             })
             ->addColumn('status_label', function ($row) {
                 return (bool) $row->effective_is_paid ? 'Оплачено' : 'Не оплачено';
@@ -362,6 +374,41 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
+    /**
+     * Группы ученика для формы дополнительного платежа.
+     */
+    public function customPaymentsTeamsForUser(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (! $request->user()?->can('setPrices.customPayments.view')) {
+            abort(403);
+        }
+
+        $userId = (int) $request->query('user_id', 0);
+        if ($userId <= 0) {
+            return response()->json(['results' => []]);
+        }
+
+        $user = User::query()
+            ->whereKey($userId)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $user) {
+            return response()->json(['results' => []]);
+        }
+
+        $teams = app(\App\Services\Payments\PayableTeamResolver::class)
+            ->studentTeams($user, $partnerId)
+            ->map(fn ($team) => [
+                'id' => (int) $team->id,
+                'text' => (string) $team->title,
+            ])
+            ->values();
+
+        return response()->json(['results' => $teams]);
+    }
+
     public function storeCustomPayment(UserCustomPaymentStoreRequest $request)
     {
         $partnerId = $this->requirePartnerId();
@@ -374,6 +421,7 @@ class SettingPricesController extends AdminBaseController
         $row = UserCustomPayment::create([
             'partner_id' => $partnerId,
             'user_id' => (int) $data['user_id'],
+            'team_id' => (int) $data['team_id'],
             'date_start' => $data['date_start'] ?? null,
             'date_end' => $data['date_end'] ?? null,
             'amount' => (string) $data['amount'],

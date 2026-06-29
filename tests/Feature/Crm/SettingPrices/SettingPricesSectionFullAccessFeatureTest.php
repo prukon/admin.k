@@ -189,6 +189,22 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.settingPrices.customPayments.users-search', ['q' => 'Smoke']))
             ->assertOk();
+
+        $this->getJson(route('admin.settingPrices.customPayments.teams-for-user', [
+            'user_id' => $this->student->id,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('admin.settingPrices.customPayments.store'), [
+                'user_id' => $this->student->id,
+                'team_id' => $this->team->id,
+                'amount'  => 199,
+                'note'    => 'Smoke store',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
     }
 
     private function assertCoreSectionEndpointsSucceed(): void
@@ -419,10 +435,17 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                 'url'    => route('admin.settingPrices.customPayments.users-search', ['q' => 'Test']),
             ],
             [
+                'method' => 'GET',
+                'url'    => route('admin.settingPrices.customPayments.teams-for-user', [
+                    'user_id' => $this->student->id,
+                ]),
+            ],
+            [
                 'method' => 'POST',
                 'url'    => route('admin.settingPrices.customPayments.store'),
                 'data'   => [
                     'user_id' => $this->student->id,
+                    'team_id' => $this->team->id,
                     'amount'  => 500,
                     'note'    => 'Smoke',
                 ],

@@ -79,6 +79,10 @@
                                     <label class="form-check-label" for="ulpColStudent">Ученик</label>
                                 </div>
                                 <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColTeam" data-column-key="team_label" checked>
+                                    <label class="form-check-label" for="ulpColTeam">Группа</label>
+                                </div>
+                                <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColFee" data-column-key="fee" checked>
                                     <label class="form-check-label" for="ulpColFee">Сумма</label>
                                 </div>
@@ -220,6 +224,21 @@
                                     @enderror
                                 </div>
 
+                                @if(!empty($multiLegalEntityMode))
+                                    <div class="col-12">
+                                        <label class="form-label">Группа</label>
+                                        <select name="team_id"
+                                                id="ulp_team_id"
+                                                class="form-select @error('team_id') is-invalid @enderror"
+                                                required>
+                                            <option value="">Выберите группу</option>
+                                        </select>
+                                        @error('team_id')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                @endif
+
                                 <div class="col-12">
                                     <label class="form-label">Абонемент</label>
                                     <select name="lesson_package_id"
@@ -276,6 +295,7 @@
             <tr>
                 <th class="d-none">ID</th>
                 <th>Ученик</th>
+                <th>Группа</th>
                 <th class="text-center text-nowrap" style="width: 1%">Сумма</th>
                 <th class="text-center" style="width: 1%">Оплачен</th>
                 <th class="text-center text-nowrap" style="width: 1%">Остаток</th>
@@ -437,6 +457,42 @@
             }
             $ulpUser.select2(ulpUserSelect2);
 
+            @if(!empty($multiLegalEntityMode))
+            var $ulpTeam = $('#ulp_team_id');
+            if ($ulpTeam.length) {
+                var ulpTeamSelect2 = {
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Выберите группу',
+                    language: @include('partials.select2.ru'),
+                    allowClear: true,
+                    ajax: {
+                        url: @json(route('admin.lesson-packages.assignments.teams-for-user')),
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                user_id: $('#ulp_user_id').val() || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    }
+                };
+                if ($ulpCreateModal.length) {
+                    ulpTeamSelect2.dropdownParent = $ulpCreateModal;
+                }
+                $ulpTeam.select2(ulpTeamSelect2);
+                $ulpTeam.prop('disabled', true);
+                $ulpUser.on('change', function () {
+                    $ulpTeam.val(null).trigger('change');
+                    $ulpTeam.prop('disabled', !$(this).val());
+                });
+            }
+            @endif
+
             const oldUserId = @json(old('user_id'));
             if (oldUserId) {
                 const option = new Option('Выбранный ученик', oldUserId, true, true);
@@ -444,7 +500,7 @@
             }
 
             const shouldOpenCreateModal = @json(
-                $errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount')
+                $errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount') || $errors->has('team_id')
             );
             if (shouldOpenCreateModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                 const createModalEl = document.getElementById('ulpAssignmentCreateModal');
@@ -566,6 +622,7 @@
                     columnsSettings: {
                         defaults: {
                             student: true,
+                            team_label: true,
                             fee: true,
                             paid: true,
                             balance: true,
@@ -614,6 +671,14 @@
                             name: 'student',
                             className: 'text-start',
                             render: ulpStudentRender,
+                        },
+                        {
+                            key: 'team_label',
+                            type: 'text',
+                            data: 'team_label',
+                            name: 'team',
+                            className: 'text-start',
+                            render: ulpTextRender,
                         },
                         {
                             key: 'fee',

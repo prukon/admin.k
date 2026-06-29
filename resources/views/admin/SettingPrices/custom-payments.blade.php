@@ -21,6 +21,7 @@
                         <tr>
                             <th>ID</th>
                             <th>Ученик</th>
+                            <th>Группа</th>
                             <th>Период</th>
                             <th>Сумма</th>
                             <th>Комментарий</th>
@@ -50,6 +51,14 @@
                             <option value=""></option>
                         </select>
                         <div class="invalid-feedback d-block custom-payment-field-error" data-field="user_id" style="display:none;"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="custom-payment-team-id">Группа</label>
+                        <select class="form-select" id="custom-payment-team-id" name="team_id" required data-placeholder="Сначала выберите ученика" disabled>
+                            <option value=""></option>
+                        </select>
+                        <div class="invalid-feedback d-block custom-payment-field-error" data-field="team_id" style="display:none;"></div>
                     </div>
 
                     <div class="row g-2">
@@ -125,14 +134,57 @@
                     },
                     minimumInputLength: 0
                 });
+
+                $userSelect.on('change', function () {
+                    var $teamSelect = $('#custom-payment-team-id');
+                    if (!$teamSelect.length) return;
+                    $teamSelect.val(null).trigger('change');
+                    $teamSelect.prop('disabled', !$(this).val());
+                });
+            }
+
+            function initCustomPaymentTeamSelect2() {
+                var $teamSelect = $('#custom-payment-team-id');
+                if (!$teamSelect.length || !$.fn.select2) {
+                    return;
+                }
+
+                if ($teamSelect.data('select2')) {
+                    $teamSelect.select2('destroy');
+                }
+
+                $teamSelect.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: $teamSelect.data('placeholder') || 'Выберите группу',
+                    language: @include('partials.select2.ru'),
+                    allowClear: true,
+                    dropdownParent: $('#customPaymentCreateModal'),
+                    ajax: {
+                        url: window.__customPaymentsTeamsForUserUrl || '',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || '',
+                                user_id: $('#custom-payment-user-id').val() || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            return data;
+                        }
+                    },
+                    minimumInputLength: 0
+                });
             }
 
             $(function () {
                 initCustomPaymentUserSelect2();
+                initCustomPaymentTeamSelect2();
             });
         })(window.jQuery);
     </script>
     <script>
+        window.__customPaymentsTeamsForUserUrl = @json(route('admin.settingPrices.customPayments.teams-for-user'));
         window.__customPaymentsCanManualPaid = @json(auth()->user()?->can('setPrices.manualPaid.manage') ?? false);
     </script>
     @vite(['resources/js/setting-prices-custom-payments.js', 'resources/js/setting-prices-manual-paid-modal.js'])

@@ -9,7 +9,7 @@ use App\Models\PaymentIntent;
 use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\User;
-use App\Services\Payments\PaymentLedgerTeamResolver;
+use App\Services\Payments\PayableTeamResolver;
 
 final class LegalEntityResolver
 {
@@ -71,11 +71,11 @@ final class LegalEntityResolver
         $partnerId = (int) $payable->partner_id;
         $teamId = $this->teamIdFromPayable($payable, $user);
 
-        if ($teamId !== null) {
+        if ($teamId !== null && $teamId > 0) {
             return $this->forTeamId($teamId, $partnerId);
         }
 
-        return $this->forPartner($partnerId);
+        return new LegalEntityResolution(null, false);
     }
 
     public function forTinkoffPayment(TinkoffPayment $payment): LegalEntityResolution
@@ -216,24 +216,18 @@ final class LegalEntityResolver
             return $this->resolveLegalEntityId($this->forTeamId($teamId, $partnerId));
         }
 
-        return $this->resolveLegalEntityId($this->forPartner($partnerId));
+        return null;
     }
 
     private function teamIdFromPayable(Payable $payable, ?User $user): ?int
     {
-        $metaTeamId = $payable->meta['team_id'] ?? null;
-        if (is_numeric($metaTeamId) && (int) $metaTeamId > 0) {
-            return (int) $metaTeamId;
+        if ($user === null) {
+            $metaTeamId = $payable->meta['team_id'] ?? null;
+
+            return is_numeric($metaTeamId) && (int) $metaTeamId > 0 ? (int) $metaTeamId : null;
         }
 
-        if ($user !== null && (string) $payable->type === 'monthly_fee') {
-            $snapshot = app(PaymentLedgerTeamResolver::class)->resolveFromPayable($payable, $user);
-            $teamId = $snapshot['team_id'] ?? null;
-
-            return is_numeric($teamId) && (int) $teamId > 0 ? (int) $teamId : null;
-        }
-
-        return null;
+        return app(PayableTeamResolver::class)->resolveFromPayable($payable, $user);
     }
 
     private function findActiveEntity(int $entityId, int $partnerId): ?PartnerLegalEntity

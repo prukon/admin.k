@@ -70,14 +70,19 @@
     </tbody>
   </table>
 
-  <h3>1.1) Выбор юр. лица для оплаты (<code>LegalEntityResolver</code>)</h3>
-  <pre><code>группа.legal_entity_id (активное) → это юр. лицо
-иначе, если активных юр. лиц = 1 → единственное
-иначе, если есть is_default → default (fallback=true)
-иначе → первое активное (fallback=true)
+  <h3 id="legal-entity-resolver">1.1) Выбор юр. лица для оплаты (<code>LegalEntityResolver</code>)</h3>
+  <pre><code>Init / выплата по payable:
+  team_id из PayableTeamResolver → teams.legal_entity_id (активное) → это юр. лицо
+  без team_id → entity = null (forPartner для нового payable не используется)
+
+Общая логика выбора entity по группе:
+  группа.legal_entity_id (активное) → это юр. лицо
+  иначе, если активных юр. лиц = 1 → единственное
+  иначе, если есть is_default → default (fallback=true)
+  иначе → первое активное (fallback=true)
 
 ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</code></pre>
-  <p>Сервис: <code>App\Services\PartnerLegalEntities\LegalEntityResolver</code>. Используется в <code>PaymentService</code>, Init T‑Bank, выплатах, CloudKassir. DTO: <code>LegalEntityResolution</code> (<code>entity</code>, <code>usedDefaultFallback</code>).</p>
+  <p>Сервис: <code>App\Services\PartnerLegalEntities\LegalEntityResolver</code>. Используется в <code>PaymentService</code>, Init T‑Bank, выплатах, CloudKassir. DTO: <code>LegalEntityResolution</code> (<code>entity</code>, <code>usedDefaultFallback</code>). Группа платежа — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.</p>
 
   <h2>2) Права доступа</h2>
   <table>

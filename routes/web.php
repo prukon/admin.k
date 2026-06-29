@@ -325,6 +325,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::get('admin/setting-prices/custom-payments', [SettingPricesController::class, 'customPayments'])->name('admin.settingPrices.customPayments');
             Route::get('admin/setting-prices/custom-payments/data', [SettingPricesController::class, 'customPaymentsData'])->name('admin.settingPrices.customPayments.data');
             Route::get('admin/setting-prices/custom-payments/users-search', [SettingPricesController::class, 'customPaymentsUsersSearch'])->name('admin.settingPrices.customPayments.users-search');
+            Route::get('admin/setting-prices/custom-payments/teams-for-user', [SettingPricesController::class, 'customPaymentsTeamsForUser'])->name('admin.settingPrices.customPayments.teams-for-user');
             Route::post('admin/setting-prices/custom-payments', [SettingPricesController::class, 'storeCustomPayment'])->name('admin.settingPrices.customPayments.store');
         });
 
@@ -393,6 +394,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.assignments.data');
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
             ->name('admin.lesson-packages.assignments.users-search');
+        Route::get('/admin/lesson-packages/assignments/teams-for-user', [LessonPackageController::class, 'assignmentTeamsForUser'])
+            ->name('admin.lesson-packages.assignments.teams-for-user');
         Route::get('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsGet'])
             ->name('admin.lesson-packages.assignments.columns-settings.get');
         Route::post('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsSave'])

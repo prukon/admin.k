@@ -22,6 +22,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'create team modal' => ['includes/modal/createTeam.blade.php'];
         yield 'edit team modal' => ['includes/modal/editTeam.blade.php'];
         yield 'setting prices users tab' => ['admin/SettingPrices/users.blade.php'];
+        yield 'setting prices custom payments tab' => ['admin/SettingPrices/custom-payments.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
@@ -31,6 +32,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
         yield 'school schedule calendar tab' => ['admin/lessonPackages/tabs/schoolSchedule.blade.php'];
         yield 'lesson package assignments tab' => ['admin/lessonPackages/tabs/assignments.blade.php'];
+        yield 'club fee payment page' => ['payment/clubFee.blade.php'];
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
@@ -92,13 +94,63 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $js = preg_replace('/\{!!.*?!!\}/s', '__BLADE__', $js) ?? $js;
         $js = preg_replace('/\{\{.*?\}\}/s', '__BLADE__', $js) ?? $js;
 
-        // Прочие blade-вызовы с аргументами (@route(...), @can(...) и т.п.).
-        $js = preg_replace('/@\w+\s*\([^)]*\)/', 'null', $js) ?? $js;
+        // Blade-директивы с аргументами в скобках (@if(...), @include(...), @can(...) и т.п.).
+        $js = $this->stripBalancedBladeDirectiveCalls($js);
 
-        // Однострочные blade-директивы (@csrf, @endforeach и т.п.) — убираем.
+        // Однострочные blade-директивы (@csrf, @endforeach, @endif и т.п.) — убираем.
         $js = preg_replace('/^\s*@\w+.*$/m', '', $js) ?? $js;
 
         return $js;
+    }
+
+    /**
+     * Заменяет @directive(...) на null с учётом вложенных скобок в аргументах.
+     */
+    private function stripBalancedBladeDirectiveCalls(string $script): string
+    {
+        $pos = 0;
+        $len = strlen($script);
+
+        while ($pos < $len) {
+            $at = strpos($script, '@', $pos);
+            if ($at === false) {
+                break;
+            }
+
+            if (! preg_match('/@\w+/', $script, $match, 0, $at) || $match[0] === '') {
+                $pos = $at + 1;
+
+                continue;
+            }
+
+            $directiveEnd = $at + strlen($match[0]);
+            $tail = substr($script, $directiveEnd);
+            if (! preg_match('/^\s*\(/', $tail)) {
+                $pos = $directiveEnd;
+
+                continue;
+            }
+
+            $openParen = $directiveEnd + (int) strpos($tail, '(');
+            $i = $openParen + 1;
+            $depth = 1;
+
+            while ($i < $len && $depth > 0) {
+                $ch = $script[$i];
+                if ($ch === '(') {
+                    $depth++;
+                } elseif ($ch === ')') {
+                    $depth--;
+                }
+                $i++;
+            }
+
+            $script = substr($script, 0, $at).'null'.substr($script, $i);
+            $pos = $at + 4;
+            $len = strlen($script);
+        }
+
+        return $script;
     }
 
     private function stripBladeJsonCalls(string $script): string

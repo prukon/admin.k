@@ -6,9 +6,11 @@ namespace Tests\Feature\Crm\LessonPackages;
 
 use App\Models\LessonPackage;
 use App\Models\Partner;
-use App\Models\PaymentSystem;
+use App\Models\PartnerLegalEntity;
+use App\Models\Team;
 use App\Models\UserLessonPackage;
 use App\Models\UserLessonPackagePublicPayLink;
+use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
@@ -47,10 +49,24 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
             'e2c_token_password' => 'E2C_PWD',
         ]);
 
+        PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-PUBLIC-PAY-TEST')
+            ->create(['is_default' => true]);
+
         Partner::query()->whereKey($this->partner->id)->update([
-            'tinkoff_partner_id' => 'SHOP-PUBLIC-PAY-TEST',
+            'tinkoff_partner_id' => null,
+            'tax_id' => null,
         ]);
         $this->partner->refresh();
+    }
+
+    private function attachStudentToTeam(?Team $team = null): Team
+    {
+        $team ??= Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+
+        return $team;
     }
 
     private function createUnpaidAssignment(float $fee = 500.0): UserLessonPackage
@@ -114,6 +130,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
     {
         $this->grantPermission('lessonPackages.view');
         $this->seedTbankForPartner();
+        $this->attachStudentToTeam();
         $ulp = $this->createUnpaidAssignment();
 
         Http::fake(function (\Illuminate\Http\Client\Request $request) {

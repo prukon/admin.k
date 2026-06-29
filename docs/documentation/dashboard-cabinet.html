@@ -105,7 +105,7 @@
     <thead><tr><th>Блок</th><th>Причина</th></tr></thead>
     <tbody>
       <tr><td>Календарь посещений</td><td>Данные <code>schedule_users</code> не привязаны к группе на консоли; фильтрация не реализована.</td></tr>
-      <tr><td>Дополнительные платежи (<code>user_custom_payment</code>)</td><td>Не связаны с <code>team_id</code> / pivot групп.</td></tr>
+      <tr><td>Дополнительные платежи (<code>user_custom_payment</code>)</td><td>Список на консоли не фильтруется селектом «Выбор группы»; <code>team_id</code> задаётся в админке при создании записи и используется при оплате (<a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>).</td></tr>
       <tr><td>AJAX <code>getUserDetails</code> (админ)</td><td>По-прежнему отдаёт все <code>userPrice</code>; фильтр только в пользовательском режиме на клиенте.</td></tr>
     </tbody>
   </table>
