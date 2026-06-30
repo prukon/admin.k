@@ -36,7 +36,7 @@
   </div>
 
   <div class="warn">
-    <b>Переходный период:</b> поле legacy <code>partners.tinkoff_partner_id</code> и реквизиты на партнёре сохранены. При оплатах ShopCode берётся из активного юр. лица (<code>partner_legal_entities.tinkoff_shop_code</code>), при отсутствии — fallback на <code>partners.tinkoff_partner_id</code> (<code>LegalEntityResolver::shopCode()</code>). Данные из <code>partners</code> в <code>partner_legal_entities</code> <b>не мигрируются автоматически</b> — заполняются вручную в CRM.
+    <b>Реквизиты только в справочнике (с 2026‑06‑30):</b> legacy-колонки на <code>partners</code> (ИНН, банк, НДС, <code>tinkoff_partner_id</code> и др.) в БД сохранены, но приложение их <b>не читает и не пишет</b> для оплат и фискализации — см. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>. ShopCode, ИНН для чека и НДС — <b>только</b> из активного юр. лица (<code>partner_legal_entities</code>). Операционные поля партнёра (<code>email</code>, <code>phone</code>, <code>website</code>) для CloudKassir по-прежнему с <code>partners</code> (§<a href="#legal-entities-fiscal">5.1</a>). Без зарегистрированного юр. лица T‑Bank недоступен. Данные из <code>partners</code> в <code>partner_legal_entities</code> <b>не мигрируются автоматически</b> — заполняются вручную в CRM.
   </div>
 
   <h2>1) Модель данных</h2>
@@ -61,7 +61,7 @@
       </tr>
       <tr>
         <td><code>teams.legal_entity_id</code></td>
-        <td>Необязательная явная привязка группы к юр. лицу. При удалении юр. лица — <code>SET NULL</code>. См. <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a>.</td>
+        <td>Привязка группы к юр. лицу. При ≥2 активных юр. лицах (<code>PartnerLegalEntityMode::isMultiEntity</code>) — <b>обязательна</b> при сохранении группы в CRM и для Init T‑Bank. При одном активном юр. лице — nullable (резолвер использует единственное). При удалении юр. лица — <code>SET NULL</code>. См. <a href="/docs/documentation/admin-teams#legal-entities">admin-teams</a>.</td>
       </tr>
       <tr>
         <td><code>is_default</code></td>
@@ -71,18 +71,29 @@
   </table>
 
   <h3 id="legal-entity-resolver">1.1) Выбор юр. лица для оплаты (<code>LegalEntityResolver</code>)</h3>
-  <pre><code>Init / выплата по payable:
-  team_id из PayableTeamResolver → teams.legal_entity_id (активное) → это юр. лицо
+  <pre><code>Режим multi-entity: PartnerLegalEntityMode::isMultiEntity(partner_id)
+  (= count активных partner_legal_entities) >= 2
+
+Init / выплата по payable (forPayable):
+  team_id из PayableTeamResolver → forTeamId(team_id, partner_id)
   без team_id → entity = null (forPartner для нового payable не используется)
 
-Общая логика выбора entity по группе:
-  группа.legal_entity_id (активное) → это юр. лицо
-  иначе, если активных юр. лиц = 1 → единственное
-  иначе, если есть is_default → default (fallback=true)
-  иначе → первое активное (fallback=true)
+forTeamId(team_id, partner_id) при переданной группе:
+  группа.legal_entity_id → активное юр. лицо → entity
+  если multi-entity и привязки нет / юр. лицо неактивно → entity = null
+    (fallback на default / forPartner НЕ применяется)
+  если активных юр. лиц = 1 и привязки нет → forPartner → единственное
 
-ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</code></pre>
-  <p>Сервис: <code>App\Services\PartnerLegalEntities\LegalEntityResolver</code>. Используется в <code>PaymentService</code>, Init T‑Bank, выплатах, CloudKassir. DTO: <code>LegalEntityResolution</code> (<code>entity</code>, <code>usedDefaultFallback</code>). Группа платежа — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.</p>
+forPartner (без контекста группы):
+  is_default → default (usedDefaultFallback=true)
+  иначе → первое активное
+
+ShopCode = entity.tinkoff_shop_code (без entity → null)
+Ошибка Init (PaymentService::tbankAvailabilityError):
+  multi-entity + группа без валидной привязки →
+    «Для выбранной группы не настроено юр. лицо»
+  иначе нет ShopCode → «Партнёр не зарегистрирован в T‑Bank (нет ShopCode)»</code></pre>
+  <p>Сервис: <code>App\Services\PartnerLegalEntities\LegalEntityResolver</code>. Режим: <code>App\Support\PartnerLegalEntityMode</code>. Используется в <code>PaymentService</code>, Init T‑Bank, выплатах, CloudKassir. DTO: <code>LegalEntityResolution</code> (<code>entity</code>, <code>usedDefaultFallback</code>). Группа платежа — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>, guard — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.</p>
 
   <h2>2) Права доступа</h2>
   <table>
@@ -226,18 +237,29 @@ ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</cod
   </table>
 
   <h3 id="legal-entities-fiscal">5.1) НДС и CloudKassir</h3>
+  <div class="note">
+    <b>Цепочка резолва</b> (как для T‑Bank): <code>fiscal_receipts</code> → payable → <code>meta.team_id</code> → <code>teams.legal_entity_id</code> → активное юр. лицо.
+    Альтернатива — снимок <code>fiscal_receipts.legal_entity_id</code> (если уже записан при создании чека).
+    Без группы на payable и без снимка — <code>fiscalTaxId</code> пустой, <code>CloudKassirReceiptBuilder</code> бросает исключение.
+    См. <a href="/docs/documentation/payments#payments-payable-team-legal-entity">payments §2.3.2</a>.
+  </div>
   <ul>
-    <li><b>Ставка НДС</b> (<code>partner_legal_entities.vat</code>) — задаётся в модалке CRM, поле «Ставка НДС (онлайн-чек)»; используется в чеках CloudKassir через <code>LegalEntityResolver::fiscalVat()</code> (<code>CloudKassirReceiptBuilder::resolveVat()</code>).</li>
+    <li><b>ИНН принципала</b> (<code>PurveyorData.Inn</code>) — <code>partner_legal_entities.tax_id</code> через <code>LegalEntityResolver::fiscalTaxId()</code>.</li>
+    <li><b>Наименование принципала</b> — <code>fiscalOrganizationName()</code>: <code>organization_name</code> → <code>title</code> юр. лица.</li>
+    <li><b>Ставка НДС</b> (<code>partner_legal_entities.vat</code>) — поле «Ставка НДС (онлайн-чек)» в модалке CRM; <code>CloudKassirReceiptBuilder::resolveVat()</code>. Если <code>vat</code> не задан — в позиции чека <code>null</code>.</li>
     <li><b>Система налогообложения (СНО)</b> в чеке — только из env платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>CloudKassirReceiptBuilder::resolvePlatformTaxationSystem()</code>). Поля <code>taxation_system</code> у партнёра и юр. лица удалены (миграция 2026-06-29).</li>
+    <li><b>ИНН платформы</b> в корне запроса (<code>Inn</code>) — <code>config('services.cloudkassir.inn')</code> (касса зарегистрирована на платформу).</li>
+    <li><b>Операционные поля партнёра</b> (не legacy-реквизиты): <code>partners.email</code> (обязателен для <code>IsInternetPayment</code>), <code>partners.phone</code> и <code>partners.website</code> — в <code>PurveyorData.Phone</code> и <code>CalculationPlace</code> соответственно.</li>
   </ul>
+  <p class="small">Тесты: <code>CloudKassirReceiptBuilderAgentTest</code>, <code>SendCloudKassirReceiptJobTest</code> — фикстура <code>CrmTestCase::seedFiscalTeamChainForStudent()</code> + <code>meta.team_id</code> на payable (<a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>).</p>
 
   <h2 id="legal-entities-audit">6) Аудит (<code>my_logs</code>)</h2>
   <p>События: <code>legal_entity.created</code>, <code>legal_entity.updated</code>, <code>legal_entity.deleted</code> (категория <code>legal_entity</code>). Кнопка «История» на index → <code>GET /admin/legal-entities/logs-data</code> (<code>logs.data.legal-entity</code>).</p>
 
   <h2>7) Связь с группами и оплатами</h2>
   <ul>
-    <li>Селект юр. лица в модалках create/edit группы — только если у партнёра ≥2 <b>активных</b> юр. лиц (<code>legal_entities.view</code>). Подписи опций — <code>displayTitle()</code>. Подробнее — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.</li>
-    <li>В таблице групп колонка «Юр. лицо»: значение — <code>displayTitle()</code> выбранного или default-юр. лица; при fallback (<code>legal_entity_fallback: true</code>) рядом иконка <code>i</code> с подсказкой «Юр лицо установленное по умолчанию» (без текста «По умолчанию:» в ячейке).</li>
+    <li>Селект юр. лица в модалках create/edit группы — только если у партнёра ≥2 <b>активных</b> юр. лиц (<code>legal_entities.view</code>). Поле <b>обязательно</b> (<code>required</code> в Blade + валидация <code>StoreRequest</code>/<code>UpdateRequest</code>). Подписи опций — <code>displayTitle()</code>. Подробнее — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.</li>
+    <li>В таблице групп колонка «Юр. лицо»: при явной активной привязке — <code>displayTitle()</code>; без привязки в multi-entity — «—» (<code>legal_entity_fallback: true</code>, пустой <code>legal_entity_label</code>). Оплата T‑Bank для такой группы недоступна.</li>
     <li>Доступность T‑Bank на витрине: <code>PaymentService::isTbankAvailable()</code> — глобальный терминал + ShopCode через resolver (см. <a href="/docs/documentation/settings-payment-systems#tbank-availability">settings-payment-systems §4.3</a>).</li>
     <li>Интеграция с договорами — отдельная фаза (prefill из юр. лица в модалке договора пока не реализован).</li>
   </ul>
@@ -272,14 +294,15 @@ ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</cod
   <p class="small">Карточка выплаты <code>/admin/tinkoff/payouts/{id}</code> строку «Организация» не выводит.</p>
 
   <h2>8) Legacy partner sm-register</h2>
-  <p>Маршруты <code>POST tinkoff/partners/{id}/sm-register</code> и аналоги возвращают redirect/410 с указанием перейти в «Юр. лица». UI sm-register на карточке партнёра скрыт. Поле <code>partners.tinkoff_partner_id</code> остаётся fallback для оплат до полного перехода.</p>
+  <p>Маршруты <code>POST tinkoff/partners/{id}/sm-register</code> и аналоги возвращают redirect/410 с указанием перейти в «Юр. лица». UI sm-register на карточке партнёра скрыт. Поле <code>partners.tinkoff_partner_id</code> для оплат <b>не используется</b> — ShopCode только <code>partner_legal_entities.tinkoff_shop_code</code>. См. <a href="/docs/documentation/account-partner-organization#legacy-sm-register">account-partner-organization §5</a>.</p>
 
   <h2>9) Ключевые файлы</h2>
   <ul>
     <li><code>app/Models/PartnerLegalEntity.php</code> (<code>displayTitle()</code>), <code>app/Enums/PartnerLegalEntityBusinessType.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerLegalEntityController.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerLegalEntityColumnsSettingsController.php</code></li>
-    <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code></li>
+    <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code>, <code>app/Support/PartnerLegalEntityMode.php</code></li>
+    <li><code>app/Services/Payments/PaymentService.php</code> (<code>isTbankAvailable</code>, <code>tbankAvailabilityError</code>)</li>
     <li><code>app/Services/Tinkoff/PartnerLegalEntitySmRegisterService.php</code></li>
     <li><code>app/Http/Requests/Admin/StorePartnerLegalEntityRequest.php</code>, <code>UpdatePartnerLegalEntityRequest.php</code></li>
     <li><code>app/Http/Requests/PartnerLegalEntity/SmRegisterPartnerLegalEntityRequest.php</code></li>
@@ -299,7 +322,8 @@ ShopCode = entity.tinkoff_shop_code ?? partners.tinkoff_partner_id (legacy)</cod
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesUiAndEnhancementsFeatureTest.php</code> — UI колонок, подписи полей, sm_details по умолчанию</li>
       <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesRecentEnhancementsFeatureTest.php</code> — <code>displayTitle</code>, обязательное <code>organization_name</code>, hint «Регистрация в банке», <code>showErrorModal</code> при удалении</li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/LegalEntityResolverTest.php</code>, <code>LegalEntityResolverGuardrailsTest.php</code></li>
-      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — привязка группы, колонка юр. лица, fallback-hint</li>
+      <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard: доступы групп/клубного взноса/Init, non-AJAX safety-net, <code>teamTbankCardAvailable</code></li>
+      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — обязательный <code>legal_entity_id</code> при multi-entity, колонка «Юр. лицо»</li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS index/show/teams</li>
       <li><code>tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code> — <code>showErrorModal</code> в layout</li>
     </ul>

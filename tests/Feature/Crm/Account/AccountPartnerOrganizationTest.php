@@ -63,9 +63,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
     public function test_partner_update_ok_when_has_update_permission_and_valid_payload(): void
     {
         $payload = [
-            'business_type' => 'company',
-            'title'         => 'Test Org ' . Str::random(8),
-            'email'         => 'org_' . Str::lower(Str::random(10)) . '@example.com',
+            'title' => 'Test Org ' . Str::random(8),
+            'email' => 'org_' . Str::lower(Str::random(10)) . '@example.com',
         ];
 
         $resp = $this->withSession([
@@ -78,10 +77,9 @@ class AccountPartnerOrganizationTest extends CrmTestCase
         $resp->assertJsonPath('success', true);
 
         $this->assertDatabaseHas('partners', [
-            'id'            => $this->partner->id,
-            'business_type' => 'company',
-            'title'         => $payload['title'],
-            'email'         => $payload['email'],
+            'id'    => $this->partner->id,
+            'title' => $payload['title'],
+            'email' => $payload['email'],
         ]);
     }
 
@@ -90,9 +88,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
         $actor = $this->createUserWithoutPermission('account.partner.update', $this->partner);
 
         $payload = [
-            'business_type' => 'company',
-            'title'         => 'NoPerm Org ' . Str::random(8),
-            'email'         => 'noperm_' . Str::lower(Str::random(10)) . '@example.com',
+            'title' => 'NoPerm Org ' . Str::random(8),
+            'email' => 'noperm_' . Str::lower(Str::random(10)) . '@example.com',
         ];
 
         $resp = $this->actingAs($actor)
@@ -108,9 +105,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
     public function test_partner_update_forbidden_when_trying_to_update_foreign_partner_id(): void
     {
         $payload = [
-            'business_type' => 'company',
-            'title'         => 'Foreign Org ' . Str::random(8),
-            'email'         => 'foreign_' . Str::lower(Str::random(10)) . '@example.com',
+            'title' => 'Foreign Org ' . Str::random(8),
+            'email' => 'foreign_' . Str::lower(Str::random(10)) . '@example.com',
         ];
 
         $resp = $this->withSession([
@@ -146,9 +142,8 @@ class AccountPartnerOrganizationTest extends CrmTestCase
     public function test_partner_update_returns_422_on_validation_error(): void
     {
         $payload = [
-            'business_type' => 'company',
             // title is required
-            'email'         => 'bad_' . Str::lower(Str::random(10)) . '@example.com',
+            'email' => 'bad_' . Str::lower(Str::random(10)) . '@example.com',
         ];
 
         $resp = $this->withSession([

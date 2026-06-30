@@ -7,34 +7,20 @@
             @csrf
             @method('PATCH')
             <div class="row text-start partner-form-wrap">
+            <div class="col-12 mb-3">
+                <div class="alert alert-info mb-0">
+                    Реквизиты и данные юр. лица (ИНН, ОГРН, банк и т.д.) редактируются в справочнике
+                    @can('legal_entities.view')
+                        <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
+                    @else
+                        «Юр. лица» (раздел доступен пользователям с соответствующими правами).
+                    @endcan
+                </div>
+            </div>
+
             {{--Основные данные организации--}}
             <div class="col-12 col-lg-5 user-data-wrap mb-3">
                 <h4>Основная информация</h4>
-                {{-- Тип бизнеса --}}
-                <div class="mb-3">
-                    <label for="business_type" class="form-label">Тип бизнеса*</label>
-                    <select name="business_type" id="business_type" class="form-control">
-                        <option value="company"
-                                {{ old('business_type', $partner->business_type) === 'company' ? 'selected' : '' }}>
-                            ООО
-                        </option>
-                        <option value="individual_entrepreneur"
-                                {{ old('business_type', $partner->business_type) === 'individual_entrepreneur' ? 'selected' : '' }}>
-                            ИП
-                        </option>
-                        <option value="non_commercial_organization"
-                                {{ old('business_type', $partner->business_type) === 'non_commercial_organization' ? 'selected' : '' }}>
-                            НКО
-                        </option>
-                        <option value="physical_person"
-                                {{ old('business_type', $partner->business_type) === 'physical_person' ? 'selected' : '' }}>
-                            Физическое лицо
-                        </option>
-                    </select>
-                    @error('business_type')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
 
                 {{-- Название школы / секции (бренд партнёра в CRM) --}}
                 <div class="mb-3">
@@ -42,58 +28,6 @@
                     <input type="text" class="form-control" id="title" name="title"
                            value="{{ old('title', $partner->title) }}">
                     @error('title')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Юридическое название (для оферт/документов) --}}
-                <div class="mb-3">
-                    <label for="organization_name" class="form-label">Юр. название</label>
-                    <input type="text" class="form-control" id="organization_name" name="organization_name"
-                           value="{{ old('organization_name', $partner->organization_name) }}"
-                           placeholder='Напр. "ИП Иванов Иван Иванович"'>
-                    @error('organization_name')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- ИНН --}}
-                <div class="mb-3 " id='tax_id_wrapper'>
-                    <label for="tax_id" class="form-label">ИНН</label>
-                    <input type="text" class="form-control" id="tax_id" name="tax_id"
-                           value="{{ old('tax_id', $partner->tax_id) }}">
-                    @error('tax_id')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- КПП --}}
-                <div class="mb-3 " id='kpp_wrapper'>
-                    <label for="kpp" class="form-label">КПП</label>
-                    <input type="text" class="form-control" id="kpp" name="kpp"
-                           value="{{ old('kpp', $partner->kpp) }}">
-                    @error('kpp')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Регистрационный номер --}}
-                <div class="mb-3" id="registration_number_wrapper">
-                    <label for="registration_number" class="form-label"
-                           id="label-registration_number">ОГРН (ОГРНИП)</label>
-                    <input type="text" class="form-control" id="registration_number" name="registration_number"
-                           value="{{ old('registration_number', $partner->registration_number) }}">
-                    @error('registration_number')
-                    <p class="text-danger">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Адрес --}}
-                <div class="mb-3">
-                    <label for="address" class="form-label">Почтовый адрес</label>
-                    <input type="text" class="form-control" id="address" name="address"
-                           value="{{ old('address', $partner->address) }}">
-                    @error('address')
                     <p class="text-danger">{{ $message }}</p>
                     @enderror
                 </div>
@@ -143,42 +77,8 @@
                     @enderror
                 </div>
             </div>
-            {{-- Реквизиты --}}
-            <div class="col-12 col-lg-5 user-data-wrap ">
-                <h4 id="requisites">Реквизиты</h4>
-                <div id="bankFields">
-                    <div class="mb-3">
-                        <label for="bank_name" class="form-label">Наименование банка</label>
-                        <input type="text" class="form-control" id="bank_name" name="bank_name"
-                               value="{{ old('bank_name', $partner->bank_name) }}">
-                        @error('bank_name')
-                        <p class="text-danger">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="bank_bik" class="form-label">БИК</label>
-                        <input type="text" class="form-control" id="bank_bik" name="bank_bik"
-                               value="{{ old('bank_bik', $partner->bank_bik) }}">
-                        @error('bank_bik')
-                        <p class="text-danger">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="bank_account" class="form-label">Расчетный счет</label>
-                        <input type="text" class="form-control" id="bank_account" name="bank_account"
-                               value="{{ old('bank_account', $partner->bank_account) }}">
-                        @error('bank_account')
-                        <p class="text-danger">{{ $message }}</p>
-                        @enderror
-                    </div>
-                </div>
-            </div>
-            {{-- Кнопка отправки формы --}}
 
             <hr>
-
 
                 <div class="col-12 col-lg-5 user-data-wrap mb-3">
                     <button type="submit" class="btn btn-primary width-170 mb-3">Обновить данные</button>
@@ -197,101 +97,38 @@
 @section('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-//Обновление партнера
-            function updatePartnerData() {
-                $('#partnerUpdateForm').on('submit', function (e) {
-                    e.preventDefault(); // Останавливаем стандартную отправку формы
+            $('#partnerUpdateForm').on('submit', function (e) {
+                e.preventDefault();
 
-                    let form = $(this);
-                            {{--let formData = form.serialize(); // Сериализуем все поля (включая @csrf и @method)--}}
-                    let formData = $(this).serialize();
+                let form = $(this);
+                let formData = form.serialize();
 
-                    $.ajax({
-                        url: form.attr('action'),  // берем URL из action
-                        type: 'PATCH',            // метод запроса
-                        data: formData,
-                        success: function (response) {
-                            console.log('1');
-                            showSuccessModal("Редактирование организации", "Данные организации успешно обновлены.", 1);
-                        },
-                        // error: function (xhr) {
-                        //     if (xhr.status === 422) {
-                        //         let errors = xhr.responseJSON.errors;
-                        //         console.log(errors);
-                        //     } else {
-                        //         $('#errorModal').modal('show');
-                        //     }
-                        // }
-                        error: function (response) {
-                            let errorMessage = 'Произошла ошибка при сохранении данных.';
-                            if (response.responseJSON && response.responseJSON.message) {
-                                errorMessage = response.responseJSON.message; // Используем сообщение с сервера, если оно есть
-                            }
-                            $('#error-modal-message').text(errorMessage); // Устанавливаем сообщение ошибки
-                            $('#errorModal').modal('show');    // Показываем модалку ошибки
+                $.ajax({
+                    url: form.attr('action'),
+                    type: 'PATCH',
+                    data: formData,
+                    success: function () {
+                        showSuccessModal("Редактирование организации", "Данные организации успешно обновлены.", 1);
+                    },
+                    error: function (response) {
+                        let errorMessage = 'Произошла ошибка при сохранении данных.';
+                        if (response.responseJSON && response.responseJSON.message) {
+                            errorMessage = response.responseJSON.message;
                         }
-                    });
-                });
-            }
-
-            //Изменение полей формы органзиациии в зависимости от еее типа
-            function toggleFields() {
-                const businessType = $('#business_type').val();
-
-                // При выборе "physical_person" скрываем поля tax_id и registration_number,
-                // меняем заголовок поля title на "ФИО"
-                if (businessType === 'physical_person') {
-                    $('#tax_id_wrapper').hide();
-                    $('#kpp_wrapper').hide();
-                    $('#registration_number_wrapper').hide();
-                    $('#requisites').hide();
-
-                } else {
-                    // Для остальных типов показываем поля tax_id и registration_number,
-                    // и меняем заголовок поля title на "Наименование"
-                    $('#tax_id_wrapper').show();
-                    $('#kpp_wrapper').show();
-                    $('#registration_number_wrapper').show();
-                    $('#requisites').show();
-
-
-                    console.log(businessType);
-                    console.log($('#kpp_wrapper'));
-
-                    // Меняем заголовок поля регистрации
-                    if (businessType === 'company' || businessType === 'non_commercial_organization') {
-                        $('#label-registration_number').text('ОГРН');
-                        $('#kpp_wrapper').show();
-
-                    } else if (businessType === 'individual_entrepreneur') {
-                        $('#label-registration_number').text('ОГРНИП');
-                        $('#kpp_wrapper').hide();
+                        if (response.status === 422 && response.responseJSON && response.responseJSON.errors) {
+                            const errors = response.responseJSON.errors;
+                            const firstKey = Object.keys(errors)[0];
+                            if (firstKey && errors[firstKey] && errors[firstKey][0]) {
+                                errorMessage = errors[firstKey][0];
+                            }
+                        }
+                        $('#error-modal-message').text(errorMessage);
+                        $('#errorModal').modal('show');
                     }
-                }
-
-                // Поля банка (показываем только для company, non_commercial_organization, individual_entrepreneur)
-                if (businessType === 'physical_person') {
-                    $('#bankFields').hide();
-
-                } else {
-                    $('#bankFields').show();
-
-                }
-            }
-
-            // По изменению селекта — снова вызываем
-            $('#business_type').change(function () {
-                toggleFields();
+                });
             });
-
-            updatePartnerData();
-            toggleFields();
         });
-
     </script>
-
-
-
 @endsection
 @endcan
 

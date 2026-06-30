@@ -291,7 +291,7 @@
 
   <h2 id="legal-entities">5.2) Право <code>legal_entities.view</code> — юр. лицо группы</h2>
   <div class="note">
-    Справочник и sm-register: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>. Резолвер для оплат: <code>LegalEntityResolver</code>.
+    Справочник и sm-register: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>. Резолвер для оплат: <code>LegalEntityResolver</code>. При ≥2 активных юр. лицах (<code>PartnerLegalEntityMode::isMultiEntity</code>) привязка группы <b>обязательна</b> для оплат T‑Bank — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.
   </div>
   <table>
     <thead>
@@ -301,21 +301,22 @@
       <tr>
         <td>Селект <code>legal_entity_id</code> в модалках create/edit</td>
         <td><code>legal_entities.view</code> и ≥2 активных юр. лиц</td>
-        <td>Необязательный; подписи опций — <code>PartnerLegalEntity::displayTitle()</code>. Пусто — default/fallback при оплате. Без права ключ удаляется в <code>TeamController</code>.</td>
+        <td><b>Обязательный</b> (<code>required</code>, метка <code>*</code>); опция по умолчанию — «Выберите юр. лицо» (без «По умолчанию»). Подписи — <code>displayTitle()</code>. Подсказка: от привязки зависят оплаты T‑Bank и выплаты. Без права ключ удаляется в <code>TeamController</code>.</td>
       </tr>
       <tr>
         <td>Колонка «Юр. лицо»</td>
         <td>Те же условия</td>
-        <td>JSON: <code>legal_entity_label</code> (<code>displayTitle()</code>), <code>legal_entity_fallback</code> (bool). Явная привязка — только название; при fallback — то же название + иконка <code>i</code> (<code>kids-tooltip-hint</code>, текст «Юр лицо установленное по умолчанию»). Префикс «По умолчанию:» в ячейке <b>не используется</b>. После <code>draw.dt</code> — <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code>.</td>
+        <td>JSON: <code>legal_entity_label</code> (<code>displayTitle()</code> при явной активной привязке), <code>legal_entity_fallback</code> (bool). Без привязки в multi-entity — пустой label, в UI «—», <code>legal_entity_fallback=true</code>. Явная привязка — только название без иконки fallback.</td>
       </tr>
       <tr>
         <td>JSON edit</td>
         <td>Те же условия</td>
-        <td><code>legal_entity_id</code> — число или <code>null</code>.</td>
+        <td><code>legal_entity_id</code> — число; при multi-entity обязателен в валидации.</td>
       </tr>
     </tbody>
   </table>
-  <p class="small">Валидация: <code>PartnerLegalEntityId</code>, <code>TeamService::resolveLegalEntityIdForPartner()</code>.</p>
+  <p class="small">Валидация: <code>PartnerLegalEntityId</code>, <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>legal_entity_id</code> <code>required</code> при <code>PartnerLegalEntityMode::isMultiEntity</code>; сообщение «Выберите юр. лицо для группы». <code>TeamService::resolveLegalEntityIdForPartner()</code>.</p>
+  <p class="small"><b>Non-AJAX safety-net (store):</b> <code>POST /admin/teams</code> без <code>X-Requested-With</code> → redirect 302 на index, группа создана; при ошибке валидации — redirect back + session errors (не пустой 200). <b>Update:</b> успешный <code>PATCH</code> без AJAX → JSON 200 <code>{ message }</code> (текущий контракт контроллера); ошибка валидации — redirect 302 + session errors.</p>
 
   <h2 id="removed-legacy-fields">5.3) Удалённые поля (история)</h2>
   <div class="warn">
@@ -381,7 +382,8 @@
       <li><code>tests/Feature/Crm/Teams/TeamMonthPriceFeatureTest.php</code> — <code>month_price</code>: UI, store/update/edit/data, валидация, сортировка, логи, columns-settings.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsPageMonthPriceAccessFeatureTest.php</code> — <code>groups.view</code> → 200 на CRUD с <code>month_price</code>; без права / гость → 403.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — <code>sport_types.view</code>, колонка/фильтр/селект, валидация <code>sport_type_id</code>.</li>
-      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — селект/колонка юр. лица (<code>displayTitle</code>), fallback-hint, CRUD <code>legal_entity_id</code>.</li>
+      <li><code>tests/Feature/Crm/Teams/TeamLegalEntityFeatureTest.php</code>, <code>TeamLegalEntityDisplayGuardrailsFeatureTest.php</code>, <code>TeamLegalEntityRecentEnhancementsFeatureTest.php</code> — обязательный <code>legal_entity_id</code> в multi-entity, колонка «Юр. лицо», AJAX/non-AJAX store</li>
+      <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — guard оплат + доступы endpoint'ов групп (см. <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>)</li>
       <li><code>tests/Feature/Crm/Teams/TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code> — <code>location_id</code>, фильтры <code>district_id</code> / <code>admin_user_id</code> (pivot <code>location_admin_user</code>), sync, лендинг, school-schedule, smoke 200</li>
       <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 страницы объектов и фильтра групп по M2M-админу</li>
       <li><code>tests/Feature/Crm/LocationTeam/</code> — интеграция объектов и групп, долги, доступ к страницам.</li>

@@ -83,9 +83,9 @@ final class PartnerSettingPartnerScopeFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas('activeTab', 'partner');
 
         $payload = [
-            'business_type' => 'company',
-            'title'         => 'Scope Org ' . Str::random(8),
-            'email'         => 'scope_' . Str::lower(Str::random(8)) . '@example.test',
+            'title' => 'Scope Org ' . Str::random(8),
+            'email' => 'scope_' . Str::lower(Str::random(8)) . '@example.test',
+            'phone' => '+79990001122',
         ];
 
         $this->patchJson(route('admin.cur.partner.update', $this->partner), $payload)
@@ -107,9 +107,8 @@ final class PartnerSettingPartnerScopeFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.cur.company.edit'))->assertOk();
 
         $this->patchJson(route('admin.cur.partner.update', $this->partner), [
-            'business_type' => 'company',
-            'title'         => 'No update ' . Str::random(6),
-            'email'         => 'no_' . Str::lower(Str::random(6)) . '@example.test',
+            'title' => 'No update ' . Str::random(6),
+            'email' => 'no_' . Str::lower(Str::random(6)) . '@example.test',
         ])->assertForbidden();
     }
 
@@ -136,7 +135,6 @@ final class PartnerSettingPartnerScopeFullAccessFeatureTest extends CrmTestCase
         $originalTitle = $this->foreignPartner->title;
 
         $this->patchJson(route('admin.cur.partner.update', $this->foreignPartner), [
-            'business_type' => 'company',
             'title'         => $hackTitle,
             'email'         => 'hack_' . Str::lower(Str::random(6)) . '@example.test',
         ])
@@ -175,9 +173,8 @@ final class PartnerSettingPartnerScopeFullAccessFeatureTest extends CrmTestCase
                 'method'  => 'PATCH',
                 'url'     => route('admin.cur.partner.update', $this->partner),
                 'data'    => [
-                    'business_type' => 'company',
-                    'title'         => 'Route ' . Str::random(6),
-                    'email'         => 'route_' . Str::lower(Str::random(6)) . '@example.test',
+                    'title' => 'Route ' . Str::random(6),
+                    'email' => 'route_' . Str::lower(Str::random(6)) . '@example.test',
                 ],
                 'headers' => ['HTTP_ACCEPT' => 'application/json', 'X-Requested-With' => 'XMLHttpRequest'],
             ],

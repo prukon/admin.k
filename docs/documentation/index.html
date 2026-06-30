@@ -30,9 +30,11 @@
   <div class="note">
     <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
     <br><br>
-    <b>Группы</b> (<code>/admin/teams</code>): колонка «Юр. лицо» показывает <code>displayTitle()</code>; при fallback (юр. лицо по умолчанию) — иконка <code>i</code> с подсказкой «Юр лицо установленное по умолчанию» (без префикса «По умолчанию:» в ячейке). Селекты в модалках группы — те же публичные названия. Подробно — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.
+    <b>Группы</b> (<code>/admin/teams</code>): при <b>≥2 активных юр. лицах</b> поле «Юр. лицо» в модалках <b>обязательно</b>; без привязки группы T‑Bank недоступен (жёсткий guard). Колонка «Юр. лицо» — <code>displayTitle()</code> явной привязки; без привязки — «—». Подробно — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>, <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.
     <br><br>
-    <b>Общее:</b> несколько юр. лиц на партнёра; CRUD в модалках; sm-register на карточке <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>); <code>LegalEntityResolver</code> для оплат. Legacy <code>partners.tinkoff_partner_id</code> — fallback.
+    <b>Общее:</b> несколько юр. лиц на партнёра; CRUD в модалках; sm-register на карточке <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>); <code>LegalEntityResolver</code> для оплат — ShopCode и реквизиты <b>только</b> из <code>partner_legal_entities</code> (без fallback на <code>partners</code>). При <b>одном</b> активном юр. лице группа может быть без <code>legal_entity_id</code> — резолвер использует единственное юр. лицо.
+    <br><br>
+    <b>Организация партнёра (2026‑06‑30):</b> реквизиты и НДС — только в «Юр. лица»; с карточки партнёра и вкладки «Организация» в ЛК убраны legacy-поля, а также <b>город</b>, <b>индекс</b> и <b>данные руководителя</b> (поле <code>title</code> переименовано в UI в «Название школы/секции»). Legacy-колонки <code>partners.*</code> в БД сохранены, приложение их не пишет из форм (<code>PartnerLegacyLegalFields</code>). Подробно — <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.
   </div>
 
   <h2>Изменения в оплатах (T‑Bank, 2026‑06)</h2>
@@ -48,6 +50,12 @@
     Колонка «Партнёр» — по-прежнему название клуба (<code>partners.title</code>), не юр. лицо.
     <br><br>
     <b>Группа платежа (<code>team_id</code>):</b> для всех типов оплат (месячный взнос, клубный, доп. платёж, абонемент) юр. лицо и выплата определяются через группу в <code>payables.meta.team_id</code> — <code>PayableTeamResolver</code> (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>). В админке: колонка «Группа» в <a href="/docs/documentation/setting-prices-custom-payments">доп. платежах</a> и <a href="/docs/documentation/lesson-packages#assignments-tab">назначениях абонементов</a>; backfill — миграции <code>2026_06_29_150000</code> + <code>2026_06_29_160000</code>.
+    <br><br>
+    <b>CloudKassir (чеки):</b> ИНН принципала, наименование и НДС — из юр. лица по той же цепочке (<code>forFiscalReceipt</code> → payable → группа). Без <code>meta.team_id</code> и привязки группы к юр. лицу чек не собирается. СНО — из env платформы; <code>partners.email</code>, <code>phone</code>, <code>website</code> — по-прежнему с партнёра. Подробно — <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.
+    <br><br>
+    <b>Feature-тесты оплат/T‑Bank/чеков:</b> в фикстурах нельзя полагаться на legacy <code>partners.tinkoff_partner_id</code> / <code>tax_id</code> — только справочник юр. лиц + цепочка через группу. Хелперы <code>CrmTestCase</code> — <a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>.
+    <br><br>
+    <b>Multi-entity guard (2026‑06‑30):</b> при ≥2 активных юр. лицах Init T‑Bank запрещён, если у выбранной группы нет активной привязки <code>teams.legal_entity_id</code> с ShopCode; ошибка Init — «Для выбранной группы не настроено юр. лицо». Клубный взнос: кнопки T‑Bank скрываются JS до выбора группы с доступным ShopCode. Подробно — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>.
   </div>
 
   <h2>История изменений на страницах CRM</h2>
@@ -81,6 +89,7 @@
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (руководство для рефакторинга)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)</a></li>
+    <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo), <code>PartnerLegacyLegalFields</code>, доступ guest/403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли»</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
@@ -120,7 +129,7 @@
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>колонка «Действия»</b> — карандаш скрывается после создания клиента §5.5.3, лид → клиент → договор без ухода со страницы), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <code>district_id</code>, <code>source=landing</code></a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
-    <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права)</a></li>
+    <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>)</a></li>
   </ul>
 
   <h2>Переиспользование UI</h2>

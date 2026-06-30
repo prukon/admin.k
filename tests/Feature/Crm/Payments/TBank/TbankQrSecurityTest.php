@@ -41,15 +41,14 @@ class TbankQrSecurityTest extends CrmTestCase
     {
         $this->grantTbankPaymentPermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-CURRENT';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_CURRENT',
             'token_password' => 'PWD_CURRENT',
             'e2c_terminal_key' => 'E2C_TERM_CURRENT',
             'e2c_token_password' => 'E2C_PWD_CURRENT',
         ]);
+
+        $this->seedTbankTeamChainForStudent(shopCode: 'SHOP-CURRENT');
 
         $sentTerminalKeys = [];
 

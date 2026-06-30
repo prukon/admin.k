@@ -40,9 +40,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-1';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-1');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-payout-1',
@@ -82,9 +81,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-1';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-1');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-payout-2',
@@ -117,9 +115,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-PAY-COMP';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-PAY-COMP');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-payout-immediate-ok',
@@ -162,9 +159,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-PAY-REJ';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-PAY-REJ');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-payout-immediate-rej',
@@ -200,9 +196,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-1';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-1');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-payout-3',
@@ -253,9 +248,8 @@ class TbankPayoutManualTest extends CrmTestCase
     {
         $this->grantPayoutsManagePermissionForCurrentUser();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-1';
-        $this->partner->save();
         $this->seedE2cKeysForPartner($this->partner);
+        $this->seedRegisteredLegalEntityForPartner($this->partner, 'SHOP-1');
 
         // Сделаем платформенную минималку > суммы, чтобы net ушёл в 0
         TinkoffCommissionRule::create([
@@ -327,9 +321,8 @@ class TbankPayoutManualTest extends CrmTestCase
         // суперюзер проходит Gate::before
         $this->asSuperadmin();
 
-        $this->foreignPartner->tinkoff_partner_id = 'SHOP-FOREIGN';
-        $this->foreignPartner->save();
         $this->seedE2cKeysForPartner($this->foreignPartner);
+        $this->seedRegisteredLegalEntityForPartner($this->foreignPartner, 'SHOP-FOREIGN');
 
         $tp = TinkoffPayment::create([
             'order_id' => 'order-super',

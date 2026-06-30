@@ -96,15 +96,15 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
 
     private function seedTbank(): void
     {
-        $this->partner->tinkoff_partner_id = 'SHOP-ACCESS';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
-                    'terminal_key' => 'TERM_ACCESS',
-                    'token_password' => 'PWD_ACCESS',
-                    'e2c_terminal_key' => 'E2C',
-                    'e2c_token_password' => 'E2CP',
-                ]);
+            'terminal_key' => 'TERM_ACCESS',
+            'token_password' => 'PWD_ACCESS',
+            'e2c_terminal_key' => 'E2C',
+            'e2c_token_password' => 'E2CP',
+        ]);
+
+        $entity = $this->seedRegisteredLegalEntityForPartner(shopCode: 'SHOP-ACCESS');
+        $this->bindTeamsToLegalEntity($entity, $this->teamA, $this->teamB);
     }
 
     private function monthlyPaymentPayload(int $teamId): array

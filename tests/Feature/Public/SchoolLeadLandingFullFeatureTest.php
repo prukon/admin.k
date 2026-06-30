@@ -53,16 +53,15 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
             ->assertSee('id="team_id"', false);
     }
 
-    public function test_display_name_uses_organization_name_when_title_empty(): void
+    public function test_display_name_uses_title_on_landing(): void
     {
         $this->landingPartner->update([
-            'title'             => '',
-            'organization_name' => 'ООО Спорт Кids',
+            'title' => 'ООО Спорт Kids',
         ]);
 
         $this->get(route('lead.show', ['landingSlug' => $this->landingWidget->landing_slug]))
             ->assertOk()
-            ->assertSee('ООО Спорт Кids', false);
+            ->assertSee('ООО Спорт Kids', false);
     }
 
     public function test_show_returns_404_for_unknown_landing_slug(): void

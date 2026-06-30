@@ -414,13 +414,30 @@ class TransactionController extends Controller
             ? Team::query()->whereKey($clubFeeDefaultTeamId)->where('partner_id', $partnerId)->first()
             : null;
 
+        $teamTbankCardAvailable = [];
+        if (! $clubFeeBlocked) {
+            foreach ($studentTeams as $teamRow) {
+                $team = Team::query()
+                    ->whereKey($teamRow['id'])
+                    ->where('partner_id', $partnerId)
+                    ->first();
+                $teamTbankCardAvailable[(int) $teamRow['id']] = $team !== null
+                    && $paymentService->isTbankAvailable($curPartner, $team);
+            }
+        }
+
+        $canTbankCard = ! $clubFeeBlocked && $user->can('payment.method.tbankCard');
+        $canTbankSbp = ! $clubFeeBlocked && $user->can('payment.method.tbankSBP');
+
         $robokassaAvailable = ! $clubFeeBlocked
             && $paymentService->isRobokassaAvailable($curPartner)
             && $user->can('payment.method.robokassa');
         $tbankAvailable = ! $clubFeeBlocked
+            && ! $clubFeeRequiresTeamChoice
             && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
             && $user->can('payment.method.tbankCard');
         $tbankSbpAvailable = ! $clubFeeBlocked
+            && ! $clubFeeRequiresTeamChoice
             && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
             && $user->can('payment.method.tbankSBP');
 
@@ -430,6 +447,9 @@ class TransactionController extends Controller
             'robokassaAvailable',
             'tbankAvailable',
             'tbankSbpAvailable',
+            'canTbankCard',
+            'canTbankSbp',
+            'teamTbankCardAvailable',
             'studentTeams',
             'clubFeeBlocked',
             'clubFeeRequiresTeamChoice',

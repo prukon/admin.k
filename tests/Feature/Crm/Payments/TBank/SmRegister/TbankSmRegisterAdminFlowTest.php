@@ -37,12 +37,14 @@ class TbankSmRegisterAdminFlowTest extends CrmTestCase
     {
         $this->asSuperadmin();
 
+        $originalShopCode = $this->partner->tinkoff_partner_id;
+
         $this->post(route('tinkoff.partners.smRegister', ['id' => $this->partner->id]), $this->validRegisterPayload())
             ->assertRedirect(route('admin.legal-entities.index'))
             ->assertSessionHas('warning');
 
         $this->partner->refresh();
-        $this->assertNull($this->partner->tinkoff_partner_id);
+        $this->assertSame($originalShopCode, $this->partner->tinkoff_partner_id);
     }
 
     public function test_legacy_sm_register_returns_410_json_for_ajax(): void

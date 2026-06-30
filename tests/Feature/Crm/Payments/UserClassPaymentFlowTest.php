@@ -255,15 +255,14 @@ class UserClassPaymentFlowTest extends CrmTestCase
     {
         $this->grantTbankCardPermission();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-TEST';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
                     'terminal_key' => 'TERM_TEST',
                     'token_password' => 'PWD_TEST',
                     'e2c_terminal_key' => 'E2C_TERM',
                     'e2c_token_password' => 'E2C_PWD',
                 ]);
+
+        $this->seedTbankTeamChainForStudent(shopCode: 'SHOP-TEST');
 
         UserPrice::factory()
             ->forUserAndMonth((int) $this->user->id, '2025-06-01', 123, false)
@@ -294,9 +293,6 @@ class UserClassPaymentFlowTest extends CrmTestCase
     {
         $this->grantTbankCardPermission();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-TEST';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
                     'terminal_key' => 'TERM_TEST',
                     'token_password' => 'PWD_TEST',
@@ -304,7 +300,9 @@ class UserClassPaymentFlowTest extends CrmTestCase
                     'e2c_token_password' => 'E2C_PWD',
                 ]);
 
-        $team = $this->defaultStudentTeam();
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOP-TEST');
+
+        $team = $chain['team'];
         $upp = UserCustomPayment::query()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
@@ -348,9 +346,11 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertSame((int) $team->id, (int) ($payable->meta['team_id'] ?? 0));
     }
 
-    private function seedLessonPackageAssignment(float $feeAmount): UserLessonPackage
+    private function seedLessonPackageAssignment(float $feeAmount, ?Team $team = null): UserLessonPackage
     {
-        $team = $this->defaultStudentTeam();
+        if ($team === null) {
+            $team = $this->defaultStudentTeam();
+        }
 
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -400,9 +400,6 @@ class UserClassPaymentFlowTest extends CrmTestCase
     {
         $this->grantTbankCardPermission();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-TEST';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
                     'terminal_key' => 'TERM_TEST',
                     'token_password' => 'PWD_TEST',
@@ -410,7 +407,9 @@ class UserClassPaymentFlowTest extends CrmTestCase
                     'e2c_token_password' => 'E2C_PWD',
                 ]);
 
-        $ulp = $this->seedLessonPackageAssignment(612.5);
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOP-TEST');
+
+        $ulp = $this->seedLessonPackageAssignment(612.5, $chain['team']);
 
         $capturedAmount = null;
         Http::fake(function ($request) use (&$capturedAmount) {

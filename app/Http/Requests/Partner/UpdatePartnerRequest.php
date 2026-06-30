@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Partner;
 
-use App\Enums\CloudKassirVatRate;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdatePartnerRequest extends FormRequest
 {
@@ -18,20 +16,6 @@ class UpdatePartnerRequest extends FormRequest
         if ($this->filled('website') && !preg_match('#^https?://#i', $this->website)) {
             $this->merge(['website' => 'http://' . $this->website]);
         }
-        $ceo = $this->input('ceo', []);
-        if (is_array($ceo)) {
-            $this->merge([
-                'ceo' => [
-                    'lastName'   => $ceo['lastName']   ?? $ceo['last_name']   ?? '',
-                    'firstName'  => $ceo['firstName']  ?? $ceo['first_name']  ?? '',
-                    'middleName' => $ceo['middleName'] ?? $ceo['middle_name'] ?? '',
-                    'phone'      => $ceo['phone']      ?? '',
-                ]
-            ]);
-        }
-        if ($this->has('vat') && $this->vat === '') {
-            $this->merge(['vat' => null]);
-        }
     }
 
     public function rules()
@@ -39,35 +23,13 @@ class UpdatePartnerRequest extends FormRequest
         $partnerId = $this->route('partner')->id;
 
         return [
-            'business_type'       => 'required|in:company,individual_entrepreneur,non_commercial_organization,physical_person',
-            'title'               => 'required|string|max:255',
-            'organization_name'   => 'nullable|string|max:255',
-            'tax_id'              => 'nullable|string|max:12',
-            'vat'                 => ['nullable', 'integer', Rule::in(CloudKassirVatRate::codes())],
-            'kpp'                 => 'nullable|string|max:9',
-            'registration_number' => 'nullable|string|max:20',
-
-            'sms_name'            => 'nullable|string|max:14',
-            'city'                => 'nullable|string|max:100',
-            'zip'                 => 'nullable|string|max:20|regex:/^\d{6}$/',
-            'address'             => 'nullable|string|max:255',
-
-            'phone'               => 'nullable|string|max:20',
-            'email'               => "required|email|max:255|unique:partners,email,{$partnerId}",
-            'website'             => 'nullable|url|max:255',
-
-            'bank_name'           => 'nullable|string|max:255',
-            'bank_bik'            => 'nullable|string|max:9',
-            'bank_account'        => 'nullable|string|max:20',
-
-            'order_by'            => 'nullable|integer',
-            'is_enabled'          => 'required|boolean',
-
-            'ceo'                 => 'nullable|array',
-            'ceo.lastName'        => 'nullable|string|max:100',
-            'ceo.firstName'       => 'nullable|string|max:100',
-            'ceo.middleName'      => 'nullable|string|max:100',
-            'ceo.phone'           => 'nullable|string|max:20',
+            'title'        => 'required|string|max:255',
+            'sms_name'     => 'nullable|string|max:14',
+            'phone'        => 'nullable|string|max:20',
+            'email'        => "required|email|max:255|unique:partners,email,{$partnerId}",
+            'website'      => 'nullable|url|max:255',
+            'order_by'     => 'nullable|integer',
+            'is_enabled'   => 'required|boolean',
         ];
     }
 
@@ -76,39 +38,19 @@ class UpdatePartnerRequest extends FormRequest
         return [
             'email.unique' => 'Партнёр с таким E-mail уже существует.',
             'website.url'  => 'Поле «Сайт» должно быть корректным URL.',
-            'zip.regex'    => 'Индекс должен содержать 6 цифр (например, 197350).',
         ];
     }
 
     public function attributes()
     {
         return [
-            'business_type'       => 'Тип бизнеса',
-            'title'               => 'Наименование',
-            'organization_name'   => 'Наименование организации',
-            'tax_id'              => 'ИНН',
-            'vat'                 => 'Ставка НДС (онлайн-чек)',
-            'kpp'                 => 'КПП',
-            'registration_number' => 'ОГРН (ОГРНИП)',
-
-            'sms_name'            => 'Название для SMS/выписок',
-            'city'                => 'Город',
-            'zip'                 => 'Индекс',
-            'address'             => 'Адрес',
-
-            'phone'               => 'Телефон',
-            'email'               => 'E-mail партнёра',
-            'website'             => 'Сайт',
-            'bank_name'           => 'Наименование банка',
-            'bank_bik'            => 'БИК',
-            'bank_account'        => 'Расчётный счёт',
-            'order_by'            => 'Сортировка',
-            'is_enabled'          => 'Активность',
-
-            'ceo.lastName'        => 'Фамилия руководителя',
-            'ceo.firstName'       => 'Имя руководителя',
-            'ceo.middleName'      => 'Отчество руководителя',
-            'ceo.phone'           => 'Телефон руководителя',
+            'title'            => 'Название школы/секции',
+            'sms_name'         => 'Название для SMS/выписок',
+            'phone'            => 'Телефон',
+            'email'            => 'E-mail партнёра',
+            'website'          => 'Сайт',
+            'order_by'         => 'Сортировка',
+            'is_enabled'       => 'Активность',
         ];
     }
 }

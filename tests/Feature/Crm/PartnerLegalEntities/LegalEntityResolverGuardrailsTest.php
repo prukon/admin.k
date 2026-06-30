@@ -25,7 +25,7 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
         $this->resolver = app(LegalEntityResolver::class);
     }
 
-    public function test_for_team_ignores_disabled_bound_entity_and_falls_back_to_default(): void
+    public function test_for_team_ignores_disabled_bound_entity_without_fallback_in_multi_entity(): void
     {
         $disabled = PartnerLegalEntity::factory()
             ->for($this->partner)
@@ -38,7 +38,7 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
             ->registered('SHOP-OTHER-ACTIVE')
             ->create(['is_default' => false, 'title' => 'Второе активное']);
 
-        $default = PartnerLegalEntity::factory()
+        PartnerLegalEntity::factory()
             ->for($this->partner)
             ->registered('SHOP-DEFAULT-ACTIVE')
             ->create(['is_default' => true, 'title' => 'Основное']);
@@ -49,12 +49,9 @@ final class LegalEntityResolverGuardrailsTest extends CrmTestCase
 
         $resolution = $this->resolver->forTeam($team);
 
-        $this->assertSame($default->id, $resolution->entity?->id);
-        $this->assertTrue($resolution->usedDefaultFallback);
-        $this->assertSame(
-            'SHOP-DEFAULT-ACTIVE',
-            $this->resolver->shopCode($this->partner->fresh(), $resolution),
-        );
+        $this->assertNull($resolution->entity);
+        $this->assertFalse($resolution->usedDefaultFallback);
+        $this->assertNull($this->resolver->shopCode($this->partner->fresh(), $resolution));
     }
 
     public function test_for_fiscal_receipt_ignores_inactive_snapshot_and_resolves_from_payable(): void

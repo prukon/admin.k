@@ -80,7 +80,7 @@ final class TeamLegalEntityDisplayGuardrailsFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertTrue($row['legal_entity_fallback']);
-        $this->assertSame('Основное юрлицо', $row['legal_entity_label']);
+        $this->assertSame('', $row['legal_entity_label']);
         $this->assertStringNotContainsString('Отключённое юрлицо', (string) $row['legal_entity_label']);
     }
 

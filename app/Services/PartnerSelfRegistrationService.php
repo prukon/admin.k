@@ -30,19 +30,11 @@ class PartnerSelfRegistrationService
 
         DB::transaction(function () use ($data, $adminRoleId, $email, $schoolTitle, &$partner, &$user) {
             $partner = Partner::create([
-                'business_type'            => 'individual_entrepreneur',
                 'title'                    => $schoolTitle,
-                'organization_name'        => $schoolTitle,
                 'email'                    => $email,
                 'is_enabled'               => true,
                 'order_by'                 => 0,
                 'registration_verified_at' => null,
-                'ceo'                      => [
-                    'lastName'   => '',
-                    'firstName'  => '',
-                    'middleName' => '',
-                    'phone'      => '',
-                ],
             ]);
 
             $user = User::create([

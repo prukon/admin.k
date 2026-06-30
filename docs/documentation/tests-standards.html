@@ -129,6 +129,94 @@ Gate::before(function (User $user, string $ability) use ($roleNameById) {
     и проверяет отсутствие утечек данных между партнёрами.
   </div>
 
+  <h2 id="legal-entity-test-fixtures">5) Юр. лица в Feature-тестах (T‑Bank, CloudKassir, выплаты)</h2>
+  <div class="warn">
+    <b>С 2026‑06‑30</b> legacy-поля на <code>partners</code> (<code>tinkoff_partner_id</code>, <code>tax_id</code>, <code>organization_name</code>, <code>vat</code> и др.) в тестах <b>не имитируют</b> работу оплат и чеков.
+    Приложение читает ShopCode и фискальные реквизиты только из <code>partner_legal_entities</code> через <code>LegalEntityResolver</code>.
+    Подробнее о продуктовой логике — <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>,
+    <a href="/docs/documentation/payments#payments-payable-team-legal-entity">payments §2.3.2</a>.
+  </div>
+
+  <h3>5.1) Обязательная цепочка (как на проде)</h3>
+  <pre><code>partner_legal_entities (активное, tinkoff_shop_code / tax_id / vat / organization_name)
+        ↑
+teams.legal_entity_id
+        ↑
+payables.meta.team_id  (+ ученик в группе для Init)
+        ↑
+LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></pre>
+  <p>Без <code>meta.team_id</code> на payable (или без группы в resolver) <code>forPayable</code> <b>не</b> падает обратно на <code>forPartner</code> — Init T‑Bank, автовыплата и сборка чека CloudKassir не сработают. При <b>≥2 активных юр. лицах</b> у группы в цепочке обязателен <code>teams.legal_entity_id</code> (без fallback на default) — <a href="#legal-entity-multi-entity-guard">§5.4</a>. Тест, который ставит только <code>partners.tinkoff_partner_id</code>, проверяет устаревший сценарий.</p>
+
+  <h3>5.2) Хелперы <code>CrmTestCase</code></h3>
+  <p>Файл: <code>tests/Feature/Crm/CrmTestCase.php</code>. Использовать вместо ручного <code>$partner->tinkoff_partner_id = …</code>.</p>
+  <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead><tr><th>Метод</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>seedRegisteredLegalEntityForPartner(?Partner, shopCode, overrides)</code></td>
+        <td>Активное юр. лицо с ShopCode; <code>partners.tinkoff_partner_id</code> обнуляется. Для выплат без payable (ручной e2c, job по <code>forPartner</code>).</td>
+      </tr>
+      <tr>
+        <td><code>seedTbankTeamChainForStudent(?Partner, ?User, shopCode, overrides)</code></td>
+        <td>ShopCode → юр. лицо → новая группа с <code>legal_entity_id</code> → ученик в группе. Для Init T‑Bank / СБП / webhook автовыплаты.</td>
+      </tr>
+      <tr>
+        <td><code>seedFiscalTeamChainForStudent(?Partner, ?User, overrides)</code></td>
+        <td>Юр. лицо с <code>tax_id</code> / <code>organization_name</code> / <code>vat</code> → группа → ученик. Для <code>CloudKassirReceiptBuilder</code> и <code>SendCloudKassirReceiptJob</code>; на payable нужен <code>meta.team_id</code>.</td>
+      </tr>
+      <tr>
+        <td><code>bindTeamsToLegalEntity(PartnerLegalEntity, Team ...)</code></td>
+        <td>Привязка уже созданных групп (multi-team monthly и т.п.) к юр. лицу с ShopCode.</td>
+      </tr>
+      <tr>
+        <td><code>seedGlobalTbank(…)</code></td>
+        <td>Глобальный терминал <code>payment_systems(partner_id=NULL, name=tbank)</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>5.3) Примеры сценариев</h3>
+  <ul>
+    <li><b>Init карты / СБП</b> — <code>seedGlobalTbank</code> + <code>seedTbankTeamChainForStudent</code> или <code>seedRegisteredLegalEntityForPartner</code> + <code>bindTeamsToLegalEntity</code> для существующих <code>teamA</code>/<code>teamB</code>.</li>
+    <li><b>Автовыплата webhook</b> — цепочка через группу + <code>meta.team_id</code> на <code>Payable</code> и связанный <code>PaymentIntent</code> (<code>TbankAutoPayoutOnWebhookTest</code>).</li>
+    <li><b>Ручная выплата / дубли</b> — достаточно <code>seedRegisteredLegalEntityForPartner</code>, если платёж без payable (<code>TbankPayoutManualTest</code>, <code>TbankPayoutDuplicatePreventionTest</code>).</li>
+    <li><b>CloudKassir</b> — <code>seedFiscalTeamChainForStudent</code>, payable с <code>meta.team_id</code>; на партнёре оставить <code>email</code> (обязателен), при agent-схеме — <code>phone</code>, <code>website</code> (<code>CloudKassirReceiptBuilderAgentTest</code>).</li>
+    <li><b>Доступность T‑Bank</b> — <code>PaymentServiceTbankAvailabilityFeatureTest</code>: legacy <code>tinkoff_partner_id</code> без юр. лица → <code>false</code>; отдельный кейс <code>test_legacy_tinkoff_partner_id_is_ignored_without_legal_entity</code>; unbound team в multi-entity → <code>false</code> + <code>tbankAvailabilityError</code>.</li>
+  </ul>
+
+  <h3 id="legal-entity-multi-entity-guard">5.4) Multi-entity guard (2026‑06‑30)</h3>
+  <div class="note">
+    При ≥2 активных <code>partner_legal_entities</code> группа <b>обязана</b> иметь <code>teams.legal_entity_id</code> с активным юр. лицом и ShopCode — иначе Init T‑Bank возвращает «Для выбранной группы не настроено юр. лицо».
+    Продуктовая документация — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.
+  </div>
+  <p>Комплексный feature-тест раздела:</p>
+  <ul class="small">
+    <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code>
+      <ul>
+        <li>доступы: guest / 403 / 200 на <code>admin.team.*</code>, <code>clubFee</code>, <code>payment.tinkoff.*</code>;</li>
+        <li>AJAX JSON store/update группы с <code>legal_entity_id</code> → 200 / 422;</li>
+        <li>non-AJAX store → 302 + БД; non-AJAX validation → session errors;</li>
+        <li>клубный взнос: <code>teamTbankCardAvailable</code>, скрытие T‑Bank в HTML, Init по привязанной/непривязанной группе;</li>
+        <li>месячная витрина и Init: <code>tbankAvailable</code>, payable с <code>meta.team_id</code>;</li>
+        <li>single-entity: группа без привязки — T‑Bank по-прежнему доступен.</li>
+      </ul>
+    </li>
+    <li>Inline JS клубного взноса — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>payment/clubFee.blade.php</code>).</li>
+  </ul>
+
+  <h3>5.5) Референсные тестовые файлы</h3>
+  <ul class="small">
+    <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code>, <code>MultiTeamMonthlyPaymentFlowTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentInitFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>, <code>TbankQrSecurityTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutManualTest.php</code>, <code>TbankPayoutDuplicatePreventionTest.php</code></li>
+    <li><code>tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — локальный <code>seedTbankForPartner()</code> (образец до выноса в <code>CrmTestCase</code>)</li>
+  </ul>
+
 </div>
 </body>
 </html>

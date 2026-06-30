@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
 use App\Services\Tinkoff\TbankTerminalConfig;
+use App\Support\PartnerLegalEntityMode;
 
 class PaymentService
 {
@@ -33,7 +34,7 @@ class PaymentService
     /**
      * T‑Bank доступен, если:
      * - глобальный терминал настроен и включён
-     * - у юр. лица (или legacy partners.tinkoff_partner_id) есть ShopCode
+     * - у юр. лица из справочника есть ShopCode (tinkoff_shop_code)
      */
     public function isTbankAvailable(Partner $partner, ?Team $team = null): bool
     {
@@ -66,6 +67,29 @@ class PaymentService
         }
 
         return $amountCents >= 1000;
+    }
+
+    /**
+     * Сообщение об ошибке доступности T‑Bank для Init (null — оплата доступна).
+     */
+    public function tbankAvailabilityError(Partner $partner, ?Team $team = null): ?string
+    {
+        if (! TbankTerminalConfig::isGloballyActive()) {
+            return 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)';
+        }
+
+        if ($team !== null && PartnerLegalEntityMode::isMultiEntity((int) $partner->id)) {
+            $resolution = $this->legalEntityResolver->forTeam($team);
+            if ($resolution->entity === null) {
+                return 'Для выбранной группы не настроено юр. лицо';
+            }
+        }
+
+        if (! $this->isTbankAvailable($partner, $team)) {
+            return 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)';
+        }
+
+        return null;
     }
 
     public function amountToCents(?string $outSum): ?int

@@ -10,6 +10,7 @@ use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\User;
 use App\Services\Payments\PayableTeamResolver;
+use App\Support\PartnerLegalEntityMode;
 
 final class LegalEntityResolver
 {
@@ -23,6 +24,8 @@ final class LegalEntityResolver
 
     public function forTeamId(?int $teamId, int $partnerId): LegalEntityResolution
     {
+        $multiEntity = PartnerLegalEntityMode::isMultiEntity($partnerId);
+
         if ($teamId !== null && $teamId > 0) {
             $team = Team::query()
                 ->whereKey($teamId)
@@ -30,11 +33,21 @@ final class LegalEntityResolver
                 ->whereNull('deleted_at')
                 ->first();
 
-            if ($team !== null && $team->legal_entity_id) {
+            if ($team === null) {
+                return $multiEntity
+                    ? new LegalEntityResolution(null, false)
+                    : $this->forPartner($partnerId);
+            }
+
+            if ($team->legal_entity_id) {
                 $entity = $this->findActiveEntity((int) $team->legal_entity_id, $partnerId);
                 if ($entity !== null) {
                     return new LegalEntityResolution($entity, false);
                 }
+            }
+
+            if ($multiEntity) {
+                return new LegalEntityResolution(null, false);
             }
         }
 
@@ -125,18 +138,13 @@ final class LegalEntityResolver
     }
 
     /**
-     * ShopCode для выплат T‑Bank: сначала юр. лицо, затем legacy partners.tinkoff_partner_id.
+     * ShopCode для выплат T‑Bank — только из активного юр. лица справочника.
      */
     public function shopCode(Partner $partner, LegalEntityResolution $resolution): ?string
     {
         $fromEntity = trim((string) ($resolution->entity?->tinkoff_shop_code ?? ''));
-        if ($fromEntity !== '') {
-            return $fromEntity;
-        }
 
-        $legacy = trim((string) ($partner->tinkoff_partner_id ?? ''));
-
-        return $legacy !== '' ? $legacy : null;
+        return $fromEntity !== '' ? $fromEntity : null;
     }
 
     public function shopCodeForPartner(Partner $partner, ?Team $team = null): ?string
@@ -154,51 +162,36 @@ final class LegalEntityResolver
     }
 
     /**
-     * ИНН принципала для CloudKassir: юр. лицо → legacy partner.
+     * ИНН принципала для CloudKassir — только из справочника юр. лиц.
      */
     public function fiscalTaxId(Partner $partner, LegalEntityResolution $resolution): ?string
     {
         $fromEntity = trim((string) ($resolution->entity?->tax_id ?? ''));
-        if ($fromEntity !== '') {
-            return $fromEntity;
-        }
 
-        $legacy = trim((string) ($partner->tax_id ?? ''));
-
-        return $legacy !== '' ? $legacy : null;
+        return $fromEntity !== '' ? $fromEntity : null;
     }
 
     public function fiscalOrganizationName(Partner $partner, LegalEntityResolution $resolution): string
     {
-        $fromEntity = trim((string) ($resolution->entity?->organization_name ?? ''));
+        if ($resolution->entity === null) {
+            return '';
+        }
+
+        $fromEntity = trim((string) ($resolution->entity->organization_name ?? ''));
         if ($fromEntity !== '') {
             return $fromEntity;
         }
 
-        $fromEntityTitle = trim((string) ($resolution->entity?->title ?? ''));
-        if ($fromEntityTitle !== '') {
-            return $fromEntityTitle;
-        }
-
-        $legacyOrg = trim((string) ($partner->organization_name ?? ''));
-        if ($legacyOrg !== '') {
-            return $legacyOrg;
-        }
-
-        return trim((string) ($partner->title ?? ''));
+        return trim((string) ($resolution->entity->title ?? ''));
     }
 
     public function fiscalVat(Partner $partner, LegalEntityResolution $resolution): ?int
     {
-        if ($resolution->entity !== null && $resolution->entity->vat !== null) {
-            return (int) $resolution->entity->vat;
-        }
-
-        if ($partner->vat === null) {
+        if ($resolution->entity === null || $resolution->entity->vat === null) {
             return null;
         }
 
-        return (int) $partner->vat;
+        return (int) $resolution->entity->vat;
     }
 
     public function resolveLegalEntityId(LegalEntityResolution $resolution): ?int

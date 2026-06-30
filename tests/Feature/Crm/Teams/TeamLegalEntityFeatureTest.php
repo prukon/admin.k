@@ -86,6 +86,21 @@ final class TeamLegalEntityFeatureTest extends CrmTestCase
         ]);
     }
 
+    public function test_store_requires_legal_entity_id_in_multi_entity_mode(): void
+    {
+        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'ЮЛ 1', 'is_default' => true]);
+        PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'ЮЛ 2', 'is_default' => false]);
+
+        $this->postJson(route('admin.team.store'), [
+            'title' => 'Группа без юр. лица',
+            'default_duration_minutes' => 60,
+            'order_by' => 1,
+            'is_enabled' => 1,
+        ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['legal_entity_id']);
+    }
+
     public function test_store_rejects_foreign_partner_legal_entity(): void
     {
         PartnerLegalEntity::factory()->for($this->partner)->create(['title' => 'ЮЛ 1']);
@@ -129,7 +144,7 @@ final class TeamLegalEntityFeatureTest extends CrmTestCase
         $row = collect($response->json('data'))->firstWhere('id', $team->id);
         $this->assertNotNull($row);
         $this->assertTrue($row['legal_entity_fallback']);
-        $this->assertSame('Основное', $row['legal_entity_label']);
+        $this->assertSame('', $row['legal_entity_label']);
     }
 
     public function test_update_team_legal_entity_id(): void

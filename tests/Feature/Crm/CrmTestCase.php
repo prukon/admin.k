@@ -2,11 +2,12 @@
 
 namespace Tests\Feature\Crm;
 
-use App\Models\Role;
-use App\Models\User;
 use App\Models\Partner;
+use App\Models\PartnerLegalEntity;
+use App\Models\Role;
 use App\Models\SchoolLeadStatus;
 use App\Models\Team;
+use App\Models\User;
 use App\Services\TeamUserSyncService;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
@@ -459,5 +460,104 @@ abstract class CrmTestCase extends TestCase
             'auto_payout_enabled' => false,
             'auto_payout_delay_hours' => 0,
         ], $overrides));
+    }
+
+    /**
+     * Активное юр. лицо с ShopCode T‑Bank (без legacy partners.tinkoff_partner_id).
+     *
+     * @param  array<string, mixed>  $entityOverrides
+     */
+    protected function seedRegisteredLegalEntityForPartner(
+        ?Partner $partner = null,
+        string $shopCode = 'SHOP-TEST',
+        array $entityOverrides = [],
+    ): PartnerLegalEntity {
+        $partner ??= $this->partner;
+
+        $entity = PartnerLegalEntity::factory()
+            ->for($partner)
+            ->registered($shopCode)
+            ->create(array_merge(['is_default' => true], $entityOverrides));
+
+        Partner::query()->whereKey($partner->id)->update([
+            'tinkoff_partner_id' => null,
+        ]);
+        $partner->refresh();
+
+        return $entity;
+    }
+
+    /**
+     * Цепочка для оплат/выплат: ShopCode → юр. лицо → группа → ученик.
+     *
+     * @return array{entity: PartnerLegalEntity, team: Team}
+     */
+    protected function seedTbankTeamChainForStudent(
+        ?Partner $partner = null,
+        ?User $user = null,
+        string $shopCode = 'SHOP-TEST',
+        array $entityOverrides = [],
+    ): array {
+        $partner ??= $this->partner;
+        $user ??= $this->user;
+
+        $entity = $this->seedRegisteredLegalEntityForPartner($partner, $shopCode, $entityOverrides);
+
+        $team = Team::factory()->create([
+            'partner_id' => $partner->id,
+            'legal_entity_id' => $entity->id,
+        ]);
+
+        app(TeamUserSyncService::class)->attachTeamForStudent($user, (int) $team->id);
+
+        return ['entity' => $entity, 'team' => $team];
+    }
+
+    /**
+     * Юр. лицо с фискальными реквизитами + группа + ученик (для CloudKassir / чеков).
+     *
+     * @param  array<string, mixed>  $entityOverrides
+     * @return array{entity: PartnerLegalEntity, team: Team}
+     */
+    protected function seedFiscalTeamChainForStudent(
+        ?Partner $partner = null,
+        ?User $user = null,
+        array $entityOverrides = [],
+    ): array {
+        $partner ??= $this->partner;
+        $user ??= $this->user;
+
+        $entity = PartnerLegalEntity::factory()
+            ->for($partner)
+            ->create(array_merge([
+                'is_default' => true,
+                'tax_id' => '7700000000',
+                'organization_name' => 'ООО Тест',
+            ], $entityOverrides));
+
+        Partner::query()->whereKey($partner->id)->update([
+            'tinkoff_partner_id' => null,
+            'tax_id' => null,
+        ]);
+        $partner->refresh();
+
+        $team = Team::factory()->create([
+            'partner_id' => $partner->id,
+            'legal_entity_id' => $entity->id,
+        ]);
+
+        app(TeamUserSyncService::class)->attachTeamForStudent($user, (int) $team->id);
+
+        return ['entity' => $entity, 'team' => $team];
+    }
+
+    /**
+     * Привязать существующие группы к юр. лицу (multi-team сценарии).
+     */
+    protected function bindTeamsToLegalEntity(PartnerLegalEntity $entity, Team ...$teams): void
+    {
+        foreach ($teams as $team) {
+            $team->update(['legal_entity_id' => $entity->id]);
+        }
     }
 }

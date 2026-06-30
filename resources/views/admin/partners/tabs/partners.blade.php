@@ -86,24 +86,6 @@
                                 <div class="form-check">
                                     <input class="form-check-input column-toggle"
                                            type="checkbox"
-                                           data-column-key="organization_name"
-                                           id="colPartnerOrganization"
-                                           checked>
-                                    <label class="form-check-label" for="colPartnerOrganization">Организация</label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
-                                           data-column-key="tax_id"
-                                           id="colPartnerTaxId"
-                                           checked>
-                                    <label class="form-check-label" for="colPartnerTaxId">ИНН</label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input class="form-check-input column-toggle"
-                                           type="checkbox"
                                            data-column-key="email"
                                            id="colPartnerEmail"
                                            checked>
@@ -151,7 +133,7 @@
                         <input id="filter-title"
                                class="form-control"
                                type="text"
-                               placeholder="Название, ИНН, email, телефон">
+                               placeholder="Название, email, телефон">
                     </div>
 
                     <div class="col-12 col-md-4">
@@ -178,8 +160,6 @@
                     <th>№</th>
                     <th>Сортировка</th>
                     <th>Наименование</th>
-                    <th>Организация</th>
-                    <th>ИНН</th>
                     <th>E-mail</th>
                     <th>Телефон</th>
                     <th>Статус</th>
@@ -238,8 +218,6 @@
                     defaults: {
                         order_by: true,
                         title: true,
-                        organization_name: true,
-                        tax_id: true,
                         email: true,
                         phone: true,
                         status_label: true,
@@ -288,17 +266,6 @@
                                 extraAttrs: 'data-id="' + row.id + '"',
                             });
                         },
-                    },
-                    {
-                        key: 'organization_name',
-                        type: 'text-long',
-                        data: 'organization_name',
-                    },
-                    {
-                        key: 'tax_id',
-                        type: 'text',
-                        data: 'tax_id',
-                        className: 'dt-col-text text-nowrap',
                     },
                     { key: 'email', type: 'text-long', data: 'email' },
                     { key: 'phone', type: 'text', data: 'phone', className: 'dt-col-text text-nowrap' },

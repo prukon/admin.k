@@ -262,12 +262,7 @@ class Partner extends Model
      */
     public function landingDisplayName(): string
     {
-        $title = trim((string) $this->title);
-        if ($title !== '') {
-            return $title;
-        }
-
-        return trim((string) $this->organization_name);
+        return trim((string) $this->title);
     }
 
 }

@@ -22,15 +22,14 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             }
         });
 
-        $this->partner->tinkoff_partner_id = 'SHOPCODE-1';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY',
             'token_password' => 'PWD_PAY',
             'e2c_terminal_key' => 'TERM_E2C',
             'e2c_token_password' => 'PWD_E2C',
         ]);
+
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOPCODE-1');
 
         $this->seedTbankCommissionRule((int) $this->partner->id, [
             'method' => 'card',
@@ -54,6 +53,7 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             'amount' => '100.00',
             'currency' => 'RUB',
             'status' => 'pending',
+            'meta' => ['team_id' => $chain['team']->id],
         ]);
 
         PaymentIntent::create([
@@ -102,13 +102,12 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             }
         });
 
-        $this->partner->tinkoff_partner_id = 'SHOPCODE-2';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY2',
             'token_password' => 'PWD_PAY2',
         ]);
+
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOPCODE-2');
 
         $this->seedTbankCommissionRule((int) $this->partner->id, [
             'method' => 'card',
@@ -132,6 +131,7 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             'amount' => '50.00',
             'currency' => 'RUB',
             'status' => 'pending',
+            'meta' => ['team_id' => $chain['team']->id],
         ]);
 
         PaymentIntent::create([
@@ -176,13 +176,12 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             }
         });
 
-        $this->partner->tinkoff_partner_id = 'SHOPCODE-3';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_PAY3',
             'token_password' => 'PWD_PAY3',
         ]);
+
+        $chain = $this->seedTbankTeamChainForStudent(shopCode: 'SHOPCODE-3');
 
         $this->seedTbankCommissionRule((int) $this->partner->id, [
             'method' => 'card',
@@ -206,6 +205,7 @@ class TbankAutoPayoutOnWebhookTest extends CrmTestCase
             'amount' => '50.00',
             'currency' => 'RUB',
             'status' => 'pending',
+            'meta' => ['team_id' => $chain['team']->id],
         ]);
 
         PaymentIntent::create([

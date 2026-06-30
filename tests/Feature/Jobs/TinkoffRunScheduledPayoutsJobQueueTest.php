@@ -4,6 +4,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Jobs\TinkoffRunScheduledPayoutsJob;
 use App\Models\Partner;
+use App\Models\PartnerLegalEntity;
 use App\Models\PaymentSystem;
 use App\Models\TinkoffPayout;
 use Illuminate\Support\Facades\Artisan;
@@ -34,8 +35,13 @@ class TinkoffRunScheduledPayoutsJobQueueTest extends JobsTestCase
     public function test_job_runs_due_payouts_and_leaves_future_untouched(): void
     {
         $partner = Partner::factory()->create([
-            'tinkoff_partner_id' => 'shopcode-queue-test-1',
+            'tinkoff_partner_id' => null,
         ]);
+
+        PartnerLegalEntity::factory()
+            ->for($partner)
+            ->registered('shopcode-queue-test-1')
+            ->create(['is_default' => true]);
 
         PaymentSystem::factory()
             ->tbank()

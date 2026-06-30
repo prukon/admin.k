@@ -10,6 +10,7 @@ use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\UserService;
+use App\Support\PartnerLegacyLegalFields;
 use Illuminate\Support\Facades\DB;
 
 class PartnerSettingController extends AdminBaseController
@@ -45,21 +46,20 @@ class PartnerSettingController extends AdminBaseController
     public function updatePartner(UpdateRequest $request, Partner $partner)
     {
         if ((int) $partner->id !== $this->requirePartnerId()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Доступ запрещён.',
-            ], 403);
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Доступ запрещён.',
+                ], 403);
+            }
+
+            abort(403);
         }
 
         $authorId = auth()->id();
 
         $oldData = $partner->toArray();
-        $data = $request->validated();
-
-        if (array_key_exists('organization_name', $data)) {
-            $data['organization_name'] = trim((string) $data['organization_name']);
-            $data['organization_name'] = $data['organization_name'] === '' ? null : $data['organization_name'];
-        }
+        $data = PartnerLegacyLegalFields::strip($request->validated());
 
         DB::transaction(function () use ($partner, $authorId, $oldData, $data) {
             $changedFields = [];
@@ -115,9 +115,15 @@ class PartnerSettingController extends AdminBaseController
             );
         });
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Данные партнёра успешно обновлены.',
-        ]);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Данные партнёра успешно обновлены.',
+            ]);
+        }
+
+        return redirect()
+            ->route('admin.cur.company.edit')
+            ->with('success', 'Данные партнёра успешно обновлены.');
     }
 }

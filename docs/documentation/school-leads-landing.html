@@ -190,7 +190,7 @@
   <ul>
     <li>Заголовок страницы: «Записаться / на регулярные тренировочные занятия».</li>
     <li>Заголовок секции формы: «Район, объект и услуга».</li>
-    <li>Название партнёра — <code>partners.title</code> (поле «Наименование» в настройках организации); если пусто — <code>organization_name</code> (<code>Partner::landingDisplayName()</code>).</li>
+    <li>Название партнёра на лендинге — <code>partners.title</code> (поле «Название школы/секции» в настройках организации / модалке партнёра; метод <code>Partner::landingDisplayName()</code> возвращает только <code>title</code>, без fallback на <code>organization_name</code>).</li>
     <li>Цвета шапки — фиксированная зелёная тема в CSS view (кастомизация бренда в CRM — запланирована).</li>
   </ul>
 

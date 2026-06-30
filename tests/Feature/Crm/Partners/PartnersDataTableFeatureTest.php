@@ -48,8 +48,6 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
     {
         $partner = Partner::factory()->create([
             'title' => 'Struct partner',
-            'organization_name' => 'ООО Struct',
-            'tax_id' => '7707083893',
             'email' => 'struct_' . Str::lower(Str::random(6)) . '@example.test',
             'phone' => '+79991234567',
             'order_by' => 5,
@@ -71,8 +69,6 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             'id',
             'order_by',
             'title',
-            'organization_name',
-            'tax_id',
             'email',
             'phone',
             'status_label',
@@ -80,7 +76,7 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
         ], array_keys($row));
         $this->assertSame('Неактивен', $row['status_label']);
         $this->assertSame(0, $row['is_enabled']);
-        $this->assertSame('ООО Struct', $row['organization_name']);
+        $this->assertSame('Struct partner', $row['title']);
     }
 
     public function test_data_filters_by_status_active(): void
@@ -130,16 +126,14 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             ->assertJsonPath('data.0.status_label', 'Неактивен');
     }
 
-    public function test_data_search_by_organization_name(): void
+    public function test_data_search_by_title(): void
     {
         Partner::factory()->create([
-            'title' => 'Org search A',
-            'organization_name' => 'УникальнаяОргXYZ',
+            'title' => 'УникальноеНазваниеXYZ',
             'is_enabled' => true,
         ]);
         Partner::factory()->create([
-            'title' => 'Org search B',
-            'organization_name' => 'Другая организация',
+            'title' => 'Другое название',
             'is_enabled' => true,
         ]);
 
@@ -148,36 +142,11 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             'start' => 0,
             'length' => 50,
             'status' => 'active',
-            'title' => 'УникальнаяОргXYZ',
+            'title' => 'УникальноеНазваниеXYZ',
         ]))
             ->assertOk()
             ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.organization_name', 'УникальнаяОргXYZ');
-    }
-
-    public function test_data_search_by_tax_id(): void
-    {
-        Partner::factory()->create([
-            'title' => 'Tax search',
-            'tax_id' => '9988776655',
-            'is_enabled' => true,
-        ]);
-        Partner::factory()->create([
-            'title' => 'Other tax',
-            'tax_id' => '1111111111',
-            'is_enabled' => true,
-        ]);
-
-        $this->getJson(route('admin.partner.data', [
-            'draw' => 1,
-            'start' => 0,
-            'length' => 50,
-            'status' => 'active',
-            'title' => '9988776655',
-        ]))
-            ->assertOk()
-            ->assertJsonPath('recordsFiltered', 1)
-            ->assertJsonPath('data.0.tax_id', '9988776655');
+            ->assertJsonPath('data.0.title', 'УникальноеНазваниеXYZ');
     }
 
     public function test_data_search_by_email_and_phone(): void
@@ -336,8 +305,6 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
                 ['name' => 'rownum'],
                 ['name' => 'order_by'],
                 ['name' => 'title'],
-                ['name' => 'organization_name'],
-                ['name' => 'tax_id'],
                 ['name' => 'email'],
                 ['name' => 'phone'],
                 ['name' => 'status_label'],
@@ -360,13 +327,11 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             'start' => 0,
             'length' => 50,
             'title' => 'Sort',
-            'order' => [['column' => 7, 'dir' => 'desc']],
+            'order' => [['column' => 5, 'dir' => 'desc']],
             'columns' => [
                 ['name' => 'rownum'],
                 ['name' => 'order_by'],
                 ['name' => 'title'],
-                ['name' => 'organization_name'],
-                ['name' => 'tax_id'],
                 ['name' => 'email'],
                 ['name' => 'phone'],
                 ['name' => 'status_label'],
@@ -405,7 +370,6 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
     {
         $partner = Partner::factory()->create([
             'title' => 'Layout smoke partner',
-            'organization_name' => 'Layout Org',
             'is_enabled' => true,
         ]);
 
@@ -415,8 +379,6 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
                 ['name' => 'rownum'],
                 ['name' => 'order_by'],
                 ['name' => 'title'],
-                ['name' => 'organization_name'],
-                ['name' => 'tax_id'],
                 ['name' => 'email'],
                 ['name' => 'phone'],
                 ['name' => 'status_label'],
@@ -435,7 +397,7 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
 
         $row = collect($json['data'])->firstWhere('id', $partner->id);
         $this->assertNotNull($row);
-        $this->assertArrayHasKey('organization_name', $row);
+        $this->assertArrayHasKey('title', $row);
         $this->assertArrayHasKey('status_label', $row);
     }
 

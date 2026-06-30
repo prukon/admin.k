@@ -134,8 +134,9 @@ class TinkoffPaymentController extends Controller
 
         $checkoutTeam = $this->checkoutTeamOrNull($paymentTeamId, $partnerId);
 
-        if (! $paymentService->isTbankAvailable($partner, $checkoutTeam)) {
-            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
+        $tbankError = $paymentService->tbankAvailabilityError($partner, $checkoutTeam);
+        if ($tbankError !== null) {
+            return back()->withErrors(['tinkoff' => $tbankError]);
         }
 
         $amountCents = (int) round(((float) $outSum) * 100);
@@ -307,8 +308,9 @@ class TinkoffPaymentController extends Controller
 
         $checkoutTeam = $this->checkoutTeamOrNull($paymentTeamId, $partnerId);
 
-        if (! $paymentService->isTbankAvailable($partner, $checkoutTeam)) {
-            return back()->withErrors(['tinkoff' => 'Партнёр не зарегистрирован в T‑Bank (нет ShopCode)']);
+        $tbankError = $paymentService->tbankAvailabilityError($partner, $checkoutTeam);
+        if ($tbankError !== null) {
+            return back()->withErrors(['tinkoff' => $tbankError]);
         }
 
         $amountCents = (int) round(((float) $outSum) * 100);

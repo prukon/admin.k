@@ -26,10 +26,13 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
         Config::set('services.cloudkassir.agent.payment_agent_phone', '+79110263811');
 
         $this->partner->update([
-            'organization_name' => 'ООО Школа футбола',
-            'tax_id' => '7700000000',
             'phone' => '+79990000002',
             'website' => 'https://school.example',
+        ]);
+
+        $chain = $this->seedFiscalTeamChainForStudent(entityOverrides: [
+            'organization_name' => 'ООО Школа футбола',
+            'tax_id' => '7700000000',
             'vat' => 0,
         ]);
 
@@ -41,7 +44,10 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => '2026-03-01',
-            'meta' => ['month' => '2026-03-01'],
+            'meta' => [
+                'month' => '2026-03-01',
+                'team_id' => $chain['team']->id,
+            ],
             'paid_at' => now(),
         ]);
 
@@ -109,7 +115,7 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
         Config::set('services.cloudkassir.russia_time_zone', 2);
         Config::set('services.cloudkassir.agent.enabled', false);
 
-        $this->partner->update([
+        $chain = $this->seedFiscalTeamChainForStudent(entityOverrides: [
             'tax_id' => '7700000000',
             'vat' => null,
         ]);
@@ -122,7 +128,10 @@ class CloudKassirReceiptBuilderAgentTest extends CrmTestCase
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => '2026-03-01',
-            'meta' => ['month' => '2026-03-01'],
+            'meta' => [
+                'month' => '2026-03-01',
+                'team_id' => $chain['team']->id,
+            ],
             'paid_at' => now(),
         ]);
 

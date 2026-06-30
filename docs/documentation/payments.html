@@ -129,7 +129,7 @@
   <h3 id="payments-payable-team">2.3) Группа платежа и юр. лицо (<code>PayableTeamResolver</code>)</h3>
   <div class="note">
     Сервис: <code>App\Services\Payments\PayableTeamResolver</code>. Используется при Init оплаты, в <code>LegalEntityResolver::forPayable</code>, в журнале <code>payments</code>.
-    <br><b>Важно:</b> без определённой группы новая оплата <b>не инициируется</b>; выплата не уходит на уровень партнёра без группы (legacy <code>partners.tinkoff_partner_id</code> только как fallback ShopCode у уже выбранного юр. лица).
+    <br><b>Важно:</b> без определённой группы новая оплата <b>не инициируется</b>; выплата не уходит на уровень партнёра без группы. ShopCode и реквизиты — только из активного юр. лица справочника (без fallback на <code>partners</code>).
   </div>
   <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
     <thead>
@@ -142,7 +142,7 @@
       <tr><td><code>lesson_package_fee</code></td><td>при ≥2 юр. лицах — <code>user_lesson_packages.team_id</code> при назначении; иначе календарь → primary group</td></tr>
     </tbody>
   </table>
-  <p>Юр. лицо для выплаты: <code>teams.legal_entity_id</code> → активное юр. лицо; если у группы нет явной привязки — default из <code>partner_legal_entities</code> (см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>).</p>
+  <p>Юр. лицо для выплаты: <code>teams.legal_entity_id</code> → активное юр. лицо с ShopCode. При <b>одном</b> активном юр. лице без привязки группы резолвер использует единственное юр. лицо. При <b>≥2</b> активных — без явной привязки Init T‑Bank <b>запрещён</b> (см. <a href="#payments-multi-entity-guard">§2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>).</p>
   <p><b>Backfill</b> (миграция <code>2026_06_29_160000_backfill_team_id_on_payment_assignments.php</code>): для старых строк без <code>team_id</code> в <code>user_custom_payment</code> и <code>user_lesson_packages</code> — primary group ученика (для абонемента сначала группа из календаря). Сервис: <code>PaymentAssignmentTeamBackfill</code>.</p>
   <p><b>Админка доп. платежей</b> (<code>/admin/setting-prices/custom-payments</code>): при создании обязателен селект «Группа»; в таблице — колонка «Группа» (<code>team_label</code> в JSON <code>/custom-payments/data</code>).</p>
   <p><b>Назначения абонементов</b> (<code>/admin/lesson-packages/assignments</code>): при ≥2 юр. лицах — обязательный селект «Группа» при создании; в таблице — колонка «Группа» (<code>team_label</code> в JSON <code>/assignments/data</code>). См. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.</p>
@@ -165,8 +165,43 @@
   <h3 id="payments-payable-team-legal-entity">2.3.2) Юр. лицо и выплата (<code>LegalEntityResolver</code>)</h3>
   <div class="note">
     Для новых оплат <code>LegalEntityResolver::forPayable</code> <b>не</b> вызывает <code>forPartner</code> без группы: если из payable не удалось получить <code>team_id</code> → <code>LegalEntityResolution(entity: null)</code> (Init / выплата без ShopCode по группе не строятся).
-    <br>Цепочка: <code>payables.meta.team_id</code> → <code>teams.legal_entity_id</code> → <code>partner_legal_entities</code> → ShopCode (<code>tinkoff_shop_code</code> или legacy <code>partners.tinkoff_partner_id</code>). См. <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>.
+    <br>Цепочка: <code>payables.meta.team_id</code> → <code>teams.legal_entity_id</code> → <code>partner_legal_entities</code> → ShopCode (<code>tinkoff_shop_code</code>). Без активного юр. лица с ShopCode — T‑Bank недоступен. См. <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>, <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.
   </div>
+
+  <h3 id="payments-multi-entity-guard">2.3.5) Жёсткий guard при нескольких юр. лицах (2026‑06‑30)</h3>
+  <div class="warn">
+    Условие: <code>PartnerLegalEntityMode::isMultiEntity($partnerId)</code> — ≥2 активных записей в <code>partner_legal_entities</code>.
+  </div>
+  <table>
+    <thead><tr><th>Область</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>LegalEntityResolver::forTeamId</code></td>
+        <td>При multi-entity и переданном <code>team_id</code> — только явная активная привязка <code>teams.legal_entity_id</code>. Fallback на <code>forPartner</code> / default <b>не применяется</b>.</td>
+      </tr>
+      <tr>
+        <td>CRM: сохранение группы</td>
+        <td><code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>legal_entity_id</code> <code>required</code> (при <code>legal_entities.view</code>). См. <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.</td>
+      </tr>
+      <tr>
+        <td>Init T‑Bank (карта / СБП)</td>
+        <td><code>PaymentService::tbankAvailabilityError()</code> → при отсутствии валидной привязки: «Для выбранной группы не настроено юр. лицо»; иначе при отсутствии ShopCode — «Партнёр не зарегистрирован в T‑Bank (нет ShopCode)». Контроллер: <code>TinkoffPaymentController</code>.</td>
+      </tr>
+      <tr>
+        <td>Витрина <code>POST /payment</code></td>
+        <td><code>isTbankAvailable($partner, $monthlyTeam)</code> — кнопки T‑Bank скрыты, если у выбранной группы нет ShopCode через резолвер.</td>
+      </tr>
+      <tr>
+        <td>Клубный взнос <code>/payment/club-fee</code></td>
+        <td>View: <code>teamTbankCardAvailable</code> (map team_id → bool). При 2+ группах кнопки T‑Bank скрыты до выбора группы; JS <code>updateClubFeeTbankVisibility()</code> пересчитывает карту и СБП (СБП — при сумме ≥ 10 ₽). См. <a href="#club-fee-page">§3.2.1</a>.</td>
+      </tr>
+      <tr>
+        <td>Один активный юр. лицо</td>
+        <td>Guard <b>не</b> действует: группа без <code>legal_entity_id</code> → резолвер берёт единственное юр. лицо (<code>forPartner</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Тесты: <code>MultiEntityTbankGuardAccessFeatureTest</code>, <code>PaymentServiceTbankAvailabilityFeatureTest</code>, <code>LegalEntityResolverTest</code>, <code>PayableTeamPaymentInitFeatureTest</code> — <a href="/docs/documentation/tests-standards#legal-entity-multi-entity-guard">tests-standards §5.4</a>.</p>
 
   <h3 id="payments-payable-team-endpoints">2.3.3) Endpoint'ы админки и кабинета</h3>
   <table>
@@ -196,12 +231,21 @@
   </table>
 
   <h3 id="payments-payable-team-tests">2.3.4) Feature-тесты</h3>
+  <div class="note">
+    Фикстуры T‑Bank и CloudKassir: только справочник юр. лиц + цепочка <code>team_id</code> → <code>legal_entity_id</code>.
+    Хелперы <code>CrmTestCase</code> — <a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>.
+    Legacy <code>partners.tinkoff_partner_id</code> / <code>tax_id</code> в тестах не используются.
+  </div>
   <ul class="small">
     <li><code>PayableTeamPaymentFlowTest</code> — правила resolver (unit-level через сервис)</li>
     <li><code>PayableTeamPaymentInitFeatureTest</code> — HTTP Init club_fee / lesson_package, доступ к странице клубного взноса</li>
     <li><code>CustomPaymentsTeamAccessFeatureTest</code>, <code>LessonPackageAssignmentsTeamAccessFeatureTest</code> — админка, teams-for-user, валидация</li>
     <li><code>PaymentAssignmentTeamBackfillTest</code> — backfill</li>
-    <li><code>UserClassPaymentFlowTest</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest</code> — monthly + custom_payment init с <code>meta.team_id</code></li>
+    <li><code>UserClassPaymentFlowTest</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest</code>, <code>MultiTeamMonthlyPaymentFlowTest</code> — monthly + custom_payment / lesson_package Init с <code>meta.team_id</code> и ShopCode на группе</li>
+    <li><code>PaymentServiceTbankAvailabilityFeatureTest</code> — <code>isTbankAvailable</code>, игнор legacy <code>tinkoff_partner_id</code></li>
+    <li><code>CloudKassirReceiptBuilderAgentTest</code>, <code>SendCloudKassirReceiptJobTest</code> — чеки через юр. лицо и группу</li>
+    <li><code>PartnerLegacyLegalFieldsResolverFeatureTest</code> — resolver без fallback на <code>partners</code></li>
+    <li><code>MultiEntityTbankGuardAccessFeatureTest</code> — multi-entity guard: доступы, Init, клубный взнос, non-AJAX групп</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code>, <code>LessonPackageAssignmentsTabFeatureTest</code> — матрицы доступа разделов</li>
   </ul>
 
@@ -349,13 +393,21 @@
       </ul>
     </li>
     <li><b>Ввод суммы</b>: пользователь вручную вводит сумму в единственное поле <code>paymentAmount</code>.</li>
-    <li><b>Доступные способы оплаты</b>: отображаются в flex-контейнере в зависимости от настроек партнёра:
+    <li><b>Доступные способы оплаты</b> (флаги в контроллере <code>clubFee</code>):
       <ul>
-        <li><b>Робокасса</b> — если <code>$robokassaAvailable</code> (настроено в <code>payment_systems</code>)</li>
-        <li><b>T‑Bank (мультирасчёты)</b> — если <code>$tbankAvailable</code> (глобальный терминал + ShopCode через <code>LegalEntityResolver</code>, legacy fallback <code>partners.tinkoff_partner_id</code>)</li>
-        <li><b>T‑Bank СБП (QR)</b> — если <code>$tbankSbpAvailable</code> (доступно для сумм >= мин. лимита)</li>
+        <li><b>Робокасса</b> — <code>$robokassaAvailable</code></li>
+        <li><b>T‑Bank (карта)</b> — <code>$tbankAvailable</code> / <code>$canTbankCard</code>; при 2+ группах на первом рендере <code>tbankAvailable=false</code>, видимость по JS</li>
+        <li><b>T‑Bank СБП</b> — <code>$tbankSbpAvailable</code> / <code>$canTbankSbp</code>; дополнительно сумма ≥ 10 ₽ (проверка в JS и на Init)</li>
       </ul>
     </li>
+    <li><b>Динамический T‑Bank при выборе группы</b> (multi-entity guard, 2+ группы):
+      <ul>
+        <li>в view передаётся <code>teamTbankCardAvailable</code> — map <code>team_id → bool</code> (<code>PaymentService::isTbankAvailable</code> по каждой группе);</li>
+        <li>блоки <code>#clubFeeTbankCardBlock</code>, <code>#clubFeeTbankSbpBlock</code> изначально <code>display:none</code>;</li>
+        <li>при смене группы и вводе суммы — <code>updateClubFeeTbankVisibility()</code> (inline JS, проверка синтаксиса — <code>BladeInlineJsSyntaxTest</code>).</li>
+      </ul>
+    </li>
+    <li><b>Ошибка Init</b> при группе без юр. лица в multi-entity: «Для выбранной группы не настроено юр. лицо» (<code>tbankAvailabilityError</code>).</li>
     <li><b>Формирование данных для оплаты</b>:
       <ul>
         <li><code>paymentDate</code> = "Клубный взнос" (строка, не дата)</li>
@@ -385,7 +437,7 @@
     <li>На странице выбора оплаты (<code>POST /payment</code>, см. п. 3.1.1) метод T‑Bank показываем только если:
       <ul>
         <li>глобальный терминал T‑Bank активен: <code>payment_systems(partner_id=NULL, name=tbank)</code> с заполненными ключами и <code>is_enabled=true</code></li>
-        <li>есть ShopCode у юр. лица (<code>partner_legal_entities.tinkoff_shop_code</code> через <code>LegalEntityResolver</code>) или legacy <code>partners.tinkoff_partner_id</code></li>
+        <li>есть ShopCode у активного юр. лица (<code>partner_legal_entities.tinkoff_shop_code</code> через <code>LegalEntityResolver</code>)</li>
       </ul>
     </li>
     <li>При старте оплаты создаём <code>payables</code> (pending) и <code>payment_intents</code> (pending, <code>provider=tbank</code>).</li>
@@ -417,7 +469,7 @@
         <li><code>is_enabled</code> — глобальный вкл/выкл T‑Bank</li>
       </ul>
     </li>
-    <li><b>Per-partner</b> ключи T‑Bank не хранятся. Доступность метода у клуба — ShopCode юр. лица (<code>LegalEntityResolver</code>, legacy <code>partners.tinkoff_partner_id</code>) и права пользователя. См. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</li>
+    <li><b>Per-partner</b> ключи T‑Bank не хранятся. Доступность метода у клуба — ShopCode активного юр. лица (<code>LegalEntityResolver</code>) и права пользователя. См. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>, <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.</li>
     <li><b>Автовыплата</b> и задержка после оплаты — в <code>tinkoff_commission_rules</code> (не в <code>payment_systems</code>). См. <a href="/docs/documentation/tbank#auto-payout">tbank §5</a>.</li>
   </ul>
 

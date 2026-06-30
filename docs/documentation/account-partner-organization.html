@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: организация партнёра (кабинет и админка)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Организация партнёра: кабинет и админка</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/account-partner-organization.html</code> ·
+    Юр. лица (справочник): <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a> ·
+    Оплаты / resolver: <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a> ·
+    Права партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a>
+  </div>
+
+  <div class="note">
+    С <b>2026‑06‑30</b> реквизиты и данные юридического лица (ИНН, ОГРН/ОГРНИП, банк, тип бизнеса, НДС для чека и т.д.) хранятся и редактируются <b>только</b> в справочнике <a href="/docs/documentation/admin-legal-entities">«Юр. лица»</a> (<code>partner_legal_entities</code>).<br><br>
+    На вкладке «Организация» в личном кабинете и в модалках CRUD супер-админа (<code>/admin/partners</code>) остаются только <b>операционные</b> поля партнёра (бренд клуба, контакты, SMS-имя, сортировка, активность). Реквизиты, город, индекс и данные руководителя на <code>partners</code> в UI <b>отсутствуют</b>. Legacy-колонки в таблице <code>partners</code> в БД <b>не удалены</b>; приложение их <b>не читает из форм и не пишет</b> (<code>PartnerLegacyLegalFields::strip</code>). При update уже сохранённые в БД <code>city</code>/<code>zip</code>/<code>ceo</code> <b>не затираются</b>, но из интерфейса недоступны.
+  </div>
+
+  <h2>1) Legacy-поля <code>partners</code> (отключены в коде)</h2>
+  <p>Константа <code>PartnerLegacyLegalFields::KEYS</code> — список полей, которые исключаются из валидации, форм и <code>update()</code>:</p>
+  <table>
+    <thead><tr><th>Колонка <code>partners</code></th><th>Было в UI</th></tr></thead>
+    <tbody>
+      <tr><td><code>business_type</code></td><td>Тип бизнеса</td></tr>
+      <tr><td><code>organization_name</code></td><td>Юр. название</td></tr>
+      <tr><td><code>tax_id</code></td><td>ИНН</td></tr>
+      <tr><td><code>kpp</code></td><td>КПП</td></tr>
+      <tr><td><code>registration_number</code></td><td>ОГРН / ОГРНИП</td></tr>
+      <tr><td><code>address</code></td><td>Почтовый адрес</td></tr>
+      <tr><td><code>bank_name</code>, <code>bank_bik</code>, <code>bank_account</code></td><td>Реквизиты банка</td></tr>
+      <tr><td><code>vat</code></td><td>Ставка НДС (онлайн-чек)</td></tr>
+      <tr><td><code>city</code></td><td>Город (не используется)</td></tr>
+      <tr><td><code>zip</code></td><td>Индекс (не используется)</td></tr>
+      <tr><td><code>ceo</code></td><td>Данные руководителя JSON (не используется; в sm-register — <code>partner_legal_entities.ceo</code>)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Поля вроде <code>tinkoff_partner_id</code>, <code>sm_register_status</code> на партнёре также не используются для новых оплат; ShopCode — только <code>partner_legal_entities.tinkoff_shop_code</code> (см. §4).</p>
+
+  <h2>2) Личный кабинет: вкладка «Организация»</h2>
+  <p>URL: <code>GET /account-settings/partner/edit</code> (<code>admin.cur.company.edit</code>). Шаблон: <code>resources/views/account/organizations.blade.php</code> (вкладка <code>partner</code> в <code>account.index</code>).</p>
+
+  <h3>2.1) Права и изоляция</h3>
+  <table>
+    <thead><tr><th>Permission</th><th>Маршрут</th><th>Доступ</th></tr></thead>
+    <tbody>
+      <tr><td><code>account.partner.view</code></td><td>GET <code>…/partner/edit</code></td><td>Страница организации текущего партнёра из сессии <code>current_partner</code></td></tr>
+      <tr><td><code>account.partner.update</code></td><td>PATCH <code>…/partner/{partner}</code></td><td>Обновление; только если <code>{partner}.id === current_partner</code>, иначе <b>403</b></td></tr>
+    </tbody>
+  </table>
+  <p>Гость → <b>302</b> / <b>401</b>; без <code>account.partner.view</code> → <b>403</b> на все эндпоинты раздела. При только <code>view</code> форма скрыта, показывается предупреждение о недостатке прав.</p>
+
+  <h3>2.2) Поля формы (актуальные)</h3>
+  <table>
+    <thead><tr><th>Поле</th><th>Колонка</th><th>Обязательность</th></tr></thead>
+    <tbody>
+      <tr><td>Название школы/секции</td><td><code>title</code></td><td>да</td></tr>
+      <tr><td>Телефон</td><td><code>phone</code></td><td>нет</td></tr>
+      <tr><td>E-mail партнёра</td><td><code>email</code></td><td>да, unique</td></tr>
+      <tr><td>Сайт</td><td><code>website</code></td><td>нет</td></tr>
+      <tr><td>Название для SMS/выписок</td><td><code>sms_name</code></td><td>нет, до 14 символов</td></tr>
+    </tbody>
+  </table>
+  <p>Над формой — информационный блок со ссылкой на справочник <a href="/docs/documentation/admin-legal-entities">«Юр. лица»</a> (при праве <code>legal_entities.view</code>).</p>
+
+  <h3>2.3) Эндпоинты</h3>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Ответ (AJAX)</th><th>Ответ (non-AJAX safety-net)</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/account-settings/partner/edit</code></td><td>—</td><td><b>200</b> HTML</td></tr>
+      <tr><td>PATCH</td><td><code>/account-settings/partner/{partner}</code></td><td><b>200</b> JSON <code>{ success, message }</code>; 422 — <code>errors</code></td><td><b>302</b> redirect на <code>admin.cur.company.edit</code> + flash <code>success</code>; при ошибке валидации — <b>302</b> back + <code>errors</code></td></tr>
+    </tbody>
+  </table>
+  <p>Контроллер: <code>PartnerSettingController</code>. Request: <code>App\Http\Requests\Partner\UpdateRequest</code>. Перед сохранением: <code>PartnerLegacyLegalFields::strip($request->validated())</code> — даже если legacy-поля переданы в теле запроса, они игнорируются.</p>
+
+  <h3>2.4) AJAX-submit</h3>
+  <p>Форма <code>#partnerUpdateForm</code>: <code>e.preventDefault()</code> + <code>$.ajax</code> PATCH. Ошибки 422 показываются в модалке ошибки (первое сообщение поля). Синтаксис inline JS проверяется в <code>BladeInlineJsSyntaxTest</code>.</p>
+
+  <h2>3) Админка супер-пользователя: раздел «Партнёры»</h2>
+  <p>URL: <code>/admin/partners</code>. Модалки create/edit: <code>resources/views/includes/modal/editPartner.blade.php</code>.</p>
+
+  <h3>3.1) Поля create/edit (актуальные)</h3>
+  <ul>
+    <li><b>Основное:</b> <code>title</code> (подпись «Название школы/секции»), <code>sms_name</code>, <code>phone</code>, <code>email</code>, <code>website</code></li>
+    <li><b>Служебное:</b> <code>order_by</code>, <code>is_enabled</code></li>
+  </ul>
+  <p>Legacy-поля (тип бизнеса, ИНН, банк, НДС, город, индекс, данные руководителя и т.д.) из модалок и JSON <code>GET /admin/partner/{id}/edit</code> <b>убраны</b>. Колонки <code>partners.city</code>, <code>partners.zip</code>, <code>partners.ceo</code> в БД сохранены, но приложение их не читает и не пишет (<code>PartnerLegacyLegalFields::strip</code>). В таблице партнёров удалены колонки «Организация» и «ИНН».</p>
+
+  <h3>3.2) Эндпоинты (право <code>partner.view</code>)</h3>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th><th>AJAX / JSON</th><th>Non-AJAX</th></tr></thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/partners</code></td><td>HTML списка + модалки create/edit</td><td>—</td><td><b>200</b></td></tr>
+      <tr><td>GET</td><td><code>/admin/partners/data</code></td><td>JSON DataTables</td><td><b>200</b></td><td>—</td></tr>
+      <tr><td>GET</td><td><code>/admin/partners/columns-settings</code></td><td>Настройки колонок пользователя</td><td><b>200</b></td><td>—</td></tr>
+      <tr><td>POST</td><td><code>/admin/partners/columns-settings</code></td><td>Сохранение колонок</td><td><b>200</b> <code>{ success }</code></td><td>—</td></tr>
+      <tr><td>GET</td><td><code>/admin/partner/logs-data</code></td><td>История раздела (DataTables)</td><td><b>200</b></td><td>—</td></tr>
+      <tr><td>POST</td><td><code>/admin/partners</code></td><td>Создание (<code>StorePartnerRequest</code>)</td><td><b>201</b> <code>{ message, partner }</code></td><td><b>302</b> → index + flash <code>ok</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/partner/{id}/edit</code></td><td>JSON для модалки edit (см. §3.3)</td><td><b>200</b></td><td>—</td></tr>
+      <tr><td>PATCH</td><td><code>/admin/partner/{id}</code></td><td>Обновление (<code>UpdatePartnerRequest</code>)</td><td><b>200</b> <code>{ message, partner }</code></td><td><b>302</b> → index + flash <code>ok</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/partner/{id}</code></td><td>Soft delete</td><td><b>200</b> <code>{ message }</code></td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p>Store/update: <code>PartnerLegacyLegalFields::strip()</code>. Ошибки валидации: AJAX → <b>422</b> + <code>errors</code>; non-AJAX → <b>302</b> back + session errors (не пустой <b>200</b>). Модалки: <code>#partnerForm</code> (create), <code>#edit-partner-form</code> (edit) — <code>e.preventDefault()</code> + <code>fetch</code>/<code>$.ajax</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>editPartner.blade.php</code>).</p>
+
+  <h3>3.3) JSON <code>GET /admin/partner/{id}/edit</code></h3>
+  <p>Только операционные поля (без <code>city</code>, <code>zip</code>, <code>ceo</code>, без legacy-реквизитов):</p>
+  <pre><code>{
+  "id", "title", "sms_name", "phone", "email",
+  "website", "order_by", "is_enabled"
+}</code></pre>
+  <p class="small">Подпись поля <code>title</code> в модалках: «Название школы/секции*». В сообщениях валидации store/update — атрибут «Название школы/секции» (<code>StorePartnerRequest</code> / <code>UpdatePartnerRequest</code>).</p>
+
+  <h3>3.4) Контроль доступа (<code>/admin/partners</code>)</h3>
+  <table>
+    <thead><tr><th>Актор</th><th>GET index</th><th>JSON / мутации</th></tr></thead>
+    <tbody>
+      <tr><td>Гость</td><td><b>302</b> / <b>401</b></td><td><b>401</b> / <b>302</b></td></tr>
+      <tr><td>Без <code>partner.view</code></td><td><b>403</b></td><td><b>403</b></td></tr>
+      <tr><td>С <code>partner.view</code></td><td><b>200</b></td><td>ожидаемые статусы (§3.2), не <b>500</b></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Право <code>partner.view</code> даёт полный CRUD раздела (создание/редактирование/удаление партнёров платформы). Отдельного <code>partner.manage</code> нет. Тесты: <code>PartnerAdminSectionAccessFeatureTest</code>, <code>PartnersPageFullAccessFeatureTest</code>, <code>PartnerControllerTest</code>.</p>
+
+  <h3>3.5) AJAX-submit модалок</h3>
+  <ul>
+    <li><b>Create</b> — <code>POST /admin/partners</code>, заголовок <code>X-Requested-With: XMLHttpRequest</code>; успех → модалка успеха + <code>reloadPartnersTable()</code>.</li>
+    <li><b>Edit</b> — клик <code>.edit-partner-link</code> → <code>GET …/edit</code> → заполнение полей → <code>PATCH …/partner/{id}</code> по кнопке «Обновить».</li>
+    <li>Ошибки 422 — под полями (<code>invalid-feedback</code> / <code>#edit-{field}-error</code>).</li>
+  </ul>
+
+  <h2>4) Оплаты и фискализация без legacy fallback</h2>
+  <div class="warn">
+    <b>Важно:</b> если у партнёра нет ни одного <b>активного</b> юр. лица с зарегистрированным ShopCode (<code>tinkoff_shop_code</code>), приём платежей T‑Bank <b>недоступен</b> (<code>PaymentService::isTbankAvailable()</code> → <code>false</code>). Legacy <code>partners.tinkoff_partner_id</code> и <code>partners.tax_id</code> <b>не используются</b>.
+  </div>
+  <pre><code>LegalEntityResolver (актуально):
+  ShopCode     = entity.tinkoff_shop_code (только из справочника)
+  fiscalTaxId  = entity.tax_id
+  fiscalVat    = entity.vat
+  fiscalOrgName = entity.organization_name → entity.title
+
+Без активного юр. лица → null / пусто → T‑Bank и CloudKassir (ИНН принципала) не работают</code></pre>
+  <p>Подробнее о выборе юр. лица по группе — <a href="/docs/documentation/payments#payments-payable-team-legal-entity">payments §2.3.2</a>, жёсткий guard при ≥2 юр. лицах — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>, справочник — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</p>
+  <p class="small"><b>Исключение (операционные поля партнёра):</b> для CloudKassir по-прежнему читаются <code>partners.email</code> (обязателен), <code>phone</code>, <code>website</code> — не путать с legacy <code>tax_id</code> / <code>organization_name</code> на партнёре. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.</p>
+
+  <h2 id="legacy-sm-register">5) Legacy sm-register на уровне партнёра</h2>
+  <p>Маршруты <code>POST /admin/tinkoff/partners/{id}/sm-register</code> (и sm-patch / sm-refresh / sm-pull) возвращают redirect на справочник «Юр. лица» или <b>410</b> JSON. Регистрация T‑Bank — только через <a href="/docs/documentation/admin-legal-entities#legal-entities-sm-register">карточку юр. лица</a>.</p>
+
+  <h2>6) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Support/PartnerLegacyLegalFields.php</code></li>
+    <li><code>app/Http/Controllers/Admin/PartnerSettingController.php</code></li>
+    <li><code>app/Http/Controllers/Admin/PartnerController.php</code></li>
+    <li><code>app/Http/Requests/Partner/UpdateRequest.php</code>, <code>StorePartnerRequest.php</code>, <code>UpdatePartnerRequest.php</code></li>
+    <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code></li>
+    <li><code>resources/views/account/organizations.blade.php</code></li>
+    <li><code>resources/views/includes/modal/editPartner.blade.php</code></li>
+    <li><code>resources/views/admin/partners/tabs/partners.blade.php</code></li>
+  </ul>
+
+  <h2>7) Автотесты</h2>
+  <div class="note">
+    <ul>
+      <li><code>tests/Feature/Crm/Account/PartnerOrganizationLegacyFieldsFeatureTest.php</code> — UI, strip legacy, AJAX, доступ</li>
+      <li><code>tests/Feature/Crm/Account/PartnerOrganizationNonAjaxSafetyNetFeatureTest.php</code> — PATCH без AJAX → 302</li>
+      <li><code>tests/Feature/Crm/Account/AccountPartnerOrganizationTest.php</code>, <code>PartnerSettingPartnerScopeFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php</code> — UI подписи, edit JSON, strip city/zip/ceo, сохранение полей</li>
+      <li><code>tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php</code> — guest/403/200/201/302/422 по всем endpoint'ам раздела</li>
+      <li><code>tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php</code> — UI, strip legacy, AJAX, доступ</li>
+      <li><code>tests/Feature/Crm/Partners/PartnerAdminNonAjaxSafetyNetFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code> — resolver и PaymentService без fallback на <code>partners</code></li>
+      <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard, Init, клубный взнос, CRM групп</li>
+      <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — доступность T‑Bank только при ShopCode в юр. лице</li>
+      <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code> — чеки через юр. лицо и группу (<a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>)</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>organizations.blade.php</code>, <code>editPartner.blade.php</code></li>
+    </ul>
+  </div>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/Account/PartnerOrganizationLegacyFieldsFeatureTest.php \
+  tests/Feature/Crm/Account/PartnerOrganizationNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnerAdminNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code></pre>
+</div>
+</body>
+</html>

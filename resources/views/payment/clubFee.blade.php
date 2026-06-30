@@ -278,8 +278,16 @@
         </div>
 
         <div class="payment-layout">
-            @if(!empty($tbankSbpAvailable))
-                <div class="sbp-priority-card">
+            @php
+                $renderTbankSbp = !empty($clubFeeRequiresTeamChoice)
+                    ? !empty($canTbankSbp)
+                    : !empty($tbankSbpAvailable);
+                $renderTbankCard = !empty($clubFeeRequiresTeamChoice)
+                    ? !empty($canTbankCard)
+                    : !empty($tbankAvailable);
+            @endphp
+            @if($renderTbankSbp)
+                <div id="clubFeeTbankSbpBlock" class="sbp-priority-card"@if(!empty($clubFeeRequiresTeamChoice)) style="display:none"@endif>
                     <div class="recommend-badge">Рекомендуемый способ</div>
                     <div class="sbp-title-row">
                         <div class="sbp-title">Оплата через СБП</div>
@@ -309,8 +317,8 @@
             <div>
                 <div class="other-methods-title">Другие способы оплаты</div>
                 <div class="other-methods-grid">
-                    @if(!empty($tbankAvailable))
-                        <div class="pay-card">
+                    @if($renderTbankCard)
+                        <div id="clubFeeTbankCardBlock" class="pay-card"@if(!empty($clubFeeRequiresTeamChoice)) style="display:none"@endif>
                             <div class="pay-card-name">T‑Bank (Оплата картой)</div>
                             <img class="img-fluid d-block tbank-logo" src="{{ asset('/img/partners/tbank.png') }}" alt="Tinkoff">
                             <form class="payment-form" action="{{ route('payment.tinkoff.pay') }}" method="POST" onsubmit="return validateAndSetAmount(this);">
@@ -347,6 +355,82 @@
     </div>
 
     <script>
+        var clubFeeTeamTbankCardAvailable = @json($teamTbankCardAvailable ?? []);
+        var clubFeeRequiresTeamChoice = @json(!empty($clubFeeRequiresTeamChoice));
+        var clubFeeCanTbankSbp = @json(!empty($canTbankSbp));
+
+        function clubFeeAmountCents() {
+            var paymentAmountInput = document.getElementById('paymentAmount');
+            if (!paymentAmountInput || !paymentAmountInput.value) {
+                return null;
+            }
+            var amount = parseFloat(paymentAmountInput.value);
+            if (!isFinite(amount) || amount <= 0) {
+                return null;
+            }
+            return Math.round(amount * 100);
+        }
+
+        function clubFeeSelectedTeamId() {
+            @if(!empty($clubFeeDefaultTeamId))
+                return @json((int) $clubFeeDefaultTeamId);
+            @endif
+            @if(!empty($clubFeeRequiresTeamChoice))
+                var teamSelect = document.getElementById('clubFeeTeamId');
+                if (!teamSelect || !teamSelect.value) {
+                    return null;
+                }
+                return parseInt(teamSelect.value, 10);
+            @endif
+            return null;
+        }
+
+        function clubFeeIsTbankCardAvailableForTeam(teamId) {
+            if (!teamId) {
+                return false;
+            }
+            return !!clubFeeTeamTbankCardAvailable[String(teamId)];
+        }
+
+        function clubFeeIsTbankSbpAvailableForTeam(teamId) {
+            if (!clubFeeCanTbankSbp || !clubFeeIsTbankCardAvailableForTeam(teamId)) {
+                return false;
+            }
+            var cents = clubFeeAmountCents();
+            return cents !== null && cents >= 1000 && cents <= 100000000;
+        }
+
+        function updateClubFeeTbankVisibility() {
+            if (!clubFeeRequiresTeamChoice) {
+                return;
+            }
+
+            var teamId = clubFeeSelectedTeamId();
+            var cardBlock = document.getElementById('clubFeeTbankCardBlock');
+            var sbpBlock = document.getElementById('clubFeeTbankSbpBlock');
+            var cardAvailable = clubFeeIsTbankCardAvailableForTeam(teamId);
+            var sbpAvailable = clubFeeIsTbankSbpAvailableForTeam(teamId);
+
+            if (cardBlock) {
+                cardBlock.style.display = cardAvailable ? '' : 'none';
+            }
+            if (sbpBlock) {
+                sbpBlock.style.display = sbpAvailable ? '' : 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var teamSelect = document.getElementById('clubFeeTeamId');
+            if (teamSelect) {
+                teamSelect.addEventListener('change', updateClubFeeTbankVisibility);
+            }
+            var paymentAmountInput = document.getElementById('paymentAmount');
+            if (paymentAmountInput) {
+                paymentAmountInput.addEventListener('input', updateClubFeeTbankVisibility);
+            }
+            updateClubFeeTbankVisibility();
+        });
+
         function appendClubFeeTeamField(form) {
             if (!form) return true;
             var existing = form.querySelector('input[name="team_id"]');

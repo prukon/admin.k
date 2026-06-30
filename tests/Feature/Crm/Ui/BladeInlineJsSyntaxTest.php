@@ -36,6 +36,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
+        yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
+        yield 'admin partner create edit modals' => ['includes/modal/editPartner.blade.php'];
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

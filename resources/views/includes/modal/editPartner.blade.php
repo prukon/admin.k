@@ -14,107 +14,32 @@
                 <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST" novalidate>
                     @csrf
 
-                    {{-- Основная информация --}}
+                    <div class="col-12 mb-3">
+                        <div class="alert alert-info mb-0">
+                            Реквизиты юр. лица (ИНН, банк, НДС и т.д.) добавляются после создания партнёра в справочнике
+                            @can('legal_entities.view')
+                                <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
+                            @else
+                                «Юр. лица».
+                            @endcan
+                        </div>
+                    </div>
+
                     <div class="col-12 col-lg-6 mb-3">
                         <h4>Основная информация</h4>
 
-                        {{-- Тип бизнеса --}}
                         <div class="mb-3">
-                            <label for="business_type" class="form-label">Тип бизнеса*</label>
-                            <select name="business_type" id="business_type" class="form-control">
-                                <option value="company">ООО</option>
-                                <option value="individual_entrepreneur">ИП</option>
-                                <option value="non_commercial_organization">НКО</option>
-                                <option value="physical_person">Физическое лицо</option>
-                            </select>
-                            <div class="text-danger error-business_type"></div>
-                        </div>
-
-                        {{-- Наименование (или ФИО) --}}
-                        <div class="mb-3">
-                            <label for="title" class="form-label" id="label-title">Наименование*</label>
+                            <label for="title" class="form-label">Название школы/секции*</label>
                             <input type="text" class="form-control" id="title" name="title" value="{{ old('title') }}">
                             <div class="text-danger error-title"></div>
                         </div>
 
-                        {{-- Наименование организации --}}
-                        <div class="mb-3" id="organization_name_wrapper">
-                            <label for="organization_name" class="form-label">Наименование организации</label>
-                            <input type="text" class="form-control" id="organization_name" name="organization_name"
-                                   value="{{ old('organization_name') }}">
-                            <div class="text-danger error-organization_name"></div>
-                        </div>
-
-                        {{-- ИНН --}}
-                        <div class="mb-3" id="tax_id_wrapper">
-                            <label for="tax_id" class="form-label">ИНН</label>
-                            <input type="text" class="form-control" id="tax_id" name="tax_id" value="{{ old('tax_id') }}">
-                            <div class="text-danger error-tax_id"></div>
-                        </div>
-
-                        {{-- НДС для фискализации (принципал) --}}
-                        <div class="mb-3" id="vat_wrapper">
-                            <label for="vat" class="form-label">Ставка НДС (онлайн-чек)</label>
-                            <select name="vat" id="vat" class="form-control">
-                                <option value="" @if(old('vat') === null || old('vat') === '') selected @endif>НДС не облагается</option>
-                                <option value="0"{{ old('vat') === '0' || old('vat') === 0 ? ' selected' : '' }}>НДС 0%</option>
-                                <option value="5"{{ old('vat') === '5' || old('vat') === 5 ? ' selected' : '' }}>НДС 5%</option>
-                                <option value="7"{{ old('vat') === '7' || old('vat') === 7 ? ' selected' : '' }}>НДС 7%</option>
-                                <option value="10"{{ old('vat') === '10' || old('vat') === 10 ? ' selected' : '' }}>НДС 10%</option>
-                                <option value="20"{{ old('vat') === '20' || old('vat') === 20 ? ' selected' : '' }}>НДС 20%</option>
-                                <option value="22"{{ old('vat') === '22' || old('vat') === 22 ? ' selected' : '' }}>НДС 22%</option>
-                                <option value="105"{{ old('vat') === '105' || old('vat') === 105 ? ' selected' : '' }}>Расчётный НДС 5/105</option>
-                                <option value="107"{{ old('vat') === '107' || old('vat') === 107 ? ' selected' : '' }}>Расчётный НДС 7/107</option>
-                                <option value="110"{{ old('vat') === '110' || old('vat') === 110 ? ' selected' : '' }}>Расчётный НДС 10/110</option>
-                                <option value="120"{{ old('vat') === '120' || old('vat') === 120 ? ' selected' : '' }}>Расчётный НДС 20/120</option>
-                                <option value="122"{{ old('vat') === '122' || old('vat') === 122 ? ' selected' : '' }}>Расчётный НДС 22/122</option>
-                            </select>
-                            <div class="text-danger error-vat"></div>
-                        </div>
-
-                        {{-- КПП --}}
-                        <div class="mb-3" id="kpp_wrapper">
-                            <label for="kpp" class="form-label">КПП</label>
-                            <input type="text" class="form-control" id="kpp" name="kpp" value="{{ old('kpp') }}">
-                            <div class="text-danger error-kpp"></div>
-                        </div>
-
-                        {{-- ОГРН / ОГРНИП --}}
-                        <div class="mb-3" id="registration_number_wrapper">
-                            <label for="registration_number" class="form-label" id="label-registration_number">ОГРН (ОГРНИП)</label>
-                            <input type="text" class="form-control" id="registration_number" name="registration_number" value="{{ old('registration_number') }}">
-                            <div class="text-danger error-registration_number"></div>
-                        </div>
-
-                        {{-- Название для SMS/выписок --}}
                         <div class="mb-3">
                             <label for="sms_name" class="form-label">Название для SMS/выписок</label>
                             <input type="text" class="form-control" id="sms_name" name="sms_name" maxlength="14" value="{{ old('sms_name') }}">
                             <div class="text-danger error-sms_name"></div>
                         </div>
 
-                        {{-- Город --}}
-                        <div class="mb-3">
-                            <label for="city" class="form-label">Город</label>
-                            <input type="text" class="form-control" id="city" name="city" maxlength="100" value="{{ old('city') }}">
-                            <div class="text-danger error-city"></div>
-                        </div>
-
-                        {{-- Индекс --}}
-                        <div class="mb-3">
-                            <label for="zip" class="form-label">Индекс</label>
-                            <input type="text" class="form-control" id="zip" name="zip" maxlength="20" value="{{ old('zip') }}">
-                            <div class="text-danger error-zip"></div>
-                        </div>
-
-                        {{-- Адрес --}}
-                        <div class="mb-3">
-                            <label for="address" class="form-label">Адрес</label>
-                            <input type="text" class="form-control" id="address" name="address" value="{{ old('address') }}">
-                            <div class="text-danger error-address"></div>
-                        </div>
-
-                        {{-- Телефон --}}
                         <div class="mb-3">
                             <label for="phone" class="form-label">Телефон</label>
                             @include('includes.fields.phone-input', [
@@ -125,14 +50,12 @@
                             <div class="text-danger error-phone"></div>
                         </div>
 
-                        {{-- E-mail партнёра --}}
                         <div class="mb-3">
                             <label for="email-partner" class="form-label">E-mail партнёра*</label>
                             <input type="email" class="form-control" id="email-partner" name="email" value="{{ old('email') }}">
                             <div class="text-danger error-email"></div>
                         </div>
 
-                        {{-- Сайт --}}
                         <div class="mb-3">
                             <label for="website" class="form-label">Сайт</label>
                             <input type="text" class="form-control" id="website" name="website" value="{{ old('website') }}">
@@ -140,56 +63,8 @@
                         </div>
                     </div>
 
-                    {{-- Реквизиты + Данные руководителя --}}
                     <div class="col-12 col-lg-6 mb-3">
-                        <h4 id="requisites">Реквизиты</h4>
-                        <div id="bankFields">
-                            <div class="mb-3">
-                                <label for="bank_name" class="form-label">Наименование банка</label>
-                                <input type="text" class="form-control" id="bank_name" name="bank_name" value="{{ old('bank_name') }}">
-                                <div class="text-danger error-bank_name"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="bank_bik" class="form-label">БИК</label>
-                                <input type="text" class="form-control" id="bank_bik" name="bank_bik" value="{{ old('bank_bik') }}">
-                                <div class="text-danger error-bank_bik"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="bank_account" class="form-label">Расчётный счёт</label>
-                                <input type="text" class="form-control" id="bank_account" name="bank_account" value="{{ old('bank_account') }}">
-                                <div class="text-danger error-bank_account"></div>
-                            </div>
-                        </div>
-
-                        <div class="col-12 mb-3">
-                            <h4>Данные руководителя</h4>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="ceo_lastName" class="form-label">Фамилия</label>
-                                    <input type="text" class="form-control" id="ceo_lastName" name="ceo[lastName]" maxlength="100" value="{{ old('ceo.lastName') }}">
-                                    <div class="text-danger error-ceo.lastName"></div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="ceo_firstName" class="form-label">Имя</label>
-                                    <input type="text" class="form-control" id="ceo_firstName" name="ceo[firstName]" maxlength="100" value="{{ old('ceo.firstName') }}">
-                                    <div class="text-danger error-ceo.firstName"></div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="ceo_middleName" class="form-label">Отчество</label>
-                                    <input type="text" class="form-control" id="ceo_middleName" name="ceo[middleName]" maxlength="100" value="{{ old('ceo.middleName') }}">
-                                    <div class="text-danger error-ceo.middleName"></div>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="ceo_phone" class="form-label">Телефон руководителя</label>
-                                    @include('includes.fields.phone-input', [
-                                        'name' => 'ceo[phone]',
-                                        'id' => 'ceo_phone',
-                                        'value' => old('ceo.phone'),
-                                    ])
-                                    <div class="text-danger error-ceo.phone"></div>
-                                </div>
-                            </div>
-                        </div>
+                        <h4>Служебное</h4>
 
                         <div class="mb-3">
                             <label for="order_by" class="form-label">Сортировка</label>
@@ -234,92 +109,30 @@
                     @method('patch')
                     <input type="hidden" id="edit-partner-id">
 
-                    {{-- Основная информация --}}
+                    <div class="col-12 mb-3">
+                        <div class="alert alert-info mb-0">
+                            Реквизиты юр. лица редактируются в справочнике
+                            @can('legal_entities.view')
+                                <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
+                            @else
+                                «Юр. лица».
+                            @endcan
+                        </div>
+                    </div>
+
                     <div class="col-12 col-lg-6 mb-3">
                         <h4>Основная информация</h4>
 
                         <div class="mb-3">
-                            <label for="edit-business_type" class="form-label">Тип бизнеса*</label>
-                            <select name="business_type" id="edit-business_type" class="form-control">
-                                <option value="company">ООО</option>
-                                <option value="individual_entrepreneur">ИП</option>
-                                <option value="non_commercial_organization">НКО</option>
-                                <option value="physical_person">Физическое лицо</option>
-                            </select>
-                            <p class="text-danger" id="edit-business_type-error"></p>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="edit-title" class="form-label">Наименование*</label>
+                            <label for="edit-title" class="form-label">Название школы/секции*</label>
                             <input type="text" name="title" class="form-control" id="edit-title">
                             <p class="text-danger" id="edit-title-error"></p>
-                        </div>
-
-                        <div class="mb-3" id="edit-organization_name_wrapper">
-                            <label for="edit-organization_name" class="form-label">Наименование организации</label>
-                            <input type="text" name="organization_name" class="form-control" id="edit-organization_name">
-                            <p class="text-danger" id="edit-organization_name-error"></p>
-                        </div>
-
-                        <div class="mb-3" id="edit-tax_id_wrapper">
-                            <label for="edit-tax_id" class="form-label">ИНН</label>
-                            <input type="text" name="tax_id" class="form-control" id="edit-tax_id">
-                            <p class="text-danger" id="edit-tax_id-error"></p>
-                        </div>
-
-                        <div class="mb-3" id="edit-vat_wrapper">
-                            <label for="edit-vat" class="form-label">Ставка НДС (онлайн-чек)</label>
-                            <select name="vat" class="form-control" id="edit-vat">
-                                <option value="">НДС не облагается</option>
-                                <option value="0">НДС 0%</option>
-                                <option value="5">НДС 5%</option>
-                                <option value="7">НДС 7%</option>
-                                <option value="10">НДС 10%</option>
-                                <option value="20">НДС 20%</option>
-                                <option value="22">НДС 22%</option>
-                                <option value="105">Расчётный НДС 5/105</option>
-                                <option value="107">Расчётный НДС 7/107</option>
-                                <option value="110">Расчётный НДС 10/110</option>
-                                <option value="120">Расчётный НДС 20/120</option>
-                                <option value="122">Расчётный НДС 22/122</option>
-                            </select>
-                            <p class="text-danger" id="edit-vat-error"></p>
-                        </div>
-
-                        <div class="mb-3" id="edit-kpp_wrapper">
-                            <label for="edit-kpp" class="form-label">КПП</label>
-                            <input type="text" name="kpp" class="form-control" id="edit-kpp">
-                            <p class="text-danger" id="edit-kpp-error"></p>
-                        </div>
-
-                        <div class="mb-3" id="edit-registration_number_wrapper">
-                            <label for="edit-registration_number" class="form-label" id="edit-label-registration_number">ОГРН (ОГРНИП)</label>
-                            <input type="text" name="registration_number" class="form-control" id="edit-registration_number">
-                            <p class="text-danger" id="edit-registration_number-error"></p>
                         </div>
 
                         <div class="mb-3">
                             <label for="edit-sms_name" class="form-label">Название для SMS/выписок</label>
                             <input type="text" name="sms_name" class="form-control" id="edit-sms_name" maxlength="14">
                             <p class="text-danger" id="edit-sms_name-error"></p>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="edit-city" class="form-label">Город</label>
-                            <input type="text" name="city" class="form-control" id="edit-city" maxlength="100">
-                            <p class="text-danger" id="edit-city-error"></p>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="edit-zip" class="form-label">Индекс</label>
-                            <input type="text" name="zip" class="form-control" id="edit-zip" maxlength="20">
-                            <p class="text-danger" id="edit-zip-error"></p>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="edit-address" class="form-label">Адрес</label>
-                            <input type="text" name="address" class="form-control" id="edit-address">
-                            <p class="text-danger" id="edit-address-error"></p>
                         </div>
 
                         <div class="mb-3">
@@ -344,55 +157,8 @@
                         </div>
                     </div>
 
-                    {{-- Реквизиты + Данные руководителя --}}
                     <div class="col-12 col-lg-6 mb-3">
-                        <h4 id="edit-requisites">Реквизиты</h4>
-                        <div id="edit-bankFields">
-                            <div class="mb-3">
-                                <label for="edit-bank_name" class="form-label">Наименование банка</label>
-                                <input type="text" name="bank_name" class="form-control" id="edit-bank_name">
-                                <p class="text-danger" id="edit-bank_name-error"></p>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-bank_bik" class="form-label">БИК</label>
-                                <input type="text" name="bank_bik" class="form-control" id="edit-bank_bik">
-                                <p class="text-danger" id="edit-bank_bik-error"></p>
-                            </div>
-                            <div class="mb-3">
-                                <label for="edit-bank_account" class="form-label">Расчётный счёт</label>
-                                <input type="text" name="bank_account" class="form-control" id="edit-bank_account">
-                                <p class="text-danger" id="edit-bank_account-error"></p>
-                            </div>
-                        </div>
-
-                        <div class="col-12 mb-3">
-                            <h4>Данные руководителя</h4>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="edit-ceo_lastName" class="form-label">Фамилия</label>
-                                    <input type="text" name="ceo[lastName]" class="form-control" id="edit-ceo_lastName" maxlength="100">
-                                    <p class="text-danger" id="edit-ceo_lastName-error"></p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="edit-ceo_firstName" class="form-label">Имя</label>
-                                    <input type="text" name="ceo[firstName]" class="form-control" id="edit-ceo_firstName" maxlength="100">
-                                    <p class="text-danger" id="edit-ceo_firstName-error"></p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="edit-ceo_middleName" class="form-label">Отчество</label>
-                                    <input type="text" name="ceo[middleName]" class="form-control" id="edit-ceo_middleName" maxlength="100">
-                                    <p class="text-danger" id="edit-ceo_middleName-error"></p>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="edit-ceo_phone" class="form-label">Телефон руководителя</label>
-                                    @include('includes.fields.phone-input', [
-                                        'name' => 'ceo[phone]',
-                                        'id' => 'edit-ceo_phone',
-                                    ])
-                                    <p class="text-danger" id="edit-ceo_phone-error"></p>
-                                </div>
-                            </div>
-                        </div>
+                        <h4>Служебное</h4>
 
                         <div class="mb-3">
                             <label for="edit-order_by" class="form-label">Сортировка</label>
@@ -427,7 +193,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-        // ===== Laravel-style validation errors (422) =====
         function escapeHtml(value) {
             return String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -447,7 +212,6 @@
             const map = new Map();
             if (!formEl) return map;
 
-            // Any element having a class token like "error-<field>" becomes a feedback node.
             formEl.querySelectorAll('[class*="error-"]').forEach(node => {
                 const token = Array.from(node.classList).find(c => c.startsWith('error-'));
                 if (!token) return;
@@ -456,8 +220,6 @@
 
                 node.dataset.errorFor = field;
                 node.classList.add('invalid-feedback');
-                // Bootstrap shows invalid-feedback only when sibling control has is-invalid.
-                // We also add d-block during render to be extra safe in modal layouts.
                 map.set(field, node);
             });
 
@@ -495,33 +257,17 @@
             });
         }
 
-        /* ========== CREATE ========== */
         const createForm = document.getElementById('partnerForm');
         const createErrorMap = initLaravelErrorMap(createForm);
-
-        function findCreateInputByField(field) {
-            let el = createForm.querySelector(`[name="${field}"]`);
-            if (el) return el;
-            if (field.includes('.')) {
-                const arrName = field.replace(/\.(\w+)/g, '[$1]');
-                el = createForm.querySelector(`[name="${arrName}"]`);
-                if (el) return el;
-            }
-            return null;
-        }
 
         if (createForm) {
             createForm.addEventListener('submit', e => {
                 e.preventDefault();
-
-                // очистка ошибок
                 clearLaravelErrors(createForm, createErrorMap);
-
-                const data = new FormData(createForm);
 
                 fetch(createForm.action, {
                     method: 'POST',
-                    body: data,
+                    body: new FormData(createForm),
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': createForm.querySelector('input[name="_token"]').value
@@ -533,7 +279,6 @@
                         return res.json();
                     })
                     .then(json => {
-                        console.log('[Partner.store] success:', json);
                         showSuccessModal('Создание партнёра', json.message, 1);
                         createForm.reset();
                         const modal = bootstrap.Modal.getInstance(document.getElementById('createPartnerModal'));
@@ -543,26 +288,14 @@
                         }
                     })
                     .catch(errors => {
-                        console.warn('[Partner.store] validation errors:', errors);
-                        // Laravel format: { errors: { field: [msg1, msg2] } }
                         renderLaravelErrors(createForm, createErrorMap, errors);
-
-                        // fallback: if some fields are not mapped by error-* nodes, keep old lookup as best-effort
-                        if (errors && typeof errors === 'object') {
-                            Object.keys(errors).forEach(field => {
-                                const input = findCreateInputByField(field);
-                                if (input) input.classList.add('is-invalid');
-                            });
-                        }
                         if (errors.general) { $('#errorModal').modal('show'); }
                     });
             });
 
-            // Clear field error on user input/change
             createForm.addEventListener('input', (e) => {
                 const t = e.target;
                 if (!t || !t.name) return;
-                // convert ceo[lastName] -> ceo.lastName to match server keys
                 const dotName = t.name.replace(/\[(\w+)\]/g, '.$1');
                 const key = createErrorMap.has(t.name) ? t.name : dotName;
                 const node = createErrorMap.get(key);
@@ -572,31 +305,6 @@
                 }
                 t.classList.remove('is-invalid');
             });
-
-            function toggleCreateFields() {
-                const type = createForm.business_type.value;
-                const isPP = type === 'physical_person';
-                ['organization_name_wrapper','tax_id_wrapper','vat_wrapper','kpp_wrapper','registration_number_wrapper','requisites','bankFields']
-                    .forEach(id => { const node = document.getElementById(id); if (node) node.style.display = isPP ? 'none' : ''; });
-                document.getElementById('label-title').textContent = isPP ? 'ФИО*' : 'Наименование*';
-            }
-            createForm.business_type.addEventListener('change', toggleCreateFields);
-            toggleCreateFields();
-        }
-
-        /* =========== EDIT =========== */
-        function normalizeCeoCamel(raw) {
-            let ceo = raw || {};
-            if (typeof ceo === 'string') {
-                try { ceo = JSON.parse(ceo) || {}; } catch (e) { ceo = {}; }
-            }
-            // принимаем и снег, и кэмел — но на фронте показываем camelCase
-            return {
-                lastName:   ceo.lastName   ?? ceo.last_name   ?? '',
-                firstName:  ceo.firstName  ?? ceo.first_name  ?? '',
-                middleName: ceo.middleName ?? ceo.middle_name ?? '',
-                phone:      ceo.phone      ?? ''
-            };
         }
 
         $(document).on('click', '.edit-partner-link', function (e) {
@@ -610,76 +318,24 @@
                 type: 'GET',
                 dataType: 'json',
                 success: function (response) {
-                    console.log('[Partner.edit] payload from backend:', response);
-
                     $('#edit-partner-id').val(response.id);
-                    $('#edit-business_type').val(response.business_type);
                     $('#edit-title').val(response.title);
-                    $('#edit-organization_name').val(response.organization_name || '');
-                    $('#edit-tax_id').val(response.tax_id);
-                    $('#edit-vat').val(response.vat !== undefined && response.vat !== null ? String(response.vat) : '');
-                    $('#edit-kpp').val(response.kpp);
-                    $('#edit-registration_number').val(response.registration_number);
-
                     $('#edit-sms_name').val(response.sms_name || '');
-                    $('#edit-city').val(response.city || '');
-                    $('#edit-zip').val(response.zip || '');
-                    $('#edit-address').val(response.address || '');
                     window.PhoneInputMask?.setValue('#edit-phone', response.phone || '');
                     $('#edit-email').val(response.email || '');
                     $('#edit-website').val(response.website || '');
-                    $('#edit-bank_name').val(response.bank_name || '');
-                    $('#edit-bank_bik').val(response.bank_bik || '');
-                    $('#edit-bank_account').val(response.bank_account || '');
                     $('#edit-order_by').val(response.order_by);
                     $('#edit-is_enabled').val(response.is_enabled ? '1' : '0');
 
-                    // Скрытие/показ полей по типу бизнеса (как в Create-модалке)
-                    toggleEditFields();
-
-                    const ceo = normalizeCeoCamel(response.ceo);
-                    $('#edit-ceo_lastName').val(ceo.lastName);
-                    $('#edit-ceo_firstName').val(ceo.firstName);
-                    $('#edit-ceo_middleName').val(ceo.middleName);
-                    window.PhoneInputMask?.setValue('#edit-ceo_phone', ceo.phone || '');
-
-                    // очистка ошибок
                     $('#edit-partner-form p.text-danger').text('');
                     $('#edit-partner-form .is-invalid').removeClass('is-invalid');
 
                     $('#editPartnerModal').modal('show');
                 },
-                error: function (xhr) {
-                    console.error('[Partner.edit] error:', xhr?.responseText || xhr);
+                error: function () {
                     alert('Не удалось загрузить данные партнёра.');
                 }
             });
-        });
-
-        function toggleEditFields() {
-            const type = $('#edit-business_type').val();
-            const isPP = type === 'physical_person';
-            const showKpp = type === 'company' || type === 'non_commercial_organization';
-            const isIE = type === 'individual_entrepreneur';
-
-            // Для физлица скрываем юр.поля и реквизиты
-            $('#edit-tax_id_wrapper').toggle(!isPP);
-            $('#edit-vat_wrapper').toggle(!isPP);
-            $('#edit-organization_name_wrapper').toggle(!isPP);
-            $('#edit-kpp_wrapper').toggle(!isPP && showKpp);
-            $('#edit-registration_number_wrapper').toggle(!isPP);
-
-            $('#edit-requisites').toggle(!isPP);
-            $('#edit-bankFields').toggle(!isPP);
-
-            // Подписи
-            $('#edit-title').siblings('label').text(isPP ? 'ФИО*' : 'Наименование*');
-            $('#edit-label-registration_number').text(isIE ? 'ОГРНИП' : 'ОГРН');
-        }
-
-        // Переключение полей в модалке редактирования при смене типа бизнеса
-        $(document).on('change', '#edit-business_type', function () {
-            toggleEditFields();
         });
 
         $('#update-partner-btn').on('click', function () {
@@ -690,8 +346,7 @@
                 url: '/admin/partner/' + partnerId,
                 type: 'PATCH',
                 data: formData,
-                success: function (resp) {
-                    console.log('[Partner.update] success:', resp);
+                success: function () {
                     showSuccessModal("Редактирование партнера", "Партнёр успешно отредактирован.", 1);
                     $('#editPartnerModal').modal('hide');
                     if (typeof window.reloadPartnersTable === 'function') {
@@ -699,17 +354,14 @@
                     }
                 },
                 error: function (xhr) {
-                    console.error('[Partner.update] error:', xhr?.responseText || xhr);
                     if (xhr.status === 422) {
                         const errors = xhr.responseJSON.errors || {};
-                        // clear previous
                         $('#edit-partner-form .is-invalid').removeClass('is-invalid');
-                        // Convert existing <p class="text-danger"> to bootstrap-like feedback on demand
                         $('#edit-partner-form p.text-danger').each(function () {
                             $(this).addClass('invalid-feedback d-block').text('');
                         });
                         $.each(errors, function (field, messages) {
-                            const fieldId = field.replace(/\./g, '_'); // ceo.firstName -> ceo_firstName
+                            const fieldId = field.replace(/\./g, '_');
                             $('#edit-' + fieldId + '-error').addClass('invalid-feedback d-block').html(messages.map(m => `<div>${escapeHtml(m)}</div>`).join(''));
                             $('#edit-' + fieldId).addClass('is-invalid');
                         });
@@ -720,7 +372,6 @@
             });
         });
 
-        // Удаление
         $(document).on('click', '#delete-partner-btn', function () {
             showConfirmDeleteModal(
                 "Удаление партнёра",
@@ -731,16 +382,14 @@
                         url: '/admin/partner/' + partnerId,
                         type: 'DELETE',
                         data: { _token: $('input[name="_token"]').val() },
-                        success: function (resp) {
-                            console.log('[Partner.delete] success:', resp);
+                        success: function () {
                             showSuccessModal("Удаление партнёра", "Партнёр успешно удалён.", 1);
                             $('#editPartnerModal').modal('hide');
                             if (typeof window.reloadPartnersTable === 'function') {
                                 window.reloadPartnersTable();
                             }
                         },
-                        error: function (xhr) {
-                            console.error('[Partner.delete] error:', xhr?.responseText || xhr);
+                        error: function () {
                             $('#errorModal').modal('show');
                         }
                     });

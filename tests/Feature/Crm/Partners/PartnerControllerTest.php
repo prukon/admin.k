@@ -30,30 +30,13 @@ class PartnerControllerTest extends CrmTestCase
         $email = $overrides['email'] ?? ('partner_' . Str::lower(Str::random(8)) . '@example.test');
 
         return array_merge([
-            'business_type' => 'company',
             'title' => 'Тестовый партнёр',
-            'organization_name' => 'ООО Тест',
-            'tax_id' => '1234567890',
-            'kpp' => '123456789',
-            'registration_number' => '1234567890123',
             'sms_name' => 'TESTPARTNER',
-            'city' => 'СПб',
-            'zip' => '197350',
-            'address' => 'Невский пр., 1',
             'phone' => '+79990001122',
             'email' => $email,
             'website' => 'https://example.test',
-            'bank_name' => 'Банк',
-            'bank_bik' => '123456789',
-            'bank_account' => '12345678901234567890',
             'order_by' => 10,
             'is_enabled' => true,
-            'ceo' => [
-                'lastName' => 'Иванов',
-                'firstName' => 'Иван',
-                'middleName' => 'Иванович',
-                'phone' => '+79991112233',
-            ],
         ], $overrides);
     }
 
@@ -253,15 +236,17 @@ class PartnerControllerTest extends CrmTestCase
         ]);
     }
 
-    public function test_edit_returns_ceo_in_camelcase_even_when_stored_in_snake_case(): void
+    public function test_edit_json_excludes_city_zip_and_ceo(): void
     {
         $this->asSuperadmin();
 
         $partner = Partner::factory()->create([
+            'city' => 'СПб',
+            'zip' => '197350',
             'ceo' => [
-                'last_name' => 'Петров',
-                'first_name' => 'Пётр',
-                'middle_name' => 'Петрович',
+                'lastName' => 'Петров',
+                'firstName' => 'Пётр',
+                'middleName' => 'Петрович',
                 'phone' => '+70000000000',
             ],
         ]);
@@ -269,10 +254,7 @@ class PartnerControllerTest extends CrmTestCase
         $this->getJson(route('admin.partner.edit', $partner))
             ->assertOk()
             ->assertJsonPath('id', $partner->id)
-            ->assertJsonPath('ceo.lastName', 'Петров')
-            ->assertJsonPath('ceo.firstName', 'Пётр')
-            ->assertJsonPath('ceo.middleName', 'Петрович')
-            ->assertJsonPath('ceo.phone', '+70000000000');
+            ->assertJsonMissing(['city', 'zip', 'ceo']);
     }
 
     public function test_update_updates_partner_and_writes_log_scoped_by_current_partner(): void

@@ -57,17 +57,17 @@
                     @can('legal_entities.view')
                     @if(($multiLegalEntityMode ?? false) && $legalEntityOptions->isNotEmpty())
                     <div class="mb-3">
-                        <label for="legal_entity_id" class="form-label">Юр. лицо</label>
-                        <select name="legal_entity_id" class="form-select" id="legal_entity_id">
-                            <option value="">— По умолчанию —</option>
+                        <label for="legal_entity_id" class="form-label">Юр. лицо <span class="text-danger">*</span></label>
+                        <select name="legal_entity_id" class="form-select" id="legal_entity_id" required>
+                            <option value="">Выберите юр. лицо</option>
                             @foreach($legalEntityOptions as $legalEntity)
                                 <option value="{{ $legalEntity->id }}">
                                     {{ $legalEntity->displayTitle() }}@if($legalEntity->is_default) (основное)@endif
                                 </option>
                             @endforeach
                         </select>
-                        <div class="form-text text-warning-emphasis" id="legal-entity-fallback-hint">
-                            Если не выбрано — для платежей группы используется юр. лицо с флагом «Основное».
+                        <div class="form-text text-muted">
+                            Обязательно при нескольких юр. лицах: от него зависят оплаты T‑Bank и выплаты по группе.
                         </div>
                         <div id="legal_entity_id-error" class="invalid-feedback"></div>
                     </div>

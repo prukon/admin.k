@@ -130,7 +130,7 @@ final class PhoneFormCrmPagesAccessFeatureTest extends CrmTestCase
 
         $this->getJson(route('admin.partner.edit', $this->partner))
             ->assertOk()
-            ->assertJsonStructure(['phone', 'ceo']);
+            ->assertJsonStructure(['phone']);
     }
 
     public function test_phone_related_mutation_endpoints_return_success_for_authorized_actor(): void

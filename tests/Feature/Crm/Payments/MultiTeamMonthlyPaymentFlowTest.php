@@ -117,17 +117,17 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
     {
         $this->grantTbankCardPermission();
 
-        $this->partner->tinkoff_partner_id = 'SHOP-MULTI';
-        $this->partner->save();
-
         $this->seedGlobalTbank([
-                    'terminal_key' => 'TERM_MULTI',
-                    'token_password' => 'PWD_MULTI',
-                    'e2c_terminal_key' => 'E2C',
-                    'e2c_token_password' => 'E2CP',
-                ]);
+            'terminal_key' => 'TERM_MULTI',
+            'token_password' => 'PWD_MULTI',
+            'e2c_terminal_key' => 'E2C',
+            'e2c_token_password' => 'E2CP',
+        ]);
 
-        [$teamA] = $this->attachTwoTeamsWithPrices('2026-11-01');
+        [$teamA, $teamB] = $this->attachTwoTeamsWithPrices('2026-11-01');
+
+        $entity = $this->seedRegisteredLegalEntityForPartner(shopCode: 'SHOP-MULTI');
+        $this->bindTeamsToLegalEntity($entity, $teamA, $teamB);
 
         $capturedData = null;
         Http::fake(function ($request) use (&$capturedData) {

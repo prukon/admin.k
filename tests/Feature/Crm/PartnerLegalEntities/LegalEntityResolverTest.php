@@ -42,6 +42,28 @@ final class LegalEntityResolverTest extends CrmTestCase
         $this->assertSame('SHOP-TEAM-BOUND', $this->resolver->shopCode($this->partner, $resolution));
     }
 
+    public function test_for_team_without_binding_returns_null_in_multi_entity_mode(): void
+    {
+        PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-A')
+            ->create(['is_default' => true]);
+
+        PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-B')
+            ->create(['is_default' => false]);
+
+        $team = Team::factory()->for($this->partner)->create([
+            'legal_entity_id' => null,
+        ]);
+
+        $resolution = $this->resolver->forTeam($team);
+
+        $this->assertNull($resolution->entity);
+        $this->assertFalse($this->resolver->hasRegisteredShopCode($this->partner->fresh(), $team));
+    }
+
     public function test_for_partner_with_single_active_entity(): void
     {
         $entity = PartnerLegalEntity::factory()
@@ -73,18 +95,18 @@ final class LegalEntityResolverTest extends CrmTestCase
         $this->assertTrue($resolution->usedDefaultFallback);
     }
 
-    public function test_shop_code_falls_back_to_legacy_partner_field(): void
+    public function test_shop_code_is_null_without_legal_entity(): void
     {
         $this->partner->update(['tinkoff_partner_id' => 'LEGACY-SHOP']);
 
         $resolution = $this->resolver->forPartner((int) $this->partner->id);
 
         $this->assertNull($resolution->entity);
-        $this->assertSame('LEGACY-SHOP', $this->resolver->shopCode($this->partner->fresh(), $resolution));
-        $this->assertTrue($this->resolver->hasRegisteredShopCode($this->partner->fresh()));
+        $this->assertNull($this->resolver->shopCode($this->partner->fresh(), $resolution));
+        $this->assertFalse($this->resolver->hasRegisteredShopCode($this->partner->fresh()));
     }
 
-    public function test_entity_shop_code_takes_priority_over_legacy_partner(): void
+    public function test_shop_code_from_registered_legal_entity(): void
     {
         $this->partner->update(['tinkoff_partner_id' => 'LEGACY-SHOP']);
 
@@ -130,6 +152,6 @@ final class LegalEntityResolverTest extends CrmTestCase
         $resolution = $this->resolver->forPartner((int) $this->partner->id);
 
         $this->assertNull($resolution->entity);
-        $this->assertSame('LEGACY-ONLY', $this->resolver->shopCode($this->partner->fresh(), $resolution));
+        $this->assertNull($this->resolver->shopCode($this->partner->fresh(), $resolution));
     }
 }

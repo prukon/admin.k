@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Payments;
 
 use App\Models\LessonPackage;
+use App\Models\PartnerLegalEntity;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
@@ -120,7 +121,31 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('clubFeeBlocked', false)
             ->assertViewHas('clubFeeRequiresTeamChoice', true)
-            ->assertViewHas('clubFeeDefaultTeamId', null);
+            ->assertViewHas('clubFeeDefaultTeamId', null)
+            ->assertViewHas('tbankAvailable', false)
+            ->assertViewHas('tbankSbpAvailable', false);
+    }
+
+    public function test_tinkoff_init_club_fee_rejects_team_without_legal_entity_in_multi_entity_mode(): void
+    {
+        [$teamA] = $this->attachStudentToTwoTeams();
+        $this->grantAllPaymentInitPermissions();
+        $this->seedGlobalTbank();
+        $this->seedRegisteredLegalEntityForPartner(shopCode: 'SHOP-MULTI-A');
+        PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-MULTI-B')
+            ->create(['is_default' => false]);
+
+        $response = $this->post(route('payment.tinkoff.pay'), [
+            'outSum' => '500.00',
+            'paymentDate' => 'Клубный взнос',
+            'team_id' => (int) $teamA->id,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasErrors(['tinkoff' => 'Для выбранной группы не настроено юр. лицо']);
+        $this->assertSame(0, Payable::query()->where('type', 'club_fee')->count());
     }
 
     public function test_club_fee_robokassa_non_ajax_single_team_sets_meta_team_id(): void
@@ -187,8 +212,8 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
         $this->grantPermission('payment.method.tbankCard');
         $this->grantPermission('paying.classes');
 
-        $this->partner->tinkoff_partner_id = 'SHOP-TEAM-ULP';
-        $this->partner->save();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
 
         $this->seedGlobalTbank([
             'terminal_key' => 'TERM_TEAM',
@@ -197,8 +222,8 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
             'e2c_token_password' => 'E2C_PWD',
         ]);
 
-        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
-        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $team->id);
+        $entity = $this->seedRegisteredLegalEntityForPartner(shopCode: 'SHOP-TEAM-ULP');
+        $this->bindTeamsToLegalEntity($entity, $team);
 
         $package = LessonPackage::factory()->create(['partner_id' => $this->partner->id]);
 

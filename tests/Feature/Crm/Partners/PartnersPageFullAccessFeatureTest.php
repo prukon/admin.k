@@ -86,8 +86,6 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
             'columns' => [
                 'order_by' => true,
                 'title' => true,
-                'organization_name' => true,
-                'tax_id' => true,
                 'email' => true,
                 'phone' => true,
                 'status_label' => true,
@@ -481,11 +479,7 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
     {
         return array_merge([
             'email' => $partner->email,
-            'tax_id' => $partner->tax_id,
-            'kpp' => $partner->kpp,
-            'registration_number' => $partner->registration_number,
             'sms_name' => $partner->sms_name,
-            'organization_name' => $partner->organization_name,
             'phone' => $partner->phone,
             'order_by' => $partner->order_by,
             'is_enabled' => (bool) $partner->is_enabled,
@@ -498,30 +492,13 @@ final class PartnersPageFullAccessFeatureTest extends CrmTestCase
         $unique = Str::lower(Str::random(6));
 
         return array_merge([
-            'business_type' => 'company',
             'title' => 'Тестовый партнёр',
-            'organization_name' => 'ООО Тест',
-            'tax_id' => '77' . random_int(10000000, 99999999),
-            'kpp' => (string) random_int(100000000, 999999999),
-            'registration_number' => $unique . random_int(1000000, 9999999),
             'sms_name' => 'TESTPARTNER',
-            'city' => 'СПб',
-            'zip' => '197350',
-            'address' => 'Невский пр., 1',
             'phone' => '+79990001122',
             'email' => $email,
             'website' => 'https://example.test',
-            'bank_name' => 'Банк',
-            'bank_bik' => '123456789',
-            'bank_account' => '12345678901234567890',
             'order_by' => 10,
             'is_enabled' => true,
-            'ceo' => [
-                'lastName' => 'Иванов',
-                'firstName' => 'Иван',
-                'middleName' => 'Иванович',
-                'phone' => '+79991112233',
-            ],
         ], $overrides);
     }
 }

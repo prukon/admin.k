@@ -229,7 +229,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>Пятая вкладка раздела «Справочники»; CRUD — модалки на списке (<code>legal_entities.manage</code>); sm-register T‑Bank — карточка <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>).</li>
     <li>DataTables: фильтры поиск / active-inactive; колонки «Регистрация в банке» (бейдж + hint при «Нет»), наименование через <code>displayTitle()</code>, <code>teams_count</code>, «Основное»; колонка ShopCode и кнопка «Регистрация» — только при <code>legal_entities.sm_register</code>.</li>
     <li>Привязка к группам — селект в модалках <code>/admin/teams</code> (если ≥2 активных юр. лиц).</li>
-    <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> (с legacy fallback на <code>partners.tinkoff_partner_id</code>).</li>
+    <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> — только <code>partner_legal_entities.tinkoff_shop_code</code> (без fallback на <code>partners</code>). См. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.</li>
   </ul>
 
   <h2>6) Публичный лендинг — каскад выбора</h2>

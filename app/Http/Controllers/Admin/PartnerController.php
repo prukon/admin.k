@@ -28,6 +28,7 @@ use App\Enums\AuditEvent;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Support\BuildsLogTable;
+use App\Support\PartnerLegacyLegalFields;
 use App\Services\PartnerContext;
 
 //Контроллер для админа
@@ -70,8 +71,6 @@ class PartnerController extends AdminBaseController
             $like = '%' . $titleSearch . '%';
             $baseQuery->where(function ($q) use ($like, $titleSearch) {
                 $q->where('title', 'like', $like)
-                    ->orWhere('organization_name', 'like', $like)
-                    ->orWhere('tax_id', 'like', $like)
                     ->orWhere('email', 'like', $like)
                     ->orWhere('phone', 'like', $like);
 
@@ -107,14 +106,6 @@ class PartnerController extends AdminBaseController
             case 'title':
                 $baseQuery->orderBy('title', $orderDir);
                 break;
-            case 'organization_name':
-                $baseQuery->orderBy('organization_name', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
-            case 'tax_id':
-                $baseQuery->orderBy('tax_id', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
             case 'email':
                 $baseQuery->orderBy('email', $orderDir)
                     ->orderBy('title', 'asc');
@@ -148,8 +139,6 @@ class PartnerController extends AdminBaseController
                 'id'                 => $partner->id,
                 'order_by'           => $partner->order_by,
                 'title'              => $partner->title,
-                'organization_name'  => $partner->organization_name ?? '',
-                'tax_id'             => $partner->tax_id ?? '',
                 'email'              => $partner->email ?? '',
                 'phone'              => $partner->phone ?? '',
                 'status_label'       => $partner->is_enabled ? 'Активен' : 'Неактивен',
@@ -169,15 +158,7 @@ class PartnerController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
-        $data = $request->validated();
-
-        // гарантируем наличие camelCase-ключей
-        $data['ceo'] = [
-            'lastName' => $data['ceo']['lastName'] ?? '',
-            'firstName' => $data['ceo']['firstName'] ?? '',
-            'middleName' => $data['ceo']['middleName'] ?? '',
-            'phone' => $data['ceo']['phone'] ?? '',
-        ];
+        $data = PartnerLegacyLegalFields::strip($request->validated());
 
         $partner = null;
 
@@ -185,23 +166,11 @@ class PartnerController extends AdminBaseController
             $partner = Partner::create($data);
 
             $fields = [
-                'business_type' => 'Тип бизнеса',
-                'title' => 'Наименование',
-                'organization_name' => 'Наименование организации',
-                'tax_id' => 'ИНН',
-                'vat' => 'Ставка НДС (онлайн-чек)',
-                'kpp' => 'КПП',
-                'registration_number' => 'ОГРН (ОГРНИП)',
+                'title' => 'Название школы/секции',
                 'sms_name' => 'Название для SMS/выписок',
-                'city' => 'Город',
-                'zip' => 'Индекс',
-                'address' => 'Адрес',
                 'phone' => 'Телефон',
                 'email' => 'E-mail',
                 'website' => 'Сайт',
-                'bank_name' => 'Банк',
-                'bank_bik' => 'БИК',
-                'bank_account' => 'Расчётный счёт',
                 'order_by' => 'Сортировка',
                 'is_enabled' => 'Активность',
             ];
@@ -210,17 +179,8 @@ class PartnerController extends AdminBaseController
             foreach ($fields as $key => $label) {
                 $val = $partner->{$key} ?? '—';
                 if ($key === 'is_enabled') $val = $val ? 'Да' : 'Нет';
-                if ($key === 'vat') {
-                    $val = self::vatLabel($val === '—' || $val === null || $val === '' ? null : (int) $val);
-                }
                 $lines[] = "{$label}: {$val}";
             }
-
-            $ceo = $partner->ceo ?? [];
-            $lines[] = "Фамилия руководителя: " . ($ceo['lastName'] ?? '—');
-            $lines[] = "Имя руководителя: " . ($ceo['firstName'] ?? '—');
-            $lines[] = "Отчество руководителя: " . ($ceo['middleName'] ?? '—');
-            $lines[] = "Телефон руководителя: " . ($ceo['phone'] ?? '—');
 
             $this->auditLogger->record(
                 AuditEvent::PartnerCreated,
@@ -232,59 +192,30 @@ class PartnerController extends AdminBaseController
             );
         });
 
-        return response()->json([
-            'message' => 'Партнёр успешно создан',
-            'partner' => $partner,
-        ], 201);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => 'Партнёр успешно создан',
+                'partner' => $partner,
+            ], 201);
+        }
+
+        return redirect()
+            ->route('admin.partner.index')
+            ->with('ok', 'Партнёр успешно создан');
     }
 
     public function edit(Partner $partner)
     {
-        // что реально в БД (на случай смешанных версий)
-        $raw = DB::table('partners')->where('id', $partner->id)->value('ceo');
-
-        // cast модели (array|null)
-        $cast = $partner->ceo;
-
-        // нормализация к camelCase (поддержка legacy snake_case)
-        $src = is_array($cast) ? $cast : (json_decode($raw ?? '[]', true) ?: []);
-        $ceo = [
-            'lastName' => $src['lastName'] ?? $src['last_name'] ?? '',
-            'firstName' => $src['firstName'] ?? $src['first_name'] ?? '',
-            'middleName' => $src['middleName'] ?? $src['middle_name'] ?? '',
-            'phone' => $src['phone'] ?? '',
-        ];
-
         $payload = [
             'id' => $partner->id,
-            'business_type' => $partner->business_type,
             'title' => $partner->title,
-            'organization_name' => $partner->organization_name,
-            'tax_id' => $partner->tax_id,
-            'vat' => $partner->vat,
-            'kpp' => $partner->kpp,
-            'registration_number' => $partner->registration_number,
             'sms_name' => $partner->sms_name,
-            'city' => $partner->city,
-            'zip' => $partner->zip,
-            'address' => $partner->address,
             'phone' => $partner->phone,
             'email' => $partner->email,
             'website' => $partner->website,
-            'bank_name' => $partner->bank_name,
-            'bank_bik' => $partner->bank_bik,
-            'bank_account' => $partner->bank_account,
             'order_by' => $partner->order_by,
             'is_enabled' => (bool)$partner->is_enabled,
-            'ceo' => $ceo,
         ];
-
-        // Log::info('[Partner.edit] payload', [
-        //     'partner_id' => $partner->id,
-        //     'raw_ceo' => $raw,
-        //     'cast_ceo' => $cast,
-        //     'payload' => $payload
-        // ]);
 
         return response()->json($payload);
     }
@@ -293,54 +224,30 @@ class PartnerController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
-        $data = $request->validated();
-
-        // гарантия camelCase-ключей в ceo
-        $data['ceo'] = [
-            'lastName' => $data['ceo']['lastName'] ?? '',
-            'firstName' => $data['ceo']['firstName'] ?? '',
-            'middleName' => $data['ceo']['middleName'] ?? '',
-            'phone' => $data['ceo']['phone'] ?? '',
-        ];
+        $data = PartnerLegacyLegalFields::strip($request->validated());
 
         DB::transaction(function () use ($data, $authorId, $partnerId, $partner) {
 
             $old = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'vat', 'kpp', 'registration_number',
-                'sms_name', 'city', 'zip', 'address',
+                'title', 'sms_name',
                 'phone', 'email', 'website',
-                'bank_name', 'bank_bik', 'bank_account',
-                'order_by', 'is_enabled', 'ceo',
+                'order_by', 'is_enabled',
             ]);
 
             $partner->update($data);
 
             $new = $partner->only([
-                'business_type', 'title', 'organization_name', 'tax_id', 'vat', 'kpp', 'registration_number',
-                'sms_name', 'city', 'zip', 'address',
+                'title', 'sms_name',
                 'phone', 'email', 'website',
-                'bank_name', 'bank_bik', 'bank_account',
-                'order_by', 'is_enabled', 'ceo',
+                'order_by', 'is_enabled',
             ]);
 
             $fields = [
-                'business_type' => 'Тип бизнеса',
-                'title' => 'Наименование',
-                'organization_name' => 'Наименование организации',
-                'tax_id' => 'ИНН',
-                'vat' => 'Ставка НДС (онлайн-чек)',
-                'kpp' => 'КПП',
-                'registration_number' => 'ОГРН (ОГРНИП)',
+                'title' => 'Название школы/секции',
                 'sms_name' => 'Название для SMS/выписок',
-                'city' => 'Город',
-                'zip' => 'Индекс',
-                'address' => 'Адрес',
                 'phone' => 'Телефон',
                 'email' => 'E-mail',
                 'website' => 'Сайт',
-                'bank_name' => 'Банк',
-                'bank_bik' => 'БИК',
-                'bank_account' => 'Расчётный счёт',
                 'order_by' => 'Сортировка',
                 'is_enabled' => 'Активность',
             ];
@@ -355,44 +262,9 @@ class PartnerController extends AdminBaseController
                     $ov = $ov ? 'Да' : 'Нет';
                     $nv = $nv ? 'Да' : 'Нет';
                 }
-                if ($key === 'vat') {
-                    $ov = self::vatLabel($ov === null || $ov === '' ? null : (int) $ov);
-                    $nv = self::vatLabel($nv === null || $nv === '' ? null : (int) $nv);
-                }
                 if ((string)$ov !== (string)$nv) {
                     $oldLines[] = "{$label}: {$ov}";
                     $newLines[] = "{$label}: {$nv}";
-                }
-            }
-
-            // сравнение CEO (camelCase, понимаем legacy snake_case в old)
-            $oldCeoSrc = is_array($old['ceo'] ?? null) ? $old['ceo'] : (json_decode($old['ceo'] ?? '[]', true) ?: []);
-            $newCeoSrc = is_array($new['ceo'] ?? null) ? $new['ceo'] : (json_decode($new['ceo'] ?? '[]', true) ?: []);
-
-            $oldCeo = [
-                'lastName' => $oldCeoSrc['lastName'] ?? $oldCeoSrc['last_name'] ?? '',
-                'firstName' => $oldCeoSrc['firstName'] ?? $oldCeoSrc['first_name'] ?? '',
-                'middleName' => $oldCeoSrc['middleName'] ?? $oldCeoSrc['middle_name'] ?? '',
-                'phone' => $oldCeoSrc['phone'] ?? '',
-            ];
-            $newCeo = [
-                'lastName' => $newCeoSrc['lastName'] ?? $newCeoSrc['last_name'] ?? '',
-                'firstName' => $newCeoSrc['firstName'] ?? $newCeoSrc['first_name'] ?? '',
-                'middleName' => $newCeoSrc['middleName'] ?? $newCeoSrc['middle_name'] ?? '',
-                'phone' => $newCeoSrc['phone'] ?? '',
-            ];
-
-            $ceoLabels = [
-                'lastName' => 'Фамилия руководителя',
-                'firstName' => 'Имя руководителя',
-                'middleName' => 'Отчество руководителя',
-                'phone' => 'Телефон руководителя',
-            ];
-
-            foreach ($ceoLabels as $k => $label) {
-                if ((string)($oldCeo[$k] ?? '') !== (string)($newCeo[$k] ?? '')) {
-                    $oldLines[] = "{$label}: " . ($oldCeo[$k] ?? '—');
-                    $newLines[] = "{$label}: " . ($newCeo[$k] ?? '—');
                 }
             }
 
@@ -427,10 +299,16 @@ class PartnerController extends AdminBaseController
             ]);
         });
 
-        return response()->json([
-            'message' => 'Партнёр успешно обновлён',
-            'partner' => $partner,
-        ], 200);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => 'Партнёр успешно обновлён',
+                'partner' => $partner,
+            ], 200);
+        }
+
+        return redirect()
+            ->route('admin.partner.index')
+            ->with('ok', 'Партнёр успешно обновлён');
     }
 
     public function destroy(Partner $partner)
@@ -440,20 +318,11 @@ class PartnerController extends AdminBaseController
 
         // Собираем данные партнёра перед удалением
         $old = $partner->only([
-            'business_type',
             'title',
-            'organization_name',
-            'tax_id',
-            'vat',
-            'kpp',
-            'registration_number',
-            'address',
+            'sms_name',
             'phone',
             'email',
             'website',
-            'bank_name',
-            'bank_bik',
-            'bank_account',
             'order_by',
             'is_enabled',
         ]);
@@ -464,20 +333,11 @@ class PartnerController extends AdminBaseController
 
             // Формируем читаемую строку старых значений
             $fields = [
-                'business_type' => 'Тип бизнеса',
-                'title' => 'Наименование',
-                'organization_name' => 'Наименование организации',
-                'tax_id' => 'ИНН',
-                'vat' => 'Ставка НДС (онлайн-чек)',
-                'kpp' => 'КПП',
-                'registration_number' => 'ОГРН (ОГРНИП)',
-                'address' => 'Почтовый адрес',
+                'title' => 'Название школы/секции',
+                'sms_name' => 'Название для SMS/выписок',
                 'phone' => 'Телефон',
                 'email' => 'E-mail',
                 'website' => 'Сайт',
-                'bank_name' => 'Банк',
-                'bank_bik' => 'БИК',
-                'bank_account' => 'Расчетный счет',
                 'order_by' => 'Сортировка',
                 'is_enabled' => 'Активность',
             ];
@@ -487,9 +347,6 @@ class PartnerController extends AdminBaseController
                 $val = $old[$key] ?? '—';
                 if ($key === 'is_enabled') {
                     $val = $val ? 'Да' : 'Нет';
-                }
-                if ($key === 'vat') {
-                    $val = self::vatLabel($val === '—' || $val === null || $val === '' ? null : (int) $val);
                 }
                 $lines[] = "{$label}: {$val}";
             }
@@ -513,10 +370,5 @@ class PartnerController extends AdminBaseController
     public function log(FilterRequest $request)
     {
         return $this->buildLogDataTable('partner');
-    }
-
-    private static function vatLabel(?int $value): string
-    {
-        return \App\Enums\CloudKassirVatRate::labelFor($value);
     }
 }

@@ -109,7 +109,7 @@ class CloudKassirReceiptBuilder
     }
 
     /**
-     * Ставка НДС по данным принципала (юр. лицо / legacy partner).
+     * Ставка НДС по данным принципала (справочник юр. лиц).
      */
     protected function resolveVat(Partner $partner, \App\Services\PartnerLegalEntities\LegalEntityResolution $resolution): ?int
     {

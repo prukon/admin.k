@@ -5,6 +5,7 @@ namespace App\Http\Requests\Team;
 use App\Rules\PartnerLegalEntityId;
 use App\Rules\PartnerSportTypeId;
 use App\Services\PartnerContext;
+use App\Support\PartnerLegalEntityMode;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -87,8 +88,9 @@ class StoreRequest extends FormRequest
 
         if ($this->user()?->can('legal_entities.view')) {
             $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+            $multiLegalEntity = PartnerLegalEntityMode::isMultiEntity($partnerId);
             $rules['legal_entity_id'] = [
-                'nullable',
+                $multiLegalEntity ? 'required' : 'nullable',
                 'integer',
                 new PartnerLegalEntityId($partnerId),
             ];
@@ -123,6 +125,7 @@ class StoreRequest extends FormRequest
             'location_id.exists' => 'Выберите объект из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
             'legal_entity_id.integer' => 'Выберите юр. лицо из списка',
+            'legal_entity_id.required' => 'Выберите юр. лицо для группы',
         ];
     }
 }

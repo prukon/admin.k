@@ -71,7 +71,7 @@ final class TeamLegalEntityRecentEnhancementsFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('Школа футбола', (string) $row['legal_entity_label']);
     }
 
-    public function test_teams_data_fallback_uses_organization_name_without_default_prefix(): void
+    public function test_teams_data_fallback_without_binding_has_empty_label_in_multi_entity(): void
     {
         PartnerLegalEntity::factory()->for($this->partner)->create([
             'title' => 'Внутреннее основное',
@@ -97,8 +97,7 @@ final class TeamLegalEntityRecentEnhancementsFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertTrue($row['legal_entity_fallback']);
-        $this->assertSame('ИП Основное публичное', $row['legal_entity_label']);
-        $this->assertStringNotContainsString('По умолчанию', (string) $row['legal_entity_label']);
+        $this->assertSame('', $row['legal_entity_label']);
     }
 
     public function test_teams_index_renders_default_legal_entity_hint_script(): void

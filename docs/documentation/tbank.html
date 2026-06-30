@@ -34,14 +34,14 @@
     Все комиссии удерживаются <b>с партнёра</b>. Цель: после удержаний и списания банком комиссия платформы остаётся у платформы.
   </div>
 
-  <h2>2) ShopCode получателя (юр. лицо / legacy partner)</h2>
+  <h2>2) ShopCode получателя (юр. лицо)</h2>
   <div class="note">
-    С 2026-06 основной источник ShopCode — справочник <b>«Юр. лица»</b> (<code>partner_legal_entities.tinkoff_shop_code</code>), регистрация через sm-register на карточке юр. лица. Подробно: <a href="/docs/documentation/admin-legal-entities#legal-entities-sm-register">admin-legal-entities §4.3</a>.
+    Источник ShopCode — справочник <b>«Юр. лица»</b> (<code>partner_legal_entities.tinkoff_shop_code</code>), регистрация через sm-register на карточке юр. лица. Подробно: <a href="/docs/documentation/admin-legal-entities#legal-entities-sm-register">admin-legal-entities §4.3</a>. Без активного юр. лица с ShopCode T‑Bank недоступен — см. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.
   </div>
   <ul>
-    <li><b>Поле в БД (основное)</b>: <code>partner_legal_entities.tinkoff_shop_code</code> — ShopCode точки после sm-register.</li>
-    <li><b>Выбор юр. лица</b>: <code>LegalEntityResolver</code> — по группе (<code>teams.legal_entity_id</code>), payable, снимку на платеже; при нескольких юр. лицах без явной привязки — <code>is_default</code> (fallback).</li>
-    <li><b>Legacy (переходный период)</b>: <code>partners.tinkoff_partner_id</code> — используется как fallback, если у выбранного юр. лица ShopCode пуст (<code>LegalEntityResolver::shopCode()</code>).</li>
+    <li><b>Поле в БД</b>: <code>partner_legal_entities.tinkoff_shop_code</code> — ShopCode точки после sm-register.</li>
+    <li><b>Выбор юр. лица</b>: <code>LegalEntityResolver</code> — по группе (<code>teams.legal_entity_id</code>), payable, снимку на платеже. При <b>≥2 активных юр. лицах</b> без явной привязки группы — entity <code>null</code> (Init запрещён). При <b>одном</b> активном — fallback на единственное юр. лицо. См. <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.</li>
+    <li><b>ShopCode</b>: <code>LegalEntityResolver::shopCode()</code> — только <code>entity.tinkoff_shop_code</code>; legacy <code>partners.tinkoff_partner_id</code> <b>не используется</b>.</li>
     <li><b>UI sm-register на партнёре</b>: отключён; legacy-маршруты <code>tinkoff/partners/sm-*</code> → redirect/410.</li>
   </ul>
 
@@ -59,7 +59,7 @@
     <li><b>Для выплат партнёрам (e2c)</b>: <code>e2c_terminal_key</code>, <code>e2c_token_password</code></li>
     <li><b>Глобальный рубильник</b>: <code>is_enabled</code> на этой записи — вкл/выкл T‑Bank для всей платформы</li>
     <li><b>Тестовый режим</b>: <code>test_mode</code> — глобальный флаг</li>
-    <li><b>Показ метода оплаты</b>: T‑Bank на витрине показывается, если глобальный терминал активен (<code>is_enabled</code> + ключи заполнены), у выбранного юр. лица (или legacy <code>partners.tinkoff_partner_id</code>) есть ShopCode — <code>PaymentService::isTbankAvailable()</code>, и у пользователя есть права на метод (<code>payment.method.tbankCard</code> / <code>tbankSBP</code>). Подробнее — <a href="/docs/documentation/settings-payment-systems#tbank-availability">настройки платёжных систем §4.3</a>.</li>
+    <li><b>Показ метода оплаты</b>: T‑Bank на витрине показывается, если глобальный терминал активен (<code>is_enabled</code> + ключи заполнены), у активного юр. лица есть ShopCode — <code>PaymentService::isTbankAvailable()</code>, и у пользователя есть права на метод (<code>payment.method.tbankCard</code> / <code>tbankSBP</code>). Подробнее — <a href="/docs/documentation/settings-payment-systems#tbank-availability">настройки платёжных систем §4.3</a>.</li>
   </ul>
 
   <h3>3.1 Сервис <code>TbankTerminalConfig</code></h3>
@@ -183,7 +183,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li>Eager load: <code>legalEntity</code> с <code>withTrashed()</code> — для исторических платежей, если запись юр. лица soft-deleted.</li>
     <li>Подпись: <code>organization_name</code> → fallback <code>title</code> → «—». Без снимка (<code>legal_entity_id IS NULL</code>) — «—».</li>
     <li><b>Не путать</b> с «Партнёр»: партнёр — клуб в CRM; организация — юр. лицо из справочника на момент оплаты. См. <a href="/docs/documentation/admin-legal-entities#legal-entities-snapshots-ui">admin-legal-entities §7.1</a>.</li>
-    <li><b>СНО (для чеков CloudKassir)</b> — из конфига платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>config/services.cloudkassir.taxation_system</code>), не из партнёра и не из юр. лица. <b>Ставка НДС</b> в позиции чека — из поля <code>partner_legal_entities.vat</code> (или legacy партнёра через <code>LegalEntityResolver::fiscalVat()</code>). См. <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.</li>
+    <li><b>СНО (для чеков CloudKassir)</b> — из конфига платформы <code>CLOUDKASSIR_TAXATION_SYSTEM</code> (<code>config/services.cloudkassir.taxation_system</code>), не из партнёра и не из юр. лица. <b>Ставка НДС</b> в позиции чека — из поля <code>partner_legal_entities.vat</code> (<code>LegalEntityResolver::fiscalVat()</code>). См. <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.</li>
   </ul>
 
   <h3 id="payment-show-timeline">5.7.2 Timeline «Путь платежа → выплата»</h3>
@@ -282,6 +282,9 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     Все feature‑тесты по мультирасчётам T‑Bank собраны в одной папке:
     <code>/tests/Feature/Crm/Payments/TBank</code>.
     <br>Запуск: <code>php artisan test --testsuite=Feature</code>.
+    <br><b>Фикстуры юр. лиц:</b> в тестах Init/выплат/webhook использовать <code>CrmTestCase::seedRegisteredLegalEntityForPartner()</code>,
+    <code>seedTbankTeamChainForStudent()</code>, <code>bindTeamsToLegalEntity()</code> — не <code>partners.tinkoff_partner_id</code>.
+    Подробно — <a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>.
   </div>
 
   <h3>8.1 Права/доступы (важно для безопасности)</h3>
@@ -331,6 +334,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/TbankAutoPayoutOnWebhookTest.php</code>
       <ul>
         <li><b>Автовыплата</b>: после webhook <code>CONFIRMED</code> при <code>auto_payout_enabled=true</code> в правиле комиссии запускается e2c‑выплата и доводится до <code>COMPLETED</code>; задержка — <code>auto_payout_delay_hours</code> из <code>tinkoff_commission_rules</code>.</li>
+        <li>Фикстура: юр. лицо с ShopCode, группа с <code>legal_entity_id</code>, <code>payables.meta.team_id</code> (цепочка как на проде). При multi-entity без привязки группы автовыплата не создаётся — см. guard в <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.</li>
       </ul>
     </li>
     <li><code>tests/Feature/Crm/Payments/TBank/TbankPollPayoutStatesJobTest.php</code>
