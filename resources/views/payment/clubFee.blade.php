@@ -273,6 +273,13 @@
                     </div>
                     <div id="paymentAmountError" class="amount-error"></div>
                 </div>
+                @if(!empty($showTbankLegalEntityBlock))
+                    @include('payment.partials.service-provider', [
+                        'serviceProviderRowId' => 'clubFeeServiceProviderRow',
+                        'serviceProviderValueId' => 'clubFeeServiceProviderValue',
+                        'serviceProviderRowHidden' => !empty($clubFeeRequiresTeamChoice),
+                    ])
+                @endif
             </div>
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
@@ -355,9 +362,11 @@
     </div>
 
     <script>
+        var clubFeeTeamTbankCheckout = @json($teamTbankCheckout ?? []);
         var clubFeeTeamTbankCardAvailable = @json($teamTbankCardAvailable ?? []);
         var clubFeeRequiresTeamChoice = @json(!empty($clubFeeRequiresTeamChoice));
         var clubFeeCanTbankSbp = @json(!empty($canTbankSbp));
+        var clubFeeShowServiceProviderBlock = @json(!empty($showTbankLegalEntityBlock));
 
         function clubFeeAmountCents() {
             var paymentAmountInput = document.getElementById('paymentAmount');
@@ -389,6 +398,10 @@
             if (!teamId) {
                 return false;
             }
+            var checkout = clubFeeTeamTbankCheckout[String(teamId)];
+            if (checkout && typeof checkout.card !== 'undefined') {
+                return !!checkout.card;
+            }
             return !!clubFeeTeamTbankCardAvailable[String(teamId)];
         }
 
@@ -400,8 +413,53 @@
             return cents !== null && cents >= 1000 && cents <= 100000000;
         }
 
+        function clubFeeServiceProviderLabelForTeam(teamId) {
+            if (!teamId) {
+                return null;
+            }
+            var checkout = clubFeeTeamTbankCheckout[String(teamId)];
+            if (!checkout) {
+                return null;
+            }
+            return checkout.serviceProviderLabel || null;
+        }
+
+        function updateClubFeeServiceProvider() {
+            if (!clubFeeShowServiceProviderBlock) {
+                return;
+            }
+
+            var row = document.getElementById('clubFeeServiceProviderRow');
+            var value = document.getElementById('clubFeeServiceProviderValue');
+            if (!row || !value) {
+                return;
+            }
+
+            if (clubFeeRequiresTeamChoice) {
+                var teamId = clubFeeSelectedTeamId();
+                if (!teamId) {
+                    row.style.display = 'none';
+                    return;
+                }
+
+                row.style.display = '';
+                var label = clubFeeServiceProviderLabelForTeam(teamId);
+                if (label) {
+                    value.textContent = label;
+                    value.classList.remove('text-danger');
+                } else {
+                    value.textContent = 'Обратитесь в школу.';
+                    value.classList.add('text-danger');
+                }
+                return;
+            }
+
+            row.style.display = '';
+        }
+
         function updateClubFeeTbankVisibility() {
             if (!clubFeeRequiresTeamChoice) {
+                updateClubFeeServiceProvider();
                 return;
             }
 
@@ -417,6 +475,8 @@
             if (sbpBlock) {
                 sbpBlock.style.display = sbpAvailable ? '' : 'none';
             }
+
+            updateClubFeeServiceProvider();
         }
 
         document.addEventListener('DOMContentLoaded', function () {

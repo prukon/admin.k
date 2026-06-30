@@ -56,6 +56,8 @@
     <b>Feature-тесты оплат/T‑Bank/чеков:</b> в фикстурах нельзя полагаться на legacy <code>partners.tinkoff_partner_id</code> / <code>tax_id</code> — только справочник юр. лиц + цепочка через группу. Хелперы <code>CrmTestCase</code> — <a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>.
     <br><br>
     <b>Multi-entity guard (2026‑06‑30):</b> при ≥2 активных юр. лицах Init T‑Bank запрещён, если у выбранной группы нет активной привязки <code>teams.legal_entity_id</code> с ShopCode; ошибка Init — «Для выбранной группы не настроено юр. лицо». Клубный взнос: кнопки T‑Bank скрываются JS до выбора группы с доступным ShopCode. Подробно — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>.
+    <br><br>
+    <b>«Поставщик услуг» на витрине (2026‑07):</b> на <code>POST /payment</code> и <code>/payment/club-fee</code> при доступном T‑Bank (карта или СБП) показывается строка с юр. лицом, которому уйдёт net-выплата и которое попадёт в чек CloudKassir — та же цепочка, что при Init (<code>PaymentCheckoutContextResolver</code> → <code>LegalEntityResolver</code>). Формат: <code>{organization_name}, ИНН {tax_id}, {city}</code>. Без валидного юр. лица — «Обратитесь в школу», кнопки T‑Bank скрыты. Робокасса не затрагивается. Подробно — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>.
   </div>
 
   <h2>История изменений на страницах CRM</h2>
@@ -83,7 +85,7 @@
 
   <h2>Разделы</h2>
   <ul>
-    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина, webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: обязательный <code>team_id</code>, колонка «Группа», <code>teams-for-user</code>, store JSON, права <code>setPrices.customPayments.view</code></a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (руководство для рефакторинга)</a></li>

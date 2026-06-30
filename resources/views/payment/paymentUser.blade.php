@@ -234,6 +234,7 @@
                     <div class="summary-item-value">{{ $monthlyTeamTitle }}</div>
                 </div>
                 @endif
+                @include('payment.partials.service-provider')
                 <div>
                     <div class="summary-item-label">Способ оплаты</div>
                     <div class="summary-item-value">Выберите ниже</div>

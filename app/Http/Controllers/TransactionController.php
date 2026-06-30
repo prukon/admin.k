@@ -10,6 +10,8 @@ use App\Models\PaymentIntent;
 use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\UserCustomPayment;
+use App\Models\UserLessonPackage;
+use App\Services\Payments\PaymentCheckoutContextResolver;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
@@ -95,9 +97,11 @@ class TransactionController extends Controller
 
         $user = $request->user();
 
+        $upp = null;
+        $lessonPackage = null;
+
         // Дополнительный платеж (user_period_prices): сумма и связка ТОЛЬКО из БД.
         if ($paymentKind === 'custom_payment') {
-            $upp = null;
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
                 $upp = UserCustomPayment::query()
                     ->whereKey($userPeriodPriceId)
@@ -125,6 +129,7 @@ class TransactionController extends Controller
                 $partnerId,
                 $userLessonPackageId ?? 0,
             );
+            $lessonPackage = $resolvedLp['ulp'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $formatedPaymentDate = null;
@@ -149,19 +154,27 @@ class TransactionController extends Controller
             }
         }
 
-        // Доступность платёжных систем (настройки партнёра + право на способ оплаты)
-        $monthlyTeam = ($monthlyTeamId ?? 0) > 0
-            ? Team::query()->whereKey($monthlyTeamId)->where('partner_id', $partnerId)->first()
-            : null;
+        $canTbankCard = $user->can('payment.method.tbankCard');
+        $canTbankSbp = $user->can('payment.method.tbankSBP');
+
+        $checkoutContext = app(PaymentCheckoutContextResolver::class)->forUserPaymentPage(
+            $curPartner,
+            $user,
+            $paymentKind,
+            $monthlyTeamId,
+            $upp,
+            $lessonPackage,
+            $formatedPaymentDate !== null,
+            $canTbankCard,
+            $canTbankSbp,
+        );
 
         $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
             && $user->can('payment.method.robokassa');
-        $tbankAvailable = $paymentService->isTbankAvailable($curPartner, $monthlyTeam)
-            && $user->can('payment.method.tbankCard');
-        // На странице клубного взноса сумма вводится пользователем позже,
-        // поэтому не скрываем СБП по amountCents на этапе рендера.
-        $tbankSbpAvailable = $paymentService->isTbankAvailable($curPartner, $monthlyTeam)
-            && $user->can('payment.method.tbankSBP');
+        $tbankAvailable = $checkoutContext->tbankCardAvailable;
+        $tbankSbpAvailable = $checkoutContext->tbankSbpAvailable;
+        $showTbankLegalEntityBlock = $checkoutContext->showTbankLegalEntityBlock;
+        $serviceProviderLabel = $checkoutContext->serviceProviderLabel;
 
         return view('payment.paymentUser', compact(
             'paymentDate',
@@ -176,6 +189,8 @@ class TransactionController extends Controller
             'userLessonPackageId',
             'monthlyTeamId',
             'monthlyTeamTitle',
+            'showTbankLegalEntityBlock',
+            'serviceProviderLabel',
         ));
     }
 
@@ -410,36 +425,35 @@ class TransactionController extends Controller
         $clubFeeBlocked = $studentTeams === [];
         $clubFeeRequiresTeamChoice = count($studentTeams) > 1;
         $clubFeeDefaultTeamId = count($studentTeams) === 1 ? (int) $studentTeams[0]['id'] : null;
-        $checkoutTeam = $clubFeeDefaultTeamId
-            ? Team::query()->whereKey($clubFeeDefaultTeamId)->where('partner_id', $partnerId)->first()
-            : null;
-
-        $teamTbankCardAvailable = [];
-        if (! $clubFeeBlocked) {
-            foreach ($studentTeams as $teamRow) {
-                $team = Team::query()
-                    ->whereKey($teamRow['id'])
-                    ->where('partner_id', $partnerId)
-                    ->first();
-                $teamTbankCardAvailable[(int) $teamRow['id']] = $team !== null
-                    && $paymentService->isTbankAvailable($curPartner, $team);
-            }
-        }
 
         $canTbankCard = ! $clubFeeBlocked && $user->can('payment.method.tbankCard');
         $canTbankSbp = ! $clubFeeBlocked && $user->can('payment.method.tbankSBP');
 
+        $checkoutContextResolver = app(PaymentCheckoutContextResolver::class);
+        $teamTbankCheckout = ! $clubFeeBlocked
+            ? $checkoutContextResolver->clubFeeTeamCheckoutMap($curPartner, $studentTeams, $canTbankCard, $canTbankSbp)
+            : [];
+        $teamTbankCardAvailable = collect($teamTbankCheckout)
+            ->map(fn (array $row) => (bool) ($row['card'] ?? false))
+            ->all();
+
+        $checkoutContext = ! $clubFeeBlocked
+            ? $checkoutContextResolver->clubFeeContext(
+                $curPartner,
+                $clubFeeDefaultTeamId,
+                $clubFeeRequiresTeamChoice,
+                $canTbankCard,
+                $canTbankSbp,
+            )
+            : \App\Support\Payments\PaymentCheckoutContext::withoutTbankInstrument();
+
         $robokassaAvailable = ! $clubFeeBlocked
             && $paymentService->isRobokassaAvailable($curPartner)
             && $user->can('payment.method.robokassa');
-        $tbankAvailable = ! $clubFeeBlocked
-            && ! $clubFeeRequiresTeamChoice
-            && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
-            && $user->can('payment.method.tbankCard');
-        $tbankSbpAvailable = ! $clubFeeBlocked
-            && ! $clubFeeRequiresTeamChoice
-            && $paymentService->isTbankAvailable($curPartner, $checkoutTeam)
-            && $user->can('payment.method.tbankSBP');
+        $tbankAvailable = ! $clubFeeBlocked && $checkoutContext->tbankCardAvailable;
+        $tbankSbpAvailable = ! $clubFeeBlocked && $checkoutContext->tbankSbpAvailable;
+        $showTbankLegalEntityBlock = ! $clubFeeBlocked && $checkoutContext->showTbankLegalEntityBlock;
+        $serviceProviderLabel = $checkoutContext->serviceProviderLabel;
 
         return view('payment.clubFee', compact(
             'outSum',
@@ -450,10 +464,13 @@ class TransactionController extends Controller
             'canTbankCard',
             'canTbankSbp',
             'teamTbankCardAvailable',
+            'teamTbankCheckout',
             'studentTeams',
             'clubFeeBlocked',
             'clubFeeRequiresTeamChoice',
             'clubFeeDefaultTeamId',
+            'showTbankLegalEntityBlock',
+            'serviceProviderLabel',
         ));
     }
 }

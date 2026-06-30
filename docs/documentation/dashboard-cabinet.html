@@ -46,7 +46,7 @@
     </tbody>
   </table>
   <p>Middleware группы: <code>auth</code>, <code>2fa</code>, <code>can:dashboard.view</code>. Без права — <b>403</b>; гость — redirect на login / не 200 на JSON.</p>
-  <p>Оплата с консоли: <code>POST /payment</code> (<code>paying.classes</code>). См. <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>.</p>
+  <p>Оплата с консоли: <code>POST /payment</code> (<code>paying.classes</code>). См. <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>, блок «Поставщик услуг» при T‑Bank — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>.</p>
 
   <h2>2) Контекст ученика на странице</h2>
   <p><code>DashboardController::index</code> берёт ученика через <code>FamilyStudentContextService::activeStudent(auth()->user())</code> — тот же механизм, что «Мои платежи» и семейный переключатель в сайдбаре.</p>

@@ -196,17 +196,19 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
         <li>доступы: guest / 403 / 200 на <code>admin.team.*</code>, <code>clubFee</code>, <code>payment.tinkoff.*</code>;</li>
         <li>AJAX JSON store/update группы с <code>legal_entity_id</code> → 200 / 422;</li>
         <li>non-AJAX store → 302 + БД; non-AJAX validation → session errors;</li>
-        <li>клубный взнос: <code>teamTbankCardAvailable</code>, скрытие T‑Bank в HTML, Init по привязанной/непривязанной группе;</li>
-        <li>месячная витрина и Init: <code>tbankAvailable</code>, payable с <code>meta.team_id</code>;</li>
+        <li>клубный взнос: <code>teamTbankCheckout</code>, <code>teamTbankCardAvailable</code>, блок «Поставщик услуг», скрытие T‑Bank в HTML, Init по привязанной/непривязанной группе;</li>
+        <li>месячная витрина и Init: <code>tbankAvailable</code>, <code>serviceProviderLabel</code>, payable с <code>meta.team_id</code>;</li>
         <li>single-entity: группа без привязки — T‑Bank по-прежнему доступен.</li>
       </ul>
     </li>
     <li>Inline JS клубного взноса — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>payment/clubFee.blade.php</code>).</li>
+    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — блок «Поставщик услуг»: <code>PaymentCheckoutLegalEntityPresenter</code>, <code>PaymentCheckoutContextResolver</code>, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package (<a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>).</li>
   </ul>
 
   <h3>5.5) Референсные тестовые файлы</h3>
   <ul class="small">
     <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code>, <code>MultiTeamMonthlyPaymentFlowTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentInitFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code></li>
