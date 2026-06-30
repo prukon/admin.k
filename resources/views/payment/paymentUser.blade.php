@@ -47,6 +47,11 @@
             color: #f3a12b;
             margin-left: 6px;
         }
+        .payment-service-provider {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #dce7ff;
+        }
         .payment-trust {
             margin-top: 8px;
             font-size: 12px;
@@ -234,13 +239,13 @@
                     <div class="summary-item-value">{{ $monthlyTeamTitle }}</div>
                 </div>
                 @endif
-                @include('payment.partials.service-provider')
                 <div>
                     <div class="summary-item-label">Способ оплаты</div>
                     <div class="summary-item-value">Выберите ниже</div>
                 </div>
             </div>
             <div class="summary-total">Итого к оплате: <span class="value">{{ number_format((int) round((float) str_replace(',', '.', (string) $outSum)), 0, ',', ' ') }} руб.</span></div>
+            @include('payment.partials.service-provider')
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 

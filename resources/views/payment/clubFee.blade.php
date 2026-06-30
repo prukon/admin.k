@@ -74,6 +74,11 @@
             font-size: 12px;
             color: #66738f;
         }
+        .payment-service-provider {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #dce7ff;
+        }
         .payment-layout {
             display: grid;
             grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
@@ -273,14 +278,14 @@
                     </div>
                     <div id="paymentAmountError" class="amount-error"></div>
                 </div>
-                @if(!empty($showTbankLegalEntityBlock))
-                    @include('payment.partials.service-provider', [
-                        'serviceProviderRowId' => 'clubFeeServiceProviderRow',
-                        'serviceProviderValueId' => 'clubFeeServiceProviderValue',
-                        'serviceProviderRowHidden' => !empty($clubFeeRequiresTeamChoice),
-                    ])
-                @endif
             </div>
+            @if(!empty($showTbankLegalEntityBlock))
+                @include('payment.partials.service-provider', [
+                    'serviceProviderRowId' => 'clubFeeServiceProviderRow',
+                    'serviceProviderValueId' => 'clubFeeServiceProviderValue',
+                    'serviceProviderRowHidden' => !empty($clubFeeRequiresTeamChoice),
+                ])
+            @endif
             <div class="payment-trust">Оплата защищена банковскими протоколами безопасности.</div>
         </div>
 
