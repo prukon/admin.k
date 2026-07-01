@@ -627,8 +627,14 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'is_active' => 1,
         ]);
 
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => 1,
+        ]);
+
         $this->post(route('admin.lesson-packages.assignments.store'), [
-            'user_id' => $this->user->id,
+            'user_id' => $student->id,
             'lesson_package_id' => $package->id,
             'fee_amount' => '100.00',
         ])->assertRedirect(route('admin.lesson-packages.assignments'));

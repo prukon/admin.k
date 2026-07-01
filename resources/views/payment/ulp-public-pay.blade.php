@@ -3,6 +3,38 @@
 @section('title', 'Оплата абонемента')
 
 @section('content')
+    <style>
+        .ulp-pay-summary {
+            border: 1px solid #e4edff;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #f8fbff;
+        }
+        .ulp-pay-summary .summary-item-label {
+            font-size: 12px;
+            color: #60708f;
+            margin-bottom: 2px;
+        }
+        .ulp-pay-summary .summary-item-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1d2a44;
+            word-break: break-word;
+        }
+        .ulp-pay-summary .payment-service-provider {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        .ulp-pay-summary .payment-service-provider--with-team {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #dce7ff;
+        }
+        .ulp-pay-summary .payment-service-provider-team + .summary-item-label {
+            margin-top: 0;
+        }
+    </style>
     <div class="container text-start" style="max-width: 42rem;">
         <div class="d-flex flex-wrap align-items-center gap-3 pt-3 mb-2">
             <img class="img-fluid" src="{{ asset('/img/partners/tbank.png') }}" alt="T‑Bank" style="max-height: 40px; width: auto;">
@@ -14,6 +46,14 @@
 
         @if(!empty($amountRubFormatted))
             <p class="mb-3"><span class="text-muted">К оплате:</span> <strong>{{ $amountRubFormatted }}&nbsp;₽</strong></p>
+        @endif
+
+        @if(!empty($showTbankLegalEntityBlock))
+            <div class="ulp-pay-summary mb-3">
+                @include('payment.partials.service-provider', [
+                    'serviceProviderFallbackText' => 'Обратитесь в школу/клуб.',
+                ])
+            </div>
         @endif
 
         <div id="nspkMobileCta" class="d-none mb-3">

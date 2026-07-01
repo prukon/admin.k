@@ -247,6 +247,8 @@
     <li><code>PartnerLegacyLegalFieldsResolverFeatureTest</code> — resolver без fallback на <code>partners</code></li>
     <li><code>MultiEntityTbankGuardAccessFeatureTest</code> — multi-entity guard: доступы, Init, клубный взнос, non-AJAX групп</li>
     <li><code>PaymentCheckoutServiceProviderFeatureTest</code> — блок «Поставщик услуг» на витрине: presenter, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package, §<a href="#payment-checkout-service-provider">3.1.2</a></li>
+    <li><code>LessonPackagePublicPayCheckoutFeatureTest</code> — публичная СБП-страница абонемента: группа, «Поставщик услуг», сумма без копеек, контракты <code>/pay/ulp/*</code>, доступ к <code>public-pay-link</code>, §<a href="#ulp-public-pay">3.4.1</a></li>
+    <li><code>LessonPackagePublicPayFeatureTest</code> — выдача ссылки, Init при открытии страницы, QR state</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code>, <code>LessonPackageAssignmentsTabFeatureTest</code> — матрицы доступа разделов</li>
   </ul>
 
@@ -331,6 +333,11 @@
         <td><code>payment/clubFee.blade.php</code> (тот же partial)</td>
         <td>Те же условия; при 2+ группах строка скрыта до выбора группы в селекте</td>
       </tr>
+      <tr>
+        <td><code>GET /pay/ulp/{token}</code> (публичная СБП-оплата абонемента)</td>
+        <td><code>payment/ulp-public-pay.blade.php</code> (тот же partial)</td>
+        <td>Страница QR (<code>kind=qr</code>): T‑Bank СБП — единственный способ; блок всегда (<code>showTbankLegalEntityBlock=true</code>). См. §<a href="#ulp-public-pay">3.4.1</a></td>
+      </tr>
     </tbody>
   </table>
 
@@ -343,8 +350,18 @@
   </ul>
   <p>Пример: <code>ИП Иванов Иван Иванович, ИНН 691408496704, Санкт-Петербург</code>.</p>
 
+  <h4>Строка «Группа» (2026‑07)</h4>
+  <p>Partial <code>payment/partials/service-provider.blade.php</code> поддерживает опциональную переменную <code>serviceProviderTeamTitle</code> — название группы платежа (<code>teams.title</code>) над блоком «Поставщик услуг».</p>
+  <ul>
+    <li>на витрине ученика (<code>paymentUser</code>) группа выводится отдельно в <code>summary-grid</code> (<code>$monthlyTeamTitle</code> и др.);</li>
+    <li>на публичной СБП-странице абонемента — внутри того же partial (см. §<a href="#ulp-public-pay">3.4.1</a>).</li>
+  </ul>
+
+  <h4>Текст при отсутствии юр. лица</h4>
+  <p>Переменная <code>serviceProviderFallbackText</code> в partial (по умолчанию <b>«Обратитесь в школу.»</b>). На публичной ссылке абонемента — <b>«Обратитесь в школу/клуб.»</b></p>
+
   <h4>Как определяется юр. лицо (источник правды)</h4>
-  <p>Сервис <code>App\Services\Payments\PaymentCheckoutContextResolver</code> собирает DTO <code>App\Support\Payments\PaymentCheckoutContext</code>:</p>
+  <p>Сервис <code>App\Services\Payments\PaymentCheckoutContextResolver</code> собирает DTO <code>App\Support\Payments\PaymentCheckoutContext</code> (витрина ученика и клубный взнос). На публичной СБП-странице абонемента — <code>UserLessonPackagePublicPayService::resolvePublicPayCheckoutDisplay()</code> (тот же <code>PayableTeamResolver</code> + <code>PaymentCheckoutLegalEntityPresenter</code>, §<a href="#ulp-public-pay">3.4.1</a>).</p>
   <ol>
     <li><b>Группа платежа</b> — <code>PayableTeamResolver</code> (тот же алгоритм, что при Init):
       <ul>
@@ -380,14 +397,21 @@
         <td>Блок не рендерится (<code>showTbankLegalEntityBlock=false</code>)</td>
         <td>Скрыты; Robokassa — по своим правилам</td>
       </tr>
+      <tr>
+        <td>Публичная СБП-страница абонемента (<code>/pay/ulp/{token}</code>, <code>kind=qr</code>)</td>
+        <td>Группа + поставщик (или «Обратитесь в школу/клуб.»); Init не откроет QR без ShopCode → <code>error</code></td>
+        <td>Только СБП; отдельно от витрины ученика (без прав <code>payment.method.*</code>)</td>
+      </tr>
     </tbody>
   </table>
 
-  <h4>View-переменные (<code>TransactionController</code>)</h4>
+  <h4>View-переменные (<code>TransactionController</code> и публичная ULP-страница)</h4>
   <ul>
-    <li><code>showTbankLegalEntityBlock</code> — показывать ли секцию (T‑Bank как инструмент доступен пользователю);</li>
-    <li><code>serviceProviderLabel</code> — готовая строка или <code>null</code> (тогда в partial — «Обратитесь в школу.»);</li>
-    <li><code>tbankAvailable</code> / <code>tbankSbpAvailable</code> — из <code>PaymentCheckoutContext</code> (учитывают и права, и ShopCode).</li>
+    <li><code>showTbankLegalEntityBlock</code> — показывать ли секцию (T‑Bank как инструмент доступен пользователю; на <code>/pay/ulp/{token}</code> при QR — всегда <code>true</code>);</li>
+    <li><code>serviceProviderLabel</code> — готовая строка или <code>null</code> (тогда в partial — «Обратитесь в школу.» / на ULP — «Обратитесь в школу/клуб.»);</li>
+    <li><code>serviceProviderTeamTitle</code> — название группы (partial; на ULP и при необходимости в других экранах);</li>
+    <li><code>amountRubFormatted</code> — сумма на ULP в целых рублях (без копеек в UI);</li>
+    <li><code>tbankAvailable</code> / <code>tbankSbpAvailable</code> — из <code>PaymentCheckoutContext</code> на витрине (учитывают и права, и ShopCode).</li>
   </ul>
 
   <h4>Клубный взнос: динамика при нескольких группах</h4>
@@ -421,7 +445,7 @@
   <p class="small">Init оплаты (<code>POST /payment/pay</code>, <code>POST /payments/tinkoff/create</code>, <code>POST /payments/tinkoff/sbp</code>) — без изменений: redirect 302, проверка <code>tbankAvailabilityError</code> на Init. См. §<a href="#payments-multi-entity-guard">2.3.5</a>, <code>MultiEntityTbankGuardAccessFeatureTest</code>.</p>
 
   <h4>Feature-тесты</h4>
-  <p><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — presenter, доступы, все типы витрины, club-fee map, multi-entity. Inline JS клубного взноса — <code>BladeInlineJsSyntaxTest</code> (<code>payment/clubFee.blade.php</code>).</p>
+  <p><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — presenter, доступы, все типы витрины, club-fee map, multi-entity. Inline JS клубного взноса — <code>BladeInlineJsSyntaxTest</code> (<code>payment/clubFee.blade.php</code>). Публичная СБП-страница абонемента — <code>LessonPackagePublicPayCheckoutFeatureTest</code>, inline JS — <code>payment/ulp-public-pay.blade.php</code> (§<a href="#ulp-public-pay">3.4.1</a>).</p>
 
   <h3>3.2 Разовая оплата (<code>club_fee</code>/<code>uniform</code>/<code>camp</code>)</h3>
   <ol>
@@ -490,7 +514,100 @@
     <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
     <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (без автоматического <code>location_id</code> из карточки ученика), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
     <li>При успешном возврате (джобы <code>RobokassaProcessRefundJob</code>, <code>TinkoffProcessRefundJob</code> для соответствующего payable) для этой же строки <code>user_lesson_packages</code> сбрасывается <code>is_paid=false</code>.</li>
+    <li><b>Публичная ссылка СБП</b> (без кабинета): админ выдаёт URL через <code>public-pay-link</code>; родитель открывает <code>/pay/ulp/{token}</code> — см. §<a href="#ulp-public-pay">3.4.1</a>.</li>
   </ol>
+
+  <h4 id="ulp-public-pay">3.4.1 Публичная ссылка на оплату абонемента (T‑Bank СБП, без авторизации)</h4>
+  <div class="note">
+    <b>Назначение:</b> родитель или ученик оплачивает назначенный абонемент по HTTPS-ссылке из CRM, без входа в кабинет. Только <b>T‑Bank СБП</b> (QR / переход на НСПК); Робокасса и оплата картой на этой странице недоступны.
+    <br><b>Выдача ссылки:</b> вкладка «Назначение абонементов» → кнопка «Скопировать ссылку на оплату» → <code>POST /admin/lesson-packages/assignments/{assignment}/public-pay-link</code> (<code>lessonPackages.view</code>). Ответ JSON <code>{ url }</code> — абсолютный URL вида <code>/pay/ulp/{token}</code>. <b>Init T‑Bank не выполняется</b> при выдаче ссылки — только ротация токена в <code>user_lesson_package_public_pay_links</code>.
+    <br><b>Открытие страницы:</b> <code>GET /pay/ulp/{token}</code> → <code>PublicLessonPackagePayController::show</code> → <code>UserLessonPackagePublicPayService::resolvePublicShow()</code>. При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
+    <br>Подробнее про вкладку назначений — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § «Назначение абонементов»</a>.
+  </div>
+
+  <h5>Маршруты (публичные, throttle <code>ulp-public-pay</code>)</h5>
+  <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead><tr><th>Метод</th><th>URL</th><th>Имя</th><th>Успех</th><th>Auth</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>GET</code></td>
+        <td><code>/pay/ulp/{token}</code></td>
+        <td><code>ulp.public.pay</code></td>
+        <td>200 HTML (QR-страница или статус); Init T‑Bank при первом открытии QR</td>
+        <td>Не требуется (гость OK)</td>
+      </tr>
+      <tr>
+        <td><code>GET</code></td>
+        <td><code>/pay/ulp/{token}/qr/json</code></td>
+        <td><code>ulp.public.pay.qr.json</code></td>
+        <td>200 JSON T‑Bank <code>GetQr</code> (<code>DataType=IMAGE</code>); 404 если платёж не инициализирован</td>
+        <td>Не требуется</td>
+      </tr>
+      <tr>
+        <td><code>GET</code></td>
+        <td><code>/pay/ulp/{token}/qr/payload</code></td>
+        <td><code>ulp.public.pay.qr.payload</code></td>
+        <td>200 JSON <code>GetQr</code> (<code>DataType=PAYLOAD</code>) — ссылка НСПК для мобильных</td>
+        <td>Не требуется</td>
+      </tr>
+      <tr>
+        <td><code>GET</code></td>
+        <td><code>/pay/ulp/{token}/qr/state</code></td>
+        <td><code>ulp.public.pay.qr.state</code></td>
+        <td>200 JSON <code>GetState</code>; при уже оплаченном абонементе — <code>Status=CONFIRMED</code> без опроса банка</td>
+        <td>Не требуется</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Токен — 64 hex-символа. Неизвестный токен → <b>404</b>. Истёкший срок (<code>expires_at</code>) → страница «Ссылка недействительна». T‑Bank не настроен → «Оплата недоступна». Сумма вне диапазона СБП (10 ₽ … 1 000 000 ₽) → <code>error</code>.</p>
+
+  <h5>Блок «Группа» и «Поставщик услуг» на QR-странице (2026‑07)</h5>
+  <p>После строки «К оплате: … ₽» — summary-блок (partial <code>service-provider</code>):</p>
+  <ul>
+    <li><b>Группа</b> — <code>serviceProviderTeamTitle</code> (<code>teams.title</code> группы платежа);</li>
+    <li><b>Поставщик услуг</b> — та же строка, что на витрине (§<a href="#payment-checkout-service-provider">3.1.2</a>), через <code>PaymentCheckoutLegalEntityPresenter</code>;</li>
+    <li><b>Сумма</b> — целые рубли с разбивкой тысяч (<code>amountRubFormatted</code>, без копеек в UI); внутри Init — копейки из <code>fee_amount</code>;</li>
+    <li>при <code>serviceProviderLabel=null</code> — <b>«Обратитесь в школу/клуб.»</b> (<code>text-danger</code>).</li>
+  </ul>
+  <p>Резолв группы и юр. лица — <code>UserLessonPackagePublicPayService::resolvePublicPayCheckoutDisplay()</code>: сначала <code>team_id</code> из уже созданного <code>payables</code> (после Init), иначе <code>PayableTeamResolver</code> для <code>lesson_package_fee</code> — тот же алгоритм, что при Init.</p>
+
+  <h5>Init и связка с payable</h5>
+  <ol>
+    <li>При первом открытии QR-страницы (если нет активного <code>tinkoff_payment_id</code> или банк вернул финальный неуспех) создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> (<code>provider=tbank</code>, <code>payment_method=sbp_qr</code>, <code>meta.ulp_public_pay</code>), вызывается T‑Bank <code>Init</code> (метод <code>sbp</code>).</li>
+    <li>В <code>DATA</code> Init: <code>user_lesson_package_id</code>, <code>team_id</code>, <code>ulp_public_pay=1</code> — как у оплаты из кабинета.</li>
+    <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого <code>GET /pay/ulp/{token}</code>).</li>
+    <li>Webhook и пометка <code>user_lesson_packages.is_paid</code> — общий pipeline T‑Bank (§3.3 «Оплата через T‑Bank»).</li>
+  </ol>
+
+  <h5>Доступ: admin endpoint выдачи ссылки</h5>
+  <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead><tr><th>Endpoint</th><th>Право</th><th>Гость</th><th>Без права</th><th>Успех</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>POST …/assignments/{id}/public-pay-link</code></td>
+        <td><code>lessonPackages.view</code></td>
+        <td>302 / 401 / 403 / 419</td>
+        <td>403</td>
+        <td>200 JSON <code>{ url }</code>; non-AJAX POST — тоже JSON 200 (не HTML redirect). Запись в <code>user_lesson_package_public_pay_links</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Назначение чужого партнёра → <b>404</b>. Уже оплачено → <b>422</b>. T‑Bank не подключен → <b>422</b> «Оплата T‑Bank не подключена для этого клуба».</p>
+
+  <h5>Код</h5>
+  <ul>
+    <li><code>App\Http\Controllers\PublicLessonPackagePayController</code></li>
+    <li><code>App\Services\Payments\UserLessonPackagePublicPayService</code></li>
+    <li><code>App\Http\Controllers\Admin\LessonPackageController::issueAssignmentPublicPayLink</code></li>
+    <li>Модель <code>UserLessonPackagePublicPayLink</code>, таблица <code>user_lesson_package_public_pay_links</code></li>
+  </ul>
+
+  <h5>Feature-тесты</h5>
+  <ul class="small">
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI (группа, поставщик, сумма без копеек), публичные endpoint'ы (guest OK), JSON-контракты QR, доступы <code>public-pay-link</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача ссылки, Init при открытии, expired/404</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>payment/ulp-public-pay.blade.php</code></li>
+  </ul>
 
   <h3 id="club-fee-page">3.2.1 Страница оплаты клубного взноса (<code>/payment/club-fee</code>)</h3>
   <div class="note">
@@ -618,6 +735,7 @@
   </div>
   <ul>
     <li><b>Факт оплаты</b>: webhook <code>/webhooks/tinkoff/payments</code> (как у карточной оплаты T‑Bank); страница QR дополнительно опрашивает <code>GetState</code> для подсказки пользователю и редиректа после <code>CONFIRMED</code>.</li>
+    <li><b>Публичная оплата абонемента</b>: отдельная страница <code>GET /pay/ulp/{token}</code> (§<a href="#ulp-public-pay">3.4.1</a>) — только СБП, без редиректа через <code>payment.tinkoff.sbp</code>; Init при первом открытии страницы.</li>
     <li><b>Отдельный маршрут</b> <code>POST …/payments/tinkoff/qr-init</code> (<code>TinkoffQrController::init</code>) выполняет только <code>Init</code> и запись в <code>tinkoff_payments</code> <b>без</b> создания <code>payables</code>/<code>payment_intents</code>; в текущих шаблонах витрины оплаты используется сценарий через <code>payment.tinkoff.sbp</code>, а не <code>qr-init</code>.</li>
   </ul>
 

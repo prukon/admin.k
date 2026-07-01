@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Role;
 use App\Support\PartnerLegalEntityMode;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -17,13 +18,23 @@ final class StoreUserLessonPackageRequest extends FormRequest
     {
         $partnerId = (int) (app('current_partner')->id ?? 0);
         $multiLegalEntity = PartnerLegalEntityMode::isMultiEntity($partnerId);
+        $userRoleId = (int) Role::query()
+            ->where('name', 'user')
+            ->where('is_sistem', true)
+            ->value('id');
 
         return [
             'user_id' => [
                 'required',
                 'integer',
                 'min:1',
-                Rule::exists('users', 'id')->where(fn ($q) => $q->where('partner_id', $partnerId)),
+                Rule::exists('users', 'id')->where(function ($q) use ($partnerId, $userRoleId) {
+                    $q->where('partner_id', $partnerId)
+                        ->where('is_enabled', 1);
+                    if ($userRoleId > 0) {
+                        $q->where('role_id', $userRoleId);
+                    }
+                }),
             ],
             'lesson_package_id' => [
                 'required',
@@ -82,7 +93,7 @@ final class StoreUserLessonPackageRequest extends FormRequest
     {
         return [
             'user_id.required' => 'Выберите ученика.',
-            'user_id.exists' => 'Ученик не найден или недоступен в контексте текущего партнёра.',
+            'user_id.exists' => 'Выберите активного ученика из списка.',
 
             'lesson_package_id.required' => 'Выберите абонемент.',
             'lesson_package_id.exists' => 'Абонемент не найден.',

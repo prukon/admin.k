@@ -7,6 +7,7 @@ namespace App\Services\Payments;
 use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
+use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\UserLessonPackage;
 use App\Models\UserLessonPackagePublicPayLink;
@@ -27,6 +28,8 @@ final class UserLessonPackagePublicPayService
     public function __construct(
         private readonly UserLessonPackageFeePaymentResolver $feeResolver,
         private readonly TinkoffPaymentsService $tinkoffPayments,
+        private readonly PayableTeamResolver $payableTeamResolver,
+        private readonly PaymentCheckoutLegalEntityPresenter $checkoutLegalEntityPresenter,
     ) {
     }
 
@@ -95,7 +98,10 @@ final class UserLessonPackagePublicPayService
      *     amountRubFormatted: string,
      *     successUrl: string,
      *     orderId: string,
-     *     isMobileClient: bool
+     *     isMobileClient: bool,
+     *     serviceProviderTeamTitle: ?string,
+     *     serviceProviderLabel: ?string,
+     *     showTbankLegalEntityBlock: bool
      * }|array{kind: 'paid'}|array{kind: 'expired'}|array{kind: 'config'}|array{kind: 'error', message: string}
      */
     public function resolvePublicShow(UserLessonPackagePublicPayLink $link, Request $request): array
@@ -145,13 +151,73 @@ final class UserLessonPackagePublicPayService
 
         $orderId = $tp ? (string) $tp->order_id : '';
 
+        $checkoutDisplay = $this->resolvePublicPayCheckoutDisplay((int) $link->partner_id, $ulp, $link);
+
         return [
             'kind' => 'qr',
             'paymentId' => (string) $paymentId,
-            'amountRubFormatted' => number_format($amountCents / 100, 2, '.', ''),
+            'amountRubFormatted' => number_format((int) round($amountCents / 100), 0, ',', ' '),
             'successUrl' => $orderId !== '' ? url('/payments/tinkoff/'.$orderId.'/success') : url('/payment/success'),
             'orderId' => $orderId,
             'isMobileClient' => $this->isLikelyMobileUserAgent($request->userAgent()),
+            'serviceProviderTeamTitle' => $checkoutDisplay['teamTitle'],
+            'serviceProviderLabel' => $checkoutDisplay['serviceProviderLabel'],
+            'showTbankLegalEntityBlock' => true,
+        ];
+    }
+
+    /**
+     * @return array{teamTitle: ?string, serviceProviderLabel: ?string}
+     */
+    private function resolvePublicPayCheckoutDisplay(
+        int $partnerId,
+        UserLessonPackage $ulp,
+        UserLessonPackagePublicPayLink $link,
+    ): array {
+        $studentUser = $ulp->user;
+        if (! $studentUser) {
+            return ['teamTitle' => null, 'serviceProviderLabel' => null];
+        }
+
+        $teamId = null;
+
+        if ($link->payable_id) {
+            $payable = Payable::query()->find((int) $link->payable_id);
+            if ($payable) {
+                $teamId = $this->payableTeamResolver->resolveFromPayable($payable, $studentUser);
+            }
+        }
+
+        if ($teamId === null || $teamId <= 0) {
+            try {
+                $teamId = $this->payableTeamResolver->resolveOrAbort(
+                    'lesson_package_fee',
+                    $partnerId,
+                    $studentUser,
+                    null,
+                    null,
+                    $ulp,
+                );
+            } catch (HttpException) {
+                return ['teamTitle' => null, 'serviceProviderLabel' => null];
+            }
+        }
+
+        $team = Team::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey($teamId)
+            ->first();
+
+        $teamTitle = $team ? trim((string) $team->title) : null;
+        if ($teamTitle === '') {
+            $teamTitle = null;
+        }
+
+        $label = $this->checkoutLegalEntityPresenter->labelForTeamId($partnerId, $teamId);
+
+        return [
+            'teamTitle' => $teamTitle,
+            'serviceProviderLabel' => $label !== null && $label !== '' ? $label : null,
         ];
     }
 
@@ -210,7 +276,7 @@ final class UserLessonPackagePublicPayService
         }
 
         try {
-            $paymentTeamId = app(PayableTeamResolver::class)->resolveOrAbort(
+            $paymentTeamId = $this->payableTeamResolver->resolveOrAbort(
                 'lesson_package_fee',
                 $partnerId,
                 $studentUser,

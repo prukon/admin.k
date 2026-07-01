@@ -885,6 +885,7 @@ final class LessonPackageController extends AdminBaseController
         $users = User::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
+            ->withSystemRoleUser()
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
                 $digits = preg_replace('/\D+/', '', $q);

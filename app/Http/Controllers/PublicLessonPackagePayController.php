@@ -42,6 +42,9 @@ final class PublicLessonPackagePayController extends Controller
                 'successUrl' => $result['successUrl'],
                 'token' => $token,
                 'isMobileClient' => $result['isMobileClient'],
+                'serviceProviderTeamTitle' => $result['serviceProviderTeamTitle'],
+                'serviceProviderLabel' => $result['serviceProviderLabel'],
+                'showTbankLegalEntityBlock' => $result['showTbankLegalEntityBlock'],
             ]),
             default => abort(404),
         };

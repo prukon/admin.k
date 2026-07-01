@@ -201,8 +201,9 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
         <li>single-entity: группа без привязки — T‑Bank по-прежнему доступен.</li>
       </ul>
     </li>
-    <li>Inline JS клубного взноса — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>payment/clubFee.blade.php</code>).</li>
+    <li>Inline JS клубного взноса — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (<code>payment/clubFee.blade.php</code>, <code>payment/ulp-public-pay.blade.php</code>).</li>
     <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code> — блок «Поставщик услуг»: <code>PaymentCheckoutLegalEntityPresenter</code>, <code>PaymentCheckoutContextResolver</code>, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package (<a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>).</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная СБП-страница абонемента: группа, поставщик, сумма без копеек, <code>/pay/ulp/*</code>, <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
   </ul>
 
   <h3>5.5) Референсные тестовые файлы</h3>
@@ -216,7 +217,8 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutManualTest.php</code>, <code>TbankPayoutDuplicatePreventionTest.php</code></li>
     <li><code>tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code></li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — локальный <code>seedTbankForPartner()</code> (образец до выноса в <code>CrmTestCase</code>)</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — локальный <code>seedTbankForPartner()</code> (образец до выноса в <code>CrmTestCase</code>); базовый flow public-pay-link</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI checkout на <code>/pay/ulp/{token}</code>, доступы, JSON QR (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>)</li>
   </ul>
 
 </div>

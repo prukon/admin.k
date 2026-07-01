@@ -190,9 +190,9 @@
       </tr>
       <tr>
         <td>Ссылка на оплату</td>
-        <td>Кнопка в строке таблицы</td>
+        <td>Кнопка «Скопировать ссылку на оплату» в строке таблицы (<code>.js-ulp-copy-pay-link</code>, AJAX <code>fetch</code>)</td>
         <td><code>POST …/assignments/{id}/public-pay-link</code></td>
-        <td>JSON <code>{ url }</code> — см. <a href="/docs/documentation/payments">payments</a> (§3.4, <code>lesson_package_fee</code>)</td>
+        <td>JSON <code>{ url }</code> — абсолютный HTTPS URL <code>/pay/ulp/{token}</code>. Право <code>lessonPackages.view</code>; гость → 302/401/403; без права → 403; чужой партнёр → 404. Init T‑Bank <b>не</b> при выдаче ссылки — при первом <code>GET /pay/ulp/{token}</code>. Публичная QR-страница: группа + «Поставщик услуг», сумма без копеек — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, §<a href="/docs/documentation/payments#payment-checkout-service-provider">3.1.2</a>.</td>
       </tr>
       <tr>
         <td>DataTables</td>
@@ -216,8 +216,10 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamAccessFeatureTest.php</code> — <code>teams-for-user</code>, store с <code>team_id</code> в multi legal entity, доступ</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры (кроме детальной логики <code>status</code> — см. файл выше), columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача public-pay-link, Init при открытии <code>/pay/ulp/{token}</code>, expired/404.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма без копеек, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки (<code>node --check</code>).</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки и <code>payment/ulp-public-pay.blade.php</code> (<code>node --check</code>).</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code></pre>
