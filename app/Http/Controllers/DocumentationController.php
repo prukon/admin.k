@@ -30,6 +30,7 @@ class DocumentationController extends Controller
         'tbank-refunds-payout-cancel'   => 'T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты (tinkoff_payments → tinkoff_payouts)',
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
+        'dev-seed-data'               => 'Dev-фикстуры: SEED_DEV_DATA, цепочка Dev*-сидеров, юр. лица, T‑Bank, ограничения prod',
         'lesson-packages'             => 'Абонементы: назначения (фильтры, колонки), период, календарь, lessons_remaining',
         'school-schedule-calendar'    => 'Расписание школы: календарь, inline-панели привязки, подписи кнопок, JSON/API',
         'location-team-bindings'      => 'Объекты ↔ группы (teams.location_id): одна группа — один объект, sync, лендинг, слоты, отчёты',

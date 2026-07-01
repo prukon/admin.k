@@ -287,7 +287,7 @@
     </tbody>
   </table>
 
-  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>sport_type_id</code> через <code>PartnerSportTypeId</code> (только при <code>sport_types.view</code> в rules): id должен принадлежать партнёру и быть активным (<code>is_enabled</code>). Дополнительная проверка — <code>TeamService::resolveSportTypeIdForPartner()</code>. Права <code>sport_types.view</code> / <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>).</p>
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>sport_type_id</code> через <code>PartnerSportTypeId</code> (только при <code>sport_types.view</code> в rules): id должен принадлежать партнёру и быть активным (<code>is_enabled</code>). Дополнительная проверка — <code>TeamService::resolveSportTypeIdForPartner()</code>. Базовый admin получает <code>sport_types.view</code> (колонка/фильтр/селект); <code>sport_types.manage</code> — вручную (<code>config/role_base_permissions.php</code>).</p>
 
   <h2 id="legal-entities">5.2) Право <code>legal_entities.view</code> — юр. лицо группы</h2>
   <div class="note">
@@ -349,8 +349,9 @@
   <p>В <code>config/role_base_permissions.php</code> для роли <code>admin</code>:</p>
   <ul>
     <li><code>groups.view</code> — есть (доступ к разделу групп);</li>
-    <li><code>sport_types.view</code>, <code>sport_types.manage</code> — <strong>нет</strong> (включаются вручную в матрице прав партнёра);</li>
-    <li><code>trainers.view</code> — есть (колонка «Тренер» и селект в модалках у типового админа);</li>
+    <li><code>sport_types.view</code> — есть (колонка/фильтр/селект «Вид спорта»); <code>sport_types.manage</code> — <strong>нет</strong>;</li>
+    <li><code>legal_entities.view</code>, <code>legal_entities.manage</code> — есть; <code>legal_entities.sm_register</code> — <strong>нет</strong>;</li>
+    <li><code>trainers.view</code> — есть (колонка «Тренер» и селект в модалках у типового админа);</li></li>
     <li><code>schedule.view</code> — <strong>закомментировано</strong> (колонка «Расписание» и дни в модалках нужно включать в матрице прав партнёра).</li>
   </ul>
   <p>Общая модель прав: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>

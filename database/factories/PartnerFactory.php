@@ -95,9 +95,7 @@ class PartnerFactory extends Factory
                 ? $this->faker->date()
                 : null,
 
-            'tinkoff_partner_id' => $this->faker->boolean(20)
-                ? $this->faker->unique()->uuid()
-                : null,
+            'tinkoff_partner_id' => null,
 
             /** Код НДС CloudKassir; null — не облагается */
             'vat' => null,
@@ -112,5 +110,15 @@ class PartnerFactory extends Factory
 
             'registration_verified_at' => null,
         ];
+    }
+
+    /**
+     * Legacy ShopCode на partners (устарело; только для тестов миграции/игнора legacy).
+     */
+    public function legacyTinkoffPartnerId(?string $shopCode = null): static
+    {
+        return $this->state(fn () => [
+            'tinkoff_partner_id' => $shopCode ?? $this->faker->unique()->uuid(),
+        ]);
     }
 }

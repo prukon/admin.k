@@ -123,6 +123,8 @@
   </ul>
   <p>Автотесты (полный список — <a href="/docs/documentation/directories-hierarchy#9">directories-hierarchy §9</a>):</p>
   <ul>
+    <li><code>tests/Feature/Crm/Districts/DistrictsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX store/update/destroy → 302 + запись в БД</li>
+    <li><code>tests/Feature/Crm/Districts/DistrictsAjaxContractFeatureTest.php</code> — AJAX JSON-контракт, matrix endpoint'ов</li>
     <li><code>tests/Feature/Crm/Districts/DistrictsAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit, diff полей, запись в logs-data</li>
     <li><code>tests/Feature/Crm/Districts/DistrictsPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>districts.view</code></li>
     <li><code>tests/Feature/Crm/Districts/DistrictsFeatureTest.php</code> — в т.ч. multiselect <code>location_ids</code>, колонка <code>locations_label</code></li>

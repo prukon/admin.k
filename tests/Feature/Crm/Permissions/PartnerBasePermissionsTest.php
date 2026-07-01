@@ -33,17 +33,21 @@ class PartnerBasePermissionsTest extends CrmTestCase
         }
     }
 
-    public function test_new_partner_admin_does_not_receive_optional_groups_and_sport_types_permissions(): void
+    public function test_new_partner_admin_does_not_receive_optional_manage_permissions(): void
     {
         $partner = Partner::factory()->create();
         $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
 
         foreach ([
-            'sport_types.view',
             'sport_types.manage',
+            'legal_entities.sm_register',
         ] as $permissionName) {
             $this->assertNotContains($permissionName, $adminPerms, "Permission {$permissionName} must not be auto-assigned");
         }
+
+        $this->assertContains('sport_types.view', $adminPerms);
+        $this->assertContains('legal_entities.view', $adminPerms);
+        $this->assertContains('legal_entities.manage', $adminPerms);
     }
 
     public function test_base_permissions_are_isolated_between_partners(): void

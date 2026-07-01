@@ -109,7 +109,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr>
         <td><code>sport_types.view</code></td>
         <td><code>/admin/sport-types</code>, read API видов спорта</td>
-        <td>Без <code>sport_types.manage</code> — только просмотр, без кнопки «Добавить» и мутаций. На <code>/admin/teams</code> — колонка/фильтр/селект (см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>). <strong>Не входит</strong> в базовые права admin.</td>
+        <td>Без <code>sport_types.manage</code> — только просмотр, без кнопки «Добавить» и мутаций. На <code>/admin/teams</code> — колонка/фильтр/селект (см. <a href="/docs/documentation/admin-sport-types">admin-sport-types</a>). В базовых правах роли <code>admin</code> — <b>есть</b> <code>sport_types.view</code> (с 2026‑07); <code>sport_types.manage</code> — вручную.</td>
       </tr>
       <tr>
         <td><code>sport_types.manage</code></td>
@@ -119,7 +119,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr>
         <td><code>legal_entities.view</code></td>
         <td><code>/admin/legal-entities</code>, read API юр. лиц</td>
-        <td>Без <code>legal_entities.manage</code> — только просмотр и columns-settings; CRUD и sm-* — 403. HTML карточки sm-register — отдельно право <code>legal_entities.sm_register</code>. Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td>
+        <td>Без <code>legal_entities.manage</code> — только просмотр и columns-settings; CRUD и sm-* — 403. HTML карточки sm-register — отдельно право <code>legal_entities.sm_register</code>. Роль <code>admin</code> по умолчанию получает <code>legal_entities.view</code> и <code>legal_entities.manage</code> (с 2026‑07), но не <code>sm_register</code>. Подробно: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.</td>
       </tr>
       <tr>
         <td><code>legal_entities.manage</code></td>

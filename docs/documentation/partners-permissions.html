@@ -94,7 +94,7 @@
 
   <h2>5) Сидеры базовых прав (dev/test сценарии)</h2>
   <div class="note">
-    Сидеры используют тот же конфиг и заполняют <code>permission_role</code> для <b>всех</b> партнёров в БД:
+    Сидеры используют тот же конфиг и заполняют <code>permission_role</code> для <b>всех</b> партнёров в БД (только при <code>SEED_DEV_DATA=true</code>):
   </div>
   <ul>
     <li><code>/database/seeders/DevUserRoleBasePermissionsSeeder.php</code></li>
@@ -103,6 +103,7 @@
   </ul>
   <ul>
     <li>Оба сидера “fail-fast”: если permissions из конфига отсутствуют — сидер падает с ошибкой.</li>
+    <li>Общий обзор dev-цепочки — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.</li>
   </ul>
 
   <h2>6) Автотесты</h2>
@@ -118,15 +119,16 @@
   </ul>
   <pre><code>php artisan test --env=testing --filter PartnerBasePermissionsTest</code></pre>
 
-  <h2>7) Права, которые не входят в базовый набор <code>admin</code></h2>
+  <h2 id="optional-admin-permissions">7) Права, которые не входят в базовый набор <code>admin</code></h2>
   <div class="note">
     В <code>config/role_base_permissions.php</code> для роли <code>admin</code> при создании партнёра <strong>не проставляются</strong> (нужно включить вручную в «Права и роли»):
     <ul>
-      <li><code>sport_types.view</code>, <code>sport_types.manage</code> — <a href="/docs/documentation/admin-sport-types">Виды спорта</a>;</li>
+      <li><code>sport_types.manage</code> — создание/редактирование видов спорта (<a href="/docs/documentation/admin-sport-types">admin-sport-types</a>); просмотр <code>sport_types.view</code> в базовый набор <b>входит</b> (с 2026‑07);</li>
+      <li><code>legal_entities.sm_register</code> — sm-register в T‑Bank (<a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>); <code>legal_entities.view</code> и <code>legal_entities.manage</code> в базовый набор входят;</li>
       <li><code>schedule.view</code> — журнал <code>/schedule</code> и расписание в модалках групп (в конфиге закомментировано);</li>
-      <li>многие отчётные и узкие права (см. <code>reports.payments.*</code>, <code>schedule.trainerSalary.*</code> и т.д.).</li>
+      <li>многие отчётные и узкие права (см. <code>reports.payments.*</code>, <code>schedule.trainerSalary.*</code>, <code>settings.commission</code> и т.д.).</li>
     </ul>
-    Тест: <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_groups_and_sport_types_permissions</code>.
+    Тест: <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_manage_permissions</code>.
   </div>
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>

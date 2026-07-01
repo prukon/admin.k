@@ -6,12 +6,19 @@ use App\Models\Payable;
 use App\Models\User;
 use App\Models\UserPrice;
 use Carbon\Carbon;
+use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 
 class DevPricesSeeder extends Seeder
 {
+    use GuardsDevSeedData;
+
     public function run(): void
     {
+        if (! $this->abortUnlessDevSeedEnabled()) {
+            return;
+        }
+
         // 7.1. Оплаченные месяцы (0–6 месяцев назад).
         // Цепочка Payable → PaymentIntent → Payment задаётся в PayableFactory::paidMonthlyWithAllRelations()
         // (T‑Bank, payment_intents.payment_method случайно card | sbp_qr | tpay).

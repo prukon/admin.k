@@ -26,6 +26,11 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Dev-фикстуры (2026‑07)</h2>
+  <div class="note">
+    Локальная и test-БД: при <code>SEED_DEV_DATA=true</code> в <code>.env</code> блок <code>Dev*</code>-сидеров в <code>DatabaseSeeder</code> создаёт детерминированные партнёры 1–3, юр. лица (<code>SHOP-DEV-*</code>), справочники районов/видов спорта, группы с <code>legal_entity_id</code>, правила комиссий T‑Bank, историю платежей/выплат, Robokassa (1–2) и глобальный T‑Bank. На production флаг выключен. Подробно — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
+  </div>
+
   <h2>Изменения в справочниках (юр. лица и группы, 2026‑06)</h2>
   <div class="note">
     <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
@@ -85,6 +90,7 @@
 
   <h2>Разделы</h2>
   <ul>
+    <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: обязательный <code>team_id</code>, колонка «Группа», <code>teams-for-user</code>, store JSON, права <code>setPrices.customPayments.view</code></a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dev-фикстуры: SEED_DEV_DATA и DatabaseSeeder</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Dev-фикстуры: <code>SEED_DEV_DATA</code> и цепочка <code>DatabaseSeeder</code></h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/dev-seed-data.html</code> ·
+    права admin: <a href="/docs/documentation/partners-permissions">partners-permissions</a> ·
+    юр. лица: <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a> ·
+    T‑Bank: <a href="/docs/documentation/tbank">tbank</a> ·
+    платёжные системы: <a href="/docs/documentation/settings-payment-systems">settings-payment-systems</a>
+  </div>
+
+  <div class="warn">
+    <b>Только dev/test.</b> Блок dev-сидеров в <code>DatabaseSeeder</code> выполняется <strong>только</strong> при <code>SEED_DEV_DATA=true</code> в <code>.env</code>.
+    На production этот флаг должен быть <code>false</code> или отсутствовать. Сидеры не вызывают API T‑Bank и не выполняют sm-register — ShopCode в фикстурах задаётся строками вида <code>SHOP-DEV-*</code> для ручной проверки UI и резолверов.
+  </div>
+
+  <h2>1) Включение и запуск</h2>
+  <pre><code># .env (локальная / тестовая БД)
+SEED_DEV_DATA=true
+
+# Полный прогон (миграции + prod-сидеры + dev-блок)
+php artisan migrate:fresh --seed
+
+# Один dev-сидер (тоже требует SEED_DEV_DATA=true)
+php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</code></pre>
+  <p>Trait <code>Database\Seeders\Concerns\GuardsDevSeedData</code>: метод <code>abortUnlessDevSeedEnabled()</code> — при <code>false</code> сидер с trait молча завершается (без записи в БД). Используют все <code>Dev*</code>-сидеры, включая <code>DevPartnersSeeder</code>, <code>DevPaymentSystemsSeeder</code>, <code>DevPricesSeeder</code>, <code>DevAdminsSeeder</code>.</p>
+
+  <h2>2) Порядок в <code>DatabaseSeeder</code></h2>
+  <p>Сначала всегда идут «prod»-справочники (дни недели, роли, permissions, соцсети, статусы занятий). Dev-блок — только при флаге:</p>
+  <table>
+    <thead><tr><th>#</th><th>Сидер</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>DevPartnersSeeder</code></td><td>3 партнёра (factory), ожидаются id <b>1–3</b> на чистой БД</td></tr>
+      <tr><td>2</td><td><code>DevPartnerLegalEntitiesSeeder</code></td><td>5 юр. лиц (id 1–5), multi-entity у партнёров 2 и 3; обнуляет <code>partners.tinkoff_partner_id</code></td></tr>
+      <tr><td>3</td><td><code>DevSportTypesSeeder</code></td><td>9 видов спорта (id 1–9, по 3 на партнёра)</td></tr>
+      <tr><td>4</td><td><code>DevDistrictsSeeder</code></td><td>9 районов (id 1–9)</td></tr>
+      <tr><td>5</td><td><code>DevScheduleStatusesSeeder</code></td><td>статусы посещаемости журнала <code>/schedule</code></td></tr>
+      <tr><td>6–8</td><td><code>Dev*RoleBasePermissionsSeeder</code></td><td>синхронизация <code>permission_role</code> для user/admin/trainer по <code>config/role_base_permissions.php</code></td></tr>
+      <tr><td>9</td><td><code>DevTeamsSeeder</code></td><td>20 групп; trait <code>AssignsTeamsToLegalEntities</code>, <code>AssignsTeamDirectoryLinks</code></td></tr>
+      <tr><td>10</td><td><code>DevLocationsSeeder</code></td><td>объекты с <code>district_id</code>, привязка к группам</td></tr>
+      <tr><td>11–14</td><td><code>DevAdminsSeeder</code>, <code>DevUsersSeeder</code>, <code>DevTrainersSeeder</code>, <code>DevTrainerSalaryDefaultsSeeder</code></td><td>персонал и ученики</td></tr>
+      <tr><td>15</td><td><code>DevScheduleJournalSeeder</code></td><td>журнал посещаемости за ~6 мес.</td></tr>
+      <tr><td>16</td><td><code>DevSchoolLeadsSeeder</code></td><td>заявки с <code>district_id</code>, <code>sport_type_id</code>, объект по району</td></tr>
+      <tr><td>17–19</td><td><code>DevLessonPackagesSeeder</code>, <code>DevSchoolScheduleSeeder</code>, <code>DevLessonPackageAssignmentsSeeder</code></td><td>абонементы, слоты, назначения с <code>user_lesson_packages.team_id</code></td></tr>
+      <tr><td>20</td><td><code>DevTinkoffCommissionRulesSeeder</code></td><td>9 правил комиссий (card/sbp/null × партнёры 1–3)</td></tr>
+      <tr><td>21</td><td><code>DevPricesSeeder</code></td><td>месячные начисления (объёмный; не идемпотентен при повторном прогоне)</td></tr>
+      <tr><td>22</td><td><code>DevTbankHistorySeeder</code></td><td>история T‑Bank / выплат / чеков (см. §4)</td></tr>
+      <tr><td>23</td><td><code>DevPaymentSystemsSeeder</code></td><td>Robokassa для партнёров 1–2, глобальный T‑Bank (<code>test_mode=1</code>)</td></tr>
+      <tr><td>24</td><td><code>DevIstokMenuSeeder</code></td><td>демо «Школа футбола Исток» (partner id=1), меню, 5 групп с явными связями</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>Не входит в dev-seed:</b> клиентские договоры (<code>contracts</code>) — намеренно не создаются фабриками/сидерами dev-слоя.
+  </div>
+
+  <h2 id="legal-entities">3) Юр. лица и группы в фикстурах</h2>
+  <ul>
+    <li><code>DevPartnerLegalEntitiesSeeder</code> — фиксированные id 1–5, ShopCode <code>SHOP-DEV-1</code> … <code>SHOP-DEV-3-2</code>; у каждого multi-entity партнёра ровно одно <code>is_default=true</code>.</li>
+    <li><code>DevTeamsSeeder</code> — после создания групп вызывает <code>assignLegalEntitiesToAllTeams()</code>: у каждой группы явный <code>legal_entity_id</code> своего партнёра (для multi-entity — распределение по юр. лицам партнёра).</li>
+    <li><code>assignSportTypesToAllTeams()</code> и <code>assignLocationsToAllTeams()</code> — у групп заполнены <code>sport_type_id</code> и <code>location_id</code> из справочников партнёра.</li>
+    <li>Legacy <code>partners.tinkoff_partner_id</code> в dev-данных всегда <code>null</code>; <code>PartnerFactory</code> по умолчанию тоже не генерирует legacy ShopCode (state <code>legacyTinkoffPartnerId()</code> — только для тестов legacy).</li>
+  </ul>
+  <p>Поведение резолвера и multi-entity guard в runtime — <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>, <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.</p>
+
+  <h2 id="tbank-fixtures">4) T‑Bank: комиссии и история</h2>
+  <h3>4.1) <code>DevTinkoffCommissionRulesSeeder</code></h3>
+  <p>9 записей в <code>tinkoff_commission_rules</code> (id 1–9): для каждого dev-партнёра 1–3 — правила <code>card</code>, <code>sbp</code>, <code>method=null</code>. У партнёра <b>1</b> правило <code>card</code>: <code>auto_payout_enabled=true</code>, <code>auto_payout_delay_hours=2</code> (для проверки UI автовыплат; cron на test-стенде обычно не запущен).</p>
+  <h3>4.2) <code>DevTbankHistorySeeder</code></h3>
+  <ul>
+    <li>До 40 записей из оплаченных <code>payment_intents</code> (provider <code>tbank</code>, status <code>paid</code>) + детерминированные standalone-платежи <code>dev-seed-tp-{partner}-{slot}</code>.</li>
+    <li>У каждого <code>tinkoff_payments</code> заполнен <code>legal_entity_id</code> (через <code>LegalEntityResolver</code> / payable / группу).</li>
+    <li>Выплаты только в финальных статусах <b>COMPLETED</b> / <b>REJECTED</b> — статус <code>INITIATED</code> не создаётся (без риска для cron).</li>
+    <li>Фiscal receipts с idempotency keys; повторный прогон идемпотентен по <code>order_id</code>.</li>
+  </ul>
+  <p>Админка комиссий и автовыплата — <a href="/docs/documentation/tbank#auto-payout">tbank §5</a>.</p>
+
+  <h2 id="payment-systems">5) <code>DevPaymentSystemsSeeder</code></h2>
+  <ul>
+    <li><b>Robokassa</b> — детерминированно для партнёров <b>1</b> и <b>2</b> (не случайный партнёр).</li>
+    <li><b>T‑Bank</b> — одна глобальная запись <code>payment_systems(partner_id=NULL, name=tbank, test_mode=true)</code>; повторный прогон не дублирует.</li>
+  </ul>
+  <p>Архитектура платёжных систем — <a href="/docs/documentation/settings-payment-systems#tbank-global">settings-payment-systems §4</a>.</p>
+
+  <h2 id="assignments">6) Назначения абонементов и <code>team_id</code></h2>
+  <p><code>DevLessonPackageAssignmentsSeeder</code> создаёт назначения с явным <code>user_lesson_packages.team_id</code>:</p>
+  <ul>
+    <li>для multi-entity партнёров ученики выбираются в разрезе юр. лица;</li>
+    <li>слоты расписания фильтруются по группе;</li>
+    <li>валидация <code>teamBelongsToPartner()</code> перед записью.</li>
+  </ul>
+  <p>Runtime и UI колонки «Группа» — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § назначения</a>.</p>
+
+  <h2 id="admin-permissions">7) Базовые права admin в dev</h2>
+  <p><code>DevAdminRoleBasePermissionsSeeder</code> проставляет для роли <code>admin</code> на всех партнёрах права из <code>config/role_base_permissions.php</code>, в том числе (с 2026‑07):</p>
+  <ul>
+    <li><code>sport_types.view</code> — просмотр справочника видов спорта (без <code>sport_types.manage</code>);</li>
+    <li><code>legal_entities.view</code>, <code>legal_entities.manage</code> — CRUD юр. лиц в CRM;</li>
+    <li><b>не</b> включает <code>legal_entities.sm_register</code> — регистрация в T‑Bank только при явной выдаче права.</li>
+  </ul>
+  <p>Полный список и исключения — <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>.</p>
+
+  <h2 id="istok">8) Демо-партнёр «Исток»</h2>
+  <p><code>DevIstokMenuSeeder</code> (последний в цепочке) обновляет partner id=1 («Школа футбола "Исток"»), объект «Стадион Исток», 5 групп с <code>legal_entity_id=1</code>, <code>sport_type_id</code>, <code>location_id</code> и демо-меню. Не перезаписывает legacy ShopCode на <code>partners</code> — только <code>tinkoff_partner_id=null</code>.</p>
+
+  <h2 id="tests">9) Автотесты</h2>
+  <ul>
+    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — guard <code>SEED_DEV_DATA</code>, целостность цепочки (юр. лица, справочники, комиссии, payment systems, history, права admin).</li>
+    <li>HTTP-разделы справочников — <code>SportTypes*FeatureTest</code>, <code>Districts*FeatureTest</code>, <code>LegalEntities*FeatureTest</code> (см. <a href="/docs/documentation/tests-standards">tests-standards</a>).</li>
+  </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Database/DevSeedStackFeatureTest.php</code></pre>
+
+  <h2>10) Ограничения и типичные ошибки</h2>
+  <ul>
+    <li>Сидеры с фиксированными id партнёров 1–3 пропускаются, если в БД нет ровно трёх партнёров с этими id (warning в консоль).</li>
+    <li><code>DevPricesSeeder</code> при повторном <code>db:seed</code> без <code>migrate:fresh</code> может дублировать начисления — используйте fresh или точечные сидеры.</li>
+    <li>На test-стенде без cron безопасны dev-выплаты в статусах COMPLETED/REJECTED; INITIATED в dev-истории не создаются намеренно.</li>
+    <li>Feature-тесты dev-сидеров сбрасывают <code>AUTO_INCREMENT</code> таблицы <code>partners</code> между кейсами (MySQL + транзакционный rollback).</li>
+  </ul>
+</div>
+</body>
+</html>

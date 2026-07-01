@@ -334,11 +334,18 @@ final class SportTypesFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_index_denied_for_admin_by_default_base_permissions(): void
+    public function test_index_allowed_for_admin_with_default_base_permissions_view_only(): void
     {
         $this->asAdmin();
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
-        $this->get(route('admin.sport-types.index'))->assertStatus(403);
+        $this->get(route('admin.sport-types.index'))
+            ->assertOk()
+            ->assertDontSee('id="new-sport-type"', false);
+
+        $this->postJson(route('admin.sport-types.store'), [
+            'name' => 'Forbidden by default admin',
+            'is_enabled' => 1,
+        ])->assertStatus(403);
     }
 }

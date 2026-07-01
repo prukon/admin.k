@@ -197,6 +197,7 @@ abstract class CrmTestCase extends TestCase
 
         $this->user->role_id = $adminRoleId;
         $this->user->save();
+        $this->user->unsetRelation('role');
 
         $this->actingAs($this->user);
 
@@ -210,6 +211,7 @@ abstract class CrmTestCase extends TestCase
 
         $this->user->role_id = $adminRoleId;
         $this->user->save();
+        $this->user->unsetRelation('role');
 
         $this->actingAs($this->user);
 

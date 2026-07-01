@@ -100,7 +100,7 @@
     </tbody>
   </table>
   <p>Без <code>sport_types.view</code> — <b>403</b> на все эндпоинты раздела; для гостя — редирект/401. При только <code>sport_types.view</code> страница и чтение доступны, мутации возвращают <b>403</b>.</p>
-  <p>Права <code>sport_types.view</code> и <code>sport_types.manage</code> <strong>не входят</strong> в базовый набор для новых партнёров (<code>config/role_base_permissions.php</code>, роль <code>admin</code>) — включаются вручную в матрице прав. Миграция <code>2026_05_29_120003</code> только добавляет записи в <code>permissions</code>, без автоназначения <code>permission_role</code>. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
+  <p>Роль <code>admin</code> при создании партнёра получает <code>sport_types.view</code> из <code>config/role_base_permissions.php</code> (с 2026‑07). Право <code>sport_types.manage</code> <strong>не входит</strong> в базовый набор — включается вручную в матрице прав. Общая модель: <a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права</a>.</p>
 
   <h2>4) Эндпоинты раздела</h2>
   <table>
@@ -180,6 +180,8 @@
   <h2>10) Автотесты</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX store/update/destroy → 302 + запись в БД</li>
+      <li><code>tests/Feature/Crm/SportTypes/SportTypesAjaxContractFeatureTest.php</code> — AJAX JSON-контракт, matrix endpoint'ов</li>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit, diff полей, запись в logs-data</li>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>sport_types.view</code> / <code>sport_types.manage</code></li>
       <li><code>tests/Feature/Crm/SportTypes/SportTypesFeatureTest.php</code> — CRUD, partner scope, права, destroy → null у teams.</li>
@@ -192,6 +194,7 @@
       <li><code>tests/Feature/Crm/Directories/TeamsDirectoriesIntegrationFeatureTest.php</code> — интеграция «Группы», full access 200.</li>
       <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — все endpoint'ы справочников (группы, районы, объекты, виды спорта) → 200.</li>
       <li><code>tests/Feature/Crm/Teams/TeamsSportTypeFeatureTest.php</code> — привязка к группам, фильтр, reject foreign/disabled sport type.</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — inline JS в <code>admin/sport-types/index.blade.php</code></li>
       <li><code>tests/Feature/Public/SchoolLeadLandingSportTypeFeatureTest.php</code> — лендинг: UI, teams API, submit, валидация.</li>
     </ul>
   </div>

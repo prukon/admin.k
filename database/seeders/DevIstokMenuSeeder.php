@@ -43,7 +43,7 @@ class DevIstokMenuSeeder extends Seeder
                 'bank_bik' => null,
                 'bank_account' => null,
                 'activity_start_date' => null,
-                'tinkoff_partner_id' => 'fc3d02a0-398e-3648-b595-eda8f7cb7d3r',
+                'tinkoff_partner_id' => null,
                 'sm_register_status' => null,
                 'bank_details_version' => null,
                 'bank_details_last_updated_at' => null,
@@ -51,6 +51,79 @@ class DevIstokMenuSeeder extends Seeder
                 'created_at' => $now,
                 'updated_at' => $now,
                 'deleted_at' => null,
+            ]
+        );
+
+        DB::table('partner_legal_entities')->updateOrInsert(
+            ['id' => 1],
+            [
+                'partner_id' => 1,
+                'business_type' => 'IP',
+                'title' => 'Школа футбола "Исток"',
+                'organization_name' => 'ИП Школа футбола «Исток»',
+                'tax_id' => '860904518893',
+                'kpp' => null,
+                'registration_number' => '315784700040909',
+                'city' => null,
+                'zip' => null,
+                'address' => null,
+                'ceo' => null,
+                'bank_name' => null,
+                'bank_bik' => null,
+                'bank_account' => null,
+                'sm_details_template' => null,
+                'tinkoff_shop_code' => 'SHOP-DEV-1',
+                'sm_register_status' => 'REGISTERED',
+                'registered_at' => $now,
+                'bank_details_version' => null,
+                'bank_details_last_updated_at' => null,
+                'registration_verified_at' => null,
+                'vat' => null,
+                'sms_name' => null,
+                'is_default' => true,
+                'is_enabled' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+                'deleted_at' => null,
+            ]
+        );
+
+        DB::table('sport_types')->updateOrInsert(
+            ['id' => 1],
+            [
+                'partner_id' => 1,
+                'name' => 'Футбол',
+                'description' => 'Основной вид спорта школы «Исток»',
+                'sort' => 10,
+                'is_enabled' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
+
+        DB::table('districts')->updateOrInsert(
+            ['id' => 1],
+            [
+                'partner_id' => 1,
+                'name' => 'Центральный',
+                'is_enabled' => true,
+                'sort_order' => 10,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
+
+        DB::table('locations')->updateOrInsert(
+            ['id' => 1],
+            [
+                'partner_id' => 1,
+                'district_id' => 1,
+                'name' => 'Стадион «Исток»',
+                'address' => 'г. Тольятти, спорткомплекс Исток',
+                'description' => 'Демо-объект школы футбола «Исток»',
+                'is_enabled' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]
         );
 
@@ -62,6 +135,9 @@ class DevIstokMenuSeeder extends Seeder
                     'image' => 'https://via.placeholder.com/640x480.png/004488?text=totam',
                     'is_enabled' => 1,
                     'partner_id' => 1,
+                    'legal_entity_id' => 1,
+                    'sport_type_id' => 1,
+                    'location_id' => 1,
                     'order_by' => 10,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -72,6 +148,9 @@ class DevIstokMenuSeeder extends Seeder
                     'image' => 'https://via.placeholder.com/640x480.png/00bbaa?text=mollitia',
                     'is_enabled' => 1,
                     'partner_id' => 1,
+                    'legal_entity_id' => 1,
+                    'sport_type_id' => 1,
+                    'location_id' => 1,
                     'order_by' => 20,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -82,6 +161,9 @@ class DevIstokMenuSeeder extends Seeder
                     'image' => 'https://via.placeholder.com/640x480.png/001144?text=quas',
                     'is_enabled' => 1,
                     'partner_id' => 1,
+                    'legal_entity_id' => 1,
+                    'sport_type_id' => 1,
+                    'location_id' => 1,
                     'order_by' => 30,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -92,6 +174,9 @@ class DevIstokMenuSeeder extends Seeder
                     'image' => 'https://via.placeholder.com/640x480.png/0000bb?text=non',
                     'is_enabled' => 1,
                     'partner_id' => 1,
+                    'legal_entity_id' => 1,
+                    'sport_type_id' => 1,
+                    'location_id' => 1,
                     'order_by' => 40,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -102,13 +187,16 @@ class DevIstokMenuSeeder extends Seeder
                     'image' => 'https://via.placeholder.com/640x480.png/0000bb?text=non',
                     'is_enabled' => 1,
                     'partner_id' => 1,
+                    'legal_entity_id' => 1,
+                    'sport_type_id' => 1,
+                    'location_id' => 1,
                     'order_by' => 50,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
             ],
             ['id'],
-            ['title', 'image', 'is_enabled', 'order_by', 'updated_at']
+            ['title', 'image', 'is_enabled', 'partner_id', 'legal_entity_id', 'sport_type_id', 'location_id', 'order_by', 'updated_at']
         );
 
         $items = [

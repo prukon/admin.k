@@ -406,6 +406,7 @@ net_to_partner = gross - bank_acquiring_fee - bank_payout_fee - platform_fee</pr
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsGlobalTerminalDataFeatureTest.php</code> — флаг <code>tbankGloballyConnected</code> и колонки <code>auto_payout_label</code> / <code>tbank_keys_connected</code> в DataTables.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TinkoffCommissionRuleAutoPayoutModelTest.php</code> — <code>pickForPartner</code> и <code>autoPayoutSummaryForPartner</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsAutoPayoutStatsTest.php</code> — счётчик автовыплат за 30 дней в JSON колонке таблицы и на форме редактирования правила.</li>
+    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — dev-фикстуры: 9 правил комиссий, автовыплата partner 1 / card, history T‑Bank (<a href="/docs/documentation/dev-seed-data#tbank-fixtures">dev-seed-data §4</a>).</li>
   </ul>
 
   <h3>8.8 Возвраты и отмена отложенной выплаты при возврате</h3>

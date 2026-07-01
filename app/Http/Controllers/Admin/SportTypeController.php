@@ -242,7 +242,11 @@ class SportTypeController extends AdminBaseController
             ], 422);
         }
 
-        return response()->json(['message' => 'Вид спорта обновлён']);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => 'Вид спорта обновлён']);
+        }
+
+        return redirect()->route('admin.sport-types.index');
     }
 
     public function destroy(Request $request, SportType $sportType)

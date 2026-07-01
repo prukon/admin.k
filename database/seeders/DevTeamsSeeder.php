@@ -5,12 +5,23 @@ namespace Database\Seeders;
 use App\Models\Partner;
 use App\Models\Team;
 use App\Models\Weekday;
+use Database\Seeders\Concerns\AssignsTeamDirectoryLinks;
+use Database\Seeders\Concerns\AssignsTeamsToLegalEntities;
+use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 
 class DevTeamsSeeder extends Seeder
 {
+    use AssignsTeamDirectoryLinks;
+    use AssignsTeamsToLegalEntities;
+    use GuardsDevSeedData;
+
     public function run(): void
     {
+        if (! $this->abortUnlessDevSeedEnabled()) {
+            return;
+        }
+
         $partnerIds = Partner::pluck('id')->toArray();
 
         if (empty($partnerIds)) {
@@ -22,6 +33,9 @@ class DevTeamsSeeder extends Seeder
             $team->partner_id = $partnerIds[array_rand($partnerIds)];
             $team->save();
         });
+
+        $this->assignLegalEntitiesToAllTeams();
+        $this->assignSportTypesToAllTeams();
 
         // Было: $this->attachWeekdaysToTeams();
         $this->attachWeekdaysToTeams();

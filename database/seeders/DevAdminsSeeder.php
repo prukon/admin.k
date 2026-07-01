@@ -4,13 +4,20 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class DevAdminsSeeder extends Seeder
 {
+    use GuardsDevSeedData;
+
     public function run(): void
     {
+        if (! $this->abortUnlessDevSeedEnabled()) {
+            return;
+        }
+
         $this->createSystemUser(
             'SYSTEM_USER_EMAIL',
             'SYSTEM_USER_PASSWORD',

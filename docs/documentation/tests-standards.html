@@ -208,7 +208,11 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
 
   <h3>5.5) Референсные тестовые файлы</h3>
   <ul class="small">
-    <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code></li>
+    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — целостность dev-фикстур (<code>SEED_DEV_DATA</code>, юр. лица, комиссии, history) — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a></li>
+    <li><code>tests/Feature/Crm/SportTypes/SportTypesNonAjaxSafetyNetFeatureTest.php</code>, <code>SportTypesAjaxContractFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Districts/DistrictsNonAjaxSafetyNetFeatureTest.php</code>, <code>DistrictsAjaxContractFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/LegalEntities/LegalEntitiesNonAjaxSafetyNetFeatureTest.php</code>, <code>LegalEntitiesAjaxContractFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/Payments/TBank/Commissions/TbankCommissionsNonAjaxSafetyNetFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/PaymentCheckoutServiceProviderFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/UserClassPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code>, <code>MultiTeamMonthlyPaymentFlowTest.php</code></li>
     <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentInitFeatureTest.php</code></li>

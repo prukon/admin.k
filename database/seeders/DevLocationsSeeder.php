@@ -4,11 +4,14 @@ namespace Database\Seeders;
 
 use App\Models\Location;
 use App\Models\Partner;
+use Database\Seeders\Concerns\AssignsTeamDirectoryLinks;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DevLocationsSeeder extends Seeder
 {
+    use AssignsTeamDirectoryLinks;
     use GuardsDevSeedData;
 
     /** @var list<string> */
@@ -46,15 +49,29 @@ class DevLocationsSeeder extends Seeder
         }
 
         foreach ($partnerIds as $partnerId) {
+            $districtIds = DB::table('districts')
+                ->where('partner_id', $partnerId)
+                ->where('is_enabled', true)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
             $names = collect(self::VENUE_NAMES)->shuffle()->take(5);
 
-            foreach ($names as $name) {
+            foreach ($names as $index => $name) {
                 Location::factory()->create([
                     'partner_id' => $partnerId,
+                    'district_id' => $districtIds !== []
+                        ? $districtIds[$index % count($districtIds)]
+                        : null,
                     'name' => $name,
                     'is_enabled' => true,
                 ]);
             }
         }
+
+        $this->assignLocationsToAllTeams();
     }
 }

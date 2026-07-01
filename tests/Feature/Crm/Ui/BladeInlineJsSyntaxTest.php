@@ -25,6 +25,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'setting prices custom payments tab' => ['admin/SettingPrices/custom-payments.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
+        yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/schedule/index.blade.php'];
