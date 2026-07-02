@@ -50,9 +50,67 @@
   <p>Баланс абонемента хранится в <code>user_lesson_packages.lessons_remaining</code> и <code>lessons_total</code>.</p>
   <ul>
     <li><strong>Привязка к календарю школы</strong> (POST привязки гибкого, фиксированного или разового занятия) только создаёт записи в <code>user_team_schedule_slots</code> и при необходимости задаёт период назначения; <code>lessons_remaining</code> при этом <strong>не меняется</strong>.</li>
-    <li><strong>Списание и возврат остатка</strong> выполняются при сохранении <strong>статуса занятия</strong> в календаре школы для записи с абонементом: учитывается флаг <code>consumes_lesson</code> у статуса и предыдущий статус по тому же слоту/дате/ученику (дельта −1 / +1 / 0). Подробности и таблицы статусов — в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</li>
+    <li><strong>Списание и возврат остатка</strong> выполняются при сохранении <strong>статуса занятия</strong> в календаре школы для записи с абонементом (вручную администратором или автоматически — см. <a href="#auto-attendance">§Автосписание</a>): учитывается флаг <code>consumes_lesson</code> у статуса и предыдущий статус по тому же слоту/дате/ученику (дельта −1 / +1 / 0). Подробности и таблицы статусов — в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</li>
     <li><strong>Лимит строк календаря</strong> на одно назначение: количество строк <code>user_team_schedule_slots</code> с данным <code>user_lesson_package_id</code> не может превысить <code>lessons_total</code>. Для гибкого и разового это проверяется перед каждой новой привязкой; для фикса длина создаваемой цепочки считается от оставшегося «бюджета» занятий.</li>
   </ul>
+
+  <h2 id="auto-attendance">Автосписание (<code>lesson_packages.auto_attendance_enabled</code>)</h2>
+  <div class="note">
+    Настройка живёт <strong>только в шаблоне</strong> абонемента (<code>lesson_packages</code>), не в назначении (<code>user_lesson_packages</code>).
+    Доступна для типов <code>fixed</code> и <code>flexible</code>; для <code>no_schedule</code> (разовое занятие) чекбокс скрыт, значение принудительно <code>false</code>, API вернёт <code>422</code> при попытке включить.
+  </div>
+
+  <h3>UI шаблона</h3>
+  <p>Вкладка «Абонементы» (<code>/admin/lesson-packages</code>, view <code>admin/lessonPackages/tabs/packages.blade.php</code>): в модалках «Добавить абонемент» и «Редактировать абонемент» — чекбокс <strong>«Автосписание»</strong> (<code>#create_auto_attendance_enabled</code>, <code>#edit_auto_attendance_enabled</code>).
+    Подсказка: в конце календарного дня занятия автоматически ставится статус «Посетил» и списывается занятие, если статус не был выставлен вручную.</p>
+
+  <h3>Правила автоматики</h3>
+  <p>Ежедневно в <strong>00:05</strong> по часовому поясу <code>Europe/Moscow</code> планировщик Laravel ставит в очередь job <code>App\Jobs\AutoMarkYesterdayLessonOccurrencesJob</code> (очередь <code>default</code>, см. <a href="/docs/documentation/queues-monitoring">мониторинг очередей</a>).
+    Job обрабатывает занятия за <strong>вчерашний календарный день</strong> (<code>user_team_schedule_slots.starts_at</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Условие</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Шаблон с <code>auto_attendance_enabled = true</code>, тип <code>fixed</code> или <code>flexible</code></td>
+        <td>Запись кандидат на автосписание</td>
+      </tr>
+      <tr>
+        <td>Есть хотя бы одно событие <code>user_lesson_occurrence_status_events</code> по паре слот + дата + ученик + <code>user_lesson_package_id</code></td>
+        <td>Пропуск (ручной или любой статус не перезаписывается)</td>
+      </tr>
+      <tr>
+        <td>Пробное (<code>is_trial_lesson = true</code>) или разовое (<code>schedule_type = no_schedule</code>)</td>
+        <td>Вне scope автоматики</td>
+      </tr>
+      <tr>
+        <td>Дата исключена из слота (<code>team_schedule_slot_exceptions</code>) или слот неактивен на дату (<code>TeamScheduleCalendarService::slotActiveOnDate</code>)</td>
+        <td>Пропуск — занятие не считается состоявшимся в расписании школы</td>
+      </tr>
+      <tr>
+        <td><code>lessons_remaining = 0</code> (недостаточно остатка для «Посетил»)</td>
+        <td>Пропуск, запись в <code>storage/logs/queue.log</code>; job продолжает обработку остальных строк</td>
+      </tr>
+      <tr>
+        <td>Оплата назначения (<code>is_paid</code> / <code>is_manual_paid</code>)</td>
+        <td><strong>Не проверяется</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>При успешной автоматике создаётся событие статуса «Посетил» (<code>lesson_occurrence_statuses.code = attended</code>, <code>consumes_lesson = true</code>) через тот же сервис, что и ручная отметка — <code>App\Services\LessonPackages\UserLessonOccurrenceStatusService</code>.
+    Поле <code>created_by</code> в событии — <code>NULL</code> (система). Списание остатка — та же дельта, что при ручном «Посетил» (<code>UserLessonPackageConsumptionAdjuster</code>).
+    Повторный запуск job идемпотентен: второй проход не создаёт дубль и не списывает повторно.</p>
+  <p>Аудит: <code>my_logs</code>, событие <code>schedule.occurrence_status_auto_set</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>).</p>
+
+  <h3>Код и расписание</h3>
+  <ul>
+    <li>Выборка и eligibility: <code>App\Services\LessonPackages\AutoMarkYesterdayLessonOccurrencesService</code> (<code>processForDate</code>, <code>isEligible</code>).</li>
+    <li>Job: <code>App\Jobs\AutoMarkYesterdayLessonOccurrencesJob</code> — опциональный параметр даты для тестов; в проде — «вчера» по Moscow.</li>
+    <li>Регистрация в <code>App\Console\Kernel</code>: <code>dailyAt('00:05')->timezone('Europe/Moscow')->withoutOverlapping(30)</code>.</li>
+    <li>Ручная установка статуса в календаре: <code>LessonPackageSchoolCalendarOccurrenceStatusController::store</code> → тот же <code>UserLessonOccurrenceStatusService</code>.</li>
+  </ul>
+  <p class="small"><strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule_users</code>, глобальный статус «Посетил» для группы) — автосписание работает только в контексте календаря абонементов и таблицы <code>user_lesson_occurrence_status_events</code>.</p>
 
   <h2>Сервис</h2>
   <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
@@ -69,6 +127,48 @@
   </ul>
   <p>Период назначения (<code>starts_at</code>/<code>ends_at</code>) задаётся при первой привязке к календарю через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>, как у гибкого абонемента. Списание <code>lessons_remaining</code> — только через статус занятия с <code>consumes_lesson</code>.</p>
   <p><strong>Отмена записи в календаре</strong> (<code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code>) удаляет строку <code>user_team_schedule_slots</code>, но <strong>не удаляет</strong> назначение <code>user_lesson_packages</code> — его можно снова привязать к другому слоту. Если статус уже списывал занятие, остаток восстанавливается (+1).</p>
+
+  <h2 id="packages-tab">Страница «Абонементы» — шаблоны (<code>/admin/lesson-packages</code>)</h2>
+  <div class="note">
+    Первая вкладка раздела «Расписание школы» → «Абонементы». View: <code>admin/lessonPackages/tabs/packages.blade.php</code>.
+    Доступ — право <code>lessonPackages.view</code> (включая store/update/show/destroy шаблона).
+  </div>
+  <p>Таблица шаблонов партнёра: название, тип, длительность, число занятий, стоимость, заморозка, действия «Изменить» / «Удалить» (удаление только без назначений и без привязок в календаре).</p>
+  <p>Модалки создания и редактирования — AJAX <code>fetch</code> + <code>JSON</code> (<code>Content-Type: application/json</code>, <code>Accept: application/json</code>). Поля формы совпадают с <code>StoreLessonPackageRequest</code>, включая <code>auto_attendance_enabled</code> (boolean, только <code>fixed</code>/<code>flexible</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Действие</th><th>Метод</th><th>Контракт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Список (HTML)</td>
+        <td><code>GET /admin/lesson-packages</code></td>
+        <td><code>200</code> — страница с таблицей и модалками</td>
+      </tr>
+      <tr>
+        <td>Создать шаблон</td>
+        <td><code>POST /admin/lesson-packages</code></td>
+        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code>. <b>Non-AJAX safety-net:</b> <code>302</code> redirect на index + flash; валидация → redirect back с <code>errors</code> (не пустой <code>200</code>).</td>
+      </tr>
+      <tr>
+        <td>Данные для редактирования</td>
+        <td><code>GET /admin/lesson-packages/{id}</code></td>
+        <td><code>200</code> JSON <code>{ success, lesson_package: { …, auto_attendance_enabled, freeze_enabled, … } }</code></td>
+      </tr>
+      <tr>
+        <td>Обновить шаблон</td>
+        <td><code>PUT /admin/lesson-packages/{id}</code></td>
+        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code>. <b>Non-AJAX:</b> <code>302</code> redirect на index; ошибки валидации → redirect back с <code>errors</code>.</td>
+      </tr>
+      <tr>
+        <td>Удалить шаблон</td>
+        <td><code>DELETE /admin/lesson-packages/{id}</code></td>
+        <td><code>200</code> + <code>{ success: true }</code> или <code>422</code> при назначениях / привязках в календаре</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Изоляция партнёра: чужой шаблон → <code>404</code> на show/update/destroy. Гость → redirect на login; без <code>lessonPackages.view</code> → <code>403</code>.</p>
+  <p class="small">Синтаксис inline JS модалок проверяется в <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (путь <code>admin/lessonPackages/tabs/packages.blade.php</code>).</p>
 
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
   <div class="note">
@@ -212,6 +312,12 @@
 
   <h3>Тесты</h3>
   <ul>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php</code> — UI-маркеры «Автосписание», AJAX store/update/show, валидация <code>no_schedule</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceAccessFeatureTest.php</code> — доступ: guest → login, без права → 403, с <code>lessonPackages.view</code> → 200</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST/PUT шаблона → redirect + запись в БД / errors в сессии</li>
+    <li><code>tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code> — job/сервис: «Посетил», списание, пропуски (статус уже есть, флаг выкл, trial, <code>no_schedule</code>, исключённая дата слота, нулевой остаток), идемпотентность</li>
+    <li><code>tests/Feature/Jobs/AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code> — dispatch и обработка из очереди <code>default</code></li>
+    <li><code>tests/Feature/Console/KernelAutoAttendanceScheduleTest.php</code> — регистрация job в <code>Kernel::schedule</code> (00:05 Moscow)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamColumnFeatureTest.php</code> — колонка «Группа» в DataTables и на странице</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamAccessFeatureTest.php</code> — <code>teams-for-user</code>, store с <code>team_id</code> в multi legal entity, доступ</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
@@ -221,7 +327,10 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки и <code>payment/ulp-public-pay.blade.php</code> (<code>node --check</code>).</li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code></pre>
 </div>
 </body>

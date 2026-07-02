@@ -23,6 +23,7 @@ class LessonPackage extends Model
         'price_cents' => 'int',
         'freeze_enabled' => 'bool',
         'freeze_days' => 'int',
+        'auto_attendance_enabled' => 'bool',
         'is_active' => 'bool',
     ];
 

@@ -1007,9 +1007,11 @@ final class LessonPackageController extends AdminBaseController
             DB::transaction(function () use ($data, $priceCents, $freezeDays, $partnerId) {
                 $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
                 $freezeDaysStored = $freezeDays;
+                $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
                 if ((string) $data['schedule_type'] === 'no_schedule') {
                     $freezeEnabled = false;
                     $freezeDaysStored = 0;
+                    $autoAttendanceEnabled = false;
                 }
 
                 /** @var LessonPackage $package */
@@ -1022,6 +1024,7 @@ final class LessonPackageController extends AdminBaseController
                     'price_cents' => $priceCents,
                     'freeze_enabled' => $freezeEnabled,
                     'freeze_days' => $freezeDaysStored,
+                    'auto_attendance_enabled' => $autoAttendanceEnabled,
                     'is_active' => true,
                 ]);
             });
@@ -1071,6 +1074,7 @@ final class LessonPackageController extends AdminBaseController
                 'price' => (float) ($lessonPackage->price_cents / 100),
                 'freeze_enabled' => (bool) $lessonPackage->freeze_enabled,
                 'freeze_days' => (int) $lessonPackage->freeze_days,
+                'auto_attendance_enabled' => (bool) $lessonPackage->auto_attendance_enabled,
                 'is_active' => (bool) $lessonPackage->is_active,
                 'time_slots' => [],
             ],
@@ -1089,9 +1093,11 @@ final class LessonPackageController extends AdminBaseController
             DB::transaction(function () use ($lessonPackage, $data, $priceCents, $freezeDays) {
                 $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
                 $freezeDaysStored = $freezeDays;
+                $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
                 if ((string) $data['schedule_type'] === 'no_schedule') {
                     $freezeEnabled = false;
                     $freezeDaysStored = 0;
+                    $autoAttendanceEnabled = false;
                 }
 
                 $lessonPackage->forceFill([
@@ -1102,6 +1108,7 @@ final class LessonPackageController extends AdminBaseController
                     'price_cents' => $priceCents,
                     'freeze_enabled' => $freezeEnabled,
                     'freeze_days' => $freezeDaysStored,
+                    'auto_attendance_enabled' => $autoAttendanceEnabled,
                 ]);
                 $lessonPackage->save();
             });
@@ -1120,10 +1127,20 @@ final class LessonPackageController extends AdminBaseController
                 ],
             ];
 
-            return response()->json($payload, 422);
+            if ($request->expectsJson()) {
+                return response()->json($payload, 422);
+            }
+
+            return back()->withErrors($payload['errors'])->withInput();
         }
 
-        return response()->json(['success' => true]);
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect()
+            ->route('admin.lesson-packages.index')
+            ->with('success', 'Абонемент успешно обновлён.');
     }
 
     public function destroy(LessonPackage $lessonPackage): JsonResponse

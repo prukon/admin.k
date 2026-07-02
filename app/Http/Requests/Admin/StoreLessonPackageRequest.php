@@ -21,10 +21,12 @@ final class StoreLessonPackageRequest extends FormRequest
         }
 
         $freezeEnabled = $this->boolean('freeze_enabled');
+        $autoAttendanceEnabled = $this->boolean('auto_attendance_enabled');
 
         $this->merge([
             'price' => $price,
             'freeze_enabled' => $freezeEnabled,
+            'auto_attendance_enabled' => $autoAttendanceEnabled,
         ]);
     }
 
@@ -35,10 +37,12 @@ final class StoreLessonPackageRequest extends FormRequest
 
         $freezeEnabled = (bool) $this->validated('freeze_enabled');
         $freezeDays = (int) ($this->validated('freeze_days') ?? 0);
+        $autoAttendanceEnabled = (bool) $this->validated('auto_attendance_enabled');
 
         $this->merge([
             'price_cents' => $priceCents,
             'freeze_days' => $freezeEnabled ? $freezeDays : 0,
+            'auto_attendance_enabled' => $autoAttendanceEnabled,
         ]);
     }
 
@@ -86,6 +90,10 @@ final class StoreLessonPackageRequest extends FormRequest
                 'min:1',
                 'max:3650',
             ],
+            'auto_attendance_enabled' => [
+                'nullable',
+                'boolean',
+            ],
         ];
     }
 
@@ -104,6 +112,9 @@ final class StoreLessonPackageRequest extends FormRequest
                 if ($this->boolean('freeze_enabled')) {
                     $v->errors()->add('freeze_enabled', 'Для разового занятия заморозка недоступна.');
                 }
+                if ($this->boolean('auto_attendance_enabled')) {
+                    $v->errors()->add('auto_attendance_enabled', 'Для разового занятия автосписание недоступно.');
+                }
             }
         });
     }
@@ -118,6 +129,7 @@ final class StoreLessonPackageRequest extends FormRequest
             'price' => 'стоимость',
             'freeze_enabled' => 'заморозка',
             'freeze_days' => 'кол-во дней заморозки',
+            'auto_attendance_enabled' => 'автосписание',
         ];
     }
 

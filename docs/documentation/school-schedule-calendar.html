@@ -77,7 +77,8 @@
       <tr><td><code>schedule.trial_cancelled</code></td><td>Отмена пробной записи</td></tr>
       <tr><td><code>schedule.single_lesson_registered</code></td><td>Разовая запись из модалки слота</td></tr>
       <tr><td><code>schedule.single_lesson_registration_cancelled</code></td><td>Отмена разовой записи</td></tr>
-      <tr><td><code>schedule.occurrence_status_set</code></td><td>Установка статуса занятия на дату (посещение, пропуск и т.д.)</td></tr>
+      <tr><td><code>schedule.occurrence_status_set</code></td><td>Установка статуса занятия на дату (посещение, пропуск и т.д.) — вручную из модалки слота</td></tr>
+      <tr><td><code>schedule.occurrence_status_auto_set</code></td><td>Автосписание: статус «Посетил» за вчера (job 00:05 Moscow), см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a></td></tr>
       <tr><td><code>schedule.slot_occurrence_skipped</code>, <code>schedule.slot_truncated</code>, <code>schedule.slot_deleted</code>, <code>schedule.slot_split_edited</code></td><td>Мутации слота (<code>TeamScheduleSlotMutationService</code>) с календаря/модалки</td></tr>
     </tbody>
   </table>
@@ -277,6 +278,7 @@
   </ul>
   <p><strong>POST</strong> сохранения: <code>/admin/lesson-packages/school-schedule/occurrence-status</code> (имя маршрута <code>admin.lesson-packages.school-schedule.occurrence-status.store</code>). В ответе при успехе могут быть объекты <code>user_lesson_package</code> { id, lessons_remaining, lessons_total } или <code>trial_registration</code> { user_team_schedule_slot_id, lessons_remaining, lessons_total } — их использует фронт для обновления счётчиков в модалке.</p>
   <p><strong>GET</strong> истории по паре слот + дата + ученик (+ опционально <code>user_lesson_package_id</code> для различения записей): <code>/admin/lesson-packages/school-schedule/occurrence-status/history</code>.</p>
+  <p><strong>Автосписание</strong> (без участия UI календаря): если у шаблона абонемента включён <code>auto_attendance_enabled</code>, после окончания календарного дня занятия job может автоматически создать событие «Посетил» при отсутствии любого статуса по этой записи. Те же правила списания <code>lessons_remaining</code>, тот же сервис <code>UserLessonOccurrenceStatusService</code>. Подробности, исключения (пробные, разовые, исключённая дата слота, нулевой остаток) — <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>.</p>
 
   <h2>JSON недели: регистрации в ячейке</h2>
   <p>Каждый элемент <code>occurrences[]</code> содержит массив <code>registrations[]</code>. Для строк из БД формируются поля (среди прочего):</p>
@@ -483,13 +485,15 @@
     Фильтр групп и валидация пары группа+объект — <code>TeamLocationFeatureTest.php</code>, <code>TeamLocationBindingFeatureTest.php</code>, <code>TeamLocationFullAccessFeatureTest.php</code>, <code>tests/Feature/Crm/LocationTeam/</code>.
     Доступ к поверхности календаря — <code>SchoolScheduleCalendarAccessFeatureTest.php</code>.
     Интеграция привязок и пробных — <code>LessonPackageSchoolScheduleIntegrationFeatureTest.php</code>;
-    статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>; пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
+    статусы и баланс — <code>SchoolCalendarOccurrenceStatusFeatureTest.php</code>, <code>LessonPackageSchoolScheduleCalendarBalancesFeatureTest.php</code>;
+    <strong>автосписание «Посетил»</strong> — <code>AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code>, <code>LessonPackageAutoAttendanceCrudFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAccessFeatureTest.php</code>, <code>LessonPackagesNonAjaxSafetyNetFeatureTest.php</code>, <code>AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code>, <code>KernelAutoAttendanceScheduleTest.php</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>);
+    пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
     <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
     <strong>панели привязки в модалке слота (UX)</strong> — <code>LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php</code> (маркеры <code>#schoolCalSlotBindPanelsHost</code>, <code>data-school-cal-bind-cancel</code>, <code>school-cal-slot-modal--bind-focus</code>, static backdrop, кэш <code>schoolCalSlotBindActionsCache</code>, Esc/отмена, независимость flexible/single в одном ответе bind-actions, AJAX/non-AJAX контракты);
     шаблоны и цепочка фикса — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
-    синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>).
+    синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>, <code>packages.blade.php</code>).
     Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php \

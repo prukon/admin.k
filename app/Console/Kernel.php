@@ -41,6 +41,11 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping(5);
 
+        $schedule->job(new \App\Jobs\AutoMarkYesterdayLessonOccurrencesJob)
+            ->timezone('Europe/Moscow')
+            ->dailyAt('00:05')
+            ->withoutOverlapping(30);
+
     }
 
 

@@ -31,7 +31,7 @@ class DocumentationController extends Controller
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
         'dev-seed-data'               => 'Dev-фикстуры: SEED_DEV_DATA, цепочка Dev*-сидеров, юр. лица, T‑Bank, ограничения prod',
-        'lesson-packages'             => 'Абонементы: назначения (фильтры, колонки), период, календарь, lessons_remaining',
+        'lesson-packages'             => 'Абонементы: шаблоны (автосписание), назначения, период, календарь, lessons_remaining',
         'school-schedule-calendar'    => 'Расписание школы: календарь, inline-панели привязки, подписи кнопок, JSON/API',
         'location-team-bindings'      => 'Объекты ↔ группы (teams.location_id): одна группа — один объект, sync, лендинг, слоты, отчёты',
         'directories-hierarchy'       => 'Справочники: иерархия Район → Объект → Группа; вкладки, DirectoriesMenu (подпись сайдбара), права, БД, лендинг',

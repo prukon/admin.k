@@ -16,17 +16,16 @@ use App\Models\UserTeamScheduleSlot;
 use App\Enums\AuditEvent;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
+use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\PartnerContext;
-use App\Services\SchoolScheduleTrialLessonConsumptionAdjuster;
-use App\Services\UserLessonPackageConsumptionAdjuster;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 
 final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminBaseController
 {
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -134,71 +133,15 @@ final class LessonPackageSchoolCalendarOccurrenceStatusController extends AdminB
         }
 
         try {
-            $event = DB::transaction(function () use (
+            $event = $this->occurrenceStatusService->apply(
                 $partnerId,
                 $userId,
                 $slotId,
                 $occurrenceDate,
                 $savedUlpId,
-                $statusId,
                 $status,
-                $trialUtss,
-            ): UserLessonOccurrenceStatusEvent {
-                if ($savedUlpId !== null) {
-                    $prevEvent = UserLessonOccurrenceStatusEvent::query()
-                        ->where('partner_id', $partnerId)
-                        ->where('user_id', $userId)
-                        ->where('team_schedule_slot_id', $slotId)
-                        ->whereDate('occurrence_date', $occurrenceDate)
-                        ->where('user_lesson_package_id', $savedUlpId)
-                        ->with(['lessonOccurrenceStatus:id,consumes_lesson'])
-                        ->orderByDesc('id')
-                        ->first();
-
-                    $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
-
-                    $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
-                        $prevConsumed,
-                        (bool) $status->consumes_lesson
-                    );
-
-                    if ($delta !== 0) {
-                        $ulp = UserLessonPackage::query()->whereKey($savedUlpId)->firstOrFail();
-                        UserLessonPackageConsumptionAdjuster::applyRemainingLessonsDelta($ulp, $delta);
-                    }
-                } elseif ($trialUtss !== null) {
-                    $prevEvent = UserLessonOccurrenceStatusEvent::query()
-                        ->where('partner_id', $partnerId)
-                        ->where('user_id', $userId)
-                        ->where('team_schedule_slot_id', $slotId)
-                        ->whereDate('occurrence_date', $occurrenceDate)
-                        ->whereNull('user_lesson_package_id')
-                        ->with(['lessonOccurrenceStatus:id,consumes_lesson'])
-                        ->orderByDesc('id')
-                        ->first();
-
-                    $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
-
-                    $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
-                        $prevConsumed,
-                        (bool) $status->consumes_lesson
-                    );
-
-                    if ($delta !== 0) {
-                        SchoolScheduleTrialLessonConsumptionAdjuster::applyRemainingLessonsDelta($trialUtss, $delta);
-                    }
-                }
-
-                return UserLessonOccurrenceStatusEvent::query()->create([
-                    'partner_id' => $partnerId,
-                    'user_id' => $userId,
-                    'team_schedule_slot_id' => $slotId,
-                    'occurrence_date' => $occurrenceDate,
-                    'user_lesson_package_id' => $savedUlpId,
-                    'lesson_occurrence_status_id' => $statusId,
-                    'created_by' => auth()->id(),
-                ]);
-            });
+                auth()->id(),
+            );
         } catch (\DomainException $e) {
             return response()->json([
                 'message' => $e->getMessage(),

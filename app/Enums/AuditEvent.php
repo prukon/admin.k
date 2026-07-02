@@ -112,6 +112,7 @@ enum AuditEvent: string
     case ScheduleFlexibleLinked = 'schedule.flexible_linked';
     case ScheduleFixedLinked = 'schedule.fixed_linked';
     case ScheduleOccurrenceStatusSet = 'schedule.occurrence_status_set';
+    case ScheduleOccurrenceStatusAutoSet = 'schedule.occurrence_status_auto_set';
 
     // --- settings (legacy type 1, action 70) ---
     case SettingsUpdated = 'settings.updated';
@@ -220,6 +221,7 @@ enum AuditEvent: string
             self::ScheduleFlexibleLinked => 'Привязка гибкого абонемента к календарю',
             self::ScheduleFixedLinked => 'Привязка фиксированного абонемента к календарю',
             self::ScheduleOccurrenceStatusSet => 'Статус занятия в календаре школы',
+            self::ScheduleOccurrenceStatusAutoSet => 'Автосписание: статус «Посетил» в календаре школы',
 
             self::SettingsUpdated => 'Изменение настроек',
 
@@ -363,7 +365,8 @@ enum AuditEvent: string
             self::ScheduleSingleLessonRegistered,
             self::ScheduleFlexibleLinked,
             self::ScheduleFixedLinked,
-            self::ScheduleOccurrenceStatusSet => 'schedule',
+            self::ScheduleOccurrenceStatusSet,
+            self::ScheduleOccurrenceStatusAutoSet => 'schedule',
 
             self::SettingsUpdated => 'settings',
 
@@ -464,7 +467,8 @@ enum AuditEvent: string
             self::ScheduleSingleLessonRegistered,
             self::ScheduleFlexibleLinked,
             self::ScheduleFixedLinked,
-            self::ScheduleOccurrenceStatusSet => 60,
+            self::ScheduleOccurrenceStatusSet,
+            self::ScheduleOccurrenceStatusAutoSet => 60,
 
             self::PartnerUpdated,
             self::PartnerCreated,
@@ -573,6 +577,7 @@ enum AuditEvent: string
             self::ScheduleFlexibleLinked => 605,
             self::ScheduleFixedLinked => 606,
             self::ScheduleOccurrenceStatusSet => 607,
+            self::ScheduleOccurrenceStatusAutoSet => 608,
 
             self::SettingsUpdated => 70,
 
@@ -814,6 +819,7 @@ enum AuditEvent: string
             605 => self::ScheduleFlexibleLinked,
             606 => self::ScheduleFixedLinked,
             607 => self::ScheduleOccurrenceStatusSet,
+            608 => self::ScheduleOccurrenceStatusAutoSet,
 
             70 => self::SettingsUpdated,
 

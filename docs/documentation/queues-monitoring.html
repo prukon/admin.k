@@ -86,6 +86,7 @@
     <li>Если на сервере <b>нет</b> cron-строки вида <code>* * * * * php artisan schedule:run</code>, тик не обновляется — в UI будет <code>no_data</code> или статус «мертв».</li>
     <li>Пороги для <code>scheduler_status</code>: до 120 сек — ок; 121–600 сек — предупреждение; больше 600 сек — критично.</li>
     <li>Также по расписанию (каждую минуту, <code>Europe/Moscow</code>) вызывается <code>blog:process-vk-publications</code> — отложенные публикации блога в VK и ожидание обложки (см. <a href="/docs/documentation/blog#vk">документацию блога</a>).</li>
+    <li>Ежедневно в <code>00:05</code> (<code>Europe/Moscow</code>) планировщик ставит в очередь <code>AutoMarkYesterdayLessonOccurrencesJob</code> — автосписание «Посетил» за вчера для шаблонов абонементов с <code>auto_attendance_enabled</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>). Логи job — канал <code>queue</code>.</li>
   </ul>
 
   <h2>4.2) Просроченные отложенные выплаты (T‑Bank)</h2>
@@ -99,7 +100,7 @@
   <ul>
     <li><b>По очередям</b>: агрегируется по колонке <code>queue</code> в <code>jobs</code>/<code>failed_jobs</code>.</li>
     <li><b>По типам задач</b>: агрегируется по шаблонам class-name в <code>payload</code>:
-      возвраты, CloudKassir-чеки, AI-блог, публикация блога в VK, выплаты T-Bank, smoke-test.
+      возвраты, CloudKassir-чеки, AI-блог, публикация блога в VK, выплаты T-Bank, автосписание абонементов (<code>AutoMarkYesterdayLessonOccurrencesJob</code>), smoke-test.
     </li>
   </ul>
 

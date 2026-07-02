@@ -164,6 +164,19 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="col-12" id="create_auto_attendance_section">
+                                <div class="rounded border bg-light p-3">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" value="1" id="create_auto_attendance_enabled" name="create[auto_attendance_enabled]">
+                                        <label class="form-check-label" for="create_auto_attendance_enabled">Автосписание</label>
+                                    </div>
+                                    <div class="form-text mt-2 mb-0">
+                                        В конце дня занятия автоматически ставится статус «Посетил» и списывается занятие, если статус не был выставлен вручную.
+                                    </div>
+                                    <div class="invalid-feedback d-none" data-error-for="create[auto_attendance_enabled]"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mt-3 d-flex gap-2">
@@ -236,6 +249,19 @@
                                 <input type="number" name="edit[freeze_days]" class="form-control" min="1" max="3650">
                                 <div class="invalid-feedback d-none" data-error-for="edit[freeze_days]"></div>
                             </div>
+
+                            <div class="col-12" id="edit_auto_attendance_section">
+                                <div class="rounded border bg-light p-3">
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" value="1" id="edit_auto_attendance_enabled" name="edit[auto_attendance_enabled]">
+                                        <label class="form-check-label" for="edit_auto_attendance_enabled">Автосписание</label>
+                                    </div>
+                                    <div class="form-text mt-2 mb-0">
+                                        В конце дня занятия автоматически ставится статус «Посетил» и списывается занятие, если статус не был выставлен вручную.
+                                    </div>
+                                    <div class="invalid-feedback d-none" data-error-for="edit[auto_attendance_enabled]"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mt-3 d-flex gap-2">
@@ -305,6 +331,7 @@
                         price: (formData.get(prefix + '[price]') || '').toString(),
                         freeze_enabled: formData.get(prefix + '[freeze_enabled]') ? 1 : 0,
                         freeze_days: (formData.get(prefix + '[freeze_days]') || '').toString(),
+                        auto_attendance_enabled: formData.get(prefix + '[auto_attendance_enabled]') ? 1 : 0,
                         time_slots: [],
                     };
                 }
@@ -344,6 +371,8 @@
                 const createFreezeDaysWrap = document.getElementById('create_freeze_days_wrap');
                 const createScheduleType = document.getElementById('create_schedule_type');
                 const createFreezeSection = document.getElementById('create_freeze_section');
+                const createAutoAttendanceSection = document.getElementById('create_auto_attendance_section');
+                const createAutoAttendanceEnabled = document.getElementById('create_auto_attendance_enabled');
                 const createDuration = document.getElementById('create_duration_days');
                 const createLessons = document.getElementById('create_lessons_count');
                 let createSnapshotBeforeSingle = null;
@@ -376,8 +405,14 @@
                         if (createFreezeSection) {
                             createFreezeSection.style.display = 'none';
                         }
+                        if (createAutoAttendanceSection) {
+                            createAutoAttendanceSection.style.display = 'none';
+                        }
                         if (createFreezeEnabled) {
                             createFreezeEnabled.checked = false;
+                        }
+                        if (createAutoAttendanceEnabled) {
+                            createAutoAttendanceEnabled.checked = false;
                         }
                         createToggleFreezeDays();
                     } else {
@@ -398,6 +433,9 @@
                         }
                         if (createFreezeSection) {
                             createFreezeSection.style.display = '';
+                        }
+                        if (createAutoAttendanceSection) {
+                            createAutoAttendanceSection.style.display = '';
                         }
                         createToggleFreezeDays();
                     }
@@ -450,6 +488,8 @@
                 const editFreezeDaysWrap = document.getElementById('edit_freeze_days_wrap');
                 const editScheduleType = document.getElementById('edit_schedule_type');
                 const editFreezeSection = document.getElementById('edit_freeze_section');
+                const editAutoAttendanceSection = document.getElementById('edit_auto_attendance_section');
+                const editAutoAttendanceEnabled = document.getElementById('edit_auto_attendance_enabled');
                 const editDuration = document.getElementById('edit_duration_days');
                 const editLessons = document.getElementById('edit_lessons_count');
                 const editIdEl = document.getElementById('edit_id');
@@ -483,8 +523,14 @@
                         if (editFreezeSection) {
                             editFreezeSection.style.display = 'none';
                         }
+                        if (editAutoAttendanceSection) {
+                            editAutoAttendanceSection.style.display = 'none';
+                        }
                         if (editFreezeEnabled) {
                             editFreezeEnabled.checked = false;
+                        }
+                        if (editAutoAttendanceEnabled) {
+                            editAutoAttendanceEnabled.checked = false;
                         }
                         editToggleFreezeDays();
                     } else {
@@ -512,6 +558,9 @@
                         }
                         if (editFreezeSection) {
                             editFreezeSection.style.display = '';
+                        }
+                        if (editAutoAttendanceSection) {
+                            editAutoAttendanceSection.style.display = '';
                         }
                         editToggleFreezeDays();
                     }
@@ -592,6 +641,9 @@
 
                             editFreezeEnabled.checked = !!lp.freeze_enabled;
                             editModalEl.querySelector('[name="edit[freeze_days]"]').value = lp.freeze_days || 7;
+                            if (editAutoAttendanceEnabled) {
+                                editAutoAttendanceEnabled.checked = !!lp.auto_attendance_enabled;
+                            }
 
                             editSnapshotBeforeSingle = null;
                             const st = (lp.schedule_type || 'fixed').toString();
@@ -605,8 +657,14 @@
                                 if (editFreezeSection) {
                                     editFreezeSection.style.display = 'none';
                                 }
+                                if (editAutoAttendanceSection) {
+                                    editAutoAttendanceSection.style.display = 'none';
+                                }
                                 if (editFreezeEnabled) {
                                     editFreezeEnabled.checked = false;
+                                }
+                                if (editAutoAttendanceEnabled) {
+                                    editAutoAttendanceEnabled.checked = false;
                                 }
                                 editToggleFreezeDays();
                             } else {
@@ -618,6 +676,9 @@
                                 }
                                 if (editFreezeSection) {
                                     editFreezeSection.style.display = '';
+                                }
+                                if (editAutoAttendanceSection) {
+                                    editAutoAttendanceSection.style.display = '';
                                 }
                                 editToggleFreezeDays();
                             }
