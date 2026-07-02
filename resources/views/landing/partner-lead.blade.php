@@ -137,10 +137,9 @@
         .consent-label {
             font-size: 0.9rem;
         }
-        #teamSelect:disabled {
-            background-color: #f8f9fa;
-        }
-        #locationSelect:disabled {
+        #district_id:disabled,
+        #location_id:disabled,
+        #team_id:disabled {
             background-color: #f8f9fa;
         }
         .team-info-block {
@@ -428,6 +427,7 @@
         opt.value = '';
         opt.textContent = message || '— Выберите объект —';
         locationSelect.appendChild(opt);
+        locationLocked = false;
         resetTeamSelect('— Сначала выберите объект —');
     }
 
@@ -437,7 +437,35 @@
         opt.value = '';
         opt.textContent = message || '— Выберите услугу —';
         teamSelect.appendChild(opt);
+        teamLocked = false;
         hideTeamInfo();
+    }
+
+    var districtLocked = false;
+    var locationLocked = false;
+    var teamLocked = false;
+
+    function lockSelectWithSingleItem(select, items, valueKey, labelKey) {
+        if (!items || items.length !== 1) {
+            return false;
+        }
+
+        var item = items[0];
+        select.innerHTML = '';
+        var opt = document.createElement('option');
+        opt.value = String(item[valueKey]);
+        opt.textContent = item[labelKey];
+        select.appendChild(opt);
+        select.value = String(item[valueKey]);
+        select.disabled = true;
+
+        return true;
+    }
+
+    function getNonEmptySelectOptions(select) {
+        return Array.prototype.filter.call(select.options, function (option) {
+            return option.value !== '';
+        });
     }
 
     function hideTeamInfo() {
@@ -519,6 +547,11 @@
             return;
         }
 
+        if (locationLocked) {
+            locationSelect.disabled = true;
+            return;
+        }
+
         locationSelect.disabled = false;
     }
 
@@ -535,7 +568,13 @@
         if (helpChecked) {
             teamSelect.disabled = true;
             teamSelect.value = '';
+            teamLocked = false;
             resetTeamSelect('— Свяжемся для выбора секции —');
+            return;
+        }
+
+        if (teamLocked) {
+            teamSelect.disabled = true;
             return;
         }
 
@@ -558,17 +597,26 @@
         })
             .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
             .then(function (result) {
+                var locations = result.ok && result.json.data ? result.json.data : [];
                 resetLocationSelect('— Выберите объект —');
-                if (result.ok && result.json.data) {
-                    result.json.data.forEach(function (location) {
+
+                if (locations.length === 1) {
+                    locationLocked = lockSelectWithSingleItem(locationSelect, locations, 'id', 'name');
+                } else if (locations.length > 1) {
+                    locations.forEach(function (location) {
                         var opt = document.createElement('option');
                         opt.value = location.id;
                         opt.textContent = location.name;
                         locationSelect.appendChild(opt);
                     });
                 }
+
                 updateLocationSelectState();
                 updateTeamSelectState();
+
+                if (locationLocked) {
+                    loadTeams();
+                }
             })
             .catch(function () {
                 resetLocationSelect('Не удалось загрузить объекты');
@@ -593,17 +641,27 @@
         })
             .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, json: j }; }); })
             .then(function (result) {
+                var teams = result.ok && result.json.data ? result.json.data : [];
                 resetTeamSelect('— Выберите услугу —');
-                if (result.ok && result.json.data) {
-                    result.json.data.forEach(function (team) {
+
+                if (teams.length === 1) {
+                    teamLocked = lockSelectWithSingleItem(teamSelect, teams, 'id', 'title');
+                } else if (teams.length > 1) {
+                    teams.forEach(function (team) {
                         var opt = document.createElement('option');
                         opt.value = team.id;
                         opt.textContent = team.title;
                         teamSelect.appendChild(opt);
                     });
                 }
+
                 updateTeamSelectState();
-                hideTeamInfo();
+
+                if (teamLocked) {
+                    loadTeamInfo();
+                } else {
+                    hideTeamInfo();
+                }
             })
             .catch(function () {
                 resetTeamSelect('Не удалось загрузить услуги');
@@ -611,8 +669,21 @@
             });
     }
 
+    function appendLockedSelectValues(data) {
+        if (districtSelect.value) {
+            data.set('district_id', districtSelect.value);
+        }
+        if (locationSelect.value) {
+            data.set('location_id', locationSelect.value);
+        }
+        if (teamSelect.value && !needsContactHelp.checked) {
+            data.set('team_id', teamSelect.value);
+        }
+    }
+
     function submitWithToken(token) {
         var data = new FormData(form);
+        appendLockedSelectValues(data);
         if (token) {
             data.set('recaptcha_token', token);
         }
@@ -664,9 +735,22 @@
             });
     }
 
+    function autoSelectSingleDistrict() {
+        var districtOptions = getNonEmptySelectOptions(districtSelect);
+        if (districtOptions.length !== 1) {
+            return;
+        }
+
+        districtSelect.value = districtOptions[0].value;
+        districtSelect.disabled = true;
+        districtLocked = true;
+        loadLocations();
+    }
+
     fillTrackingFields();
     updateLocationSelectState();
     updateTeamSelectState();
+    autoSelectSingleDistrict();
 
     if (successBackBtn) {
         successBackBtn.addEventListener('click', function () {
@@ -674,14 +758,29 @@
         });
     }
 
-    districtSelect.addEventListener('change', loadLocations);
-    locationSelect.addEventListener('change', loadTeams);
+    districtSelect.addEventListener('change', function () {
+        if (districtLocked) {
+            return;
+        }
+        loadLocations();
+    });
+    locationSelect.addEventListener('change', function () {
+        if (locationLocked) {
+            return;
+        }
+        loadTeams();
+    });
     needsContactHelp.addEventListener('change', function () {
         loadTeams();
         hideTeamInfo();
     });
 
-    teamSelect.addEventListener('change', loadTeamInfo);
+    teamSelect.addEventListener('change', function () {
+        if (teamLocked) {
+            return;
+        }
+        loadTeamInfo();
+    });
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();

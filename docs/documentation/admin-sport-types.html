@@ -76,7 +76,7 @@
       </tr>
       <tr>
         <td><code>school_leads.sport_type_id</code></td>
-        <td>Выбор родителя на <a href="/docs/documentation/school-leads-landing">лендинге заявки</a>. В CRM-таблице заявок колонка пока <b>не выведена</b> (поле есть в БД)</td>
+        <td>При submit лендинга — копируется из <code>teams.sport_type_id</code> выбранной группы (отдельного селекта на форме нет). В CRM-таблице заявок колонка пока <b>не выведена</b> (поле есть в БД)</td>
       </tr>
     </tbody>
   </table>
@@ -155,11 +155,11 @@
   </div>
 
   <h2>8) Лендинг заявки (<code>/lead/{landingSlug}</code>)</h2>
-  <p>Если у партнёра есть хотя бы один активный вид спорта, на форме появляется необязательный селект «Вид спорта». Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
+  <p>Отдельного селекта «Вид спорта» на публичной форме <b>нет</b>. Родитель выбирает район → объект → услугу (группу); вид спорта отображается в блоке «Об услуге» и сохраняется в заявку из поля <code>teams.sport_type_id</code> выбранной группы. Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
   <ul>
-    <li><code>GET /lead/{landingSlug}/teams?location_id=&amp;sport_type_id=</code> — фильтрует услуги (группы) по району и опционально по виду спорта.</li>
-    <li><code>POST /lead/{landingSlug}/submit</code> — сохраняет <code>sport_type_id</code> в <code>school_leads</code>; валидация отклоняет чужой/disabled вид спорта и несовпадение <code>team_id</code> с выбранным видом спорта.</li>
-    <li>Если справочник видов спорта пуст — блок на форме не рендерится, поведение как раньше (только район и услуга).</li>
+    <li><code>GET /lead/{landingSlug}/teams?location_id=</code> — услуги (группы) выбранного объекта; фильтра по <code>sport_type_id</code> в query <b>нет</b>.</li>
+    <li><code>GET /lead/{landingSlug}/team-info</code> — в строке «Вид спорта» выводится <code>sport_types.name</code> группы.</li>
+    <li><code>POST /lead/{landingSlug}/submit</code> — <code>SchoolLeadLandingService::createFromRequest</code> записывает <code>sport_type_id</code> из выбранной группы; при <code>needs_contact_help</code> или отсутствии <code>team_id</code> поле остаётся <code>null</code>.</li>
   </ul>
 
   <h2>9) Ключевые файлы</h2>

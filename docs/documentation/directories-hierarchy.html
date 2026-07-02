@@ -220,7 +220,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>Четвёртая вкладка раздела «Справочники»; URL без изменений (<code>/admin/sport-types</code>).</li>
     <li>DataTables: фильтры <code>name</code>, <code>status</code>; колонка <code>teams_count</code>.</li>
     <li>Привязка к группам — на странице <code>/admin/teams</code>, не в этом справочнике.</li>
-    <li>На лендинге заявки — необязательный селект «Вид спорта» (если есть активные записи).</li>
+    <li>На лендинге заявки отдельного селекта «Вид спорта» <b>нет</b> — <code>school_leads.sport_type_id</code> подставляется при submit из выбранной группы (<code>teams.sport_type_id</code>), см. <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</li>
   </ul>
 
   <h3>5.5) Юр. лица — <code>/admin/legal-entities</code></h3>
@@ -233,12 +233,12 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   </ul>
 
   <h2>6) Публичный лендинг — каскад выбора</h2>
-  <p>Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>.</p>
+  <p>Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>, автовыбор — <a href="/docs/documentation/school-leads-landing#5-4-1">§5.4.1</a>.</p>
   <ol>
-    <li><b>Район</b> — активные районы с ≥1 активным объектом с заполненным <code>district_id</code>.</li>
-    <li><b>Объект</b> — <code>GET /lead/{slug}/locations?district_id=</code> (только enabled, с district_id).</li>
-    <li><b>Услуга</b> — <code>GET /lead/{slug}/teams?location_id=</code> (группы объекта через <code>TeamLocationAvailabilityService</code>).</li>
-    <li><b>Submit</b> — обязательны <code>district_id</code> и <code>location_id</code>; cross-check: объект принадлежит району; partner scope по slug.</li>
+    <li><b>Район</b> — активные районы с ≥1 активным объектом с заполненным <code>district_id</code>. Если в списке <b>ровно один</b> район — выбирается и блокируется (<code>disabled</code>) при загрузке страницы, объекты подгружаются автоматически.</li>
+    <li><b>Объект</b> — <code>GET /lead/{slug}/locations?district_id=</code> (только enabled, с district_id). Если в ответе <b>ровно один</b> объект — выбирается и блокируется, услуги подгружаются автоматически.</li>
+    <li><b>Услуга</b> — <code>GET /lead/{slug}/teams?location_id=</code> (группы объекта через <code>TeamLocationAvailabilityService</code>). Если в ответе <b>ровно одна</b> услуга — выбирается и блокируется, показывается блок «Об услуге».</li>
+    <li><b>Submit</b> — обязательны <code>district_id</code> и <code>location_id</code>; cross-check: объект принадлежит району; partner scope по slug. Значения из <code>disabled</code>-селектов явно добавляются в <code>FormData</code> перед отправкой (иначе браузер их не передаёт).</li>
   </ol>
   <div class="warn">
     <b>AJAX vs submit:</b> для чужого или неактивного <code>district_id</code> endpoint <code>/locations</code> возвращает <b>200 и пустой массив</b> (не 422). Ошибки partner scope на submit — <b>422</b> с текстами под полями.
@@ -310,6 +310,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>SchoolLeadDistrictFeatureTest.php</code></td><td>CRM UI/data/update, email/Telegram с районом</td></tr>
       <tr><td><code>SchoolLeadsDistrictPageFullAccessFeatureTest.php</code></td><td>Заявки: все endpoint'ы с районом/объектом → 200</td></tr>
       <tr><td><code>SchoolLeadLandingFullFeatureTest.php</code></td><td>Каскад и валидация на лендинге</td></tr>
+      <tr><td><code>SchoolLeadLandingSingleOptionFeatureTest.php</code></td><td>Автовыбор единственного района/объекта/услуги (disabled)</td></tr>
+      <tr><td><code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code></td><td>Non-AJAX submit → redirect + БД; AJAX JSON</td></tr>
+      <tr><td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td><td>Статусы всех публичных endpoint'ов лендинга</td></tr>
       <tr><td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td><td>Публичный доступ, в т.ч. <code>/locations?district_id=</code></td></tr>
       <tr><td><code>DataTableClickableNameLinksFeatureTest.php</code> (Ui)</td><td>Кликабельные названия справочников + связанные JSON endpoint'ы (districts, locations, sport-types, teams, school-leads)</td></tr>
       <tr><td><code>GenericMultiselectFullAccessFeatureTest.php</code> (Ui)</td><td>Единый Select2 multiselect: partial, UI на districts/users, AJAX/non-AJAX контракты, доступ 200/403/guest</td></tr>

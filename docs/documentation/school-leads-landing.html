@@ -107,22 +107,22 @@
       <tr><td>GET</td><td><code>/lead/{landingSlug}/locations?district_id=</code></td><td>нет</td><td>JSON: объекты выбранного района</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/teams?location_id=</code></td><td>нет</td><td>JSON: услуги (группы) для выбранного объекта</td></tr>
       <tr><td>GET</td><td><code>/lead/{landingSlug}/team-info?location_id=&amp;team_id=</code></td><td>нет</td><td>JSON: детали выбранной услуги (группы)</td></tr>
-      <tr><td>POST</td><td><code>/lead/{landingSlug}/submit</code></td><td>нет</td><td>Приём заявки, JSON-ответ</td></tr>
+      <tr><td>POST</td><td><code>/lead/{landingSlug}/submit</code></td><td>нет</td><td>Приём заявки: AJAX → JSON; non-AJAX → redirect 302 на страницу лендинга</td></tr>
     </tbody>
   </table>
   <ul>
     <li>Middleware: только <code>throttle:60,1</code> (без <code>auth</code>, без CRM-прав).</li>
     <li>Контроллер: <code>App\Http\Controllers\SchoolLeadLandingController</code>.</li>
     <li>Сервис: <code>App\Services\SchoolLeadLandingService</code>.</li>
-    <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — ошибки по полям в JSON, 422.</li>
+    <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — AJAX: ошибки по полям в JSON, 422; non-AJAX: redirect на страницу лендинга с <code>withErrors</code> / <code>withInput</code>.</li>
     <li>reCAPTCHA v3: <code>App\Services\RecaptchaVerificationService</code>.</li>
     <li>View: <code>resources/views/landing/partner-lead.blade.php</code>.</li>
   </ul>
 
   <h3>4.1) Доступ без авторизации</h3>
-  <p>Страница и API лендинга публичные: гость и авторизованный пользователь CRM получают <b>200</b> на <code>show</code>, <code>teams</code>, <code>team-info</code> и <code>submit</code> при валидном slug, активном лендинге и корректных параметрах запроса. Middleware <code>auth</code> и <code>2fa</code> на эти маршруты не навешены.</p>
+  <p>Страница и API лендинга публичные: гость и авторизованный пользователь CRM получают <b>200</b> на <code>show</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code> и <code>submit</code> (AJAX) при валидном slug, активном лендинге и корректных параметрах запроса. Middleware <code>auth</code> и <code>2fa</code> на эти маршруты не навешены.</p>
   <p>При <code>is_landing_active = false</code> или отсутствии <code>landing_slug</code> в БД — <b>404</b> на все endpoint'ы (<code>show</code>, <code>locations</code>, <code>teams</code>, <code>team-info</code>, <code>submit</code>).</p>
-  <p class="small">Покрытие: <code>SchoolLeadLandingPublicAccessFeatureTest.php</code>, <code>SchoolLeadLandingSlugPublicFeatureTest.php</code>.</p>
+  <p class="small">Покрытие: <code>SchoolLeadLandingPublicAccessFeatureTest.php</code>, <code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code>, <code>SchoolLeadLandingSlugPublicFeatureTest.php</code>.</p>
 
   <h2>5) Поля формы</h2>
   <h3>5.1) Законный представитель (обязательные)</h3>
@@ -157,6 +157,41 @@
     <li>Submit: объект должен принадлежать выбранному району; иначе 422 на <code>location_id</code>.</li>
   </ul>
 
+  <h3 id="5-4-1">5.4.1) Автовыбор единственного варианта (disabled)</h3>
+  <p>Если в <b>текущем списке</b> select остаётся ровно один вариант (после фильтрации по предыдущему уровню), фронтенд подставляет его автоматически и блокирует поле (<code>disabled</code>, серый фон). Пользователю не нужно вручную выбирать очевидный единственный вариант.</p>
+  <table>
+    <thead>
+      <tr><th>Уровень</th><th>Когда срабатывает</th><th>Действие</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Район</b></td>
+        <td>При загрузке страницы в HTML ровно один активный район партнёра</td>
+        <td>Значение выбрано, <code>#district_id</code> disabled, вызывается <code>loadLocations()</code></td>
+      </tr>
+      <tr>
+        <td><b>Объект</b></td>
+        <td>После <code>GET …/locations?district_id=</code> в ответе ровно один объект</td>
+        <td>Значение выбрано, <code>#location_id</code> disabled, вызывается <code>loadTeams()</code></td>
+      </tr>
+      <tr>
+        <td><b>Услуга</b></td>
+        <td>После <code>GET …/teams?location_id=</code> в ответе ровно одна группа</td>
+        <td>Значение выбрано, <code>#team_id</code> disabled, вызывается <code>loadTeamInfo()</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Если вариантов <b>два и больше</b> — select остаётся активным, пользователь выбирает вручную (как раньше).</li>
+    <li>Пример: у партнёра 2 района, но в выбранном районе 1 объект — район выбирается вручную, объект подставляется автоматически.</li>
+    <li>Чекбокс <code>needs_contact_help</code> по-прежнему сбрасывает и разблокирует услугу (как при ручном выборе).</li>
+    <li><b>Отправка формы:</b> браузер не включает <code>disabled</code>-поля в <code>FormData</code>; перед <code>fetch</code> функция <code>appendLockedSelectValues()</code> явно добавляет <code>district_id</code>, <code>location_id</code> и <code>team_id</code> (если услуга выбрана и чекбокс «помочь с секцией» выключен).</li>
+    <li>Реализация: inline JS в <code>resources/views/landing/partner-lead.blade.php</code> (<code>autoSelectSingleDistrict</code>, <code>lockSelectWithSingleItem</code>, флаги <code>districtLocked</code> / <code>locationLocked</code> / <code>teamLocked</code>).</li>
+  </ul>
+  <div class="note">
+    <b>Non-AJAX safety-net (submit):</b> если форма ушла нативным POST без <code>X-Requested-With</code> (например, при сбое JS), бэкенд всё равно создаёт заявку и отвечает <b>302 redirect</b> на <code>/lead/{landingSlug}</code> с flash <code>landing_submitted</code>. Ошибки валидации и reCAPTCHA — redirect назад с ошибками в сессии, не пустой 200. См. <code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code>.
+  </div>
+
   <h3>5.5) Прочее</h3>
   <ul>
     <li>Комментарий (<code>comment</code>) — необязателен</li>
@@ -178,7 +213,7 @@
       <tr><td><code>is_individual_traits</code>, …</td><td>boolean</td><td>Как у ученика в <code>users</code></td></tr>
       <tr><td><code>location_id</code></td><td>Из формы</td><td>Объект (UI). У виджета обычно <code>null</code></td></tr>
       <tr><td><code>district_id</code></td><td>Из формы (лендинг)</td><td>Район; сохраняется явно для истории и отчётов</td></tr>
-      <tr><td><code>sport_type_id</code></td><td>nullable, из формы</td><td>FK на <code>sport_types</code>; только активные виды спорта партнёра. В CRM-таблице заявок колонка пока не выведена</td></tr>
+      <tr><td><code>sport_type_id</code></td><td>nullable, из выбранной группы</td><td>При submit копируется из <code>teams.sport_type_id</code> выбранной услуги; отдельного селекта на форме нет. В CRM-таблице заявок колонка пока не выведена</td></tr>
       <tr><td><code>team_id</code></td><td>nullable</td><td>FK на <code>teams</code></td></tr>
       <tr><td><code>needs_contact_help</code></td><td>boolean</td><td>Флаг «помочь с выбором секции»</td></tr>
       <tr><td><code>consent_accepted_at</code></td><td><code>now()</code></td><td><code>policy_url</code> = null</td></tr>
@@ -270,6 +305,18 @@
         <td>Форма, каскад район→объект→услуга, валидация, reCAPTCHA, <code>district_id</code>, source=landing</td>
       </tr>
       <tr>
+        <td><code>SchoolLeadLandingSingleOptionFeatureTest.php</code></td>
+        <td>Автовыбор единственного района/объекта/услуги: JS-маркеры, API с одним элементом, submit</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code></td>
+        <td>Non-AJAX submit → 302 + запись в БД; AJAX JSON-контракт; валидация/recaptcha</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td>
+        <td>Гость/авторизованный: ожидаемые статусы 200/422/404 на все endpoint'ы; не 500</td>
+      </tr>
+      <tr>
         <td><code>DistrictLocationLandingIntegrationFeatureTest.php</code></td>
         <td>E2E CRM: район → объект → лендинг → заявка → datatable</td>
       </tr>
@@ -283,7 +330,7 @@
       </tr>
       <tr>
         <td><code>SchoolLeadLandingSportTypeFeatureTest.php</code></td>
-        <td>Вид спорта на форме, teams по объекту, submit и <code>sport_type_id</code></td>
+        <td>На форме нет селекта вида спорта; <code>sport_type_id</code> из группы в team-info и submit</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingAdminAccessFeatureTest.php</code></td>
@@ -292,6 +339,10 @@
       <tr>
         <td><code>Concerns/ProvidesSchoolLeadLandingFixtures.php</code></td>
         <td>Общие фикстуры для публичных тестов</td>
+      </tr>
+      <tr>
+        <td><code>BladeInlineJsSyntaxTest.php</code></td>
+        <td>Синтаксис inline JS в <code>landing/partner-lead.blade.php</code> (<code>node --check</code>)</td>
       </tr>
     </tbody>
   </table>

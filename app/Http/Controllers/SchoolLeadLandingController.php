@@ -7,6 +7,7 @@ use App\Services\RecaptchaVerificationService;
 use App\Services\SchoolLeadLandingService;
 use App\Services\SchoolLeadNotificationService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -110,13 +111,22 @@ class SchoolLeadLandingController extends Controller
         ]);
     }
 
-    public function submit(SubmitSchoolLeadLandingRequest $request, string $landingSlug): JsonResponse
+    public function submit(SubmitSchoolLeadLandingRequest $request, string $landingSlug): JsonResponse|RedirectResponse
     {
+        $wantsJson = $request->ajax() || $request->expectsJson();
+
         $recaptchaResult = $this->recaptcha->verifyRequest($request);
         if (!$recaptchaResult['ok']) {
-            return response()->json([
-                'message' => $recaptchaResult['message'],
-            ], $recaptchaResult['status']);
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => $recaptchaResult['message'],
+                ], $recaptchaResult['status']);
+            }
+
+            return redirect()
+                ->route('lead.show', ['landingSlug' => $landingSlug])
+                ->withInput()
+                ->withErrors(['form' => $recaptchaResult['message']]);
         }
 
         $widget = $this->landing->resolveActiveWidget($landingSlug);
@@ -126,16 +136,31 @@ class SchoolLeadLandingController extends Controller
             $schoolLead->loadMissing('district', 'location', 'team');
             $this->notifications->notify($schoolLead);
 
-            return response()->json([
-                'message' => 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.',
-                'id'      => $schoolLead->id,
-            ]);
+            $message = 'Заявка отправлена! Мы свяжемся с вами в ближайшее время.';
+
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => $message,
+                    'id'      => $schoolLead->id,
+                ]);
+            }
+
+            return redirect()
+                ->route('lead.show', ['landingSlug' => $landingSlug])
+                ->with('landing_submitted', true);
         } catch (\Throwable $e) {
             report($e);
 
-            return response()->json([
-                'message' => 'На сервере произошла ошибка. Попробуйте позже.',
-            ], 500);
+            if ($wantsJson) {
+                return response()->json([
+                    'message' => 'На сервере произошла ошибка. Попробуйте позже.',
+                ], 500);
+            }
+
+            return redirect()
+                ->route('lead.show', ['landingSlug' => $landingSlug])
+                ->withInput()
+                ->withErrors(['form' => 'На сервере произошла ошибка. Попробуйте позже.']);
         }
     }
 }

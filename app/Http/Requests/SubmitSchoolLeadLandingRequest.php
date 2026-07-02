@@ -253,9 +253,20 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
 
     protected function failedValidation(Validator $validator): void
     {
-        throw new HttpResponseException(response()->json([
-            'message' => $validator->errors()->first(),
-            'errors'  => $validator->errors(),
-        ], 422));
+        if ($this->ajax() || $this->expectsJson()) {
+            throw new HttpResponseException(response()->json([
+                'message' => $validator->errors()->first(),
+                'errors'  => $validator->errors(),
+            ], 422));
+        }
+
+        $landingSlug = (string) $this->route('landingSlug');
+
+        throw new HttpResponseException(
+            redirect()
+                ->route('lead.show', ['landingSlug' => $landingSlug])
+                ->withInput()
+                ->withErrors($validator)
+        );
     }
 }
