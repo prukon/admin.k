@@ -418,6 +418,47 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
         ]);
     }
 
+    public function test_public_pay_endpoints_return_200_for_authenticated_user_without_permission(): void
+    {
+        $ctx = $this->seedCheckoutContext();
+        $denied = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $token = $this->issuePublicPayToken($ctx['assignment']);
+
+        $this->actingAs($denied);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->get(route('ulp.public.pay', ['token' => $token]))->assertOk();
+
+        foreach ($this->publicPayEndpoints($token) as $item) {
+            $headers = ! empty($item['acceptJson'])
+                ? ['HTTP_ACCEPT' => 'application/json']
+                : ['HTTP_ACCEPT' => 'text/html'];
+
+            $response = $this->call($item['method'], $item['url'], [], [], [], $headers);
+
+            $this->assertNotSame(500, $response->getStatusCode());
+            $this->assertSame(200, $response->getStatusCode());
+        }
+    }
+
+    public function test_update_assignment_non_ajax_redirects_and_updates_fee_amount(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $ctx = $this->seedCheckoutContext(500.0);
+
+        $response = $this->put(route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]), [
+            '_token' => csrf_token(),
+            'fee_amount' => '550.00',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('admin.lesson-packages.assignments'));
+
+        $this->assertDatabaseHas('user_lesson_packages', [
+            'id' => $ctx['assignment']->id,
+            'fee_amount' => '550.00',
+        ]);
+    }
+
     public function test_issue_public_pay_link_forbidden_without_lesson_packages_view(): void
     {
         $ctx = $this->seedCheckoutContext();

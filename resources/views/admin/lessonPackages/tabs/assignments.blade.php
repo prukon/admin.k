@@ -943,6 +943,11 @@
                         return;
                     }
                     dtApi.reload({ keepPage: true });
+                    if (payload.public_pay_url_rotated) {
+                        window.alert(
+                            'Цена изменена. Старая ссылка на оплату больше не действует — скопируйте новую ссылку в таблице назначений.'
+                        );
+                    }
                     modal.hide();
                 });
 

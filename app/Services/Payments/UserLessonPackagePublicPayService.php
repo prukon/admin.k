@@ -15,8 +15,10 @@ use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Services\Tinkoff\TinkoffSignature;
+use App\Support\Payments\PaymentOutSumNormalizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class UserLessonPackagePublicPayService
@@ -89,6 +91,129 @@ final class UserLessonPackagePublicPayService
         }
 
         return $link->fresh() ?? $link;
+    }
+
+    /**
+     * При смене fee_amount: отменяет активный T‑Bank-платёж и выпускает новый token.
+     * Старая ссылка /pay/ulp/{token} перестаёт работать — нужно скопировать новую.
+     */
+    public function resetPublicPayAfterFeeChange(UserLessonPackage $ulp): ?string
+    {
+        if ($ulp->effective_is_paid) {
+            return null;
+        }
+
+        $link = UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->first();
+
+        if (! $link) {
+            return null;
+        }
+
+        if ((string) ($link->tinkoff_payment_id ?? '') !== '') {
+            $this->invalidateActivePublicPayPayment($link);
+            $link->refresh();
+        }
+
+        $link->token = bin2hex(random_bytes(32));
+        $link->expires_at = now()->addDays(self::LINK_TTL_DAYS);
+        $link->tinkoff_payment_id = null;
+        $link->payment_intent_id = null;
+        $link->payable_id = null;
+        $link->save();
+
+        return route('ulp.public.pay', ['token' => $link->token], true);
+    }
+
+    /**
+     * Сбрасывает активный T‑Bank-платёж, если сумма в платеже не совпадает с fee_amount.
+     */
+    public function invalidatePublicPayIfAmountMismatch(UserLessonPackage $ulp): void
+    {
+        if ($ulp->effective_is_paid) {
+            return;
+        }
+
+        $link = UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->first();
+
+        if (! $link || (string) ($link->tinkoff_payment_id ?? '') === '') {
+            return;
+        }
+
+        try {
+            $resolved = $this->feeResolver->resolvePublicPayForPartner((int) $link->partner_id, (int) $ulp->id);
+        } catch (HttpException) {
+            return;
+        }
+
+        $expectedAmountCents = (int) round(((float) $resolved['out_sum']) * 100);
+
+        if ($this->activePaymentAmountMatches($link, $expectedAmountCents)) {
+            return;
+        }
+
+        $this->invalidateActivePublicPayPayment($link);
+    }
+
+    /**
+     * @deprecated use invalidatePublicPayIfAmountMismatch()
+     */
+    public function invalidatePublicPayOnFeeChange(UserLessonPackage $ulp): void
+    {
+        $this->invalidatePublicPayIfAmountMismatch($ulp);
+    }
+
+    /**
+     * Синхронизирует T‑Bank-платёж перед выдачей QR / payload (та же логика, что при открытии страницы).
+     *
+     * @return array{ok: true}|array{ok: false, status: int, body: array<string, mixed>}
+     */
+    public function syncPublicPayPaymentForQr(UserLessonPackagePublicPayLink $link, Request $request): array
+    {
+        if ($link->expires_at === null || $link->expires_at->isPast()) {
+            return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Ссылка недействительна']];
+        }
+
+        $ulp = $link->userLessonPackage()->with(['user:id,partner_id', 'lessonPackage:id,name'])->first();
+        if (! $ulp || $ulp->effective_is_paid || (int) $ulp->user->partner_id !== (int) $link->partner_id) {
+            return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Payment not found']];
+        }
+
+        if (! $this->partnerTbankConfigured((int) $link->partner_id)) {
+            return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Payment not configured']];
+        }
+
+        try {
+            $resolved = $this->feeResolver->resolvePublicPayForPartner((int) $link->partner_id, (int) $ulp->id);
+        } catch (HttpException $e) {
+            return ['ok' => false, 'status' => 422, 'body' => ['Success' => false, 'Message' => $e->getMessage()]];
+        }
+
+        $amountCents = (int) round(((float) $resolved['out_sum']) * 100);
+        if ($amountCents < 1000 || $amountCents > 100000000) {
+            return ['ok' => false, 'status' => 422, 'body' => ['Success' => false, 'Message' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']];
+        }
+
+        $paymentId = $this->ensureActiveTinkoffPaymentId(
+            $link,
+            $ulp,
+            $resolved,
+            (int) $ulp->user_id,
+            $amountCents,
+            $request,
+        );
+
+        if ($paymentId === '__PAID__') {
+            return ['ok' => false, 'status' => 404, 'body' => ['Success' => false, 'Message' => 'Payment already completed']];
+        }
+        if ($paymentId === '__FAIL__') {
+            return ['ok' => false, 'status' => 500, 'body' => ['Success' => false, 'Message' => 'Payment init failed']];
+        }
+
+        return ['ok' => true];
     }
 
     /**
@@ -260,12 +385,20 @@ final class UserLessonPackagePublicPayService
                 }
 
                 if (in_array($bankStatus, ['CANCELED', 'REJECTED', 'DEADLINE_EXPIRED'], true)) {
-                    $link->tinkoff_payment_id = null;
-                    $link->payment_intent_id = null;
-                    $link->payable_id = null;
-                    $link->save();
-                } else {
+                    $this->markLinkedPublicPayRecordsCancelled($link);
+                    $this->clearPublicPayLinkPaymentBinding($link);
+                } elseif (
+                    $bankOk
+                    && isset($state['Amount'])
+                    && (int) $state['Amount'] !== $amountCents
+                ) {
+                    $this->invalidateActivePublicPayPayment($link);
+                    $link->refresh();
+                } elseif ($this->activePaymentAmountMatches($link, $amountCents)) {
                     return $pid;
+                } else {
+                    $this->invalidateActivePublicPayPayment($link);
+                    $link->refresh();
                 }
             }
         }
@@ -344,6 +477,172 @@ final class UserLessonPackagePublicPayService
         return (string) $payment->tinkoff_payment_id;
     }
 
+    private function activePaymentAmountMatches(UserLessonPackagePublicPayLink $link, int $expectedAmountCents): bool
+    {
+        $paymentId = (string) ($link->tinkoff_payment_id ?? '');
+        if ($paymentId === '') {
+            return false;
+        }
+
+        $tp = TinkoffPayment::query()
+            ->where('partner_id', (int) $link->partner_id)
+            ->where('tinkoff_payment_id', $paymentId)
+            ->first();
+
+        if (! $tp || (int) $tp->amount !== $expectedAmountCents) {
+            return false;
+        }
+
+        if ($link->payable_id) {
+            $payable = Payable::query()->find((int) $link->payable_id);
+            if ($payable) {
+                $payableCents = $this->amountCentsFromOutSum((string) $payable->amount);
+                if ($payableCents === null || $payableCents !== $expectedAmountCents) {
+                    return false;
+                }
+            }
+        }
+
+        if ($link->payment_intent_id) {
+            $intent = PaymentIntent::query()->find((int) $link->payment_intent_id);
+            if ($intent) {
+                $intentCents = $this->amountCentsFromOutSum((string) $intent->out_sum);
+                if ($intentCents === null || $intentCents !== $expectedAmountCents) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private function storedAmountCentsForLink(UserLessonPackagePublicPayLink $link): ?int
+    {
+        $paymentId = (string) ($link->tinkoff_payment_id ?? '');
+        if ($paymentId !== '') {
+            $tp = TinkoffPayment::query()
+                ->where('partner_id', (int) $link->partner_id)
+                ->where('tinkoff_payment_id', $paymentId)
+                ->first();
+
+            if ($tp && $tp->amount !== null) {
+                return (int) $tp->amount;
+            }
+        }
+
+        if ($link->payable_id) {
+            $payable = Payable::query()->find((int) $link->payable_id);
+            if ($payable) {
+                return $this->amountCentsFromOutSum((string) $payable->amount);
+            }
+        }
+
+        if ($link->payment_intent_id) {
+            $intent = PaymentIntent::query()->find((int) $link->payment_intent_id);
+            if ($intent) {
+                return $this->amountCentsFromOutSum((string) $intent->out_sum);
+            }
+        }
+
+        return null;
+    }
+
+    private function amountCentsFromOutSum(string $outSum): ?int
+    {
+        $normalized = PaymentOutSumNormalizer::normalize($outSum);
+        if ($normalized === null) {
+            return null;
+        }
+
+        return (int) round(((float) $normalized) * 100);
+    }
+
+    private function invalidateActivePublicPayPayment(UserLessonPackagePublicPayLink $link): void
+    {
+        $paymentId = (string) ($link->tinkoff_payment_id ?? '');
+        if ($paymentId === '') {
+            return;
+        }
+
+        $partnerId = (int) $link->partner_id;
+
+        $state = $this->callGetState($partnerId, $paymentId);
+        $bankOk = is_array($state) && ! empty($state['Success']);
+        $bankStatus = $bankOk ? (string) ($state['Status'] ?? '') : '';
+
+        if ($bankStatus === 'CONFIRMED') {
+            return;
+        }
+
+        if (
+            $bankStatus === ''
+            || ! in_array($bankStatus, ['CANCELED', 'REJECTED', 'DEADLINE_EXPIRED'], true)
+        ) {
+            try {
+                $cancelResponse = $this->callCancel($partnerId, $paymentId);
+                if (! is_array($cancelResponse) || empty($cancelResponse['Success'])) {
+                    Log::channel('tinkoff')->warning('[ulp-public-pay cancel] PaymentId='.$paymentId, [
+                        'response' => $cancelResponse,
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::channel('tinkoff')->warning(
+                    '[ulp-public-pay cancel failed] PaymentId='.$paymentId.' '.$e->getMessage()
+                );
+            }
+        }
+
+        $this->markLinkedPublicPayRecordsCancelled($link);
+
+        TinkoffPayment::query()
+            ->where('partner_id', $partnerId)
+            ->where('tinkoff_payment_id', $paymentId)
+            ->where('status', '!=', 'CONFIRMED')
+            ->update(['status' => 'CANCELED']);
+
+        $this->clearPublicPayLinkPaymentBinding($link);
+    }
+
+    private function markLinkedPublicPayRecordsCancelled(UserLessonPackagePublicPayLink $link): void
+    {
+        if ($link->payment_intent_id) {
+            PaymentIntent::query()
+                ->whereKey((int) $link->payment_intent_id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
+        }
+
+        if ($link->payable_id) {
+            Payable::query()
+                ->whereKey((int) $link->payable_id)
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled']);
+        }
+    }
+
+    private function clearPublicPayLinkPaymentBinding(UserLessonPackagePublicPayLink $link): void
+    {
+        $link->tinkoff_payment_id = null;
+        $link->payment_intent_id = null;
+        $link->payable_id = null;
+        $link->save();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function callCancel(int $partnerId, string $paymentId): ?array
+    {
+        $cfg = $this->resolvePaymentConfig($partnerId);
+        $payload = [
+            'TerminalKey' => $cfg['terminal_key'],
+            'PaymentId' => $paymentId,
+        ];
+        $payload['Token'] = TinkoffSignature::makeToken($payload, $cfg['password']);
+
+        return TinkoffApiClient::post($cfg['base_url'], '/v2/Cancel', $payload);
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -367,11 +666,14 @@ final class UserLessonPackagePublicPayService
         return TbankTerminalConfig::paymentConfig();
     }
 
-    public function tinkoffQrJson(UserLessonPackagePublicPayLink $link, string $dataType): \Illuminate\Http\JsonResponse
+    public function tinkoffQrJson(UserLessonPackagePublicPayLink $link, string $dataType, Request $request): \Illuminate\Http\JsonResponse
     {
-        if ($link->expires_at === null || $link->expires_at->isPast()) {
-            return response()->json(['Success' => false, 'Message' => 'Ссылка недействительна'], 404);
+        $sync = $this->syncPublicPayPaymentForQr($link, $request);
+        if (! $sync['ok']) {
+            return response()->json($sync['body'], $sync['status']);
         }
+
+        $link->refresh();
 
         $ulp = $link->userLessonPackage()->with('user:id,partner_id')->first();
         if (! $ulp || $ulp->effective_is_paid || (int) $ulp->user->partner_id !== (int) $link->partner_id) {

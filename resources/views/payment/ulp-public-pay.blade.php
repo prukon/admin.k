@@ -211,6 +211,12 @@
             document.addEventListener('visibilitychange', function() {
                 if (document.visibilityState === 'visible' && !pollStopped) {
                     pollState();
+                    desktopQrDone = false;
+                    detailsQrDone = false;
+                    if (!isNspkPreferredViewport()) {
+                        qrBoxDesktop.innerHTML = '<span class="text-muted small">Загружаем QR…</span>';
+                        fetchQrImage(qrBoxDesktop, 'desktop');
+                    }
                 }
             });
 

@@ -57,7 +57,7 @@ final class PublicLessonPackagePayController extends Controller
             return response()->json(['Success' => false, 'Message' => 'Not found'], 404);
         }
 
-        return $service->tinkoffQrJson($link, 'IMAGE');
+        return $service->tinkoffQrJson($link, 'IMAGE', $request);
     }
 
     public function qrPayload(Request $request, string $token, UserLessonPackagePublicPayService $service)
@@ -67,7 +67,7 @@ final class PublicLessonPackagePayController extends Controller
             return response()->json(['Success' => false, 'Message' => 'Not found'], 404);
         }
 
-        return $service->tinkoffQrJson($link, 'PAYLOAD');
+        return $service->tinkoffQrJson($link, 'PAYLOAD', $request);
     }
 
     public function qrState(Request $request, string $token, UserLessonPackagePublicPayService $service)

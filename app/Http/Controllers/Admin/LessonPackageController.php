@@ -31,6 +31,7 @@ use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -672,12 +673,17 @@ final class LessonPackageController extends AdminBaseController
         ]);
     }
 
-    public function updateAssignment(UpdateUserLessonPackageAssignmentRequest $request, UserLessonPackage $assignment): JsonResponse
-    {
+    public function updateAssignment(
+        UpdateUserLessonPackageAssignmentRequest $request,
+        UserLessonPackage $assignment,
+        UserLessonPackagePublicPayService $publicPayService,
+    ): JsonResponse|RedirectResponse {
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
         $validated = $request->validated();
         $fee = round((float) $validated['fee_amount'], 2);
+        $feeWas = round((float) $assignment->fee_amount, 2);
+        $feeChanging = abs($feeWas - $fee) > 0.00001;
 
         DB::transaction(function () use ($request, $assignment, $fee, $validated) {
             $assignment->refresh();
@@ -690,8 +696,7 @@ final class LessonPackageController extends AdminBaseController
             }
 
             $oldEffectivePaid = $assignment->effective_is_paid;
-            $feeWas = round((float) $assignment->fee_amount, 2);
-            $feeChanging = abs($feeWas - $fee) > 0.00001;
+            $feeChangingInside = abs(round((float) $assignment->fee_amount, 2) - $fee) > 0.00001;
 
             $willChangePayment = $desiredPaid !== null && $desiredPaid !== $oldEffectivePaid;
 
@@ -731,7 +736,7 @@ final class LessonPackageController extends AdminBaseController
                 }
             }
 
-            if ($assignment->effective_is_paid && $feeChanging) {
+            if ($assignment->effective_is_paid && $feeChangingInside) {
                 abort(422, 'Нельзя менять сумму у оплаченного абонемента.');
             }
 
@@ -739,14 +744,38 @@ final class LessonPackageController extends AdminBaseController
             $assignment->save();
         });
 
-        return response()->json([
-            'success' => true,
-            'assignment' => $this->assignmentModalPayload($assignment->fresh([
-                'user:id,name,lastname,partner_id',
-                'lessonPackage:id,name,schedule_type,duration_days,lessons_count',
-                'manualPaidBy:id,name,lastname',
-            ])),
+        $assignment->refresh();
+        $publicPayUrl = null;
+        if (! $assignment->effective_is_paid) {
+            if ($feeChanging) {
+                $publicPayUrl = $publicPayService->resetPublicPayAfterFeeChange($assignment);
+            } else {
+                $publicPayService->invalidatePublicPayIfAmountMismatch($assignment);
+            }
+        }
+
+        $assignment = $assignment->fresh([
+            'user:id,name,lastname,partner_id',
+            'lessonPackage:id,name,schedule_type,duration_days,lessons_count',
+            'manualPaidBy:id,name,lastname',
         ]);
+
+        if ($request->expectsJson()) {
+            $payload = [
+                'success' => true,
+                'assignment' => $this->assignmentModalPayload($assignment),
+            ];
+            if ($publicPayUrl !== null) {
+                $payload['public_pay_url'] = $publicPayUrl;
+                $payload['public_pay_url_rotated'] = true;
+            }
+
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('admin.lesson-packages.assignments')
+            ->with('success', 'Назначение абонемента обновлено.');
     }
 
     public function destroyAssignment(UserLessonPackage $assignment, UserLessonPackageAssignmentDeletionService $deletionService): JsonResponse

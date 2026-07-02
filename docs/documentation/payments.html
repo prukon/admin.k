@@ -577,6 +577,7 @@
     <li>В <code>DATA</code> Init: <code>user_lesson_package_id</code>, <code>team_id</code>, <code>ulp_public_pay=1</code> — как у оплаты из кабинета.</li>
     <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого <code>GET /pay/ulp/{token}</code>).</li>
     <li>Webhook и пометка <code>user_lesson_packages.is_paid</code> — общий pipeline T‑Bank (§3.3 «Оплата через T‑Bank»).</li>
+    <li><b>Смена суммы:</b> источник истины — <code>user_lesson_packages.fee_amount</code>. При изменении цены в админке (<code>PUT …/assignments/{id}</code>) активный T‑Bank-платёж по ссылке отменяется (<code>/v2/Cancel</code>), связанные <code>payables</code>/<code>payment_intents</code> переводятся в <code>cancelled</code>, привязка на ссылке сбрасывается. При следующем открытии <code>/pay/ulp/{token}</code> создаётся новый Init на актуальную сумму; если страница уже была открыта и сумма в БД не совпадает с суммой в payable — переиспользование платежа также блокируется (тот же сброс и новый Init). Токен ссылки при этом не меняется.</li>
   </ol>
 
   <h5>Доступ: admin endpoint выдачи ссылки</h5>
