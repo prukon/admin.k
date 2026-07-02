@@ -89,7 +89,7 @@
   <ul>
     <li><b>Админка «Цены»</b> (<code>/admin/setting-prices</code>, вкладка users): список учеников выбранной группы; при открытии месяца для группы создаётся/читается строка <code>users_prices</code> с <code>team_id</code> этой группы (<code>SettingPricesController</code>, <code>firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>).</li>
     <li><b>Ручная оплата</b> (<code>setManualPaid</code>): обязательны <code>user_id</code>, <code>team_id</code>, месяц; ученик должен состоять в группе (<code>UserPriceTeamMembership::studentBelongsToTeam</code>).</li>
-    <li><b>Dashboard → витрина</b>: в форму оплаты передаётся hidden <code>team_id</code> из ячейки месяца (<code>dashboard.blade.php</code> → <code>paymentUser.blade.php</code>). У ученика с 2+ группами в пользовательском режиме консоли отображается только начисление <b>выбранной</b> группы (селект «Выбор группы», § <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §4</a>).</li>
+    <li><b>Dashboard → витрина</b>: в форму оплаты передаётся hidden <code>team_id</code> из ячейки месяца (<code>dashboard.blade.php</code> → <code>paymentUser.blade.php</code>). У ученика с 2+ группами в пользовательском режиме консоли отображается только начисление <b>выбранной</b> группы (селект «Выбор группы», § <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>).</li>
     <li><b>Resolver суммы</b> — <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code>:
       <ul>
         <li>если передан <code>team_id</code> — проверка членства и чтение <code>users_prices</code> по <code>(user_id, team_id, month)</code>;</li>

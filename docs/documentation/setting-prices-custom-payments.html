@@ -34,7 +34,8 @@
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Родительский middleware раздела «Установка цен» (обязателен для всех URL вкладки)</td></tr>
-      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи», все endpoint'ы ниже, ручная отметка оплаты (<code>setting-prices.custom-payments.manual-paid</code>)</td></tr>
+      <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Консоль (<code>/cabinet</code>): блок сезонов месячных начислений, селект «Выбор группы», плашка задолженности. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи», все endpoint'ы ниже, блок на консоли, ручная отметка оплаты (<code>setting-prices.custom-payments.manual-paid</code>)</td></tr>
     </tbody>
   </table>
   <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на весь раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> только на endpoint'ы доп. платежей. С правами — ожидаемые <b>200</b> / <b>302</b> (не <b>500</b>, не пустой <b>200</b> на store).</p>
@@ -97,7 +98,7 @@
 
   <h2>5) Связь с оплатой</h2>
   <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>, пишет в <code>payables.meta.team_id</code> и <code>payment_intents.meta</code>. Без группы на записи — <b>422</b> при старте оплаты. См. <a href="/docs/documentation/payments#custom-payment-fee">payments §3.3</a>.</p>
-  <p class="small">На консоли (<code>/cabinet</code>) селект «Выбор группы» <b>не</b> фильтрует список доп. платежей — группа зафиксирована в админке при создании записи. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §4.5</a>.</p>
+  <p class="small">На консоли (<code>/cabinet</code>) селект «Выбор группы» <b>не</b> фильтрует список доп. платежей — группа зафиксирована в админке при создании записи. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5.5</a>.</p>
 
   <h2>6) Код</h2>
   <ul class="small">

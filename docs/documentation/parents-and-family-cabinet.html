@@ -237,7 +237,7 @@ users (role=user) — ученик, вход в CRM
       <tr><th>Компонент</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>DashboardController::index</code></td><td>Расписание, абонементы, поля, сезоны — данные выбранного ребёнка; при 2+ группах — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
+      <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount &gt; 0</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code>) — данные выбранного ребёнка; при 2+ группах и том же праве — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
       <tr><td><code>AppServiceProvider</code> (view composer <code>admin2</code>)</td><td><code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code></td></tr>
     </tbody>
@@ -251,12 +251,12 @@ users (role=user) — ученик, вход в CRM
   <table>
     <thead><tr><th>Элемент</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td>Условие</td><td>Активный ученик (<code>activeStudent</code>) состоит в <b>2+</b> группах pivot; залогиненный пользователь <b>без</b> <code>users.view</code>.</td></tr>
-      <tr><td>UI</td><td>Селект «Выбор группы» (<code>#dashboard-active-team</code>) над блоком сезонов.</td></tr>
+      <tr><td>Условие</td><td>Право <code>setPrices.cabinetSeasons.view</code>; активный ученик (<code>activeStudent</code>) в <b>2+</b> группах pivot; залогиненный пользователь <b>без</b> <code>users.view</code>.</td></tr>
+      <tr><td>UI</td><td>Селект «Выбор группы» (<code>#dashboard-active-team</code>) над блоком сезонов (сезоны тоже скрыты без права).</td></tr>
       <tr><td>Шапка «Группа:»</td><td>Все группы через запятую; выбранная в селекте — <b>жирным</b> (JS). При одной группе — без селекта и без жирного.</td></tr>
       <tr><td>Хранение выбора</td><td><code>sessionStorage</code> ключ <code>dashboard_active_team_id_{userId}</code> (отдельно для каждого ребёнка в семье).</td></tr>
       <tr><td>Backend</td><td>Отдельного POST/маршрута нет; фильтрация <code>users_prices</code> по <code>team_id</code> только на клиенте перед отрисовкой сезонов.</td></tr>
-      <tr><td>Не затрагивается</td><td>Календарь посещений; дополнительные платежи (<code>user_custom_payment</code>).</td></tr>
+      <tr><td>Не затрагивается</td><td>Календарь посещений; дополнительные платежи (<code>user_custom_payment</code>); назначенные абонементы (<code>user_lesson_packages</code>).</td></tr>
     </tbody>
   </table>
 

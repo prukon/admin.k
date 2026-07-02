@@ -63,7 +63,7 @@
       <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.*</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code></td></tr>
-      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code></td></tr>
+      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code></td></tr>
       <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
@@ -101,6 +101,9 @@
       (<code>reports.view</code>, <code>schedule.view</code>, <code>groups.view</code>, <code>setPrices.view</code>, <code>contracts.view</code>, <code>partner.view</code>, <code>users.view</code>, <code>settings.view</code> + <code>sort_order</code> по боковому меню).</li>
     <li>Миграция <code>directories.view</code> и пунктов «Расписание школы» / «Лиды» в mainMenu:
       <code>/database/migrations/2026_06_23_140000_add_directories_view_and_menu_page_permissions.php</code>.</li>
+    <li>Миграция <code>setPrices.cabinetSeasons.view</code>:
+      <code>/database/migrations/2026_07_02_150000_add_set_prices_cabinet_seasons_view_permission.php</code>
+      (право в группе <code>setPrices</code>, выдача ролям <code>user</code> и <code>admin</code>).</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>

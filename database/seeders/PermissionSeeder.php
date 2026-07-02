@@ -72,6 +72,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],
 
             // group_slug setPrices
+            ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Консоль: просмотр и оплата сезонов (месячных начислений)', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],
             ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
 

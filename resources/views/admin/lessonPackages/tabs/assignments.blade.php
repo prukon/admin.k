@@ -384,7 +384,10 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="text-muted small mb-2">Отправьте ссылку ученику. Если копирование не сработало автоматически, нажмите «Скопировать» или выделите ссылку вручную (Ctrl+C / Cmd+C).</p>
+                        <div id="ulp-pay-link-notice" class="alert alert-warning py-2 px-3 small d-none mb-2" role="status">
+                            Цена изменена. Старая ссылка на оплату больше не действует — скопируйте новую ссылку ниже.
+                        </div>
+                        <p id="ulp-pay-link-hint" class="text-muted small mb-2">Отправьте ссылку ученику. Если копирование не сработало автоматически, нажмите «Скопировать» или выделите ссылку вручную (Ctrl+C / Cmd+C).</p>
                         <label class="form-label visually-hidden" for="ulp-pay-link-url">Ссылка на оплату</label>
                         <input type="text" class="form-control font-monospace small" id="ulp-pay-link-url" readonly>
                     </div>
@@ -943,12 +946,10 @@
                         return;
                     }
                     dtApi.reload({ keepPage: true });
-                    if (payload.public_pay_url_rotated) {
-                        window.alert(
-                            'Цена изменена. Старая ссылка на оплату больше не действует — скопируйте новую ссылку в таблице назначений.'
-                        );
-                    }
                     modal.hide();
+                    if (payload.public_pay_url_rotated && payload.public_pay_url) {
+                        showPayLinkModal(payload.public_pay_url, { rotated: true });
+                    }
                 });
 
                 deleteBtn?.addEventListener('click', async function () {
@@ -978,6 +979,8 @@
                 const copyToast = document.getElementById('ulp-copy-pay-toast');
                 const payLinkModalEl = document.getElementById('ulpPayLinkModal');
                 const payLinkInputEl = document.getElementById('ulp-pay-link-url');
+                const payLinkNoticeEl = document.getElementById('ulp-pay-link-notice');
+                const payLinkHintEl = document.getElementById('ulp-pay-link-hint');
                 const payLinkCopyBtn = document.getElementById('ulp-pay-link-copy-btn');
                 const payLinkModal = payLinkModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal
                     ? bootstrap.Modal.getOrCreateInstance(payLinkModalEl)
@@ -1032,7 +1035,15 @@
                     }
                 }
 
-                function showPayLinkModal(url) {
+                function showPayLinkModal(url, options) {
+                    options = options || {};
+                    const rotated = !!options.rotated;
+                    if (payLinkNoticeEl) {
+                        payLinkNoticeEl.classList.toggle('d-none', !rotated);
+                    }
+                    if (payLinkHintEl) {
+                        payLinkHintEl.classList.toggle('d-none', rotated);
+                    }
                     if (!payLinkModal || !payLinkInputEl) {
                         window.prompt('Ссылка на оплату:', url);
                         return;
@@ -1043,6 +1054,14 @@
 
                 if (payLinkModalEl) {
                     payLinkModalEl.addEventListener('shown.bs.modal', selectPayLinkInput);
+                    payLinkModalEl.addEventListener('hidden.bs.modal', function () {
+                        if (payLinkNoticeEl) {
+                            payLinkNoticeEl.classList.add('d-none');
+                        }
+                        if (payLinkHintEl) {
+                            payLinkHintEl.classList.remove('d-none');
+                        }
+                    });
                 }
 
                 payLinkCopyBtn?.addEventListener('click', function () {

@@ -173,6 +173,8 @@ final class DashboardTeamSwitcherFeatureTest extends StudentTeamPivotTestCase
             'lastname' => 'Switcher',
         ]);
 
+        $this->grantPermissionForUser($student, 'setPrices.cabinetSeasons.view');
+
         $this->insertUserPrice($student, [
             'new_month' => '2025-09-01',
             'price'     => 5000,

@@ -47,7 +47,7 @@ class DocumentationController extends Controller
         'admin-users-section'         => 'Раздел «Пользователи» (вкладки): ученики, тренеры, администраторы, /admin/roles/{name}, UsersSectionTabsResolver',
         'admin-role-staff'            => 'Администраторы и кастомные роли: /admin/administrators, /admin/roles/{name}, RoleStaffUserController, users.role.update',
         'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
-        'dashboard-cabinet'           => 'Консоль (/cabinet): сезоны, оплата monthly_fee, селект «Выбор группы» при 2+ группах (sessionStorage), семейный контекст',
+        'dashboard-cabinet'           => 'Консоль (/cabinet): блоки оплат (доп./абонементы/сезоны), setPrices.cabinetSeasons.view, селект группы, семейный контекст',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
         'admin-users'                 => 'Ученики (админка): /admin/users только role=user, родители, колонка «Договор», мед./особенности, пол (users.sex — CRM и кабинет), комментарий (users.comment), группы (team_ids)',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», карточка, revoke/refund, вкладка «Шаблоны»',

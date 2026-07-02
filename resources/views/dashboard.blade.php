@@ -135,11 +135,13 @@
                 @endcan
             </div>
 
+            @can('setPrices.cabinetSeasons.view')
             @can('paying.classes')
                 <div class="col-12 col-lg-4 mt-3 mb-3 credit-notice  align-items-center justify-content-center text-center">
                     <i class="close fa-solid fa-circle-xmark"></i>
                     У вас образовалась задолженность в размере <span class="summ"></span> руб.
                 </div>
+            @endcan
             @endcan
 
         </div>
@@ -319,6 +321,7 @@
             </div>
         @endif
 
+        @can('setPrices.cabinetSeasons.view')
         @include('includes.dashboard_team_switcher')
 
         {{--Сезоны--}}
@@ -368,6 +371,7 @@
                 </div>
             </div>
         </div>
+        @endcan
 
     </div>
 
@@ -403,12 +407,17 @@
             @endcannot
             var dashboardStudentId = {{ (int) $curUser->id }};
             var dashboardTeamStorageKey = 'dashboard_active_team_id_' + dashboardStudentId;
+            @can('setPrices.cabinetSeasons.view')
+            var dashboardSeasonsEnabled = true;
+            @else
+            var dashboardSeasonsEnabled = false;
+            @endcan
 
             function refreshPrice() {
-                document.querySelectorAll('.price-value').forEach(function (element) {
+                document.querySelectorAll('.seasons .border_price .price-value').forEach(function (element) {
                     element.textContent = '0';
                 });
-                document.querySelectorAll('.new-main-button-wrap button').forEach(function (button) {
+                document.querySelectorAll('.seasons .border_price .new-main-button-wrap button').forEach(function (button) {
                     button.classList.remove('buttonPaided');
                 });
             }
@@ -463,7 +472,7 @@
             }
 
             function applyDashboardTeamContext(teamId, persist) {
-                if (!dashboardTeams.length) {
+                if (!dashboardSeasonsEnabled || !dashboardTeams.length) {
                     return;
                 }
 
@@ -685,8 +694,6 @@
                             let userFieldValues = response.userFieldValues;
                             let userFields = response.userFields;
 
-                            //Сброс всех значений цен до нуля
-                            refreshPrice();
                             function apendNameToUser2() {
                                 if (user.name) {
                                     $('.name-value').html(user.name);
@@ -812,10 +819,13 @@
                             }
 
                             showHeaderShedule();
-                            refreshPrice();
-                            apendPrice(userPrice);
-                            showSessons();
-                            apendCreditTotalSumm();
+                            if (dashboardSeasonsEnabled) {
+                                refreshPrice();
+                                apendPrice(userPrice);
+                                showSessons();
+                                apendCreditTotalSumm();
+                                openFirstSeason();
+                            }
                             apendTeamNameToUser();
                             apendBirthdayToUser();
                             apendNameToUser();
@@ -825,7 +835,6 @@
                             updateGlobalScheduleData(scheduleUser);
                             setBackgroundToCalendar(globalScheduleData);
                             createCalendar();
-                            openFirstSeason();
                             disabledPaymentForm(currentUserRole);
                             apendUserFieldValues(userFieldValues);
 
@@ -1451,21 +1460,23 @@
                 });
             }
 
-            createSeasons();    //Создание сезонов
-            clickSeason();       //Измерение иконок при клике
-            hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
             createCalendar();
-            if (dashboardTeams.length) {
-                initDashboardTeamSwitcher();
-            } else {
-                apendPrice(userPrice);
-                showSessons();
-                apendCreditTotalSumm();
-                apendCreditTotalSummtoNotice();
-                openFirstSeason();
+            if (dashboardSeasonsEnabled) {
+                createSeasons();    //Создание сезонов
+                clickSeason();       //Измерение иконок при клике
+                hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
+                if (dashboardTeams.length) {
+                    initDashboardTeamSwitcher();
+                } else {
+                    apendPrice(userPrice);
+                    showSessons();
+                    apendCreditTotalSumm();
+                    apendCreditTotalSummtoNotice();
+                    openFirstSeason();
+                }
+                closeNotice();
+                showCreditNotice();
             }
-            closeNotice();
-            showCreditNotice();
             disabledPaymentForm(currentUserRole);
             addSelect2ToUser();
             addSelect2ToTeam();
