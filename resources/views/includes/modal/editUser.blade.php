@@ -316,6 +316,15 @@
                                 </div>
                             @endunless
 
+                            <button type="button"
+                                    id="send-welcome-credentials-btn"
+                                    class="btn btn-outline-primary mt-3 d-none"
+                                    data-kids-tooltip-hint
+                                    data-bs-toggle="tooltip"
+                                    title="Сгенерировать новый пароль и отправить его на email ученика">
+                                <i class="fa-solid fa-envelope me-1"></i> Отправить новый пароль по почте
+                            </button>
+
                             <!-- Кнопка для сохранения данных -->
                             <button type="submit" class="btn btn-primary mt-3 save-change-modal">Сохранить изменения
                             </button>
@@ -466,6 +475,36 @@
             }
 
             $form.data('role-id', response.user.role_id);
+        }
+
+        function isEditUserStudent(user) {
+            if (user && user.role && user.role.name === 'user') {
+                return true;
+            }
+
+            var roleId = user && user.role_id
+                ? String(user.role_id)
+                : String($('#edit-user-form').data('role-id') || '');
+
+            var role = (editUserRolesCache || []).find(function (item) {
+                return String(item.id) === roleId;
+            });
+
+            return !!(role && role.name === 'user');
+        }
+
+        function syncSendWelcomeCredentialsBtn(user) {
+            var $btn = $('#send-welcome-credentials-btn');
+            if (!$btn.length) {
+                return;
+            }
+
+            var email = user && user.email !== undefined
+                ? String(user.email || '').trim()
+                : String($('#edit-user-form #edit-email').val() || '').trim();
+            var visible = isEditUserStudent(user || {}) && email !== '';
+
+            $btn.toggleClass('d-none', !visible).prop('disabled', false);
         }
 
         function syncEditUserTeamFields(roleId, roles, trainerTeamIds, studentTeamIds) {
@@ -645,6 +684,87 @@
                 $('#change-pass-wrap').hide();
                 $('#error-message').hide();
             });
+
+            function sendWelcomeCredentialsRequest($btn) {
+                var userId = ($('#edit-user-form').attr('action') || '').split('/').pop();
+
+                $btn.prop('disabled', true);
+
+                $.ajax({
+                    url: '/admin/users/' + userId + '/send-welcome-credentials',
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val(),
+                        'Accept': 'application/json',
+                    },
+                    success: function (response) {
+                        var msg = response.message || 'Пароль отправлен.';
+                        if (typeof showSuccessModal === 'function') {
+                            showSuccessModal('Отправка пароля', msg);
+                        } else if (typeof showToast === 'function') {
+                            showToast(msg, 'success');
+                        } else {
+                            alert(msg);
+                        }
+                    },
+                    error: function (xhr) {
+                        var msg = xhr.responseJSON && xhr.responseJSON.message
+                            ? xhr.responseJSON.message
+                            : 'Не удалось отправить письмо.';
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Отправка пароля', msg);
+                        } else if (typeof eroorRespone === 'function') {
+                            eroorRespone(xhr);
+                        } else if (typeof showToast === 'function') {
+                            showToast(msg, 'error');
+                        } else {
+                            $('#error-modal-message').text(msg).show();
+                            $('#errorModal').modal('show');
+                        }
+                    },
+                    complete: function () {
+                        syncSendWelcomeCredentialsBtn({
+                            role_id: $('#edit-user-form').data('role-id'),
+                            email: $('#edit-user-form #edit-email').val(),
+                        });
+                    },
+                });
+            }
+
+            $(document).off('click.sendWelcomeCredentials').on('click.sendWelcomeCredentials', '#send-welcome-credentials-btn', function () {
+                var email = String($('#edit-user-form #edit-email').val() || '').trim();
+                var userId = ($('#edit-user-form').attr('action') || '').split('/').pop();
+                var $btn = $(this);
+
+                if (!userId || !email) {
+                    return;
+                }
+
+                var confirmMessage = 'Будет сгенерирован новый пароль и отправлен на ' + email + '.\n'
+                    + 'Старый пароль перестанет работать. Продолжить?';
+
+                if (typeof showConfirmDeleteModal === 'function') {
+                    showConfirmDeleteModal(
+                        'Отправка пароля по почте',
+                        confirmMessage,
+                        function () {
+                            sendWelcomeCredentialsRequest($btn);
+                        }
+                    );
+                    return;
+                }
+
+                if (window.confirm(confirmMessage)) {
+                    sendWelcomeCredentialsRequest($btn);
+                }
+            });
+
+            $('#edit-user-form').off('input.sendWelcomeCredentials').on('input.sendWelcomeCredentials', '#edit-email', function () {
+                syncSendWelcomeCredentialsBtn({
+                    role_id: $('#edit-user-form').data('role-id'),
+                    email: $(this).val(),
+                });
+            });
         }
 
         // ОКРЫТЫТЬ МОДАЛКУ ЮЗЕРА и загружаем его данные для редактирования UserController edit
@@ -697,6 +817,7 @@
                         applyEditUserCommentSexPermissions(response.ui || {});
                         setEditUserCommentSexFields(response.user);
                         syncEditUserCommentSexFields(response.user.role_id, editUserRolesCache);
+                        syncSendWelcomeCredentialsBtn(response.user);
 
                         // 3) Устанавливаем action формы
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);
@@ -819,6 +940,7 @@
                         applyEditUserCommentSexPermissions(response.ui || {});
                         setEditUserCommentSexFields(response.user);
                         syncEditUserCommentSexFields(response.user.role_id, editUserRolesCache);
+                        syncSendWelcomeCredentialsBtn(response.user);
 
                         // 3) Устанавливаем action формы (используется в обновлении и смене пароля/удалении)
                         $('#edit-user-form').attr('action', `/admin/users/${response.user.id}`);

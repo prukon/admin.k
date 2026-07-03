@@ -56,6 +56,13 @@ class StoreRequest extends FormRequest
             ]);
         }
 
+        if ($this->filled('school_lead_id')) {
+            $parentEmail = trim((string) $this->input('parent_email', ''));
+            if ($parentEmail !== '' && trim((string) $this->input('email', '')) === '') {
+                $this->merge(['email' => $parentEmail]);
+            }
+        }
+
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
         $this->prepareStudentCommentAndSexForValidation();
@@ -139,6 +146,13 @@ class StoreRequest extends FormRequest
         $validator->after(function ($validator): void {
             $this->forbidSuperadminRoleAssignment($validator);
 
+            if ($this->filled('school_lead_id') && trim((string) $this->input('parent_email', '')) === '') {
+                $validator->errors()->add(
+                    'parent_email',
+                    'Укажите email родителя для создания клиента и отправки данных для входа.'
+                );
+            }
+
             $custom = $this->input('custom');
             if (!is_array($custom) || $custom === []) {
                 return;
@@ -198,6 +212,8 @@ class StoreRequest extends FormRequest
 
             'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',
+
+            'parent_email.required' => 'Укажите email родителя для создания клиента и отправки данных для входа.',
         ] + $this->studentParentMessages()
             + $this->studentHealthFieldMessages()
             + $this->studentCommentAndSexMessages();

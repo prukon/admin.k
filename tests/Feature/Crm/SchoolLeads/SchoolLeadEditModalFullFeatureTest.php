@@ -361,6 +361,7 @@ final class SchoolLeadEditModalFullFeatureTest extends CrmTestCase
             'role_id'                => $this->defaultRoleId(),
             'is_enabled'             => 1,
             'school_lead_id'         => $lead->id,
+            'parent_email'           => $this->schoolLeadClientParentEmail(),
             'is_individual_traits'   => '1',
             'is_on_medical_register' => '0',
             'is_with_disability'     => '0',

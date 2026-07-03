@@ -175,6 +175,26 @@
     </thead>
 </table>
 
+<div class="modal fade" id="outgoingEmailShowModal" tabindex="-1" aria-labelledby="outgoingEmailShowModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="outgoingEmailShowModalLabel">Письмо</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body" id="outgoingEmailShowModalBody">
+                <div class="text-center text-muted py-4">Загрузка…</div>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-outline-secondary btn-sm d-none" id="outgoingEmailShowModalOpenPage" target="_blank" rel="noopener">
+                    Открыть на отдельной странице
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section('scripts')
 <script type="text/javascript">
 $(function () {
@@ -261,6 +281,54 @@ $(function () {
         return '<span class="badge bg-secondary">' + KidsCrmTooltip.escapeHtml(s) + '</span>';
     }
 
+    function outgoingEmailShowUrlFromPath(path) {
+        var match = String(path || '').match(/\/(\d+)\/?$/);
+        return match ? ('Письмо #' + match[1]) : 'Письмо';
+    }
+
+    function openOutgoingEmailShowModal(showUrl) {
+        showUrl = String(showUrl || '').trim();
+        if (!showUrl) {
+            return;
+        }
+
+        var $modal = $('#outgoingEmailShowModal');
+        var $body = $('#outgoingEmailShowModalBody');
+        var $title = $('#outgoingEmailShowModalLabel');
+        var $openPage = $('#outgoingEmailShowModalOpenPage');
+
+        $title.text(outgoingEmailShowUrlFromPath(showUrl));
+        $body.html('<div class="text-center text-muted py-4">Загрузка…</div>');
+        $openPage.attr('href', showUrl).removeClass('d-none');
+
+        var modalEl = $modal[0];
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+
+        $.ajax({
+            url: showUrl,
+            method: 'GET',
+            data: { modal: 1 },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'text/html'
+            }
+        }).done(function (html) {
+            $body.html(html);
+            if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.initIn === 'function') {
+                window.KidsCrmTooltip.initIn($body[0]);
+            }
+        }).fail(function () {
+            $body.html('<div class="alert alert-danger mb-0">Не удалось загрузить письмо.</div>');
+        });
+    }
+
+    $(document).on('click', '.js-outgoing-email-show', function (e) {
+        e.preventDefault();
+        var showUrl = $(this).data('show-url') || $(this).attr('href') || '';
+        openOutgoingEmailShowModal(showUrl);
+    });
+
     var dtApi = KidsCrmDataTable.create('#emails-table', {
         columnsSettings: {
             defaults: {
@@ -299,8 +367,8 @@ $(function () {
         columns: [
             { type: 'rownum' },
             { key: 'id', type: 'id', data: 'id' },
-            { key: 'created_at', type: 'text', data: 'created_at', className: 'text-nowrap' },
-            { key: 'sent_at', type: 'text', data: 'sent_at', className: 'text-nowrap' },
+            { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at' },
+            { key: 'sent_at', type: 'datetime', data: 'sent_at', name: 'sent_at' },
             {
                 key: 'status',
                 type: 'badge',
@@ -317,14 +385,14 @@ $(function () {
             { key: 'from_address', type: 'text', data: 'from_address' },
             {
                 key: 'to_summary',
-                type: 'text',
+                type: 'link',
                 data: 'to_summary',
-                render: function (data, type) {
-                    if (type !== 'display' && type !== 'filter') {
-                        return data != null ? data : '';
-                    }
-                    return KidsCrmTooltip.renderText(data);
-                }
+                className: 'dt-col-text',
+                href: '#',
+                linkClass: 'js-outgoing-email-show',
+                linkAttrs: function (row) {
+                    return 'data-show-url="' + KidsCrmTooltip.escapeHtml(row.show_url || '') + '"';
+                },
             },
             { key: 'subject', type: 'text', data: 'subject' },
             { key: 'mailable_short', type: 'text', data: 'mailable_short' },
@@ -354,7 +422,9 @@ $(function () {
                 className: 'text-nowrap',
                 render: function (data, type, row) {
                     var url = row.show_url || '';
-                    return '<a class="btn btn-sm btn-outline-primary" href="' + url + '" title="Открыть">Открыть</a>';
+                    return '<button type="button" class="btn btn-sm btn-outline-primary js-outgoing-email-show" data-show-url="'
+                        + KidsCrmTooltip.escapeHtml(url)
+                        + '" title="Открыть">Открыть</button>';
                 }
             }
         ]

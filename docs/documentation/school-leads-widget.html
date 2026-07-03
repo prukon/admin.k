@@ -475,7 +475,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       </tr>
       <tr>
         <td>Футер (редактируемая заявка)</td>
-        <td>«Сохранить изменения» → <code>PUT /admin/school-leads/{id}</code>. При <code>users.view</code> — «Создать клиента» (активна, если заполнены имя и фамилия ученика).</td>
+        <td>«Сохранить изменения» → <code>PUT /admin/school-leads/{id}</code>. При <code>users.view</code> — «Создать клиента» (активна, если заполнены имя и фамилия ученика <b>и</b> email родителя — <code>parent_email</code>).</td>
       </tr>
       <tr>
         <td>Заявка с <code>user_id</code> (read-only)</td>
@@ -573,12 +573,27 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     Unique-индекс <code>school_leads_user_id_unique</code> на колонке <code>user_id</code> (миграция <code>2026_05_19_170000_add_user_id_to_school_leads_table.php</code>) — один ученик не может быть привязан к двум заявкам.
   </div>
   <ul>
-    <li>UI — кнопка <b>«Создать клиента»</b> в модалке §5.5.2 (не в колонке таблицы). Доступна при <code>users.view</code>; disabled, пока не заполнены имя и фамилия ученика (tooltip с подсказкой).</li>
-    <li>Поток: сначала <code>PUT /admin/school-leads/{id}</code> (сохранение полей модалки), затем <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>) с телом из <code>collectCreateClientPayload()</code>: ФИО ученика, дата рождения, <code>team_id</code> (группа из заявки), блок родителя, флаги особенностей, <code>custom</code>, скрытые <code>role_id</code> (роль <code>user</code>), <code>is_enabled=1</code>, <code>school_lead_id</code>. На сервере <code>UserController::store</code> при наличии <code>school_lead_id</code> и пустом <code>team_ids</code> подставляет <code>team_ids = [lead.team_id]</code> и синхронизирует pivot (legacy <code>users.team_id</code> не обновляется).</li>
+    <li>UI — кнопка <b>«Создать клиента»</b> в модалке §5.5.2 (не в колонке таблицы). Доступна при <code>users.view</code>; disabled, пока не заполнены имя, фамилия ученика и <code>parent_email</code> (<code>syncCreateClientBtnState</code> в <code>leads.blade.php</code>).</li>
+    <li>Поток: сначала <code>PUT /admin/school-leads/{id}</code> (сохранение полей модалки), затем <code>POST /admin/users</code> (<code>admin.user.store</code>, middleware <code>can:users.view</code>) с телом из <code>collectCreateClientPayload()</code>: ФИО ученика, дата рождения, <code>team_id</code> (группа из заявки), блок родителя (в т.ч. <code>parent_email</code>), флаги особенностей, <code>custom</code>, скрытые <code>role_id</code> (роль <code>user</code>), <code>is_enabled=1</code>, <code>school_lead_id</code>. На сервере <code>UserController::store</code> при наличии <code>school_lead_id</code> и пустом <code>team_ids</code> подставляет <code>team_ids = [lead.team_id]</code> и синхронизирует pivot (legacy <code>users.team_id</code> не обновляется).</li>
+    <li>Успех: модалка результата <code>showCreateClientResultModal</code> (не toast «Изменения сохранены»); проверка <code>response.user.id</code> в JSON; таблица перезагружается без F5.</li>
     <li>Район и объект заявки (<code>district_id</code>, <code>location_id</code>) в карточку ученика <b>не переносятся</b> (как и раньше). См. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>.</li>
-    <li>Валидация: <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена. Иначе 422.</li>
-    <li>После успешного <code>store</code>: <code>school_leads.user_id = {новый user id}</code>; модалка закрывается, таблица перезагружается.</li>
+    <li>Валидация: <code>school_lead_id</code> в <code>App\Http\Requests\User\StoreRequest</code> — заявка того же партнёра, без <code>user_id</code>, не удалена; при конвертации <code>parent_email</code> обязателен (422 без него). Иначе 422.</li>
+    <li>После успешного <code>store</code>: <code>school_leads.user_id = {новый user id}</code>; <code>parent_email</code> → <code>users.email</code>; генерируется пароль и отправляется welcome-письмо (§<a href="#school-lead-welcome-credentials">5.7.1</a>).</li>
   </ul>
+
+  <h4 id="school-lead-welcome-credentials">5.7.1) Welcome-письмо при «Создать клиента»</h4>
+  <div class="note">
+    При конвертации лида письмо отправляется <b>всегда</b> (если SMTP доступен): логин = email родителя из заявки, пароль — сгенерированный сервером (plain-text в теле письма).
+    Повторная отправка пароля уже созданному ученику — из модалки edit на <a href="/docs/documentation/admin-users#user-welcome-credentials">/admin/users</a> (кнопка «Отправить новый пароль по почте»).
+    Письма попадают в отчёт <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a> (<code>ClientWelcomeCredentialsMail</code>, класс Mailable в фильтре; просмотр — модалка на списке, §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a>).
+    Backend: <code>ClientWelcomeCredentialsService</code>, <code>UserController::store</code> / <code>sendWelcomeCredentials</code>. Подробный контракт AJAX/non-AJAX — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
+  </div>
+  <ul>
+    <li>JSON-ответ <code>POST /admin/users</code> (AJAX): <code>message</code>, <code>user</code>, <code>welcome_email_sent</code> (boolean).</li>
+    <li>Без email родителя создание клиента блокируется на UI (disabled-кнопка) и на сервере (422, поле <code>parent_email</code>).</li>
+    <li>Ошибка отправки письма не откатывает создание ученика: <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение.</li>
+  </ul>
+  <p class="small">Тесты: <code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code>, <code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code>; синтаксис JS — <code>BladeInlineJsSyntaxTest</code> (<code>leads.blade.php</code>).</p>
   <p class="small">Отдельного маршрута у заявок для создания клиента нет. Partial <code>includes/modal/createUser.blade.php</code> на странице заявок <b>не подключается</b> (используется только на <a href="/docs/documentation/admin-users">/admin/users</a>).</p>
 
   <h3 id="school-lead-contract-inline">5.8) Создание договора без ухода со страницы заявок</h3>
@@ -602,7 +617,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr><td>С <code>schoolLeads.view</code></td><td><b>200</b>: страница, data, columns-settings, CRUD статусов (§5.4), update/delete заявок (в пределах своего партнёра)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>districts.view</code></td><td>Дополнительно: фильтр/столбец/поле «Район» в UI и API (<code>district_id</code>)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>locations.view</code></td><td>Дополнительно: фильтр/столбец/поле «Объект» в UI и API (<code>location_id</code>)</td></tr>
-      <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: кнопка «Создать клиента» в модалке §5.5.2, <code>POST /admin/users</code> с <code>school_lead_id</code> → 200</td></tr>
+      <tr><td>С <code>schoolLeads.view</code> + <code>users.view</code></td><td>Дополнительно: кнопка «Создать клиента» в модалке §5.5.2 (требует <code>parent_email</code>), <code>POST /admin/users</code> с <code>school_lead_id</code> → 200 + welcome-письмо (§<a href="#school-lead-welcome-credentials">5.7.1</a>)</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>contracts.view</code></td><td>Дополнительно: в data — <code>create_contract_url</code> / <code>latest_contract</code>; встроенная модалка договора на странице заявок; <code>GET …/users-search</code>, <code>…/user-group</code>, <code>POST …/check-balance</code> → 200</td></tr>
       <tr><td>С <code>schoolLeads.view</code> + <code>users.other.update</code></td><td>Чекбоксы сведений об ученике в модалке и сохранение флагов через <code>PUT</code></td></tr>
       <tr><td>Только <code>users.view</code> без <code>contracts.view</code></td><td>Колонка «Договор» может быть видна (если есть <code>users.view</code>), но полей договора в JSON нет; в ячейке «—» до создания клиента</td></tr>
@@ -715,6 +730,8 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadEditModalFeatureTest.php</code>, <code>SchoolLeadEditModalFullFeatureTest.php</code>, <code>SchoolLeadEditModalFullAccessFeatureTest.php</code> — объединённая модалка §5.5.2, inline-статус в модалке, чекбоксы здоровья, встроенное создание договора</li>
     <li><code>SchoolLeadCreateClientFullFeatureTest.php</code> — создание клиента из модалки, перенос health-флагов</li>
     <li><code>SchoolLeadCreateUserFeatureTest.php</code> — <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
+    <li><code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо, <code>parent_email</code>, resend, лог исходящих писем</li>
+    <li><code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — доступ и AJAX/non-AJAX (см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>)</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>
     <li><code>SchoolLeadsPageFeatureTest.php</code> — toolbar, stats, фильтры (район, объект, секция, особые условия), колонки, пагинация</li>

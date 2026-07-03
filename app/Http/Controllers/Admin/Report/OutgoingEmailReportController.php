@@ -234,14 +234,23 @@ class OutgoingEmailReportController extends AdminBaseController
     }
 
     /**
-     * Show-страница (отдельная) с полным html/text/attachments/error_message.
+     * Show-страница (отдельная) или HTML-фрагмент для модалки (AJAX / modal=1).
      */
-    public function show(OutgoingEmailLog $log)
+    public function show(Request $request, OutgoingEmailLog $log)
     {
         $partnerId = $this->requirePartnerId();
 
         if ((int) ($log->partner_id ?? 0) !== (int) $partnerId) {
             abort(403);
+        }
+
+        $inModal = $request->ajax() || $request->boolean('modal');
+
+        if ($inModal) {
+            return view('admin.report.partials.outgoing_email_show_content', [
+                'log'     => $log,
+                'inModal' => true,
+            ]);
         }
 
         return view('admin.report.outgoing_email_show', [

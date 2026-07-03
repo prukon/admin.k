@@ -435,20 +435,100 @@
     <li><b>Select2</b>: <code>GET /admin/reports/fiscal-receipts/partners-search</code> → <code>{ results: [{id,text}] }</code></li>
   </ul>
 
-  <h2>8) Отчёт “Исходящие письма” (outgoing_emails)</h2>
+  <h2 id="reports-outgoing-emails">8) Отчёт “Исходящие письма” (outgoing_emails)</h2>
+  <div class="note">
+    Журнал исходящих писем CRM по текущему партнёру. С <b>2026‑07</b> — модалка просмотра без ухода со списка, колонки «Создано»/«Отправлено» в формате <code>datetime</code>, кликабельная колонка «Кому», HTML-тело в iframe (не экранированный исходник).
+    Welcome-письма ученикам (<code>ClientWelcomeCredentialsMail</code>) попадают сюда после конвертации лида и resend — см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
+  </div>
   <ul>
-    <li><b>Страница</b>: <code>/admin/reports/emails</code> (middleware <code>can:reports.emails.view</code>)</li>
-    <li><b>DataTables</b>: <code>GET /admin/reports/emails/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#emails-table')</code>)</li>
-    <li><b>Счётчики</b>: <code>GET /admin/reports/emails/total</code> (JSON: всего / отправлено / ошибки по <code>current_partner</code>)</li>
-    <li><b>Колонки (настройки)</b>:
+    <li><b>Страница</b>: <code>/admin/reports/emails</code> (вкладка <code>activeTab=emails</code> в <code>admin/report/index.blade.php</code>; middleware <code>can:reports.emails.view</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/emails/data</code> — только AJAX (<code>X-Requested-With</code> или <code>$request-&gt;ajax()</code>); без AJAX → <b>404</b>. UI: <code>KidsCrmDataTable.create('#emails-table')</code></li>
+    <li><b>Счётчики</b>: <code>GET /admin/reports/emails/total</code> (JSON: <code>total_*</code>, <code>sent_*</code>, <code>failed_*</code> по <code>current_partner</code> и тем же фильтрам, что таблица)</li>
+    <li><b>Источник записей</b>: листенер <code>App\Listeners\LogOutgoingEmail</code> на <code>MessageSending</code> / <code>MessageSent</code>; <code>partner_id</code> — из заголовка <code>X-Partner-Id</code> на Mailable (приоритет) или из <code>PartnerContext</code> в web-запросе. Таблица БД: <code>outgoing_email_logs</code>.</li>
+    <li><b>Select2</b>: <code>GET /admin/reports/emails/mailable-classes-search</code> → <code>{ results: [{id, text}] }</code> (уникальные классы Mailable/Notification партнёра)</li>
+    <li><b>Карточка письма</b>: <code>GET /admin/reports/emails/{log}</code> — см. §8.3</li>
+  </ul>
+
+  <h3 id="reports-outgoing-emails-filters">8.1) Фильтры и тулбар</h3>
+  <ul>
+    <li>Форма <code>#emails-report-filters</code> (GET <code>/admin/reports/emails</code>): при submit — <code>preventDefault()</code>, <code>dtApi.reload()</code> + обновление счётчиков через <code>…/total</code> (без полной перезагрузки страницы).</li>
+    <li>Поля фильтра (query string, передаются и в <code>…/data</code>, и в <code>…/total</code>):
       <ul>
-        <li><code>GET /admin/reports/emails/columns-settings</code></li>
-        <li><code>POST /admin/reports/emails/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
-        <li>Хранение: <code>user_table_settings.table_key = reports_outgoing_emails</code></li>
+        <li><code>created_at_from</code>, <code>created_at_to</code> — дата создания записи лога</li>
+        <li><code>sent_at_from</code>, <code>sent_at_to</code> — дата успешной отправки</li>
+        <li><code>status[]</code> — multiselect Select2: <code>sending</code>, <code>sent</code>, <code>failed</code></li>
+        <li><code>mailable_class</code> — Select2 AJAX по <code>mailable-classes-search</code></li>
+        <li><code>q</code> — поиск по теме, <code>to_summary</code>, <code>from_address</code>, <code>error_message</code></li>
       </ul>
     </li>
-    <li><b>Select2</b>: <code>GET /admin/reports/emails/mailable-classes-search</code> → поиск классов Mailable для фильтра</li>
-    <li><b>Карточка письма</b>: <code>GET /admin/reports/emails/{log}</code> — только лог своего партнёра</li>
+    <li>Кнопка «Сброс» — очистка полей и reload таблицы.</li>
+    <li>Dropdown «Колонки» — toggles с <code>data-column-key</code>, сохранение через columns-settings (§8.5).</li>
+  </ul>
+
+  <h3 id="reports-outgoing-emails-table">8.2) Таблица (KidsCrmDataTable)</h3>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead><tr><th>Колонка</th><th><code>type</code></th><th>Примечания</th></tr></thead>
+    <tbody>
+      <tr><td>№</td><td><code>rownum</code></td><td>—</td></tr>
+      <tr><td>ID</td><td><code>id</code></td><td>—</td></tr>
+      <tr><td>Создано</td><td><code>datetime</code></td><td>класс <code>pay-cell-datetime</code> (<code>admin-list-toolbar.css</code>); формат с сервера <code>Y-m-d H:i:s</code></td></tr>
+      <tr><td>Отправлено</td><td><code>datetime</code></td><td>аналогично «Создано»</td></tr>
+      <tr><td>Статус</td><td><code>badge</code></td><td>отправлено / в процессе / ошибка</td></tr>
+      <tr><td>От кого</td><td><code>text</code></td><td><code>from_address</code></td></tr>
+      <tr><td>Кому</td><td><code>link</code></td><td>клик → модалка просмотра (<code>js-outgoing-email-show</code>, <code>data-show-url</code> из JSON <code>show_url</code>); не переход по href</td></tr>
+      <tr><td>Тема, Класс, Ошибка, Попытки</td><td><code>text</code> / <code>count</code></td><td>ошибка — красный excerpt до 200 символов</td></tr>
+      <tr><td>Действия</td><td><code>actions</code></td><td>кнопка «Открыть» — та же модалка</td></tr>
+    </tbody>
+  </table>
+  <p class="small">JSON <code>…/data</code> добавляет вычисляемые поля: <code>mailable_short</code>, <code>error_excerpt</code>, <code>show_url</code> (<code>route('reports.emails.show', log)</code>).</p>
+
+  <h3 id="reports-outgoing-emails-show">8.3) Просмотр письма: модалка и отдельная страница</h3>
+  <div class="note">
+    По умолчанию просмотр — <b>в модалке</b> на странице списка (колонка «Кому», кнопка «Открыть»). Прямой URL и ссылка «Открыть на отдельной странице» в footer модалки — полная HTML-страница с layout.
+  </div>
+  <ul>
+    <li><b>Модалка</b>: <code>#outgoingEmailShowModal</code> в <code>outgoing_emails.blade.php</code>; JS <code>openOutgoingEmailShowModal(showUrl)</code>:
+      <ul>
+        <li><code>GET {showUrl}?modal=1</code></li>
+        <li>заголовки: <code>X-Requested-With: XMLHttpRequest</code>, <code>Accept: text/html</code></li>
+        <li>ответ — HTML-фрагмент partial <code>admin/report/partials/outgoing_email_show_content.blade.php</code> (без layout)</li>
+      </ul>
+    </li>
+    <li><b>Отдельная страница</b>: <code>GET /admin/reports/emails/{log}</code> без <code>modal=1</code> и без AJAX → view <code>admin.report.outgoing_email_show</code> (layout + partial).</li>
+    <li><b>Контент карточки</b>: метаданные (даты, from/to/cc/bcc, тема, класс Mailable, очередь, попытки, ошибка), вкладки «HTML» / «Текст».</li>
+    <li><b>HTML-тело</b>: iframe с <code>src="data:text/html;charset=utf-8;base64,…"</code> (<code>base64_encode($log-&gt;html_body)</code>) — рендер письма в изолированном фрейме; <b>не</b> <code>srcdoc="{{ e(...) }}"</code> (иначе виден экранированный исходник).</li>
+    <li><b>«Кому» в карточке</b>: массив <code>to_addresses</code> (структура <code>[{address, name}]</code>); <code>to_summary</code> используется в таблице и поиске.</li>
+    <li>Footer модалки: ссылка «Открыть на отдельной странице» (<code>#outgoingEmailShowModalOpenPage</code>, <code>target=_blank</code>).</li>
+  </ul>
+
+  <h3 id="reports-outgoing-emails-access">8.4) Контроль доступа и изоляция партнёра</h3>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead><tr><th>Сценарий</th><th>Ответ</th></tr></thead>
+    <tbody>
+      <tr><td>Гость</td><td>302 на login / 401 / 403 (как у прочих admin routes)</td></tr>
+      <tr><td>Авторизован без <code>reports.emails.view</code></td><td><b>403</b> на index, data, total, show, columns-settings, mailable-classes-search</td></tr>
+      <tr><td>С правом / superadmin, свой партнёр</td><td><b>200</b> / JSON по контракту endpoint'а</td></tr>
+      <tr><td><code>show</code> для лога другого партнёра</td><td><b>403</b> (<code>OutgoingEmailReportController::show</code>)</td></tr>
+      <tr><td><code>…/data</code> без AJAX</td><td><b>404</b></td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="reports-outgoing-emails-columns-settings">8.5) columns-settings</h3>
+  <ul>
+    <li><code>GET /admin/reports/emails/columns-settings</code> → JSON-объект <code>{ column_key: bool, … }</code></li>
+    <li><code>POST /admin/reports/emails/columns-settings</code> — body <code>{ columns: { key: true/false, … } }</code>; валидация: <code>columns</code> обязателен и должен быть массивом</li>
+    <li>Хранение: <code>user_table_settings.table_key = reports_outgoing_emails</code></li>
+    <li>Успех: <code>{ "success": true }</code> (и для AJAX, и для non-AJAX POST — endpoint API-подобный, redirect на index <b>не</b> делается)</li>
+    <li>Ошибка валидации: AJAX / <code>postJson</code> → <b>422</b> JSON; non-AJAX POST без <code>X-Requested-With</code> → <b>302</b> redirect back + <code>errors.columns</code> (не пустой 200)</li>
+  </ul>
+
+  <h3 id="reports-outgoing-emails-files">8.6) Связанные файлы</h3>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/Report/OutgoingEmailReportController.php</code></li>
+    <li><code>app/Listeners/LogOutgoingEmail.php</code>, <code>app/Models/OutgoingEmailLog.php</code></li>
+    <li><code>resources/views/admin/report/outgoing_emails.blade.php</code> — таблица, фильтры, модалка, JS</li>
+    <li><code>resources/views/admin/report/partials/outgoing_email_show_content.blade.php</code> — контент карточки (modal + embed в full page)</li>
+    <li><code>resources/views/admin/report/outgoing_email_show.blade.php</code> — обёртка full page</li>
   </ul>
 
   <h2>9) Сводка: <code>table_key</code> для columns-settings отчётов</h2>
@@ -480,7 +560,10 @@
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
     <li><code>tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php</code> — <b>KidsCrmDataTable</b> для debt/LTV/monthly: UI, columns-settings, детализация с <code>draw</code> и legacy JSON, полный доступ 200; smoke emails/fiscal/payment-intents</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
-    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code></li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, isolation, totals, data, columns-settings, show (modal partial, HTML iframe)</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов, UI модалки, datetime/link колонки, foreign log 403, data без AJAX 404</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX/AJAX, validation 302/422, modal show contract</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>outgoing_emails.blade.php</code> (модалка, AJAX show)</li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>

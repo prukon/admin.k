@@ -176,6 +176,7 @@ final class SchoolLeadEditModalFullAccessFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
                     'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
         ])->assertOk();
@@ -406,6 +407,7 @@ final class SchoolLeadEditModalFullAccessFeatureTest extends CrmTestCase
                     'role_id'        => $this->defaultRoleId(),
                     'is_enabled'     => 1,
                     'school_lead_id' => $leadForClient->id,
+                    'parent_email'   => $this->schoolLeadClientParentEmail(),
                 ],
                 'headers' => [
                     'HTTP_ACCEPT'           => 'application/json',

@@ -119,6 +119,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -161,6 +162,7 @@ final class SchoolLeadsLeadClientContractFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $foreignLead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])

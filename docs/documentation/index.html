@@ -26,6 +26,27 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Welcome-письмо при конвертации лида (2026‑07)</h2>
+  <div class="note">
+    При создании клиента из заявки (<code>POST /admin/users</code> с <code>school_lead_id</code>) система <b>обязательно</b> требует <code>parent_email</code>,
+    копирует его в <code>users.email</code>, генерирует пароль и отправляет welcome-письмо (<code>App\Mail\ClientWelcomeCredentialsMail</code>).
+    В модалке редактирования ученика (<code>/admin/users</code>) — кнопка «Отправить новый пароль по почте» (<code>POST …/send-welcome-credentials</code>):
+    новый пароль, старый инвалидируется; право — <code>users.view</code> (не <code>users.password.update</code>).
+    Письма видны в отчёте <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a> (<code>LogOutgoingEmail</code>, заголовок <code>X-Partner-Id</code>).
+    Подробно — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>,
+    workflow из CRM заявок — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>.
+  </div>
+
+  <h2>Отчёт «Исходящие письма» — просмотр в модалке (2026‑07)</h2>
+  <div class="note">
+    Вкладка <code>/admin/reports/emails</code> (<code>reports.emails.view</code>): просмотр письма в модалке <code>#outgoingEmailShowModal</code>
+    (клик по колонке «Кому» или кнопка «Открыть») — AJAX <code>GET …/emails/{id}?modal=1</code>, HTML-фрагмент без перезагрузки списка.
+    Колонки «Создано» и «Отправлено» — тип <code>datetime</code> (как в «Чеках»). HTML-тело — iframe с base64 data URI (корректный рендер, не экранированный текст).
+    Полная страница — по прямому URL или «Открыть на отдельной странице» в footer модалки.
+    Подробно — <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>
+    (§<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a> модалка, §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-access">8.4</a> доступ).
+  </div>
+
   <h2>Dev-фикстуры (2026‑07)</h2>
   <div class="note">
     Локальная и test-БД: при <code>SEED_DEV_DATA=true</code> в <code>.env</code> блок <code>Dev*</code>-сидеров в <code>DatabaseSeeder</code> создаёт детерминированные партнёры 1–3, юр. лица (<code>SHOP-DEV-*</code>), справочники районов/видов спорта, группы с <code>legal_entity_id</code>, правила комиссий T‑Bank, историю платежей/выплат, Robokassa (1–2) и глобальный T‑Bank. На production флаг выключен. Подробно — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
@@ -110,7 +131,7 @@
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы; <b>«Исходящие письма»</b> — модалка просмотра, datetime-колонки, iframe HTML (§8)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (<code>auto_attendance_enabled</code>, автосписание «Посетил»), вкладка «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), фильтры, DataTable, календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>statuses</code> (системные + кастомные), модалка настроек, тренер при «Посетил»</a></li>
@@ -133,8 +154,8 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF, подпись SMS, sync профиля</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code></a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК, консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, родители, колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>колонка «Действия»</b> — карандаш скрывается после создания клиента §5.5.3, лид → клиент → договор без ухода со страницы), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, родители, колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (resend пароля, §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>колонка «Действия»</b> — карандаш скрывается после создания клиента §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code></a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>)</a></li>

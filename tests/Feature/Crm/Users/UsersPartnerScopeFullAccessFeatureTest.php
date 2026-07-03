@@ -251,6 +251,10 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
             'password' => 'hacked-pass-1',
         ])->assertNotFound();
 
+        $this->postJson(route('admin.user.send-welcome-credentials', ['user' => $foreignId]), [], [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])->assertNotFound();
+
         $this->foreignUser->refresh();
         $this->assertNotSame('X', $this->foreignUser->name);
     }
@@ -451,6 +455,12 @@ final class UsersPartnerScopeFullAccessFeatureTest extends CrmTestCase
                 'method'  => 'POST',
                 'url'     => '/admin/user/' . $userId . '/update-password',
                 'data'    => ['password' => 'smoke-pass-88'],
+                'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
+            ],
+            [
+                'method'  => 'POST',
+                'url'     => route('admin.user.send-welcome-credentials', ['user' => $userId]),
+                'data'    => [],
                 'headers' => ['HTTP_ACCEPT' => 'application/json', 'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'],
             ],
             [

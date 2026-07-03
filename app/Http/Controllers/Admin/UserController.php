@@ -33,6 +33,7 @@ use Intervention\Image\ImageManager;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Services\TeamUserSyncService;
 use App\Services\UserService;
+use App\Services\Users\ClientWelcomeCredentialsService;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 
 class UserController extends AdminBaseController
@@ -48,6 +49,7 @@ class UserController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -381,6 +383,12 @@ class UserController extends AdminBaseController
 
         $data = $this->applySchoolLeadHealthFlags($data, $schoolLeadId, $partnerId);
 
+        $welcomeCredentialsPlainPassword = null;
+        if ($schoolLeadId) {
+            $welcomeCredentialsPlainPassword = $this->welcomeCredentialsService->generatePassword();
+            $data['password'] = $welcomeCredentialsPlainPassword;
+        }
+
         $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
         $editableSlugSet = collect($fieldsPayload)
             ->filter(fn (array $row) => !empty($row['editable']))
@@ -470,6 +478,35 @@ class UserController extends AdminBaseController
             abort(500, 'Не удалось создать пользователя.');
         }
 
+        $responseMessage = 'Пользователь создан успешно';
+        $mailResult = ['sent' => false, 'error' => null];
+        if ($schoolLeadId && $welcomeCredentialsPlainPassword !== null) {
+            $mailResult = $this->welcomeCredentialsService->send(
+                $user,
+                $welcomeCredentialsPlainPassword,
+                $partnerId,
+            );
+
+            $recipientEmail = trim((string) ($user->email ?? ''));
+            if ($mailResult['sent']) {
+                $responseMessage = $recipientEmail !== ''
+                    ? "Клиент создан. Письмо с данными для входа отправлено на {$recipientEmail}."
+                    : 'Клиент создан. Письмо с данными для входа отправлено.';
+            } else {
+                $responseMessage = $recipientEmail !== ''
+                    ? "Клиент создан, но не удалось отправить письмо на {$recipientEmail}."
+                    : 'Клиент создан, но не удалось отправить письмо с данными для входа.';
+
+                if (!empty($mailResult['error'])) {
+                    Log::warning('[UserController@store] welcome credentials email failed', [
+                        'user_id'    => $user->id,
+                        'partner_id' => $partnerId,
+                        'error'      => $mailResult['error'],
+                    ]);
+                }
+            }
+        }
+
         // 3) Ответ для AJAX (без лишних повторных запросов и с безопасными доступами)
         if ($request->ajax()) {
             $birthdayFormatted   = $user->birthday
@@ -480,7 +517,7 @@ class UserController extends AdminBaseController
                 : '-';
 
             return response()->json([
-                'message' => 'Пользователь создан успешно',
+                'message' => $responseMessage,
                 'user'    => [
                     'id'         => $user->id,
                     'name'       => $user->name,
@@ -490,10 +527,73 @@ class UserController extends AdminBaseController
                     'email'      => $user->email ?? '',
                     'is_enabled' => $user->is_enabled ? 'Да' : 'Нет',
                 ],
+                'welcome_email_sent' => ($schoolLeadId && $mailResult['sent']) ? true : false,
             ], 200);
         }
 
         return redirect()->route('admin.user1');
+    }
+
+    public function sendWelcomeCredentials(Request $request, User $user)
+    {
+        $partnerId = $this->requirePartnerId();
+        $user = $this->scopeByPartner(
+            User::query()->with('role'),
+            'users.partner_id'
+        )
+            ->whereKey($user->id)
+            ->firstOrFail();
+
+        $respondError = function (string $message, int $status = 422) use ($request) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => $message], $status);
+            }
+
+            return redirect()
+                ->route('admin.user1')
+                ->withErrors(['welcome_credentials' => $message]);
+        };
+
+        $email = trim((string) ($user->email ?? ''));
+        if ($email === '') {
+            return $respondError('У ученика не указан email.');
+        }
+
+        if ($user->role?->name !== 'user') {
+            return $respondError('Отправка доступна только для учеников.');
+        }
+
+        $mailResult = $this->welcomeCredentialsService->regenerateAndSend($user, $partnerId);
+
+        if (!$mailResult['sent']) {
+            $message = 'Не удалось отправить письмо'
+                . (!empty($mailResult['error']) ? ': ' . $mailResult['error'] : '.');
+
+            return $respondError($message, 500);
+        }
+
+        $targetLabel = $user->full_name ?: "user#{$user->id}";
+
+        $this->auditLogger->record(
+            AuditEvent::UserPasswordChangedByAdmin,
+            AuditContext::make(sprintf(
+                "Отправлен новый пароль на email: %s\nУченик: %s",
+                $email,
+                $targetLabel,
+            ))
+                ->withUser($user)
+                ->withTarget($user, $targetLabel)
+        );
+
+        $message = "Новый пароль отправлен на {$email}.";
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => $message]);
+        }
+
+        return redirect()
+            ->route('admin.user1')
+            ->with('success', $message);
     }
 
     public function edit(User $user)

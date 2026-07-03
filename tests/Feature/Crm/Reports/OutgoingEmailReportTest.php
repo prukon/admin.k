@@ -140,6 +140,13 @@ class OutgoingEmailReportTest extends CrmTestCase
         $ids = collect($json['data'])->pluck('id')->all();
         $this->assertContains($own->id, $ids);
         $this->assertCount(1, $ids);
+
+        $row = collect($json['data'])->firstWhere('id', $own->id);
+        $this->assertIsArray($row);
+        $this->assertSame(
+            route('reports.emails.show', ['log' => $own->id]),
+            $row['show_url'] ?? null
+        );
     }
 
     /**
@@ -255,6 +262,55 @@ class OutgoingEmailReportTest extends CrmTestCase
             ->assertOk()
             ->assertViewIs('admin.report.outgoing_email_show')
             ->assertViewHas('log');
+    }
+
+    /**
+     * [P1] show — HTML-тело рендерится в iframe, а не показывается как экранированный текст.
+     */
+    public function test_show_renders_html_body_in_iframe_not_as_escaped_source(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $htmlBody = '<!DOCTYPE html><html lang="ru"><body><p style="color:#2563eb;">Привет, <strong>мир</strong>!</p></body></html>';
+
+        $log = OutgoingEmailLog::create([
+            'partner_id' => $this->partner->id,
+            'status'     => OutgoingEmailLog::STATUS_SENT,
+            'subject'    => 'HTML preview',
+            'html_body'  => $htmlBody,
+        ]);
+
+        $this->get(route('reports.emails.show', ['log' => $log->id]))
+            ->assertOk()
+            ->assertSee('data:text/html;charset=utf-8;base64,' . base64_encode($htmlBody), false)
+            ->assertDontSee('&lt;!DOCTYPE html&gt;', false)
+            ->assertDontSee('srcdoc=', false);
+    }
+
+    /**
+     * [P1] show — AJAX/modal=1 отдаёт HTML-фрагмент без layout для модалки списка.
+     */
+    public function test_show_modal_request_returns_partial_without_layout(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $log = OutgoingEmailLog::create([
+            'partner_id' => $this->partner->id,
+            'status'     => OutgoingEmailLog::STATUS_SENT,
+            'subject'    => 'Modal fragment',
+            'to_summary' => 'parent@example.com',
+            'html_body'  => '<p>Modal body</p>',
+        ]);
+
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.emails.show', ['log' => $log->id, 'modal' => 1]))
+            ->assertOk()
+            ->assertSee('outgoing-email-show-content', false)
+            ->assertSee('emailBodyTabsModal', false)
+            ->assertSee('data:text/html;charset=utf-8;base64,' . base64_encode('<p>Modal body</p>'), false)
+            ->assertDontSee('Назад к списку', false);
     }
 
     /**

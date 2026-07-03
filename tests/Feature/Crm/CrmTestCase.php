@@ -562,4 +562,9 @@ abstract class CrmTestCase extends TestCase
             $team->update(['legal_entity_id' => $entity->id]);
         }
     }
+
+    protected function schoolLeadClientParentEmail(string $localPart = 'lead-parent'): string
+    {
+        return $localPart . '-' . Str::lower(Str::random(10)) . '@example.com';
+    }
 }

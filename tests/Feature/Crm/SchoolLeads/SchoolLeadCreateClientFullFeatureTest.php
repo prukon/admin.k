@@ -147,6 +147,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $this->studentRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -180,6 +181,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'                => $this->studentRoleId(),
             'is_enabled'             => 1,
             'school_lead_id'         => $lead->id,
+            'parent_email'           => $this->schoolLeadClientParentEmail(),
             'is_individual_traits'   => '0',
             'is_on_medical_register' => '',
             'is_with_disability'     => '1',
@@ -211,6 +213,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $superRole->id,
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])
@@ -235,6 +238,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $superRole->id,
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])
@@ -310,6 +314,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $this->studentRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -342,6 +347,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $this->studentRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -371,6 +377,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'role_id'        => $this->studentRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertForbidden();
@@ -406,6 +413,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
                     'role_id'                => $this->studentRoleId(),
                     'is_enabled'             => 1,
                     'school_lead_id'         => $lead->id,
+                    'parent_email'           => $this->schoolLeadClientParentEmail(),
                     'is_individual_traits'   => '1',
                     'is_on_medical_register' => '0',
                     'is_with_disability'     => '1',
@@ -435,6 +443,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             'partner_id'             => $this->partner->id,
             'name'                   => 'Лид ' . uniqid(),
             'phone'                  => '+7 900 ' . random_int(100, 999) . '-' . random_int(10, 99) . '-' . random_int(10, 99),
+            'parent_email'           => $this->schoolLeadClientParentEmail(),
             'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
             'child_lastname'         => 'Тестов',
             'child_firstname'        => 'Ученик',

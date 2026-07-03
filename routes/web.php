@@ -515,6 +515,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('admin/user/logs-data', [UserController::class, 'log'])->name('logs.data.user');
         //Изменение пароля
         Route::post('admin/user/{user}/update-password', [UserController::class, 'updatePassword'])->name('admin.user.password.update')->middleware(['can:users.password.update', 'throttle:5,1'])->whereNumber('user');
+        Route::post('admin/users/{user}/send-welcome-credentials', [UserController::class, 'sendWelcomeCredentials'])->name('admin.user.send-welcome-credentials')->middleware('throttle:5,1')->whereNumber('user');
         //Данные для datatables
         Route::get('/admin/users/data', [UserController::class, 'data'])->name('admin.users.data');
         Route::get('admin/users/parents/search', [UserController::class, 'searchParents'])->name('admin.users.parents.search');

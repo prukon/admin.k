@@ -52,7 +52,8 @@
       <tr><td>GET</td><td><code>/admin/users/data</code></td><td>JSON DataTables: только <code>role_id</code> роли <code>user</code>; фильтры <code>name</code>, <code>team_id</code>, <code>status</code>, при <code>contracts.view</code> — <code>contract</code> (<code>with|without|signed|unsigned</code>), сортировка</td></tr>
       <tr><td>GET</td><td><code>/admin/users/parents/search</code></td><td>Поиск родителей Select2 (только текущий партнёр)</td></tr>
       <tr><td>GET/POST</td><td><code>/admin/users/columns-settings</code></td><td>Настройки видимости колонок (<code>table_key = users_index</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/users</code></td><td>Создание (<code>admin.user.store</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users</code></td><td>Создание (<code>admin.user.store</code>); при <code>school_lead_id</code> — welcome-письмо (§<a href="#user-welcome-credentials">5.1</a>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users/{user}/send-welcome-credentials</code></td><td>Повторная отправка пароля на email ученика (<code>admin.user.send-welcome-credentials</code>, throttle 5/мин, §<a href="#user-welcome-credentials">5.1</a>)</td></tr>
       <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
       <tr><td>PATCH</td><td><code>/admin/users/{user}</code></td><td>Обновление</td></tr>
       <tr><td>GET</td><td><code>/admin/user/logs-data</code></td><td>Логи пользователей (DataTables)</td></tr>
@@ -571,7 +572,8 @@
       </tr>
       <tr>
         <td><b>Edit</b></td>
-        <td>В основной форме <b>нет</b> <code>name="password"</code>. Кнопка «Изменить пароль» → поле + «Применить» / «Отмена» → отдельный <code>POST /admin/user/{id}/update-password</code> (<code>users.password.update</code>). PATCH профиля пароль не меняет.</td>
+        <td>В основной форме <b>нет</b> <code>name="password"</code>. Кнопка «Изменить пароль» → поле + «Применить» / «Отмена» → отдельный <code>POST /admin/user/{id}/update-password</code> (<code>users.password.update</code>). PATCH профиля пароль не меняет.<br>
+        Дополнительно для учеников с заполненным email — кнопка «Отправить новый пароль по почте» (<code>#send-welcome-credentials-btn</code>, §<a href="#user-welcome-credentials">5.1</a>): доступна при <code>users.view</code>, <b>не требует</b> <code>users.password.update</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -630,12 +632,62 @@
     создание клиента выполняется из модалки «Редактирование лида» (§<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>):
     кнопка «Создать клиента» → сохранение заявки (<code>PUT</code>) → <code>POST /admin/users</code> с полями модалки и скрытым <code>school_lead_id</code>.
     Район и объект заявки в ученика не копируются.
+    Подробнее о UI и обязательном <code>parent_email</code> — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>.
   </div>
   <ul>
     <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>
-    <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции, что создание пользователя).</li>
+    <li>При заполненном <code>school_lead_id</code> поле <code>parent_email</code> <b>обязательно</b> (валидация в <code>withValidator</code>); значение копируется в <code>users.email</code>, если <code>email</code> в запросе пуст (<code>prepareForValidation</code>).</li>
+    <li>Пароль в теле запроса при конвертации лида <b>игнорируется</b>: сервер генерирует случайный пароль (12 символов, буквы+цифры) через <code>ClientWelcomeCredentialsService::generatePassword()</code> и сохраняет его в <code>users.password</code>.</li>
+    <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции); затем отправка welcome-письма (§<a href="#user-welcome-credentials">5.1</a>).</li>
     <li>Отдельного маршрута у заявок для создания клиента нет — только <code>POST /admin/users</code> с middleware <code>can:users.view</code>.</li>
   </ul>
+
+  <h3 id="user-welcome-credentials">5.1) Welcome-письмо с данными для входа</h3>
+  <div class="note">
+    <b>Назначение:</b> автоматически уведомить родителя логином и паролем при первой конвертации лида в ученика и позволить администратору повторно отправить новый пароль из карточки ученика.<br>
+    <b>Не путать</b> с ручной сменой пароля («Изменить пароль» → <code>POST /admin/user/{id}/update-password</code>, право <code>users.password.update</code>, без email) и с уведомлением админам о <b>новой заявке</b> (<code>NewSchoolLeadSubmission</code>, см. <a href="/docs/documentation/school-leads-widget#7">school-leads-widget §7</a>).
+  </div>
+
+  <h4>5.1.1) Отправка при создании из лида</h4>
+  <ul>
+    <li>Условие: в <code>POST /admin/users</code> передан валидный <code>school_lead_id</code>.</li>
+    <li>Сервис: <code>App\Services\Users\ClientWelcomeCredentialsService</code>; Mailable: <code>App\Mail\ClientWelcomeCredentialsMail</code>; шаблон: <code>resources/views/emails/client-welcome-credentials.blade.php</code>.</li>
+    <li>Тема письма: «Доступ в личный кабинет — {название школы}» (<code>partners.title</code>).</li>
+    <li>Тело: ФИО ребёнка, название школы в кавычках, email для входа, пароль в открытом виде, кнопка «Войти в личный кабинет» (<code>/login</code>).</li>
+    <li>Заголовок <code>X-Partner-Id</code> на Mailable — для привязки записи в отчёте «Исходящие письма» (<a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>, листенер <code>LogOutgoingEmail</code>; просмотр записи — модалка §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a>).</li>
+    <li>Если SMTP недоступен: ученик и привязка лида всё равно создаются; в JSON-ответе AJAX <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение о неудачной отправке.</li>
+  </ul>
+
+  <h4>5.1.2) Повторная отправка из модалки edit</h4>
+  <table>
+    <thead><tr><th>Тема</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr><td>UI</td><td>Кнопка «Отправить новый пароль по почте» в модалке edit (<code>editUser.blade.php</code>); видна только для роли <code>user</code> при непустом email; подтверждение через <code>showConfirmDeleteModal</code>.</td></tr>
+      <tr><td>Маршрут</td><td><code>POST /admin/users/{user}/send-welcome-credentials</code> (<code>admin.user.send-welcome-credentials</code>), middleware <code>can:users.view</code>, <code>throttle:5,1</code>.</td></tr>
+      <tr><td>Пароль</td><td>Генерируется новый, сохраняется в БД (<code>regenerateAndSend</code>) — предыдущий пароль перестаёт работать.</td></tr>
+      <tr><td>Аудит</td><td><code>AuditEvent::UserPasswordChangedByAdmin</code> с текстом «Отправлен новый пароль на email…».</td></tr>
+      <tr><td>Изоляция</td><td>Ученик другого партнёра — <b>404</b> (<code>scopeByPartner</code> + <code>firstOrFail</code>), как у остальных user-scoped endpoint'ов.</td></tr>
+      <tr><td>Ограничения</td><td>Не-ученик или пустой email → <b>422</b> JSON / redirect с <code>errors.welcome_credentials</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h4>5.1.3) AJAX и non-AJAX контракты</h4>
+  <table>
+    <thead><tr><th>Endpoint</th><th>AJAX (<code>X-Requested-With</code> / JSON)</th><th>Non-AJAX</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>POST /admin/users</code> (из лида)</td>
+        <td>200: <code>message</code>, <code>user</code> (id, name, email, …), <code>welcome_email_sent</code> (bool). 422 — ошибки полей, в т.ч. <code>parent_email</code>.</td>
+        <td>Redirect 302 на <code>admin.user1</code>; запись в БД создана; письмо отправлено при успехе SMTP.</td>
+      </tr>
+      <tr>
+        <td><code>POST …/send-welcome-credentials</code></td>
+        <td>200: <code>{ "message": "Новый пароль отправлен на …" }</code>. 422/500 — <code>{ "message": "…" }</code>.</td>
+        <td>Redirect 302 на <code>admin.user1</code> с flash <code>success</code> или <code>errors.welcome_credentials</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Обычное создание ученика <b>без</b> <code>school_lead_id</code> — без изменений: поле <code>password</code> необязательно (§<a href="#user-modals">4.5.3</a>), welcome-письмо не отправляется.</p>
 
   <h2>6) Редактирование (<code>PATCH /admin/users/{user}</code>)</h2>
   <div class="note">
@@ -669,6 +721,9 @@
     <li><code>resources/views/admin/users/_student_teams_multiselect.blade.php</code></li>
     <li><a href="/docs/documentation/student-team-membership">student-team-membership</a> — pivot M:N, все разделы CRM</li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — последний договор по <code>user_id</code> (§<a href="#user-contract-column">2.3</a>)</li>
+    <li><code>app/Services/Users/ClientWelcomeCredentialsService.php</code></li>
+    <li><code>app/Mail/ClientWelcomeCredentialsMail.php</code></li>
+    <li><code>resources/views/emails/client-welcome-credentials.blade.php</code></li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
     <li><code>app/Enums/UserSex.php</code></li>
     <li><code>app/Http/Requests/User/Concerns/ValidatesStudentCommentAndSex.php</code></li>
@@ -703,6 +758,9 @@
       <li><code>tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php</code> — пол и комментарий §2.4: <code>users.sex</code> (CRM + кабинет), <code>users.comment</code> (только CRM), edit JSON <code>ui.*</code>, columns-settings, аудит, smoke 200/403</li>
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code> — изоляция партнёра для edit/update/data и флагов</li>
       <li><code>tests/Feature/Crm/Users/UsersPartnerScopeFullAccessFeatureTest.php</code> — smoke 200 всех endpoint’ов раздела, изоляция CRUD</li>
+      <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо при <code>store</code> из лида, resend, SMTP-failure, валидация <code>parent_email</code></li>
+      <li><code>tests/Feature/Crm/Users/ClientWelcomeCredentialsFullAccessFeatureTest.php</code> — доступ guest/403/200, UI-маркеры, foreign partner 404, не-ученик 422</li>
+      <li><code>tests/Feature/Crm/Users/ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX redirect + AJAX JSON-контракт для store/resend</li>
       <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code> — логика <code>syncForStudent</code>, отвязка, не-ученик</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code> — smoke 200 семейного кабинета и админки</li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code> — изоляция switch / account / search</li>

@@ -438,6 +438,40 @@
                 }
             }
 
+            function showCreateClientResultModal(isSuccess, message) {
+                if (isSuccess) {
+                    if (typeof showSuccessModal === 'function') {
+                        showSuccessModal('Создание клиента', message || 'Клиент создан.');
+                        return;
+                    }
+                    showToast(message || 'Клиент создан.', 'success');
+                    return;
+                }
+
+                if (typeof showErrorModal === 'function') {
+                    showErrorModal('Создание клиента', message || 'Не удалось создать клиента.');
+                    return;
+                }
+                if (typeof eroorRespone === 'function') {
+                    eroorRespone({ responseJSON: { message: message || 'Не удалось создать клиента.' } });
+                    return;
+                }
+                showToast(message || 'Не удалось создать клиента.', 'error');
+            }
+
+            function extractCreateClientErrorMessage(xhr, fallback) {
+                var message = fallback || 'Ошибка создания клиента.';
+                if (xhr && xhr.responseJSON) {
+                    if (xhr.responseJSON.errors) {
+                        return Object.values(xhr.responseJSON.errors).flat().join('\n');
+                    }
+                    if (xhr.responseJSON.message) {
+                        return xhr.responseJSON.message;
+                    }
+                }
+                return message;
+            }
+
             function showToast(message, type) {
                 var $toast = $('#mainToast');
                 $toast.removeClass('bg-success bg-danger bg-info bg-warning text-dark');
@@ -488,6 +522,7 @@
             }
 
             var leadStatusEditHint = 'Нажмите, чтобы изменить статус';
+            var leadClientCreatedHint = 'На основании лида создан клиент';
             var $leadStatusOpenMenu = null;
 
             function getLeadStatusOptionBadgeStyle(option) {
@@ -677,6 +712,24 @@
                 return data ? $('<div/>').text(data).html() : '—';
             }
 
+            function renderLeadClientCreatedIcon(row) {
+                if (!row || !row.user_id) {
+                    return '';
+                }
+
+                var esc = window.KidsCrmTooltip.escapeHtml;
+
+                return '<span class="kids-tooltip-hint text-success flex-shrink-0"'
+                    + ' tabindex="0"'
+                    + ' data-kids-tooltip-hint'
+                    + ' data-bs-toggle="tooltip"'
+                    + ' data-bs-placement="top"'
+                    + ' title="' + esc(leadClientCreatedHint) + '"'
+                    + ' aria-label="' + esc(leadClientCreatedHint) + '">'
+                    + '<i class="fas fa-user-check" aria-hidden="true"></i>'
+                    + '</span>';
+            }
+
             var dtApi = KidsCrmDataTable.create('#leads-table', {
                 columnsSettings: {
                     defaults: {
@@ -727,6 +780,11 @@
                     },
                     order: [[0, 'desc']],
                     language: @include('partials.datatables.ru'),
+                    drawCallback: function () {
+                        if (window.KidsCrmTooltip) {
+                            window.KidsCrmTooltip.init(this.api().table().body(), { scopes: ['hint'] });
+                        }
+                    },
                 },
                 columns: [
                     { type: 'id', data: 'id', name: 'id' },
@@ -746,10 +804,20 @@
                                 return '—';
                             }
 
-                            return window.KidsCrmTooltip.renderLink(data, {
+                            var nameHtml = window.KidsCrmTooltip.renderLink(data, {
                                 linkClass: 'edit-lead',
                                 extraAttrs: 'data-id="' + row.id + '"',
                             });
+                            var clientIconHtml = renderLeadClientCreatedIcon(row);
+
+                            if (!clientIconHtml) {
+                                return nameHtml;
+                            }
+
+                            return '<span class="d-inline-flex align-items-center gap-1 flex-nowrap">'
+                                + nameHtml
+                                + clientIconHtml
+                                + '</span>';
                         },
                     },
                     {
@@ -1071,7 +1139,8 @@
 
                 var firstname = String($('#leadChildFirstname').val() || '').trim();
                 var lastname = String($('#leadChildLastname').val() || '').trim();
-                var enabled = firstname !== '' && lastname !== '';
+                var parentEmail = String($('#lead-parent-email').val() || '').trim();
+                var enabled = firstname !== '' && lastname !== '' && parentEmail !== '';
 
                 $btn.prop('disabled', !enabled);
             }
@@ -1407,6 +1476,7 @@
             });
 
             $editLeadForm.on('input change', '.js-lead-child-name', syncCreateClientBtnState);
+            $editLeadForm.on('input change', '.js-parent-email', syncCreateClientBtnState);
 
             $('#saveLeadBtn').on('click', function() {
                 if (leadModalReadOnly) {
@@ -1477,7 +1547,7 @@
                     });
 
                     saveLeadAjax()
-                        .done(function() {
+                        .then(function() {
                             return $.ajax({
                                 url: userStoreUrl,
                                 method: 'POST',
@@ -1489,20 +1559,26 @@
                             });
                         })
                         .done(function(response) {
+                            if (!response || !response.user || !response.user.id) {
+                                var failMessage = (response && response.message)
+                                    ? response.message
+                                    : 'Сервер не подтвердил создание клиента.';
+                                $('#editLeadError').removeClass('d-none').text(failMessage);
+                                showCreateClientResultModal(false, failMessage);
+                                return;
+                            }
+
                             editLeadModal.hide();
                             dtApi.reload({ keepPage: true });
-                            showToast(response.message || 'Клиент создан.', 'success');
+                            showCreateClientResultModal(true, response.message || 'Клиент создан.');
                         })
                         .fail(function(xhr) {
-                            var message = 'Ошибка создания клиента.';
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                message = xhr.responseJSON.message;
-                            }
+                            var message = extractCreateClientErrorMessage(xhr, 'Ошибка создания клиента.');
                             if (xhr.responseJSON && xhr.responseJSON.errors) {
                                 applyLeadFormErrors(xhr.responseJSON.errors);
                             }
                             $('#editLeadError').removeClass('d-none').text(message);
-                            showToast(message, 'error');
+                            showCreateClientResultModal(false, message);
                             syncCreateClientBtnState();
                         })
                         .always(function() {

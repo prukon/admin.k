@@ -30,6 +30,8 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->assertPageColumnUsesPresetType(route('debts'), 'month', 'text');
         $this->assertPageColumnUsesPresetType(route('debts'), 'price', 'money');
         $this->assertPageColumnUsesPresetType(route('reports.emails.index'), 'status', 'badge');
+        $this->assertPageColumnUsesPresetType(route('reports.emails.index'), 'created_at', 'datetime');
+        $this->assertPageColumnUsesPresetType(route('reports.emails.index'), 'sent_at', 'datetime');
         $this->assertPageColumnUsesPresetType(route('reports.emails.index'), 'error_excerpt', 'text');
         $this->assertPageColumnUsesPresetType(route('reports.emails.index'), 'actions', 'actions');
     }

@@ -335,6 +335,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             'role_id'        => $student->role_id,
             'is_enabled'     => 1,
             'school_lead_id' => $leadForUser->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])->assertOk();

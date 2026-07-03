@@ -40,6 +40,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -76,6 +77,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'location_id'    => $location->id,
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -108,6 +110,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['school_lead_id']);
@@ -219,6 +222,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'        => $superRole->id,
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ])
@@ -248,6 +252,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -285,6 +290,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'        => $userRoleId,
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);
@@ -322,6 +328,7 @@ final class SchoolLeadCreateUserFeatureTest extends CrmTestCase
             'role_id'                => $this->defaultRoleId(),
             'is_enabled'             => 1,
             'school_lead_id'         => $lead->id,
+            'parent_email'           => $this->schoolLeadClientParentEmail(),
             'is_individual_traits'   => '0',
             'is_on_medical_register' => '',
             'is_with_disability'     => '1',

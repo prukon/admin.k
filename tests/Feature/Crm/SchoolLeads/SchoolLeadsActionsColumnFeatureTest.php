@@ -81,6 +81,26 @@ final class SchoolLeadsActionsColumnFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('if (!row.user_id)', $nameColumnSnippet);
     }
 
+    public function test_page_name_column_shows_client_created_icon_when_user_id_is_set(): void
+    {
+        $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
+
+        $nameColumnPos = strpos($html, "key: 'name'");
+        $statusColumnPos = strpos($html, "key: 'status'");
+
+        $this->assertNotFalse($nameColumnPos);
+        $this->assertNotFalse($statusColumnPos);
+
+        $nameColumnSnippet = substr($html, $nameColumnPos, $statusColumnPos - $nameColumnPos);
+
+        $this->assertStringContainsString('renderLeadClientCreatedIcon', $nameColumnSnippet);
+        $this->assertStringContainsString('renderLeadClientCreatedIcon(row)', $nameColumnSnippet);
+
+        $this->assertStringContainsString('function renderLeadClientCreatedIcon(row)', $html);
+        $this->assertStringContainsString('fa-user-check', $html);
+        $this->assertStringContainsString('На основании лида создан клиент', $html);
+    }
+
     public function test_datatable_lead_without_client_returns_null_user_id(): void
     {
         SchoolLead::create([
@@ -203,6 +223,7 @@ final class SchoolLeadsActionsColumnFeatureTest extends CrmTestCase
             'role_id'        => $this->defaultRoleId(),
             'is_enabled'     => 1,
             'school_lead_id' => $lead->id,
+            'parent_email'   => $this->schoolLeadClientParentEmail(),
         ], [
             'X-Requested-With' => 'XMLHttpRequest',
         ]);

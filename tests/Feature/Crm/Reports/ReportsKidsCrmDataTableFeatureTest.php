@@ -437,6 +437,23 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('KidsCrmDataTable.create', false);
 
+        $this->get(route('reports.emails.index'))
+            ->assertSee("key: 'to_summary'", false)
+            ->assertSee("type: 'link'", false)
+            ->assertSee('js-outgoing-email-show', false)
+            ->assertSee('id="outgoingEmailShowModal"', false)
+            ->assertSee('openOutgoingEmailShowModal', false);
+
+        $html = $this->get(route('reports.emails.index'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            "/key:\s*'created_at'[\s\S]{0,80}?type:\s*'datetime'/",
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            "/key:\s*'sent_at'[\s\S]{0,80}?type:\s*'datetime'/",
+            $html
+        );
+
         $this->get(route('reports.emails.total'))->assertOk();
 
         $this->withHeaders($this->ajaxHeaders())

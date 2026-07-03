@@ -104,7 +104,7 @@
 
                         @if($contract->canRevokeWithRefund())
                             <button type="button" class="btn btn-outline-danger" id="revokeAwaitingBtn" data-id="{{ $contract->id }}">
-                                Отозвать (возврат 70 ₽)
+                                Отозвать
                             </button>
                         @endif
 
