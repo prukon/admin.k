@@ -41,8 +41,14 @@ class StoreRequest extends FormRequest
 
     public function rules(): array
     {
+        $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+
         $rules = [
-            'title' => 'required|string',
+            'title' => [
+                'required',
+                'string',
+                Rule::unique('teams')->where(static fn ($query) => $query->where('partner_id', $partnerId)),
+            ],
             'default_duration_minutes' => 'nullable|integer|min:1|max:600',
             'month_price' => 'nullable|integer|min:0',
             'weekdays' => 'nullable|array',
@@ -116,6 +122,7 @@ class StoreRequest extends FormRequest
         return [
             'title.required' => 'Введите название',
             'title.string' => 'Введите название',
+            'title.unique' => 'Группа с таким названием уже существует у текущего партнёра',
             'default_duration_minutes.integer' => 'Длительность должна быть числом (в минутах)',
             'default_duration_minutes.min' => 'Длительность должна быть больше 0 минут',
             'default_duration_minutes.max' => 'Длительность слишком большая',

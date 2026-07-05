@@ -118,6 +118,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'users.other.update',            'description' => 'Прочие сведения об ученике (мед./особенности)',  'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.sex',                     'description' => 'Пол ученика (просмотр и редактирование в CRM и личном кабинете)', 'group_slug' => 'users',    'is_visible' => 1, 'sort_order' => 0],
             ['name' => 'users.comment',                 'description' => 'Комментарий к ученику (просмотр и редактирование в CRM)', 'group_slug' => 'users', 'is_visible' => 1, 'sort_order' => 0],
+            ['name' => 'users.import',                  'description' => 'Импорт учеников из Excel',                       'group_slug' => 'users',    'is_visible' => 0, 'sort_order' => 5],
 
             // group_slug settings
             ['name' => 'settings.roles.view',            'description' => 'Страница "Настройки  -> Права и роли"',         'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 61],

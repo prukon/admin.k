@@ -28,11 +28,19 @@ class DevTeamsSeeder extends Seeder
             return;
         }
 
-        // Было: Team::factory()->count(20)->create()->each(...)
-        Team::factory()->count(20)->create()->each(function (Team $team) use ($partnerIds) {
-            $team->partner_id = $partnerIds[array_rand($partnerIds)];
-            $team->save();
-        });
+        $remaining = 20;
+        $partnerCount = count($partnerIds);
+        $teamsPerPartner = (int) ceil($remaining / $partnerCount);
+
+        foreach ($partnerIds as $partnerId) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $count = min($teamsPerPartner, $remaining);
+            Team::factory()->count($count)->create(['partner_id' => $partnerId]);
+            $remaining -= $count;
+        }
 
         $this->assignLegalEntitiesToAllTeams();
         $this->assignSportTypesToAllTeams();

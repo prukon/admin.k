@@ -38,6 +38,7 @@
     view <code>resources/views/admin/user.blade.php</code>. Горизонтальные вкладки — <code>admin/users/_users_section_tabs.blade.php</code>.<br>
     Все маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (<code>routes/web.php</code>).
     Без <code>users.view</code> страница и AJAX раздела отвечают <b>403</b>, даже если у роли есть <code>locations.view</code> или <code>contracts.view</code>.<br>
+    Импорт из Excel — отдельное право <code>users.import</code> (§<a href="#user-import">9</a>): требует и <code>users.view</code>, и <code>users.import</code>.<br>
     Колонка «Договор» в таблице и поле <code>latest_contract</code> в JSON — дополнительно только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>); без него список пользователей доступен как раньше.<br>
     Внутренняя документация (<code>/doc</code>) требует отдельное право <code>documentations.view</code> — это не доступ к <code>/admin/users</code>.
   </div>
@@ -57,6 +58,9 @@
       <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
       <tr><td>PATCH</td><td><code>/admin/users/{user}</code></td><td>Обновление</td></tr>
       <tr><td>GET</td><td><code>/admin/user/logs-data</code></td><td>Логи пользователей (DataTables)</td></tr>
+      <tr><td>GET</td><td><code>/admin/users/import/template</code></td><td>Скачать шаблон <code>.xlsx</code> (<code>users.import</code>, §<a href="#user-import">9</a>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users/import/preview</code></td><td>Проверка файла, превью, токен в cache (<code>throttle:10,1</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users/import/commit</code></td><td>Подтверждение импорта по <code>import_token</code> (<code>throttle:10,1</code>)</td></tr>
     </tbody>
   </table>
 
@@ -744,9 +748,180 @@
     <li><code>resources/views/includes/modal/createUser.blade.php</code>, <code>editUser.blade.php</code></li>
   </ul>
 
-  <h2>8) Тесты (Feature)</h2>
+  <h2 id="user-import">8) Импорт учеников из Excel</h2>
+  <div class="note">
+    <b>Назначение:</b> массовое заведение или обновление учеников партнёра из фиксированного шаблона <code>.xlsx</code> (типичный сценарий — выгрузка от внешней CRM).<br>
+    <b>UI:</b> кнопка «Импорт» в toolbar <code>/admin/users</code> → модалка <code>#usersImportModal</code> (<code>admin/users/_import_modal.blade.php</code>, JS в <code>admin/user.blade.php</code>).<br>
+    <b>Двухфазный процесс:</b> «Проверить» (preview) → при успехе «Импортировать» (commit). Режим <b>всё или ничего</b>: при любой ошибке в файле в БД ничего не пишется.<br>
+    <b>Не путать</b> с созданием одного ученика через модалку «Добавить» (§<a href="#user-modals">4.5</a>, <code>POST /admin/users</code>) и с конвертацией лида из заявок (§5, <code>school_lead_id</code>).
+  </div>
+
+  <h3>8.1) Права и доступ</h3>
+  <table>
+    <thead>
+      <tr><th>Право</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>users.view</code></td>
+        <td>Страница <code>/admin/users</code> и прочие endpoint’ы раздела (§1). Без него импорт недоступен (<b>403</b>).</td>
+      </tr>
+      <tr>
+        <td><code>users.import</code></td>
+        <td>
+          Кнопка «Импорт», модалка, <code>GET …/import/template</code>, <code>POST …/import/preview</code>, <code>POST …/import/commit</code>.
+          Gate в <code>AuthServiceProvider</code>. В <code>config/role_base_permissions.php</code> для роли <code>admin</code> включено по умолчанию.
+          Миграция <code>2026_07_04_100001_add_users_import_permission.php</code> — право в <code>permissions</code> и назначение admin по всем партнёрам.
+          В матрице «Настройки → Права и роли» — группа <code>users</code>, <code>is_visible = 0</code> (скрытое право, выдаётся вручную при необходимости).
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Гость → redirect/401 на странице; на API импорта — 302/401/403.
+    Авторизованный без <code>users.view</code> → <b>403</b> на всё.
+    С <code>users.view</code>, но без <code>users.import</code> → страница <b>200</b>, кнопка и модалка не рендерятся, endpoint’ы импорта — <b>403</b>.
+  </p>
+
+  <h3>8.2) Endpoint’ы и контракты</h3>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Назначение</th><th>Ответ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/users/import/template</code></td>
+        <td>Шаблон Excel с заголовками и примером строки</td>
+        <td>200, <code>Content-Type: application/vnd…spreadsheetml.sheet</code>, имя файла <code>import_users_template.xlsx</code> (stream)</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/users/import/preview</code></td>
+        <td>Загрузка <code>file</code> (multipart), валидация и разбор</td>
+        <td>
+          200: <code>valid: true</code>, <code>import_token</code> (UUID), <code>summary</code> (<code>total_rows</code>, <code>create_count</code>, <code>update_count</code>), <code>preview[]</code> (строка, ученик, группа, режим).<br>
+          422: <code>valid: false</code>, <code>errors[]</code> (<code>row</code>, <code>field</code>, <code>message</code>) — бизнес-ошибки или отсутствие обязательных колонок.<br>
+          422: Laravel validation — нет файла, не <code>.xlsx</code>, &gt; 5 МБ.
+        </td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/users/import/commit</code></td>
+        <td>Тело: <code>import_token</code> (UUID из preview)</td>
+        <td>
+          200: <code>message</code> («Импорт завершён: создано N, обновлено M»), <code>created</code>, <code>updated</code>.<br>
+          422: истёкший/чужой токен, невалидный UUID, сессия другого пользователя.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Маршруты внутри <code>can:users.view</code> + <code>can:users.import</code>. Preview и commit — <code>throttle:10,1</code>.
+    Контроллер: <code>UserImportController</code>. Request: <code>ImportPreviewRequest</code>, <code>ImportCommitRequest</code>.
+    Токен preview хранится в cache (<code>users_import:{uuid}</code>, TTL 15 мин) с привязкой к <code>partner_id</code> и <code>actor_id</code>.
+    Импорт — <b>JSON-only</b> endpoint’ы (без HTML-redirect при commit); non-AJAX POST всё равно возвращает JSON 200/422, не пустой 200.
+  </p>
+
+  <h3>8.3) Формат файла</h3>
+  <ul>
+    <li>Один лист <code>.xlsx</code>, первая строка — заголовки (фиксированный набор, см. <code>UsersImportColumns::headerLabels()</code>).</li>
+    <li>Даты — <code>ДД.ММ.ГГГГ</code> (колонка «Дата рождения»).</li>
+    <li>Телефоны ученика и родителя — канон <code>+7XXXXXXXXXX</code> после нормализации.</li>
+    <li>«Активен» — <code>да</code> / <code>нет</code> (пусто → активен).</li>
+    <li><b>Обязательные колонки:</b> только «Фамилия ученика» и «Имя ученика».</li>
+  </ul>
+  <table>
+    <thead>
+      <tr><th>Колонка в шаблоне</th><th>Поле / смысл</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Фамилия ученика, Имя ученика</td><td>Обязательны, max 25 символов</td></tr>
+      <tr><td>Группа</td><td>Необязательна. Пустая при create → ученик без группы; при update → снимает все группы (§<a href="#user-teams">3</a>)</td></tr>
+      <tr><td>Юр. лицо</td><td>Обязательно, если указана группа. Ссылка на <b>существующее активное</b> юр. лицо по <code>PartnerLegalEntity::displayTitle()</code> (без учёта регистра). Из Excel <b>не создаётся</b> — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a></td></tr>
+      <tr><td>Email ученика</td><td>Необязателен. Пустой → всегда <b>создание</b>. Совпадение с email ученика (<code>role=user</code>) текущего партнёра → <b>обновление</b> всех полей строки</td></tr>
+      <tr><td>Телефон ученика, Дата рождения, Активен</td><td>Опционально. При update пустые email/телефон → <code>null</code> в БД</td></tr>
+      <tr><td>Email / ФИО / телефон родителя</td><td>Опционально. Логика — §<a href="#user-parent">2.1</a>, сервис <code>StudentParentSyncService</code> при commit</td></tr>
+    </tbody>
+  </table>
+
+  <h3>8.4) Бизнес-логика</h3>
+
+  <h4>Ученик: create vs update</h4>
+  <ul>
+    <li><b>Create</b> — пустой email ученика <b>или</b> email не найден у ученика текущего партнёра.</li>
+    <li><b>Update</b> — email совпал с учеником (<code>users.role_id</code> = роль <code>user</code>, <code>users.partner_id</code> = current).</li>
+    <li>Email занят пользователем другой роли или другого партнёра → ошибка в preview (поле «Email ученика»).</li>
+    <li>Один email ученика в файле — одна строка; дубль в файле → ошибка.</li>
+  </ul>
+
+  <h4>Группы</h4>
+  <ul>
+    <li>Группа необязательна. Указана — поиск по <code>teams.title</code> (case-insensitive) в рамках партнёра.</li>
+    <li>Нет в справочнике → <b>создаётся</b> новая группа (нужно юр. лицо в строке); <code>teams.legal_entity_id</code> из найденного юр. лица.</li>
+    <li>Soft-deleted группа с таким названием → ошибка (восстановить вручную или сменить название).</li>
+    <li>Уникальность названия: индекс <code>UNIQUE (partner_id, title)</code> на <code>teams</code> (миграция <code>2026_07_04_100000_add_unique_partner_title_to_teams_table.php</code>, с дедупликацией перед индексом).</li>
+    <li>При update с указанной группой — <b>замена</b> всех групп ученика на одну из строки (<code>TeamUserSyncService::syncTeamsForStudent</code>, одна группа на строку импорта).</li>
+    <li>При update с пустой группой — снятие всех групп.</li>
+  </ul>
+
+  <h4>Родители</h4>
+  <ul>
+    <li>Все поля родителя пустые при update → <code>users.parent_id = null</code> (отвязка).</li>
+    <li><code>parent_email</code> пустой, но есть ФИО → новый родитель на каждую строку (запись в <code>parents</code>).</li>
+    <li>Одинаковый <code>parent_email</code> в нескольких строках → один родитель; все поля родителя должны совпадать между строками, иначе ошибка.</li>
+    <li>Родитель в справочнике — привязка только при полном совпадении данных строки с записью <code>parents</code>.</li>
+    <li>Контакты ученика (<code>users.email</code>, <code>users.phone</code>) и родителя (<code>parents</code>) — раздельно (как в §<a href="#user-parent">2.1</a>); email родителя не копируется в email ученика автоматически.</li>
+  </ul>
+
+  <h4>Транзакция и аудит</h4>
+  <ul>
+    <li>Commit — одна <code>DB::transaction</code> на весь файл; при ошибке runtime после preview (например, гонка удаления ученика) — откат, 422.</li>
+    <li>Каждый create/update пишет аудит <code>user.created</code> / <code>user.updated</code> через <code>AuditLogger</code> (<code>UsersImportCommitService</code>).</li>
+    <li>Welcome-письмо при импорте <b>не отправляется</b> (в отличие от §<a href="#user-welcome-credentials">5.1</a>).</li>
+    <li>Доп. поля <code>user_fields</code> / мед.-флаги / пол / комментарий через импорт <b>не задаются</b> — только поля из шаблона.</li>
+  </ul>
+
+  <h3>8.5) UI модалки</h3>
+  <ul>
+    <li>Кнопка «Импорт» в toolbar — стиль <code>payments-report-toolbar-action</code> (как «Добавить», «Настройки»).</li>
+    <li>Аккордеон «Как работает импорт» — сворачиваемая памятка с правилами.</li>
+    <li>Шаги: загрузка файла → превью (таблица строк + счётчики create/update) → ошибки (таблица по полям) → успех (иконка, бейджи «Создано» / «Обновлено»).</li>
+    <li>После успешного commit таблица DataTables обновляется через <code>reloadUsersTable()</code> без F5; модалка остаётся открытой на шаге успеха до «Закрыть».</li>
+    <li>Кнопки: «Проверить» (<code>btn-primary</code>), «Импортировать» (<code>btn-success</code>), «Другой файл», «Закрыть».</li>
+  </ul>
+
+  <h3>8.6) Связанные файлы</h3>
+  <ul class="small">
+    <li><code>app/Http/Controllers/Admin/UserImportController.php</code></li>
+    <li><code>app/Http/Requests/User/ImportPreviewRequest.php</code>, <code>ImportCommitRequest.php</code></li>
+    <li><code>app/Services/Users/Import/</code> — <code>UsersImportService</code>, <code>UsersImportValidator</code>, <code>UsersImportCommitService</code>, <code>UsersExcelReader</code>, <code>UsersImportTemplateBuilder</code>, <code>UsersImportColumns</code></li>
+    <li><code>resources/views/admin/users/_import_modal.blade.php</code></li>
+    <li><code>resources/views/admin/user.blade.php</code> — toolbar, JS <code>initUsersImportModal</code></li>
+    <li><code>resources/css/user.css</code> — стили модалки импорта</li>
+    <li>Зависимость: <code>phpoffice/phpspreadsheet ^5.8</code> (<code>UsersSpreadsheetCells</code> — совместимость API 5.x)</li>
+  </ul>
+
+  <h3>8.7) Feature-тесты</h3>
+  <table>
+    <thead>
+      <tr><th>Файл</th><th>Что проверяется</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>UsersImportFeatureTest.php</code></td><td>Бизнес-логика: create/update, группы, родители, конфликты; UI-кнопка; E2E smoke (страница → preview → commit → DataTables)</td></tr>
+      <tr><td><code>UsersImportAccessFeatureTest.php</code></td><td>Гость, без <code>users.view</code>, без <code>users.import</code>, полный доступ; матрица статусов не 500/пустой 200</td></tr>
+      <tr><td><code>UsersImportAjaxContractFeatureTest.php</code></td><td>JSON-контракт preview/commit, 422 validation, истёкший токен, изоляция email, дубли в файле</td></tr>
+      <tr><td><code>UsersImportNonAjaxSafetyNetFeatureTest.php</code></td><td>POST без <code>X-Requested-With</code> → JSON 200/422, запись в БД; template stream</td></tr>
+      <tr><td><code>Concerns/UsersImportTestHelpers.php</code></td><td>Общие хелперы сборки <code>.xlsx</code> для тестов</td></tr>
+      <tr><td><code>BladeInlineJsSyntaxTest</code></td><td>Синтаксис inline-JS в <code>admin/user.blade.php</code> (обработчики импорта)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Запуск: <code>php artisan test --filter=UsersImport</code></p>
+
+  <h2>9) Тесты (Feature)</h2>
   <div class="note">
     <ul>
+      <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
@@ -778,6 +953,7 @@
     Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
+    Импорт Excel: <code>php artisan test --filter=UsersImport</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
 
@@ -786,6 +962,7 @@
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="#user-comment-sex">Пол и комментарий</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·
+    <a href="#user-import">Импорт из Excel</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-users-section">Вкладки раздела «Пользователи»</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·

@@ -53,6 +53,7 @@ return [
             'legal_entities.manage',
             'trainers.view',
             'users.view',
+            'users.import',
             'groups.view',
             'contracts.view',
             'account.contracts.showFieldKeys',

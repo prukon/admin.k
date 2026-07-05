@@ -221,6 +221,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('users.view');
         });
 
+        Gate::define('users.import', function (User $user) {
+            return $user->hasPermission('users.import');
+        });
+
         // Управление группами
         Gate::define('groups.view', function (User $user) {
             return $user->hasPermission('groups.view');

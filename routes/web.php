@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
 use App\Http\Controllers\Admin\UserAvatarController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserFieldController;
+use App\Http\Controllers\Admin\UserImportController;
 use App\Http\Controllers\Admin\UserTableSettingsController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\Chat\ChatApiController;
@@ -528,6 +529,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
         //Настройка таблицы
         Route::get('admin/users/columns-settings', [UserTableSettingsController::class, 'getColumnsSettings'])->name('admin.users.table-settings.get');
         Route::post('admin/users/columns-settings', [UserTableSettingsController::class, 'saveColumnsSettings'])->name('admin.users.table-settings.save');
+
+        Route::middleware('can:users.import')->group(function () {
+            Route::get('admin/users/import/template', [UserImportController::class, 'template'])->name('admin.users.import.template');
+            Route::post('admin/users/import/preview', [UserImportController::class, 'preview'])->name('admin.users.import.preview')->middleware('throttle:10,1');
+            Route::post('admin/users/import/commit', [UserImportController::class, 'commit'])->name('admin.users.import.commit')->middleware('throttle:10,1');
+        });
 
         //Доп. поля
         Route::post('/admin/users/fields', [UserFieldController::class, 'storeFields'])->name('admin.field.store');

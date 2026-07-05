@@ -11,3 +11,65 @@
 .form-label {
     font-weight: 500;
 }
+
+#usersImportModal .users-import-accordion {
+    --bs-accordion-btn-padding-x: 0.75rem;
+    --bs-accordion-btn-padding-y: 0.65rem;
+    --bs-accordion-body-padding-x: 0.75rem;
+    --bs-accordion-body-padding-y: 0.85rem;
+}
+
+#usersImportModal .users-import-accordion .accordion-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+#usersImportModal .users-import-accordion .accordion-button {
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: none;
+}
+
+#usersImportModal .users-import-accordion .accordion-button:not(.collapsed) {
+    color: inherit;
+    background-color: #f8f9fa;
+}
+
+#usersImportModal .users-import-memo {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+#usersImportModal .users-import-memo ul {
+    margin-bottom: 0.5rem;
+}
+
+#usersImportModal .users-import-memo li {
+    margin-bottom: 0.2rem;
+}
+
+#usersImportModal .users-import-scroll-table {
+    max-height: min(42vh, 320px);
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem;
+}
+
+#usersImportModal .users-import-scroll-table .table {
+    margin-bottom: 0;
+}
+
+#usersImportModal .users-import-success-icon {
+    color: var(--bs-success, #198754);
+    font-size: 3rem;
+    line-height: 1;
+}
+
+#usersImportModal .users-import-success-stat {
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 0.85rem;
+}

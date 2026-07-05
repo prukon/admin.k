@@ -49,7 +49,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'leads'           => 3,
             'partner'         => 3,
             'account'         => 11,
-            'users'           => 13,
+            'users'           => 14,
             'settings'        => 7,
             'paymentMethods'  => 6,
             'misc'            => 2,
@@ -175,6 +175,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'users.other.update',
                 'users.sex',
                 'users.comment',
+                'users.import',
             ],
             'settings' => [
                 'settings.roles.view',

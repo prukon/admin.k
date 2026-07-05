@@ -49,7 +49,7 @@ class DocumentationController extends Controller
         'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
         'dashboard-cabinet'           => 'Консоль (/cabinet): блоки оплат (доп./абонементы/сезоны), setPrices.cabinetSeasons.view, селект группы, семейный контекст',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
-        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, родители, договор, welcome-письмо/resend пароля, пол, комментарий, team_ids',
+        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, импорт Excel (users.import), родители, договор, welcome-письмо, пол, комментарий, team_ids',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: модалки, fields_schema, fill_sort_order, email, версии',
         'account-contract-fill'       => 'Заполнение договора родителем: кабинет, fill/generate/sign, sync профиля',

@@ -32,6 +32,19 @@
                                     <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
                                 </button>
 
+                                @can('users.import')
+                                <button type="button"
+                                        class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#usersImportModal"
+                                        title="Импорт учеников из Excel">
+                                    <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                        <i class="fas fa-file-import payments-report-toolbar-icon"></i>
+                                    </span>
+                                    <span class="payments-report-toolbar-label d-none d-sm-inline">Импорт</span>
+                                </button>
+                                @endcan
+
                                 <button type="button"
                                         class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
                                         data-bs-toggle="modal"
@@ -300,6 +313,7 @@
                     'canViewUserComment' => $canViewUserComment,
                 ])
                 @include('includes.modal.fieldModal')
+                @include('admin.users._import_modal')
             </div>
         </div>
 
@@ -563,6 +577,194 @@
                 KidsCrmGenericMultiselectSelect2.init($('#createStudentTeamIds'));
                 KidsCrmGenericMultiselectSelect2.init($('#editStudentTeamIds'));
             }
+
+            @can('users.import')
+            (function initUsersImportModal() {
+                const $modal = $('#usersImportModal');
+                if (!$modal.length) {
+                    return;
+                }
+
+                const previewUrl = @json(route('admin.users.import.preview'));
+                const commitUrl = @json(route('admin.users.import.commit'));
+                const csrfToken = @json(csrf_token());
+
+                let importToken = '';
+
+                const $fileInput = $('#users-import-file');
+                const $fileError = $('#users-import-file-error');
+                const $stepUpload = $('#users-import-step-upload');
+                const $stepPreview = $('#users-import-step-preview');
+                const $stepErrors = $('#users-import-step-errors');
+                const $stepSuccess = $('#users-import-step-success');
+                const $memoAccordion = $('#usersImportMemoAccordion');
+                const $checkBtn = $('#users-import-check-btn');
+                const $commitBtn = $('#users-import-commit-btn');
+                const $resetBtn = $('#users-import-reset-btn');
+                const $checkSpinner = $('#users-import-check-spinner');
+                const $commitSpinner = $('#users-import-commit-spinner');
+
+                function setLoading($btn, $spinner, isLoading) {
+                    $btn.prop('disabled', isLoading);
+                    $spinner.toggleClass('d-none', !isLoading);
+                }
+
+                function resetImportModal() {
+                    importToken = '';
+                    $fileInput.val('');
+                    $fileInput.removeClass('is-invalid');
+                    $fileError.text('');
+                    $stepUpload.removeClass('d-none');
+                    $stepPreview.addClass('d-none');
+                    $stepErrors.addClass('d-none');
+                    $stepSuccess.addClass('d-none');
+                    $memoAccordion.removeClass('d-none');
+                    $checkBtn.removeClass('d-none');
+                    $commitBtn.addClass('d-none');
+                    $resetBtn.addClass('d-none');
+                }
+
+                function showSuccess(response) {
+                    const created = response.created || 0;
+                    const updated = response.updated || 0;
+
+                    $stepUpload.addClass('d-none');
+                    $stepPreview.addClass('d-none');
+                    $stepErrors.addClass('d-none');
+                    $stepSuccess.removeClass('d-none');
+                    $memoAccordion.addClass('d-none');
+
+                    $('#users-import-success-message').text(
+                        response.message || ('Импорт завершён: создано ' + created + ', обновлено ' + updated + '.')
+                    );
+                    $('#users-import-success-created').text(created);
+                    $('#users-import-success-updated').text(updated);
+
+                    $checkBtn.addClass('d-none');
+                    $commitBtn.addClass('d-none');
+                    $resetBtn.addClass('d-none');
+
+                    if (typeof reloadUsersTable === 'function') {
+                        reloadUsersTable();
+                    }
+                }
+
+                function showErrors(message, errors) {
+                    $stepUpload.addClass('d-none');
+                    $stepPreview.addClass('d-none');
+                    $stepErrors.removeClass('d-none');
+                    $stepSuccess.addClass('d-none');
+                    $memoAccordion.addClass('d-none');
+                    $('#users-import-errors-summary').text(message || 'Найдены ошибки в файле.');
+                    const $body = $('#users-import-errors-body');
+                    $body.empty();
+                    (errors || []).forEach(function (item) {
+                        $body.append(
+                            '<tr>'
+                            + '<td>' + (item.row || '—') + '</td>'
+                            + '<td>' + $('<div>').text(item.field || '').html() + '</td>'
+                            + '<td>' + $('<div>').text(item.message || '').html() + '</td>'
+                            + '</tr>'
+                        );
+                    });
+                    $checkBtn.removeClass('d-none');
+                    $commitBtn.addClass('d-none');
+                    $resetBtn.removeClass('d-none');
+                }
+
+                function showPreview(response) {
+                    importToken = response.import_token || '';
+                    const summary = response.summary || {};
+                    $stepUpload.addClass('d-none');
+                    $stepErrors.addClass('d-none');
+                    $stepSuccess.addClass('d-none');
+                    $stepPreview.removeClass('d-none');
+                    $memoAccordion.addClass('d-none');
+                    $('#users-import-preview-success').text(
+                        'Файл проверен: ' + (summary.total_rows || 0) + ' строк, '
+                        + 'создать ' + (summary.create_count || 0) + ', '
+                        + 'обновить ' + (summary.update_count || 0) + '.'
+                    );
+                    const $body = $('#users-import-preview-body');
+                    $body.empty();
+                    (response.preview || []).forEach(function (row) {
+                        const modeLabel = row.mode === 'update' ? 'Обновление' : 'Создание';
+                        $body.append(
+                            '<tr>'
+                            + '<td>' + row.row + '</td>'
+                            + '<td>' + $('<div>').text(row.student || '').html() + '</td>'
+                            + '<td>' + $('<div>').text(row.team || '').html() + '</td>'
+                            + '<td>' + modeLabel + '</td>'
+                            + '</tr>'
+                        );
+                    });
+                    $checkBtn.addClass('d-none');
+                    $commitBtn.removeClass('d-none');
+                    $resetBtn.removeClass('d-none');
+                }
+
+                $modal.on('hidden.bs.modal', resetImportModal);
+                $resetBtn.on('click', resetImportModal);
+
+                $checkBtn.on('click', function () {
+                    const file = $fileInput[0].files[0];
+                    $fileInput.removeClass('is-invalid');
+                    $fileError.text('');
+
+                    if (!file) {
+                        $fileInput.addClass('is-invalid');
+                        $fileError.text('Выберите файл Excel для импорта.');
+                        return;
+                    }
+
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('_token', csrfToken);
+
+                    setLoading($checkBtn, $checkSpinner, true);
+
+                    $.ajax({
+                        url: previewUrl,
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                    }).done(function (response) {
+                        showPreview(response);
+                    }).fail(function (xhr) {
+                        const payload = xhr.responseJSON || {};
+                        showErrors(payload.message, payload.errors);
+                    }).always(function () {
+                        setLoading($checkBtn, $checkSpinner, false);
+                    });
+                });
+
+                $commitBtn.on('click', function () {
+                    if (!importToken) {
+                        showErrors('Сессия импорта не найдена. Загрузите файл повторно.', []);
+                        return;
+                    }
+
+                    setLoading($commitBtn, $commitSpinner, true);
+
+                    $.ajax({
+                        url: commitUrl,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            import_token: importToken,
+                        },
+                    }).done(function (response) {
+                        showSuccess(response);
+                    }).fail(function (xhr) {
+                        const payload = xhr.responseJSON || {};
+                        showErrors(payload.message || 'Не удалось выполнить импорт.', payload.errors || []);
+                    }).always(function () {
+                        setLoading($commitBtn, $commitSpinner, false);
+                    });
+                });
+            })();
+            @endcan
         });
     </script>
 @endpush
