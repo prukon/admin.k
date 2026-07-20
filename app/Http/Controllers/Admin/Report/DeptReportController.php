@@ -145,6 +145,7 @@ class DeptReportController extends AdminBaseController
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
+                    DB::raw('users_prices.id as row_id'),
                     DB::raw('users_prices.new_month as month'),
                     DB::raw('users_prices.price as price'),
                     DB::raw('0 as is_period')
@@ -161,6 +162,7 @@ class DeptReportController extends AdminBaseController
                 ->selectRaw("TRIM(CONCAT(COALESCE(users.lastname,''),' ',COALESCE(users.name,''))) as user_name")
                 ->addSelect(
                     'users.id as user_id',
+                    DB::raw('user_custom_payment.id as row_id'),
                     DB::raw("CONCAT(user_custom_payment.date_start, ' — ', user_custom_payment.date_end) as month"),
                     DB::raw('user_custom_payment.amount as price'),
                     DB::raw('1 as is_period')
@@ -175,10 +177,32 @@ class DeptReportController extends AdminBaseController
             $union = $monthly->unionAll($periods);
             $base = DB::query()->fromSub($union, 'debts');
 
+            // Стабильная пагинация: после сортировки по колонке — уникальный tie-breaker
+            // (is_period + row_id), иначе при одинаковом month LIMIT/OFFSET может дублировать строки.
+            $appendStableOrder = static function ($query): void {
+                $query->orderBy('is_period')->orderBy('row_id');
+            };
+
             return DataTables::of($base)
                 ->addIndexColumn()
                 ->editColumn('month', fn ($row) => self::formatMonthForDebtReport($row->month))
                 ->addColumn('price', fn ($row) => (float) $row->price)
+                ->orderColumn('user_name', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('user_name', $dir);
+                    $appendStableOrder($query);
+                })
+                ->orderColumn('month', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('month', $dir);
+                    $appendStableOrder($query);
+                })
+                ->orderColumn('price', function ($query, $order) use ($appendStableOrder) {
+                    $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
+                    $query->orderBy('price', $dir);
+                    $appendStableOrder($query);
+                })
+                ->removeColumn('row_id', 'is_period')
                 ->make(true);
         }
 

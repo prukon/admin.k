@@ -278,6 +278,79 @@ class DeptReportTest extends CrmTestCase
     }
 
     /**
+     * [P1] Пагинация при сортировке по одинаковому month не дублирует строки между страницами.
+     */
+    public function test_getDebts_pagination_has_no_overlap_when_sorted_by_same_month(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+
+        $month = '2026-04-01';
+        $userIds = [];
+
+        for ($i = 0; $i < 15; $i++) {
+            $student = User::factory()->create([
+                'partner_id' => $this->partner->id,
+                'is_enabled' => 1,
+                'lastname'   => 'Иванов',
+                'name'       => 'Ученик'.$i,
+            ]);
+            $userIds[] = $student->id;
+
+            $this->insertUserPrice($student, [
+                'is_paid'   => 0,
+                'price'     => 100 + $i,
+                'new_month' => $month,
+            ]);
+        }
+
+        $columns = [
+            ['data' => 'DT_RowIndex', 'name' => 'DT_RowIndex', 'orderable' => 'false', 'searchable' => 'false'],
+            ['data' => 'user_name', 'name' => 'user_name', 'orderable' => 'true', 'searchable' => 'true'],
+            ['data' => 'month', 'name' => 'month', 'orderable' => 'true', 'searchable' => 'true'],
+            ['data' => 'price', 'name' => 'price', 'orderable' => 'true', 'searchable' => 'true'],
+        ];
+
+        $fetchPage = function (int $start, int $length) use ($columns): array {
+            // Yajra регистрирует datatables.request как singleton и захватывает app('request')
+            // при первом создании — между вызовами в одном тесте нужно сбрасывать.
+            $this->app->forgetInstance('datatables.request');
+
+            return $this->withHeaders([
+                'X-Requested-With' => 'XMLHttpRequest',
+                'Accept' => 'application/json',
+            ])->getJson('/admin/reports/getDebts?'.http_build_query([
+                'draw' => 1,
+                'start' => $start,
+                'length' => $length,
+                'columns' => $columns,
+                'order' => [['column' => 2, 'dir' => 'asc']],
+            ]))->assertOk()->json();
+        };
+
+        $page1 = $fetchPage(0, 10);
+        $page2 = $fetchPage(10, 10);
+
+        $this->assertSame(15, (int) $page1['recordsTotal']);
+        $this->assertSame(15, (int) $page2['recordsTotal']);
+        $this->assertCount(10, $page1['data']);
+        $this->assertCount(5, $page2['data']);
+
+        $page1UserIds = collect($page1['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $page2UserIds = collect($page2['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+
+        $this->assertSame([], array_values(array_intersect($page1UserIds, $page2UserIds)));
+        $this->assertCount(15, array_unique(array_merge($page1UserIds, $page2UserIds)));
+        $this->assertEqualsCanonicalizing($userIds, array_merge($page1UserIds, $page2UserIds));
+
+        // Повторный запрос тех же страниц — тот же набор (детерминизм tie-breaker).
+        $page1Again = $fetchPage(0, 10);
+        $this->assertSame(
+            $page1UserIds,
+            collect($page1Again['data'])->pluck('user_id')->map(fn ($id) => (int) $id)->all()
+        );
+    }
+
+    /**
      * 9. [P1] Проверка доступа по праву can:reports.view
      */
     public function test_debts_routes_require_reports_view_permission(): void
