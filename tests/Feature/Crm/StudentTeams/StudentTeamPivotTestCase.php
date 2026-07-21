@@ -3,7 +3,8 @@
 namespace Tests\Feature\Crm\StudentTeams;
 
 use App\Models\Role;
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\TeamUserSyncService;
@@ -48,24 +49,8 @@ abstract class StudentTeamPivotTestCase extends CrmTestCase
         return $user->fresh(['teams']);
     }
 
-    protected function seedGlobalScheduleStatuses(): void
+    protected function seedPartnerOccurrenceStatuses(?int $partnerId = null): void
     {
-        foreach ([
-            ['name' => Status::VISITED_NAME, 'sort_order' => 1, 'color' => '#dff0d8'],
-            ['name' => 'Не был', 'sort_order' => 2, 'color' => '#f8d7da'],
-        ] as $row) {
-            Status::query()->firstOrCreate(
-                [
-                    'partner_id' => null,
-                    'name'       => $row['name'],
-                    'is_system'  => true,
-                ],
-                [
-                    'icon'       => 'fas fa-check',
-                    'color'      => $row['color'],
-                    'sort_order' => $row['sort_order'],
-                ]
-            );
-        }
+        LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId ?? (int) $this->partner->id);
     }
 }

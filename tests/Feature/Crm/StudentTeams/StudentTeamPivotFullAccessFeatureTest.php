@@ -3,7 +3,7 @@
 namespace Tests\Feature\Crm\StudentTeams;
 
 use App\Models\Role;
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\Team;
 use App\Models\User;
 use Carbon\Carbon;
@@ -33,7 +33,7 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
             'lastname' => 'Pivot',
         ]);
 
-        $this->seedGlobalScheduleStatuses();
+        $this->seedPartnerOccurrenceStatuses();
     }
 
     /**
@@ -43,7 +43,7 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
     {
         $student = $this->student;
         $team = $this->team;
-        $visitedStatusId = Status::globalVisitedId();
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
         $studentRoleId = $this->studentRoleId();
 
         return [
@@ -59,7 +59,7 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
                     $this->postJson(route('schedule.update'), [
                         'user_id'   => $student->id,
                         'date'      => '2026-06-15',
-                        'status_id' => $visitedStatusId,
+                        'lesson_occurrence_status_id' => $visitedStatusId,
                     ])->assertOk();
                     $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertOk();
                     $this->getJson(route('user.schedule.info', $student))->assertOk();

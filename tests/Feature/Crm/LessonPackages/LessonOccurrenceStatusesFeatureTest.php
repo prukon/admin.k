@@ -33,9 +33,19 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_index_forbidden_without_lesson_packages_view(): void
+    public function test_index_forbidden_without_manage_permission(): void
     {
-        $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $role = \App\Models\Role::query()->create([
+            'name' => 'test_no_los_index_'.uniqid(),
+            'label' => 'No LOS',
+            'is_sistem' => 0,
+            'is_visible' => 0,
+            'order_by' => 0,
+        ]);
+        $actor = \App\Models\User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $role->id,
+        ]);
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
@@ -86,9 +96,19 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
             ->value('consumes_lesson'));
     }
 
-    public function test_store_forbidden_without_view_permission(): void
+    public function test_store_forbidden_without_manage_permission(): void
     {
-        $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $role = \App\Models\Role::query()->create([
+            'name' => 'test_no_los_store_'.uniqid(),
+            'label' => 'No LOS store',
+            'is_sistem' => 0,
+            'is_visible' => 0,
+            'order_by' => 0,
+        ]);
+        $actor = \App\Models\User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $role->id,
+        ]);
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 
@@ -274,7 +294,7 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
         ])->assertStatus(404);
     }
 
-    public function test_occurrence_statuses_page_and_all_mutations_require_lesson_packages_view(): void
+    public function test_occurrence_statuses_page_and_all_mutations_require_manage_permission(): void
     {
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
 
@@ -284,7 +304,18 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
             ->where('code', 'scheduled')
             ->firstOrFail();
 
-        $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        // Роль без schedule.view и без lessonPackages.view
+        $role = \App\Models\Role::query()->create([
+            'name' => 'test_no_los_manage_'.uniqid(),
+            'label' => 'No LOS manage',
+            'is_sistem' => 0,
+            'is_visible' => 0,
+            'order_by' => 0,
+        ]);
+        $actor = \App\Models\User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $role->id,
+        ]);
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
 

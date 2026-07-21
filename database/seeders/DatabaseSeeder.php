@@ -27,7 +27,6 @@ class DatabaseSeeder extends Seeder
                 DevPartnerLegalEntitiesSeeder::class, // юр. лица dev-партнёров (до групп)
                 DevSportTypesSeeder::class, // виды спорта dev-партнёров
                 DevDistrictsSeeder::class, // районы dev-партнёров
-                DevScheduleStatusesSeeder::class, // статусы посещаемости журнала /schedule (dev)
                 DevUserRoleBasePermissionsSeeder::class, // базовые права роли user для всех партнёров (dev)
                 DevAdminRoleBasePermissionsSeeder::class, // базовые права роли admin для всех партнёров (dev)
                 DevTrainerRoleBasePermissionsSeeder::class, // базовые права роли trainer для всех партнёров (dev)

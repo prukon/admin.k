@@ -30,7 +30,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'school leads tab ajax handlers' => ['admin/school-leads/tabs/leads.blade.php'];
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
-        yield 'schedule journal statuses settings' => ['admin/schedule/index.blade.php'];
+        yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
+        yield 'schedule section index shell' => ['admin/schedule/index.blade.php'];
         yield 'payment systems settings tab' => ['admin/setting/paymentSystem.blade.php'];
         yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
         yield 'school schedule calendar tab' => ['admin/lessonPackages/tabs/schoolSchedule.blade.php'];

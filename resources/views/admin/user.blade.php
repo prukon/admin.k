@@ -680,31 +680,134 @@
                     $stepSuccess.addClass('d-none');
                     $stepPreview.removeClass('d-none');
                     $memoAccordion.addClass('d-none');
-                    $('#users-import-preview-success').text(
-                        'Файл проверен: ' + (summary.total_rows || 0) + ' строк, '
+
+                    let summaryText = 'Файл проверен: ' + (summary.total_rows || 0) + ' строк, '
                         + 'создать ' + (summary.create_count || 0) + ', '
-                        + 'обновить ' + (summary.update_count || 0) + '.'
-                    );
+                        + 'обновить ' + (summary.update_count || 0);
+
+                    const updateCount = summary.update_count || 0;
+                    if (updateCount > 0) {
+                        const withChanges = summary.update_with_changes_count || 0;
+                        const unchanged = summary.update_unchanged_count || 0;
+                        summaryText += ' (с изменениями ' + withChanges + ', без изменений ' + unchanged + ')';
+
+                        const clearsCount = summary.update_with_clears_count || 0;
+                        if (clearsCount > 0) {
+                            summaryText += ', из них с очистками ' + clearsCount;
+                        }
+                    }
+                    summaryText += '.';
+                    $('#users-import-preview-success').text(summaryText);
+
                     const $body = $('#users-import-preview-body');
                     $body.empty();
                     (response.preview || []).forEach(function (row) {
-                        const modeLabel = row.mode === 'update' ? 'Обновление' : 'Создание';
-                        $body.append(
-                            '<tr>'
-                            + '<td>' + row.row + '</td>'
-                            + '<td>' + $('<div>').text(row.student || '').html() + '</td>'
-                            + '<td>' + $('<div>').text(row.team || '').html() + '</td>'
-                            + '<td>' + modeLabel + '</td>'
-                            + '</tr>'
+                        const isUpdate = row.mode === 'update';
+                        const changes = Array.isArray(row.changes) ? row.changes : [];
+                        const canExpand = isUpdate && changes.length > 0;
+                        const modeLabel = isUpdate ? 'Обновление' : 'Создание';
+                        let modeMeta = '';
+
+                        if (isUpdate) {
+                            if (changes.length === 0) {
+                                modeMeta = '<span class="users-import-mode-meta is-muted">без изменений</span>';
+                            } else if (row.has_clears) {
+                                modeMeta = '<span class="users-import-mode-meta is-clears">'
+                                    + changes.length + ' ' + pluralChanges(changes.length)
+                                    + ', есть очистки</span>';
+                            } else {
+                                modeMeta = '<span class="users-import-mode-meta">'
+                                    + changes.length + ' ' + pluralChanges(changes.length)
+                                    + '</span>';
+                            }
+                        }
+
+                        const toggleHtml = canExpand
+                            ? '<span class="users-import-preview-toggle" aria-hidden="true">▶</span> '
+                            : '';
+
+                        const $mainRow = $('<tr></tr>')
+                            .addClass('users-import-preview-row')
+                            .toggleClass('is-expandable', canExpand)
+                            .attr('data-preview-row', row.row);
+
+                        if (canExpand) {
+                            $mainRow.attr('aria-expanded', 'false');
+                        }
+
+                        $mainRow.append(
+                            '<td>' + toggleHtml + row.row + '</td>'
+                            + '<td>' + escapeHtml(row.student || '') + '</td>'
+                            + '<td>' + escapeHtml(row.team || '') + '</td>'
+                            + '<td>' + modeLabel + modeMeta + '</td>'
                         );
+                        $body.append($mainRow);
+
+                        if (canExpand) {
+                            const $detailsRow = $('<tr></tr>')
+                                .addClass('users-import-preview-details-row d-none')
+                                .attr('data-preview-details-for', row.row);
+                            $detailsRow.append(
+                                '<td colspan="4">' + buildChangesTableHtml(changes) + '</td>'
+                            );
+                            $body.append($detailsRow);
+                        }
                     });
                     $checkBtn.addClass('d-none');
                     $commitBtn.removeClass('d-none');
                     $resetBtn.removeClass('d-none');
                 }
 
+                function escapeHtml(value) {
+                    return $('<div>').text(value == null ? '' : String(value)).html();
+                }
+
+                function pluralChanges(count) {
+                    const mod10 = count % 10;
+                    const mod100 = count % 100;
+                    if (mod10 === 1 && mod100 !== 11) {
+                        return 'изменение';
+                    }
+                    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+                        return 'изменения';
+                    }
+                    return 'изменений';
+                }
+
+                function buildChangesTableHtml(changes) {
+                    let html = '<table class="table table-sm table-bordered users-import-diff-table mb-0">'
+                        + '<thead><tr><th>Поле</th><th>Было</th><th>Станет</th></tr></thead><tbody>';
+
+                    changes.forEach(function (change) {
+                        const clearedClass = change.kind === 'cleared' ? ' users-import-diff-cleared' : '';
+                        const toLabel = change.kind === 'cleared'
+                            ? (escapeHtml(change.to || '—') + ' <span class="small">(очистка)</span>')
+                            : escapeHtml(change.to || '—');
+                        html += '<tr class="' + clearedClass.trim() + '">'
+                            + '<td>' + escapeHtml(change.label || change.field || '') + '</td>'
+                            + '<td>' + escapeHtml(change.from || '—') + '</td>'
+                            + '<td>' + toLabel + '</td>'
+                            + '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    return html;
+                }
+
                 $modal.on('hidden.bs.modal', resetImportModal);
                 $resetBtn.on('click', resetImportModal);
+
+                $('#users-import-preview-body').on('click', 'tr.users-import-preview-row.is-expandable', function () {
+                    const $row = $(this);
+                    const rowId = $row.attr('data-preview-row');
+                    const $details = $('#users-import-preview-body')
+                        .find('tr.users-import-preview-details-row[data-preview-details-for="' + rowId + '"]');
+                    const willExpand = $details.hasClass('d-none');
+
+                    $details.toggleClass('d-none', !willExpand);
+                    $row.toggleClass('is-expanded', willExpand);
+                    $row.attr('aria-expanded', willExpand ? 'true' : 'false');
+                });
 
                 $checkBtn.on('click', function () {
                     const file = $fileInput[0].files[0];

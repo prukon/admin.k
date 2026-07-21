@@ -128,7 +128,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         ScheduleUser::query()->create([
             'user_id' => $trainer->user_id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ]);
 
@@ -184,7 +184,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
 
         $payload = [
             'date' => '2026-05-15',
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
         ];
 
         foreach ([$trainer->user_id, $admin->id, $customRoleUser->id, $disabledStudent->id] as $userId) {
@@ -250,7 +250,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ])->assertOk()->assertJson(['success' => true]);
 

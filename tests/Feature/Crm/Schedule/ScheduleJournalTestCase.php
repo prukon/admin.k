@@ -2,11 +2,12 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
+use App\Models\LessonOccurrenceStatus;
 use App\Models\Role;
-use App\Models\Status;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -24,8 +25,8 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         ]);
 
         $this->asAdmin();
-        $this->seedGlobalScheduleStatuses();
-        $this->visitedStatusId = Status::globalVisitedId();
+        LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
+        $this->visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
         $this->trainerRoleId = (int) Role::query()->where('name', 'trainer')->value('id');
     }
 
@@ -42,35 +43,30 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         ]);
     }
 
-    protected function seedGlobalScheduleStatuses(): void
+    protected function grantLessonPackagesView(?User $actor = null): void
     {
-        foreach ([
-            ['name' => Status::VISITED_NAME, 'sort_order' => 1, 'color' => '#dff0d8'],
-            ['name' => 'Не был', 'sort_order' => 2, 'color' => '#f8d7da'],
-        ] as $row) {
-            Status::query()->firstOrCreate(
-                [
-                    'partner_id' => null,
-                    'name' => $row['name'],
-                    'is_system' => true,
-                ],
-                [
-                    'icon' => 'fas fa-check',
-                    'color' => $row['color'],
-                    'sort_order' => $row['sort_order'],
-                ]
-            );
-        }
+        $actor ??= $this->user;
+
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $actor->role_id,
+            'permission_id' => $this->permissionId('lessonPackages.view'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
-    protected function createCustomScheduleStatus(string $name = 'Тестовый статус'): Status
+    protected function createCustomOccurrenceStatus(string $title = 'Тестовый статус'): LessonOccurrenceStatus
     {
-        return Status::query()->create([
+        return LessonOccurrenceStatus::query()->create([
             'partner_id' => $this->partner->id,
-            'name' => $name,
-            'icon' => 'fas fa-star',
+            'code' => 'custom_'.bin2hex(random_bytes(4)),
+            'title' => $title,
+            'icon' => 'fa-solid fa-star',
             'color' => '#eeeeee',
             'is_system' => false,
+            'is_active' => true,
+            'consumes_lesson' => false,
             'sort_order' => 50,
         ]);
     }
@@ -158,7 +154,7 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         \App\Models\ScheduleUser::query()->create([
             'user_id' => $userId,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainerProfileId,
         ]);
     }

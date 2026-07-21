@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Schedule;
 
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\TrainerProfile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +32,7 @@ final class TrainerWorkloadReportService
         $weekdayKeys = array_keys($weekdays);
         $trainers = $this->activeTrainersForPartner($partnerId);
 
-        $visitedStatusId = Status::globalVisitedId();
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
         $cells = $this->emptyCellsMatrix($trainers, $weekdayKeys);
 
         if ($visitedStatusId === null) {
@@ -354,7 +354,7 @@ final class TrainerWorkloadReportService
             ->leftJoin('teams as t', 't.id', '=', 'u.team_id')
             ->where('u.partner_id', $partnerId)
             ->where('u.is_enabled', 1)
-            ->where('su.status_id', $visitedStatusId)
+            ->where('su.lesson_occurrence_status_id', $visitedStatusId)
             ->whereNotNull('su.trainer_profile_id')
             ->whereBetween('su.date', [$dateFrom, $dateTo])
             ->selectRaw(

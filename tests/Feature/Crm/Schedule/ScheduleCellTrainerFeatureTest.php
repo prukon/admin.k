@@ -84,7 +84,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'description' => '',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk()->assertJson(['success' => true]);
@@ -92,7 +92,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->assertDatabaseHas('schedule_users', [
             'user_id' => $student->id,
             'date' => $date . ' 00:00:00',
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ]);
 
@@ -107,7 +107,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'description' => '',
             'trainer_profile_id' => '',
         ])->assertOk();
@@ -135,7 +135,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
             $this->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
                 'date' => $date,
-                'status_id' => $this->visitedStatusId,
+                'lesson_occurrence_status_id' => $this->visitedStatusId,
                 'trainer_profile_id' => $rawValue,
             ])->assertOk();
         }
@@ -155,7 +155,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => '2026-05-14',
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $foreignTrainer->id,
         ])->assertStatus(422);
     }
@@ -170,7 +170,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $foreignStudent->id,
             'date' => '2026-05-14',
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
         ])->assertNotFound();
     }
 
@@ -179,19 +179,19 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-12';
 
-        $otherStatus = $this->createCustomScheduleStatus('Болезнь');
+        $otherStatus = $this->createCustomOccurrenceStatus('Болезнь');
 
         ScheduleUser::query()->create([
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ]);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $otherStatus->id,
+            'lesson_occurrence_status_id' => $otherStatus->id,
             'description' => '',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();
@@ -199,7 +199,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->assertDatabaseHas('schedule_users', [
             'user_id' => $student->id,
             'date' => $date . ' 00:00:00',
-            'status_id' => $otherStatus->id,
+            'lesson_occurrence_status_id' => $otherStatus->id,
             'trainer_profile_id' => null,
         ]);
     }
@@ -212,7 +212,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'description' => 'Был на тренировке',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();

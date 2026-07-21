@@ -8,7 +8,7 @@ class ReorderLessonOccurrenceStatusesRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('lessonPackages.view') ?? false;
+        return $this->user()?->can('lessonOccurrenceStatuses.manage') ?? false;
     }
 
     public function rules(): array

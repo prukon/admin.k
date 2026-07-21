@@ -1,334 +1,4 @@
-// Настройки
 document.addEventListener('DOMContentLoaded', function () {
-    // Модалки
-    var settingsModalEl = document.getElementById('settingsModal');
-    var settingsModal = new bootstrap.Modal(settingsModalEl);
-
-    var createStatusModalEl = document.getElementById('createStatusModal');
-    var createStatusModal = new bootstrap.Modal(createStatusModalEl);
-
-    var editStatusModalEl = document.getElementById('editStatusModal');
-    var editStatusModal = new bootstrap.Modal(editStatusModalEl);
-
-    function showScheduleChildModal(modalId) {
-        if (typeof window.showModalQueued === 'function') {
-            window.showModalQueued(modalId);
-            return;
-        }
-
-        var el = document.getElementById(modalId);
-        if (el) {
-            bootstrap.Modal.getOrCreateInstance(el).show();
-        }
-    }
-
-    function hideScheduleChildModal(modalEl) {
-        var inst = bootstrap.Modal.getInstance(modalEl);
-        if (inst) {
-            inst.hide();
-        }
-    }
-
-    // Кнопка "Настройки"
-    var btnSettings = document.getElementById('btn-settings');
-    // Таблица статусов
-    var statusesTableBody = document.getElementById('statuses-table-body');
-    // Кнопка "Новый статус"
-    var btnNewStatus = document.getElementById('btn-new-status');
-
-    // При клике "Настройки" — грузим статусы и показываем модалку
-    btnSettings.addEventListener('click', function () {
-        settingsModal.show();
-    });
-
-    // "Новый статус" — сбрасываем форму и показываем модалку создания
-    btnNewStatus.addEventListener('click', function () {
-        document.getElementById('createStatusForm').reset();
-        // Сбрасываем выбранные иконки
-        document.querySelectorAll('#createIconList .icon-item').forEach(i => i.classList.remove('selected'));
-        document.getElementById('createIcon').value = '';
-        showScheduleChildModal('createStatusModal');
-    });
-
-    function clearScheduleStatusFormErrors(form) {
-        if (!form) {
-            return;
-        }
-        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        form.querySelectorAll('[data-error-for]').forEach(el => {
-            el.textContent = '';
-            el.style.display = 'none';
-        });
-    }
-
-    function showScheduleStatusFormErrors(form, errors) {
-        if (!form || !errors) {
-            return;
-        }
-        Object.keys(errors).forEach(field => {
-            const input = form.querySelector('[name="' + field + '"]');
-            const feedback = form.querySelector('[data-error-for="' + field + '"]');
-            const messages = errors[field];
-            if (!messages || !messages.length) {
-                return;
-            }
-            if (input) {
-                input.classList.add('is-invalid');
-            }
-            if (feedback) {
-                feedback.textContent = messages[0];
-                feedback.style.display = 'block';
-            }
-        });
-    }
-
-    function parseJsonResponse(resp) {
-        return resp.json().then(body => ({ ok: resp.ok, status: resp.status, body }));
-    }
-
-    // Загрузка статусов
-    function loadStatuses() {
-        if (!statusesTableBody) {
-            return;
-        }
-
-        fetch("/schedule/statuses")
-            .then(resp => resp.json())
-            .then(data => {
-                if (!Array.isArray(data.statuses)) {
-                    return;
-                }
-
-                statusesTableBody.innerHTML = '';
-                data.statuses.forEach(st => {
-                    const sortOrder = (st.sort_order !== undefined && st.sort_order !== null)
-                        ? Number(st.sort_order)
-                        : 0;
-                    const isSystem = !!st.is_system;
-
-                    let tr = document.createElement('tr');
-
-                    let tdName = document.createElement('td');
-                    tdName.appendChild(document.createTextNode(st.name || ''));
-                    if (isSystem) {
-                        let hint = document.createElement('i');
-                        hint.className = 'fas fa-question-circle ms-1';
-                        hint.setAttribute('data-kids-tooltip-hint', '1');
-                        hint.setAttribute('data-bs-toggle', 'tooltip');
-                        hint.setAttribute('title', 'Системный статус. Нельзя изменить или удалить');
-                        tdName.appendChild(document.createTextNode(' '));
-                        tdName.appendChild(hint);
-                    }
-                    tr.appendChild(tdName);
-
-                    let tdSort = document.createElement('td');
-                    let sortSpan = document.createElement('span');
-                    if (isSystem) {
-                        sortSpan.className = 'text-muted';
-                    }
-                    sortSpan.textContent = String(sortOrder);
-                    tdSort.appendChild(sortSpan);
-                    tr.appendChild(tdSort);
-
-                    let tdIcon = document.createElement('td');
-                    if (st.icon) {
-                        let iconEl = document.createElement('i');
-                        iconEl.className = st.icon;
-                        iconEl.style.backgroundColor = st.color || '';
-                        iconEl.style.color = '#000000';
-                        iconEl.style.padding = '5px';
-                        iconEl.style.borderRadius = '3px';
-                        tdIcon.appendChild(iconEl);
-                    }
-                    tr.appendChild(tdIcon);
-
-                    let tdActions = document.createElement('td');
-                    if (!isSystem) {
-                        let btnEdit = document.createElement('button');
-                        btnEdit.type = 'button';
-                        btnEdit.className = 'btn btn-sm btn-success me-1';
-                        btnEdit.title = 'Изменить';
-                        btnEdit.setAttribute('aria-label', 'Изменить');
-                        btnEdit.innerHTML = '<i class="fa fa-edit" aria-hidden="true"></i>';
-                        btnEdit.dataset.action = 'edit';
-                        btnEdit.dataset.id = String(st.id);
-                        btnEdit.dataset.name = st.name || '';
-                        btnEdit.dataset.icon = st.icon || '';
-                        btnEdit.dataset.color = st.color || '';
-                        btnEdit.dataset.sortOrder = String(sortOrder);
-
-                        let btnDelete = document.createElement('button');
-                        btnDelete.type = 'button';
-                        btnDelete.className = 'btn btn-sm btn-danger';
-                        btnDelete.title = 'Удалить';
-                        btnDelete.setAttribute('aria-label', 'Удалить');
-                        btnDelete.innerHTML = '<i class="fa fa-trash" aria-hidden="true"></i>';
-                        btnDelete.dataset.action = 'delete';
-                        btnDelete.dataset.id = String(st.id);
-
-                        tdActions.appendChild(btnEdit);
-                        tdActions.appendChild(btnDelete);
-                    }
-                    tr.appendChild(tdActions);
-
-                    statusesTableBody.appendChild(tr);
-                });
-
-                if (window.KidsCrmTooltip) {
-                    KidsCrmTooltip.init(statusesTableBody, { scopes: ['hint'] });
-                }
-            })
-            .catch(err => console.error(err));
-    }
-
-    // СОЗДАНИЕ СТАТУСА
-    var createStatusForm = document.getElementById('createStatusForm');
-    createStatusForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        clearScheduleStatusFormErrors(createStatusForm);
-        let formData = new FormData(createStatusForm);
-
-        fetch("/schedule/statuses", {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-            .then(parseJsonResponse)
-            .then(({ ok, body }) => {
-                if (ok && body.success) {
-                    loadStatuses();
-                    hideScheduleChildModal(createStatusModalEl);
-                    showSuccessModal("Создание статуса", "Статус успешно создан.", 0);
-                    return;
-                }
-                if (body.errors) {
-                    showScheduleStatusFormErrors(createStatusForm, body.errors);
-                    return;
-                }
-                $('#errorModal').modal('show');
-            })
-            .catch(err => console.error(err));
-    });
-
-    // РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ
-    var editStatusForm = document.getElementById('editStatusForm');
-    statusesTableBody.addEventListener('click', function (e) {
-        let target = e.target.closest('[data-action]');
-        if (!target) {
-            return;
-        }
-
-        let action = target.dataset.action;
-        if (action === 'edit') {
-            let id = target.dataset.id;
-            let name = target.dataset.name;
-            let icon = target.dataset.icon;
-            let color = target.dataset.color || '#ffffff';
-            let sortOrder = target.dataset.sortOrder ?? '0';
-
-            clearScheduleStatusFormErrors(editStatusForm);
-            document.getElementById('editStatusId').value = id;
-            document.getElementById('editName').value = name;
-            document.getElementById('editIcon').value = icon;
-            document.getElementById('editColor').value = color;
-            document.getElementById('editSortOrder').value = sortOrder;
-
-            document.querySelectorAll('#editIconList .icon-item').forEach(item => {
-                item.classList.remove('selected');
-                if (item.dataset.icon === icon) {
-                    item.classList.add('selected');
-                }
-            });
-            showScheduleChildModal('editStatusModal');
-        } else if (action === 'delete') {
-            showConfirmDeleteModal(
-                "Удаление статуса",
-                "Вы уверены, что хотите удалить этот статус? (Ранее установленные значения для дней с этим статусом останутся без изменений.)",
-                function () {
-                    let id = target.dataset.id;
-
-                    fetch("/schedule/statuses/" + id, {
-                        method: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    })
-                        .then(resp => resp.json())
-                        .then(d => {
-                            if (d.success) {
-                                loadStatuses();
-                                showSuccessModal("Удаление статуса", "Статус успешно удален.", 0);
-                            } else {
-                                $('#errorModal').modal('show');
-                            }
-                        })
-                        .catch(err => console.error(err));
-                });
-        }
-    });
-
-    // Сабмит формы редактирования (исправление 405: POST + _method=PATCH)
-    editStatusForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        clearScheduleStatusFormErrors(editStatusForm);
-
-        let statusId = document.getElementById('editStatusId').value;
-        let formData = new FormData(editStatusForm);
-        formData.append('_method', 'PATCH');
-
-        fetch("/schedule/statuses/" + statusId, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-            },
-            body: formData
-        })
-            .then(parseJsonResponse)
-            .then(({ ok, body }) => {
-                if (ok && body.success) {
-                    loadStatuses();
-                    hideScheduleChildModal(editStatusModalEl);
-                    showSuccessModal("Редактирование статуса", "Статус успешно обновлен.", 0);
-                    return;
-                }
-                if (body.errors) {
-                    showScheduleStatusFormErrors(editStatusForm, body.errors);
-                    return;
-                }
-                $('#errorModal').modal('show');
-            })
-            .catch(err => console.error(err));
-    });
-
-    // Выбор иконки (Create)
-    let createIconList = document.getElementById('createIconList');
-    createIconList.querySelectorAll('.icon-item').forEach(item => {
-        item.addEventListener('click', function () {
-            createIconList.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
-            this.classList.add('selected');
-            document.getElementById('createIcon').value = this.dataset.icon;
-        });
-    });
-
-    // Выбор иконки (Edit)
-    let editIconList = document.getElementById('editIconList');
-    editIconList.querySelectorAll('.icon-item').forEach(item => {
-        item.addEventListener('click', function () {
-            editIconList.querySelectorAll('.icon-item').forEach(i => i.classList.remove('selected'));
-            this.classList.add('selected');
-            document.getElementById('editIcon').value = this.dataset.icon;
-        });
-    });
-
-
-
-
-
-
     var urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('fullscreen') == '1') {
         $('.schedule-fullscreen-wrapper').addClass('fullscreen');
@@ -446,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function syncTrainerBlock() {
-        var checked = $('input[name="status_id"]:checked');
+        var checked = $('input[name="lesson_occurrence_status_id"]:checked');
         var statusVal = checked.val();
         if (!isVisitedStatusId(statusVal)) {
             $('#cell-trainer-wrap').addClass('d-none');
@@ -470,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#cell-trainer-hint').text(hint);
     }
 
-    $(document).on('change', 'input[name="status_id"]', function () {
+    $(document).on('change', 'input[name="lesson_occurrence_status_id"]', function () {
         syncTrainerBlock();
     });
 
@@ -528,9 +198,9 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#edit-user-id').val(userId);
         $('#edit-date').val(date);
         $('#description').val(comment);
-        $('input[name="status_id"]').prop('checked', false);
+        $('input[name="lesson_occurrence_status_id"]').prop('checked', false);
         if (statusId) {
-            $('input[name="status_id"][value="' + statusId + '"]').prop('checked', true);
+            $('input[name="lesson_occurrence_status_id"][value="' + statusId + '"]').prop('checked', true);
         } else {
             $('#status-empty').prop('checked', true);
         }
@@ -571,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
 
         var formData = $(this).serializeArray();
-        var chosenStatus = $('input[name="status_id"]:checked').val();
+        var chosenStatus = $('input[name="lesson_occurrence_status_id"]:checked').val();
         if (!isVisitedStatusId(chosenStatus)) {
             formData = formData.filter(function (item) {
                 return item.name !== 'trainer_profile_id';
@@ -587,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             success: function (response) {
                 if (response.success) {
-                    let chosenRadio = $('input[name="status_id"]:checked');
+                    let chosenRadio = $('input[name="lesson_occurrence_status_id"]:checked');
                     let chosenStatusId = chosenRadio.val();
                     let icon = chosenRadio.data('icon') || '';
                     let color = chosenRadio.data('color') || '';

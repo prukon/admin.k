@@ -38,7 +38,7 @@
     view <code>resources/views/admin/user.blade.php</code>. Горизонтальные вкладки — <code>admin/users/_users_section_tabs.blade.php</code>.<br>
     Все маршруты раздела обёрнуты в <code>middleware('can:users.view')</code> (<code>routes/web.php</code>).
     Без <code>users.view</code> страница и AJAX раздела отвечают <b>403</b>, даже если у роли есть <code>locations.view</code> или <code>contracts.view</code>.<br>
-    Импорт из Excel — отдельное право <code>users.import</code> (§<a href="#user-import">9</a>): требует и <code>users.view</code>, и <code>users.import</code>.<br>
+    Импорт из Excel — отдельное право <code>users.import</code> (§<a href="#user-import">8</a>): требует и <code>users.view</code>, и <code>users.import</code>.<br>
     Колонка «Договор» в таблице и поле <code>latest_contract</code> в JSON — дополнительно только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>); без него список пользователей доступен как раньше.<br>
     Внутренняя документация (<code>/doc</code>) требует отдельное право <code>documentations.view</code> — это не доступ к <code>/admin/users</code>.
   </div>
@@ -58,8 +58,8 @@
       <tr><td>GET</td><td><code>/admin/users/{user}/edit</code></td><td>JSON для модалки редактирования (нужен AJAX)</td></tr>
       <tr><td>PATCH</td><td><code>/admin/users/{user}</code></td><td>Обновление</td></tr>
       <tr><td>GET</td><td><code>/admin/user/logs-data</code></td><td>Логи пользователей (DataTables)</td></tr>
-      <tr><td>GET</td><td><code>/admin/users/import/template</code></td><td>Скачать шаблон <code>.xlsx</code> (<code>users.import</code>, §<a href="#user-import">9</a>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/users/import/preview</code></td><td>Проверка файла, превью, токен в cache (<code>throttle:10,1</code>)</td></tr>
+      <tr><td>GET</td><td><code>/admin/users/import/template</code></td><td>Скачать шаблон <code>.xlsx</code> (<code>users.import</code>, §<a href="#user-import">8</a>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/users/import/preview</code></td><td>Проверка файла, превью + diff для update, токен в cache (<code>throttle:10,1</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/users/import/commit</code></td><td>Подтверждение импорта по <code>import_token</code> (<code>throttle:10,1</code>)</td></tr>
     </tbody>
   </table>
@@ -800,7 +800,11 @@
         <td><code>/admin/users/import/preview</code></td>
         <td>Загрузка <code>file</code> (multipart), валидация и разбор</td>
         <td>
-          200: <code>valid: true</code>, <code>import_token</code> (UUID), <code>summary</code> (<code>total_rows</code>, <code>create_count</code>, <code>update_count</code>), <code>preview[]</code> (строка, ученик, группа, режим).<br>
+          200: <code>valid: true</code>, <code>import_token</code> (UUID),
+          <code>summary</code> (<code>total_rows</code>, <code>create_count</code>, <code>update_count</code>,
+          <code>update_with_changes_count</code>, <code>update_unchanged_count</code>, <code>update_with_clears_count</code>),
+          <code>preview[]</code> (строка, ученик, группа, режим, <code>changes[]</code>, <code>has_clears</code>) —
+          см. §<a href="#user-import-preview-diff">8.5</a>.<br>
           422: <code>valid: false</code>, <code>errors[]</code> (<code>row</code>, <code>field</code>, <code>message</code>) — бизнес-ошибки или отсутствие обязательных колонок.<br>
           422: Laravel validation — нет файла, не <code>.xlsx</code>, &gt; 5 МБ.
         </td>
@@ -827,7 +831,8 @@
   <ul>
     <li>Один лист <code>.xlsx</code>, первая строка — заголовки (фиксированный набор, см. <code>UsersImportColumns::headerLabels()</code>).</li>
     <li>Даты — <code>ДД.ММ.ГГГГ</code> (колонка «Дата рождения»).</li>
-    <li>Телефоны ученика и родителя — канон <code>+7XXXXXXXXXX</code> после нормализации.</li>
+    <li>Телефон <b>ученика</b> — канон <code>+7XXXXXXXXXX</code> после нормализации (<code>normalizeRuPhone</code>).</li>
+    <li>Телефон <b>родителя</b> — в файл можно писать в привычном виде; при разборе сохраняется/сверяется как <b>цифры</b> (<code>normalizeParentPhone</code>, без «+»). Для совпадения со справочником <code>parents.phone</code> должен совпадать с этой цифровой формой.</li>
     <li>«Активен» — <code>да</code> / <code>нет</code> (пусто → активен).</li>
     <li><b>Обязательные колонки:</b> только «Фамилия ученика» и «Имя ученика».</li>
   </ul>
@@ -839,8 +844,8 @@
       <tr><td>Фамилия ученика, Имя ученика</td><td>Обязательны, max 25 символов</td></tr>
       <tr><td>Группа</td><td>Необязательна. Пустая при create → ученик без группы; при update → снимает все группы (§<a href="#user-teams">3</a>)</td></tr>
       <tr><td>Юр. лицо</td><td>Обязательно, если указана группа. Ссылка на <b>существующее активное</b> юр. лицо по <code>PartnerLegalEntity::displayTitle()</code> (без учёта регистра). Из Excel <b>не создаётся</b> — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a></td></tr>
-      <tr><td>Email ученика</td><td>Необязателен. Пустой → всегда <b>создание</b>. Совпадение с email ученика (<code>role=user</code>) текущего партнёра → <b>обновление</b> всех полей строки</td></tr>
-      <tr><td>Телефон ученика, Дата рождения, Активен</td><td>Опционально. При update пустые email/телефон → <code>null</code> в БД</td></tr>
+      <tr><td>Email ученика</td><td>Необязателен. Пустой → всегда <b>создание</b>. Совпадение с email ученика (<code>role=user</code>) текущего партнёра → <b>обновление</b> всех полей строки (полная подстановка)</td></tr>
+      <tr><td>Телефон ученика, Дата рождения, Активен</td><td>Опционально. При update пустой телефон или ДР → <code>null</code> в БД (очистка). Email ученика при update — ключ сопоставления, пустым в режиме update быть не может</td></tr>
       <tr><td>Email / ФИО / телефон родителя</td><td>Опционально. Логика — §<a href="#user-parent">2.1</a>, сервис <code>StudentParentSyncService</code> при commit</td></tr>
     </tbody>
   </table>
@@ -882,38 +887,94 @@
     <li>Доп. поля <code>user_fields</code> / мед.-флаги / пол / комментарий через импорт <b>не задаются</b> — только поля из шаблона.</li>
   </ul>
 
-  <h3>8.5) UI модалки</h3>
+  <h3 id="user-import-preview-diff">8.5) Preview-diff перед commit (прозрачность update)</h3>
+  <div class="note">
+    Цель — до нажатия «Импортировать» показать, <b>что именно изменится</b> у существующих учеников.
+    Семантика commit <b>не менялась</b>: при update по-прежнему полная подстановка полей из строки Excel
+    (пустые ячейки могут обнулить телефон/ДР, снять группы, отвязать родителя).
+  </div>
+
+  <h4>Когда считается</h4>
+  <ul>
+    <li>Только при успешном preview (<code>valid: true</code>) и только для строк с <code>mode = update</code>.</li>
+    <li>Строки <code>create</code> — <code>changes: []</code>, <code>has_clears: false</code>.</li>
+    <li>Diff <b>не кладётся</b> в cache токена: в <code>users_import:{uuid}</code> только строки для commit; diff строится заново на каждом preview.</li>
+    <li>Реализация: <code>UsersImportPreviewDiffBuilder</code> (+ DTO <code>UsersImportFieldChange</code>), вызывается из <code>UsersImportValidator</code> после валидации.</li>
+  </ul>
+
+  <h4>Что сравнивается</h4>
+  <table>
+    <thead>
+      <tr><th>Поле (<code>field</code>)</th><th>Подпись (<code>label</code>)</th><th>Правило</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>student_lastname</code>, <code>student_name</code></td><td>Фамилия, Имя</td><td>Точное сравнение строк</td></tr>
+      <tr><td><code>student_phone</code></td><td>Телефон</td><td>Пусто в файле → <code>null</code>; если было значение — <code>kind: cleared</code></td></tr>
+      <tr><td><code>birthday</code></td><td>Дата рождения</td><td>Сравнение <code>Y-m-d</code>; в UI «Было/Станет» — <code>ДД.ММ.ГГГГ</code>; очистка → <code>cleared</code></td></tr>
+      <tr><td><code>is_enabled</code></td><td>Активен</td><td>Да/Нет</td></tr>
+      <tr><td><code>teams</code></td><td>Группы</td><td>Текущий набор названий (как в <code>TeamUserSyncService::teamTitlesCollection</code>) vs одна группа из строки или пусто. Пусто при наличии групп → <code>cleared</code>; иначе <code>changed</code>. Сравнение названий без учёта регистра</td></tr>
+      <tr><td><code>parent</code></td><td>Родитель</td><td>
+        Нет данных родителя в строке → отвязка (<code>cleared</code>, если был <code>parent_id</code>).
+        Есть данные + email совпал с <code>parents</code> и тот же <code>parent_id</code> → без изменения.
+        Иначе <code>changed</code> (привязка к существующему или новый родитель).
+        В «Было/Станет» — ФИО · email · телефон.
+      </td></tr>
+    </tbody>
+  </table>
+  <p class="small">В <code>changes[]</code> попадают <b>только отличия</b>. Элемент: <code>field</code>, <code>label</code>, <code>from</code>, <code>to</code>, <code>kind</code> (<code>changed</code> | <code>cleared</code>). Пустое значение в UI отображается как «—».</p>
+
+  <h4>Summary и порядок строк в <code>preview[]</code></h4>
+  <ul>
+    <li><code>update_with_changes_count</code> — update-строки, у которых <code>changes</code> не пустой.</li>
+    <li><code>update_unchanged_count</code> — update без отличий от БД (<code>update_count − update_with_changes_count</code>).</li>
+    <li><code>update_with_clears_count</code> — update-строки, где есть хотя бы один <code>kind: cleared</code>.</li>
+    <li>Порядок в <code>preview[]</code>: сначала все строки <b>с изменениями</b>, затем остальные (create + update без изменений); внутри групп — порядок как в Excel.</li>
+  </ul>
+
+  <h4>UI после «Проверить»</h4>
+  <ul>
+    <li>Саммари: «Файл проверен: N строк, создать X, обновить Y (с изменениями A, без изменений B)[, из них с очистками C].»</li>
+    <li>В колонке «Режим» для update — бейдж «N изменений» / «есть очистки» / «без изменений».</li>
+    <li>Строки update с изменениями — кликабельны: раскрытие мини-таблицы <b>Поле | Было | Станет</b>; очистки подсвечены.</li>
+    <li>Ширина модалки — обычный <code>modal-dialog</code> (без <code>modal-lg</code>: в проекте <code>.modal-lg</code> = 90% экрана).</li>
+  </ul>
+  <div class="warn">
+    Preview-diff — только прозрачность. Пустые ячейки по-прежнему могут очистить данные при commit; оператор должен смотреть строки с пометкой «очистка» перед импортом.
+  </div>
+
+  <h3>8.6) UI модалки</h3>
   <ul>
     <li>Кнопка «Импорт» в toolbar — стиль <code>payments-report-toolbar-action</code> (как «Добавить», «Настройки»).</li>
     <li>Аккордеон «Как работает импорт» — сворачиваемая памятка с правилами.</li>
-    <li>Шаги: загрузка файла → превью (таблица строк + счётчики create/update) → ошибки (таблица по полям) → успех (иконка, бейджи «Создано» / «Обновлено»).</li>
+    <li>Шаги: загрузка файла → превью (таблица + саммари create/update/diff, §<a href="#user-import-preview-diff">8.5</a>) → ошибки (таблица по полям) → успех (иконка, бейджи «Создано» / «Обновлено»).</li>
     <li>После успешного commit таблица DataTables обновляется через <code>reloadUsersTable()</code> без F5; модалка остаётся открытой на шаге успеха до «Закрыть».</li>
     <li>Кнопки: «Проверить» (<code>btn-primary</code>), «Импортировать» (<code>btn-success</code>), «Другой файл», «Закрыть».</li>
   </ul>
 
-  <h3>8.6) Связанные файлы</h3>
+  <h3>8.7) Связанные файлы</h3>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/UserImportController.php</code></li>
     <li><code>app/Http/Requests/User/ImportPreviewRequest.php</code>, <code>ImportCommitRequest.php</code></li>
-    <li><code>app/Services/Users/Import/</code> — <code>UsersImportService</code>, <code>UsersImportValidator</code>, <code>UsersImportCommitService</code>, <code>UsersExcelReader</code>, <code>UsersImportTemplateBuilder</code>, <code>UsersImportColumns</code></li>
+    <li><code>app/Services/Users/Import/</code> — <code>UsersImportService</code>, <code>UsersImportValidator</code>, <code>UsersImportPreviewDiffBuilder</code>, <code>UsersImportFieldChange</code>, <code>UsersImportValidationResult</code>, <code>UsersImportCommitService</code>, <code>UsersExcelReader</code> / <code>UsersImportNormalizer</code>, <code>UsersImportTemplateBuilder</code>, <code>UsersImportColumns</code></li>
     <li><code>resources/views/admin/users/_import_modal.blade.php</code></li>
-    <li><code>resources/views/admin/user.blade.php</code> — toolbar, JS <code>initUsersImportModal</code></li>
-    <li><code>resources/css/user.css</code> — стили модалки импорта</li>
+    <li><code>resources/views/admin/user.blade.php</code> — toolbar, JS <code>initUsersImportModal</code> (раскрытие diff, саммари)</li>
+    <li><code>resources/css/user.css</code> — стили модалки и preview-diff</li>
     <li>Зависимость: <code>phpoffice/phpspreadsheet ^5.8</code> (<code>UsersSpreadsheetCells</code> — совместимость API 5.x)</li>
   </ul>
 
-  <h3>8.7) Feature-тесты</h3>
+  <h3>8.8) Feature-тесты</h3>
   <table>
     <thead>
       <tr><th>Файл</th><th>Что проверяется</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>UsersImportFeatureTest.php</code></td><td>Бизнес-логика: create/update, группы, родители, конфликты; UI-кнопка; E2E smoke (страница → preview → commit → DataTables)</td></tr>
-      <tr><td><code>UsersImportAccessFeatureTest.php</code></td><td>Гость, без <code>users.view</code>, без <code>users.import</code>, полный доступ; матрица статусов не 500/пустой 200</td></tr>
-      <tr><td><code>UsersImportAjaxContractFeatureTest.php</code></td><td>JSON-контракт preview/commit, 422 validation, истёкший токен, изоляция email, дубли в файле</td></tr>
-      <tr><td><code>UsersImportNonAjaxSafetyNetFeatureTest.php</code></td><td>POST без <code>X-Requested-With</code> → JSON 200/422, запись в БД; template stream</td></tr>
+      <tr><td><code>UsersImportFeatureTest.php</code></td><td>Бизнес-логика: create/update, группы, родители, конфликты; UI-кнопка; E2E smoke (страница → preview → commit → DataTables); часть asserts по diff/summary</td></tr>
+      <tr><td><code>UsersImportPreviewDiffFeatureTest.php</code></td><td>Preview-diff §8.5: скаляры, очистки, родитель, порядок строк, summary-счётчики, UI-хуки, P2 smoke update→DataTables</td></tr>
+      <tr><td><code>UsersImportAccessFeatureTest.php</code></td><td>Гость, без <code>users.view</code>, без <code>users.import</code>, полный доступ; UI-маркеры diff; матрица статусов не 500/пустой 200</td></tr>
+      <tr><td><code>UsersImportAjaxContractFeatureTest.php</code></td><td>JSON-контракт preview/commit (в т.ч. shape <code>changes[]</code> и summary diff), 422 validation, истёкший токен, изоляция email, дубли в файле</td></tr>
+      <tr><td><code>UsersImportNonAjaxSafetyNetFeatureTest.php</code></td><td>POST без <code>X-Requested-With</code> → JSON 200/422 (не HTML-redirect); preview не пишет в БД; commit создаёт запись; template stream</td></tr>
       <tr><td><code>Concerns/UsersImportTestHelpers.php</code></td><td>Общие хелперы сборки <code>.xlsx</code> для тестов</td></tr>
-      <tr><td><code>BladeInlineJsSyntaxTest</code></td><td>Синтаксис inline-JS в <code>admin/user.blade.php</code> (обработчики импорта)</td></tr>
+      <tr><td><code>BladeInlineJsSyntaxTest</code></td><td>Синтаксис inline-JS в <code>admin/user.blade.php</code> (обработчики импорта и diff UI)</td></tr>
     </tbody>
   </table>
   <p class="small">Запуск: <code>php artisan test --filter=UsersImport</code></p>
@@ -921,7 +982,7 @@
   <h2>9) Тесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a></li>
+      <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportPreviewDiffFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a> / preview-diff §<a href="#user-import-preview-diff">8.5</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
@@ -963,6 +1024,7 @@
     <a href="#user-comment-sex">Пол и комментарий</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·
     <a href="#user-import">Импорт из Excel</a> ·
+    <a href="#user-import-preview-diff">Preview-diff</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры: родитель и подписант</a> ·
     <a href="/docs/documentation/admin-users-section">Вкладки раздела «Пользователи»</a> ·
     <a href="/docs/documentation/admin-trainers">Тренеры</a> ·

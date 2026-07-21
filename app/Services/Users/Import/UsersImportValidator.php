@@ -2,6 +2,7 @@
 
 namespace App\Services\Users\Import;
 
+use App\Models\ParentProfile;
 use App\Models\PartnerLegalEntity;
 use App\Models\Role;
 use App\Models\Team;
@@ -10,6 +11,11 @@ use Illuminate\Support\Collection;
 
 final class UsersImportValidator
 {
+    public function __construct(
+        private readonly UsersImportPreviewDiffBuilder $previewDiffBuilder,
+    ) {
+    }
+
     /**
      * @param list<UsersImportRow> $rows
      * @param list<UsersImportRowError> $parseErrors
@@ -88,12 +94,101 @@ final class UsersImportValidator
             }
         }
 
+        $isValid = $errors === [];
+        $changesByRow = [];
+        $updateWithClearsCount = 0;
+        $updateWithChangesCount = 0;
+        $updateUnchangedCount = 0;
+
+        if ($isValid && $updateCount > 0) {
+            $diff = $this->buildPreviewDiff($validatedRows, $partnerId, $studentRoleId);
+            $changesByRow = $diff['changes_by_row'];
+            $updateWithChangesCount = $diff['update_with_changes_count'];
+            $updateWithClearsCount = $diff['update_with_clears_count'];
+            $updateUnchangedCount = max(0, $updateCount - $updateWithChangesCount);
+        }
+
         return new UsersImportValidationResult(
-            valid: $errors === [],
+            valid: $isValid,
             errors: $errors,
             rows: $validatedRows,
             createCount: $createCount,
             updateCount: $updateCount,
+            changesByRow: $changesByRow,
+            updateWithChangesCount: $updateWithChangesCount,
+            updateUnchangedCount: $updateUnchangedCount,
+            updateWithClearsCount: $updateWithClearsCount,
+        );
+    }
+
+    /**
+     * @param list<UsersImportRow> $rows
+     * @return array{
+     *     changes_by_row: array<int, list<UsersImportFieldChange>>,
+     *     update_with_changes_count: int,
+     *     update_with_clears_count: int
+     * }
+     */
+    private function buildPreviewDiff(array $rows, int $partnerId, int $studentRoleId): array
+    {
+        $updateEmails = [];
+        $parentEmails = [];
+
+        foreach ($rows as $row) {
+            if ($row->mode !== 'update' || $row->studentEmail === null) {
+                continue;
+            }
+
+            $updateEmails[] = $row->studentEmail;
+
+            if ($row->parentEmail !== null) {
+                $parentEmails[] = $row->parentEmail;
+            }
+        }
+
+        $updateEmails = array_values(array_unique($updateEmails));
+        $parentEmails = array_values(array_unique($parentEmails));
+
+        $studentsByEmailLower = collect();
+        if ($updateEmails !== []) {
+            $studentsByEmailLower = User::query()
+                ->where('partner_id', $partnerId)
+                ->where('role_id', $studentRoleId)
+                ->where(function ($query) use ($updateEmails) {
+                    foreach ($updateEmails as $index => $email) {
+                        if ($index === 0) {
+                            $query->whereRaw('LOWER(email) = ?', [$email]);
+                        } else {
+                            $query->orWhereRaw('LOWER(email) = ?', [$email]);
+                        }
+                    }
+                })
+                ->with(['teams', 'parentProfile'])
+                ->get()
+                ->keyBy(static fn (User $user) => mb_strtolower((string) $user->email));
+        }
+
+        $parentsByEmailLower = collect();
+        if ($parentEmails !== []) {
+            $parentsByEmailLower = ParentProfile::query()
+                ->where('partner_id', $partnerId)
+                ->where(function ($query) use ($parentEmails) {
+                    foreach ($parentEmails as $index => $email) {
+                        if ($index === 0) {
+                            $query->whereRaw('LOWER(email) = ?', [$email]);
+                        } else {
+                            $query->orWhereRaw('LOWER(email) = ?', [$email]);
+                        }
+                    }
+                })
+                ->get()
+                ->keyBy(static fn (ParentProfile $parent) => mb_strtolower((string) $parent->email));
+        }
+
+        return $this->previewDiffBuilder->buildForRows(
+            $rows,
+            $studentsByEmailLower,
+            $parentsByEmailLower,
         );
     }
 

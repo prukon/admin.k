@@ -107,7 +107,7 @@
   <h3>3.1) Какие записи журнала попадают в отчёт</h3>
   <ul>
     <li>Таблица <code>schedule_users</code>, join <code>users</code> (<code>is_enabled = 1</code>, партнёр текущий).</li>
-    <li><code>status_id</code> = системный «Посетил» (<code>Status::globalVisitedId()</code>).</li>
+    <li><code>lesson_occurrence_status_id</code> = «Посетил» текущего партнёра (<code>LessonOccurrenceStatus::attendedIdForPartner($partnerId)</code>, <code>code = attended</code>).</li>
     <li><code>trainer_profile_id IS NOT NULL</code>.</li>
     <li><code>date</code> в выбранном периоде [<code>date_from</code>, <code>date_to</code>].</li>
   </ul>

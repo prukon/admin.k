@@ -3,7 +3,7 @@
 namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\ScheduleUser;
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Services\Schedule\TrainerWorkloadReportService;
@@ -63,15 +63,15 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
         $this->createVisitedScheduleEntry($student->id, $trainer->id, $tuesday);
         $this->createVisitedScheduleEntry($student->id, $otherTrainer->id, $mondayOne);
 
-        $notVisited = Status::query()
-            ->where('partner_id', null)
-            ->where('name', 'Не был')
+        $notVisited = LessonOccurrenceStatus::query()
+            ->forPartner($this->partner->id)
+            ->where('code', 'not_attended')
             ->value('id');
 
         ScheduleUser::query()->create([
             'user_id' => $student->id,
             'date' => $mondayOne,
-            'status_id' => $notVisited,
+            'lesson_occurrence_status_id' => $notVisited,
             'trainer_profile_id' => $trainer->id,
         ]);
 
@@ -105,19 +105,19 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
         ScheduleUser::query()->create([
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => null,
         ]);
 
-        $notVisitedId = Status::query()
-            ->whereNull('partner_id')
-            ->where('name', 'Не был')
+        $notVisitedId = LessonOccurrenceStatus::query()
+            ->forPartner($this->partner->id)
+            ->where('code', 'not_attended')
             ->value('id');
 
         ScheduleUser::query()->create([
             'user_id' => $student->id,
             'date' => '2026-05-08',
-            'status_id' => $notVisitedId,
+            'lesson_occurrence_status_id' => $notVisitedId,
             'trainer_profile_id' => $trainer->id,
         ]);
 

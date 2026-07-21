@@ -10,7 +10,7 @@ class UpdateLessonOccurrenceStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('lessonPackages.view') ?? false;
+        return $this->user()?->can('lessonOccurrenceStatuses.manage') ?? false;
     }
 
     protected function prepareForValidation(): void

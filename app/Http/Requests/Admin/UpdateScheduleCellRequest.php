@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,7 +21,15 @@ class UpdateScheduleCellRequest extends FormRequest
         return [
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'date' => ['required', 'date_format:Y-m-d'],
-            'status_id' => ['required', 'exists:statuses,id'],
+            'lesson_occurrence_status_id' => [
+                'required',
+                'integer',
+                Rule::exists('lesson_occurrence_statuses', 'id')->where(
+                    fn ($query) => $query
+                        ->where('partner_id', $partnerId)
+                        ->where('is_active', true)
+                ),
+            ],
             'description' => ['nullable', 'string', 'max:2000'],
             'trainer_profile_id' => [
                 'nullable',
@@ -40,15 +48,23 @@ class UpdateScheduleCellRequest extends FormRequest
         if ($raw === '' || $raw === 'none' || $raw === '0') {
             $this->merge(['trainer_profile_id' => null]);
         }
+
+        // Совместимость со старым именем поля в клиенте (если осталось).
+        if (! $this->filled('lesson_occurrence_status_id') && $this->filled('status_id')) {
+            $this->merge([
+                'lesson_occurrence_status_id' => $this->input('status_id'),
+            ]);
+        }
     }
 
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            $visitedId = Status::globalVisitedId();
-            $statusId = (int) $this->input('status_id');
+            $partnerId = (int) app(PartnerContext::class)->partnerId();
+            $attendedId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+            $statusId = (int) $this->input('lesson_occurrence_status_id');
 
-            if ($visitedId === null || $statusId !== $visitedId) {
+            if ($attendedId === null || $statusId !== $attendedId) {
                 return;
             }
 
@@ -66,7 +82,7 @@ class UpdateScheduleCellRequest extends FormRequest
         return [
             'user_id' => 'ученик',
             'date' => 'дата',
-            'status_id' => 'статус',
+            'lesson_occurrence_status_id' => 'статус',
             'description' => 'комментарий',
             'trainer_profile_id' => 'тренер',
         ];
@@ -75,8 +91,8 @@ class UpdateScheduleCellRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status_id.required' => 'Выберите статус.',
-            'status_id.exists' => 'Выбранный статус не найден.',
+            'lesson_occurrence_status_id.required' => 'Выберите статус.',
+            'lesson_occurrence_status_id.exists' => 'Выбранный статус не найден или неактивен.',
             'trainer_profile_id.exists' => 'Выбранный тренер не найден.',
         ];
     }

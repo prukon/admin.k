@@ -11,6 +11,13 @@
                role="tab">Нагрузка тренеров</a>
         </li>
     @endcan
+    @can('lessonOccurrenceStatuses.manage')
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ ($activeTab ?? '') === 'occurrence-statuses' ? 'active' : '' }}"
+               href="{{ route('schedule.occurrence-statuses') }}"
+               role="tab">Статусы занятий</a>
+        </li>
+    @endcan
     @can('schedule.trainerSalary.view')
         <li class="nav-item" role="presentation">
             <a class="nav-link {{ ($activeTab ?? '') === 'trainer-salary' ? 'active' : '' }}"

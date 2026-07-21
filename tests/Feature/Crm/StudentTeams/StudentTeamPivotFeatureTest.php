@@ -62,7 +62,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
 
     public function test_sync_teams_rejects_foreign_partner_team_ids(): void
     {
-        $this->seedGlobalScheduleStatuses();
+        $this->seedPartnerOccurrenceStatuses();
 
         $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
         $this->grantPermissionForUser($actor, 'schedule.view');
@@ -83,7 +83,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
     public function test_schedule_index_shows_comma_separated_teams_under_student_name(): void
     {
         $this->withoutVite();
-        $this->seedGlobalScheduleStatuses();
+        $this->seedPartnerOccurrenceStatuses();
 
         $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
         $this->grantPermissionForUser($actor, 'schedule.view');
@@ -106,7 +106,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
 
     public function test_user_schedule_info_returns_all_team_titles(): void
     {
-        $this->seedGlobalScheduleStatuses();
+        $this->seedPartnerOccurrenceStatuses();
 
         $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
         $this->grantPermissionForUser($actor, 'schedule.view');

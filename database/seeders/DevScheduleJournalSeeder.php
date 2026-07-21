@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\Partner;
 use App\Models\Role;
 use App\Models\ScheduleUser;
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\Team;
 use App\Models\TrainerProfile;
 use App\Models\User;
@@ -44,15 +44,6 @@ class DevScheduleJournalSeeder extends Seeder
             return;
         }
 
-        DevScheduleStatusesSeeder::ensureGlobalSystemStatuses();
-
-        $visitedStatusId = Status::globalVisitedId();
-        if ($visitedStatusId === null) {
-            $this->command?->warn('DevScheduleJournalSeeder: системный статус «Посетил» не найден, пропуск.');
-
-            return;
-        }
-
         $userRoleId = Role::query()->where('name', 'user')->value('id');
         if (! $userRoleId) {
             return;
@@ -65,10 +56,17 @@ class DevScheduleJournalSeeder extends Seeder
             ->orderBy('id')
             ->each(function (Partner $partner) use (
                 $userRoleId,
-                $visitedStatusId,
                 $periodStart,
                 $periodEnd,
             ): void {
+                LessonOccurrenceStatusesSeeder::ensureForPartner((int) $partner->id);
+                $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner((int) $partner->id);
+                if ($visitedStatusId === null) {
+                    $this->command?->warn('DevScheduleJournalSeeder: статус attended не найден для партнёра '.$partner->id);
+
+                    return;
+                }
+
                 $this->seedPartner(
                     (int) $partner->id,
                     (int) $userRoleId,
@@ -86,10 +84,10 @@ class DevScheduleJournalSeeder extends Seeder
         Carbon $periodStart,
         Carbon $periodEnd,
     ): void {
-        $statusIds = Status::query()
-            ->forSchedulePartner($partnerId)
-            ->orderBy('sort_order')
-            ->orderBy('id')
+        $statusIds = LessonOccurrenceStatus::query()
+            ->forPartner($partnerId)
+            ->active()
+            ->ordered()
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -218,7 +216,7 @@ class DevScheduleJournalSeeder extends Seeder
                     $rowsToInsert[] = [
                         'user_id' => $userId,
                         'date' => $dateKey,
-                        'status_id' => $statusId,
+                        'lesson_occurrence_status_id' => $statusId,
                         'description' => $this->randomDescription(),
                         'trainer_profile_id' => $trainerProfileId,
                         'created_at' => $now,

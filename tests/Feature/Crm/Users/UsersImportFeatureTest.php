@@ -191,7 +191,22 @@ final class UsersImportFeatureTest extends CrmTestCase
         $preview = $this->postJson(route('admin.users.import.preview'), ['file' => $file], $this->importAjaxHeaders())
             ->assertOk()
             ->assertJsonPath('summary.update_count', 1)
+            ->assertJsonPath('summary.update_with_changes_count', 1)
+            ->assertJsonPath('summary.update_unchanged_count', 0)
+            ->assertJsonPath('summary.update_with_clears_count', 1)
             ->json();
+
+        $previewRow = collect($preview['preview'] ?? [])->first();
+        $this->assertIsArray($previewRow);
+        $this->assertTrue((bool) ($previewRow['has_clears'] ?? false));
+
+        $changesByField = collect($previewRow['changes'] ?? [])->keyBy('field');
+        $this->assertTrue($changesByField->has('student_phone'));
+        $this->assertSame('cleared', $changesByField->get('student_phone')['kind']);
+        $this->assertTrue($changesByField->has('teams'));
+        $this->assertSame('changed', $changesByField->get('teams')['kind']);
+        $this->assertSame('Старая группа', $changesByField->get('teams')['from']);
+        $this->assertSame('Новая группа', $changesByField->get('teams')['to']);
 
         $this->postJson(route('admin.users.import.commit'), [
             'import_token' => $preview['import_token'],
@@ -284,6 +299,93 @@ final class UsersImportFeatureTest extends CrmTestCase
         $this->assertSame([], app(\App\Services\TeamUserSyncService::class)->teamIdsForStudent($student));
     }
 
+    public function test_preview_update_diff_shows_parent_unlink_and_empty_changes_when_identical(): void
+    {
+        $studentRoleId = (int) Role::query()->where('name', 'user')->value('id');
+
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Родителев',
+            'firstname' => 'Иван',
+            'email' => 'parent-unlink@example.test',
+            'phone' => '+79005554433',
+        ]);
+
+        $studentWithParent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $studentRoleId,
+            'lastname' => 'Учеников',
+            'name' => 'СРодителем',
+            'email' => 'student-unlink-parent@example.test',
+            'phone' => null,
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $identicalStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $studentRoleId,
+            'lastname' => 'ТотЖе',
+            'name' => 'Ученик',
+            'email' => 'student-identical@example.test',
+            'phone' => null,
+            'birthday' => null,
+            'is_enabled' => true,
+        ]);
+
+        $file = $this->makeImportFile([
+            // В Excel сначала без изменений — в preview должна уйти ниже.
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $identicalStudent->lastname,
+                'Имя ученика' => $identicalStudent->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $identicalStudent->email,
+                'Телефон ученика' => '',
+                'Активен' => 'да',
+            ]),
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $studentWithParent->lastname,
+                'Имя ученика' => $studentWithParent->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $studentWithParent->email,
+                'Телефон ученика' => '',
+                'Активен' => 'да',
+            ]),
+        ]);
+
+        $preview = $this->postJson(route('admin.users.import.preview'), ['file' => $file], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('summary.update_count', 2)
+            ->assertJsonPath('summary.update_with_changes_count', 1)
+            ->assertJsonPath('summary.update_unchanged_count', 1)
+            ->assertJsonPath('summary.update_with_clears_count', 1)
+            ->json();
+
+        $previewRows = $preview['preview'] ?? [];
+        $this->assertCount(2, $previewRows);
+        $this->assertSame('student-unlink-parent@example.test', $previewRows[0]['email'] ?? null);
+        $this->assertNotSame([], $previewRows[0]['changes'] ?? null);
+        $this->assertSame('student-identical@example.test', $previewRows[1]['email'] ?? null);
+        $this->assertSame([], $previewRows[1]['changes'] ?? null);
+
+        $byEmail = collect($previewRows)->keyBy('email');
+
+        $unlinkRow = $byEmail->get('student-unlink-parent@example.test');
+        $this->assertNotNull($unlinkRow);
+        $this->assertTrue((bool) $unlinkRow['has_clears']);
+        $parentChange = collect($unlinkRow['changes'])->firstWhere('field', 'parent');
+        $this->assertNotNull($parentChange);
+        $this->assertSame('cleared', $parentChange['kind']);
+        $this->assertStringContainsString('Родителев', (string) $parentChange['from']);
+
+        $identicalRow = $byEmail->get('student-identical@example.test');
+        $this->assertNotNull($identicalRow);
+        $this->assertFalse((bool) $identicalRow['has_clears']);
+        $this->assertSame([], $identicalRow['changes']);
+    }
+
     public function test_users_page_shows_import_button_with_permission(): void
     {
         $html = $this->get(route('admin.user1'))->assertOk()->getContent();
@@ -292,6 +394,9 @@ final class UsersImportFeatureTest extends CrmTestCase
         $this->assertStringContainsString('>Импорт</span>', $html);
         $this->assertStringContainsString('initUsersImportModal', $html);
         $this->assertStringContainsString('users-import-step-success', $html);
+        $this->assertStringContainsString('update_with_changes_count', $html);
+        $this->assertStringContainsString('update_unchanged_count', $html);
+        $this->assertStringContainsString('buildChangesTableHtml', $html);
     }
 
     /**

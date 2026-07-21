@@ -1,6 +1,6 @@
 @can('users.import')
 <div class="modal fade" id="usersImportModal" tabindex="-1" aria-labelledby="usersImportModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable users-import-modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable users-import-modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="usersImportModalLabel">Импорт учеников из Excel</h5>
@@ -35,7 +35,8 @@
                                 <p class="mb-2 fw-semibold text-body">Ученики</p>
                                 <ul class="mb-2 ps-3">
                                     <li><b>Email пустой</b> → <b>создание</b>. <b>Email совпал</b> с учеником организации → <b>обновление</b> всех полей из строки.</li>
-                                    <li>Пустые телефон/email при обновлении → <code>null</code>. Чужой/не-ученик email → ошибка. Один email — одна строка.</li>
+                                    <li>Пустые телефон/дата рождения при обновлении → <code>null</code>. Чужой/не-ученик email → ошибка. Один email — одна строка.</li>
+                                    <li>После «Проверить» для обновлений показывается diff «Было → Станет» (только изменения; очистки подсвечены).</li>
                                 </ul>
 
                                 <p class="mb-2 fw-semibold text-body">Группы</p>
@@ -94,6 +95,7 @@
                             <tbody id="users-import-preview-body"></tbody>
                         </table>
                     </div>
+                    <p class="form-text mb-0 mt-2">Строки «Обновление» с изменениями можно раскрыть кликом — увидите «Было → Станет».</p>
                 </div>
 
                 <div id="users-import-step-errors" class="d-none">

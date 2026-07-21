@@ -156,6 +156,9 @@ final class UsersImportAccessFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="users-import-check-btn"', $html);
         $this->assertStringContainsString('id="users-import-commit-btn"', $html);
         $this->assertStringContainsString('id="users-import-step-success"', $html);
+        $this->assertStringContainsString('update_with_changes_count', $html);
+        $this->assertStringContainsString('buildChangesTableHtml', $html);
+        $this->assertStringContainsString('users-import-preview-row', $html);
 
         $file = $this->makeImportFile([
             $this->sampleImportRow($this->legalEntity, [

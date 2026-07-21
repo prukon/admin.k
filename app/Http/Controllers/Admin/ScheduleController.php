@@ -20,7 +20,8 @@ use App\Models\ScheduleUser;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Models\Team;
-use App\Models\Status;
+use App\Models\LessonOccurrenceStatus;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -45,12 +46,14 @@ class ScheduleController extends AdminBaseController
         // 1) Текущий партнер
         $partnerId = $this->requirePartnerId();
 
-        // 2) Кастомные статусы партнёра + общие системные (partner_id IS NULL)
-        $availableStatuses = Status::query()
-            ->forSchedulePartner($partnerId)
-            ->orderBy('sort_order')
-            ->orderBy('id')
+        LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
+
+        // 2) Статусы занятий партнёра (для ячеек — все; в селекте — только активные)
+        $statusesForDisplay = LessonOccurrenceStatus::query()
+            ->forPartner($partnerId)
+            ->ordered()
             ->get();
+        $availableStatuses = $statusesForDisplay->where('is_active', true)->values();
 
         // 3) Фильтры: год, месяц и группа
         $year    = $request->get('year',  date('Y'));
@@ -108,7 +111,7 @@ class ScheduleController extends AdminBaseController
             ->toArray();
     }
 
-    $visitedStatusId = Status::globalVisitedId();
+    $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
 
     return view('admin.schedule.index', array_merge(compact(
         'year',
@@ -122,6 +125,7 @@ class ScheduleController extends AdminBaseController
         'endOfMonth',
         'teamWeekdays',
         'availableStatuses',
+        'statusesForDisplay',
         'visitedStatusId',
     ), [
         'activeTab' => 'journal',
@@ -142,7 +146,7 @@ class ScheduleController extends AdminBaseController
             ->where('date', $data['date'])
             ->first();
 
-        $visitedStatusId = Status::globalVisitedId();
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
         $contextTeamId = $this->resolveScheduleContextTeamId(
             $user,
             isset($data['context_team_id']) ? (int) $data['context_team_id'] : null
@@ -150,7 +154,7 @@ class ScheduleController extends AdminBaseController
         $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $contextTeamId);
         $trainers = $this->trainerOptionsForPartner($partnerId);
 
-        $currentStatusId = $entry?->status_id;
+        $currentStatusId = $entry?->lesson_occurrence_status_id;
         $isVisitedEntry = $visitedStatusId !== null
             && $currentStatusId !== null
             && (int) $currentStatusId === (int) $visitedStatusId;
@@ -186,10 +190,13 @@ class ScheduleController extends AdminBaseController
         DB::transaction(function () use ($authorId, $partnerId, $data) {
             $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
 
-            $status = Status::findForSchedulePartner((int) $data['status_id'], $partnerId);
+            $status = LessonOccurrenceStatus::findActiveForPartner(
+                (int) $data['lesson_occurrence_status_id'],
+                $partnerId
+            );
             $descriptionText = $data['description'] ?? '';
 
-            $visitedStatusId = Status::globalVisitedId();
+            $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
             $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
                 ? ($data['trainer_profile_id'] ?? null)
                 : null;
@@ -211,7 +218,7 @@ class ScheduleController extends AdminBaseController
                 ->where('date', $data['date'])
                 ->first();
 
-            $oldStatusName = $existingSchedule?->statusRelation?->name ?? 'не было';
+            $oldStatusName = $existingSchedule?->statusRelation?->title ?? 'не было';
             $oldTrainerName = $this->trainerDisplayName($existingSchedule?->trainerProfile);
 
             $schedule = ScheduleUser::updateOrCreate(
@@ -220,14 +227,14 @@ class ScheduleController extends AdminBaseController
                     'date' => $data['date'],
                 ],
                 [
-                    'status_id' => $status->id,
+                    'lesson_occurrence_status_id' => $status->id,
                     'description' => $descriptionText,
                     'trainer_profile_id' => $trainerProfileId,
                 ]
             );
             $schedule->load(['statusRelation', 'trainerProfile.user']);
 
-            $newStatusName = $schedule->statusRelation?->name ?? 'неопределён';
+            $newStatusName = $schedule->statusRelation?->title ?? 'неопределён';
             $newTrainerName = $this->trainerDisplayName($schedule->trainerProfile);
 
             $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
@@ -444,7 +451,7 @@ class ScheduleController extends AdminBaseController
         $to       = Carbon::parse($data['date_to']);
 
 
-        $defaultVisitedStatusId = Status::globalVisitedId();
+        $defaultVisitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
         if (! $defaultVisitedStatusId) {
             return response()->json([
                 'success' => false,
@@ -460,7 +467,7 @@ class ScheduleController extends AdminBaseController
                 $inserts[] = [
                     'user_id'     => $user->id,
                     'date'        => $day->toDateString(),
-                    'status_id'   => $defaultVisitedStatusId,
+                    'lesson_occurrence_status_id' => $defaultVisitedStatusId,
                     'description' => null,
                     'created_at'  => now(),
                     'updated_at'  => now(),

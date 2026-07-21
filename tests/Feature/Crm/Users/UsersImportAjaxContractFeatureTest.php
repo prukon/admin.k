@@ -56,14 +56,79 @@ final class UsersImportAjaxContractFeatureTest extends CrmTestCase
                 'message',
                 'import_token',
                 'valid',
-                'summary' => ['total_rows', 'create_count', 'update_count'],
+                'summary' => [
+                    'total_rows',
+                    'create_count',
+                    'update_count',
+                    'update_with_changes_count',
+                    'update_unchanged_count',
+                    'update_with_clears_count',
+                ],
                 'preview' => [
-                    ['row', 'student', 'team', 'mode'],
+                    ['row', 'student', 'team', 'mode', 'changes', 'has_clears'],
                 ],
             ]);
 
         $this->assertNotSame('', (string) $response->json('import_token'));
         $this->assertNotSame('', trim((string) $response->getContent()));
+    }
+
+    public function test_preview_ajax_json_contract_includes_change_item_shape_for_update(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->studentRoleId(),
+            'lastname' => 'Контракт',
+            'name' => 'Старый',
+            'email' => 'ajax-diff-shape@example.test',
+            'phone' => '+79007770007',
+            'is_enabled' => true,
+        ]);
+
+        $response = $this->postJson(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Фамилия ученика' => $student->lastname,
+                    'Имя ученика' => 'Новый',
+                    'Email ученика' => $student->email,
+                    'Группа' => '',
+                    'Юр. лицо' => '',
+                    'Телефон ученика' => '',
+                    'Активен' => 'да',
+                ]),
+            ]),
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('summary.update_with_changes_count', 1)
+            ->assertJsonPath('summary.update_unchanged_count', 0)
+            ->assertJsonPath('summary.update_with_clears_count', 1)
+            ->assertJsonStructure([
+                'preview' => [
+                    [
+                        'row',
+                        'student',
+                        'team',
+                        'mode',
+                        'email',
+                        'has_clears',
+                        'changes' => [
+                            [
+                                'field',
+                                'label',
+                                'from',
+                                'to',
+                                'kind',
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $this->assertSame('update', $response->json('preview.0.mode'));
+        $this->assertTrue((bool) $response->json('preview.0.has_clears'));
+        $this->assertNotSame('', trim((string) $response->getContent()));
+        $this->assertNotSame(500, $response->getStatusCode());
     }
 
     public function test_preview_ajax_validation_failure_without_file_returns_422_json(): void

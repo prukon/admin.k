@@ -60,12 +60,64 @@ final class UsersImportNonAjaxSafetyNetFeatureTest extends CrmTestCase
                 'message',
                 'import_token',
                 'valid',
-                'summary',
-                'preview',
+                'summary' => [
+                    'total_rows',
+                    'create_count',
+                    'update_count',
+                    'update_with_changes_count',
+                    'update_unchanged_count',
+                    'update_with_clears_count',
+                ],
+                'preview' => [
+                    ['row', 'student', 'team', 'mode', 'changes', 'has_clears'],
+                ],
             ]);
 
         $this->assertNotSame('', trim((string) $response->getContent()));
         $this->assertNotSame(500, $response->getStatusCode());
+    }
+
+    public function test_preview_non_ajax_update_diff_returns_summary_counts_and_creates_no_db_side_effects(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => (int) Role::query()->where('name', 'user')->value('id'),
+            'lastname' => 'NonAjax',
+            'name' => 'Diff',
+            'email' => 'nonajax-diff@example.test',
+            'phone' => '+79008880008',
+            'is_enabled' => true,
+        ]);
+
+        $response = $this->post(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Фамилия ученика' => $student->lastname,
+                    'Имя ученика' => 'Changed',
+                    'Email ученика' => $student->email,
+                    'Группа' => '',
+                    'Юр. лицо' => '',
+                    'Телефон ученика' => '',
+                    'Активен' => 'да',
+                ]),
+            ]),
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('summary.update_count', 1)
+            ->assertJsonPath('summary.update_with_changes_count', 1)
+            ->assertJsonPath('summary.update_unchanged_count', 0)
+            ->assertJsonPath('summary.update_with_clears_count', 1)
+            ->assertJsonPath('preview.0.has_clears', true);
+
+        $this->assertNotSame('', trim((string) $response->getContent()));
+        $this->assertNotSame(500, $response->getStatusCode());
+
+        $student->refresh();
+        $this->assertSame('Diff', $student->name);
+        $this->assertSame('+79008880008', $student->phone);
     }
 
     public function test_preview_non_ajax_validation_failure_returns_422_json_not_empty_200(): void

@@ -19,7 +19,7 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
         $this->get(route('schedule.index'))->assertStatus(302);
         $this->getJson(route('schedule.cell-context', ['user_id' => 1, 'date' => '2026-05-01']))->assertStatus(401);
         $this->postJson(route('schedule.update'), [])->assertStatus(401);
-        $this->getJson(route('statuses.index'))->assertStatus(401);
+        $this->get(route('schedule.occurrence-statuses'))->assertStatus(302);
     }
 
     public function test_schedule_journal_forbidden_without_schedule_view_permission(): void
@@ -42,7 +42,7 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
                 'date' => '2026-05-01',
-                'status_id' => $this->visitedStatusId,
+                'lesson_occurrence_status_id' => $this->visitedStatusId,
             ])
             ->assertStatus(403);
 
@@ -70,12 +70,19 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ])
             ->assertStatus(403);
 
-        $this->actingAs($actor)->withSession($session)
-            ->getJson(route('statuses.index'))
+        // Без schedule.view и без lessonPackages.view вкладка/CRUD статусов недоступны
+        $noStatuses = $this->makeCustomRoleUser();
+        $this->actingAs($noStatuses)->withSession($session)
+            ->get(route('schedule.occurrence-statuses'))
             ->assertStatus(403);
 
-        $this->actingAs($actor)->withSession($session)
-            ->postJson(route('statuses.store'), ['name' => 'X', 'sort_order' => 99])
+        $this->actingAs($noStatuses)->withSession($session)
+            ->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+                'title' => 'X',
+                'color' => '#abcdef',
+                'consumes_lesson' => 0,
+                'is_active' => 1,
+            ])
             ->assertStatus(403);
     }
 }

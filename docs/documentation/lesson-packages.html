@@ -110,7 +110,7 @@
     <li>Регистрация в <code>App\Console\Kernel</code>: <code>dailyAt('00:05')->timezone('Europe/Moscow')->withoutOverlapping(30)</code>.</li>
     <li>Ручная установка статуса в календаре: <code>LessonPackageSchoolCalendarOccurrenceStatusController::store</code> → тот же <code>UserLessonOccurrenceStatusService</code>.</li>
   </ul>
-  <p class="small"><strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule_users</code>, глобальный статус «Посетил» для группы) — автосписание работает только в контексте календаря абонементов и таблицы <code>user_lesson_occurrence_status_events</code>.</p>
+  <p class="small"><strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule_users</code> + тот же справочник <code>lesson_occurrence_statuses</code>): журнал <strong>не</strong> списывает абонемент и не пишет в <code>user_lesson_occurrence_status_events</code>. Автосписание — только календарь школы. Управление справочником — вкладка «Статусы занятий» (см. <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>).</p>
 
   <h2>Сервис</h2>
   <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
@@ -169,6 +169,15 @@
   </table>
   <p>Изоляция партнёра: чужой шаблон → <code>404</code> на show/update/destroy. Гость → redirect на login; без <code>lessonPackages.view</code> → <code>403</code>.</p>
   <p class="small">Синтаксис inline JS модалок проверяется в <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (путь <code>admin/lessonPackages/tabs/packages.blade.php</code>).</p>
+
+  <h2 id="occurrence-statuses-tab">Вкладка «Статусы занятий» (<code>/admin/lesson-packages/occurrence-statuses</code>)</h2>
+  <div class="note">
+    Справочник <code>lesson_occurrence_statuses</code> партнёра: системные (<code>attended</code>, <code>not_attended</code>, …) и кастомные.
+    Тот же UI и API, что на <code>/schedule/occurrence-statuses</code>.
+    Право: Gate <code>lessonOccurrenceStatuses.manage</code> (= <code>schedule.view</code> OR <code>lessonPackages.view</code>).
+    Полный контракт CRUD, soft-rules системных статусов и отличие от журнала (журнал <strong>не</strong> списывает) —
+    <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>.
+  </div>
 
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
   <div class="note">

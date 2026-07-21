@@ -73,3 +73,60 @@
     font-weight: 500;
     padding: 0.5rem 0.85rem;
 }
+
+#usersImportModal .users-import-preview-row.is-expandable {
+    cursor: pointer;
+}
+
+#usersImportModal .users-import-preview-row.is-expandable:hover > td {
+    background-color: rgba(13, 110, 253, 0.04);
+}
+
+#usersImportModal .users-import-preview-toggle {
+    display: inline-block;
+    width: 1rem;
+    color: #6c757d;
+    font-size: 0.7rem;
+    transition: transform 0.15s ease;
+}
+
+#usersImportModal .users-import-preview-row.is-expanded .users-import-preview-toggle {
+    transform: rotate(90deg);
+}
+
+#usersImportModal .users-import-preview-details-row td {
+    background-color: #f8f9fa;
+    border-top: 0;
+    padding-top: 0.35rem;
+    padding-bottom: 0.75rem;
+}
+
+#usersImportModal .users-import-diff-table {
+    margin-bottom: 0;
+    background: #fff;
+}
+
+#usersImportModal .users-import-diff-table th {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#usersImportModal .users-import-diff-cleared td {
+    color: #842029;
+    background-color: #f8d7da;
+}
+
+#usersImportModal .users-import-mode-meta {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+#usersImportModal .users-import-mode-meta.is-clears {
+    color: #842029;
+}
+
+#usersImportModal .users-import-mode-meta.is-muted {
+    color: #6c757d;
+}

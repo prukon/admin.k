@@ -98,7 +98,7 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => $date,
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
             'description' => 'Комментарий smoke',
             'trainer_profile_id' => $trainer->id,
         ])
@@ -113,7 +113,7 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
             'date' => '2026-05-15',
-            'status_id' => $this->visitedStatusId,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
         ])->assertOk();
 
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))
@@ -175,61 +175,63 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         }
     }
 
-    public function test_statuses_index_returns_ok(): void
+    public function test_occurrence_statuses_tab_returns_ok(): void
     {
-        $this->getJson(route('statuses.index'))
+        $this->get(route('schedule.occurrence-statuses'))
             ->assertOk()
-            ->assertJsonStructure(['statuses']);
+            ->assertSee('Статусы занятий', false);
     }
 
-    public function test_statuses_store_returns_ok(): void
+    public function test_occurrence_statuses_store_returns_ok(): void
     {
-        $this->postJson(route('statuses.store'), [
-            'name' => 'Статус smoke',
-            'icon' => 'fas fa-circle',
+        $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+            'title' => 'Статус smoke',
+            'icon' => 'fa-solid fa-star',
             'color' => '#abcdef',
-            'sort_order' => 88,
+            'consumes_lesson' => 0,
+            'is_active' => 1,
         ])
             ->assertOk()
-            ->assertJson(['success' => true])
-            ->assertJsonStructure(['status' => ['id', 'name']]);
+            ->assertJsonStructure(['status' => ['id', 'title']]);
     }
 
-    public function test_statuses_update_returns_ok(): void
+    public function test_occurrence_statuses_update_returns_ok(): void
     {
-        $create = $this->postJson(route('statuses.store'), [
-            'name' => 'Статус для update',
-            'icon' => 'fas fa-circle',
+        $create = $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+            'title' => 'Статус для update',
+            'icon' => 'fa-solid fa-star',
             'color' => '#abcdef',
-            'sort_order' => 89,
+            'consumes_lesson' => 0,
+            'is_active' => 1,
         ])->assertOk();
 
         $statusId = (int) $create->json('status.id');
 
-        $this->patchJson(route('statuses.update', $statusId), [
-            'name' => 'Статус для update (изм.)',
-            'icon' => 'fas fa-circle',
+        $this->putJson(route('admin.lesson-packages.occurrence-statuses.update', $statusId), [
+            'title' => 'Статус для update (изм.)',
+            'icon' => 'fa-solid fa-star',
             'color' => '#112233',
             'sort_order' => 90,
+            'consumes_lesson' => false,
+            'is_active' => 1,
         ])
-            ->assertOk()
-            ->assertJson(['success' => true]);
+            ->assertOk();
     }
 
-    public function test_statuses_destroy_returns_ok(): void
+    public function test_occurrence_statuses_destroy_returns_ok(): void
     {
-        $create = $this->postJson(route('statuses.store'), [
-            'name' => 'Статус для delete',
-            'icon' => 'fas fa-circle',
+        $create = $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+            'title' => 'Статус для delete',
+            'icon' => 'fa-solid fa-star',
             'color' => '#abcdef',
-            'sort_order' => 91,
+            'consumes_lesson' => 0,
+            'is_active' => 1,
         ])->assertOk();
 
         $statusId = (int) $create->json('status.id');
 
-        $this->deleteJson(route('statuses.destroy', $statusId))
-            ->assertOk()
-            ->assertJson(['success' => true]);
+        $this->deleteJson(route('admin.lesson-packages.occurrence-statuses.destroy', $statusId))
+            ->assertOk();
     }
 
     public function test_all_schedule_journal_endpoints_return_ok_with_schedule_view(): void
@@ -252,7 +254,7 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             $this->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
                 'date' => $date,
-                'status_id' => $this->visitedStatusId,
+                'lesson_occurrence_status_id' => $this->visitedStatusId,
                 'trainer_profile_id' => $trainer->id,
             ])->assertOk();
 
@@ -274,25 +276,28 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
                 'date_to' => $today,
             ])->assertOk();
 
-            $this->getJson(route('statuses.index'))->assertOk();
+            $this->get(route('schedule.occurrence-statuses'))->assertOk();
 
-            $create = $this->postJson(route('statuses.store'), [
-                'name' => 'Статус all-endpoints',
-                'icon' => 'fas fa-circle',
+            $create = $this->postJson(route('admin.lesson-packages.occurrence-statuses.store'), [
+                'title' => 'Статус all-endpoints',
+                'icon' => 'fa-solid fa-star',
                 'color' => '#abcdef',
-                'sort_order' => 92,
+                'consumes_lesson' => 0,
+                'is_active' => 1,
             ])->assertOk();
 
             $statusId = (int) $create->json('status.id');
 
-            $this->patchJson(route('statuses.update', $statusId), [
-                'name' => 'Статус all-endpoints (изм.)',
-                'icon' => 'fas fa-circle',
+            $this->putJson(route('admin.lesson-packages.occurrence-statuses.update', $statusId), [
+                'title' => 'Статус all-endpoints (изм.)',
+                'icon' => 'fa-solid fa-star',
                 'color' => '#112233',
                 'sort_order' => 93,
+                'consumes_lesson' => false,
+                'is_active' => 1,
             ])->assertOk();
 
-            $this->deleteJson(route('statuses.destroy', $statusId))->assertOk();
+            $this->deleteJson(route('admin.lesson-packages.occurrence-statuses.destroy', $statusId))->assertOk();
         } finally {
             Carbon::setTestNow();
         }
@@ -306,6 +311,6 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertUnauthorized();
         $this->postJson(route('schedule.update'), [])->assertUnauthorized();
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertUnauthorized();
-        $this->getJson(route('statuses.index'))->assertUnauthorized();
+        $this->get(route('schedule.occurrence-statuses'))->assertRedirect();
     }
 }

@@ -46,11 +46,6 @@
                 </select>
             </div>
 
-            <!-- Кнопка Настройки -->
-            <div class="col-auto wrap-filter-setting">
-                <button class="btn btn-primary" id="btn-settings">Настройки</button>
-            </div>
-
             <!-- Кнопка полноэкранного/обычного режима -->
             <div class="col-auto wrap-filter-fullscreen">
                 <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen">
@@ -120,7 +115,7 @@
                         {{--<td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>--}}
                         <td class="schedule-user-name sticky-col-2">
                             <div>{{ $user?->full_name ?: 'Без имени' }}</div>
-                            @if($user->teams->isNotEmpty())
+                            @if($team_id === 'all' && $user->teams->isNotEmpty())
                                 <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
                             @endif
                         </td>
@@ -163,9 +158,11 @@
 
                             @php
                                 $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
-                                $statusId = $entry?->status_id; // null или число
-                                $statusObject = $statusId ? $availableStatuses->where('id', $statusId)->first() : null;
-                                $cellName = $statusObject?->name ?? '';
+                                $statusId = $entry?->lesson_occurrence_status_id; // null или число
+                                $statusObject = $statusId
+                                    ? ($statusesForDisplay ?? $availableStatuses)->firstWhere('id', $statusId)
+                                    : null;
+                                $cellName = $statusObject?->title ?? '';
                                 $cellIcon = $statusObject?->icon ?? '';
                                 $cellColor= $statusObject?->color ?? '';
                             @endphp
@@ -238,7 +235,7 @@
                             <!-- Радиокнопка для варианта "не выбрано" -->
                             <div class="form-check mb-2">
                                 <input class="form-check-input" type="radio"
-                                       name="status_id" id="status-empty" value="">
+                                       name="lesson_occurrence_status_id" id="status-empty" value="">
                                 <label class="form-check-label" for="status-empty">
                                     -- не выбрано --
                                 </label>
@@ -248,7 +245,7 @@
                                 <div class="form-check mb-2 d-flex align-items-center">
                                     <input class="form-check-input"
                                            type="radio"
-                                           name="status_id"
+                                           name="lesson_occurrence_status_id"
                                            id="status-{{ $st->id }}"
                                            value="{{ $st->id }}"
                                            data-icon="{{ $st->icon }}"
@@ -262,7 +259,7 @@
                     border-radius: 0.25rem;">
                 <i class="{{ $st->icon }}"></i>
             </span>
-                                        <span class="ms-1">{{ $st->name }}</span>
+                                        <span class="ms-1">{{ $st->title }}</span>
                                     </label>
                                 </div>
                             @endforeach
@@ -326,221 +323,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Модальное окно "Настройки" -->
-    <!-- МОДАЛКА НАСТРОЕК (СПИСОК СТАТУСОВ) -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-        <!-- Обратите внимание на .modal-dialog, стили см. в CSS -->
-        <div class="modal-dialog" id="settingsModalDialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="settingsModalLabel">Настройки статусов</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="text-start">
-                        <!-- Кнопка "Новый статус" (открывает createStatusModal) -->
-                        <button type="button" class="btn btn-primary mb-3" id="btn-new-status">
-                            Новый статус
-                        </button>
-                    </div>
-                    <!-- Таблица статусов -->
-                    <table id="statuses-table" class="table">
-                        <thead>
-                        <tr>
-                            <th>Название</th>
-                            <th>Сортировка</th>
-                            <th>Иконка/Цвет</th>
-                            <th>Действия</th>
-                        </tr>
-                        </thead>
-                        <tbody id="statuses-table-body">
-                        @foreach($availableStatuses as $st)
-                            <tr>
-                                <td>
-                                    {{ $st->name }}
-                                    @if($st->is_system)
-                                        <i class="fas fa-question-circle ms-1"
-                                           data-bs-toggle="tooltip"
-                                           title="Системный статус. Нельзя изменить или удалить"></i>
-                                    @endif
-                                </td>
-                                <td class="status-sort-order text-center">{{ (int) ($st->sort_order ?? 0) }}</td>
-                                <td>
-                                    @if($st->icon)
-                                        <i class="{{ $st->icon }}"
-                                           style="background-color: {{ $st->color }};
-                                                  color: #000000;
-                                                  padding: 5px;
-                                                  border-radius: 3px;"></i>
-                                    @endif
-                                </td>
-                                <td>
-                                    @unless($st->is_system)
-                                        <button type="button"
-                                                class="btn btn-sm btn-success me-1"
-                                                data-action="edit"
-                                                data-id="{{ $st->id }}"
-                                                data-name="{{ $st->name }}"
-                                                data-icon="{{ $st->icon ?? '' }}"
-                                                data-color="{{ $st->color ?? '' }}"
-                                                data-sort-order="{{ (int) ($st->sort_order ?? 0) }}"
-                                                title="Изменить"
-                                                aria-label="Изменить">
-                                            <i class="fa fa-edit" aria-hidden="true"></i>
-                                        </button>
-                                        <button type="button"
-                                                class="btn btn-sm btn-danger"
-                                                data-action="delete"
-                                                data-id="{{ $st->id }}"
-                                                title="Удалить"
-                                                aria-label="Удалить">
-                                            <i class="fa fa-trash" aria-hidden="true"></i>
-                                        </button>
-                                    @endunless
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Кнопки внизу: "Отменить" (закрыть), "Сохранить" (перезагрузить страницу) -->
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                    {{--<button type="button" class="btn btn-primary" id="btnSaveChanges">Сохранить</button>--}}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- МОДАЛКА СОЗДАНИЯ СТАТУСА -->
-    <div class="modal fade" id="createStatusModal" tabindex="-1" aria-labelledby="createStatusModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="createStatusForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="createStatusModalLabel">Создать статус</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="createName" class="form-label">Название</label>
-                            <input type="text" class="form-control" id="createName" name="name" required>
-                        </div>
-
-                        <!-- Выбор иконки -->
-                        <div class="mb-3">
-                            <label class="form-label">Иконка</label>
-                            <input type="hidden" id="createIcon" name="icon">
-                            <div id="createIconList" class="d-flex flex-wrap gap-2">
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-snowflake">
-                                    <i class="fas fa-snowflake fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-check">
-                                    <i class="fas fa-check fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-bell">
-                                    <i class="fas fa-bell fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-star">
-                                    <i class="fas fa-star fa-2x"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Выбор цвета -->
-                        <div class="mb-3">
-                            <label for="createColor" class="form-label">Цвет</label>
-                            <input type="color" class="form-control form-control-color" id="createColor" name="color"
-                                   title="Выберите цвет">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="createSortOrder" class="form-label">Сортировка</label>
-                            <input type="number" class="form-control" id="createSortOrder" name="sort_order"
-                                   min="0" max="65535" placeholder="Авто, если пусто">
-                            <div class="invalid-feedback d-block" data-error-for="sort_order"></div>
-                        </div>
-
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-success">Создать</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- МОДАЛКА РЕДАКТИРОВАНИЯ СТАТУСА -->
-    <div class="modal fade" id="editStatusModal" tabindex="-1" aria-labelledby="editStatusModalLabel"
-         aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <form id="editStatusForm">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editStatusModalLabel">Редактирование статуса</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                    </div>
-                    <div class="modal-body">
-                        <!-- Скрытое поле для ID -->
-                        <input type="hidden" id="editStatusId" name="status_id">
-
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">Название</label>
-                            <input type="text" class="form-control" id="editName" name="name" required>
-                        </div>
-
-                        <!-- Выбор иконки -->
-                        <div class="mb-3">
-                            <label class="form-label">Иконка</label>
-                            <input type="hidden" id="editIcon" name="icon">
-                            <div id="editIconList" class="d-flex flex-wrap gap-2">
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-snowflake">
-                                    <i class="fas fa-snowflake fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-check">
-                                    <i class="fas fa-check fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-bell">
-                                    <i class="fas fa-bell fa-2x"></i>
-                                </div>
-                                <div class="icon-item border p-2 text-center" data-icon="fas fa-star">
-                                    <i class="fas fa-star fa-2x"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="editColor" class="form-label">Цвет</label>
-                            <input type="color" class="form-control form-control-color" id="editColor" name="color"
-                                   title="Выберите цвет">
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="editSortOrder" class="form-label">Сортировка</label>
-                            <input type="number" class="form-control" id="editSortOrder" name="sort_order"
-                                   min="0" max="65535" required>
-                            {{-- <div class="form-text">Системные статусы редактировать нельзя.</div> --}}
-                            <div class="invalid-feedback d-block" data-error-for="sort_order"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно подтверждения удаления -->
-{{--    @include('includes.modal.confirmDeleteModal')--}}
-
-    <!-- Модальное окно успешного обновления данных -->
-{{--    @include('includes.modal.successModal')--}}
 
     <!-- Модальное окно логов -->
     @include('includes.logModal')

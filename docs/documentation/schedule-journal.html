@@ -30,15 +30,19 @@
   <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a></div>
 
   <div class="warn">
-    <strong>Не путать</strong> с разделом <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (абонементы, календарь слотов, <code>lesson_occurrence_statuses</code>, <code>lessonPackages.view</code>).<br>
-    Журнал <code>/schedule</code> — отдельная посещаемость по дням месяца для учеников CRM; данные в <code>schedule_users</code> и справочнике <code>statuses</code> (не в статусах занятий абонементов).
+    <strong>Не путать</strong> с разделом <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (абонементы, календарь слотов).<br>
+    Журнал <code>/schedule</code> — отдельная посещаемость по дням месяца (<code>schedule_users</code>).
+    Справочник статусов общий: <code>lesson_occurrence_statuses</code> (вкладка «Статусы занятий» на <code>/schedule</code> и в разделе абонементов).
+    Списание занятий абонемента из журнала <strong>не</strong> выполняется — только календарь школы.
   </div>
 
   <div class="note">
     Пункт меню «Журнал расписания» — <code>resources/views/includes/sidebar.blade.php</code>
     (<code>@can('schedule.view')</code> <strong>или</strong> <code>schedule.trainerSalary.view</code>; ссылка на <code>/schedule</code> или <code>/schedule/trainer-salary</code>).<br>
-    Маршруты вкладки «Журнал» и статусов в <code>routes/web.php</code> — <code>middleware('can:schedule.view')</code> внутри <code>auth</code> + <code>2fa</code>.
-    Вкладки «ЗП тренеров» / «Листы ЗП» — отдельные права <code>schedule.trainerSalary.*</code>.
+    Маршруты вкладки «Журнал» / «Нагрузка» — <code>middleware('can:schedule.view')</code>.
+    Вкладка и CRUD «Статусы занятий» — Gate <code>lessonOccurrenceStatuses.manage</code>
+    (= <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code>), см. <a href="#occurrence-statuses">§8</a>.
+    Вкладки «ЗП тренеров» / «Листы ЗП» — <code>schedule.trainerSalary.*</code>.
   </div>
 
   <h2>1) Право доступа <code>schedule.view</code></h2>
@@ -48,10 +52,11 @@
     </thead>
     <tbody>
       <tr><td>Гость</td><td><code>GET /schedule</code> → редирект на логин; JSON-эндпоинты → <b>401</b></td></tr>
-      <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница и все эндпоинты журнала → <b>403</b></td></tr>
-      <tr><td>Есть <code>schedule.view</code></td><td>Страница и перечисленные ниже API → <b>200</b> при валидных данных</td></tr>
+      <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница журнала / нагрузка / ячейки → <b>403</b></td></tr>
+      <tr><td>Есть <code>schedule.view</code></td><td>Страница и API журнала / нагрузки → <b>200</b> при валидных данных</td></tr>
     </tbody>
   </table>
+  <p class="small">Вкладка «Статусы занятий» и CRUD справочника — отдельный Gate <code>lessonOccurrenceStatuses.manage</code> (достаточно <code>lessonPackages.view</code> без <code>schedule.view</code>), см. <a href="#occurrence-statuses">§8</a>.</p>
   <p>
     То же permission дополнительно включает колонку «Расписание» (дни недели группы) на <code>/admin/teams</code> — см.
     <a href="/docs/documentation/admin-teams#schedule-view">Группы: schedule.view</a>.
@@ -61,7 +66,8 @@
     В <code>config/role_base_permissions.php</code> для роли <code>admin</code> строка <code>schedule.view</code> по умолчанию <strong>закомментирована</strong> — на новом партнёре право нужно включить в матрице прав.
   </p>
 
-  <h2>2) Эндпоинты (все под <code>schedule.view</code>)</h2>
+  <h2>2) Эндпоинты</h2>
+  <p class="small">Журнал и нагрузка — <code>schedule.view</code>. Статусы занятий — <code>lessonOccurrenceStatuses.manage</code> (см. строку occurrence-statuses).</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
@@ -75,10 +81,7 @@
       <tr><td>POST</td><td><code>/schedule/user/{user}/sync-teams</code></td><td><code>user.sync.teams</code></td><td>Sync полного списка групп ученика (<code>team_ids[]</code>, pivot <code>team_user</code>); пустой массив — снять со всех групп</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Legacy: attach одной группы или detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code></td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
-      <tr><td>GET</td><td><code>/schedule/statuses</code></td><td><code>statuses.index</code></td><td>JSON списка статусов (модалка «Настройки»)</td></tr>
-      <tr><td>POST</td><td><code>/schedule/statuses</code></td><td><code>statuses.store</code></td><td>Создать кастомный статус партнёра (AJAX → JSON; без AJAX → <b>302</b> на <code>/schedule</code>, запись создаётся)</td></tr>
-      <tr><td>PATCH</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.update</code></td><td>Изменить кастомный статус партнёра (AJAX → JSON; без AJAX → <b>302</b> на <code>/schedule</code>)</td></tr>
-      <tr><td>DELETE</td><td><code>/schedule/statuses/{id}</code></td><td><code>statuses.destroy</code></td><td>Удалить кастомный статус партнёра (soft delete, только AJAX/JSON)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code></td><td>Вкладка «Статусы занятий» (UI как в абонементах). Право: <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code></td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Вкладка «Нагрузка тренеров» — см. <a href="/docs/documentation/schedule-trainer-workload">отдельный раздел</a></td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
     </tbody>
@@ -146,281 +149,261 @@
     <tbody>
       <tr><td><code>user_id</code></td><td>Ученик: <code>users</code> с системной ролью <code>user</code> (<code>roles.is_sistem = 1</code>), <code>is_enabled = 1</code>, <code>partner_id = current_partner</code> — см. <a href="#student-list">§2.1</a></td></tr>
       <tr><td><code>date</code></td><td>День (формат даты в БД, ключ ячейки <code>Y-m-d</code>)</td></tr>
-      <tr><td><code>status_id</code></td><td>Ссылка на <code>statuses.id</code></td></tr>
+      <tr><td><code>lesson_occurrence_status_id</code></td><td>FK на <code>lesson_occurrence_statuses.id</code> (активный статус партнёра)</td></tr>
       <tr><td><code>description</code></td><td>Комментарий к ячейке (индикатор в углу ячейки на таблице)</td></tr>
       <tr><td><code>trainer_profile_id</code></td><td>Nullable FK на <code>trainer_profiles</code>. Заполняется <strong>только</strong> при статусе «Посетил»; для остальных статусов при сохранении сбрасывается в <code>null</code></td></tr>
     </tbody>
   </table>
   <p>Модель: <code>App\Models\ScheduleUser</code>, связи <code>statusRelation</code>, <code>trainerProfile</code>.</p>
 
-  <h3>3.2) <code>statuses</code> (справочник журнала)</h3>
+  <h3>3.2) <code>lesson_occurrence_statuses</code> (единый справочник)</h3>
+  <div class="note">
+    Один справочник на партнёра для <strong>журнала</strong> (<code>/schedule</code>) и <strong>календаря школы</strong> (абонементы).
+    Таблица <code>statuses</code> и модалка «Настройки статусов» на журнале <strong>удалены</strong> (обратная совместимость не нужна).
+  </div>
   <table>
     <thead>
-      <tr><th>Тип</th><th><code>partner_id</code></th><th><code>is_system</code></th><th>Примеры</th><th>Кто создаёт</th></tr>
+      <tr><th>Тип</th><th><code>partner_id</code></th><th><code>is_system</code></th><th>Примеры (<code>code</code>)</th><th>Кто создаёт</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><strong>Системные</strong> (общие на проект)</td>
-        <td><code>NULL</code></td>
+        <td><strong>Системные</strong></td>
+        <td>id партнёра (не глобальные)</td>
         <td><code>true</code></td>
-        <td>«Посетил», «Не был»</td>
-        <td>Один раз на проект (сидер на dev, на prod — вручную или data-миграция; см. <a href="#schedule-status-settings">§8</a>)</td>
+        <td>«Посетил» (<code>attended</code>), «Не посетил» (<code>not_attended</code>), «Запись» (<code>scheduled</code>), «Отмена», «Заморозка»</td>
+        <td><code>LessonOccurrenceStatusesSeeder::ensureForPartner</code> при создании партнёра и при открытии UI</td>
       </tr>
       <tr>
-        <td><strong>Кастомные партнёра</strong></td>
-        <td><code>current_partner</code></td>
+        <td><strong>Кастомные</strong></td>
+        <td>id партнёра</td>
         <td><code>false</code></td>
-        <td>«Заморозка», «Болезнь»</td>
-        <td>Админ в модалке «Настройки» или dev-сидер <code>DevScheduleStatusesSeeder::ensurePartnerCustomStatuses</code></td>
+        <td>произвольное название, <code>code = custom_…</code></td>
+        <td>Админ во вкладке «Статусы занятий» (оба экрана)</td>
       </tr>
     </tbody>
   </table>
   <ul>
-    <li><strong>Сортировка</strong>: колонка <code>sort_order</code>; в UI настроек — колонка «Сортировка» (редактируется только у кастомных).</li>
-    <li><strong>Цвет</strong>: HEX в поле <code>color</code> (например <code>#75EB81</code>); в ячейках журнала и в модалке настроек используется как <code>background-color</code> иконки (прозрачность в БД не хранится).</li>
+    <li>Поля: <code>title</code>, <code>color</code>, <code>icon</code>, <code>sort_order</code>, <code>is_active</code>, <code>consumes_lesson</code>.</li>
+    <li>В селекте ячейки журнала — только <code>is_active = true</code>. Неактивный статус на уже сохранённой ячейке всё ещё отображается (lookup по полной выборке партнёра).</li>
+    <li>«Посетил» для тренера / нагрузки / массового расписания: <code>LessonOccurrenceStatus::attendedIdForPartner($partnerId)</code> (<code>code = attended</code>).</li>
+    <li>Флаг <code>consumes_lesson</code> влияет на списание абонемента <strong>только</strong> в календаре школы. Журнал <code>/schedule</code> его не применяет (не пишет в <code>user_lesson_occurrence_status_events</code>).</li>
   </ul>
-  <p>
-    Выборка для журнала и API: <code>Status::forSchedulePartner($partnerId)</code> — кастомные партнёра + глобальные системные.
-    ID «Посетил» для логики тренера: <code>Status::globalVisitedId()</code> (имя <code>Status::VISITED_NAME</code>).
-  </p>
-  <h4>Ответы API при попытке изменить чужой или системный статус</h4>
+  <h4>CRUD API (общий)</h4>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URL</th><th>Имя</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/admin/lesson-packages/occurrence-statuses</code></td><td><code>admin.lesson-packages.occurrence-statuses.index</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/lesson-packages/occurrence-statuses</code></td><td><code>…store</code></td></tr>
+      <tr><td>PUT</td><td><code>/admin/lesson-packages/occurrence-statuses/{id}</code></td><td><code>…update</code></td></tr>
+      <tr><td>DELETE</td><td><code>/admin/lesson-packages/occurrence-statuses/{id}</code></td><td><code>…destroy</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/lesson-packages/occurrence-statuses/reorder</code></td><td><code>…reorder</code></td></tr>
+      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code> (тот же UI, layout журнала)</td></tr>
+    </tbody>
+  </table>
+  <p>Право: Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code> (см. <code>AuthServiceProvider</code>). UI: общий partial <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code>.</p>
+  <h4>Ответы при изменении статусов</h4>
   <table>
     <thead>
       <tr><th>Ситуация</th><th>update</th><th>destroy</th></tr>
     </thead>
     <tbody>
-      <tr><td>Глобальный системный (<code>partner_id IS NULL</code>, «Посетил» / «Не был»)</td><td><b>404</b> (не в scope партнёра)</td><td><b>404</b></td></tr>
-      <tr><td>Legacy: системный с <code>partner_id = N</code> (устаревшая модель)</td><td><b>403</b> «Системные статусы нельзя редактировать»</td><td><b>403</b> «Системные статусы нельзя удалять»</td></tr>
-      <tr><td>Кастомный другого партнёра</td><td><b>404</b></td><td><b>404</b></td></tr>
-      <tr><td>Кастомный текущего партнёра</td><td><b>200</b></td><td><b>200</b> (soft delete)</td></tr>
+      <tr><td>Системный статус партнёра</td><td><b>200</b> (цвет/иконка/порядок/<code>consumes_lesson</code>/<code>is_active</code>; title запрещён)</td><td><b>422</b> «Системный статус удалять нельзя»</td></tr>
+      <tr><td>Кастомный текущего партнёра</td><td><b>200</b></td><td><b>200</b> (hard delete; FK журнала — <code>nullOnDelete</code>)</td></tr>
+      <tr><td>Чужого партнёра</td><td><b>404</b></td><td><b>404</b></td></tr>
     </tbody>
   </table>
-  <div class="warn">
-    <strong>Production:</strong> у нового партнёра в модалке «Настройки» видны только <em>глобальные</em> системные статусы.
-    Если в БД системные записи ошибочно привязаны к <code>partner_id = 1</code> (старый сидер), другие партнёры увидят пустой список — исправление: <code>partner_id = NULL</code> для «Посетил» и «Не был».
-    При создании партнёра (<code>Partner::created</code>) статусы журнала <strong>не</strong> создаются автоматически (в отличие от <code>lesson_occurrence_statuses</code>).
-  </div>
 
   <h2>4) Вкладки раздела «Журнал расписания»</h2>
-  <p>Оболочка: <code>resources/views/admin/schedule/index.blade.php</code> (вкладки по аналогии с <a href="/docs/documentation/reports-admin">отчётами админки</a>).</p>
+  <p>Оболочка: <code>resources/views/admin/schedule/index.blade.php</code>, табы: <code>_schedule_section_tabs.blade.php</code>.</p>
   <table>
     <thead>
-      <tr><th>Вкладка</th><th>URL</th><th>Содержание</th></tr>
+      <tr><th>Вкладка</th><th>URL</th><th>Право</th><th>Содержание</th></tr>
     </thead>
     <tbody>
-      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td>Таблица учеников × дни месяца (этот раздел документации)</td></tr>
-      <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td>Матрица тренер × день недели за период; быстрый выбор из трёх календарных месяцев — <a href="/docs/documentation/schedule-trainer-workload#month-presets">отдельная документация</a></td></tr>
-      <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td>Черновик и слепки ЗП за месяц — <a href="/docs/documentation/schedule-trainer-salary">отдельная документация</a></td></tr>
-      <tr><td>Листы ЗП</td><td><code>/schedule/trainer-salary-sheets</code></td><td>Архив слепков — <a href="/docs/documentation/schedule-trainer-salary-sheets">отдельная документация</a></td></tr>
+      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Таблица учеников × дни месяца</td></tr>
+      <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.view</code></td><td><a href="/docs/documentation/schedule-trainer-workload">Нагрузка</a></td></tr>
+      <tr><td>Статусы занятий</td><td><code>/schedule/occurrence-statuses</code></td><td><code>lessonOccurrenceStatuses.manage</code></td><td>CRUD справочника (см. <a href="#occurrence-statuses">§8</a>)</td></tr>
+      <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td><code>schedule.trainerSalary.view</code></td><td><a href="/docs/documentation/schedule-trainer-salary">ЗП</a></td></tr>
+      <tr><td>Листы ЗП</td><td><code>/schedule/trainer-salary-sheets</code></td><td><code>schedule.trainerSalary.view</code></td><td><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы</a></td></tr>
     </tbody>
   </table>
-  <p>
-    Вкладки «Журнал» и «Нагрузка» в шапке раздела видны при <code>schedule.view</code>.
-    «ЗП тренеров» и «Листы ЗП» — при <code>schedule.trainerSalary.view</code>; редактирование черновика и слепки — <code>schedule.trainerSalary.manage</code>.
-    Подробно: <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a>, <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
-  </p>
+  <p>Дублирующий экран справочника — вкладка «Статусы занятий» в разделе «Расписание школы» / абонементы (<code>/admin/lesson-packages/occurrence-statuses</code>), тот же API.</p>
 
   <h2>5) UI вкладки «Журнал расписания»</h2>
   <ul>
-    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id группы) — ученик в таблице, если состоит в выбранной группе (pivot); см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
-    <li>Таблица: строки — только такие ученики, столбцы — дни месяца; цвет/иконка из статуса. Под ФИО — подпись со списком групп (через запятую).</li>
-    <li>Клик по ячейке → модалка <code>#cellEditModal</code>: статус (радио), комментарий, подпись «Группы: …», кнопка «Сохранить».</li>
-    <li>Иконка «Изменить группы» у строки → модалка «Управление группами» (multiselect <code>team_ids[]</code>, сохранение через <code>POST …/sync-teams</code>).</li>
-    <li>Иконка у строки ученика → «Личное расписание» (диапазон дат + дни недели; дни группы — по <code>context_team_id</code> из фильтра журнала).</li>
-    <li>Кнопка «Настройки» → модалка <code>#settingsModal</code>: таблица статусов (серверный рендер + перезагрузка через <code>GET /schedule/statuses</code>), создание/редактирование кастомных. В колонке «Действия» — иконки <code>fa-edit</code> / <code>fa-trash</code> (не текстовые кнопки). Подробно: <a href="#schedule-status-settings">§8</a>.</li>
-    <li>Полноэкранный режим, поиск по таблице (DataTables).</li>
+    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id) — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
+    <li>Таблица: цвет/иконка/название из <code>lesson_occurrence_statuses</code> (<code>title</code>, не <code>name</code>).</li>
+    <li>Клик по ячейке → <code>#cellEditModal</code>: радио <code>lesson_occurrence_status_id</code> (только активные), комментарий, тренер при «Посетил».</li>
+    <li>Модалки «Настройки статусов» / <code>/schedule/statuses*</code> <strong>нет</strong> — управление статусами на вкладке «Статусы занятий».</li>
+    <li>Полноэкранный режим, поиск (DataTables), логи журнала.</li>
   </ul>
-  <p>Шаблон вкладки: <code>resources/views/admin/schedule/journal.blade.php</code>, стили/скрипты: <code>resources/css/schedule.css</code>, <code>resources/js/schedule.js</code> (только на вкладке журнала).</p>
+  <p>Шаблон: <code>journal.blade.php</code>; скрипты: <code>resources/js/schedule.js</code> (только вкладка журнала).</p>
 
   <h2 id="visited-trainer">6) Тренер при статусе «Посетил»</h2>
   <div class="note">
-    Назначение тренера — <strong>только в модалке ячейки</strong>, не в самой таблице журнала (в ячейке сетки тренер не отображается).
-    Эти данные использует отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> (агрегация по <code>trainer_profile_id</code> и дню недели).
+    Назначение тренера — только в модалке ячейки. Данные использует отчёт
+    <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>
+    (фильтр по <code>lesson_occurrence_status_id = attended</code> партнёра).
   </div>
 
   <h3>6.1) Поведение в модалке</h3>
   <ol>
     <li>При открытии ячейки — <code>GET /schedule/cell-context?user_id=&amp;date=</code>.</li>
-    <li>Блок «Тренер» (<code>#cell-trainer-wrap</code>) показывается, если выбран статус «Посетил».</li>
-    <li>В select — активные тренеры партнёра (<code>trainer_profiles.is_enabled</code>, user включён) + пункт «Без тренера» (<code>value=""</code>).</li>
-    <li>Если запись «Посетил» ещё не сохранялась — в UI подставляется <strong>первый тренер группы</strong> из <code>team_trainer</code> (минимальный <code>team_trainer.id</code> для <code>context_team_id</code> — фильтр группы на странице журнала или query-параметр в <code>cell-context</code>).</li>
-    <li>Если «Посетил» уже сохранён с <code>trainer_profile_id = null</code> — это явное «Без тренера» (не подменяется дефолтом группы).</li>
-    <li>При смене статуса с «Посетил» на другой — поле тренера в запрос не уходит; в БД <code>trainer_profile_id</code> обнуляется на сервере.</li>
+    <li>Блок «Тренер» показывается, если выбран статус с <code>code = attended</code> (id из <code>visited_status_id</code>).</li>
+    <li>В select — активные тренеры партнёра + «Без тренера».</li>
+    <li>Если «Посетил» ещё не сохранялся — дефолт = первый тренер группы (<code>team_trainer</code> по <code>context_team_id</code>).</li>
+    <li>Если «Посетил» сохранён с <code>trainer_profile_id = null</code> — явное «Без тренера».</li>
+    <li>Смена статуса с «Посетил» на другой — <code>trainer_profile_id</code> обнуляется на сервере.</li>
   </ol>
 
   <h3>6.2) API <code>GET /schedule/cell-context</code></h3>
-  <p>Валидация: <code>GetScheduleCellContextRequest</code> (<code>user_id</code>, <code>date</code>, опционально <code>context_team_id</code>). <code>user_id</code> должен быть активным учеником партнёра (<a href="#student-list">§2.1</a>), иначе <b>404</b>.</p>
-  <p>Ответ (основные поля):</p>
+  <p>Валидация: <code>GetScheduleCellContextRequest</code>. Ученик — круг §2.1, иначе <b>404</b>.</p>
   <ul>
-    <li><code>visited_status_id</code> — id системного «Посетил»</li>
-    <li><code>current_status_id</code> — статус сохранённой ячейки, если есть</li>
-    <li><code>team_ids</code>, <code>teams_label</code> — все группы ученика из pivot (подпись в модалке ячейки)</li>
-    <li><code>team_id</code>, <code>team_default_trainer_profile_id</code> — для группы <code>context_team_id</code> (или первой группы ученика)</li>
-    <li><code>trainer_profile_id_for_select</code> — <code>null</code> (ещё не «Посетил»), строка id или <code>""</code> (без тренера)</li>
-    <li><code>trainers</code> — массив <code>{ id, name }</code> (ФИО из <code>users.full_name</code>)</li>
+    <li><code>visited_status_id</code> — id <code>attended</code> текущего партнёра</li>
+    <li><code>current_status_id</code> — <code>schedule_users.lesson_occurrence_status_id</code>, если есть</li>
+    <li><code>team_ids</code>, <code>teams_label</code>, <code>team_default_trainer_profile_id</code>, <code>trainer_profile_id_for_select</code>, <code>trainers</code></li>
   </ul>
 
   <h3>6.3) API <code>POST /schedule/update</code></h3>
-  <p>Валидация: <code>UpdateScheduleCellRequest</code>. <code>user_id</code> — тот же круг учеников, что в §2.1; иначе <b>404</b>.</p>
+  <p>Валидация: <code>UpdateScheduleCellRequest</code> — поле <code>lesson_occurrence_status_id</code> (активный статус партнёра; alias <code>status_id</code> в request принимается для совместимости клиента).</p>
   <ul>
-    <li><code>trainer_profile_id</code> — nullable; значения <code>""</code>, <code>none</code>, <code>0</code> приводятся к <code>null</code></li>
-    <li>Тренер должен существовать в <code>trainer_profiles</code> с <code>partner_id = current_partner</code></li>
-    <li>Пишется в БД только если <code>status_id</code> = «Посетил»</li>
+    <li><code>trainer_profile_id</code> — nullable; <code>""</code> / <code>none</code> / <code>0</code> → <code>null</code></li>
+    <li>Тренер пишется в БД только если статус = <code>attended</code></li>
+    <li>Списания абонемента / событий <code>user_lesson_occurrence_status_events</code> <strong>нет</strong></li>
   </ul>
-  <p>В аудит <code>my_logs</code> (<code>event = schedule.day_updated</code>) добавлены строки «Тренер до» / «Тренер после».</p>
+  <p>Аудит: <code>schedule.day_updated</code> — в тексте «Статус до/после» берётся <code>title</code> из справочника.</p>
 
   <h3>6.4) Связь с тренерами и группами</h3>
   <p>
-    Дефолтный тренер ячейки = первый в <code>team_trainer</code> для группы <code>context_team_id</code> (фильтр журнала или query) — тот же порядок, что при одном тренере на группу в
-    <a href="/docs/documentation/admin-trainers#team-link">привязке тренера к группе</a>.
-    Если у ученика нет групп в pivot или у выбранной группы нет тренера — дефолт пустой, можно выбрать любого тренера партнёра или «Без тренера».
-    Полное описание M:N групп: <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
+    Дефолтный тренер = первый в <code>team_trainer</code> для <code>context_team_id</code> —
+    <a href="/docs/documentation/admin-trainers#team-link">привязка тренера к группе</a>.
+    M:N групп: <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
   </p>
 
   <h2>7) Массовое «Личное расписание ученика»</h2>
   <p>
-    <code>POST /schedule/user/{user}/update-schedule-range</code> — только для активного ученика с системной ролью <code>user</code> (<a href="#student-list">§2.1</a>); иначе <b>404</b>.
-    Удаляет записи ученика в диапазоне дат и вставляет «Посетил» на выбранные дни недели (<code>weekdays</code>: 1–7 ISO).
-    Поле <code>trainer_profile_id</code> при массовой вставке <strong>не заполняется</strong> (остаётся <code>null</code>).
-    Тренера для таких дней при необходимости задают вручную через модалку ячейки.
+    <code>POST /schedule/user/{user}/update-schedule-range</code> — активный ученик §2.1, иначе <b>404</b>.
+    Удаляет записи в диапазоне и вставляет «Посетил» (<code>attended</code> партнёра) на выбранные дни недели.
+    <code>trainer_profile_id</code> при массовой вставке не заполняется.
   </p>
 
-  <h2 id="schedule-status-settings">8) Настройки статусов</h2>
+  <h2 id="occurrence-statuses">8) Статусы занятий (единый справочник)</h2>
   <p>
-    Модалка «Настройки статусов» на вкладке журнала (<code>#settingsModal</code> в <code>journal.blade.php</code>).
-    Право: то же <code>schedule.view</code>, что и для страницы <code>/schedule</code>.
+    Управление справочником <code>lesson_occurrence_statuses</code>:
+    вкладка на <code>/schedule/occurrence-statuses</code> и вкладка в абонементах
+    <code>/admin/lesson-packages/occurrence-statuses</code>. Один API, один UI-partial.
   </p>
 
-  <h3>8.1) UI и вложенные модалки</h3>
+  <h3>8.1) Право <code>lessonOccurrenceStatuses.manage</code></h3>
   <table>
     <thead>
-      <tr><th>Элемент</th><th>ID / поведение</th></tr>
+      <tr><th>Ситуация</th><th>Результат</th></tr>
     </thead>
     <tbody>
-      <tr><td>Кнопка в toolbar журнала</td><td><code>#btn-settings</code> → открывает <code>#settingsModal</code></td></tr>
-      <tr><td>Таблица статусов</td><td><code>#statuses-table-body</code> — при первом открытии заполняется с сервера (<code>$availableStatuses</code>); после create/update/delete — <code>loadStatuses()</code> / <code>reloadScheduleStatusesTable()</code> (<code>fetch GET /schedule/statuses</code>)</td></tr>
-      <tr><td>Новый статус</td><td><code>#btn-new-status</code> → <code>#createStatusModal</code></td></tr>
-      <tr><td>Редактирование</td><td>иконка карандаша (<code>fa-edit</code>, <code>data-action="edit"</code>) → <code>#editStatusModal</code></td></tr>
-      <tr><td>Удаление</td><td>иконка корзины (<code>fa-trash</code>, <code>data-action="delete"</code>) → <code>showConfirmDeleteModal</code> → <code>DELETE /schedule/statuses/{id}</code></td></tr>
-      <tr><td>Системные строки</td><td>подсказка у названия; колонка «Действия» пустая (нет edit/delete)</td></tr>
+      <tr><td>Гость</td><td>HTML → redirect на логин; JSON → 401</td></tr>
+      <tr><td>Нет ни <code>schedule.view</code>, ни <code>lessonPackages.view</code></td><td><b>403</b></td></tr>
+      <tr><td>Есть хотя бы одно из двух</td><td>страница и CRUD → <b>200</b> при валидных данных</td></tr>
     </tbody>
   </table>
-  <p>
-    Вложенные модалки («Создать» / «Редактировать» поверх «Настройки») открываются через <code>showModalQueued()</code>
-    (<code>layouts/admin2.blade.php</code>): родительская модалка временно скрывается, после закрытия дочерней (Escape, крестик, сохранение) — снова показывается «Настройки».
-    Реализация в <code>resources/js/schedule.js</code> (<code>showScheduleChildModal</code>).
-  </p>
 
-  <h3>8.2) AJAX-контракт (основной путь UI)</h3>
-  <p>Формы <code>#createStatusForm</code> и <code>#editStatusForm</code> — <code>preventDefault</code> + <code>fetch</code> с заголовком <code>X-Requested-With: XMLHttpRequest</code>.</p>
+  <h3>8.2) UI</h3>
+  <ul>
+    <li>Таблица: порядок, название (badge с цветом), иконка, тип (системный/свой), «Списывает», «Активен», действия.</li>
+    <li>Модалки <code>#losCreateModal</code> / <code>#losEditModal</code>: название, цвет, иконка из <code>config/lesson_occurrence_status_icons.php</code>, <code>consumes_lesson</code>, <code>is_active</code>, порядок (edit).</li>
+    <li>Системные: нельзя удалить и переименовать; цвет/иконка/порядок/флаги — можно.</li>
+    <li>Partial: <code>admin/shared/occurrence_statuses_crud.blade.php</code>; контроллер: <code>LessonOccurrenceStatusController</code> (<code>index</code> / <code>scheduleIndex</code>).</li>
+  </ul>
+
+  <h3>8.3) AJAX-контракт</h3>
   <table>
     <thead>
-      <tr><th>Метод</th><th>Успех</th><th>Тело ответа</th><th>Ошибки</th></tr>
+      <tr><th>Метод</th><th>Успех</th><th>Тело</th><th>Ошибки</th></tr>
     </thead>
     <tbody>
       <tr>
-        <td><code>GET /schedule/statuses</code></td>
+        <td><code>POST …/occurrence-statuses</code></td>
         <td><b>200</b></td>
-        <td><code>{ "statuses": [ { id, partner_id, name, icon, color, is_system, sort_order }, … ] }</code></td>
-        <td>401 / 403</td>
+        <td><code>{ message, status: { id, title, code, … } }</code></td>
+        <td><b>422</b> валидация (<code>title</code>, <code>color</code>, <code>icon</code>…)</td>
       </tr>
       <tr>
-        <td><code>POST /schedule/statuses</code></td>
+        <td><code>PUT …/occurrence-statuses/{id}</code></td>
         <td><b>200</b></td>
-        <td><code>{ "success": true, "status": { … } }</code></td>
-        <td><b>422</b> — валидация (<code>name</code> обязателен и др.)</td>
+        <td><code>{ message: "Статус обновлён" }</code></td>
+        <td><b>422</b> / <b>404</b></td>
       </tr>
       <tr>
-        <td><code>PATCH /schedule/statuses/{id}</code></td>
+        <td><code>DELETE …/occurrence-statuses/{id}</code></td>
         <td><b>200</b></td>
-        <td><code>{ "success": true, "status": { … } }</code></td>
-        <td><b>422</b> валидация; <b>403</b> legacy-системный; <b>404</b> чужой / глобальный системный</td>
+        <td><code>{ message: "Статус удалён" }</code></td>
+        <td><b>422</b> системный; <b>404</b> чужой</td>
       </tr>
       <tr>
-        <td><code>DELETE /schedule/statuses/{id}</code></td>
+        <td><code>POST …/occurrence-statuses/reorder</code></td>
         <td><b>200</b></td>
-        <td><code>{ "success": true }</code></td>
-        <td><b>403</b> legacy-системный; <b>404</b> чужой / глобальный системный</td>
+        <td><code>{ message: "Порядок сохранён" }</code></td>
+        <td><b>422</b> если список id неполный</td>
       </tr>
     </tbody>
   </table>
-  <p>
-    Валидация: <code>StoreScheduleStatusRequest</code>, <code>UpdateScheduleStatusRequest</code>
-    (обязателен <code>name</code>; для update — <code>sort_order</code> 0…65535).
-    Тексты ошибок — в JSON <code>errors</code>, на фронте выводятся под полями (<code>data-error-for</code>).
-    Если <code>sort_order</code> не передан при create — назначается автоматически (<code>nextCustomSortOrder</code>).
-  </p>
+  <p>Requests: <code>StoreLessonOccurrenceStatusRequest</code>, <code>UpdateLessonOccurrenceStatusRequest</code>, <code>ReorderLessonOccurrenceStatusesRequest</code> — authorize через <code>lessonOccurrenceStatuses.manage</code>. Ошибки валидации в JSON <code>errors</code>, на фронте под полями (<code>data-err</code>).</p>
 
-  <h3>8.3) Safety-net: non-AJAX POST/PATCH</h3>
-  <p>
-    Если форма ушла нативным submit без <code>X-Requested-With</code> / без ожидания JSON
-    (<code>StatusController::store</code>, <code>update</code> — ветка <code>!ajax() &amp;&amp; !expectsJson()</code>):
-  </p>
+  <h3>8.4) Safety-net: non-AJAX</h3>
+  <p>Без <code>Accept: application/json</code> / без ожидания JSON (<code>!$request->expectsJson()</code>):</p>
   <ul>
-    <li>запись в БД <strong>создаётся или обновляется</strong> (как при AJAX);</li>
-    <li>ответ — <strong>302 redirect</strong> на <code>route('schedule.index')</code> (<code>/schedule</code>), не пустой <b>200</b>.</li>
-  </ul>
-  <p class="small">Удаление (<code>DELETE</code>) в UI только через <code>fetch</code>; отдельного non-AJAX redirect для destroy нет.</p>
-
-  <h3>8.4) Инициализация данных</h3>
-  <ul>
-    <li><strong>Dev:</strong> <code>php artisan db:seed --class=DevScheduleStatusesSeeder</code> (при <code>SEED_DEV_DATA=true</code> — в составе <code>DatabaseSeeder</code>): глобальные «Посетил»/«Не был» + демо-кастомные по партнёрам.</li>
-    <li><strong>Production:</strong> глобальные системные статусы должны существовать с <code>partner_id IS NULL</code>, <code>is_system = 1</code>. Отдельной миграции с вставкой (как у <code>school_lead_statuses</code>) пока нет — при пустом списке проверьте БД.</li>
-    <li>Метод <code>DevScheduleStatusesSeeder::ensureGlobalSystemStatuses()</code> — идемпотентное создание/обновление глобальных системных; можно вызвать вручную на prod при необходимости.</li>
-    <li><code>DevScheduleStatusesSeeder::removeLegacyPerPartnerSystemDuplicates()</code> — удаляет ошибочные копии «Посетил»/«Не был» с <code>partner_id</code>; запускать только после появления глобальных записей.</li>
+    <li><code>store</code> / <code>update</code> / <code>destroy</code> — запись создаётся/обновляется/удаляется, ответ <strong>302</strong> на <code>admin.lesson-packages.occurrence-statuses.index</code> (не пустой 200);</li>
+    <li>ошибка валидации FormRequest — <strong>302</strong> back + session errors.</li>
   </ul>
 
-  <h3>8.5) Аудит</h3>
-  <p>События <code>AuditEvent</code>: <code>ScheduleStatusCreated</code>, <code>ScheduleStatusUpdated</code>, <code>ScheduleStatusDeleted</code> — в <code>my_logs</code> с <code>partner_id</code> автора.</p>
-
-  <h2>9) Миграции и сиды</h2>
+  <h3>8.5) Инициализация</h3>
   <ul>
-    <li><code>2025_03_08_185841_create_statuses_table.php</code> — таблица <code>statuses</code>, поле <code>is_system</code></li>
-    <li><code>2026_05_21_140000_add_sort_order_to_statuses_table.php</code></li>
+    <li><code>LessonOccurrenceStatusesSeeder::ensureForPartner</code> — при <code>Partner::created</code>, в <code>DatabaseSeeder</code>, при открытии вкладок статусов / журнала.</li>
+    <li>Отдельного <code>DevScheduleStatusesSeeder</code> / таблицы <code>statuses</code> больше нет.</li>
+  </ul>
+
+  <h2>9) Миграции</h2>
+  <ul>
+    <li><code>2026_05_01_100000_create_lesson_occurrence_statuses_table.php</code> (+ <code>consumes_lesson</code>)</li>
     <li><code>2026_05_21_150000_add_trainer_profile_id_to_schedule_users_table.php</code></li>
-    <li><code>database/seeders/DevScheduleStatusesSeeder.php</code> — глобальные системные + демо-кастомные (только dev)</li>
-    <li><code>database/seeders/StatusesSeeder.php</code> — <span class="small">устаревший: системные статусы на каждого партнёра; не использовать на новых стендах</span></li>
+    <li><code>2026_07_20_150000_schedule_users_use_lesson_occurrence_statuses.php</code> — колонка <code>lesson_occurrence_status_id</code>, очистка старых ячеек, FK</li>
+    <li><code>2026_07_20_150100_drop_statuses_table.php</code> — удаление <code>statuses</code></li>
   </ul>
 
   <h2>10) Связанные файлы</h2>
   <ul class="small">
-    <li><code>resources/views/admin/schedule/index.blade.php</code> — inline <code>reloadScheduleStatusesTable</code>, Vite <code>schedule.js</code></li>
-    <li><code>resources/views/admin/schedule/journal.blade.php</code> — модалки настроек/CRUD статусов</li>
-    <li><code>resources/js/schedule.js</code> — CRUD статусов, <code>showScheduleChildModal</code>, ячейки журнала</li>
-    <li><code>app/Http/Requests/Admin/StoreScheduleStatusRequest.php</code>, <code>UpdateScheduleStatusRequest.php</code></li>
-    <li><code>app/Http/Controllers/Admin/ScheduleController.php</code> — <code>findScheduleStudentForPartner()</code>, <code>assertScheduleStudent()</code></li>
-    <li><code>app/Models/User.php</code> — <code>scopeWithSystemRoleUser()</code></li>
-    <li><code>app/Http/Controllers/Admin/StatusController.php</code></li>
-    <li><code>app/Services/TeamUserSyncService.php</code></li>
-    <li><code>app/Http/Requests/Admin/SyncScheduleUserTeamsRequest.php</code></li>
-    <li><a href="/docs/documentation/student-team-membership">student-team-membership</a> — pivot M:N, sync-teams, context_team_id</li>
-    <li><code>app/Models/Status.php</code>, <code>ScheduleUser.php</code></li>
-    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>schedule.view</code></li>
+    <li><code>app/Models/LessonOccurrenceStatus.php</code>, <code>ScheduleUser.php</code></li>
+    <li><code>app/Http/Controllers/Admin/LessonOccurrenceStatusController.php</code>, <code>ScheduleController.php</code></li>
+    <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code></li>
+    <li><code>app/Services/Schedule/TrainerWorkloadReportService.php</code></li>
+    <li><code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code></li>
+    <li><code>resources/views/admin/schedule/_schedule_section_tabs.blade.php</code>, <code>journal.blade.php</code>, <code>index.blade.php</code></li>
+    <li><code>resources/js/schedule.js</code> — ячейки журнала (без CRUD статусов)</li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>lessonOccurrenceStatuses.manage</code></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — списание по <code>consumes_lesson</code></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — автосписание</li>
   </ul>
 
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleStatusesFeatureTest.php</code> — системные/кастомные статусы, CRUD, валидация 422, non-AJAX redirect store/update, 403/404 на системные и чужие, маркеры модалки на странице</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleStatusesFullAccessFeatureTest.php</code> — гость 302/401, без <code>schedule.view</code> → 403, с правом — все endpoint'ы статусов → 200</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>admin/schedule/index.blade.php</code> (<code>node --check</code>)</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — гость 401/302, без права <code>schedule.view</code> → 403 на страницу и эндпоинты (в т.ч. <code>statuses.*</code>)</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php</code> — со <code>schedule.view</code>: страница и каждый эндпоинт журнала отдельно → 200; сводный smoke всех API; гость на JSON → 401</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php</code> — в списке и API только активные ученики с системной ролью <code>user</code>; исключение тренера, админа, кастомной роли, отключённого; фильтры группы; 404 для не-учеников</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — sync-teams, teams_label, context_team_id, set-group legacy</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — контекст ячейки, сохранение тренера / «без тренера», сброс при смене статуса, изоляция партнёра, первый тренер группы</li>
-      <li><code>tests/Feature/Crm/StudentTeams/StudentTeamPivotFullAccessFeatureTest.php</code> — smoke <code>sync-teams</code> с <code>schedule.view</code></li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleTrainerWorkloadAccessFeatureTest.php</code>, <code>ScheduleTrainerWorkloadFeatureTest.php</code> — отчёт нагрузки (см. <a href="/docs/documentation/schedule-trainer-workload#tests">отдельный раздел</a>)</li>
-      <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code> на странице групп (дни недели)</li>
+      <li><code>ScheduleStatusesFeatureTest</code> — UI вкладки, CRUD, reorder, journal update / inactive / foreign, нет событий абонементов</li>
+      <li><code>ScheduleStatusesFullAccessFeatureTest</code> — гость / 403 / OR-права / smoke 200 всех endpoint'ов и JSON-контракты</li>
+      <li><code>ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest</code> — non-AJAX 302 + запись в БД; AJAX 200/422</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>occurrence_statuses_crud.blade.php</code>, <code>schedule/index.blade.php</code></li>
+      <li><code>LessonOccurrenceStatusesFeatureTest</code> — CRUD со стороны абонементов</li>
+      <li><code>ScheduleJournalAccessFeatureTest</code> / <code>ScheduleJournalFullAccessFeatureTest</code> — журнал + вкладка статусов</li>
+      <li><code>ScheduleCellTrainerFeatureTest</code>, <code>ScheduleTrainerWorkload*FeatureTest</code></li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Schedule/ScheduleStatusesFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleStatusesFullAccessFeatureTest.php \
+  tests/Feature/Crm/Schedule/ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php \
-  tests/Feature/Crm/Schedule/ScheduleJournalStudentFilterFeatureTest.php \
-  tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code></pre>
+  tests/Feature/Crm/LessonPackages/LessonOccurrenceStatusesFeatureTest.php</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

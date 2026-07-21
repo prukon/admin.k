@@ -39,7 +39,7 @@ class DocumentationController extends Controller
         'admin-locations'             => 'Объекты (админка): /admin/locations — view/manage, district_id, team_ids, вкладка в «Справочники»',
         'admin-sport-types'           => 'Виды спорта (админка): /admin/sport-types — sport_types.view/manage, вкладка в «Справочники», teams.sport_type_id, лендинг',
         'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, вкладка в «Справочники», month_price, объекты, тренер, расписание',
-        'schedule-journal'            => 'Журнал расписания: /schedule, statuses, schedule_users, тренер при «Посетил»',
+        'schedule-journal'            => 'Журнал расписания: /schedule, единый lesson_occurrence_statuses, вкладка «Статусы занятий», тренер при «Посетил»',
         'schedule-trainer-workload'   => 'Нагрузка тренеров: вкладка /schedule/trainer-workload, матрица, быстрый выбор месяца, AJAX data',
         'schedule-trainer-salary'     => 'ЗП тренеров: черновик, формула, autosave, слепки vN/batch, schedule.trainerSalary.*',
         'schedule-trainer-salary-sheets' => 'Листы ЗП: архив слепков (readonly), batch/snapshot, latest_only',

@@ -22,7 +22,6 @@ use App\Http\Controllers\Admin\Setting\RuleController;
 use App\Http\Controllers\Admin\Setting\SettingController;
 use App\Http\Controllers\Admin\Setting\TbankCommissionsController;
 use App\Http\Controllers\Admin\SettingPricesController;
-use App\Http\Controllers\Admin\StatusController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TinkoffPayoutTableSettingsController;
@@ -431,19 +430,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->whereNumber('lessonPackage')
             ->name('admin.lesson-packages.destroy');
 
-        Route::get('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'index'])
-            ->name('admin.lesson-packages.occurrence-statuses.index');
-        Route::post('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'store'])
-            ->name('admin.lesson-packages.occurrence-statuses.store');
-        Route::put('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'update'])
-            ->whereNumber('lessonOccurrenceStatus')
-            ->name('admin.lesson-packages.occurrence-statuses.update');
-        Route::delete('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'destroy'])
-            ->whereNumber('lessonOccurrenceStatus')
-            ->name('admin.lesson-packages.occurrence-statuses.destroy');
-        Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
-            ->name('admin.lesson-packages.occurrence-statuses.reorder');
-
         Route::get('/admin/lesson-packages/school-schedule', [LessonPackageController::class, 'schoolSchedule'])
             ->name('admin.lesson-packages.school-schedule');
         Route::get('/admin/lesson-packages/school-schedule/logs-data', [LessonPackageController::class, 'schoolScheduleLogs'])
@@ -498,12 +484,23 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.team-schedule-slots');
     });
 
-    // Статусы
-    Route::middleware('can:schedule.view')->group(function () {
-        Route::get('/schedule/statuses', [StatusController::class, 'index'])->name('statuses.index');
-        Route::post('/schedule/statuses', [StatusController::class, 'store'])->name('statuses.store');
-        Route::patch('/schedule/statuses/{id}', [StatusController::class, 'update'])->name('statuses.update');
-        Route::delete('/schedule/statuses/{id}', [StatusController::class, 'destroy'])->name('statuses.destroy');
+    // Статусы занятий (единый справочник lesson_occurrence_statuses)
+    Route::middleware('can:lessonOccurrenceStatuses.manage')->group(function () {
+        Route::get('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'index'])
+            ->name('admin.lesson-packages.occurrence-statuses.index');
+        Route::post('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'store'])
+            ->name('admin.lesson-packages.occurrence-statuses.store');
+        Route::put('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'update'])
+            ->whereNumber('lessonOccurrenceStatus')
+            ->name('admin.lesson-packages.occurrence-statuses.update');
+        Route::delete('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'destroy'])
+            ->whereNumber('lessonOccurrenceStatus')
+            ->name('admin.lesson-packages.occurrence-statuses.destroy');
+        Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
+            ->name('admin.lesson-packages.occurrence-statuses.reorder');
+
+        Route::get('/schedule/occurrence-statuses', [LessonOccurrenceStatusController::class, 'scheduleIndex'])
+            ->name('schedule.occurrence-statuses');
     });
 
     //Пользователи (feature test +)

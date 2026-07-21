@@ -27,15 +27,35 @@ final class LessonOccurrenceStatusController extends AdminBaseController
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
 
         $statuses = LessonOccurrenceStatus::query()
-            ->where('partner_id', $partnerId)
-            ->orderBy('sort_order')
-            ->orderBy('id')
+            ->forPartner($partnerId)
+            ->ordered()
             ->get();
 
         return view('admin.lessonPackages.index', [
             'activeTab' => 'occurrence-statuses',
             'occurrenceStatuses' => $statuses,
             'weekdays' => [], // вкладка не использует дни недели
+        ]);
+    }
+
+    /**
+     * Вкладка «Статусы занятий» в разделе журнала /schedule.
+     * Тот же CRUD API, что и у admin/lesson-packages/occurrence-statuses.
+     */
+    public function scheduleIndex(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
+
+        $statuses = LessonOccurrenceStatus::query()
+            ->forPartner($partnerId)
+            ->ordered()
+            ->get();
+
+        return view('admin.schedule.index', [
+            'activeTab' => 'occurrence-statuses',
+            'occurrenceStatuses' => $statuses,
         ]);
     }
 
@@ -113,7 +133,11 @@ final class LessonOccurrenceStatusController extends AdminBaseController
             ]);
         }
 
-        return response()->json(['message' => 'Статус обновлён']);
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Статус обновлён']);
+        }
+
+        return redirect()->route('admin.lesson-packages.occurrence-statuses.index');
     }
 
     public function destroy(Request $request, LessonOccurrenceStatus $lessonOccurrenceStatus)
@@ -151,11 +175,11 @@ final class LessonOccurrenceStatusController extends AdminBaseController
         $ids = collect($items)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $totalExpected = LessonOccurrenceStatus::query()
-            ->where('partner_id', $partnerId)
+            ->forPartner($partnerId)
             ->count();
 
         $ownedCount = LessonOccurrenceStatus::query()
-            ->where('partner_id', $partnerId)
+            ->forPartner($partnerId)
             ->whereIn('id', $ids)
             ->count();
 
@@ -169,7 +193,7 @@ final class LessonOccurrenceStatusController extends AdminBaseController
         DB::transaction(function () use ($partnerId, $items) {
             foreach ($items as $row) {
                 LessonOccurrenceStatus::query()
-                    ->where('partner_id', $partnerId)
+                    ->forPartner($partnerId)
                     ->whereKey((int) $row['id'])
                     ->update(['sort_order' => (int) $row['sort_order']]);
             }
@@ -197,7 +221,7 @@ final class LessonOccurrenceStatusController extends AdminBaseController
     private function nextSortOrder(int $partnerId): int
     {
         $max = LessonOccurrenceStatus::query()
-            ->where('partner_id', $partnerId)
+            ->forPartner($partnerId)
             ->max('sort_order');
 
         return (int) $max + 10;

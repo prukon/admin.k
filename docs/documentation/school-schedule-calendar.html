@@ -28,7 +28,9 @@
     Страница входит в раздел <strong>«Абонементы»</strong> как вкладка <strong>«Расписание школы»</strong>.
     Доступ к экрану и JSON календаря задаётся правом <code>lessonPackages.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:lessonPackages.view</code>).
     Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
-    <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблицы <code>schedule_users</code> / <code>statuses</code>) — см. <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
+    <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблица <code>schedule_users</code>).
+    Справочник статусов общий (<code>lesson_occurrence_statuses</code>); CRUD — вкладка «Статусы занятий» здесь и на <code>/schedule/occurrence-statuses</code>
+    (Gate <code>lessonOccurrenceStatuses.manage</code>). Журнал статусы сохраняет, но <strong>не</strong> списывает абонемент — см. <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
   </div>
 
   <h2>Данные недели для сетки</h2>
@@ -271,7 +273,7 @@
   <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="/docs/documentation/lesson-packages">разделе «Абонементы»</a>.</p>
 
   <h2>Статусы занятия и списание остатков</h2>
-  <p>Для каждой записи ученика на слот и дату (абонемент или пробное) в календаре школы можно сохранять статус из справочника партнёра <code>lesson_occurrence_statuses</code>. У статуса есть флаг <code>consumes_lesson</code> (например, «Посетил» и «Не посетил» — списывают, «Запись», «Отмена», «Заморозка» — нет; точный набор создаётся сидером и может быть расширен в админке с учётом этого флага).</p>
+  <p>Для каждой записи ученика на слот и дату (абонемент или пробное) в календаре школы можно сохранять статус из справочника партнёра <code>lesson_occurrence_statuses</code>. У статуса есть флаг <code>consumes_lesson</code> (например, «Посетил» и «Не посетил» — списывают, «Запись», «Отмена», «Заморозка» — нет; точный набор создаётся сидером и может быть расширен во вкладке «Статусы занятий»: <code>/admin/lesson-packages/occurrence-statuses</code> или <code>/schedule/occurrence-statuses</code>, см. <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>).</p>
   <ul>
     <li><strong>Абонемент:</strong> дельта к <code>user_lesson_packages.lessons_remaining</code> считается по переходу «предыдущий статус списывал / новый списывает» (<code>UserLessonPackageConsumptionAdjuster</code>). Повторное сохранение того же типа списания не меняет остаток дважды.</li>
     <li><strong>Пробное:</strong> для строки с <code>is_trial_lesson</code> корректируются <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (<code>SchoolScheduleTrialLessonConsumptionAdjuster</code>).</li>
