@@ -467,7 +467,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       </tr>
       <tr>
         <td>Аккордеон «Родитель»</td>
-        <td>Блок <code>admin/users/_parent_form.blade.php</code> с префиксом <code>lead</code> (ФИО, телефон, email, паспорт, адрес; режим «новый родитель» при открытии из лида).</td>
+        <td>Блок <code>admin/users/_parent_form.blade.php</code> с префиксом <code>lead</code> (ФИО, телефон, email, паспорт, адрес; при открытии из лида обычно режим «новый родитель»). Тот же UI, что у учеников: в режиме «Из справочника» ФИО редактируемы; при создании клиента с <code>parent_id</code> правка пишет в общую карточку <code>parents</code> (см. <a href="/docs/documentation/admin-users#user-parent-directory-fio">admin-users §2.1.2</a>).</td>
       </tr>
       <tr>
         <td>Аккордеон «Дополнительные поля клиента»</td>
@@ -731,6 +731,7 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadCreateClientFullFeatureTest.php</code> — создание клиента из модалки, перенос health-флагов</li>
     <li><code>SchoolLeadCreateUserFeatureTest.php</code> — <code>POST /admin/users</code> + <code>school_lead_id</code>, <code>user_id</code> в data</li>
     <li><code>SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо, <code>parent_email</code>, resend, лог исходящих писем</li>
+    <li>Поведение родителя из справочника при создании клиента — те же контракты, что у <code>/admin/users</code>: <code>AdminUsersParentDirectoryFioFeatureTest</code>, <code>AdminUsersParentAjaxContractFeatureTest</code>, <code>AdminUsersParentNonAjaxSafetyNetFeatureTest</code> (см. <a href="/docs/documentation/admin-users#user-parent-directory-fio">admin-users §2.1.2</a>)</li>
     <li><code>ClientWelcomeCredentialsFullAccessFeatureTest.php</code>, <code>ClientWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — доступ и AJAX/non-AJAX (см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>)</li>
     <li><code>SchoolLeadContractActionFeatureTest.php</code> — <code>create_contract_url</code>, <code>latest_contract</code>, prefill на create, lookup</li>
     <li><code>SchoolLeadsLeadClientContractFeatureTest.php</code> — сквозной сценарий лид → клиент → договор</li>

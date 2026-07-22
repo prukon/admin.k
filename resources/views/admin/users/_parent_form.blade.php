@@ -85,7 +85,8 @@
         </div>
     @endif
 
-    <div class="js-parent-fio-section {{ $hasParentProfiles ? 'd-none' : '' }}" data-parent-prefix="{{ $prefix }}">
+    {{-- ФИО всегда видимы: и при выборе из справочника (правка общей карточки parents), и при создании нового --}}
+    <div class="js-parent-fio-section" data-parent-prefix="{{ $prefix }}">
         <div class="row g-3">
             <div class="col-12 col-md-4">
                 <div class="mb-3">
@@ -373,19 +374,73 @@
                     });
                 }
 
+                function buildParentFioLabel(prefix) {
+                    const ids = parentFieldIds(prefix);
+
+                    return [$(ids.lastname).val(), $(ids.firstname).val(), $(ids.middlename).val()]
+                        .map(function (value) {
+                            return String(value || '').trim();
+                        })
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim();
+                }
+
+                /**
+                 * После правки ФИО у выбранного родителя обновляем подпись option в Select2,
+                 * чтобы в селекте не оставалось старое имя до перезагрузки модалки.
+                 */
+                function syncParentSelectLabelFromFio(prefix) {
+                    const ids = parentFieldIds(prefix);
+                    const $select = $(ids.select);
+                    if (!$select.length) {
+                        return;
+                    }
+
+                    const parentId = $select.val();
+                    if (!parentId) {
+                        return;
+                    }
+
+                    const label = buildParentFioLabel(prefix) || ('Родитель #' + parentId);
+                    const parentIdStr = String(parentId);
+                    let $option = $select.find('option').filter(function () {
+                        return String($(this).val()) === parentIdStr;
+                    });
+
+                    if (!$option.length) {
+                        $option = $(new Option(label, parentIdStr, true, true));
+                        $select.append($option);
+                    } else if ($option.text() === label) {
+                        return;
+                    } else {
+                        $option.text(label);
+                    }
+
+                    if ($select.data('select2')) {
+                        const selected = $select.select2('data');
+                        if (selected && selected[0]) {
+                            selected[0].text = label;
+                        }
+                        // change обновляет отрисовку Select2; select2:select/clear не срабатывают
+                        $select.trigger('change');
+                    }
+                }
+
                 /** @param {'directory'|'new'} mode */
                 function setParentFormMode(prefix, mode, options) {
                     options = options || {};
                     const ui = parentUiRoots(prefix);
                     const isNew = mode === 'new';
 
+                    // ФИО всегда доступны для просмотра/правки; скрывается только Select2 в режиме «Новый».
+                    ui.fioSection.removeClass('d-none');
+
                     if (!hasParentProfilesFor(prefix)) {
-                        ui.fioSection.removeClass('d-none');
                         return;
                     }
 
                     ui.selectWrap.toggleClass('d-none', isNew);
-                    ui.fioSection.toggleClass('d-none', !isNew);
 
                     if (!options.skipButtonsUpdate) {
                         syncParentModeButtons(prefix, mode);
@@ -626,6 +681,18 @@
                     setParentFormMode(prefix, 'directory', {skipButtonsUpdate: true});
                     syncParentModeButtons(prefix, 'directory');
                 });
+
+                $(document).on(
+                    'input.studentParentFio change.studentParentFio',
+                    '.js-parent-lastname, .js-parent-firstname, .js-parent-middlename',
+                    function () {
+                        const prefix = $(this).data('parent-prefix');
+                        if (!prefix) {
+                            return;
+                        }
+                        syncParentSelectLabelFromFio(prefix);
+                    }
+                );
 
                 $(document).on('change', '#create-user-form select[name="role_id"]', function () {
                     window.syncStudentParentFieldsVisibility('create');

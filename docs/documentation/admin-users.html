@@ -13,6 +13,7 @@
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
     .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
     .small { color: #555; font-size: 13px; }
     a { color: #2563eb; text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -138,31 +139,66 @@
     </thead>
     <tbody>
       <tr><td><code>parents.lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО (nullable, max 100)</td></tr>
+      <tr><td><code>parents.passport</code>, <code>passport_issued</code>, <code>address</code></td><td>Паспорт и адрес (nullable; миграция <code>2026_06_03_120000_…</code>)</td></tr>
+      <tr><td><code>parents.phone</code>, <code>email</code></td><td>Контакты карточки родителя (опционально; не путать с <code>users.phone</code> / <code>users.email</code> учётки ученика)</td></tr>
       <tr><td><code>parents.partner_id</code></td><td>Организация (обязательно)</td></tr>
       <tr><td><code>users.parent_id</code></td><td>FK на родителя ученика; общий <code>parent_id</code> у детей — переключатель в кабинете</td></tr>
       <tr><td><code>parent_full_name</code> (аксессор <code>User</code>)</td><td>ФИО из <code>parentProfile</code> для списков и договоров</td></tr>
-      <tr><td><code>users.phone</code>, <code>users.email</code></td><td>Контакты для SMS/оплат на учётке ученика, не дублируются в <code>parents</code></td></tr>
+      <tr><td><code>users.phone</code>, <code>users.email</code></td><td>Контакты для SMS/оплат на учётке ученика, не дублируются автоматически в <code>parents</code></td></tr>
     </tbody>
   </table>
   <p class="small">В <code>GET /admin/users/data</code>: <code>"parent": "Фамилия Имя Отчество"</code> из связи <code>parentProfile</code>.
   Сортировка col=3: join <code>parents</code>, <code>orderBy parents.lastname, parents.firstname</code>.</p>
 
-  <h3>2.1.2) UI и поиск (модалки create / edit)</h3>
-  <p>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> (подключается в <code>createUser</code> / <code>editUser</code>).</p>
+  <h3 id="user-parent-directory-fio">2.1.2) UI и поиск (модалки create / edit)</h3>
+  <p>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> (подключается в <code>createUser</code> / <code>editUser</code>; в заявках — с <code>prefix=lead</code>).</p>
   <div class="note">
     <b>Видимость блока.</b> Секция «Данные родителя» показывается только если в модалке выбрана роль <code>user</code> (ученик).
     При другой роли блок скрывается, поля <code>parent_*</code> отключаются и не уходят в сохранение.
     На сервере <code>StudentParentSyncService</code> для не-<code>user</code> сбрасывает <code>users.parent_id</code> в <code>null</code>.
   </div>
+  <div class="ok">
+    <b>Редактирование карточки из справочника (2026‑07).</b>
+    В режиме «Из справочника» видны и Select2, и поля ФИО/профиля. Правка ФИО (и остальных полей) при сохранении с
+    <code>parent_id</code> пишет в <b>существующую</b> строку <code>parents</code> — изменения общие для всех учеников с этим
+    <code>parent_id</code> (список, edit JSON, семейный кабинет, договоры через <code>parent_full_name</code>).
+    Отдельного подтверждения при нескольких детях нет. Чтобы завести другую карточку — режим «Новый родитель»
+    (очищает <code>parent_id</code>, создаёт новую запись).
+  </div>
   <ul>
-    <li><b>Если у партнёра есть хотя бы один родитель в <code>parents</code></b> — переключатель режима (две кнопки: «Из справочника» / «Новый родитель»), затем либо Select2 <code>parent_id</code>, либо три поля ФИО (взаимоисключающие панели).</li>
+    <li><b>Если у партнёра есть хотя бы один родитель в <code>parents</code></b> — переключатель режима (две кнопки: «Из справочника» / «Новый родитель»).
+      В режиме «Из справочника» видны Select2 <code>parent_id</code> и поля ФИО/профиля; в режиме «Новый родитель» — только поля ФИО/профиля (Select2 скрыт, <code>parent_id</code> очищается).</li>
     <li><b>Если справочник пуст</b> — переключатель и Select2 не рендерятся; сразу только поля ФИО нового родителя.</li>
     <li><code>GET /admin/users/parents/search?q=...</code> (и опционально <code>id=</code>) — JSON для Select2; только <code>parents.partner_id = current</code>.</li>
-    <li>Выбор из справочника подставляет ФИО в скрытые поля формы (для PATCH/POST); режим «Новый родитель» очищает <code>parent_id</code> и показывает пустые поля ФИО.</li>
+    <li>Выбор из справочника подставляет ФИО и поля профиля в форму. Поля ФИО <b>редактируемы</b>. Режим «Новый родитель» очищает <code>parent_id</code> и показывает пустые поля — создаётся новая строка <code>parents</code>.</li>
+    <li>Правка ФИО в режиме справочника синхронизирует подпись выбранного option в Select2 (JS <code>syncParentSelectLabelFromFio</code>).</li>
     <li>Отвязка: очистка Select2 + пустые <code>parent_*</code> в запросе → <code>parent_id = null</code> (см. <code>isAdminParentBlockCleared</code> в сервисе).</li>
     <li>В «Поля списка» — колонка «Родитель» (<code>data-column-key="parent"</code>).</li>
     <li>Право на раздел: <code>users.view</code> (отдельного permission на справочник родителей нет).</li>
+    <li>Тот же partial с <code>prefix=lead</code> — в модалке заявки (§<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>); поведение режимов совпадает.</li>
   </ul>
+  <table>
+    <thead>
+      <tr><th>Действие в UI</th><th>Что уходит в запрос</th><th>Результат в БД</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Выбрать родителя, при необходимости поправить ФИО/паспорт/…, сохранить</td>
+        <td><code>parent_id</code> + <code>parent_*</code></td>
+        <td>Update существующей <code>parents</code>; <code>users.parent_id</code> = этот id</td>
+      </tr>
+      <tr>
+        <td>«Новый родитель» + заполнить ФИО/профиль</td>
+        <td>без <code>parent_id</code> (или пустой) + <code>parent_*</code></td>
+        <td>Insert новой <code>parents</code> с <code>partner_id = current</code></td>
+      </tr>
+      <tr>
+        <td>Очистить Select2 и поля родителя</td>
+        <td>пустые <code>parent_*</code> (и без валидного <code>parent_id</code>)</td>
+        <td><code>users.parent_id = null</code> (карточка <code>parents</code> не удаляется soft-delete’ом из этой формы)</td>
+      </tr>
+    </tbody>
+  </table>
 
   <h3>2.1.3) Изоляция партнёра (parents / users)</h3>
   <p>См. также <a href="/docs/documentation/partner-scope-guide">partner-scope-guide</a> и <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>.</p>
@@ -187,6 +223,7 @@
   </ul>
   <p>Сохранение: <code>StudentParentSyncService::syncForStudent</code> из <code>UserService::update/store</code>.
   При обновлении вызывается, если в теле есть ключи <code>parent_*</code> <b>или</b> у пользователя после сохранения роль не <code>user</code> (сброс <code>parent_id</code>).</p>
+  <p class="small">Контракт HTTP: AJAX store/update → JSON 200 (<code>message</code>, у store ещё <code>user</code>); non-AJAX POST/PATCH без <code>X-Requested-With</code> → <code>302</code> на <code>admin.user1</code> (safety-net). Валидация → 422 (AJAX) / redirect + session errors (web).</p>
   <p>JSON edit: <code>user.parent_lastname</code> и т.д. — из <code>User::parentFormFields()</code> (значения из <code>parents</code>).</p>
 
   <h3>2.1.5) Связь с договорами и личным кабинетом</h3>
@@ -986,8 +1023,11 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code></li>
-      <li><code>tests/Feature/Crm/Users/AdminUsersParentUiFeatureTest.php</code> — разметка: справочник пуст / не пуст, переключатель режима</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code>, shared FIO у siblings</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentDirectoryFioFeatureTest.php</code> — правка ФИО/профиля при <code>parent_id</code>, UI без скрытия ФИО, доступ guest/403/200, 422 чужой parent</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentAjaxContractFeatureTest.php</code> — JSON store/update/edit/search (message, user), 422</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentNonAjaxSafetyNetFeatureTest.php</code> — POST/PATCH без <code>X-Requested-With</code> → 302 + запись в БД</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentUiFeatureTest.php</code> — разметка: справочник пуст / не пуст, переключатель режима, ФИО видимы</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAccessFeatureTest.php</code> — гость 401, без <code>users.view</code> 403, smoke 200 всех endpoint’ов родителя</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code> — изоляция партнёра: search, store/update, data, edit 404</li>
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php</code> — флаги §2.2: edit/update, права <code>users.other.update</code>, UI, валидация, лог, доступ 200/403</li>
@@ -1012,6 +1052,7 @@
     </ul>
     Запуск колонки «Договор»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
     Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
+    Directory FIO / AJAX / non-AJAX: <code>php artisan test --filter='AdminUsersParentDirectoryFio|AdminUsersParentAjaxContract|AdminUsersParentNonAjax'</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
     Импорт Excel: <code>php artisan test --filter=UsersImport</code>.

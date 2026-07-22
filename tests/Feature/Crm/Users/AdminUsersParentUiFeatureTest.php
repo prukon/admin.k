@@ -65,5 +65,13 @@ final class AdminUsersParentUiFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Новый родитель', $html);
         $this->assertStringContainsString('data-student-role-id', $html);
         $this->assertStringContainsString('syncStudentParentFieldsVisibility', $html);
+        $this->assertStringContainsString('syncParentSelectLabelFromFio', $html);
+
+        // ФИО видны и в режиме справочника (не скрыты начальным d-none).
+        $this->assertMatchesRegularExpression(
+            '/class="js-parent-fio-section"(?![^>]*\bd-none\b)/',
+            $html
+        );
+        $this->assertStringNotContainsString("fioSection.toggleClass('d-none', !isNew)", $html);
     }
 }

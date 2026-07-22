@@ -26,6 +26,20 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Редактирование ФИО родителя из справочника (2026‑07)</h2>
+  <div class="note">
+    В модалках ученика (<code>/admin/users</code>) и в блоке родителя заявок (<code>_parent_form</code>, префикс <code>lead</code>)
+    в режиме <b>«Из справочника»</b> поля ФИО больше не скрыты: после выбора карточки <code>parents</code> их можно править
+    вместе с паспортом, адресом, телефоном и email. Сохранение с <code>parent_id</code> обновляет <b>ту же</b> запись справочника
+    (видно всем детям с этим <code>parent_id</code>). Режим «Новый родитель» по-прежнему создаёт новую строку.
+    В Select2 подпись синхронизируется с полями ФИО (JS <code>syncParentSelectLabelFromFio</code>).
+    В личном кабинете правка общей карточки <code>parents</code> уже была (<code>account.user.parent.update</code>) — поведение совпадает.
+    HTTP: AJAX store/update → JSON; non-AJAX POST/PATCH → <code>302</code> на список учеников.
+    Подробно — <a href="/docs/documentation/admin-users#user-parent-directory-fio">admin-users §2.1.2</a>,
+    обзор семьи — <a href="/docs/documentation/parents-and-family-cabinet#parent-shared-edit">parents-and-family-cabinet §3–4</a>,
+    заявки — <a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>.
+  </div>
+
   <h2>Импорт учеников из Excel — preview-diff (2026‑07)</h2>
   <div class="note">
     После «Проверить» для строк режима <b>обновление</b> система показывает field-level diff относительно текущего ученика в БД
@@ -167,14 +181,14 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО/паспорт/адрес/контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи, назначенные абонементы, сезоны), <code>setPrices.cabinetSeasons.view</code>, селект «Выбор группы» при 2+ группах, семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, версии, аудит <code>contract_template.*</code></a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF, подпись SMS, sync профиля</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code></a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК, консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), родители, колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (resend пароля, §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (resend пароля, §5.1), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>колонка «Действия»</b> — карандаш скрывается после создания клиента §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code></a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>

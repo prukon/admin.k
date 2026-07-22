@@ -33,6 +33,8 @@
     <b>Назначение.</b> Справочник родителей (<code>parents</code>) для ФИО подписанта договора и семейного кабинета (несколько детей с одним <code>users.parent_id</code>).
     Вход в CRM — <b>только</b> под учёткой ученика (<code>users</code>, роль <code>user</code>). Отдельной учётки «мама/папа» нет.
     Контакты для SMS и оплат — <code>users.phone</code> / <code>users.email</code> учётки ученика, под которой выполнен вход.
+    Карточка <code>parents</code> (ФИО, паспорт, адрес, телефон, email родителя) общая для всех детей с тем же <code>parent_id</code>
+    и редактируется из админки (§3) и из ЛК (§4) при наличии права.
   </div>
 
   <h2>0) Как это работает (сценарий)</h2>
@@ -44,7 +46,7 @@
     <li>Права (роли, permissions) остаются у <b>залогиненного</b> ученика; переключатель меняет только <b>контекст просмотра</b> (платежи, консоль и т.д.) — session <code>active_student_user_id</code>.</li>
     <li>Если у ученика нет <code>parent_id</code> или нет второго активного ребёнка с тем же <code>parent_id</code> — переключателя нет.</li>
     <li>При семейном режиме (переключатель виден) в сайдбаре над селектом «Имя» и «Почта» показываются <code>parents.full_name</code> и <code>parents.email</code> (см. <code>FamilyStudentContextService::sidebarPanelIdentity</code>).</li>
-    <li>Редактирование ФИО родителя в личном кабинете меняет общую запись <code>parents</code> — изменения видны всем детям с этим <code>parent_id</code>.</li>
+    <li>Редактирование карточки родителя (ФИО, паспорт, адрес, телефон, email) в личном кабинете или в админке меняет общую запись <code>parents</code> — изменения видны всем детям с этим <code>parent_id</code>.</li>
   </ul>
 
   <h2>1) Модель данных</h2>
@@ -59,7 +61,8 @@
       <tr><td><code>id</code></td><td>PK</td></tr>
       <tr><td><code>partner_id</code></td><td>Организация (обязательно, FK → <code>partners</code>, cascade)</td></tr>
       <tr><td><code>lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО родителя / подписанта (nullable, max 100)</td></tr>
-      <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты; <code>email</code> используется в сайдбаре при семейном режиме (редактирование в формах пока только ФИО)</td></tr>
+      <tr><td><code>passport</code>, <code>passport_issued</code>, <code>address</code></td><td>Паспорт и адрес (nullable; миграция <code>2026_06_03_120000_…</code>)</td></tr>
+      <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты карточки; <code>email</code> также в сайдбаре при семейном режиме. Редактируются в админке и в ЛК (при <code>account.user.parent.update</code>)</td></tr>
       <tr><td><code>deleted_at</code></td><td>Soft delete</td></tr>
     </tbody>
   </table>
@@ -89,6 +92,7 @@
       <tr><td><code>2026_05_28_120001_add_parent_id_to_users_table.php</code></td><td><code>users.parent_id</code> → FK <code>parents</code></td></tr>
       <tr><td><code>2026_05_28_130000_drop_legacy_parent_name_columns_from_users_table.php</code></td><td>Удаление <code>users.parent_*</code> (ФИО только в <code>parents</code>)</td></tr>
       <tr><td><code>2026_05_28_140000_drop_user_id_from_parents_table.php</code></td><td>Удаление <code>parents.user_id</code> (отказ от отдельного логина родителя)</td></tr>
+      <tr><td><code>2026_06_03_120000_add_passport_and_address_to_parents_table.php</code></td><td><code>passport</code>, <code>passport_issued</code>, <code>address</code></td></tr>
     </tbody>
   </table>
 
@@ -114,9 +118,9 @@ users (role=user) — ученик, вход в CRM
     </tbody>
   </table>
 
-  <h2>3) Админка: ученики (<code>/admin/users</code>)</h2>
+  <h2 id="parent-shared-edit">3) Админка: ученики (<code>/admin/users</code>)</h2>
   <p class="small">Список и создание на этой странице — только роль <code>user</code> (ученик). Обзор вкладок раздела: <a href="/docs/documentation/admin-users-section">admin-users-section</a>.</p>
-  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a>. Кратко:</p>
+  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> · правка из справочника: <a href="/docs/documentation/admin-users#user-parent-directory-fio">§2.1.2</a>. Кратко:</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
@@ -126,12 +130,18 @@ users (role=user) — ученик, вход в CRM
       <tr><td>POST / PATCH</td><td><code>/admin/users</code>, <code>/admin/users/{user}</code></td><td><code>parent_id</code> и/или <code>parent_*</code> в теле → <code>StudentParentSyncService::syncForStudent</code></td></tr>
     </tbody>
   </table>
+  <div class="ok">
+    <b>Общая карточка.</b> В режиме «Из справочника» ФИО и поля профиля редактируемы. Сохранение с <code>parent_id</code>
+    обновляет существующую <code>parents</code> — изменение видно всем детям с тем же <code>parent_id</code>
+    (колонка «Родитель», edit JSON, ЛК, договоры). «Новый родитель» создаёт новую строку.
+  </div>
   <ul>
     <li>В модалках create/edit: блок родителя только для роли <code>user</code>; переключатель «Из справочника» / «Новый родитель» (если в справочнике есть записи), иначе сразу поля ФИО — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1.2</a>.</li>
     <li>В списке DataTables колонка «Родитель» — склейка ФИО из <code>parents</code> (через <code>parentProfile</code>).</li>
     <li>Поиск по <code>name</code> ищет также по ФИО в <code>parents</code> (<code>whereHas parentProfile</code>).</li>
     <li>Сортировка col=3: <code>parents.lastname</code>, <code>parents.firstname</code> (left join).</li>
     <li>Право: достаточно <code>users.view</code> + store/update пользователя; отдельного permission на родителя в админке нет.</li>
+    <li>HTTP: AJAX → JSON; non-AJAX POST/PATCH → redirect на список учеников (safety-net).</li>
     <li>Пол и комментарий ученика — §<a href="/docs/documentation/admin-users#user-comment-sex">admin-users §2.4</a>: пол — <code>users.sex</code> (CRM и кабинет), комментарий — только CRM (<code>users.comment</code>, §<a href="#account-sex">4.4</a>).</li>
   </ul>
 
@@ -148,7 +158,7 @@ users (role=user) — ученик, вход в CRM
     </thead>
     <tbody>
       <tr><td><code>account.user.view</code></td><td><code>account.user.view</code></td><td>Доступ к странице и маршрутам группы <code>account.user.*</code></td></tr>
-      <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование ФИО родителя; без права — поля disabled (readonly)</td></tr>
+      <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование карточки родителя (ФИО, паспорт, адрес, телефон, email); без права — поля disabled (readonly)</td></tr>
       <tr><td><code>users.sex</code></td><td><code>users.sex</code></td><td>Пол ученика: в CRM (колонка, модалки) и в личном кабинете (<code>/account-settings/user/edit</code>); без права — поле не рендерится. Комментарий в кабинете недоступен.</td></tr>
     </tbody>
   </table>
@@ -160,7 +170,8 @@ users (role=user) — ученик, вход в CRM
     <li>Поля родителя валидируются только при <code>account.user.parent.update</code>.</li>
     <li>Пол (<code>sex</code>) — только при <code>users.sex</code> (§<a href="#account-sex">4.4</a>).</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
-    <li>Ошибки валидации — JSON 422, ключи <code>parent_lastname</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
+    <li>Правка ФИО/профиля в ЛК меняет <b>общую</b> карточку — sibling с тем же <code>parent_id</code> видит изменения сразу (без отдельной учётки родителя).</li>
+    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
   </ul>
 
   <h3>4.3) Endpoint’ы учётной записи (smoke доступа)</h3>
@@ -312,19 +323,24 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentDirectoryFioFeatureTest.php</code> — правка ФИО из справочника, siblings, доступ</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentAjaxContractFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentNonAjaxSafetyNetFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentProfileUpdateTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountParentNonAjaxSafetyNetFeatureTest.php</code> — ЛК: JSON-контракт правки общей карточки</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code></li>
     </ul>
-    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily'</code>
+    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AccountParentNonAjax'</code>
   </div>
 
   <h2>9) Что не поддерживается</h2>
   <ul>
     <li>Отдельная учётная запись родителя для входа (<code>parents.user_id</code> удалён).</li>
     <li>Переключение между детьми при разных <code>parent_id</code> (разные записи в <code>parents</code>).</li>
-    <li>Редактирование <code>parents.phone</code> / <code>parents.email</code> в UI личного кабинета (поля есть в БД; в форме — только ФИО).</li>
+    <li>Переименование «только для одного ученика» без отвязки: правка ФИО всегда меняет общую карточку; для другой персоны — «Новый родитель» или смена <code>parent_id</code>.</li>
+    <li>Отдельный CRUD-раздел <code>/admin/parents</code> (карточка правится из модалки ученика / заявки / ЛК).</li>
     <li>Семейный контекст на страницах договоров у роли <code>user</code> (договоры — право <code>contracts.view</code>, админка).</li>
   </ul>
 

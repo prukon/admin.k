@@ -104,6 +104,51 @@ final class AdminUsersParentCrudFeatureTest extends CrmTestCase
         $this->assertSame($parent->id, $student->fresh()->parent_id);
     }
 
+    public function test_update_parent_fio_via_one_student_is_shared_with_sibling(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Общий',
+            'firstname'  => 'Родитель',
+            'middlename' => 'Иванович',
+        ]);
+
+        $childA = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->studentRoleId(),
+            'parent_id'  => $parent->id,
+            'name'       => 'Анна',
+            'lastname'   => 'Общая',
+        ]);
+
+        $childB = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => $this->studentRoleId(),
+            'parent_id'  => $parent->id,
+            'name'       => 'Борис',
+            'lastname'   => 'Общий',
+        ]);
+
+        $this->patchJson(route('admin.user.update', $childA->id), [
+            'name'              => $childA->name,
+            'lastname'          => $childA->lastname,
+            'role_id'           => $childA->role_id,
+            'parent_id'         => $parent->id,
+            'parent_lastname'   => 'НоваяФамилия',
+            'parent_firstname'  => 'Родитель',
+            'parent_middlename' => 'Петрович',
+            'is_enabled'        => 1,
+        ], ['X-Requested-With' => 'XMLHttpRequest'])
+            ->assertOk();
+
+        $parent->refresh();
+        $this->assertSame('НоваяФамилия', $parent->lastname);
+        $this->assertSame('Петрович', $parent->middlename);
+        $this->assertSame($parent->id, $childA->fresh()->parent_id);
+        $this->assertSame($parent->id, $childB->fresh()->parent_id);
+        $this->assertSame('НоваяФамилия Родитель Петрович', $childB->fresh()->parent_full_name);
+    }
+
     public function test_update_with_explicit_null_parent_id_unlinks_student(): void
     {
         $parent = ParentProfile::factory()->create(['partner_id' => $this->partner->id]);

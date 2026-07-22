@@ -916,9 +916,13 @@ class UserController extends AdminBaseController
             }
         });
 
-        return response()->json([
-            'message' => 'Пользователь успешно обновлён',
-        ], 200);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => 'Пользователь успешно обновлён',
+            ], 200);
+        }
+
+        return redirect()->route('admin.user1');
     }
 
     public function delete(User $user)
