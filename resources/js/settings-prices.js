@@ -1,3 +1,4 @@
+import './kids-tooltip.js';
 import './setting-prices-manual-paid-modal.js';
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -7,10 +8,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Левая колонка: названия групп — ellipsis + KidsCrmTooltip только при обрезке.
+    requestAnimationFrame(function () {
+        const leftBar = document.getElementById('left_bar');
+        if (leftBar && window.KidsCrmTooltip) {
+            window.KidsCrmTooltip.init(leftBar, { scopes: ['text'] });
+        }
+    });
+
     let usersPrice = [];
     let lastCanManageManualPaid = false;
     let lastUsersTeam = [];
     let lastTeamId = null;
+    /** @type {Array<{id:number,name:string,price:number}>} */
+    let lastLessonPackages = [];
     /** @type {string|null} */
     let editingMonthlyUserId = null;
 
@@ -23,6 +34,51 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
+    }
+
+    function escapeHtml(s) {
+        if (s == null || s === '') {
+            return '';
+        }
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatPriceValue(price) {
+        const n = Number(price);
+        if (!Number.isFinite(n)) {
+            return '0';
+        }
+        if (Math.abs(n - Math.round(n)) < 0.001) {
+            return String(Math.round(n));
+        }
+        return n.toFixed(2);
+    }
+
+    function findLessonPackage(packageId) {
+        if (packageId == null || packageId === '') {
+            return null;
+        }
+        const id = String(packageId);
+        return lastLessonPackages.find(function (p) {
+            return String(p.id) === id;
+        }) || null;
+    }
+
+    function buildPackageSelectOptions(selectedPackageId) {
+        let html = '<option value="">Абонемент</option>';
+        for (let i = 0; i < lastLessonPackages.length; i++) {
+            const pkg = lastLessonPackages[i];
+            const selected = selectedPackageId != null && String(pkg.id) === String(selectedPackageId)
+                ? ' selected'
+                : '';
+            html += '<option value="' + escapeAttr(pkg.id) + '"' + selected + '>'
+                + escapeHtml(pkg.name) + '</option>';
+        }
+        return html;
     }
 
     function getSelectedMonthLabel() {
@@ -46,6 +102,35 @@ document.addEventListener('DOMContentLoaded', function () {
         return !!row.is_paid;
     }
 
+    /**
+     * Переносит текущие значения select/инпута из DOM в usersPrice,
+     * чтобы повторный render не откатывал несохранённый выбор абонемента/цены.
+     */
+    function syncUsersPriceFromDom() {
+        const userRows = document.querySelectorAll('#right_bar .wrap-users .setting-prices-user-card');
+        for (let j = 0; j < userRows.length; j++) {
+            const userId = userRows[j].getAttribute('data-user-id');
+            if (!userId) {
+                continue;
+            }
+            const priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
+            const packageSelect = userRows[j].querySelector('.setting-prices-monthly-package-select');
+            const idx = usersPrice.findIndex(function (u) {
+                return String(u.user_id) === String(userId);
+            });
+            if (idx < 0) {
+                continue;
+            }
+            if (priceInput) {
+                usersPrice[idx].price = priceInput.value;
+            }
+            if (packageSelect) {
+                const pkgVal = packageSelect.value;
+                usersPrice[idx].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
+            }
+        }
+    }
+
     function postManualPaid(userId, teamId, selectedDate, mode, comment, errorEl) {
         const csrf = $('meta[name="csrf-token"]').attr('content');
         return $.ajax({
@@ -66,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
         }).done(function (res) {
             if (res && res.success && res.user_price) {
+                syncUsersPriceFromDom();
                 const updated = res.user_price;
                 const idx = usersPrice.findIndex(function (u) {
                     return String(u.user_id) === String(updated.user_id);
@@ -107,6 +193,12 @@ document.addEventListener('DOMContentLoaded', function () {
         lastCanManageManualPaid = !!canManage;
         lastUsersTeam = usersTeam || [];
         const rightBar = $('.wrap-users');
+        const rightBarEl = rightBar.get(0);
+
+        if (rightBarEl && window.KidsCrmTooltip) {
+            window.KidsCrmTooltip.dispose(rightBarEl, { scopes: ['text', 'manualPaid'] });
+        }
+
         rightBar.empty();
 
         try {
@@ -123,8 +215,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const userTeam = usersTeam.find(team => team.id === up.user_id);
 
             const eff = effectivePaidFromUserPrice(up);
-            const checkClass = eff ? '' : 'display-none';
-            const inputDisabled = eff ? 'disabled' : '';
 
             const last = (userTeam && userTeam.lastname) ? String(userTeam.lastname).trim() : '';
             const first = (userTeam && userTeam.name) ? String(userTeam.name).trim() : '';
@@ -147,19 +237,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     + 'aria-label="Комментарий к ручной отметке оплаты"></i>';
             }
 
-            const namePlain = (i + 1) + '. ' + ((last || first) ? `${last} ${first}`.trim() : 'Имя не найдено');
-
             let pencilHtml = '';
             if (canManage && uid) {
-                pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус оплаты">' +
+                pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус и сумму">' +
                     '<i class="fa fa-edit" aria-hidden="true"></i></button>';
             }
-
-            const statusBadgeClass = eff ? 'bg-success' : 'bg-secondary';
-            const statusBadgeText = eff ? 'Оплачено' : 'Не оплачено';
-
-            /** При праве на ручную отметку достаточно шильдиков — дублирующую галочку не показываем */
-            const showPaidCheckmark = !canManage;
 
             const isEditing = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === uid;
 
@@ -174,37 +256,57 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<option value="0"' + (!eff ? ' selected' : '') + '>Не оплачено</option>' +
                     '</select>' +
                     '<button type="button" class="btn btn-sm btn-danger user-price-edit-cancel d-inline-flex align-items-center justify-content-center px-2" title="Отмена" aria-label="Отмена">' +
-                    '<i class="fa fa-times" aria-hidden="true"></i>' +
-                    '</button>' +
+                    '<i class="fa fa-times" aria-hidden="true"></i></button>' +
                     '</div>' +
                     '<div class="manual-paid-error small text-danger mt-1" style="display:none"></div>' +
                     '</div>';
             } else {
+                const paidIconHtml = eff
+                    ? '<i class="fa fa-check green-check setting-prices-monthly-paid-icon" aria-hidden="true" title="Оплачено"></i>'
+                    : '<span class="setting-prices-monthly-paid-empty" aria-hidden="true"></span>';
                 statusCellHtml =
                     '<div class="user-price-status-view setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">' +
-                    '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap">' +
-                    '<span class="badge ' + statusBadgeClass + '">' + statusBadgeText + '</span>' +
+                    '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap" title="' + (eff ? 'Оплачено' : 'Не оплачено') + '" aria-label="' + (eff ? 'Оплачено' : 'Не оплачено') + '">' +
+                    paidIconHtml +
                     infoIcon +
                     '</div>' +
                     '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
                     '</div>';
             }
 
-            const checkColHtml = showPaidCheckmark
-                ? '<div class="setting-prices-monthly-check flex-shrink-0 d-flex align-items-center justify-content-center">' +
-                    '<span class="fa fa-check ' + checkClass + ' green-check" aria-hidden="true" title="' + (eff ? 'Месяц считается оплаченным' : 'Не оплачено') + '"></span>' +
-                    '</div>'
-                : '';
+            const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
+            const packageSelectDisabled = eff ? 'disabled' : '';
+            let priceInputDisabled = 'disabled';
+            if (isEditing) {
+                priceInputDisabled = '';
+            } else if (!canManage && !eff) {
+                priceInputDisabled = '';
+            }
+
+            const nameHtml = (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.renderText === 'function')
+                ? window.KidsCrmTooltip.renderText(userNameFormatted)
+                : '<span class="setting-prices-monthly-name-text text-truncate" title="' + escapeAttr(userNameFormatted) + '">'
+                    + escapeHtml(userNameFormatted) + '</span>';
 
             const userBlock = `
                         <div class="setting-prices-user-card mb-2 pb-2 border-bottom" data-user-id="${uid}">
                             <div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">
-                                <div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">
-                                    <span id="${uid}" class="user-name setting-prices-monthly-name-text text-truncate" title="${escapeAttr(namePlain)}">${userNameFormatted}</span>
+                                <div class="setting-prices-monthly-name-col min-w-0">
+                                    <span id="${uid}" class="user-name setting-prices-monthly-name-host d-block min-w-0 w-100">${nameHtml}</span>
                                 </div>
-                                ${checkColHtml}
+                                <div class="setting-prices-monthly-package flex-shrink-0">
+                                    <select class="form-select form-select-sm setting-prices-monthly-package-select"
+                                        ${packageSelectDisabled}
+                                        aria-label="Абонемент">
+                                        ${buildPackageSelectOptions(packageId)}
+                                    </select>
+                                </div>
                                 <div class="setting-prices-monthly-price flex-shrink-0">
-                                    <input type="number" class="form-control form-control-sm setting-prices-monthly-price-input" value="${up.price}" ${inputDisabled} aria-label="Цена">
+                                    <input type="number" step="0.01" min="0"
+                                        class="form-control form-control-sm setting-prices-monthly-price-input"
+                                        value="${escapeAttr(formatPriceValue(up.price))}"
+                                        ${priceInputDisabled}
+                                        aria-label="Цена">
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
@@ -217,10 +319,59 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.querySelector('#right_bar .btn-setting-prices').removeAttribute('disabled');
 
-        if (typeof window.initManualPaidBadgeTooltips === 'function') {
-            window.initManualPaidBadgeTooltips(rightBar.get(0));
-        }
+        // После layout — корректно измерить overflow для KidsCrmTooltip (ellipsis только при обрезке).
+        requestAnimationFrame(function () {
+            if (!rightBarEl || !window.KidsCrmTooltip) {
+                return;
+            }
+            window.KidsCrmTooltip.init(rightBarEl, { scopes: ['text', 'manualPaid'] });
+        });
     }
+
+    $(document).on('change', '#right_bar .wrap-users .setting-prices-monthly-package-select', function () {
+        const $select = $(this);
+        const $card = $select.closest('.setting-prices-user-card');
+        const uid = $card.attr('data-user-id');
+        const pkg = findLessonPackage($select.val());
+        const $priceInput = $card.find('.setting-prices-monthly-price-input');
+
+        if (pkg) {
+            $priceInput.val(formatPriceValue(pkg.price));
+        }
+
+        // Сразу фиксируем выбор в состоянии — иначе карандаш перерисует строку из старых данных БД.
+        if (uid) {
+            const idx = usersPrice.findIndex(function (u) {
+                return String(u.user_id) === String(uid);
+            });
+            if (idx >= 0) {
+                const pkgVal = $select.val();
+                usersPrice[idx].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
+                usersPrice[idx].price = $priceInput.val();
+            }
+        }
+
+        // Вне режима редактирования сумму снова блокируем (выбор абонемента подставляет цену сам).
+        // В режиме карандаша оставляем поле доступным для ручной правки.
+        const inEditMode = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === String(uid);
+        if (!inEditMode && lastCanManageManualPaid) {
+            $priceInput.prop('disabled', true);
+        }
+    });
+
+    $(document).on('input change', '#right_bar .wrap-users .setting-prices-monthly-price-input', function () {
+        const $input = $(this);
+        const uid = $input.closest('.setting-prices-user-card').attr('data-user-id');
+        if (!uid) {
+            return;
+        }
+        const idx = usersPrice.findIndex(function (u) {
+            return String(u.user_id) === String(uid);
+        });
+        if (idx >= 0) {
+            usersPrice[idx].price = $input.val();
+        }
+    });
 
     $(document).on('click', '#right_bar .wrap-users .user-price-manual-edit', function (e) {
         e.preventDefault();
@@ -230,14 +381,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        syncUsersPriceFromDom();
+
         if (String(editingMonthlyUserId) === String(uid)) {
             editingMonthlyUserId = null;
-            renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
-            return;
-        }
-
-        if (editingMonthlyUserId) {
-            editingMonthlyUserId = uid;
             renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
             return;
         }
@@ -248,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $(document).on('click', '#right_bar .wrap-users .user-price-edit-cancel', function (e) {
         e.preventDefault();
+        syncUsersPriceFromDom();
         editingMonthlyUserId = null;
         renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
     });
@@ -330,6 +478,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     success: function (response) {
                         if (response.success) {
                             usersPrice = response.usersPrice;
+                            lastLessonPackages = Array.isArray(response.lessonPackages)
+                                ? response.lessonPackages
+                                : [];
                             const usersTeam = response.usersTeam;
                             const canManage = !!response.can_manage_manual_paid;
                             renderUsersRightColumn(usersTeam, usersPrice, canManage);
@@ -450,9 +601,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         for (let j = 0; j < userRows.length; j++) {
                             let userId = userRows[j].getAttribute('data-user-id');
                             let priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
+                            let packageSelect = userRows[j].querySelector('.setting-prices-monthly-package-select');
                             let price = priceInput ? priceInput.value : null;
                             if (price !== null && String(usersPriceLocal[i].user_id) === String(userId)) {
                                 usersPriceLocal[i].price = price;
+                                const pkgVal = packageSelect ? packageSelect.value : '';
+                                usersPriceLocal[i].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
                             }
                         }
                     }
@@ -478,6 +632,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }),
                     success: function (response) {
                         usersPrice = response.usersPrice;
+                        if (Array.isArray(response.lessonPackages)) {
+                            lastLessonPackages = response.lessonPackages;
+                        }
 
                         document.querySelector('#set-price-all-users').removeAttribute('disabled');
 
@@ -496,6 +653,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                     error: function (xhr, status, error) {
                         console.log('Error:', error);
+                        let msg = 'Не удалось сохранить цены.';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.message) {
+                                msg = xhr.responseJSON.message;
+                            }
+                            const errs = xhr.responseJSON.errors;
+                            if (errs) {
+                                const firstKey = Object.keys(errs)[0];
+                                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                    msg = errs[firstKey][0];
+                                }
+                            }
+                        }
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Ошибка', msg);
+                        } else {
+                            alert(msg);
+                        }
                     }
                 });
             }

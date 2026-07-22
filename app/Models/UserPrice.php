@@ -14,11 +14,12 @@ class UserPrice extends Model
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
     protected $casts = [
-        'is_paid'         => 'boolean',
-        'is_manual_paid'  => 'boolean',
-        'manual_paid_at'  => 'datetime',
-        'manual_paid_by'  => 'integer',
-        'team_id'         => 'integer',
+        'is_paid'            => 'boolean',
+        'is_manual_paid'     => 'boolean',
+        'manual_paid_at'     => 'datetime',
+        'manual_paid_by'     => 'integer',
+        'team_id'            => 'integer',
+        'lesson_package_id'  => 'integer',
     ];
 
     protected $appends = [
@@ -33,6 +34,11 @@ class UserPrice extends Model
     public function team()
     {
         return $this->belongsTo(Team::class);
+    }
+
+    public function lessonPackage()
+    {
+        return $this->belongsTo(LessonPackage::class, 'lesson_package_id');
     }
 
     public function manualPaidBy()

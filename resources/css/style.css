@@ -449,25 +449,40 @@ footer .social-networks {
 
 }
 
-/* Установка цен: одна строка — ФИО (trunc), цена, шильдик, иконки (вкладка «по месяцам», #right_bar) */
+/* Установка цен: одна строка — ФИО (trunc + title), абонемент, цена, галочка, карандаш */
 #right_bar .wrap-users .setting-prices-monthly-row {
     min-width: 0;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-name-col {
-    min-width: 0;
-}
-
-#right_bar .wrap-users .setting-prices-monthly-name-text {
-    display: block;
     flex: 1 1 0;
-    min-width: 0;
-    font-size: 13px;
+    min-width: 5rem;
+    max-width: 100%;
 }
 
-#right_bar .wrap-users .setting-prices-monthly-check {
-    width: 1.1rem;
-    flex: 0 0 1.1rem;
+#right_bar .wrap-users .setting-prices-monthly-name-host {
+    min-width: 0;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-name-host .dt-cell-ellipsis {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-package {
+    flex: 0 0 6.25rem;
+    width: 6.25rem;
+    min-width: 5.5rem;
+    max-width: 6.25rem;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-package-select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding-left: 0.35rem;
+    padding-right: 1.5rem;
+    font-size: 0.8rem;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-price-input {
@@ -479,26 +494,36 @@ footer .social-networks {
     text-align: right;
 }
 
-/* Фиксированная ширина под «Не оплачено», чтобы инпуты выстраивались в одну колонку */
+/* Фиксированная ширина под иконку оплаты (галочка / пусто) */
 #right_bar .wrap-users .setting-prices-monthly-badge-wrap {
-    flex: 0 0 6rem;
-    width: 6rem;
-    min-width: 6rem;
-    max-width: 6rem;
+    flex: 0 0 1.25rem;
+    width: 1.25rem;
+    min-width: 1.25rem;
+    max-width: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
 }
 
-#right_bar .wrap-users .setting-prices-monthly-badge-wrap .badge {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: middle;
+#right_bar .wrap-users .setting-prices-monthly-paid-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+    color: #00cb00;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-paid-empty {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-badge-wrap .user-manual-info-icon {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.55rem;
     font-size: 0.7rem;
-    line-height: 1.2;
-    padding: 0.28em 0.45em;
+    color: #6c757d;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-edit-wrap {
@@ -1464,6 +1489,30 @@ a.disabled {
 #left_bar .wrap-team {
     text-align: left;
     align-items: center;
+}
+
+#left_bar .setting-prices-team-row {
+    min-width: 0;
+}
+
+#left_bar .setting-prices-team-name-col {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+#left_bar .setting-prices-team-name-col .dt-cell-ellipsis {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#left_bar .setting-prices-team-price-col {
+    flex: 0 0 auto;
+    padding: 0;
+}
+
+#left_bar .setting-prices-team-buttons-col {
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 #left_bar .wrap-team .team-buttons {

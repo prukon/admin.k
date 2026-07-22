@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\SetManualUserPricePaidRequest;
+use App\Http\Requests\Admin\SetPriceAllUsersRequest;
 use App\Http\Requests\Team\FilterRequest;
 use App\Enums\AuditEvent;
+use App\Models\LessonPackage;
 use App\Models\Partner;
 use App\Models\Setting;
 use App\Models\Team;
@@ -528,16 +530,45 @@ class SettingPricesController extends AdminBaseController
             $usersPrice[] = $userPrice;
         }
 
+        $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
+
         if ($usersTeam->count() > 0) {
             return response()->json([
                 'success'                  => true,
                 'usersTeam'                => $usersTeam,
                 'usersPrice'               => $usersPrice,
+                'lessonPackages'           => $lessonPackages,
                 'can_manage_manual_paid'   => $request->user()->can('setPrices.manualPaid.manage'),
             ]);
         }
 
-        return response()->json(['success' => false]);
+        return response()->json([
+            'success'        => false,
+            'lessonPackages' => $lessonPackages,
+        ]);
+    }
+
+    /**
+     * Шаблоны абонементов партнёра для select на вкладке «по месяцам».
+     *
+     * @return list<array{id: int, name: string, price: float}>
+     */
+    protected function lessonPackagesForPartnerSelect(int $partnerId): array
+    {
+        return LessonPackage::query()
+            ->where('partner_id', $partnerId)
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'price_cents'])
+            ->map(static function (LessonPackage $package): array {
+                return [
+                    'id' => (int) $package->id,
+                    'name' => (string) $package->name,
+                    'price' => round(((int) $package->price_cents) / 100, 2),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -970,96 +1001,117 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
-    public function setPriceAllUsers(Request $request)
-{
-    $partnerId = $this->requirePartnerId();
+    public function setPriceAllUsers(SetPriceAllUsersRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
 
-    // Получаем JSON-содержимое запроса и декодируем его
-    $data = json_decode($request->getContent(), true);
+        $selectedDateString = $data['selectedDate'];
+        $usersPrice = $data['usersPrice'];
+        $teamId = (int) $data['teamId'];
 
-    // Проверяем, что данные переданы корректно
-    $selectedDate = $data['selectedDate'] ?? null;
-    $usersPrice   = $data['usersPrice']   ?? null;
-    $teamId       = isset($data['teamId']) ? (int) $data['teamId'] : 0;
-
-    // Проверка данных
-    if (is_null($usersPrice) || !is_array($usersPrice)) {
-        return response()->json(['error' => 'Некорректные данные'], 400);
-    }
-
-    if ($teamId <= 0) {
-        return response()->json(['error' => 'Не указана группа'], 400);
-    }
-
-    $team = $this->findPartnerTeam($teamId, $partnerId);
-    if (! $team) {
-        return response()->json(['error' => 'Группа не найдена'], 404);
-    }
-
-    $authorId           = auth()->id(); // Авторизованный пользователь
-    $selectedDateString = $selectedDate;
-    $selectedDate       = $this->formatedDate($selectedDate); // 'Сентябрь 2024' -> '2024-09-01'
-
-    DB::transaction(function () use ($selectedDate, $authorId, $selectedDateString, $usersPrice, $teamId, $team, $partnerId) {
-        foreach ($usersPrice as $priceData) {
-            $userId = $priceData['user_id'] ?? null;
-            if (!$userId) {
-                continue;
-            }
-
-            $user = $this->findPartnerStudent((int) $userId, $partnerId);
-            if (! $user || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
-                continue;
-            }
-
-            /** @var UserPrice|null $userPriceRecord */
-            $userPriceRecord = UserPrice::where('user_id', $userId)
-                ->where('team_id', $teamId)
-                ->where('new_month', $selectedDate)
-                ->first();
-
-            // 1) Нет записи — не создаём новую (по тесту set_price_all_users_does_not_create_new_records_or_touch_absent_users)
-            if (!$userPriceRecord) {
-                continue;
-            }
-
-            // 2) Если оплачено — не трогаем
-            if ($userPriceRecord->is_paid) {
-                continue;
-            }
-
-            $newPrice = (int)($priceData['price'] ?? 0);
-
-            // 3) Меняем только если цена реально изменилась
-            if ((int)$userPriceRecord->price === $newPrice) {
-                continue;
-            }
-
-            // Обновляем цену
-            $userPriceRecord->update([
-                'price' => $newPrice,
-            ]);
-
-            // Имя для лога — из payload (как в тестах)
-            $userName = $priceData['user']['name'] ?? 'Неизвестный пользователь';
-
-            // ПРИМЕНИТЬ справа. Установка цен всем ученикам
-            $this->auditLogger->record(
-                AuditEvent::PricingStudentApply,
-                AuditContext::make("Обновлена цена: {$newPrice} руб. Период: {$selectedDateString}. Группа: {$team->title}.")
-                    ->withUserId($userId)
-                    ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
-                    ->withCreatedAt(now())
-            );
+        $team = $this->findPartnerTeam($teamId, $partnerId);
+        if (! $team) {
+            return response()->json(['error' => 'Группа не найдена'], 404);
         }
-    });
 
-    return response()->json([
-        'success'      => true,
-        'usersPrice'   => $usersPrice,
-        'selectedDate' => $selectedDate,
-    ]);
-}
+        $selectedDate = $this->formatedDate($selectedDateString);
+
+        DB::transaction(function () use ($selectedDate, $selectedDateString, $usersPrice, $teamId, $team, $partnerId) {
+            foreach ($usersPrice as $priceData) {
+                $userId = (int) ($priceData['user_id'] ?? 0);
+                if ($userId <= 0) {
+                    continue;
+                }
+
+                $user = $this->findPartnerStudent($userId, $partnerId);
+                if (! $user || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+                    continue;
+                }
+
+                /** @var UserPrice|null $userPriceRecord */
+                $userPriceRecord = UserPrice::where('user_id', $userId)
+                    ->where('team_id', $teamId)
+                    ->where('new_month', $selectedDate)
+                    ->first();
+
+                // Нет записи — не создаём (обратная совместимость тестов и UX «Подробно» → firstOrCreate)
+                if (! $userPriceRecord) {
+                    continue;
+                }
+
+                if ($userPriceRecord->is_paid) {
+                    continue;
+                }
+
+                $newPrice = round((float) ($priceData['price'] ?? 0), 2);
+
+                // lesson_package_id: если ключ не передан — не трогаем существующую ссылку (старые клиенты)
+                $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
+                $newPackageId = $packageKeyPresent
+                    ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
+                    : ($userPriceRecord->lesson_package_id !== null ? (int) $userPriceRecord->lesson_package_id : null);
+
+                $priceChanged = abs((float) $userPriceRecord->price - $newPrice) >= 0.005;
+                $packageChanged = $packageKeyPresent
+                    && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) ($newPackageId ?? 0);
+
+                if (! $priceChanged && ! $packageChanged) {
+                    continue;
+                }
+
+                $payload = [];
+                if ($priceChanged) {
+                    $payload['price'] = $newPrice;
+                }
+                if ($packageKeyPresent) {
+                    $payload['lesson_package_id'] = $newPackageId;
+                }
+
+                if ($payload === []) {
+                    continue;
+                }
+
+                $userPriceRecord->update($payload);
+
+                $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+                $packageNote = $newPackageId
+                    ? " Абонемент #{$newPackageId}."
+                    : '';
+
+                $this->auditLogger->record(
+                    AuditEvent::PricingStudentApply,
+                    AuditContext::make(
+                        "Обновлена цена: {$newPrice} руб.{$packageNote} Период: {$selectedDateString}. Группа: {$team->title}."
+                    )
+                        ->withUserId($userId)
+                        ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                        ->withCreatedAt(now())
+                );
+            }
+        });
+
+        $userIds = collect($usersPrice)
+            ->pluck('user_id')
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $freshUsersPrice = UserPrice::query()
+            ->where('team_id', $teamId)
+            ->where('new_month', $selectedDate)
+            ->whereIn('user_id', $userIds)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'usersPrice' => $freshUsersPrice,
+            'selectedDate' => $selectedDate,
+            'lessonPackages' => $this->lessonPackagesForPartnerSelect($partnerId),
+        ]);
+    }
 
     /**
      * AJAX: получить цены конкретного ученика по месяцам за год (вкладка "по ученикам")

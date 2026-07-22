@@ -97,6 +97,7 @@ class SettingPricesTest extends CrmTestCase
                 'success',
                 'usersTeam',
                 'usersPrice',
+                'lessonPackages',
                 'can_manage_manual_paid',
             ]);
 
@@ -960,27 +961,23 @@ class SettingPricesTest extends CrmTestCase
     }
 
     /** @test */
-    public function set_price_all_users_returns_400_on_invalid_payload()
+    public function set_price_all_users_returns_422_on_invalid_payload()
     {
         $this->asAdmin();
 
         // usersPrice = null
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => 1,
             'usersPrice'   => null,
-        ])->assertStatus(400)
-            ->assertJson([
-                'error' => 'Некорректные данные',
-            ]);
+        ])->assertStatus(422);
 
         // usersPrice не массив
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
+            'teamId'       => 1,
             'usersPrice'   => 'not-array',
-        ])->assertStatus(400)
-            ->assertJson([
-                'error' => 'Некорректные данные',
-            ]);
+        ])->assertStatus(422);
     }
 
     /** @test */

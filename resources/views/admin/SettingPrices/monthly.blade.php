@@ -60,16 +60,20 @@
                     @foreach($allTeams as $idx => $team)
                         @php
                             $price = optional($teamPrices->get($team->id))->price ?? 0;
+                            $teamLabel = ($idx + 1) . '. ' . $team->title;
                         @endphp
 
-                        <div id="{{ $team->id }}" class="row mb-2 wrap-team">
-                            <div class="team-name col-4">
-                                {{ ($idx + 1) . '. ' . $team->title }}
+                        <div id="{{ $team->id }}" class="mb-2 wrap-team setting-prices-team-row d-flex align-items-center flex-nowrap gap-1 gap-md-2 min-w-0 w-100">
+                            <div class="team-name setting-prices-team-name-col min-w-0">
+                                <span class="dt-cell-ellipsis js-dt-cell-ellipsis-tooltip"
+                                      data-dt-ellipsis-title="{{ e($teamLabel) }}"
+                                      tabindex="0"
+                                      aria-label="{{ e($teamLabel) }}">{{ $teamLabel }}</span>
                             </div>
-                            <div class="team-price col-3">
+                            <div class="team-price setting-prices-team-price-col flex-shrink-0">
                                 <input type="number" value="{{ $price }}">
                             </div>
-                            <div class="team-buttons col-5 d-flex">
+                            <div class="team-buttons setting-prices-team-buttons-col flex-shrink-0 d-flex align-items-center">
                                 <input class="ok btn btn-primary mr-2" type="button" value="ok">
                                 <input class="detail btn btn-primary" type="button" value="Подробно">
                             </div>
