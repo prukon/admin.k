@@ -245,4 +245,141 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
             'lesson_package_id' => $other->id,
         ]);
     }
+
+    public function test_get_team_price_returns_lesson_package_id_on_user_price_rows(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 4500,
+            'is_paid' => 0,
+            'lesson_package_id' => $this->package->id,
+        ]);
+
+        $response = $this->postJson(route('getTeamPrice'), [
+            'teamId' => $this->team->id,
+            'selectedDate' => 'Сентябрь 2024',
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $row = collect($response->json('usersPrice'))
+            ->firstWhere('user_id', $this->student->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame((int) $this->package->id, (int) $row['lesson_package_id']);
+        $this->assertSame(4500.0, (float) $row['price']);
+    }
+
+    public function test_set_price_all_users_skips_paid_and_does_not_create_missing_rows(): void
+    {
+        $paid = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $this->team->id,
+            'is_enabled' => true,
+        ]);
+        $missingRow = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $this->team->id,
+            'is_enabled' => true,
+        ]);
+
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 1000,
+            'is_paid' => 0,
+        ]);
+        UserPrice::forceCreate([
+            'user_id' => $paid->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 2000,
+            'is_paid' => 1,
+        ]);
+
+        $this->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Сентябрь 2024',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                [
+                    'user_id' => $this->student->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $this->student->name],
+                ],
+                [
+                    'user_id' => $paid->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $paid->name],
+                ],
+                [
+                    'user_id' => $missingRow->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $missingRow->name],
+                ],
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 4500,
+            'lesson_package_id' => $this->package->id,
+        ]);
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $paid->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 2000,
+            'is_paid' => 1,
+        ]);
+        $this->assertDatabaseMissing('users_prices', [
+            'user_id' => $missingRow->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+        ]);
+    }
+
+    public function test_set_price_all_users_ajax_contract_includes_updated_entity(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2024-09-01',
+            'price' => 1000,
+            'is_paid' => 0,
+        ]);
+
+        $response = $this->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Сентябрь 2024',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                [
+                    'user_id' => $this->student->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $this->student->name],
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure([
+                'success',
+                'usersPrice',
+                'selectedDate',
+                'lessonPackages',
+            ]);
+
+        $row = collect($response->json('usersPrice'))
+            ->firstWhere('user_id', $this->student->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame((int) $this->package->id, (int) $row['lesson_package_id']);
+        $this->assertSame(4500.0, (float) $row['price']);
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
@@ -284,10 +285,14 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
     {
         $this->asAdmin();
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 180000,
+        ]);
+
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $this->teamA->id,
-            'teamPrice'    => 1800,
-            'selectedDate' => 'Ноябрь 2024',
+            'teamId'            => $this->teamA->id,
+            'lesson_package_id' => $package->id,
+            'selectedDate'      => 'Ноябрь 2024',
         ])
             ->assertOk()
             ->assertJsonPath('success', true);

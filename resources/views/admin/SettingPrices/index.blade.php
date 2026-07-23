@@ -32,6 +32,7 @@
                         'teamPrices' => $teamPrices,
                         'allTeams' => $allTeams,
                         'monthString' => $monthString,
+                        'lessonPackages' => $lessonPackages ?? [],
                     ])
                 @elseif($activeTab === 'users')
                     @include('admin.SettingPrices.users', [

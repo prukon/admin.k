@@ -9,12 +9,22 @@ class TeamPrice extends Model
 {
     use HasFactory;
 
-    protected $table = 'team_prices'; //явное указание к какой таблице в БД привязана модель
-    protected $guarded = []; //разрешение на изменение данных в таблице}
+    protected $table = 'team_prices';
 
+    protected $guarded = [];
+
+    protected $casts = [
+        'team_id' => 'integer',
+        'lesson_package_id' => 'integer',
+    ];
 
     public function team()
     {
         return $this->belongsTo(Team::class, 'team_id', 'id');
+    }
+
+    public function lessonPackage()
+    {
+        return $this->belongsTo(LessonPackage::class, 'lesson_package_id');
     }
 }

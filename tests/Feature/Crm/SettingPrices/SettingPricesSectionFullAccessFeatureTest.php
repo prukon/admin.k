@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Crm\SettingPrices;
 
+use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
@@ -18,6 +19,8 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
     private Team $team;
 
     private User $student;
+
+    private LessonPackage $lessonPackage;
 
     protected function setUp(): void
     {
@@ -47,6 +50,10 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             'new_month' => '2024-09-01',
             'price'     => 1000,
             'is_paid'   => 0,
+        ]);
+
+        $this->lessonPackage = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 100000,
         ]);
     }
 
@@ -236,11 +243,18 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                 'can_manage_manual_paid',
             ]);
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+        $packageBulk = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 160000,
+        ]);
+
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('setTeamPrice'), [
-                'teamId'       => $this->team->id,
-                'teamPrice'    => 1500,
-                'selectedDate' => 'Сентябрь 2024',
+                'teamId'            => $this->team->id,
+                'lesson_package_id' => $package->id,
+                'selectedDate'      => 'Сентябрь 2024',
             ])
             ->assertOk()
             ->assertJsonPath('success', true);
@@ -249,7 +263,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             ->postJson(route('setPriceAllTeams'), [
                 'selectedDate' => 'Сентябрь 2024',
                 'teamsData'    => [
-                    ['teamId' => $this->team->id, 'price' => 1600],
+                    ['teamId' => $this->team->id, 'lesson_package_id' => $packageBulk->id],
                 ],
             ])
             ->assertOk()
@@ -338,9 +352,9 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                 'method' => 'POST',
                 'url'    => route('setTeamPrice'),
                 'data'   => [
-                    'teamId'       => $this->team->id,
-                    'teamPrice'    => 1000,
-                    'selectedDate' => 'Сентябрь 2024',
+                    'teamId'            => $this->team->id,
+                    'lesson_package_id' => $this->lessonPackage->id,
+                    'selectedDate'      => 'Сентябрь 2024',
                 ],
             ],
             [
@@ -349,7 +363,10 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                 'data'   => [
                     'selectedDate' => 'Сентябрь 2024',
                     'teamsData'    => [
-                        ['teamId' => $this->team->id, 'price' => 1000],
+                        [
+                            'teamId'            => $this->team->id,
+                            'lesson_package_id' => $this->lessonPackage->id,
+                        ],
                     ],
                 ],
             ],

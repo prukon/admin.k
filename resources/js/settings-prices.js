@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (leftBar && window.KidsCrmTooltip) {
             window.KidsCrmTooltip.init(leftBar, { scopes: ['text'] });
         }
+        initTeamPackageRows();
     });
 
     let usersPrice = [];
@@ -24,6 +25,166 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastLessonPackages = [];
     /** @type {string|null} */
     let editingMonthlyUserId = null;
+
+    function disposeTeamOkTooltip(okBtn) {
+        if (!okBtn || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
+            return;
+        }
+        const existing = bootstrap.Tooltip.getInstance(okBtn);
+        if (existing) {
+            existing.dispose();
+        }
+        // На случай, если tip ещё в DOM после dispose
+        document.querySelectorAll('.tooltip.show').forEach(function (tipEl) {
+            if (tipEl.id && okBtn.getAttribute('aria-describedby') === tipEl.id) {
+                tipEl.remove();
+            }
+        });
+        okBtn.removeAttribute('aria-describedby');
+    }
+
+    function syncTeamOkDisabledHint(okBtn, isDisabled) {
+        if (!okBtn) {
+            return;
+        }
+
+        // Сначала снимаем Bootstrap Tooltip, иначе после удаления attrs dispose его не найдёт.
+        disposeTeamOkTooltip(okBtn);
+
+        // Не используем native disabled — иначе нет hover/tooltip.
+        okBtn.disabled = false;
+        okBtn.classList.remove('disabled');
+
+        if (isDisabled) {
+            okBtn.setAttribute('aria-disabled', 'true');
+            okBtn.classList.add('is-visually-disabled');
+            okBtn.setAttribute('title', 'Выберите абонемент');
+            okBtn.setAttribute('data-kids-tooltip-hint', '1');
+            okBtn.setAttribute('data-bs-toggle', 'tooltip');
+            okBtn.setAttribute('data-bs-placement', 'top');
+            okBtn.setAttribute('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+            return;
+        }
+
+        okBtn.removeAttribute('aria-disabled');
+        okBtn.classList.remove('is-visually-disabled');
+        okBtn.removeAttribute('title');
+        okBtn.removeAttribute('data-kids-tooltip-hint');
+        okBtn.removeAttribute('data-bs-toggle');
+        okBtn.removeAttribute('data-bs-placement');
+        okBtn.removeAttribute('data-bs-custom-class');
+    }
+
+    function refreshTeamOkTooltips() {
+        const leftBar = document.getElementById('left_bar');
+        if (!leftBar || !window.KidsCrmTooltip) {
+            return;
+        }
+        // dispose только по селектору hint; инстансы без attrs уже сняты в syncTeamOkDisabledHint
+        window.KidsCrmTooltip.dispose(leftBar, { scopes: ['hint'] });
+        window.KidsCrmTooltip.init(leftBar, { scopes: ['hint'] });
+    }
+
+    function isTeamOkDisabled(okBtn) {
+        if (!okBtn) {
+            return true;
+        }
+        return okBtn.getAttribute('aria-disabled') === 'true' || !!okBtn.disabled;
+    }
+
+    function syncTeamRowPackageUi(rowEl) {
+        if (!rowEl) {
+            return;
+        }
+        const select = rowEl.querySelector('.setting-prices-team-package-select');
+        const priceEl = rowEl.querySelector('.setting-prices-team-price-value');
+        const okBtn = rowEl.querySelector('.ok');
+        if (!select || !priceEl) {
+            return;
+        }
+
+        const pkgVal = select.value;
+        const selectedOpt = select.options[select.selectedIndex];
+        const legacyPrice = rowEl.getAttribute('data-legacy-price');
+
+        if (pkgVal && selectedOpt) {
+            const pkgPrice = selectedOpt.getAttribute('data-price');
+            priceEl.textContent = formatPriceValue(pkgPrice);
+            priceEl.setAttribute('data-price', String(pkgPrice != null ? pkgPrice : ''));
+            syncTeamOkDisabledHint(okBtn, false);
+        } else {
+            priceEl.textContent = formatPriceValue(legacyPrice);
+            priceEl.setAttribute('data-price', String(legacyPrice != null ? legacyPrice : '0'));
+            syncTeamOkDisabledHint(okBtn, true);
+        }
+    }
+
+    function initTeamPackageRows() {
+        document.querySelectorAll('#left_bar .wrap-team').forEach(function (rowEl) {
+            syncTeamRowPackageUi(rowEl);
+        });
+        syncSetPriceAllTeamsButton();
+        refreshTeamOkTooltips();
+    }
+
+    function syncSetPriceAllTeamsButton() {
+        const btn = document.getElementById('set-price-all-teams');
+        if (!btn) {
+            return;
+        }
+        let hasAny = false;
+        document.querySelectorAll('#left_bar .setting-prices-team-package-select').forEach(function (sel) {
+            if (sel.value) {
+                hasAny = true;
+            }
+        });
+        btn.disabled = !hasAny;
+    }
+
+    function loadTeamUsersRightColumn(teamId) {
+        if (!teamId) {
+            return;
+        }
+        const selectedDate = getSelectedMonthLabel();
+        const applyBtn = document.querySelector('#right_bar .btn-setting-prices');
+        if (applyBtn) {
+            applyBtn.setAttribute('disabled', 'disabled');
+        }
+        editingMonthlyUserId = null;
+
+        const csrf = $('meta[name="csrf-token"]').attr('content');
+        $.ajax({
+            url: '/admin/setting-prices/get-team-price',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+            },
+            data: JSON.stringify({
+                teamId: teamId,
+                selectedDate: selectedDate
+            }),
+            success: function (response) {
+                if (response.success) {
+                    usersPrice = response.usersPrice;
+                    lastLessonPackages = Array.isArray(response.lessonPackages)
+                        ? response.lessonPackages
+                        : [];
+                    lastTeamId = String(teamId);
+                    const usersTeam = response.usersTeam;
+                    const canManage = !!response.can_manage_manual_paid;
+                    renderUsersRightColumn(usersTeam, usersPrice, canManage);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('Ошибка: ' + error);
+                console.error('Статус: ' + status);
+                console.dir(xhr);
+            }
+        });
+    }
 
     function escapeAttr(s) {
         if (s == null || s === '') {
@@ -93,6 +254,21 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('#left_bar .wrap-team').forEach(function (el) {
             el.classList.remove('wrap-team--active');
         });
+    }
+
+    /**
+     * Открыть группу справа (клик по строке слева).
+     * @param {HTMLElement|null} rowEl
+     */
+    function openTeamDetail(rowEl) {
+        if (!rowEl) {
+            return;
+        }
+
+        clearTeamRowHighlight();
+        rowEl.classList.add('wrap-team--active');
+        lastTeamId = rowEl.id || null;
+        loadTeamUsersRightColumn(rowEl.id);
     }
 
     function effectivePaidFromUserPrice(row) {
@@ -439,127 +615,135 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     });
 
-    const detailButtons = document.querySelectorAll('#left_bar .detail');
-    for (let i = 0; i < detailButtons.length; i++) {
-        let button = detailButtons[i];
-        button.addEventListener('click', function () {
+    $(document).on('change', '#left_bar .setting-prices-team-package-select', function () {
+        const rowEl = this.closest('.wrap-team');
+        syncTeamRowPackageUi(rowEl);
+        syncSetPriceAllTeamsButton();
+        refreshTeamOkTooltips();
+    });
 
-            const parentDiv = this.closest('.wrap-team');
-
-            detailButtons.forEach(btn => btn.classList.remove('action-button'));
-            clearTeamRowHighlight();
-
-            button.classList.add('action-button');
-            if (parentDiv) {
-                parentDiv.classList.add('wrap-team--active');
+    document.querySelectorAll('#left_bar .wrap-team').forEach(function (rowEl) {
+        rowEl.addEventListener('click', function (e) {
+            if (e.target.closest('select, input, button, .ok, label, a')) {
+                return;
             }
-
-            const selectedDate = getSelectedMonthLabel();
-            document.querySelector('#right_bar .btn-setting-prices').setAttribute('disabled', 'disabled');
-            editingMonthlyUserId = null;
-
-            const csrf = $('meta[name="csrf-token"]').attr('content');
-            if (parentDiv) {
-                lastTeamId = parentDiv.id || null;
-
-                $.ajax({
-                    url: '/admin/setting-prices/get-team-price',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    dataType: 'json',
-                    headers: {
-                        'X-CSRF-TOKEN': csrf,
-                        'Accept': 'application/json',
-                    },
-                    data: JSON.stringify({
-                        teamId: parentDiv.id,
-                        selectedDate: selectedDate
-                    }),
-                    success: function (response) {
-                        if (response.success) {
-                            usersPrice = response.usersPrice;
-                            lastLessonPackages = Array.isArray(response.lessonPackages)
-                                ? response.lessonPackages
-                                : [];
-                            const usersTeam = response.usersTeam;
-                            const canManage = !!response.can_manage_manual_paid;
-                            renderUsersRightColumn(usersTeam, usersPrice, canManage);
-                        }
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Ошибка: ' + error);
-                        console.error('Статус: ' + status);
-                        console.dir(xhr);
-                    }
-                });
-            }
+            openTeamDetail(rowEl);
         });
-    }
+    });
 
     const okButtons = document.querySelectorAll('#left_bar .ok');
     for (let i = 0; i < okButtons.length; i++) {
         let button = okButtons[i];
-        button.addEventListener('click', function () {
+        button.addEventListener('click', function (e) {
+            e.stopPropagation();
             const parentDiv = this.closest('.wrap-team');
-            const teamPriceInput = parentDiv.querySelector('.team-price input');
-            const teamPrice = teamPriceInput.value;
+            if (!parentDiv || isTeamOkDisabled(button)) {
+                return;
+            }
+
+            const packageSelect = parentDiv.querySelector('.setting-prices-team-package-select');
+            const packageId = packageSelect ? packageSelect.value : '';
+            if (!packageId) {
+                return;
+            }
+
             const selectedDate = getSelectedMonthLabel();
+            const priceEl = parentDiv.querySelector('.setting-prices-team-price-value');
 
-            teamPriceInput.classList.remove('animated-input');
+            if (priceEl) {
+                priceEl.classList.remove('animated-input');
+            }
 
-            if (parentDiv) {
-                showConfirmDeleteModal(
-                    'Подтвердите действие',
-                    'Вы действительно хотите установить цену для этой команды?',
-                    function () {
-                        const csrf = $('meta[name="csrf-token"]').attr('content');
-                        $.ajax({
-                            url: '/admin/setting-prices/set-team-price',
-                            method: 'POST',
-                            contentType: 'application/json',
-                            headers: {
-                                'X-CSRF-TOKEN': csrf,
-                                'Accept': 'application/json',
-                            },
-                            data: JSON.stringify({
-                                teamId: parentDiv.id,
-                                teamPrice: teamPrice,
-                                selectedDate: selectedDate,
-                            }),
-                            success: function (response) {
-                                if (response.success) {
-                                    teamPriceInput.classList.add('animated-input');
+            showConfirmDeleteModal(
+                'Подтвердите действие',
+                'Вы действительно хотите установить абонемент для этой группы?',
+                function () {
+                    const csrf = $('meta[name="csrf-token"]').attr('content');
+                    $.ajax({
+                        url: '/admin/setting-prices/set-team-price',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        headers: {
+                            'X-CSRF-TOKEN': csrf,
+                            'Accept': 'application/json',
+                        },
+                        data: JSON.stringify({
+                            teamId: parentDiv.id,
+                            lesson_package_id: parseInt(packageId, 10),
+                            selectedDate: selectedDate,
+                        }),
+                        success: function (response) {
+                            if (response.success) {
+                                if (typeof response.teamPrice !== 'undefined') {
+                                    parentDiv.setAttribute('data-legacy-price', String(response.teamPrice));
+                                    if (priceEl) {
+                                        priceEl.textContent = formatPriceValue(response.teamPrice);
+                                        priceEl.setAttribute('data-price', String(response.teamPrice));
+                                        priceEl.classList.add('animated-input');
+                                    }
+                                }
+                                if (String(lastTeamId) === String(parentDiv.id)) {
+                                    loadTeamUsersRightColumn(parentDiv.id);
                                 }
                             }
-                        });
-                    }
-                );
-            }
+                        },
+                        error: function (xhr) {
+                            let msg = 'Не удалось установить абонемент для группы.';
+                            if (xhr.responseJSON) {
+                                if (xhr.responseJSON.message) {
+                                    msg = xhr.responseJSON.message;
+                                }
+                                const errs = xhr.responseJSON.errors;
+                                if (errs) {
+                                    const firstKey = Object.keys(errs)[0];
+                                    if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                        msg = errs[firstKey][0];
+                                    }
+                                }
+                            }
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal('Ошибка', msg);
+                            } else {
+                                alert(msg);
+                            }
+                        }
+                    });
+                }
+            );
         });
     }
 
     $('.set-price-all-teams').on('click', function () {
+        if (this.disabled) {
+            return;
+        }
+
         showConfirmDeleteModal(
-            "Установка цена всем группам",
+            "Установка тарифов всем группам",
             "Вы уверены, что хотите применить изменения?", function () {
                 const selectedDate = getSelectedMonthLabel();
-
-                document.querySelector('#set-price-all-teams').setAttribute('disabled', 'disabled');
+                const applyBtn = document.querySelector('#set-price-all-teams');
+                if (applyBtn) {
+                    applyBtn.setAttribute('disabled', 'disabled');
+                }
 
                 let teamsData = [];
                 document.querySelectorAll('#left_bar .wrap-team').forEach(function (teamElement) {
-                    let teamName = teamElement.querySelector('.team-name').textContent.trim();
                     let teamId = teamElement.id;
-                    let teamPrice = teamElement.querySelector('.team-price input').value;
+                    let packageSelect = teamElement.querySelector('.setting-prices-team-package-select');
+                    let pkgVal = packageSelect ? packageSelect.value : '';
+                    if (!pkgVal) {
+                        return;
+                    }
                     teamsData.push({
-                        name: teamName,
-                        price: parseFloat(teamPrice),
-                        teamId: teamId
+                        teamId: teamId,
+                        lesson_package_id: parseInt(pkgVal, 10),
                     });
                 });
 
                 if (teamsData.length === 0) {
-                    console.error('Teams data is empty');
+                    syncSetPriceAllTeamsButton();
                     return;
                 }
 
@@ -577,10 +761,28 @@ document.addEventListener('DOMContentLoaded', function () {
                         teamsData: teamsData
                     }),
                     success: function () {
-                        showSuccessModal("Установка цен всем группам", "Цены  всем группам успешно обновлены.", 1);
+                        showSuccessModal("Установка тарифов всем группам", "Тарифы группам успешно обновлены.", 1);
                     },
-                    error: function () {
-                        $('#errorModal').modal('show');
+                    error: function (xhr) {
+                        syncSetPriceAllTeamsButton();
+                        let msg = 'Не удалось применить тарифы.';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.message) {
+                                msg = xhr.responseJSON.message;
+                            }
+                            const errs = xhr.responseJSON.errors;
+                            if (errs) {
+                                const firstKey = Object.keys(errs)[0];
+                                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                    msg = errs[firstKey][0];
+                                }
+                            }
+                        }
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Ошибка', msg);
+                        } else {
+                            $('#errorModal').modal('show');
+                        }
                     }
                 });
 

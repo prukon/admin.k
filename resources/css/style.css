@@ -411,6 +411,21 @@ footer .social-networks {
     border-radius: 5px;
 }
 
+/* Строки групп на всю ширину колонки (выделение от края до края) */
+#left_bar {
+    padding-left: 0;
+    padding-right: 0;
+    overflow: hidden;
+}
+
+#left_bar > .btn-setting-prices,
+#left_bar > .set-price-all-teams {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+    width: calc(100% - 1.5rem);
+    max-width: none;
+}
+
 #right_bar .btn-setting-prices:disabled, #left_bar .btn-setting-prices:disabled {
     background-color: white;
     color: black;
@@ -452,6 +467,7 @@ footer .social-networks {
 /* Установка цен: одна строка — ФИО (trunc + title), абонемент, цена, галочка, карандаш */
 #right_bar .wrap-users .setting-prices-monthly-row {
     min-width: 0;
+    font-size: 12px;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-name-col {
@@ -464,16 +480,17 @@ footer .social-networks {
     min-width: 0;
 }
 
-#right_bar .wrap-users .setting-prices-monthly-name-host .dt-cell-ellipsis {
-    font-size: 13px;
+#right_bar .wrap-users .setting-prices-monthly-name-host .dt-cell-ellipsis,
+#right_bar .wrap-users .setting-prices-monthly-name-text {
+    font-size: 12px;
     font-weight: 500;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-package {
-    flex: 0 0 6.25rem;
-    width: 6.25rem;
-    min-width: 5.5rem;
-    max-width: 6.25rem;
+    flex: 0 0 8.75rem;
+    width: 8.75rem;
+    min-width: 7.5rem;
+    max-width: 8.75rem;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-package-select {
@@ -482,16 +499,17 @@ footer .social-networks {
     max-width: 100%;
     padding-left: 0.35rem;
     padding-right: 1.5rem;
-    font-size: 0.8rem;
+    font-size: 12px;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-price-input {
-    width: 10ch;
-    min-width: 10ch;
-    max-width: 10ch;
-    padding-left: 0.3rem;
-    padding-right: 0.3rem;
+    width: 9ch;
+    min-width: 9ch;
+    max-width: 9ch;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
     text-align: right;
+    font-size: 12px;
 }
 
 /* Фиксированная ширина под иконку оплаты (галочка / пусто) */
@@ -527,8 +545,10 @@ footer .social-networks {
 }
 
 #right_bar .wrap-users .setting-prices-monthly-edit-wrap {
-    flex: 0 0 1.5rem;
-    width: 1.5rem;
+    flex: 0 0 1rem;
+    width: 1rem;
+    min-width: 1rem;
+    max-width: 1rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -541,6 +561,7 @@ footer .social-networks {
 #right_bar .wrap-users .setting-prices-monthly-edit-btn {
     min-width: 0;
     padding: 0 !important;
+    font-size: 12px;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-status-view {
@@ -550,6 +571,7 @@ footer .social-networks {
 #right_bar .wrap-users .setting-prices-monthly-edit-panel .setting-prices-monthly-paid-select {
     max-width: 8.5rem;
     min-width: 0;
+    font-size: 12px;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-status {
@@ -571,17 +593,17 @@ footer .social-networks {
 }
 
 #right_bar .wrap-users .user-prices-year-header-price {
-    width: 10ch;
-    min-width: 10ch;
-    max-width: 10ch;
+    width: 9ch;
+    min-width: 9ch;
+    max-width: 9ch;
     text-align: right;
     flex-shrink: 0;
 }
 
 #right_bar .wrap-users .user-prices-year-header-status {
     flex: 0 0 auto;
-    width: calc(6rem + 0.25rem + 1.5rem);
-    min-width: calc(6rem + 0.25rem + 1.5rem);
+    width: calc(6rem + 0.25rem + 1rem);
+    min-width: calc(6rem + 0.25rem + 1rem);
     text-align: right;
 }
 
@@ -1282,7 +1304,7 @@ a.disabled {
 }
 
 #left_bar .team-buttons .btn-primary {
-    font-size: 11px;
+    font-size: 12px;
 }
 
 #left_bar .user-detail-btn.btn-primary.is-visually-disabled,
@@ -1493,16 +1515,68 @@ a.disabled {
 
 #left_bar .setting-prices-team-row {
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-radius: 0;
+    font-size: 12px;
+    padding: 0.4rem 0.75rem;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+#left_bar .setting-prices-team-row:hover:not(.wrap-team--active) {
+    background-color: rgba(0, 0, 0, 0.035);
+}
+
+#left_bar .setting-prices-team-row:hover .setting-prices-team-name-col .dt-cell-ellipsis {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+#left_bar .setting-prices-team-row select,
+#left_bar .setting-prices-team-row .ok {
+    cursor: pointer;
 }
 
 #left_bar .setting-prices-team-name-col {
-    flex: 1 1 0;
+    flex: 1 1 12rem;
     min-width: 0;
 }
 
 #left_bar .setting-prices-team-name-col .dt-cell-ellipsis {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
+}
+
+#left_bar .setting-prices-team-package-col {
+    flex: 0 0 8.5rem;
+    width: 8.5rem;
+    min-width: 7.5rem;
+    max-width: 8.5rem;
+}
+
+#left_bar .setting-prices-team-package-select {
+    width: 100%;
+    min-width: 0;
+    padding-left: 0.35rem;
+    padding-right: 1.5rem;
+    font-size: 12px;
+}
+
+#left_bar .setting-prices-team-price-display {
+    flex: 0 0 3.25rem;
+    min-width: 3rem;
+    text-align: right;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+#left_bar .setting-prices-team-price-value {
+    display: inline-block;
+    min-width: 2.5rem;
 }
 
 #left_bar .setting-prices-team-price-col {
@@ -1515,18 +1589,58 @@ a.disabled {
     white-space: nowrap;
 }
 
+#left_bar .setting-prices-team-ok {
+    height: 1.75rem;
+    min-height: 1.75rem;
+    min-width: auto;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    line-height: 1.75rem;
+    box-sizing: border-box;
+    font-size: 12px;
+}
+
+/* Disabled / визуально disabled «Применить»: не белый текст на белом фоне */
+#left_bar .ok.btn-primary:disabled,
+#left_bar .ok.btn-primary.disabled,
+#left_bar .ok.btn-primary.is-visually-disabled,
+#left_bar .ok.btn-primary[aria-disabled="true"] {
+    color: #6c757d !important;
+    background-color: #dee2e6 !important;
+    border-color: #adb5bd !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+}
+
+#left_bar .ok.btn-primary:disabled:hover,
+#left_bar .ok.btn-primary:disabled:focus,
+#left_bar .ok.btn-primary.disabled:hover,
+#left_bar .ok.btn-primary.disabled:focus,
+#left_bar .ok.btn-primary.is-visually-disabled:hover,
+#left_bar .ok.btn-primary.is-visually-disabled:focus,
+#left_bar .ok.btn-primary[aria-disabled="true"]:hover,
+#left_bar .ok.btn-primary[aria-disabled="true"]:focus {
+    color: #6c757d !important;
+    background-color: #dee2e6 !important;
+    border-color: #adb5bd !important;
+}
+
 #left_bar .wrap-team .team-buttons {
     align-items: center;
 }
 
-/* Строка группы, для которой открыт список учеников справа («Подробно») */
+/* Строка группы, для которой открыт список учеников справа */
 #left_bar .wrap-team.wrap-team--active {
     background-color: rgba(243, 161, 43, 0.12);
     box-shadow: inset 4px 0 0 0 #f3a12b;
-    border-radius: 0.25rem;
-    padding-left: 0.35rem;
-    padding-top: 0.25rem;
-    padding-bottom: 0.25rem;
+    border-radius: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.4rem 0.75rem;
 }
 
 #scheduleTable .schedule-cell i {

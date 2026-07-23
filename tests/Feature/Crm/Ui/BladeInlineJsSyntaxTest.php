@@ -22,6 +22,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'create team modal' => ['includes/modal/createTeam.blade.php'];
         yield 'edit team modal' => ['includes/modal/editTeam.blade.php'];
         yield 'setting prices users tab' => ['admin/SettingPrices/users.blade.php'];
+        yield 'setting prices monthly tab' => ['admin/SettingPrices/monthly.blade.php'];
         yield 'setting prices custom payments tab' => ['admin/SettingPrices/custom-payments.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];

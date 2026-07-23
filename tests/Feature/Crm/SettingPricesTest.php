@@ -3,6 +3,7 @@
 namespace Tests\Feature\Crm;
 
 use App\Enums\AuditEvent;
+use App\Models\LessonPackage;
 use App\Models\MyLog;
 use App\Models\Partner;
 use App\Models\Team;
@@ -74,15 +75,23 @@ class SettingPricesTest extends CrmTestCase
             'is_enabled' => true,
         ]);
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+        $packageBulk = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 200000,
+        ]);
+
         // index
         $this->get(route('admin.settingPrices.indexMenu'))
             ->assertStatus(200)
             ->assertViewIs('admin.SettingPrices.index');
 
         // updateDate
-        $this->post(route('updateDate'), [
-            'month' => 'Сентябрь 2024',
-        ])->assertStatus(200)
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post(route('updateDate'), [
+                'month' => 'Сентябрь 2024',
+            ])->assertStatus(200)
             ->assertJson([
                 'success' => true,
                 'month'   => 'Сентябрь 2024',
@@ -103,9 +112,9 @@ class SettingPricesTest extends CrmTestCase
 
         // setTeamPrice
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $team->id,
-            'teamPrice'    => 1500,
-            'selectedDate' => 'Сентябрь 2024',
+            'teamId'            => $team->id,
+            'lesson_package_id' => $package->id,
+            'selectedDate'      => 'Сентябрь 2024',
         ])->assertStatus(200)
             ->assertJson([
                 'success' => true,
@@ -116,7 +125,7 @@ class SettingPricesTest extends CrmTestCase
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => [
-                ['teamId' => $team->id, 'price' => 2000],
+                ['teamId' => $team->id, 'lesson_package_id' => $packageBulk->id],
             ],
         ])->assertStatus(200)
             ->assertJson([
@@ -212,7 +221,8 @@ class SettingPricesTest extends CrmTestCase
             'deleted_at' => null,
         ]);
 
-        $this->post(route('updateDate'), ['month' => 'Сентябрь 2024'])
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post(route('updateDate'), ['month' => 'Сентябрь 2024'])
             ->assertStatus(200)
             ->assertJson([
                 'success' => true,
@@ -249,7 +259,8 @@ class SettingPricesTest extends CrmTestCase
             'deleted_at' => null,
         ]);
 
-        $this->post(route('updateDate'), ['month' => 'Сентябрь 2024'])
+        $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->post(route('updateDate'), ['month' => 'Сентябрь 2024'])
             ->assertStatus(200);
 
         $this->assertDatabaseHas('team_prices', [
@@ -361,7 +372,6 @@ class SettingPricesTest extends CrmTestCase
     }
 
     /** @test */
-    /** @test */
     public function set_team_price_updates_team_and_unpaid_active_users_only()
     {
         $this->asAdmin();
@@ -370,6 +380,10 @@ class SettingPricesTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'deleted_at' => null,
             'title'      => 'Группа А',
+        ]);
+
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
         ]);
 
         // Пользователь с неоплаченной ценой
@@ -410,9 +424,9 @@ class SettingPricesTest extends CrmTestCase
         ]);
 
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $team->id,
-            'teamPrice'    => 1500,
-            'selectedDate' => 'Сентябрь 2024',
+            'teamId'            => $team->id,
+            'lesson_package_id' => $package->id,
+            'selectedDate'      => 'Сентябрь 2024',
         ])->assertStatus(200)
             ->assertJson([
                 'success' => true,
@@ -421,18 +435,20 @@ class SettingPricesTest extends CrmTestCase
 
         // TeamPrice обновлён/создан
         $this->assertDatabaseHas('team_prices', [
-            'team_id'   => $team->id,
-            'new_month' => '2024-09-01',
-            'price'     => 1500,
+            'team_id'           => $team->id,
+            'new_month'         => '2024-09-01',
+            'price'             => 1500,
+            'lesson_package_id' => $package->id,
         ]);
 
         // Неоплаченный — обновлён
         $this->assertDatabaseHas('users_prices', [
-            'user_id'   => $unpaidUser->id,
-            'team_id'   => $team->id,
-            'new_month' => '2024-09-01',
-            'price'     => 1500,
-            'is_paid'   => 0,
+            'user_id'           => $unpaidUser->id,
+            'team_id'           => $team->id,
+            'new_month'         => '2024-09-01',
+            'price'             => 1500,
+            'is_paid'           => 0,
+            'lesson_package_id' => $package->id,
         ]);
 
         // Оплаченный — не изменён
@@ -491,10 +507,14 @@ class SettingPricesTest extends CrmTestCase
             'price'     => 3000,
         ]);
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $teamX->id,
-            'teamPrice'    => 1500,
-            'selectedDate' => 'Сентябрь 2024',
+            'teamId'            => $teamX->id,
+            'lesson_package_id' => $package->id,
+            'selectedDate'      => 'Сентябрь 2024',
         ])->assertStatus(200);
 
         // Обновился только September для teamX
@@ -528,10 +548,14 @@ class SettingPricesTest extends CrmTestCase
             'deleted_at' => null,
         ]);
 
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $foreignTeam->id,
-            'teamPrice'    => 1500,
-            'selectedDate' => 'Сентябрь 2024',
+            'teamId'            => $foreignTeam->id,
+            'lesson_package_id' => $package->id,
+            'selectedDate'      => 'Сентябрь 2024',
         ])->assertStatus(404);
     }
 
@@ -583,11 +607,18 @@ class SettingPricesTest extends CrmTestCase
             'is_paid'   => 1,
         ]);
 
+        $pkgA = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 200000,
+        ]);
+        $pkgB = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 300000,
+        ]);
+
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => [
-                ['teamId' => $teamA->id, 'price' => 2000],
-                ['teamId' => $teamB->id, 'price' => 3000],
+                ['teamId' => $teamA->id, 'lesson_package_id' => $pkgA->id],
+                ['teamId' => $teamB->id, 'lesson_package_id' => $pkgB->id],
             ],
         ])->assertStatus(200)
             ->assertJson([
@@ -684,11 +715,18 @@ class SettingPricesTest extends CrmTestCase
             'price'     => 3000,
         ]);
 
+        $pkgA = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 400000,
+        ]);
+        $pkgB = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 500000,
+        ]);
+
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => [
-                ['teamId' => $teamA->id, 'price' => 4000],
-                ['teamId' => $teamB->id, 'price' => 5000],
+                ['teamId' => $teamA->id, 'lesson_package_id' => $pkgA->id],
+                ['teamId' => $teamB->id, 'lesson_package_id' => $pkgB->id],
             ],
         ])->assertStatus(200);
 
@@ -713,7 +751,7 @@ class SettingPricesTest extends CrmTestCase
     }
 
     /** @test */
-    public function set_price_all_teams_returns_400_on_invalid_teams_data()
+    public function set_price_all_teams_returns_422_on_invalid_teams_data()
     {
         $this->asAdmin();
 
@@ -721,19 +759,15 @@ class SettingPricesTest extends CrmTestCase
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => null,
-        ])->assertStatus(400)
-            ->assertJson([
-                'error' => 'Invalid teams data',
-            ]);
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['teamsData']);
 
         // teamsData не массив
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => 'not-an-array',
-        ])->assertStatus(400)
-            ->assertJson([
-                'error' => 'Invalid teams data',
-            ]);
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['teamsData']);
     }
 
     /** @test */
@@ -998,18 +1032,25 @@ class SettingPricesTest extends CrmTestCase
             'name'       => 'UserLog',
         ]);
 
+        $pkgTeam = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 150000,
+        ]);
+        $pkgBulk = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
+            'price_cents' => 200000,
+        ]);
+
         // setTeamPrice (action=13)
         $this->postJson(route('setTeamPrice'), [
-            'teamId'       => $team->id,
-            'teamPrice'    => 1500,
-            'selectedDate' => 'Сентябрь 2024',
+            'teamId'            => $team->id,
+            'lesson_package_id' => $pkgTeam->id,
+            'selectedDate'      => 'Сентябрь 2024',
         ])->assertStatus(200);
 
         // setPriceAllTeams (action=11)
         $this->postJson(route('setPriceAllTeams'), [
             'selectedDate' => 'Сентябрь 2024',
             'teamsData'    => [
-                ['teamId' => $team->id, 'price' => 2000],
+                ['teamId' => $team->id, 'lesson_package_id' => $pkgBulk->id],
             ],
         ])->assertStatus(200);
 
