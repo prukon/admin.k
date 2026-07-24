@@ -1203,7 +1203,10 @@ class SettingPricesController extends AdminBaseController
                 'month'             => $m,
                 'month_label'       => $monthLabel,
                 'new_month'         => $dateStr,
-                'price'             => $priceRow ? (int) $priceRow->price : 0,
+                'price'             => $priceRow ? (float) $priceRow->price : 0,
+                'lesson_package_id' => $priceRow && $priceRow->lesson_package_id
+                    ? (int) $priceRow->lesson_package_id
+                    : null,
                 'is_paid'           => $priceRow ? (bool) $priceRow->is_paid : false,
                 'is_manual_paid'    => $priceRow ? $priceRow->is_manual_paid : null,
                 'effective_is_paid' => $priceRow ? (bool) $priceRow->effective_is_paid : false,
@@ -1224,8 +1227,9 @@ class SettingPricesController extends AdminBaseController
                 'team_id'   => $teamId,
                 'team_name' => $team->title,
             ],
-            'year'   => $year,
-            'months' => $months,
+            'year'           => $year,
+            'months'         => $months,
+            'lessonPackages' => $this->lessonPackagesForPartnerSelect($partnerId),
         ]);
     }
 
@@ -1263,7 +1267,7 @@ class SettingPricesController extends AdminBaseController
         DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team) {
             foreach ($items as $item) {
                 $newMonth = $item['new_month'];
-                $price    = (int) $item['price'];
+                $price = round((float) $item['price'], 2);
 
                 // защита от рассинхрона по году
                 $itemYear = (int) substr($newMonth, 0, 4);
@@ -1277,39 +1281,73 @@ class SettingPricesController extends AdminBaseController
                     ->first();
 
                 // вытаскиваем месяц для лога
-                $monthInt   = (int) substr($newMonth, 5, 2);
+                $monthInt = (int) substr($newMonth, 5, 2);
                 $monthLabel = $this->ruMonthName($monthInt) . ' ' . $year;
+
+                $packageKeyPresent = array_key_exists('lesson_package_id', $item);
+                $newPackageId = $packageKeyPresent
+                    ? ($item['lesson_package_id'] !== null ? (int) $item['lesson_package_id'] : null)
+                    : null;
 
                 if ($userPrice) {
                     if ($userPrice->effective_is_paid) {
                         continue;
                     }
 
-                    if ((int) $userPrice->price !== $price) {
-                        $userPrice->update([
-                            'price' => $price,
-                        ]);
+                    $resolvedPackageId = $packageKeyPresent
+                        ? $newPackageId
+                        : ($userPrice->lesson_package_id !== null ? (int) $userPrice->lesson_package_id : null);
 
-                        $this->auditLogger->record(
-                            AuditEvent::PricingStudentApply,
-                            AuditContext::make("Обновлена цена: {$price} руб. Период: {$monthLabel}. Группа: {$team->title}.")
-                                ->withUserId($userId)
-                                ->withTargetReference('App\Models\UserPrice', (int) $userPrice->id, $userPrice->user->name ?? 'Пользователь')
-                                ->withCreatedAt(now())
-                        );
+                    $priceChanged = abs((float) $userPrice->price - $price) >= 0.005;
+                    $packageChanged = $packageKeyPresent
+                        && (int) ($userPrice->lesson_package_id ?? 0) !== (int) ($resolvedPackageId ?? 0);
+
+                    if (! $priceChanged && ! $packageChanged) {
+                        continue;
                     }
-                } else {
-                    $created = UserPrice::create([
-                        'user_id'   => $userId,
-                        'team_id'   => $teamId,
-                        'new_month' => $newMonth,
-                        'price'     => $price,
-                        'is_paid'   => false,
-                    ]);
+
+                    $payload = [];
+                    if ($priceChanged) {
+                        $payload['price'] = $price;
+                    }
+                    if ($packageKeyPresent) {
+                        $payload['lesson_package_id'] = $resolvedPackageId;
+                    }
+
+                    if ($payload === []) {
+                        continue;
+                    }
+
+                    $userPrice->update($payload);
+
+                    $packageNote = $resolvedPackageId
+                        ? " Абонемент #{$resolvedPackageId}."
+                        : '';
 
                     $this->auditLogger->record(
                         AuditEvent::PricingStudentApply,
-                        AuditContext::make("Установлена цена: {$price} руб. Период: {$monthLabel}. Группа: {$team->title}.")
+                        AuditContext::make("Обновлена цена: {$price} руб.{$packageNote} Период: {$monthLabel}. Группа: {$team->title}.")
+                            ->withUserId($userId)
+                            ->withTargetReference('App\Models\UserPrice', (int) $userPrice->id, $userPrice->user->name ?? 'Пользователь')
+                            ->withCreatedAt(now())
+                    );
+                } else {
+                    $created = UserPrice::create([
+                        'user_id' => $userId,
+                        'team_id' => $teamId,
+                        'new_month' => $newMonth,
+                        'price' => $price,
+                        'lesson_package_id' => $packageKeyPresent ? $newPackageId : null,
+                        'is_paid' => false,
+                    ]);
+
+                    $packageNote = ($packageKeyPresent && $newPackageId)
+                        ? " Абонемент #{$newPackageId}."
+                        : '';
+
+                    $this->auditLogger->record(
+                        AuditEvent::PricingStudentApply,
+                        AuditContext::make("Установлена цена: {$price} руб.{$packageNote} Период: {$monthLabel}. Группа: {$team->title}.")
                             ->withUserId($userId)
                             ->withTargetReference('App\Models\UserPrice', (int) $created->id, $created->user->name ?? 'Пользователь')
                             ->withCreatedAt(now())

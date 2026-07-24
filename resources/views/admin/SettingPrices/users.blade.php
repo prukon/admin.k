@@ -32,13 +32,13 @@
                         $teamCount = $teamsList->count();
                     @endphp
 
-                    <div class="row mb-2 wrap-team user-row"
+                    <div class="mb-2 wrap-team user-row setting-prices-user-row d-flex align-items-center flex-nowrap w-100 min-w-0"
                          data-user-id="{{ $user->id }}"
                          data-user-name="{{ $fullName }}"
                          data-team-ids="{{ $teamIds }}"
                          data-team-count="{{ $teamCount }}">
-                        <div class="team-name col-7">
-                            {{ ($idx + 1) . '. ' . $fullName }}
+                        <div class="team-name setting-prices-user-name-col min-w-0 flex-grow-1">
+                            <span class="setting-prices-user-name-text">{{ ($idx + 1) . '. ' . $fullName }}</span>
                             <div class="small text-muted user-row-teams">
                                 @if($teamsList->isEmpty())
                                     Группа не указана
@@ -49,10 +49,7 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="team-price col-2">
-                            {{-- можно потом вывести какую-то актуальную цену, сейчас оставим пустым --}}
-                        </div>
-                        <div class="team-buttons col-3 d-flex justify-content-end">
+                        <div class="team-buttons setting-prices-user-detail-col flex-shrink-0">
                             <input class="detail btn btn-primary user-detail-btn" type="button" value="Подробно"
                                    title="">
                         </div>
@@ -103,6 +100,84 @@
 
 @push('styles')
     <style>
+        /* Фильтры: отступы, т.к. у #left_bar горизонтальный padding сброшен */
+        #left_bar > .row.mb-3 {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+            margin-left: 0;
+            margin-right: 0;
+            --bs-gutter-x: 0.75rem;
+        }
+
+        /* Заголовок «Абонемент» вровень с текстом в select (padding select) */
+        #right_bar .wrap-users .user-prices-year-header-package {
+            box-sizing: border-box;
+            padding-left: 0.35rem;
+        }
+
+        /* Длинные названия абонемента: «...» в закрытом select */
+        #right_bar .wrap-users .setting-prices-monthly-package-select {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Строка ученика: кнопка всегда у правого края, без прыжка при active */
+        #left_bar .setting-prices-user-row {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            margin-left: 0;
+            margin-right: 0;
+            text-align: left;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            border-radius: 0;
+        }
+
+        #left_bar .setting-prices-user-row:hover:not(.wrap-team--active):not(.setting-prices-user-row--blocked) {
+            background-color: rgba(0, 0, 0, 0.035);
+        }
+
+        #left_bar .setting-prices-user-row:hover:not(.wrap-team--active):not(.setting-prices-user-row--blocked) .setting-prices-user-name-text {
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+        }
+
+        #left_bar .setting-prices-user-row .user-detail-btn {
+            cursor: pointer;
+        }
+
+        /* Несколько групп, «Подробно» недоступна — без кликабельного hover */
+        #left_bar .setting-prices-user-row.setting-prices-user-row--blocked {
+            cursor: default;
+        }
+
+        #left_bar .setting-prices-user-row.setting-prices-user-row--blocked:hover {
+            background-color: transparent;
+        }
+
+        #left_bar .setting-prices-user-row.setting-prices-user-row--blocked .setting-prices-user-name-text {
+            text-decoration: none;
+        }
+
+        #left_bar .setting-prices-user-row.setting-prices-user-row--blocked .user-detail-btn {
+            cursor: not-allowed;
+        }
+
+        #left_bar .setting-prices-user-name-col {
+            min-width: 0;
+            text-align: left;
+        }
+
+        #left_bar .setting-prices-user-detail-col {
+            margin-left: auto;
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
         #left_bar .user-detail-btn.btn-primary.is-visually-disabled,
         #left_bar .user-detail-btn.btn-primary[aria-disabled="true"] {
             color: #6c757d !important;
@@ -146,6 +221,8 @@
             let currentTeamId = null;
             let lastPricesPayload = null;
             let editingNewMonth = null;
+            /** @type {Array<{id:number,name:string,price:number}>} */
+            let lastLessonPackages = [];
 
             const DETAIL_DISABLED_TITLE = 'Выберите конкретную группу';
 
@@ -158,6 +235,34 @@
                     .replace(/"/g, '&quot;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
+            }
+
+            function escapeHtml(s) {
+                return escapeAttr(s).replace(/'/g, '&#39;');
+            }
+
+            function formatPriceValue(val) {
+                if (val == null || val === '') {
+                    return '0';
+                }
+                const n = Number(val);
+                if (!isFinite(n)) {
+                    return String(val);
+                }
+                return (Math.round(n * 100) / 100).toString();
+            }
+
+            function buildPackageSelectOptions(selectedId) {
+                let html = '<option value="">Без абонемента</option>';
+                const selected = selectedId != null && selectedId !== '' ? String(selectedId) : '';
+                for (let i = 0; i < lastLessonPackages.length; i++) {
+                    const pkg = lastLessonPackages[i];
+                    const id = String(pkg.id);
+                    const sel = selected !== '' && selected === id ? ' selected' : '';
+                    html += '<option value="' + escapeAttr(id) + '" data-price="' + escapeAttr(formatPriceValue(pkg.price)) + '"' + sel + '>'
+                        + escapeHtml(pkg.name) + '</option>';
+                }
+                return html;
             }
 
             function getFilterTeamId() {
@@ -238,6 +343,7 @@
                     btn.removeAttr('data-bs-toggle');
                     btn.removeAttr('data-bs-placement');
                     btn.removeAttr('data-bs-custom-class');
+                    row.removeClass('setting-prices-user-row--blocked');
 
                     if (disabled) {
                         btn.attr('aria-disabled', 'true');
@@ -247,6 +353,7 @@
                         btn.attr('data-bs-toggle', 'tooltip');
                         btn.attr('data-bs-placement', 'top');
                         btn.attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+                        row.addClass('setting-prices-user-row--blocked');
                     }
                 });
 
@@ -337,25 +444,26 @@
                     wrapper.html('<p class="text-muted mb-0">Нет данных по ценам за этот год.</p>');
                     btnSave.prop('disabled', true);
                     lastPricesPayload = response;
+                    lastLessonPackages = [];
                     return;
                 }
 
                 lastPricesPayload = response;
+                lastLessonPackages = Array.isArray(response.lessonPackages) ? response.lessonPackages : [];
                 const canManual = !!response.can_manage_manual_paid;
-                const year = $('#user-year-select').val();
 
                 let html = '<div class="user-prices-year-table">';
                 html += '<div class="user-prices-year-header d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0 mb-2 pb-2 border-bottom small text-muted">';
                 html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1">Месяц</div>';
+                html += '<div class="setting-prices-monthly-package flex-shrink-0 user-prices-year-header-package">Абонемент</div>';
                 html += '<div class="setting-prices-monthly-price flex-shrink-0 user-prices-year-header-price">Цена, ₽</div>';
-                html += '<div class="setting-prices-monthly-status flex-shrink-0 min-w-0 user-prices-year-header-status">Статус</div>';
+                html += '<div class="setting-prices-monthly-status flex-shrink-0 min-w-0 user-prices-year-header-status" aria-hidden="true"></div>';
                 html += '</div>';
 
                 response.months.forEach(function (item) {
                     const effectivePaid = !!item.effective_is_paid;
                     const disabledAttr = effectivePaid ? 'disabled' : '';
-                    const badgeClass = effectivePaid ? 'bg-success' : 'bg-secondary';
-                    const badgeText = effectivePaid ? 'Оплачено' : 'Не оплачено';
+                    const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
 
                     const hasRow = !!item.has_price_row;
                     const manualNote = item.manual_paid_note || '';
@@ -381,10 +489,17 @@
                     }
 
                     const monthTitle = escapeAttr(item.month_label);
+                    const paidLabel = effectivePaid ? 'Оплачено' : 'Не оплачено';
+                    const paidIconHtml = effectivePaid
+                        ? '<i class="fa fa-check green-check setting-prices-monthly-paid-icon" tabindex="0" ' +
+                            'data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top" ' +
+                            'data-bs-custom-class="ulp-assignment-paid-tooltip" title="Оплачено" ' +
+                            'aria-label="Оплачено"></i>'
+                        : '<span class="setting-prices-monthly-paid-empty" aria-hidden="true"></span>';
                     const statusViewHtml =
                         '<div class="user-price-status-view setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">' +
-                        '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap">' +
-                        '<span class="badge ' + badgeClass + '">' + badgeText + '</span>' +
+                        '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap" aria-label="' + paidLabel + '">' +
+                        paidIconHtml +
                         infoIcon +
                         '</div>' +
                         '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
@@ -393,13 +508,19 @@
                     html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom" data-new-month="' + item.new_month + '">';
                     html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">';
                     html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">';
-                    html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + item.month_label + '</span>';
+                    html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + escapeHtml(item.month_label) + '</span>';
+                    html += '</div>';
+                    html += '<div class="setting-prices-monthly-package flex-shrink-0">';
+                    html += '<select class="form-select form-select-sm setting-prices-monthly-package-select" ' +
+                        disabledAttr + ' aria-label="Абонемент">' +
+                        buildPackageSelectOptions(packageId) +
+                        '</select>';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-price flex-shrink-0">';
-                    html += '<input type="number" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
+                    html += '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
                         'data-new-month="' + item.new_month + '" ' +
                         'data-effective-paid="' + (effectivePaid ? '1' : '0') + '" ' +
-                        'value="' + item.price + '" ' + disabledAttr + ' aria-label="Цена за месяц">';
+                        'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + disabledAttr + ' aria-label="Цена за месяц">';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-status flex-shrink-0 min-w-0 user-price-status-cell">';
                     html += statusViewHtml;
@@ -415,6 +536,10 @@
 
                 if (typeof window.initManualPaidBadgeTooltips === 'function') {
                     window.initManualPaidBadgeTooltips(wrapper.get(0));
+                }
+                if (window.KidsCrmTooltip) {
+                    window.KidsCrmTooltip.dispose(wrapper.get(0), { scopes: ['hint'] });
+                    window.KidsCrmTooltip.init(wrapper.get(0), { scopes: ['hint'] });
                 }
             }
 
@@ -554,6 +679,22 @@
                     loadUserYearPrices();
                 });
 
+                $('#user-prices-table-wrapper').on('change', '.setting-prices-monthly-package-select', function () {
+                    const select = this;
+                    if (select.disabled) {
+                        return;
+                    }
+                    const selectedOpt = select.options[select.selectedIndex];
+                    const pkgPrice = selectedOpt ? selectedOpt.getAttribute('data-price') : null;
+                    const $input = $(select).closest('.setting-prices-user-card').find('.user-price-input');
+                    if (!$input.length || $input.prop('disabled')) {
+                        return;
+                    }
+                    if (select.value && pkgPrice != null && pkgPrice !== '') {
+                        $input.val(formatPriceValue(pkgPrice));
+                    }
+                });
+
                 $('#user-prices-table-wrapper').on('change', '.user-manual-paid-select', function () {
                     const $sel = $(this);
                     const $tr = $sel.closest('.setting-prices-user-card');
@@ -675,11 +816,14 @@
                         const effPaid = Number(input.data('effective-paid')) === 1;
                         const newMonth = input.data('new-month');
                         const price = Number(input.val()) || 0;
+                        const $card = input.closest('.setting-prices-user-card');
+                        const pkgVal = $card.find('.setting-prices-monthly-package-select').val();
 
                         if (newMonth && !effPaid) {
                             payload.push({
                                 new_month: newMonth,
-                                price: price
+                                price: price,
+                                lesson_package_id: pkgVal !== '' ? parseInt(pkgVal, 10) : null
                             });
                         }
                     });

@@ -500,6 +500,9 @@ footer .social-networks {
     padding-left: 0.35rem;
     padding-right: 1.5rem;
     font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-price-input {
@@ -600,10 +603,20 @@ footer .social-networks {
     flex-shrink: 0;
 }
 
+#right_bar .wrap-users .user-prices-year-header-package {
+    flex: 0 0 8.75rem;
+    width: 8.75rem;
+    min-width: 7.5rem;
+    max-width: 8.75rem;
+    box-sizing: border-box;
+    padding-left: 0.35rem;
+    text-align: left;
+}
+
 #right_bar .wrap-users .user-prices-year-header-status {
     flex: 0 0 auto;
-    width: calc(6rem + 0.25rem + 1rem);
-    min-width: calc(6rem + 0.25rem + 1rem);
+    width: calc(1.25rem + 0.25rem + 1rem);
+    min-width: calc(1.25rem + 0.25rem + 1rem);
     text-align: right;
 }
 
@@ -1564,6 +1577,9 @@ a.disabled {
     padding-left: 0.35rem;
     padding-right: 1.5rem;
     font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 #left_bar .setting-prices-team-price-display {

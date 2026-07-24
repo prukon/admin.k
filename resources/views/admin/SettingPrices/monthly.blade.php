@@ -1,6 +1,18 @@
     <!-- Модальное окно логов -->
     @include('includes.logModal')
 
+    @push('styles')
+        <style>
+            /* Длинные названия абонемента: «...» в закрытом select */
+            #left_bar .setting-prices-team-package-select,
+            #right_bar .wrap-users .setting-prices-monthly-package-select {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+        </style>
+    @endpush
+
 
     <div class="container setting-price-wrap">
         @include('includes.modal.manualUserPricePaidModal')
@@ -78,7 +90,7 @@
                             <div class="setting-prices-team-package-col flex-shrink-0">
                                 <select class="form-select form-select-sm setting-prices-team-package-select"
                                         aria-label="Абонемент группы">
-                                    <option value="">Абонемент</option>
+                                    <option value="">Без абонемента</option>
                                     @foreach($packages as $pkg)
                                         <option value="{{ (int) $pkg['id'] }}"
                                                 data-price="{{ e($pkg['price']) }}"
@@ -123,7 +135,8 @@
     </div>
 
 @section('scripts')
-    @vite(['resources/js/settings-prices.js',])
+    {{-- Vite public/build сейчас root-only; бандл кладём в public/js до нормальной сборки --}}
+    <script type="module" src="{{ asset('js/settings-prices.js') }}?v={{ @filemtime(public_path('js/settings-prices.js')) ?: time() }}"></script>
     <script>
         $('#single-select-date').on('change', function () {
             const selectedMonth = $(this).val();

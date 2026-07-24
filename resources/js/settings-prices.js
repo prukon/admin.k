@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function buildPackageSelectOptions(selectedPackageId) {
-        let html = '<option value="">Абонемент</option>';
+        let html = '<option value="">Без абонемента</option>';
         for (let i = 0; i < lastLessonPackages.length; i++) {
             const pkg = lastLessonPackages[i];
             const selected = selectedPackageId != null && String(pkg.id) === String(selectedPackageId)
@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const rightBarEl = rightBar.get(0);
 
         if (rightBarEl && window.KidsCrmTooltip) {
-            window.KidsCrmTooltip.dispose(rightBarEl, { scopes: ['text', 'manualPaid'] });
+            window.KidsCrmTooltip.dispose(rightBarEl, { scopes: ['text', 'manualPaid', 'hint'] });
         }
 
         rightBar.empty();
@@ -437,12 +437,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<div class="manual-paid-error small text-danger mt-1" style="display:none"></div>' +
                     '</div>';
             } else {
+                const paidLabel = eff ? 'Оплачено' : 'Не оплачено';
                 const paidIconHtml = eff
-                    ? '<i class="fa fa-check green-check setting-prices-monthly-paid-icon" aria-hidden="true" title="Оплачено"></i>'
+                    ? '<i class="fa fa-check green-check setting-prices-monthly-paid-icon" tabindex="0" '
+                        + 'data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top" '
+                        + 'data-bs-custom-class="ulp-assignment-paid-tooltip" title="Оплачено" '
+                        + 'aria-label="Оплачено"></i>'
                     : '<span class="setting-prices-monthly-paid-empty" aria-hidden="true"></span>';
                 statusCellHtml =
                     '<div class="user-price-status-view setting-prices-monthly-status-view d-flex align-items-center flex-nowrap gap-1">' +
-                    '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap" title="' + (eff ? 'Оплачено' : 'Не оплачено') + '" aria-label="' + (eff ? 'Оплачено' : 'Не оплачено') + '">' +
+                    '<div class="user-price-badge-wrap position-relative setting-prices-monthly-badge-wrap" aria-label="' + paidLabel + '">' +
                     paidIconHtml +
                     infoIcon +
                     '</div>' +
@@ -500,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!rightBarEl || !window.KidsCrmTooltip) {
                 return;
             }
-            window.KidsCrmTooltip.init(rightBarEl, { scopes: ['text', 'manualPaid'] });
+            window.KidsCrmTooltip.init(rightBarEl, { scopes: ['text', 'manualPaid', 'hint'] });
         });
     }
 
