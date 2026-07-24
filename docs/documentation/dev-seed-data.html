@@ -63,12 +63,12 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
             <tr><td>6–8</td><td><code>Dev*RoleBasePermissionsSeeder</code></td><td>синхронизация <code>permission_role</code> для user/admin/trainer по <code>config/role_base_permissions.php</code></td></tr>
       <tr><td>9</td><td><code>DevTeamsSeeder</code></td><td>20 групп; trait <code>AssignsTeamsToLegalEntities</code>, <code>AssignsTeamDirectoryLinks</code></td></tr>
       <tr><td>10</td><td><code>DevLocationsSeeder</code></td><td>объекты с <code>district_id</code>, привязка к группам</td></tr>
-      <tr><td>11–14</td><td><code>DevAdminsSeeder</code>, <code>DevUsersSeeder</code>, <code>DevTrainersSeeder</code>, <code>DevTrainerSalaryDefaultsSeeder</code></td><td>персонал и ученики</td></tr>
+      <tr><td>11–14</td><td><code>DevAdminsSeeder</code>, <code>DevUsersSeeder</code>, <code>DevTrainersSeeder</code>, <code>DevTrainerSalaryDefaultsSeeder</code></td><td>персонал и ученики; у ~25% учеников 2–3 группы в <code>team_user</code></td></tr>
       <tr><td>15</td><td><code>DevScheduleJournalSeeder</code></td><td>журнал посещаемости за ~6 мес.</td></tr>
       <tr><td>16</td><td><code>DevSchoolLeadsSeeder</code></td><td>заявки с <code>district_id</code>, <code>sport_type_id</code>, объект по району</td></tr>
       <tr><td>17–19</td><td><code>DevLessonPackagesSeeder</code>, <code>DevSchoolScheduleSeeder</code>, <code>DevLessonPackageAssignmentsSeeder</code></td><td>абонементы, слоты, назначения с <code>user_lesson_packages.team_id</code></td></tr>
       <tr><td>20</td><td><code>DevTinkoffCommissionRulesSeeder</code></td><td>9 правил комиссий (card/sbp/null × партнёры 1–3)</td></tr>
-      <tr><td>21</td><td><code>DevPricesSeeder</code></td><td>месячные начисления (объёмный; не идемпотентен при повторном прогоне)</td></tr>
+      <tr><td>21</td><td><code>DevPricesSeeder</code></td><td>месячные начисления из уникального пула <code>(user_id, team_id, month)</code>: до 1000 paid / 30 unpaid (в <code>testing</code> — 48 / 12); не идемпотентен при повторном прогоне</td></tr>
       <tr><td>22</td><td><code>DevTbankHistorySeeder</code></td><td>история T‑Bank / выплат / чеков (см. §4)</td></tr>
       <tr><td>23</td><td><code>DevPaymentSystemsSeeder</code></td><td>Robokassa для партнёров 1–2, глобальный T‑Bank (<code>test_mode=1</code>)</td></tr>
       <tr><td>24</td><td><code>DevIstokMenuSeeder</code></td><td>демо «Школа футбола Исток» (partner id=1), меню, 5 групп с явными связями</td></tr>
@@ -77,6 +77,14 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
   <div class="note">
     <b>Не входит в dev-seed:</b> клиентские договоры (<code>contracts</code>) — намеренно не создаются фабриками/сидерами dev-слоя.
   </div>
+
+  <h2 id="users-prices-seed">3.1) Ученики, группы и <code>DevPricesSeeder</code></h2>
+  <ul>
+    <li><code>DevUsersSeeder</code> после назначения primary-группы выравнивает <code>team_user</code> под актуальные <code>partner_id</code>/<code>team_id</code>, затем у ~25% учеников через <code>TeamUserSyncService::attachTeamForStudent</code> добавляет ещё группы того же партнёра (итого 2–3).</li>
+    <li><code>DevPricesSeeder</code> строит пул уникальных слотов из pivot × окна месяцев (paid: 0–6 мес. назад; unpaid: 7–12), перемешивает и берёт <b>до</b> целевого объёма — без дублей по UNIQUE <code>(user_id, team_id, new_month)</code>.</li>
+    <li>Оплаченные цепочки идут через <code>PayableFactory::paidMonthlyWithAllRelations()</code> с явным <code>meta.team_id</code> (не только primary-группа).</li>
+  </ul>
+  <p>Инвариант начислений — <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</p>
 
   <h2 id="legal-entities">3) Юр. лица и группы в фикстурах</h2>
   <ul>
@@ -129,7 +137,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
 
   <h2 id="tests">9) Автотесты</h2>
   <ul>
-    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — guard <code>SEED_DEV_DATA</code>, целостность цепочки (юр. лица, справочники, комиссии, payment systems, history, права admin).</li>
+    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — guard <code>SEED_DEV_DATA</code>, целостность цепочки (юр. лица, справочники, комиссии, payment systems, history, права admin), уникальность <code>users_prices</code> и multi-team в <code>DevUsersSeeder</code>/<code>DevPricesSeeder</code>.</li>
     <li>HTTP-разделы справочников — <code>SportTypes*FeatureTest</code>, <code>Districts*FeatureTest</code>, <code>LegalEntities*FeatureTest</code> (см. <a href="/docs/documentation/tests-standards">tests-standards</a>).</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Database/DevSeedStackFeatureTest.php</code></pre>
@@ -137,7 +145,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
   <h2>10) Ограничения и типичные ошибки</h2>
   <ul>
     <li>Сидеры с фиксированными id партнёров 1–3 пропускаются, если в БД нет ровно трёх партнёров с этими id (warning в консоль).</li>
-    <li><code>DevPricesSeeder</code> при повторном <code>db:seed</code> без <code>migrate:fresh</code> может дублировать начисления — используйте fresh или точечные сидеры.</li>
+    <li><code>DevPricesSeeder</code> при повторном <code>db:seed</code> без <code>migrate:fresh</code> может дублировать начисления (сидер не идемпотентен) — используйте fresh или точечные сидеры. Внутри одного fresh-прогона дублей по <code>(user_id, team_id, new_month)</code> нет: слоты берутся из уникального пула.</li>
     <li>На test-стенде без cron безопасны dev-выплаты в статусах COMPLETED/REJECTED; INITIATED в dev-истории не создаются намеренно.</li>
     <li>Feature-тесты dev-сидеров сбрасывают <code>AUTO_INCREMENT</code> таблицы <code>partners</code> между кейсами (MySQL + транзакционный rollback).</li>
   </ul>

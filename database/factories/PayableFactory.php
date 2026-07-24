@@ -3,9 +3,8 @@
 namespace Database\Factories;
 
 use App\Models\Payable;
-use App\Models\Partner;
 use App\Models\User;
-use App\Models\UserPrice;
+use App\Support\UserPriceTeamMembership;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -123,12 +122,8 @@ class PayableFactory extends Factory
                         'payment_method'   => $this->faker->randomElement(['card', 'sbp_qr', 'tpay']),
                     ]);
 
-                // 2) users_prices
-                $teamId = null;
-                $user = \App\Models\User::query()->find($payable->user_id);
-                if ($user) {
-                    $teamId = \App\Support\UserPriceTeamMembership::primaryTeamIdForStudent($user, (int) $payable->partner_id);
-                }
+                // 2) users_prices — явный meta.team_id (сидер/тест) важнее primary-группы
+                $teamId = $this->resolveMonthlyTeamId($payable);
 
                 if ($teamId) {
                     $meta = $payable->meta;
@@ -137,10 +132,14 @@ class PayableFactory extends Factory
                     $payable->save();
                 }
 
+                $month = $payable->month instanceof \DateTimeInterface
+                    ? Carbon::instance($payable->month)->startOfMonth()->format('Y-m-01')
+                    : (string) $payable->month;
+
                 \App\Models\UserPrice::factory()
                     ->forUserAndMonth(
-                        $payable->user_id,
-                        $payable->month,
+                        (int) $payable->user_id,
+                        $month,
                         (float) $payable->amount,
                         true,
                         $teamId
@@ -152,5 +151,28 @@ class PayableFactory extends Factory
                     ->fromPayableAndIntent($payable, $intent)
                     ->create();
             });
+    }
+
+    /**
+     * team_id для месячной цепочки: meta.team_id, иначе primary группа ученика.
+     */
+    private function resolveMonthlyTeamId(Payable $payable): ?int
+    {
+        $fromMeta = (int) ($payable->meta['team_id'] ?? 0);
+        if ($fromMeta > 0) {
+            return $fromMeta;
+        }
+
+        $user = User::query()->find($payable->user_id);
+        if (! $user) {
+            return null;
+        }
+
+        $primary = UserPriceTeamMembership::primaryTeamIdForStudent(
+            $user,
+            (int) $payable->partner_id
+        );
+
+        return $primary && $primary > 0 ? (int) $primary : null;
     }
 }

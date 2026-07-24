@@ -336,10 +336,17 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->middleware('can:setPrices.manualPaid.manage')
             ->name('setting-prices.manual-paid');
 
-        Route::post('admin/setting-prices/custom-payments/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidCustomPayment'])
-            ->middleware('can:setPrices.manualPaid.manage')
-            ->whereNumber('id')
-            ->name('setting-prices.custom-payments.manual-paid');
+        Route::middleware('can:setPrices.manualPaid.manage')->group(function () {
+            Route::put('admin/setting-prices/custom-payments/{id}', [SettingPricesController::class, 'updateCustomPayment'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.customPayments.update');
+            Route::delete('admin/setting-prices/custom-payments/{id}', [SettingPricesController::class, 'destroyCustomPayment'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.customPayments.destroy');
+            Route::post('admin/setting-prices/custom-payments/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidCustomPayment'])
+                ->whereNumber('id')
+                ->name('setting-prices.custom-payments.manual-paid');
+        });
     });
 
     //Журнал расписания

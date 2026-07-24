@@ -193,34 +193,22 @@
                                     $startIso = $a->date_start ? \Carbon\Carbon::parse($a->date_start)->format('Y-m-d') : '';
                                     $endIso = $a->date_end ? \Carbon\Carbon::parse($a->date_end)->format('Y-m-d') : '';
 
-                                    $startRu = $a->date_start
-                                        ? \Carbon\Carbon::parse($a->date_start)->format('d.m.Y')
-                                        : '';
-                                    $endRu = $a->date_end
-                                        ? \Carbon\Carbon::parse($a->date_end)->format('d.m.Y')
-                                        : '';
-
                                     $note = (string) ($a->note ?? '');
                                     $amountNormalized = number_format((float) $a->amount, 2, '.', '');
                                     $amountDisplay = number_format((float) $a->amount, 0, ',', ' ');
                                     $paid = (bool) ($a->effective_is_paid ?? false);
-                                    $periodRu = trim($startRu . ' - ' . $endRu);
-                                    $paymentDateLabel = trim("Дополнительный платеж: {$periodRu}" . ($note !== '' ? " ({$note})" : ''));
+                                    $paymentDateLabel = trim('Дополнительный платеж' . ($note !== '' ? ": {$note}" : ''));
                                 @endphp
 
                                 <div class="custom-payment-price col-3">
                                     <div class="row align-items-center justify-content-center">
-                                        <span class="price-value">{{ $amountDisplay }}</span>
-                                        <span class="hide-currency">₽</span>
+                                        <span class="price-value">{{ $amountDisplay }}<span class="hide-currency" style="padding-left: 0.25em; margin-left: 0;">₽</span></span>
                                     </div>
-                                    <div class="row justify-content-center align-items-center">
-                                        <div class="new-price-description">
-                                            <div>{{ $periodRu }}</div>
-                                            @if($note !== '')
-                                                <div class="custom-payment-note">{{ $note }}</div>
-                                            @endif
+                                    @if($note !== '')
+                                        <div class="row justify-content-center align-items-center">
+                                            <div class="new-price-description">{{ $note }}</div>
                                         </div>
-                                    </div>
+                                    @endif
                                     <div class="row new-main-button-wrap">
                                         <div class="justify-content-center align-items-center">
                                             @can('paying.classes')
@@ -414,12 +402,33 @@
             @endcan
 
             function refreshPrice() {
-                document.querySelectorAll('.seasons .border_price .price-value').forEach(function (element) {
+                document.querySelectorAll('.seasons .border_price .price-amount').forEach(function (element) {
                     element.textContent = '0';
                 });
                 document.querySelectorAll('.seasons .border_price .new-main-button-wrap button').forEach(function (button) {
                     button.classList.remove('buttonPaided');
                 });
+            }
+
+            function setSeasonPriceAmount(borderPrice, amount) {
+                if (!borderPrice) {
+                    return;
+                }
+                var amountEl = borderPrice.querySelector('.price-amount');
+                if (amountEl) {
+                    amountEl.textContent = amount > 0 ? String(amount) : '0';
+                }
+            }
+
+            function readSeasonPriceAmount(borderPrice) {
+                if (!borderPrice) {
+                    return 0;
+                }
+                var amountEl = borderPrice.querySelector('.price-amount');
+                if (!amountEl) {
+                    return 0;
+                }
+                return Number(String(amountEl.textContent).replace(/\s/g, '').replace(',', '.')) || 0;
             }
 
             function escapeHtml(text) {
@@ -600,7 +609,7 @@
                         // Проверяем, если кнопка называется "Оплатить" и не отключена
                         if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
                             // Получаем значение из price-value
-                            const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
+                            const priceValue = readSeasonPriceAmount(container);
 
                             // Добавляем значение к общей сумме для этого сезона
 
@@ -1011,8 +1020,7 @@
                         var outSum = 22;
                         div.innerHTML = `
             <div class="row align-items-center justify-content-center">
-                <span class="price-value">0</span>
-                <span class="hide-currency">₽</span>
+                <span class="price-value"><span class="price-amount">0</span><span class="hide-currency" style="padding-left: 0.25em; margin-left: 0;">₽</span></span>
             </div>
             <div class="row justify-content-center align-items-center">
                 <div class="new-price-description">${monthsRu[key]} ${displaySeason}</div>
@@ -1140,12 +1148,11 @@
                     totalSumm[seasonId] = 0;
 
                     var borderPrices = seasons[i].querySelectorAll('.border_price');
-                    var priceValues = seasons[i].querySelectorAll('.price-value');
 
                     for (var j = 0; j < borderPrices.length; j++) {
                         // Store the border price (if needed)
                         borderPrice[seasonId].push(borderPrices[j]);
-                        totalSumm[seasonId] += Number(priceValues[j].textContent);
+                        totalSumm[seasonId] += readSeasonPriceAmount(borderPrices[j]);
                     }
 
                     seasons[i].classList.remove('display-none');
@@ -1199,11 +1206,8 @@
                     const matchedAll = userPrice.filter(item => formatMonth(item.new_month) === monthText);
 
                     if (matchedAll.length === 0) {
-                        const priceValue = borderPrice.querySelector('.price-value');
                         const button = borderPrice.querySelector('.new-main-button');
-                        if (priceValue) {
-                            priceValue.textContent = '0';
-                        }
+                        setSeasonPriceAmount(borderPrice, 0);
                         if (button) {
                             button.textContent = 'Оплатить';
                             button.setAttribute('disabled', 'disabled');
@@ -1214,14 +1218,11 @@
 
                     if (matchedAll.length === 1) {
                         const matchedData = matchedAll[0];
-                        const priceValue = borderPrice.querySelector('.price-value');
                         const outSum = borderPrice.querySelector('.outSum');
                         const teamIdInput = borderPrice.querySelector('.team-id');
                         const button = borderPrice.querySelector('.new-main-button');
 
-                        if (priceValue) {
-                            priceValue.textContent = matchedData.price > 0 ? matchedData.price : '0';
-                        }
+                        setSeasonPriceAmount(borderPrice, matchedData.price > 0 ? matchedData.price : 0);
                         if (outSum) {
                             outSum.value = matchedData.price > 0 ? matchedData.price : '';
                         }
@@ -1278,10 +1279,7 @@
                     </form>`;
                     });
 
-                    const priceValue = borderPrice.querySelector('.price-value');
-                    if (priceValue) {
-                        priceValue.textContent = total > 0 ? total : '0';
-                    }
+                    setSeasonPriceAmount(borderPrice, total > 0 ? total : 0);
 
                     buttonWrap.innerHTML = formsHtml;
                 }
@@ -1439,7 +1437,7 @@
                         // Проверяем, если кнопка называется "Оплатить" и не отключена
                         if (button && button.textContent.trim() === 'Оплатить' && !button.disabled) {
                             // Получаем значение из price-value
-                            const priceValue = parseFloat(container.querySelector('.price-value').textContent.trim());
+                            const priceValue = readSeasonPriceAmount(container);
                             // Добавляем значение к общей сумме для этого сезона
                             totalSum += priceValue;
                         } else {

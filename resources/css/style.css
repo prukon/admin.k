@@ -241,6 +241,11 @@ footer .social-networks {
     width: auto;
 }
 
+.custom-payments-block .price-value .hide-currency {
+    margin-left: 0;
+    padding-left: 0.25em;
+}
+
 .custom-payments-block .new-price-description {
     font-weight: 400;
     font-size: 14px;
@@ -248,12 +253,6 @@ footer .social-networks {
     color: #817f8a;
     margin-top: 5px;
     text-align: center;
-}
-
-.custom-payments-block .custom-payment-note {
-    margin-top: 4px;
-    font-weight: 700;
-    color: #8e1c13;
 }
 
 .custom-payments-block .new-main-button {
@@ -330,6 +329,13 @@ footer .social-networks {
     line-height: 24px;
     text-align: center;
     width: auto;
+    margin-left: 0;
+    padding-left: 0.25em;
+}
+
+.seasons .price-value .hide-currency {
+    margin-left: 0;
+    padding-left: 0.25em;
 }
 
 .seasons .new-price-description {

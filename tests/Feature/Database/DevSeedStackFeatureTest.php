@@ -13,15 +13,18 @@ use App\Models\Team;
 use App\Models\TinkoffPayment;
 use App\Models\TinkoffPayout;
 use App\Models\User;
+use App\Models\UserPrice;
 use Database\Seeders\DevAdminRoleBasePermissionsSeeder;
 use Database\Seeders\DevDistrictsSeeder;
 use Database\Seeders\DevPartnerLegalEntitiesSeeder;
 use Database\Seeders\DevPartnersSeeder;
 use Database\Seeders\DevPaymentSystemsSeeder;
+use Database\Seeders\DevPricesSeeder;
 use Database\Seeders\DevSportTypesSeeder;
 use Database\Seeders\DevTeamsSeeder;
 use Database\Seeders\DevTbankHistorySeeder;
 use Database\Seeders\DevTinkoffCommissionRulesSeeder;
+use Database\Seeders\DevUsersSeeder;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Database\Seeders\PermissionGroupsSeeder;
 use Database\Seeders\PermissionSeeder;
@@ -226,6 +229,119 @@ final class DevSeedStackFeatureTest extends TestCase
         $this->assertGreaterThan(0, DB::table('partner_legal_entities')->count());
         $this->assertSame(9, DB::table('tinkoff_commission_rules')->count());
         $this->assertGreaterThan(0, PaymentSystem::query()->where('name', 'tbank')->whereNull('partner_id')->count());
+    }
+
+    public function test_dev_users_and_prices_seeders_respect_unique_and_multi_team(): void
+    {
+        $this->enableDevSeedFlag();
+        $this->seedBaseReferences();
+        $this->seedCoreDevChain();
+        $this->seed(DevUsersSeeder::class);
+        $this->seed(DevPricesSeeder::class);
+
+        $multiTeamStudents = DB::table('team_user')
+            ->select('user_id', DB::raw('COUNT(*) as teams_count'))
+            ->groupBy('user_id')
+            ->having('teams_count', '>=', 2)
+            ->count();
+
+        $this->assertGreaterThan(
+            0,
+            $multiTeamStudents,
+            'DevUsersSeeder must attach 2+ teams for a share of students'
+        );
+
+        $pricesCount = UserPrice::query()->count();
+        $this->assertGreaterThan(0, $pricesCount);
+        $this->assertLessThanOrEqual(48 + 12, $pricesCount, 'Testing caps: paid≤48 + unpaid≤12');
+
+        $duplicateKeys = DB::table('users_prices')
+            ->select('user_id', 'team_id', 'new_month', DB::raw('COUNT(*) as c'))
+            ->groupBy('user_id', 'team_id', 'new_month')
+            ->having('c', '>', 1)
+            ->count();
+
+        $this->assertSame(0, $duplicateKeys, 'users_prices must be unique on (user_id, team_id, new_month)');
+
+        $pricesOutsideMembership = DB::table('users_prices as up')
+            ->leftJoin('team_user as tu', function ($join) {
+                $join->on('tu.user_id', '=', 'up.user_id')
+                    ->on('tu.team_id', '=', 'up.team_id');
+            })
+            ->whereNull('tu.user_id')
+            ->count();
+
+        $this->assertSame(
+            0,
+            $pricesOutsideMembership,
+            'Every users_prices.team_id must match team_user membership'
+        );
+
+        $paidWithMetaTeam = Payable::query()
+            ->where('type', 'monthly_fee')
+            ->where('status', 'paid')
+            ->get()
+            ->filter(fn (Payable $p) => (int) ($p->meta['team_id'] ?? 0) > 0)
+            ->count();
+
+        $this->assertSame(
+            Payable::query()->where('type', 'monthly_fee')->where('status', 'paid')->count(),
+            $paidWithMetaTeam,
+            'Each paid monthly payable from DevPricesSeeder must store meta.team_id'
+        );
+
+        $crossPartnerPivot = DB::table('team_user as tu')
+            ->join('users as u', 'u.id', '=', 'tu.user_id')
+            ->whereColumn('tu.partner_id', '<>', 'u.partner_id')
+            ->count();
+
+        $this->assertSame(
+            0,
+            $crossPartnerPivot,
+            'team_user.partner_id must match users.partner_id after DevUsersSeeder'
+        );
+    }
+
+    public function test_payable_factory_paid_monthly_respects_explicit_meta_team_id(): void
+    {
+        $this->enableDevSeedFlag();
+        $this->seedBaseReferences();
+        $this->seedCoreDevChain();
+
+        $partner = Partner::query()->findOrFail(1);
+        $teams = Team::query()->where('partner_id', $partner->id)->orderBy('id')->take(2)->get();
+        $this->assertGreaterThanOrEqual(2, $teams->count());
+
+        $user = User::factory()->create([
+            'partner_id' => $partner->id,
+            'team_id' => $teams[0]->id,
+        ]);
+
+        $sync = app(\App\Services\TeamUserSyncService::class);
+        $sync->syncTeamsForStudent($user, [(int) $teams[0]->id, (int) $teams[1]->id]);
+
+        $month = now()->startOfMonth()->format('Y-m-01');
+
+        Payable::factory()
+            ->paidMonthlyWithAllRelations()
+            ->create([
+                'partner_id' => $partner->id,
+                'user_id' => $user->id,
+                'month' => $month,
+                'amount' => 3100,
+                'meta' => ['team_id' => (int) $teams[1]->id],
+            ]);
+
+        $this->assertDatabaseHas('users_prices', [
+            'user_id' => $user->id,
+            'team_id' => (int) $teams[1]->id,
+            'new_month' => $month,
+            'is_paid' => 1,
+            'price' => 3100,
+        ]);
+
+        $payable = Payable::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame((int) $teams[1]->id, (int) ($payable->meta['team_id'] ?? 0));
     }
 
     private function seedBaseReferences(): void

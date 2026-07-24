@@ -33,6 +33,7 @@ use App\Http\Requests\Admin\UserYearPricesRequest;
 use App\Services\TeamUserSyncService;
 use App\Support\UserPriceTeamMembership;
 use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
+use App\Http\Requests\Admin\UserCustomPaymentUpdateRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use Illuminate\Support\Carbon as SupportCarbon;
 
@@ -357,6 +358,7 @@ class SettingPricesController extends AdminBaseController
         $users = User::query()
             ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
+            ->withSystemRoleUser()
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.$q.'%';
                 $query->whereRaw("CONCAT_WS(' ', lastname, name) LIKE ?", [$like]);
@@ -397,6 +399,7 @@ class SettingPricesController extends AdminBaseController
         $user = User::query()
             ->whereKey($userId)
             ->where('partner_id', $partnerId)
+            ->withSystemRoleUser()
             ->first();
 
         if (! $user) {
@@ -439,6 +442,91 @@ class SettingPricesController extends AdminBaseController
         return response()->json([
             'success' => true,
             'custom_payment' => $row,
+        ]);
+    }
+
+    public function updateCustomPayment(int $id, UserCustomPaymentUpdateRequest $request)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (! request()->user()?->can('setPrices.manualPaid.manage')) {
+            abort(403);
+        }
+
+        $row = $request->payment();
+        if (! $row || (int) $row->id !== $id || (int) $row->partner_id !== $partnerId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Дополнительный платеж не найден или недоступен в контексте текущего партнёра.',
+            ], 404);
+        }
+
+        $data = $request->validated();
+        $wantPaid = (bool) $data['is_paid'];
+        $wasPaid = $row->effective_is_paid;
+        $authorId = auth()->id();
+
+        DB::transaction(function () use ($row, $data, $wantPaid, $wasPaid, $authorId) {
+            $fill = [
+                'note' => $data['note'] ?? null,
+            ];
+
+            if (! $wasPaid && array_key_exists('amount', $data)) {
+                $fill['amount'] = (string) $data['amount'];
+            }
+
+            if ($wantPaid !== $wasPaid) {
+                $fill['is_manual_paid'] = $wantPaid;
+                $fill['manual_paid_by'] = $authorId;
+                $fill['manual_paid_at'] = now();
+                $fill['manual_paid_note'] = trim((string) ($data['status_comment'] ?? ''));
+            }
+
+            $row->forceFill($fill);
+            $row->save();
+        });
+
+        $row->refresh();
+
+        return response()->json([
+            'success' => true,
+            'custom_payment' => $row,
+        ]);
+    }
+
+    public function destroyCustomPayment(int $id)
+    {
+        $partnerId = $this->requirePartnerId();
+        if (! request()->user()?->can('setPrices.manualPaid.manage')) {
+            abort(403);
+        }
+
+        /** @var UserCustomPayment|null $row */
+        $row = UserCustomPayment::query()
+            ->whereKey($id)
+            ->where('partner_id', $partnerId)
+            ->first();
+
+        if (! $row) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Дополнительный платеж не найден или недоступен в контексте текущего партнёра.',
+            ], 404);
+        }
+
+        if ($row->effective_is_paid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Нельзя удалить уже оплаченный дополнительный платеж.',
+                'errors' => [
+                    'custom_payment' => ['Нельзя удалить уже оплаченный дополнительный платеж.'],
+                ],
+            ], 422);
+        }
+
+        $row->delete();
+
+        return response()->json([
+            'success' => true,
         ]);
     }
 

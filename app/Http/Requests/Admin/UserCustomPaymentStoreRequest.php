@@ -89,8 +89,14 @@ final class UserCustomPaymentStoreRequest extends FormRequest
                 return;
             }
 
-            $user = \App\Models\User::query()->find($userId);
+            $user = \App\Models\User::query()->with('role')->find($userId);
             if (! $user) {
+                return;
+            }
+
+            if ($user->role?->name !== 'user' || ! (bool) ($user->role?->is_sistem ?? false)) {
+                $validator->errors()->add('user_id', 'Выберите обычного ученика (роль user).');
+
                 return;
             }
 
@@ -114,7 +120,7 @@ final class UserCustomPaymentStoreRequest extends FormRequest
             'date_start' => 'дата начала',
             'date_end' => 'дата окончания',
             'amount' => 'сумма',
-            'note' => 'комментарий',
+            'note' => 'описание',
             'uniq_period' => 'период',
         ];
     }
@@ -140,8 +146,8 @@ final class UserCustomPaymentStoreRequest extends FormRequest
             'amount.min' => 'Сумма должна быть больше нуля.',
             'amount.max' => 'Сумма слишком большая.',
 
-            'note.string' => 'Комментарий должен быть строкой.',
-            'note.max' => 'Комментарий слишком длинный (максимум 255 символов).',
+            'note.string' => 'Описание должно быть строкой.',
+            'note.max' => 'Описание слишком длинное (максимум 255 символов).',
 
             'uniq_period.unique' => 'Дополнительный платеж на такой период для этого ученика уже существует.',
         ];

@@ -11,10 +11,18 @@ use App\Services\TeamUserSyncService;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DevUsersSeeder extends Seeder
 {
     use GuardsDevSeedData;
+
+    /** Доля учеников с 2–3 группами (при наличии групп у партнёра). */
+    private const MULTI_TEAM_SHARE = 0.25;
+
+    private const MULTI_TEAM_MIN = 2;
+
+    private const MULTI_TEAM_MAX = 3;
 
     public function run(): void
     {
@@ -29,6 +37,7 @@ class DevUsersSeeder extends Seeder
         }
 
         $userRoleId = Role::query()->where('name', 'user')->value('id');
+        $sync = app(TeamUserSyncService::class);
 
         $this->assignPartnerTeam(
             User::query()
@@ -42,7 +51,7 @@ class DevUsersSeeder extends Seeder
             ->create([
                 'is_enabled' => 1,
             ])
-            ->each(function (User $user) use ($partnerIds) {
+            ->each(function (User $user) use ($partnerIds, $sync) {
                 $partnerId = (int) $partnerIds[array_rand($partnerIds)];
                 $user->partner_id = $partnerId;
 
@@ -51,14 +60,78 @@ class DevUsersSeeder extends Seeder
                     ->inRandomOrder()
                     ->value('id');
 
-                if ($teamId) {
-                    $user->team_id = (int) $teamId;
-                }
-
+                $user->team_id = $teamId ? (int) $teamId : null;
                 $user->save();
+
+                // created() мог синхронизировать группу другого партнёра из factory definition.
+                // detachAllTeamsForStudent чистит только текущий partner_id — сбрасываем весь pivot ученика.
+                DB::table('team_user')->where('user_id', $user->id)->delete();
+
+                if ($user->team_id) {
+                    $sync->attachTeamForStudent($user, (int) $user->team_id);
+                }
             });
 
         $this->seedParentsForStudentsWithoutParent($userRoleId);
+        $this->attachExtraTeamsForShareOfStudents($userRoleId);
+    }
+
+    /**
+     * ~25% учеников получают 2–3 группы того же партнёра (attach, без снятия текущих).
+     */
+    private function attachExtraTeamsForShareOfStudents(?int $userRoleId): void
+    {
+        $students = User::query()
+            ->when($userRoleId, fn ($q) => $q->where('role_id', $userRoleId))
+            ->whereNotNull('partner_id')
+            ->get();
+
+        if ($students->isEmpty()) {
+            return;
+        }
+
+        $sync = app(TeamUserSyncService::class);
+        $targetCount = (int) max(1, round($students->count() * self::MULTI_TEAM_SHARE));
+        $candidates = $students->shuffle()->take($targetCount);
+
+        $teamsByPartner = Team::query()
+            ->whereIn('partner_id', $students->pluck('partner_id')->unique()->all())
+            ->get(['id', 'partner_id'])
+            ->groupBy('partner_id')
+            ->map(fn (Collection $rows) => $rows->pluck('id')->map(fn ($id) => (int) $id)->values()->all());
+
+        foreach ($candidates as $user) {
+            $partnerId = (int) $user->partner_id;
+            $partnerTeamIds = $teamsByPartner->get($partnerId, []);
+
+            if (count($partnerTeamIds) < self::MULTI_TEAM_MIN) {
+                continue;
+            }
+
+            $current = $sync->teamIdsForStudent($user);
+
+            if ($current === [] && $user->team_id) {
+                $sync->attachTeamForStudent($user, (int) $user->team_id);
+                $current = $sync->teamIdsForStudent($user);
+            }
+
+            $desiredTotal = random_int(
+                self::MULTI_TEAM_MIN,
+                min(self::MULTI_TEAM_MAX, count($partnerTeamIds))
+            );
+
+            $needed = $desiredTotal - count($current);
+            if ($needed <= 0) {
+                continue;
+            }
+
+            $available = array_values(array_diff($partnerTeamIds, $current));
+            shuffle($available);
+
+            foreach (array_slice($available, 0, $needed) as $extraTeamId) {
+                $sync->attachTeamForStudent($user, $extraTeamId);
+            }
+        }
     }
 
     /**
