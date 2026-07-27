@@ -144,7 +144,7 @@
   </table>
   <p>Юр. лицо для выплаты: <code>teams.legal_entity_id</code> → активное юр. лицо с ShopCode. При <b>одном</b> активном юр. лице без привязки группы резолвер использует единственное юр. лицо. При <b>≥2</b> активных — без явной привязки Init T‑Bank <b>запрещён</b> (см. <a href="#payments-multi-entity-guard">§2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>).</p>
   <p><b>Backfill</b> (миграция <code>2026_06_29_160000_backfill_team_id_on_payment_assignments.php</code>): для старых строк без <code>team_id</code> в <code>user_custom_payment</code> и <code>user_lesson_packages</code> — primary group ученика (для абонемента сначала группа из календаря). Сервис: <code>PaymentAssignmentTeamBackfill</code>.</p>
-  <p><b>Админка доп. платежей</b> (<code>/admin/setting-prices/custom-payments</code>): при создании обязателен селект «Группа»; в таблице — колонка «Группа» (<code>team_label</code> в JSON <code>/custom-payments/data</code>).</p>
+  <p><b>Админка доп. платежей</b> (<code>/admin/setting-prices/custom-payments</code>): при создании обязателен селект «Группа»; в таблице — колонки «Группа», «Описание», «Статус», «Действия» (без «Период»). Update/delete — <code>setPrices.manualPaid.manage</code>. Подробно — <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>.</p>
   <p><b>Назначения абонементов</b> (<code>/admin/lesson-packages/assignments</code>): при ≥2 юр. лицах — обязательный селект «Группа» при создании; в таблице — колонка «Группа» (<code>team_label</code> в JSON <code>/assignments/data</code>). См. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.</p>
 
   <h3 id="payments-payable-team-migrations">2.3.1) Миграции и backfill</h3>
@@ -472,17 +472,18 @@
     <b>Правило, чтобы ничего не затиралось:</b> каждая разовая оплата = новая строка в <code>payables</code> (и новый <code>payment_intent</code>).
   </div>
 
-  <h3 id="custom-payment-fee">3.3 Дополнительный платеж (кастомные даты) (<code>type=custom_payment_fee</code>)</h3>
+  <h3 id="custom-payment-fee">3.3 Дополнительный платеж (<code>type=custom_payment_fee</code>)</h3>
   <div class="note">
     <b>Источник истины для суммы:</b> <code>user_custom_payment.amount</code>. Сумма из POST (<code>outSum</code>) не используется как источник истины.
     <br><b>Группа:</b> <code>user_custom_payment.team_id</code> — обязательна при создании в админке (<code>POST /admin/setting-prices/custom-payments</code>). См. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>.
+    <br><b>Даты:</b> <code>date_start</code>/<code>date_end</code> в БД nullable; в UI создания полей дат нет. На консоли период не показывается — подпись берётся из <code>note</code> («Описание»).
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code> и <code>team_id</code>.
-    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_custom_payment.is_paid=1</code>.
+    <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_custom_payment.is_paid=1</code>. Ручная смена статуса в админке — через PUT update / <code>is_manual_paid</code> (право <code>setPrices.manualPaid.manage</code>).
   </div>
   <ol>
-    <li>Админ создаёт запись в <code>user_custom_payment</code> с учеником, группой и суммой.</li>
+    <li>Админ создаёт запись в <code>user_custom_payment</code> с учеником (системная роль <code>user</code>), группой, суммой и опциональным описанием.</li>
     <li>С дашборда в <code>POST /payment</code> передаются <code>payment_kind=custom_payment</code> и <code>custom_payment_id</code> (= <code>user_custom_payment.id</code>).</li>
-    <li>На витрине оплаты (<code>TransactionController@index</code>) запись <code>user_custom_payment</code> проверяется на принадлежность текущему партнёру и пользователю; если дополнительный платеж уже оплачен — возвращаем <b>422</b>.</li>
+    <li>На витрине оплаты (<code>TransactionController@index</code>) запись <code>user_custom_payment</code> проверяется на принадлежность текущему партнёру и пользователю; если дополнительный платеж уже оплачен (<code>effective_is_paid</code>) — возвращаем <b>422</b>.</li>
     <li>При старте оплаты (Robokassa / T‑Bank) создаём:
       <ul>
         <li><code>payables.type=custom_payment_fee</code>, <code>meta.user_period_price_id</code>, <code>meta.team_id</code></li>

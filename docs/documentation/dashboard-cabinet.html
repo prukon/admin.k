@@ -70,7 +70,7 @@
         <td>Дополнительные платежи</td>
         <td><code>setPrices.customPayments.view</code></td>
         <td>Есть строки <code>user_custom_payment</code> у <code>activeStudent</code></td>
-        <td><code>payment_kind=custom_payment</code> · <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td>
+        <td><code>payment_kind=custom_payment</code> · <a href="#cabinet-custom-payments">§2.4</a> · <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td>
       </tr>
       <tr>
         <td>Назначенные абонементы</td>
@@ -127,9 +127,20 @@
   </ul>
 
   <h3 id="refresh-price-js">2.3) JavaScript: <code>refreshPrice()</code> и суммы</h3>
-  <p>При пересборке сезонов функция <code>refreshPrice()</code> обнуляет только ячейки внутри <code>.seasons .border_price</code>, чтобы не затирать суммы в блоках «Дополнительные платежи» и «Назначенные абонементы» (у них тоже класс <code>.price-value</code>).</p>
+  <p>При пересборке сезонов функция <code>refreshPrice()</code> обнуляет только ячейки <code>.seasons .border_price .price-amount</code> (сумма отделена от символа ₽), чтобы не затирать суммы в блоках «Дополнительные платежи» и «Назначенные абонементы».</p>
   <p>Флаг <code>dashboardSeasonsEnabled</code> в blade (<code>@can('setPrices.cabinetSeasons.view')</code>) отключает вызовы <code>createSeasons</code>, <code>apendPrice</code>, пересчёт задолженности и инициализацию селекта группы.</p>
-  <p>Размер шрифта сумм в блоках оплат и сезонов: <code>font-size: 20px</code> (<code>resources/css/style.css</code>, селекторы <code>.custom-payments-block</code> и <code>.seasons</code>).</p>
+  <p>Размер шрифта сумм в блоках оплат и сезонах: <code>font-size: 20px</code> (<code>resources/css/style.css</code>, селекторы <code>.custom-payments-block</code> и <code>.seasons</code>). У символа ₽ — один <code>padding-left: 0.25em</code> (без второго зазора от соседнего flex-элемента).</p>
+
+  <h3 id="cabinet-custom-payments">2.4) Дополнительные платежи на консоли</h3>
+  <div class="warn">
+    Блок обёрнут в <code>@can('setPrices.customPayments.view')</code>. У роли <code>user</code> этого права <b>нет</b> в базовом наборе — его нужно выдать явно (или через роль admin). Иначе записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>.
+  </div>
+  <ul>
+    <li>Данные: все <code>user_custom_payment</code> активного ученика текущего партнёра (даты в БД необязательны).</li>
+    <li>Карточка: сумма + ₽; подпись — поле <code>note</code> («Описание») в стиле <code>.new-price-description</code>, как подписи месяцев у сезонов. Диапазон дат на консоли <b>не</b> выводится.</li>
+    <li>Кнопка оплаты при <code>paying.classes</code>; уже оплаченные (<code>effective_is_paid</code>) — disabled «Оплачено».</li>
+    <li>Селект «Выбор группы» список доп. платежей <b>не</b> фильтрует (§<a href="#team-switcher">5.5</a>).</li>
+  </ul>
 
   <h2>3) Контекст ученика на странице</h2>
   <p><code>DashboardController::index</code> берёт ученика через <code>FamilyStudentContextService::activeStudent(auth()->user())</code> — тот же механизм, что «Мои платежи» и семейный переключатель в сайдбаре.</p>

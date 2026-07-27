@@ -5,6 +5,7 @@ namespace Tests\Feature\Crm\SettingPrices;
 use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserCustomPayment;
 use App\Models\UserPrice;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
@@ -212,6 +213,79 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             ])
             ->assertOk()
             ->assertJsonPath('success', true);
+    }
+
+    public function test_custom_payment_mutations_require_manual_paid_manage(): void
+    {
+        $actor = $this->createUserWithoutPermission('setPrices.manualPaid.manage', $this->partner);
+        $this->grantPermission($actor, 'setPrices.view');
+        $this->grantPermission($actor, 'setPrices.customPayments.view');
+        $this->actingAs($actor);
+
+        $payment = UserCustomPayment::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'amount' => '150.00',
+            'is_paid' => false,
+        ]);
+
+        foreach ($this->customPaymentMutationRoutesPayload($payment) as $item) {
+            $response = $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                array_merge($item['headers'] ?? ['HTTP_ACCEPT' => 'application/json'], $this->ajaxHeaders())
+            );
+
+            $this->assertSame(
+                403,
+                $response->getStatusCode(),
+                "Без setPrices.manualPaid.manage: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
+            );
+        }
+    }
+
+    public function test_user_with_manual_paid_manage_can_update_and_delete_custom_payment(): void
+    {
+        $actor = $this->createUserWithoutPermission('setPrices.manualPaid.manage', $this->partner);
+        $this->grantPermission($actor, 'setPrices.view');
+        $this->grantPermission($actor, 'setPrices.customPayments.view');
+        $this->grantPermission($actor, 'setPrices.manualPaid.manage');
+        $this->actingAs($actor);
+
+        $payment = UserCustomPayment::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $this->student->id,
+            'team_id' => $this->team->id,
+            'amount' => '180.00',
+            'note' => 'До update',
+            'is_paid' => false,
+        ]);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->putJson(route('admin.settingPrices.customPayments.update', ['id' => $payment->id]), [
+                'amount' => 190,
+                'note' => 'После update',
+                'is_paid' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('user_custom_payment', [
+            'id' => $payment->id,
+            'amount' => '190.00',
+            'note' => 'После update',
+        ]);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('admin.settingPrices.customPayments.destroy', ['id' => $payment->id]))
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseMissing('user_custom_payment', ['id' => $payment->id]);
     }
 
     private function assertCoreSectionEndpointsSucceed(): void
@@ -465,6 +539,36 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
                     'team_id' => $this->team->id,
                     'amount'  => 500,
                     'note'    => 'Smoke',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array{method: string, url: string, data?: array<string, mixed>, headers?: array<string, string>}>
+     */
+    private function customPaymentMutationRoutesPayload(UserCustomPayment $payment): array
+    {
+        return [
+            [
+                'method' => 'PUT',
+                'url' => route('admin.settingPrices.customPayments.update', ['id' => $payment->id]),
+                'data' => [
+                    'amount' => 200,
+                    'note' => 'Access matrix update',
+                    'is_paid' => false,
+                ],
+            ],
+            [
+                'method' => 'DELETE',
+                'url' => route('admin.settingPrices.customPayments.destroy', ['id' => $payment->id]),
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('setting-prices.custom-payments.manual-paid', ['id' => $payment->id]),
+                'data' => [
+                    'mode' => 'paid',
+                    'comment' => 'Access matrix manual paid',
                 ],
             ],
         ];

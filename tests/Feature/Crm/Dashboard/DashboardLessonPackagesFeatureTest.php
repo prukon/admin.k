@@ -87,7 +87,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
         $html = $this->cabinetHtmlFor($student);
 
         $this->assertStringContainsString(
-            "document.querySelectorAll('.seasons .border_price .price-value')",
+            "document.querySelectorAll('.seasons .border_price .price-amount')",
             $html
         );
         $this->assertStringContainsString(

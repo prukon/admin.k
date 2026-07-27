@@ -14,6 +14,8 @@
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
     pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
     table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
     th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
     ul { margin: 8px 0 8px 20px; }
@@ -22,102 +24,176 @@
 </head>
 <body>
 <div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
   <h1 id="custom-payments-tab">Установка цен → Дополнительные платежи</h1>
   <div class="small">Файл: <code>/docs/documentation/setting-prices-custom-payments.html</code>. Страница CRM: <code>/admin/setting-prices/custom-payments</code> (вкладка <code>custom_payments</code> в <code>admin/SettingPrices/index</code>).</div>
 
   <div class="note">
-    <b>Группа платежа:</b> с 2026‑06 у каждой записи <code>user_custom_payment</code> обязателен <code>team_id</code>. Группа определяет юр. лицо и маршрут выплаты T‑Bank при оплате (<code>PayableTeamResolver</code> → <code>payables.meta.team_id</code>). Подробно — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.
+    <b>Группа платежа:</b> с 2026‑06 у каждой записи <code>user_custom_payment</code> при создании в админке обязателен <code>team_id</code>. Группа определяет юр. лицо и маршрут выплаты T‑Bank при оплате (<code>PayableTeamResolver</code> → <code>payables.meta.team_id</code>). Подробно — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.
   </div>
 
-  <h2>1) Права доступа</h2>
+  <h2 id="permissions">1) Права доступа</h2>
   <table>
     <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
     <tbody>
       <tr><td><code>setPrices.view</code></td><td>Родительский middleware раздела «Установка цен» (обязателен для всех URL вкладки)</td></tr>
-      <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Консоль (<code>/cabinet</code>): блок сезонов месячных начислений, селект «Выбор группы», плашка задолженности. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
-      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи», все endpoint'ы ниже, блок на консоли, ручная отметка оплаты (<code>setting-prices.custom-payments.manual-paid</code>)</td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Вкладка «Дополнительные платежи»; GET page/data/users-search/teams-for-user; POST store; блок доп. платежей на консоли (<code>/cabinet</code>)</td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>PUT update, DELETE destroy, POST <code>…/{id}/manual-paid</code>; кнопка «Редактировать» в таблице (флаг <code>window.__customPaymentsCanManualPaid</code>)</td></tr>
+      <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Не относится к доп. платежам — только сезоны на консоли. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
     </tbody>
   </table>
-  <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на весь раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> только на endpoint'ы доп. платежей. С правами — ожидаемые <b>200</b> / <b>302</b> (не <b>500</b>, не пустой <b>200</b> на store).</p>
+  <div class="warn">
+    <b>Важно.</b> Право <code>setPrices.customPayments.view</code> <b>не</b> входит в базовый набор роли <code>user</code> (<code>config/role_base_permissions.php</code>) — только у <code>admin</code> (и кому выдали вручную). Без него ученик на <code>/cabinet</code> <b>не видит</b> блок доп. платежей, даже если записи в БД есть.
+  </div>
+  <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> на page/data/store/search. Без <code>setPrices.manualPaid.manage</code> — <b>403</b> на update/delete/manual-paid. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
 
-  <h2>2) Endpoint'ы</h2>
+  <h2 id="endpoints">2) Endpoint'ы</h2>
   <table>
-    <thead><tr><th>Метод</th><th>URL</th><th>Route name</th><th>Контракт</th></tr></thead>
+    <thead><tr><th>Метод</th><th>URL</th><th>Route name</th><th>Permission</th><th>Контракт</th></tr></thead>
     <tbody>
       <tr>
         <td>GET</td>
         <td><code>/admin/setting-prices/custom-payments</code></td>
         <td><code>admin.settingPrices.customPayments</code></td>
+        <td><code>customPayments.view</code></td>
         <td>HTML вкладки; view <code>admin.SettingPrices.index</code>, <code>activeTab=custom_payments</code></td>
       </tr>
       <tr>
         <td>GET</td>
         <td><code>/admin/setting-prices/custom-payments/data</code></td>
         <td><code>admin.settingPrices.customPayments.data</code></td>
-        <td>DataTables JSON: поля строки включают <code>team_label</code> (название группы или «—»)</td>
+        <td><code>customPayments.view</code></td>
+        <td>DataTables JSON: <code>team_label</code>, <code>note</code>, <code>status_label</code>, <code>effective_is_paid</code>, <code>period</code> (может быть «—», колонка в UI не показывается)</td>
       </tr>
       <tr>
         <td>GET</td>
         <td><code>/admin/setting-prices/custom-payments/users-search?q=</code></td>
         <td><code>admin.settingPrices.customPayments.users-search</code></td>
-        <td>Select2: <code>{ results: [{ id, text }] }</code></td>
+        <td><code>customPayments.view</code></td>
+        <td>Select2: <code>{ results: [{ id, text }] }</code>. Только системная роль <code>user</code> (<code>User::withSystemRoleUser()</code>), <code>is_enabled=1</code>, текущий партнёр. Админы/тренеры/кастомные роли не попадают в выдачу</td>
       </tr>
       <tr>
         <td>GET</td>
         <td><code>/admin/setting-prices/custom-payments/teams-for-user?user_id=</code></td>
         <td><code>admin.settingPrices.customPayments.teams-for-user</code></td>
-        <td>Select2 групп ученика: <code>{ results: [{ id, text }] }</code>; пустой массив при <code>user_id ≤ 0</code> или чужом партнёре</td>
+        <td><code>customPayments.view</code></td>
+        <td>Select2 групп ученика: <code>{ results: [{ id, text }] }</code>; пусто при неверном <code>user_id</code>, чужом партнёре или если пользователь не системный <code>user</code></td>
       </tr>
       <tr>
         <td>POST</td>
         <td><code>/admin/setting-prices/custom-payments</code></td>
         <td><code>admin.settingPrices.customPayments.store</code></td>
-        <td>JSON <code>{ success: true, custom_payment: { …, team_id } }</code>; валидация — <b>422</b> + <code>errors</code> (в т.ч. <code>team_id</code>). Ответ всегда JSON (не redirect), в т.ч. без <code>X-Requested-With</code></td>
+        <td><code>customPayments.view</code></td>
+        <td>JSON <code>{ success: true, custom_payment: { …, team_id } }</code>; валидация — <b>422</b> + <code>errors</code>. Ответ <b>всегда JSON</b> (не redirect), в т.ч. без <code>X-Requested-With</code>. Поля дат в UI не передаются → <code>date_start</code>/<code>date_end</code> = <code>null</code></td>
+      </tr>
+      <tr>
+        <td>PUT</td>
+        <td><code>/admin/setting-prices/custom-payments/{id}</code></td>
+        <td><code>admin.settingPrices.customPayments.update</code></td>
+        <td><code>manualPaid.manage</code></td>
+        <td>JSON <code>{ success: true, custom_payment }</code>. Тело: <code>amount?</code>, <code>note?</code>, <code>is_paid</code>, <code>status_comment?</code>. Request: <code>UserCustomPaymentUpdateRequest</code>. Ответ всегда JSON</td>
+      </tr>
+      <tr>
+        <td>DELETE</td>
+        <td><code>/admin/setting-prices/custom-payments/{id}</code></td>
+        <td><code>admin.settingPrices.customPayments.destroy</code></td>
+        <td><code>manualPaid.manage</code></td>
+        <td>JSON <code>{ success: true }</code>. Если <code>effective_is_paid</code> — <b>422</b>. Чужой партнёр / нет записи — <b>404</b>. Ответ всегда JSON</td>
       </tr>
       <tr>
         <td>POST</td>
         <td><code>/admin/setting-prices/custom-payments/{id}/manual-paid</code></td>
         <td><code>setting-prices.custom-payments.manual-paid</code></td>
-        <td>Тот же permission <code>setPrices.customPayments.view</code>; JSON success / 404</td>
+        <td><code>manualPaid.manage</code></td>
+        <td>Legacy/ручная отметка: <code>{ mode: paid|unpaid, comment }</code> → JSON success / 404. В UI основной поток — модалка редактирования (PUT)</td>
       </tr>
     </tbody>
   </table>
 
-  <h2>3) UI</h2>
+  <h2 id="ui">3) UI админки</h2>
+  <h3>3.1) Таблица</h3>
   <ul>
-    <li>Таблица <code>#custom-payments-table</code> — колонки: ученик, <b>Группа</b>, период, сумма, комментарий, статус, действия. JS: <code>resources/js/setting-prices-custom-payments.js</code>.</li>
-    <li>Модалка «Добавить дополнительный платёж»: Select2 ученика → после выбора подгружаются группы через <code>teams-for-user</code>; поле <code>team_id</code> <b>обязательно</b>.</li>
-    <li>Валидация: <code>UserCustomPaymentStoreRequest</code> — <code>team_id</code> required, exists в <code>teams</code> партнёра, ученик состоит в группе (сообщение под полем «Ученик не состоит в выбранной группе.»).</li>
+    <li>Таблица <code>#custom-payments-table</code> (KidsCrmDataTable): колонки <b>ID</b>, <b>Ученик</b>, <b>Группа</b>, <b>Сумма</b>, <b>Описание</b> (<code>note</code>), <b>Статус</b>, <b>Действия</b>.</li>
+    <li>Колонки «Период» в UI <b>нет</b> (даты в БД по-прежнему nullable; в JSON data поле <code>period</code> может быть «—»).</li>
+    <li>В «Действия» при праве <code>manualPaid.manage</code> — только кнопка <b>«Редактировать»</b> (отдельных кнопок «Оплачено»/«Не оплачено» в таблице нет).</li>
+    <li>JS: <code>resources/js/setting-prices-custom-payments.js</code> (на стенде без vite build может отдаваться из <code>public/js/setting-prices-custom-payments.js</code>).</li>
   </ul>
 
-  <h2>4) База данных</h2>
+  <h3>3.2) Модалка создания</h3>
   <ul>
-    <li>Колонка <code>user_custom_payment.team_id</code> (nullable FK → <code>teams</code>) — миграция <code>2026_06_29_150000_add_team_id_to_custom_payment_and_lesson_package_assignments.php</code>.</li>
-    <li>Backfill для старых строк — <code>2026_06_29_160000_backfill_team_id_on_payment_assignments.php</code>, сервис <code>PaymentAssignmentTeamBackfill</code> (primary group ученика).</li>
+    <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=1</code>, без копеек), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
+    <li>Полей «Дата начала» / «Дата окончания» <b>нет</b>.</li>
+    <li>Если у ученика ровно одна группа — она подставляется автоматически после <code>teams-for-user</code>.</li>
+    <li>Успех: <code>showSuccessModal('Дополнительный платеж', '…успешно создан.')</code> (не toast).</li>
+    <li>Ошибки 422 — под полями (<code>.custom-payment-field-error</code>).</li>
   </ul>
 
-  <h2>5) Связь с оплатой</h2>
-  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>, пишет в <code>payables.meta.team_id</code> и <code>payment_intents.meta</code>. Без группы на записи — <b>422</b> при старте оплаты. См. <a href="/docs/documentation/payments#custom-payment-fee">payments §3.3</a>.</p>
-  <p class="small">На консоли (<code>/cabinet</code>) селект «Выбор группы» <b>не</b> фильтрует список доп. платежей — группа зафиксирована в админке при создании записи. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5.5</a>.</p>
+  <h3>3.3) Модалка редактирования</h3>
+  <ul>
+    <li>Поля: сумма (readonly/disabled, если уже оплачен), статус оплаты, описание (<code>note</code>), при смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3).</li>
+    <li>Ученика и группу менять нельзя.</li>
+    <li>Кнопка <b>«Удалить»</b> (слева в footer) видна только если <code>effective_is_paid === false</code>; подтверждение через <code>showConfirmDeleteModal</code>.</li>
+    <li>Ошибки 422 — под полями (<code>.custom-payment-edit-field-error</code>).</li>
+  </ul>
 
-  <h2>6) Код</h2>
+  <h3>3.4) Валидация update</h3>
+  <ul>
+    <li><code>UserCustomPaymentUpdateRequest</code>:
+      <ul>
+        <li>если платёж <b>не</b> оплачен — <code>amount</code> required, numeric, min 0.01;</li>
+        <li>если оплачен — <code>amount</code> <code>prohibited</code> (сумму менять нельзя);</li>
+        <li><code>is_paid</code> required boolean;</li>
+        <li><code>status_comment</code> required, если новый статус ≠ текущему <code>effective_is_paid</code>;</li>
+        <li><code>note</code> nullable, max 255.</li>
+      </ul>
+    </li>
+    <li>При смене статуса пишутся <code>is_manual_paid</code>, <code>manual_paid_by</code>, <code>manual_paid_at</code>, <code>manual_paid_note</code>.</li>
+  </ul>
+
+  <h2 id="store-validation">4) Валидация store</h2>
+  <ul>
+    <li><code>UserCustomPaymentStoreRequest</code>: <code>user_id</code>, <code>team_id</code> required; ученик — системная роль <code>user</code>; ученик состоит в группе; <code>amount</code> required; <code>note</code> nullable; <code>date_start</code>/<code>date_end</code> nullable (из UI не приходят).</li>
+  </ul>
+
+  <h2 id="db">5) База данных</h2>
+  <ul>
+    <li>Таблица <code>user_custom_payment</code>: <code>partner_id</code>, <code>user_id</code>, <code>team_id</code>, <code>amount</code>, <code>note</code>, <code>date_start</code>/<code>date_end</code> (nullable), <code>is_paid</code>, <code>is_manual_paid</code>, <code>manual_paid_*</code>.</li>
+    <li>Accessor <code>effective_is_paid</code>: если <code>is_manual_paid !== null</code> — он, иначе <code>is_paid</code>.</li>
+    <li>Миграции team_id / backfill — как раньше (<code>2026_06_29_150000</code>, <code>2026_06_29_160000</code>).</li>
+  </ul>
+
+  <h2 id="cabinet">6) Консоль ученика (<code>/cabinet</code>)</h2>
+  <ul>
+    <li>Блок виден при <code>@can('setPrices.customPayments.view')</code> и наличии строк у <code>activeStudent</code>.</li>
+    <li>На карточке: сумма + ₽ (один отступ слева у символа), подпись — <code>note</code> в стиле <code>.new-price-description</code> (как «Октябрь 2025» у сезонов). Даты «от–до» на консоли <b>не</b> показываются.</li>
+    <li>Оплата: <code>payment_kind=custom_payment</code>, <code>custom_payment_id</code>. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-custom-payments">dashboard-cabinet §2.4</a>, <a href="/docs/documentation/payments#custom-payment-fee">payments §3.3</a>.</li>
+  </ul>
+
+  <h2 id="payment">7) Связь с оплатой</h2>
+  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code>.</p>
+  <p class="small">Селект «Выбор группы» на консоли <b>не</b> фильтрует доп. платежи — группа зафиксирована при создании. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>.</p>
+
+  <h2 id="code">8) Код</h2>
   <ul class="small">
-    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>customPayments</code>, <code>customPaymentsData</code>, <code>customPaymentsTeamsForUser</code>, <code>storeCustomPayment</code></li>
-    <li><code>app/Http/Requests/Admin/UserCustomPaymentStoreRequest.php</code></li>
-    <li><code>app/Models/UserCustomPayment.php</code> — relation <code>team()</code></li>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>customPayments*</code>, <code>storeCustomPayment</code>, <code>updateCustomPayment</code>, <code>destroyCustomPayment</code>, <code>setManualPaidCustomPayment</code></li>
+    <li><code>app/Http/Requests/Admin/UserCustomPaymentStoreRequest.php</code>, <code>UserCustomPaymentUpdateRequest.php</code>, <code>SetManualUserCustomPaymentPaidRequest.php</code></li>
+    <li><code>app/Models/UserCustomPayment.php</code></li>
     <li><code>resources/views/admin/SettingPrices/custom-payments.blade.php</code></li>
+    <li><code>resources/js/setting-prices-custom-payments.js</code></li>
+    <li><code>resources/views/dashboard.blade.php</code> — блок доп. платежей</li>
   </ul>
 
-  <h2>7) Feature-тесты</h2>
+  <h2 id="tests">9) Feature-тесты</h2>
   <ul>
-    <li><code>tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php</code> — колонка «Группа»</li>
-    <li><code>tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php</code> — доступ, <code>teams-for-user</code>, store JSON, валидация <code>team_id</code></li>
-    <li><code>tests/Feature/Crm/SettingPrices/SettingPricesSectionFullAccessFeatureTest.php</code> — матрица прав раздела «Установка цен»</li>
-    <li><code>tests/Feature/Crm/Payments/PayableTeamPaymentFlowTest.php</code>, <code>PayableTeamPaymentInitFeatureTest.php</code> — resolver и HTTP Init</li>
-    <li><code>tests/Feature/Crm/Payments/PaymentAssignmentTeamBackfillTest.php</code> — backfill</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — inline JS вкладки</li>
+    <li><code>CustomPaymentsTeamAccessFeatureTest</code> — доступ view/store, <code>teams-for-user</code>, store AJAX/non-AJAX JSON, валидация <code>team_id</code></li>
+    <li><code>CustomPaymentsTeamColumnFeatureTest</code> — <code>team_label</code>, заголовки таблицы (Описание, без Период)</li>
+    <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete, статус + comment, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
+    <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела, в т.ч. mutations + <code>manualPaid.manage</code></li>
+    <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки</li>
+    <li>Payments: <code>PayableTeamPaymentFlowTest</code>, <code>PayableTeamPaymentInitFeatureTest</code>, <code>PaymentAssignmentTeamBackfillTest</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php</code></pre>
 </div>
 </body>

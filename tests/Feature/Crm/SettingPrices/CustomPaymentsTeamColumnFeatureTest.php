@@ -68,10 +68,12 @@ final class CustomPaymentsTeamColumnFeatureTest extends CrmTestCase
         $this->assertSame('Группа Колонка', $row['team_label']);
     }
 
-    public function test_custom_payments_index_renders_team_column_header(): void
+    public function test_custom_payments_index_renders_description_header_without_period(): void
     {
         $this->get(route('admin.settingPrices.customPayments'))
             ->assertOk()
-            ->assertSee('Группа', false);
+            ->assertSee('Группа', false)
+            ->assertSee('Описание', false)
+            ->assertDontSee('<th>Период</th>', false);
     }
 }

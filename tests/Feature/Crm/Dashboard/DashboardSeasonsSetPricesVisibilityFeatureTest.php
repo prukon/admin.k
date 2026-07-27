@@ -126,7 +126,7 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
         $html = $this->cabinetHtmlFor($student);
 
         $this->assertStringContainsString(
-            "document.querySelectorAll('.seasons .border_price .price-value')",
+            "document.querySelectorAll('.seasons .border_price .price-amount')",
             $html
         );
     }

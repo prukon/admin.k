@@ -204,11 +204,45 @@
                     minimumInputLength: 0
                 });
 
-                $userSelect.on('change', function () {
+                $userSelect.off('change.customPaymentAutoTeam').on('change.customPaymentAutoTeam', function () {
                     var $teamSelect = $('#custom-payment-team-id');
-                    if (!$teamSelect.length) return;
+                    if (!$teamSelect.length) {
+                        return;
+                    }
+
                     $teamSelect.val(null).trigger('change');
-                    $teamSelect.prop('disabled', !$(this).val());
+                    var userId = $(this).val();
+                    $teamSelect.prop('disabled', !userId);
+                    if (!userId || !window.__customPaymentsTeamsForUserUrl) {
+                        return;
+                    }
+
+                    $.getJSON(window.__customPaymentsTeamsForUserUrl, {
+                        user_id: userId,
+                        q: ''
+                    }).done(function (data) {
+                        if (String($userSelect.val() || '') !== String(userId)) {
+                            return;
+                        }
+
+                        var results = (data && Array.isArray(data.results)) ? data.results : [];
+                        if (results.length !== 1) {
+                            return;
+                        }
+
+                        var team = results[0];
+                        if (!team || team.id == null) {
+                            return;
+                        }
+
+                        var option = new Option(
+                            team.text || ('#' + team.id),
+                            String(team.id),
+                            true,
+                            true
+                        );
+                        $teamSelect.append(option).trigger('change');
+                    });
                 });
             }
 
