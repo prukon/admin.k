@@ -27,7 +27,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Справочники: иерархия «Район → Объект → Группа»</h1>
-  <div class="small">Файл: <code>/docs/documentation/directories-hierarchy.html</code> · детали: <a href="/docs/documentation/admin-teams">группы</a>, <a href="/docs/documentation/admin-locations">объекты</a>, <a href="/docs/documentation/admin-districts">районы</a>, <a href="/docs/documentation/admin-sport-types">виды спорта</a>, <a href="/docs/documentation/school-leads-landing">лендинг</a>, <a href="/docs/documentation/school-leads-widget">CRM заявки</a></div>
+  <div class="small">Файл: <code>/docs/documentation/directories-hierarchy.html</code> · детали: <a href="/docs/documentation/admin-teams">группы</a>, <a href="/docs/documentation/admin-locations">объекты</a>, <a href="/docs/documentation/admin-districts">районы</a>, <a href="/docs/documentation/admin-sport-types">виды спорта</a>, <a href="/docs/documentation/admin-legal-entities">юр. лица</a>, <a href="/docs/documentation/lesson-packages#directories-packages-tab">абонементы (дубль)</a>, <a href="/docs/documentation/school-leads-landing">лендинг</a>, <a href="/docs/documentation/school-leads-widget">CRM заявки</a></div>
 
   <div class="note">
     <b>Глоссарий UI (единый по проекту):</b><br>
@@ -36,11 +36,11 @@
     «<b>Группа</b>» / «Услуга» = модель <code>Team</code> (секция на лендинге).<br>
     «<b>Вид спорта</b>» = модель <code>SportType</code>, таблица <code>sport_types</code> — <b>плоский</b> справочник партнёра (не в иерархии район→объект), но в CRM объединён с районами и объектами в одном разделе меню.<br>
     «<b>Юр. лицо</b>» = модель <code>PartnerLegalEntity</code>, таблица <code>partner_legal_entities</code> — реквизиты и ShopCode T‑Bank (sm-register); привязка к группам через <code>teams.legal_entity_id</code> (см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>).<br>
-    Меню CRM: один пункт сайдбара (иконка «книга») — при одном доступном справочнике называется как он (<b>Группы</b>, <b>Объекты</b>, <b>Районы</b>, <b>Виды спорта</b>, <b>Юр. лица</b>), при двух и более — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Для пункта меню дополнительно нужно право <code>directories.view</code>. На страницах CRM заголовок раздела всегда «Справочники»; вкладки: <b>Группы</b> · <b>Объекты</b> · <b>Районы</b> · <b>Виды спорта</b> · <b>Юр. лица</b> (каждая — по своему permission).
+    Меню CRM: один пункт сайдбара (иконка «книга») — при одном доступном справочнике называется как он (<b>Группы</b>, <b>Объекты</b>, <b>Районы</b>, <b>Виды спорта</b>, <b>Юр. лица</b>), при двух и более — <b>«Справочники»</b> (<code>App\Support\DirectoriesMenu</code>). Для пункта меню дополнительно нужно право <code>directories.view</code>. На страницах CRM заголовок раздела всегда «Справочники»; вкладки: <b>Группы</b> · <b>Объекты</b> · <b>Районы</b> · <b>Виды спорта</b> · <b>Юр. лица</b> · <b>Абонементы</b> (каждая — по своему permission; «Абонементы» — дубль UI в оболочке справочников, CRUD API общие с разделом «Расписание школы»).
   </div>
 
   <h2>1) Единый UI раздела «Справочники»</h2>
-  <p>Пять справочных страниц CRM объединены одним заголовком, общим partial вкладок и одним пунктом сайдбара. URL страниц <strong>не менялись</strong>. С 2026-06 добавлена вкладка <b>«Юр. лица»</b> (<code>/admin/legal-entities</code>).</p>
+  <p>Пять сущностей-справочников CRM (группы, объекты, районы, виды спорта, юр. лица) объединены одним заголовком, общим partial вкладок и одним пунктом сайдбара. Их URL <strong>не менялись</strong>. С 2026-06 добавлена вкладка <b>«Юр. лица»</b> (<code>/admin/legal-entities</code>). С 2026-07 в <b>конец</b> вкладок добавлен функциональный дубль <b>«Абонементы»</b> (<code>/admin/directories/lesson-packages</code>) — это <b>не</b> шестой справочник в <code>DirectoriesMenu</code>, а повтор UI шаблонов абонементов в оболочке «Справочники» (см. §5.6).</p>
   <table>
     <thead>
       <tr><th>Вкладка</th><th>URL</th><th>View</th><th><code>$activeTab</code></th><th>Permission</th></tr>
@@ -51,9 +51,10 @@
       <tr><td>Районы</td><td><code>/admin/districts</code></td><td><code>admin/districts/index.blade.php</code></td><td><code>districts</code></td><td><code>districts.view</code></td></tr>
       <tr><td>Виды спорта</td><td><code>/admin/sport-types</code></td><td><code>admin/sport-types/index.blade.php</code></td><td><code>sport-types</code></td><td><code>sport_types.view</code></td></tr>
       <tr><td>Юр. лица</td><td><code>/admin/legal-entities</code></td><td><code>admin/legal-entities/index.blade.php</code></td><td><code>legal-entities</code></td><td><code>legal_entities.view</code></td></tr>
+      <tr><td>Абонементы</td><td><code>/admin/directories/lesson-packages</code></td><td><code>admin/directories/lesson-packages.blade.php</code> + <code>admin.lessonPackages.tabs.packages</code></td><td><code>packages</code></td><td><code>lessonPackages.view</code></td></tr>
     </tbody>
   </table>
-  <p>Порядок вкладок на всех страницах: <b>Группы → Объекты → Районы → Виды спорта → Юр. лица</b>. Partial: <code>resources/views/admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). На каждой странице — заголовок «Справочники», ниже вкладки, ниже toolbar конкретного справочника.</p>
+  <p>Порядок вкладок на всех страницах: <b>Группы → Объекты → Районы → Виды спорта → Юр. лица → Абонементы</b>. Partial: <code>resources/views/admin/directories/_section_tabs.blade.php</code> (<code>id="directoriesSectionTabs"</code>). На каждой странице справочника — заголовок «Справочники», ниже вкладки, ниже toolbar/контент. Маршрут: <code>admin.directories.lesson-packages.index</code> → <code>LessonPackageController@directoriesIndex</code>.</p>
 
   <h3 id="1-1">1.1) Подпись пункта сайдбара — <code>DirectoriesMenu</code></h3>
   <p>Класс <code>App\Support\DirectoriesMenu</code>, метод <code>forUser(?Authenticatable $user): ?array</code>. Возвращает <code>null</code>, если нет ни одного из прав справочников; иначе <code>['url' => …, 'label' => …]</code>.</p>
@@ -70,7 +71,7 @@
       <tr><td>2 и более</td><td><b>Справочники</b></td><td>первая доступная вкладка по приоритету (см. ниже)</td></tr>
     </tbody>
   </table>
-  <p>Приоритет URL (независимо от подписи): <b>группы</b> → <b>объекты</b> → <b>районы</b> → <b>виды спорта</b> → <b>юр. лица</b>. Подключение: <code>resources/views/includes/sidebar.blade.php</code> — один пункт с иконкой <code>fa-book</code> при наличии <code>directories.view</code>. Отдельных пунктов «Группы» / «Виды спорта» / «Юр. лица» в сайдбаре <strong>нет</strong> (ни при одном, ни при нескольких справочниках).</p>
+  <p>Приоритет URL (независимо от подписи): <b>группы</b> → <b>объекты</b> → <b>районы</b> → <b>виды спорта</b> → <b>юр. лица</b>. Вкладка «Абонементы» (<code>lessonPackages.view</code>) в этот приоритет <strong>не входит</strong> и не меняет URL пункта сайдбара. Подключение: <code>resources/views/includes/sidebar.blade.php</code> — один пункт с иконкой <code>fa-book</code> при наличии <code>directories.view</code>. Отдельных пунктов «Группы» / «Виды спорта» / «Юр. лица» / «Абонементы» в сайдбаре <strong>нет</strong>.</p>
   <div class="note">
     <b>Заголовок страницы vs сайдбар:</b> на HTML-страницах справочников (<code>&lt;h4&gt;Справочники&lt;/h4&gt;</code>) заголовок <strong>не меняется</strong> — динамическая подпись только у пункта левого меню. У партнёра с единственным правом, например, <code>groups.view</code>, в сайдбаре «Группы», на странице <code>/admin/teams</code> — «Справочники» и вкладка «Группы».
   </div>
@@ -137,6 +138,11 @@ school_leads.district_id + school_leads.location_id — снимок на мом
         <td>Вкладка «Группы» в «Справочники»; поле <code>teams.location_id</code> — см. <a href="/docs/documentation/admin-teams">admin-teams</a>. В базовых правах роли <code>admin</code>.</td>
       </tr>
       <tr>
+        <td><code>lessonPackages.view</code></td>
+        <td>Вкладка «Абонементы» → <code>/admin/directories/lesson-packages</code>; CRUD шаблонов на <code>/admin/lesson-packages*</code></td>
+        <td>Не входит в <code>DirectoriesMenu</code>. Вкладка видна на страницах справочников при наличии права. Полный доступ к шаблонам/календарю/назначениям — см. <a href="/docs/documentation/lesson-packages">lesson-packages</a>. В базовых правах роли <code>admin</code>.</td>
+      </tr>
+      <tr>
         <td><code>schoolLeads.view</code> + <code>districts.view</code></td>
         <td>Колонка/фильтр «Район» в <code>/admin/school-leads</code></td>
         <td>Независимо от <code>locations.view</code>.</td>
@@ -160,8 +166,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td>только <code>groups.view</code></td><td>Группы</td><td><code>/admin/teams</code></td><td>Группы</td></tr>
       <tr><td>только <code>sport_types.view</code></td><td>Виды спорта</td><td><code>/admin/sport-types</code></td><td>Виды спорта</td></tr>
       <tr><td>только <code>legal_entities.view</code></td><td>Юр. лица</td><td><code>/admin/legal-entities</code></td><td>Юр. лица</td></tr>
-      <tr><td>комбинация из 2+ прав</td><td>Справочники</td><td>первая по приоритету (§1.1)</td><td>только разрешённые вкладки</td></tr>
-      <tr><td>нет <code>directories.view</code> или ни одного справочника</td><td>— (пункт скрыт)</td><td>—</td><td>—</td></tr>
+      <tr><td><code>groups.view</code> + <code>lessonPackages.view</code> (без других справочников)</td><td>Группы</td><td><code>/admin/teams</code></td><td>Группы · Абонементы (<code>lessonPackages.view</code> не считается вторым справочником в <code>DirectoriesMenu</code>)</td></tr>
+      <tr><td>комбинация из 2+ прав из пяти справочников (± <code>lessonPackages.view</code>)</td><td>Справочники</td><td>первая по приоритету (§1.1)</td><td>разрешённые вкладки справочников; «Абонементы» — только при <code>lessonPackages.view</code></td></tr>
+      <tr><td>нет <code>directories.view</code> или ни одного из 5 прав справочников</td><td>— (пункт скрыт)</td><td>—</td><td>— (даже при <code>lessonPackages.view</code> пункт «Справочники» не появляется; шаблоны доступны через «Расписание школы» / прямой URL дубля)</td></tr>
     </tbody>
   </table>
 
@@ -232,6 +239,22 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>Оплаты T‑Bank: ShopCode через <code>LegalEntityResolver</code> — только <code>partner_legal_entities.tinkoff_shop_code</code> (без fallback на <code>partners</code>). См. <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.</li>
   </ul>
 
+  <h3 id="directories-lesson-packages">5.6) Абонементы (дубль) — <code>/admin/directories/lesson-packages</code></h3>
+  <div class="note">
+    Функциональный дубль вкладки «Абонементы» из раздела «Расписание школы». Полный контракт шаблонов —
+    <a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a> и
+    <a href="/docs/documentation/lesson-packages#directories-packages-tab">§directories-packages-tab</a>.
+  </div>
+  <ul>
+    <li>Шестая (последняя) вкладка в <code>_section_tabs</code>; право <code>lessonPackages.view</code>; <code>$activeTab = 'packages'</code>.</li>
+    <li>Маршрут: <code>GET /admin/directories/lesson-packages</code> → <code>admin.directories.lesson-packages.index</code> → <code>LessonPackageController@directoriesIndex</code>.</li>
+    <li>View: <code>admin/directories/lesson-packages.blade.php</code> (заголовок «Справочники» + вкладки) + <code>@include('admin.lessonPackages.tabs.packages')</code>.</li>
+    <li>CRUD шаблонов — <strong>те же</strong> endpoint'ы <code>/admin/lesson-packages</code> (store/show/update/destroy). Отдельного API-префикса нет.</li>
+    <li>Non-AJAX store/update: если <code>url()->previous()</code> начинается с URL дубля — <code>302</code> на <code>admin.directories.lesson-packages.index</code>; иначе — на <code>admin.lesson-packages.index</code> (метод <code>redirectAfterLessonPackageMutation</code>).</li>
+    <li>В <code>DirectoriesMenu::ENTRIES</code> <strong>нет</strong> — сайдбар «Справочники» не ведёт на эту страницу и не учитывает одно только <code>lessonPackages.view</code>.</li>
+    <li>Старая страница <code>/admin/lesson-packages</code> (оболочка «Расписание школы») сохранена параллельно.</li>
+  </ul>
+
   <h2>6) Публичный лендинг — каскад выбора</h2>
   <p>Подробно: <a href="/docs/documentation/school-leads-landing#5-4">school-leads-landing §5.4</a>, автовыбор — <a href="/docs/documentation/school-leads-landing#5-4-1">§5.4.1</a>.</p>
   <ol>
@@ -258,16 +281,17 @@ school_leads.district_id + school_leads.location_id — снимок на мом
   <ul>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта</a> — плоский справочник; не заменяет район/объект на лендинге.</li>
     <li><a href="/docs/documentation/admin-teams">Группы</a> — необязательная привязка к объекту через <code>location_id</code>; опционально <code>sport_type_id</code>.</li>
+    <li><a href="/docs/documentation/lesson-packages#directories-packages-tab">Абонементы (дубль во вкладках)</a> — шаблоны <code>lesson_packages</code>; не часть иерархии район→объект.</li>
     <li><a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a> — расписание, отчёты.</li>
     <li><a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a> — фильтр по объекту (<code>filter_location_id</code>); в UI отчётов термин «Локация» может сохраняться исторически — имеется в виду объект (<code>Location</code>).</li>
   </ul>
 
   <h2>9) Ключевые файлы</h2>
   <ul>
-    <li>Контроллеры: <code>TeamController</code>, <code>DistrictController</code>, <code>LocationController</code>, <code>SportTypeController</code>, <code>SchoolLeadController</code>, <code>SchoolLeadLandingController</code></li>
-    <li>Requests: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code>, <code>LocationFieldRules</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code></li>
+    <li>Контроллеры: <code>TeamController</code>, <code>DistrictController</code>, <code>LocationController</code>, <code>SportTypeController</code>, <code>PartnerLegalEntityController</code>, <code>LessonPackageController</code> (<code>directoriesIndex</code>), <code>SchoolLeadController</code>, <code>SchoolLeadLandingController</code></li>
+    <li>Requests: <code>StoreDistrictRequest</code>, <code>UpdateDistrictRequest</code>, <code>LocationFieldRules</code>, <code>StoreLessonPackageRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code></li>
     <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationSyncService</code>, <code>LocationDistrictSyncService</code>, <code>TeamLocationAvailabilityService</code>, <code>SchoolLeadNotificationService</code></li>
-    <li>Views: <code>admin/districts/index.blade.php</code>, <code>admin/locations/index.blade.php</code>, <code>admin/team.blade.php</code>, <code>admin/sport-types/index.blade.php</code>, <code>admin/directories/_section_tabs.blade.php</code>, <code>landing/partner-lead.blade.php</code>, <code>admin/school-leads/tabs/leads.blade.php</code></li>
+    <li>Views: <code>admin/districts/index.blade.php</code>, <code>admin/locations/index.blade.php</code>, <code>admin/team.blade.php</code>, <code>admin/sport-types/index.blade.php</code>, <code>admin/legal-entities/index.blade.php</code>, <code>admin/directories/lesson-packages.blade.php</code>, <code>admin/directories/_section_tabs.blade.php</code>, <code>admin/lessonPackages/tabs/packages.blade.php</code>, <code>landing/partner-lead.blade.php</code>, <code>admin/school-leads/tabs/leads.blade.php</code></li>
     <li>Sidebar: <code>resources/views/includes/sidebar.blade.php</code>, <code>App\Support\DirectoriesMenu</code></li>
   </ul>
 
@@ -294,6 +318,9 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>DirectoriesSmokeFeatureTest.php</code></td><td>Меню и вкладки: подпись сайдбара (имя справочника / «Справочники»), комбинации прав, 403</td></tr>
       <tr><td><code>DirectoriesPageFullAccessFeatureTest.php</code></td><td>Все endpoint'ы четырёх справочников → 200 (admin и актор с правами); порядок вкладок на HTML</td></tr>
       <tr><td><code>TeamsDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Группы», сайдбар, full access groups (CRUD → 200)</td></tr>
+      <tr><td><code>DirectoriesLessonPackagesAccessFeatureTest.php</code></td><td>Доступ дубля «Абонементы»: guest / без права / с <code>lessonPackages.view</code> на HTML и CRUD JSON</td></tr>
+      <tr><td><code>DirectoriesLessonPackagesFeatureTest.php</code></td><td>Оболочка справочников, active-вкладка, видимость таба на <code>/admin/teams</code>, AJAX store/update/show/destroy + 422</td></tr>
+      <tr><td><code>DirectoriesLessonPackagesNonAjaxSafetyNetFeatureTest.php</code></td><td>Non-AJAX store/update с <code>from</code> дубля → <code>302</code> на <code>/admin/directories/lesson-packages</code> + БД</td></tr>
       <tr><td><code>SportTypesDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Виды спорта», сайдбар, full access sport-types</td></tr>
       <tr><td><code>TeamsPageFullAccessFeatureTest.php</code></td><td>Full access <code>/admin/teams</code> + UI «Справочники»</td></tr>
       <tr><td><code>DirectoriesHierarchyNewFeaturesFeatureTest.php</code></td><td>Сквозные сценарии: <code>admin_user_ids</code>, фильтры групп, multiselect район↔объекты, <code>locations_label</code></td></tr>

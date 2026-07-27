@@ -396,6 +396,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
     // Абонементы (lesson_packages)
     Route::middleware('can:lessonPackages.view')->group(function () {
         Route::get('/admin/lesson-packages', [LessonPackageController::class, 'index'])->name('admin.lesson-packages.index');
+        // Дубль вкладки «Абонементы» в разделе «Справочники» (общий partial + те же API)
+        Route::get('/admin/directories/lesson-packages', [LessonPackageController::class, 'directoriesIndex'])
+            ->name('admin.directories.lesson-packages.index');
         Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
         Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
             ->name('admin.lesson-packages.assignments.data');

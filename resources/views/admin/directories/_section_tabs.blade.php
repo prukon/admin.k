@@ -38,4 +38,12 @@
                role="tab">Юр. лица</a>
         </li>
     @endcan
+
+    @can('lessonPackages.view')
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {{ ($activeTab ?? '') === 'packages' ? 'active' : '' }}"
+               href="{{ route('admin.directories.lesson-packages.index') }}"
+               role="tab">Абонементы</a>
+        </li>
+    @endcan
 </ul>

@@ -58,6 +58,23 @@ final class LessonPackageController extends AdminBaseController
 
     public function index()
     {
+        return view('admin.lessonPackages.index', $this->packagesIndexViewData());
+    }
+
+    /**
+     * Дубль вкладки «Абонементы» в разделе «Справочники» (/admin/directories/lesson-packages).
+     * Контент и CRUD API те же, что у admin.lesson-packages.index.
+     */
+    public function directoriesIndex()
+    {
+        return view('admin.directories.lesson-packages', $this->packagesIndexViewData());
+    }
+
+    /**
+     * @return array{activeTab: string, packages: \Illuminate\Contracts\Pagination\LengthAwarePaginator, weekdays: array<int, string>}
+     */
+    private function packagesIndexViewData(): array
+    {
         $partnerId = $this->requirePartnerId();
 
         $packages = LessonPackage::query()
@@ -75,11 +92,11 @@ final class LessonPackageController extends AdminBaseController
             ->orderByDesc('id')
             ->paginate(20);
 
-        return view('admin.lessonPackages.index', [
+        return [
             'activeTab' => 'packages',
             'packages' => $packages,
             'weekdays' => self::weekdaysMap(),
-        ]);
+        ];
     }
 
     public function schoolSchedule()
@@ -1082,9 +1099,10 @@ final class LessonPackageController extends AdminBaseController
             return response()->json(['success' => true]);
         }
 
-        return redirect()
-            ->route('admin.lesson-packages.index')
-            ->with('success', 'Абонемент успешно создан.');
+        return $this->redirectAfterLessonPackageMutation(
+            $request,
+            'Абонемент успешно создан.'
+        );
     }
 
     public function show(Request $request, LessonPackage $lessonPackage)
@@ -1167,9 +1185,10 @@ final class LessonPackageController extends AdminBaseController
             return response()->json(['success' => true]);
         }
 
-        return redirect()
-            ->route('admin.lesson-packages.index')
-            ->with('success', 'Абонемент успешно обновлён.');
+        return $this->redirectAfterLessonPackageMutation(
+            $request,
+            'Абонемент успешно обновлён.'
+        );
     }
 
     public function destroy(LessonPackage $lessonPackage): JsonResponse
@@ -1228,6 +1247,20 @@ final class LessonPackageController extends AdminBaseController
         }
 
         return response()->json(['success' => true]);
+    }
+
+    private function redirectAfterLessonPackageMutation(Request $request, string $successMessage): RedirectResponse
+    {
+        $directoriesUrl = route('admin.directories.lesson-packages.index');
+        $previous = (string) url()->previous();
+
+        $routeName = str_starts_with($previous, $directoriesUrl)
+            ? 'admin.directories.lesson-packages.index'
+            : 'admin.lesson-packages.index';
+
+        return redirect()
+            ->route($routeName)
+            ->with('success', $successMessage);
     }
 
     private function assertLessonPackageBelongsToPartner(LessonPackage $lessonPackage, int $partnerId): void
