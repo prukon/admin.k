@@ -20,6 +20,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class LessonPackagesSchoolScheduleExportBuilder
 {
+    public function __construct(
+        private readonly LessonOccurrenceHistoricalRemainingResolver $historicalRemainingResolver,
+    ) {}
+
     /**
      * @return StreamedResponse
      */
@@ -88,6 +92,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
             ->get();
 
         $latestEvents = $this->latestStatusEventsByKey($partnerId, $fromYmd, $toYmd);
+        $historicalRemaining = $this->historicalRemainingResolver->resolveForExportRows($partnerId, $rows);
 
         $excelRow = 2;
         foreach ($rows as $utss) {
@@ -118,20 +123,24 @@ final class LessonPackagesSchoolScheduleExportBuilder
 
             $fee = null;
             $paymentLabel = '';
-            $remaining = null;
+            $remaining = $historicalRemaining[$eventKey] ?? null;
             $total = null;
             $assignmentNo = '';
 
             if ($isTrial) {
-                $remaining = (int) ($utss->trial_lessons_remaining ?? 1);
                 $total = (int) ($utss->trial_lessons_total ?? 1);
                 $paymentLabel = '—';
+                if ($remaining === null) {
+                    $remaining = $total;
+                }
             } elseif ($ulp !== null) {
                 $assignmentNo = (string) (int) $ulp->id;
                 $fee = $ulp->fee_amount;
                 $paymentLabel = $this->paymentLabel($ulp);
-                $remaining = (int) $ulp->lessons_remaining;
                 $total = (int) $ulp->lessons_total;
+                if ($remaining === null) {
+                    $remaining = (int) $ulp->lessons_total;
+                }
             }
 
             $consumed = $status !== null && (bool) $status->consumes_lesson;

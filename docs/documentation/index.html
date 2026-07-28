@@ -33,7 +33,8 @@
     <code>lessonPackages.view</code>). Модалка периода: пресеты «Этот месяц» / «Прошлый месяц», произвольный диапазон
     (не более 366 дней). Файл <code>.xlsx</code> с двумя листами: <b>«Занятия»</b> (записи календаря, включая пробные;
     текущий статус, списано да/нет, источник статуса вручную/авто) и <b>«Назначения»</b> (сводка абонементов, включая
-    ещё не привязанные к расписанию). Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
+    ещё не привязанные к расписанию). На листе «Занятия» колонка «Остаток» — исторический
+    (после статуса строки). Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
     <code>422</code> + <code>errors</code> под полями дат; non-AJAX — <code>302</code> + session errors.
     Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
     права — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,

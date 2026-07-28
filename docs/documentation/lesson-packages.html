@@ -212,8 +212,9 @@
     На вкладке <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> доступна выгрузка
     <code>.xlsx</code> (право <code>lessonPackages.export</code> + <code>lessonPackages.view</code>).
     Два листа: занятия календаря за период (включая пробные) и сводка назначений абонементов
-    (включая ещё не привязанные к расписанию). Остаток в файле — <strong>текущий</strong>; «списано» по занятию —
-    флаг <code>consumes_lesson</code> текущего статуса (не отдельный ledger).
+    (включая ещё не привязанные к расписанию). Колонка «Остаток» на листе «Занятия» —
+    <strong>исторический</strong> (после статуса строки / до статуса, если статуса нет); на листе «Назначения» —
+    текущий <code>lessons_remaining</code>.
     Полный контракт UI/API/колонок/тестов — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>.
   </div>
 

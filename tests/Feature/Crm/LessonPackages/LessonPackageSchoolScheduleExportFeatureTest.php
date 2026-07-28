@@ -78,7 +78,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'starts_at' => '2026-07-01',
             'ends_at' => '2026-09-30',
             'lessons_total' => 8,
-            'lessons_remaining' => 7,
+            'lessons_remaining' => 3, // текущий счётчик намеренно «бит» — в Excel должен быть исторический 7
             'fee_amount' => 4500.00,
             'is_paid' => true,
             'is_manual_paid' => null,
@@ -346,6 +346,9 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             $this->assertSame('Отмена', (string) $sheet->getCell([11, $r])->getValue());
             $this->assertSame('нет', (string) $sheet->getCell([12, $r])->getValue());
             $this->assertSame('авто', (string) $sheet->getCell([13, $r])->getValue());
+            // Статус не списывает: остаток после перехода = lessons_total (4).
+            $this->assertSame('4', (string) $sheet->getCell([14, $r])->getValue());
+            $this->assertSame('4', (string) $sheet->getCell([15, $r])->getValue());
             break;
         }
         $this->assertTrue($found, 'Строка занятия Сидорова не найдена в выгрузке');
@@ -368,6 +371,198 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
         $this->assertStringContainsString('initSchoolCalExport', $html);
         $this->assertStringContainsString("Accept': 'application/json'", $html);
         $this->assertStringContainsString('X-Requested-With', $html);
+    }
+
+    public function test_lessons_sheet_uses_historical_remaining_not_current_counter(): void
+    {
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('user'),
+            'lastname' => 'История',
+            'name' => 'Остатков',
+            'is_enabled' => 1,
+        ]);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа История']);
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Гибкий история',
+            'schedule_type' => 'flexible',
+            'duration_days' => 90,
+            'lessons_count' => 8,
+            'price_cents' => 1000,
+            'freeze_enabled' => false,
+            'freeze_days' => 0,
+            'is_active' => true,
+        ]);
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'team_id' => $team->id,
+            'starts_at' => '2026-07-01',
+            'ends_at' => '2026-09-30',
+            'lessons_total' => 8,
+            // После двух списаний реально 6, но в выгрузке считаем по событиям.
+            'lessons_remaining' => 1,
+            'fee_amount' => 1000,
+            'created_by' => $this->user->id,
+        ]);
+
+        $slotEarly = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => (int) CarbonImmutable::parse('2026-07-10')->format('N'),
+            'time_start' => '09:00',
+            'time_end' => '10:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $slotLate = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => (int) CarbonImmutable::parse('2026-07-20')->format('N'),
+            'time_start' => '18:00',
+            'time_end' => '19:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $slotNoStatus = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => (int) CarbonImmutable::parse('2026-07-25')->format('N'),
+            'time_start' => '12:00',
+            'time_end' => '13:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotEarly->id,
+            'starts_at' => '2026-07-10',
+            'ends_at' => '2026-12-31',
+            'is_trial_lesson' => false,
+            'created_by' => $this->user->id,
+        ]);
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotLate->id,
+            'starts_at' => '2026-07-20',
+            'ends_at' => '2026-12-31',
+            'is_trial_lesson' => false,
+            'created_by' => $this->user->id,
+        ]);
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotNoStatus->id,
+            'starts_at' => '2026-07-25',
+            'ends_at' => '2026-12-31',
+            'is_trial_lesson' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        // Списание вне периода выгрузки — должно учитываться в реконструкции.
+        $slotBeforePeriod = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '08:00',
+            'time_end' => '09:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotBeforePeriod->id,
+            'starts_at' => '2026-06-15',
+            'ends_at' => '2026-12-31',
+            'is_trial_lesson' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $attended = LessonOccurrenceStatus::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('code', 'attended')
+            ->firstOrFail();
+
+        UserLessonOccurrenceStatusEvent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotBeforePeriod->id,
+            'occurrence_date' => '2026-06-15',
+            'user_lesson_package_id' => $ulp->id,
+            'lesson_occurrence_status_id' => $attended->id,
+            'created_by' => $this->user->id,
+        ]);
+        UserLessonOccurrenceStatusEvent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotEarly->id,
+            'occurrence_date' => '2026-07-10',
+            'user_lesson_package_id' => $ulp->id,
+            'lesson_occurrence_status_id' => $attended->id,
+            'created_by' => $this->user->id,
+        ]);
+        UserLessonOccurrenceStatusEvent::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $slotLate->id,
+            'occurrence_date' => '2026-07-20',
+            'user_lesson_package_id' => $ulp->id,
+            'lesson_occurrence_status_id' => $attended->id,
+            'created_by' => $this->user->id,
+        ]);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'ulp_hist_');
+        $this->assertNotFalse($tmp);
+        file_put_contents($tmp, $this->get($this->exportUrl($this->validExportPeriod()))->streamedContent());
+        $sheet = IOFactory::load($tmp)->getSheetByName('Занятия');
+        @unlink($tmp);
+        $this->assertNotNull($sheet);
+
+        $byDate = [];
+        for ($r = 2; $r <= 20; $r++) {
+            $date = (string) $sheet->getCell([1, $r])->getValue();
+            $name = (string) $sheet->getCell([4, $r])->getValue();
+            if ($date === '' || $name === '') {
+                break;
+            }
+            if ($name !== 'История Остатков') {
+                continue;
+            }
+            $byDate[$date] = [
+                'remaining' => (string) $sheet->getCell([14, $r])->getValue(),
+                'total' => (string) $sheet->getCell([15, $r])->getValue(),
+                'status' => (string) $sheet->getCell([11, $r])->getValue(),
+            ];
+        }
+
+        // 8 − 1 (июнь, вне периода) − 1 (10.07) = 6 после 10.07
+        $this->assertSame('6', $byDate['2026-07-10']['remaining']);
+        $this->assertSame('Посетил', $byDate['2026-07-10']['status']);
+        // ещё −1 (20.07) = 5
+        $this->assertSame('5', $byDate['2026-07-20']['remaining']);
+        // без статуса: остаток «до статуса» = после всех более ранних = 5
+        $this->assertSame('5', $byDate['2026-07-25']['remaining']);
+        $this->assertSame('', $byDate['2026-07-25']['status']);
+        $this->assertSame('8', $byDate['2026-07-10']['total']);
+        // Не берём текущий счётчик lessons_remaining=1
+        $this->assertNotSame('1', $byDate['2026-07-10']['remaining']);
     }
 
     public function test_lessons_outside_period_are_excluded(): void

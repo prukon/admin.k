@@ -362,9 +362,20 @@
   <p>Одна строка = запись <code>user_team_schedule_slots</code> с <code>starts_at</code> в выбранном периоде
     (включая <strong>пробные</strong>: <code>is_trial_lesson = true</code>, без абонемента).
     Текущий статус — последнее событие <code>user_lesson_occurrence_status_events</code> по ключу
-    ученик + слот + дата + назначение (для пробного <code>user_lesson_package_id</code> = null).
-    Исторический остаток «на момент занятия» <strong>не</strong> считается — в колонках «Остаток» / «Всего» текущие значения
-    с назначения или пробного баланса.</p>
+    ученик + слот + дата + назначение (для пробного <code>user_lesson_package_id</code> = null).</p>
+  <p><strong>Колонка «Остаток»</strong> — <em>исторический</em> остаток (сервис
+    <code>LessonOccurrenceHistoricalRemainingResolver</code>), не поле <code>lessons_remaining</code> «как сейчас»:</p>
+  <ul>
+    <li>есть статус по строке → остаток <strong>после</strong> последнего события статуса по этой строке
+      (в том числе если статус не списывает — остаток после перехода);</li>
+    <li>нет статуса → остаток <strong>на эту дату до статуса по строке</strong>
+      (после всех более ранних событий по тому же абонементу);</li>
+    <li>реконструкция стартует от <code>lessons_total</code> / <code>trial_lessons_total</code> и проигрывает
+      <strong>все</strong> события назначения (включая даты вне периода отчёта), порядок:
+      <code>occurrence_date</code> ASC, затем <code>id</code>; в пределах одного дня для строк без статуса
+      более ранними считаются слоты с меньшим <code>time_start</code> / <code>team_schedule_slot_id</code>;</li>
+    <li>дельта списания — та же, что в <code>UserLessonPackageConsumptionAdjuster</code> (−1 / +1 / 0).</li>
+  </ul>
   <table>
     <thead>
       <tr><th>Колонка</th><th>Источник / правило</th></tr>
@@ -379,7 +390,8 @@
       <tr><td>Статус</td><td>текущий <code>lesson_occurrence_statuses.title</code> или пусто</td></tr>
       <tr><td>Списано</td><td>«да» / «нет» по <code>consumes_lesson</code> текущего статуса; без статуса — пусто</td></tr>
       <tr><td>Источник статуса</td><td>«вручную» (<code>created_by</code> задан) / «авто» (<code>created_by</code> null) / пусто</td></tr>
-      <tr><td>Остаток, Всего</td><td>абонемент: <code>lessons_remaining</code> / <code>lessons_total</code>; пробное: <code>trial_lessons_*</code></td></tr>
+      <tr><td>Остаток</td><td>исторический (см. выше)</td></tr>
+      <tr><td>Всего</td><td><code>lessons_total</code> / <code>trial_lessons_total</code></td></tr>
     </tbody>
   </table>
 
