@@ -448,6 +448,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.view-settings');
         Route::post('/admin/lesson-packages/school-schedule/view-settings', [SchoolScheduleViewSettingsController::class, 'store'])
             ->name('admin.lesson-packages.school-schedule.view-settings.save');
+        Route::get('/admin/lesson-packages/school-schedule/export', \App\Http\Controllers\Admin\LessonPackageSchoolScheduleExportController::class)
+            ->middleware('can:lessonPackages.export')
+            ->name('admin.lesson-packages.school-schedule.export');
         Route::get('/admin/lesson-packages/school-schedule/assignment-availability', [LessonPackageController::class, 'schoolScheduleAssignmentAvailability'])
             ->name('admin.lesson-packages.school-schedule.assignment-availability');
         Route::get('/admin/lesson-packages/school-schedule/week', [LessonPackageController::class, 'schoolScheduleWeek'])

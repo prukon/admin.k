@@ -173,6 +173,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('lessonPackages.manualPaid.manage', function (User $user) {
             return $user->hasPermission('lessonPackages.manualPaid.manage');
         });
+        Gate::define('lessonPackages.export', function (User $user) {
+            return $user->hasPermission('lessonPackages.export');
+        });
 
         // Единый справочник статусов занятий (CRUD): журнал /schedule или раздел абонементов
         Gate::define('lessonOccurrenceStatuses.manage', function (User $user) {

@@ -207,6 +207,16 @@
     <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>.
   </div>
 
+  <h2 id="school-schedule-export">Выгрузка Excel с календаря школы</h2>
+  <div class="note">
+    На вкладке <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> доступна выгрузка
+    <code>.xlsx</code> (право <code>lessonPackages.export</code> + <code>lessonPackages.view</code>).
+    Два листа: занятия календаря за период (включая пробные) и сводка назначений абонементов
+    (включая ещё не привязанные к расписанию). Остаток в файле — <strong>текущий</strong>; «списано» по занятию —
+    флаг <code>consumes_lesson</code> текущего статуса (не отдельный ledger).
+    Полный контракт UI/API/колонок/тестов — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>.
+  </div>
+
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
   <div class="note">
     Вкладка раздела «Расписание школы» → «Назначение абонементов». View: <code>admin/lessonPackages/tabs/assignments.blade.php</code>.
@@ -350,6 +360,11 @@
 
   <h3>Тесты</h3>
   <ul>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php</code> — содержимое Excel (листы, статусы, пробные, изоляция партнёра, UI-маркеры модалки)</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAccessFeatureTest.php</code> — доступ: guest / без view / view без export / оба права / superadmin</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code> — AJAX: <code>422</code> + <code>errors</code> под полями дат; успех → непустой <code>.xlsx</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX GET: ошибка → <code>302</code> + session errors; успех → файл (не пустой 200)</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> для inline JS выгрузки на <code>schoolSchedule.blade.php</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php</code> — UI-маркеры «Автосписание», AJAX store/update/show, валидация <code>no_schedule</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceAccessFeatureTest.php</code> — доступ: guest → login, без права → 403, с <code>lessonPackages.view</code> → 200</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST/PUT шаблона → redirect на <code>/admin/lesson-packages</code> + запись в БД / errors в сессии</li>

@@ -26,6 +26,20 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Выгрузка абонементов в Excel с календаря школы (2026‑07)</h2>
+  <div class="note">
+    На вкладке <b>«Расписание школы»</b> (<code>/admin/lesson-packages/school-schedule</code>) — кнопка Excel в тулбаре
+    (между настройками отображения и «на весь экран»), право <code>lessonPackages.export</code> (дополнительно к
+    <code>lessonPackages.view</code>). Модалка периода: пресеты «Этот месяц» / «Прошлый месяц», произвольный диапазон
+    (не более 366 дней). Файл <code>.xlsx</code> с двумя листами: <b>«Занятия»</b> (записи календаря, включая пробные;
+    текущий статус, списано да/нет, источник статуса вручную/авто) и <b>«Назначения»</b> (сводка абонементов, включая
+    ещё не привязанные к расписанию). Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
+    <code>422</code> + <code>errors</code> под полями дат; non-AJAX — <code>302</code> + session errors.
+    Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
+    права — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
+    обзор абонементов — <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
+  </div>
+
   <h2>Справочники → вкладка «Абонементы» (2026‑07)</h2>
   <div class="note">
     В конце вкладок раздела <b>«Справочники»</b> добавлен функциональный дубль шаблонов абонементов:
@@ -183,8 +197,8 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы; <b>«Исходящие письма»</b> — модалка просмотра, datetime-колонки, iframe HTML (§8)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (<code>auto_attendance_enabled</code>, автосписание «Посетил»), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий», «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), фильтры, DataTable, календарь, разовое (<code>no_schedule</code>)</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, JSON/API, аудит «История»</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (<code>auto_attendance_enabled</code>, автосписание «Посетил»), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий», «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), фильтры, DataTable, календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения»), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>lesson_occurrence_statuses</code>, вкладка «Статусы занятий», тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>

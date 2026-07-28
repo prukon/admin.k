@@ -54,6 +54,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     public function test_widget_tab_renders_index_with_active_tab_widget(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $this->get(route('admin.school-leads.widget'))
             ->assertOk()
@@ -66,6 +67,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantPermission($this->user, 'schoolLeadLanding.view');
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $html = $this->get(route('admin.school-leads'))
             ->assertOk()
@@ -90,6 +92,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     public function test_widget_tab_shows_widget_content_and_telegram_controls(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $html = $this->get(route('admin.school-leads.widget'))
             ->assertOk()
@@ -146,6 +149,7 @@ final class SchoolLeadsTabsFeatureTest extends CrmTestCase
     public function test_legacy_school_widget_route_renders_widget_tab_in_shared_index(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $this->get(route('admin.school-widget'))
             ->assertOk()

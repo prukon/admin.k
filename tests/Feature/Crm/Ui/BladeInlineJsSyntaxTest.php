@@ -50,6 +50,56 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'partner lead landing form' => ['landing/partner-lead.blade.php'];
     }
 
+    /**
+     * P1: inline JS модалки выгрузки Excel на календаре школы (fetch + ошибки под полями).
+     */
+    public function test_school_schedule_export_modal_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('initSchoolCalExport', $content);
+        $this->assertStringContainsString('schoolCalExportSubmit', $content);
+        $this->assertStringContainsString('schoolCalExportDateFromErr', $content);
+        $this->assertStringContainsString('exportXlsx', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $exportScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'initSchoolCalExport')) {
+                continue;
+            }
+            $exportScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-export-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in school schedule export script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($exportScriptFound, 'В schoolSchedule.blade.php не найден script с initSchoolCalExport');
+    }
+
     #[DataProvider('criticalModalBladePathsProvider')]
     public function test_critical_modal_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
     {

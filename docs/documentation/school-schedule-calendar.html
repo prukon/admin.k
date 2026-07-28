@@ -27,6 +27,7 @@
   <div class="note">
     Страница входит в раздел <strong>«Абонементы»</strong> как вкладка <strong>«Расписание школы»</strong>.
     Доступ к экрану и JSON календаря задаётся правом <code>lessonPackages.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:lessonPackages.view</code>).
+    Выгрузка Excel дополнительно требует <code>lessonPackages.export</code> — см. <a href="#school-schedule-export">§ выгрузка</a>.
     Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
     <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблица <code>schedule_users</code>).
     Справочник статусов общий (<code>lesson_occurrence_statuses</code>); CRUD — вкладка «Статусы занятий» здесь и на <code>/schedule/occurrence-statuses</code>
@@ -311,10 +312,94 @@
       <tr><td>Разовое: отмена записи в календаре</td><td><code>DELETE …/single-lesson-registration/{userTeamScheduleSlot}</code> — строка календаря удаляется, <code>user_lesson_packages</code> сохраняется</td></tr>
       <tr><td>Разрешённые действия по ячейке</td><td><code>GET …/slot-user-bind-actions</code> (<code>SchoolCalendarSlotUserBindActionsService</code>) — объекты <code>flexible</code>, <code>fixed</code>, <code>single_lesson</code>, <code>trial</code>; у <code>flexible</code> и <code>fixed</code> — массив <code>existing_assignments</code></td></tr>
       <tr><td>Статус занятия</td><td><code>POST …/occurrence-status</code>, <code>GET …/occurrence-status/history</code></td></tr>
+      <tr><td>Выгрузка Excel</td><td><code>GET …/school-schedule/export?date_from=&amp;date_to=</code> — право <code>lessonPackages.export</code> (доп. к <code>lessonPackages.view</code>)</td></tr>
       <tr><td>Аудит (модалка «История»)</td><td><code>GET …/school-schedule/logs-data</code> (<code>logs.data.school-schedule</code>)</td></tr>
     </tbody>
   </table>
-  <p>Все перечисленные маршруты защищены правом <code>lessonPackages.view</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
+  <p>Большинство маршрутов защищены правом <code>lessonPackages.view</code>. Выгрузка Excel дополнительно требует <code>lessonPackages.export</code>. Управление самими слотами расписания групп (создание/пропуск даты и т.д.) — отдельные права <code>scheduleSlots.*</code>, см. код и тесты календаря.</p>
+
+  <h2 id="school-schedule-export">Выгрузка в Excel</h2>
+  <div class="note">
+    На тулбаре календаря (между кнопкой настроек отображения <code>#schoolCalViewSettingsModal</code> и «на весь экран»
+    <code>#schoolCalFullscreenBtn</code>) — иконка Excel <code>#schoolCalExportBtn</code>, видна только при
+    <code>@can('lessonPackages.export')</code>. Модалка <code>#schoolCalExportModal</code> (стандартная ширина Bootstrap):
+    поля периода <code>date_from</code> / <code>date_to</code> (<code>Y-m-d</code>), пресеты «Этот месяц» /
+    «Прошлый месяц» (по умолчанию при открытии — текущий календарный месяц браузера), кнопка «Скачать».
+    <br><br>
+    <b>Права:</b> маршрут в группе <code>can:lessonPackages.view</code> + middleware / Gate
+    <code>lessonPackages.export</code>. Без <code>view</code> страница и выгрузка недоступны (403); без <code>export</code>
+    кнопка скрыта и endpoint отдаёт 403. Миграция
+    <code>2026_07_29_001000_add_lesson_packages_export_permission</code> добавляет право в группу
+    <code>lessonPackages</code> и выдаёт его ролям, у которых уже есть <code>lessonPackages.view</code>.
+    В <code>config/role_base_permissions.php</code> (роль admin) право также перечислено для dev-сидеров.
+  </div>
+
+  <h3>Endpoint и контракты</h3>
+  <table>
+    <thead>
+      <tr><th>Элемент</th><th>Значение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>URL</td><td><code>GET /admin/lesson-packages/school-schedule/export</code></td></tr>
+      <tr><td>Имя маршрута</td><td><code>admin.lesson-packages.school-schedule.export</code></td></tr>
+      <tr><td>Контроллер</td><td><code>App\Http\Controllers\Admin\LessonPackageSchoolScheduleExportController</code> (invokable)</td></tr>
+      <tr><td>Request</td><td><code>ExportLessonPackagesSchoolScheduleRequest</code> — <code>date_from</code>, <code>date_to</code>; max период <strong>366</strong> дней включительно</td></tr>
+      <tr><td>Сервис</td><td><code>App\Services\LessonPackages\Export\LessonPackagesSchoolScheduleExportBuilder</code> (PhpSpreadsheet)</td></tr>
+      <tr><td>Имя файла</td><td><code>lesson-packages-export_{date_from}_{date_to}.xlsx</code></td></tr>
+      <tr><td>Изоляция</td><td>только данные текущего партнёра (<code>PartnerContext</code> / <code>requirePartnerId()</code>)</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><strong>AJAX</strong> (<code>fetch</code> из модалки: <code>Accept: application/json</code>, <code>X-Requested-With: XMLHttpRequest</code>):
+      ошибка валидации — <code>422</code> + <code>{ message, errors }</code>, тексты под полями
+      <code>#schoolCalExportDateFromErr</code> / <code>#schoolCalExportDateToErr</code> (<code>data-err</code>);
+      успех — бинарный <code>.xlsx</code> (blob download), не пустой <code>200</code>.</li>
+    <li><strong>Non-AJAX</strong> (обычный GET без JSON Accept): ошибка FormRequest — <code>302</code> назад на страницу раздела
+      с <code>errors</code> в сессии (не пустой <code>200</code>); успех — stream download файла.</li>
+  </ul>
+
+  <h3>Лист «Занятия»</h3>
+  <p>Одна строка = запись <code>user_team_schedule_slots</code> с <code>starts_at</code> в выбранном периоде
+    (включая <strong>пробные</strong>: <code>is_trial_lesson = true</code>, без абонемента).
+    Текущий статус — последнее событие <code>user_lesson_occurrence_status_events</code> по ключу
+    ученик + слот + дата + назначение (для пробного <code>user_lesson_package_id</code> = null).
+    Исторический остаток «на момент занятия» <strong>не</strong> считается — в колонках «Остаток» / «Всего» текущие значения
+    с назначения или пробного баланса.</p>
+  <table>
+    <thead>
+      <tr><th>Колонка</th><th>Источник / правило</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Дата, время начала/конца</td><td><code>utss.starts_at</code>, <code>team_schedule_slots.time_start</code> / <code>time_end</code></td></tr>
+      <tr><td>Ученик</td><td><code>lastname</code> + <code>name</code></td></tr>
+      <tr><td>Группа</td><td>команда слота (<code>slot.team.title</code>), иначе группа назначения</td></tr>
+      <tr><td>Тип записи</td><td>«Пробное» / «Фиксированный» / «Гибкий» / «Разовое» (<code>schedule_type</code>)</td></tr>
+      <tr><td>Абонемент, № назначения</td><td>название шаблона; id <code>user_lesson_packages</code> (для пробного — пусто / «Пробное занятие»)</td></tr>
+      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code>; «Оплачен» / «Не оплачен» по <code>effective_is_paid</code>; при ручной отметке — суффикс «(ручная отметка)». Для пробного оплата — «—»</td></tr>
+      <tr><td>Статус</td><td>текущий <code>lesson_occurrence_statuses.title</code> или пусто</td></tr>
+      <tr><td>Списано</td><td>«да» / «нет» по <code>consumes_lesson</code> текущего статуса; без статуса — пусто</td></tr>
+      <tr><td>Источник статуса</td><td>«вручную» (<code>created_by</code> задан) / «авто» (<code>created_by</code> null) / пусто</td></tr>
+      <tr><td>Остаток, Всего</td><td>абонемент: <code>lessons_remaining</code> / <code>lessons_total</code>; пробное: <code>trial_lessons_*</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Лист «Назначения»</h3>
+  <p>Строки <code>user_lesson_packages</code> партнёра (через <code>lesson_packages.partner_id</code>):</p>
+  <ul>
+    <li>период назначения пересекается с выбранным диапазоном дат, <strong>или</strong></li>
+    <li><code>starts_at</code> и <code>ends_at</code> оба <code>NULL</code> (ещё не привязаны к календарю — всегда попадают в выгрузку при любом периоде).</li>
+  </ul>
+  <p>Колонки: ученик, группа, абонемент, тип, № назначения, период с/по («не задан» если NULL), стоимость, оплата,
+    всего, остаток, списано (<code>lessons_total − lessons_remaining</code>), число привязок в календаре
+    (<code>withCount('userTeamScheduleSlots')</code>).</p>
+
+  <p class="small">Тесты:
+    <code>LessonPackageSchoolScheduleExportFeatureTest</code> (содержимое),
+    <code>LessonPackageSchoolScheduleExportAccessFeatureTest</code> (доступ),
+    <code>LessonPackageSchoolScheduleExportAjaxContractFeatureTest</code> (AJAX 422/xlsx),
+    <code>LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest</code> (non-AJAX 302/файл),
+    <code>BladeInlineJsSyntaxTest::test_school_schedule_export_modal_inline_script_is_valid_javascript</code>.
+  </p>
 
   <h2>Гибкие абонементы в модалке слота</h2>
   <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>. Назначение ученику должно существовать на <a href="/docs/documentation/lesson-packages#assignments-tab">странице «Назначение абонементов»</a>; привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота. Период <code>starts_at</code>/<code>ends_at</code> при первой привязке задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>). <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
@@ -475,7 +560,8 @@
 
   <h2>Связь с логикой абонементов</h2>
   <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code>, разовое занятие (<code>no_schedule</code>) и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
-    <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса, разовой записи из модалки слота и полей JSON недели; разметка модалки и право <code>locations.view</code> — только отображение.</p>
+    <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса, разовой записи из модалки слота, полей JSON недели и
+    <a href="#school-schedule-export">выгрузкой Excel</a>; разметка модалки и право <code>locations.view</code> — только отображение.</p>
 
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a></p>
 
@@ -494,6 +580,7 @@
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
     <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
     <strong>панели привязки в модалке слота (UX)</strong> — <code>LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php</code> (маркеры <code>#schoolCalSlotBindPanelsHost</code>, <code>data-school-cal-bind-cancel</code>, <code>school-cal-slot-modal--bind-focus</code>, static backdrop, кэш <code>schoolCalSlotBindActionsCache</code>, Esc/отмена, независимость flexible/single в одном ответе bind-actions, AJAX/non-AJAX контракты);
+    <strong>выгрузка Excel</strong> — <code>LessonPackageSchoolScheduleExportFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_export_modal_inline_script_is_valid_javascript</code> (см. <a href="#school-schedule-export">§ выгрузка</a>);
     шаблоны и цепочка фикса — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
     синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>, <code>packages.blade.php</code>).
     Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
@@ -503,7 +590,11 @@
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php \
-  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code></pre>
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedPatternsFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code></pre>
 </div>
 </body>
 </html>

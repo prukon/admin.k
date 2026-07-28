@@ -44,6 +44,7 @@ return [
             'scheduleSlots.table',
             'lessonPackages.view',
             'lessonPackages.manualPaid.manage',
+            'lessonPackages.export',
             'directories.view',
             'districts.view',
             'locations.view',

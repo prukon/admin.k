@@ -2,9 +2,10 @@
 
 namespace Tests\Feature\Crm\SchoolLeads;
 
-use App\Models\Partner;
+use App\Models\User;
 use App\Services\PartnerTelegramLinkService;
 use App\Services\PartnerWidgetService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -14,7 +15,19 @@ class SchoolWidgetTelegramAutoLinkTest extends CrmTestCase
     {
         parent::setUp();
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
         app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
+    }
+
+    private function grantPermission(User $actor, string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $actor->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
     }
 
     public function test_admin_can_create_telegram_connect_link(): void

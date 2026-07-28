@@ -3,8 +3,10 @@
 namespace Tests\Feature\Crm\SchoolLeads;
 
 use App\Models\PartnerWidget;
+use App\Models\User;
 use App\Services\PartnerWidgetService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -59,6 +61,7 @@ class SchoolWidgetAccessFeatureTest extends CrmTestCase
     public function test_admin_with_school_widget_view_all_endpoints_return_ok(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $this->get(route('admin.school-leads.widget'))
             ->assertOk()
@@ -92,5 +95,16 @@ class SchoolWidgetAccessFeatureTest extends CrmTestCase
         $this->assertNotNull($widget);
         $this->assertTrue($widget->is_active);
         $this->assertSame(48, strlen($widget->widget_key));
+    }
+
+    private function grantPermission(User $actor, string $permissionName): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => $this->partner->id,
+            'role_id'       => $actor->role_id,
+            'permission_id' => $this->permissionId($permissionName),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
     }
 }

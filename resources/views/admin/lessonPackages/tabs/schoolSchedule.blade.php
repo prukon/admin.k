@@ -50,6 +50,16 @@
                          title="Отображение календаря">
                         <i class="fa-solid fa-gear settings-icon"></i>
                     </div>
+                    @can('lessonPackages.export')
+                        <div class="wrap-icon btn ms-1"
+                             data-bs-toggle="modal"
+                             data-bs-target="#schoolCalExportModal"
+                             id="schoolCalExportBtn"
+                             title="Выгрузка в Excel"
+                             aria-label="Выгрузка в Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </div>
+                    @endcan
                     <div class="wrap-icon btn ms-1"
                          id="schoolCalFullscreenBtn"
                          title="Во весь экран"
@@ -99,6 +109,49 @@
             </div>
         </div>
     </div>
+
+    @can('lessonPackages.export')
+        <div class="modal fade" id="schoolCalExportModal" tabindex="-1" aria-labelledby="schoolCalExportModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title" id="schoolCalExportModalLabel">Выгрузка в Excel</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">
+                            Файл содержит два листа: занятия календаря за период и сводку назначений абонементов
+                            (включая ещё не привязанные к расписанию).
+                        </p>
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="schoolCalExportPresetThisMonth">Этот месяц</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="schoolCalExportPresetLastMonth">Прошлый месяц</button>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="form-label" for="schoolCalExportDateFrom">С</label>
+                                <input type="date" class="form-control" id="schoolCalExportDateFrom" name="date_from" autocomplete="off">
+                                <div class="invalid-feedback d-block" id="schoolCalExportDateFromErr" data-err="date_from"></div>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label" for="schoolCalExportDateTo">По</label>
+                                <input type="date" class="form-control" id="schoolCalExportDateTo" name="date_to" autocomplete="off">
+                                <div class="invalid-feedback d-block" id="schoolCalExportDateToErr" data-err="date_to"></div>
+                            </div>
+                        </div>
+                        <div class="small text-danger mt-2 d-none" id="schoolCalExportFormErr" role="alert"></div>
+                    </div>
+                    <div class="modal-footer border-0 flex-wrap gap-2">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="schoolCalExportSubmit">
+                            <span class="school-cal-export-submit-label">Скачать</span>
+                            <span class="school-cal-export-submit-loading d-none">Формируем…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endcan
 
     <div id="schoolCalAlert" class="alert d-none" role="alert"></div>
 
@@ -326,6 +379,7 @@
                 singleLessonRegistrationStore: @json(route('admin.lesson-packages.school-schedule.single-lesson-registration.store')),
                 singleLessonRegistrationDestroy: @json(route('admin.lesson-packages.school-schedule.single-lesson-registration.destroy', ['userTeamScheduleSlot' => 0])),
                 viewSettingsSave: @json(route('admin.lesson-packages.school-schedule.view-settings.save')),
+                exportXlsx: @json(auth()->user()?->can('lessonPackages.export') ? route('admin.lesson-packages.school-schedule.export') : null),
             };
             const viewSettingsInitial = @json($schoolScheduleViewSettings ?? ['view_start_min' => 540, 'view_end_min' => 1260]);
             const occurrenceStatuses = @json($schoolCalendarOccurrenceStatuses ?? []);
@@ -2771,6 +2825,179 @@
                         ulp.appendChild(o);
                     });
                 });
+
+                (function initSchoolCalExport() {
+                    if (!routes.exportXlsx) {
+                        return;
+                    }
+                    const exportModal = document.getElementById('schoolCalExportModal');
+                    const dateFromInput = document.getElementById('schoolCalExportDateFrom');
+                    const dateToInput = document.getElementById('schoolCalExportDateTo');
+                    const dateFromErr = document.getElementById('schoolCalExportDateFromErr');
+                    const dateToErr = document.getElementById('schoolCalExportDateToErr');
+                    const formErr = document.getElementById('schoolCalExportFormErr');
+                    const submitBtn = document.getElementById('schoolCalExportSubmit');
+                    const presetThis = document.getElementById('schoolCalExportPresetThisMonth');
+                    const presetLast = document.getElementById('schoolCalExportPresetLastMonth');
+                    if (!exportModal || !dateFromInput || !dateToInput || !submitBtn) {
+                        return;
+                    }
+
+                    function ymdLocal(d) {
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return y + '-' + m + '-' + day;
+                    }
+
+                    function setMonthRange(year, monthIndex) {
+                        const from = new Date(year, monthIndex, 1);
+                        const to = new Date(year, monthIndex + 1, 0);
+                        dateFromInput.value = ymdLocal(from);
+                        dateToInput.value = ymdLocal(to);
+                    }
+
+                    function applyThisMonth() {
+                        const now = new Date();
+                        setMonthRange(now.getFullYear(), now.getMonth());
+                    }
+
+                    function applyLastMonth() {
+                        const now = new Date();
+                        const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        setMonthRange(last.getFullYear(), last.getMonth());
+                    }
+
+                    function clearExportErrors() {
+                        if (dateFromErr) dateFromErr.textContent = '';
+                        if (dateToErr) dateToErr.textContent = '';
+                        if (formErr) {
+                            formErr.textContent = '';
+                            formErr.classList.add('d-none');
+                        }
+                        dateFromInput.classList.remove('is-invalid');
+                        dateToInput.classList.remove('is-invalid');
+                    }
+
+                    function setExportLoading(isLoading) {
+                        submitBtn.disabled = !!isLoading;
+                        const label = submitBtn.querySelector('.school-cal-export-submit-label');
+                        const loading = submitBtn.querySelector('.school-cal-export-submit-loading');
+                        if (label) label.classList.toggle('d-none', !!isLoading);
+                        if (loading) loading.classList.toggle('d-none', !isLoading);
+                    }
+
+                    function showFieldErrors(errors) {
+                        const fromMsg = errors && errors.date_from
+                            ? (Array.isArray(errors.date_from) ? errors.date_from[0] : String(errors.date_from))
+                            : '';
+                        const toMsg = errors && errors.date_to
+                            ? (Array.isArray(errors.date_to) ? errors.date_to[0] : String(errors.date_to))
+                            : '';
+                        if (dateFromErr) dateFromErr.textContent = fromMsg;
+                        if (dateToErr) dateToErr.textContent = toMsg;
+                        dateFromInput.classList.toggle('is-invalid', !!fromMsg);
+                        dateToInput.classList.toggle('is-invalid', !!toMsg);
+                    }
+
+                    exportModal.addEventListener('show.bs.modal', function () {
+                        clearExportErrors();
+                        if (!dateFromInput.value || !dateToInput.value) {
+                            applyThisMonth();
+                        }
+                    });
+
+                    presetThis?.addEventListener('click', function () {
+                        clearExportErrors();
+                        applyThisMonth();
+                    });
+                    presetLast?.addEventListener('click', function () {
+                        clearExportErrors();
+                        applyLastMonth();
+                    });
+
+                    submitBtn.addEventListener('click', async function () {
+                        clearExportErrors();
+                        const from = String(dateFromInput.value || '').trim();
+                        const to = String(dateToInput.value || '').trim();
+                        if (!from) {
+                            showFieldErrors({ date_from: ['Укажите дату начала периода.'] });
+                            return;
+                        }
+                        if (!to) {
+                            showFieldErrors({ date_to: ['Укажите дату окончания периода.'] });
+                            return;
+                        }
+
+                        const url = routes.exportXlsx
+                            + '?date_from=' + encodeURIComponent(from)
+                            + '&date_to=' + encodeURIComponent(to);
+
+                        setExportLoading(true);
+                        try {
+                            const res = await fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                                credentials: 'same-origin',
+                            });
+
+                            if (res.status === 422) {
+                                const payload = await res.json().catch(() => ({}));
+                                showFieldErrors(payload.errors || {});
+                                if (formErr && payload.message && !(payload.errors && (payload.errors.date_from || payload.errors.date_to))) {
+                                    formErr.textContent = String(payload.message);
+                                    formErr.classList.remove('d-none');
+                                }
+                                return;
+                            }
+
+                            if (res.status === 403) {
+                                if (formErr) {
+                                    formErr.textContent = 'Недостаточно прав для выгрузки.';
+                                    formErr.classList.remove('d-none');
+                                }
+                                return;
+                            }
+
+                            if (!res.ok) {
+                                if (formErr) {
+                                    formErr.textContent = 'Не удалось сформировать файл. Попробуйте ещё раз.';
+                                    formErr.classList.remove('d-none');
+                                }
+                                return;
+                            }
+
+                            const blob = await res.blob();
+                            const disp = res.headers.get('Content-Disposition') || '';
+                            let filename = 'lesson-packages-export.xlsx';
+                            const m = /filename=\"?([^\";]+)\"?/i.exec(disp);
+                            if (m && m[1]) {
+                                filename = m[1];
+                            }
+                            const objectUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = objectUrl;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(objectUrl);
+
+                            const modalInst = bootstrap.Modal.getInstance(exportModal);
+                            modalInst?.hide();
+                        } catch (e) {
+                            if (formErr) {
+                                formErr.textContent = 'Ошибка сети при выгрузке.';
+                                formErr.classList.remove('d-none');
+                            }
+                        } finally {
+                            setExportLoading(false);
+                        }
+                    });
+                })();
 
             });
         })();

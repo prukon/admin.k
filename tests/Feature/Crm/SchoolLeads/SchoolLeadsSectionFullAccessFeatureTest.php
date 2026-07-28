@@ -167,7 +167,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
 
     public function test_user_with_only_school_widget_view_widget_page_and_api_return_200_leads_forbidden(): void
     {
-        $actor = $this->createUserWithoutPermission('schoolWidget.view', $this->partner);
+        $actor = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
         $this->grantPermission($actor, 'schoolWidget.view');
         $this->actingAs($actor);
 
@@ -258,6 +258,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
     {
         $this->asAdmin();
         $this->grantPermission($this->user, 'schoolLeadLanding.view');
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
@@ -299,6 +300,7 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
     public function test_admin_widget_telegram_disconnect_returns_200(): void
     {
         $this->asAdmin();
+        $this->grantPermission($this->user, 'schoolWidget.view');
 
         $this->partner->school_leads_telegram_chat_id = '999888777';
         $this->partner->save();
