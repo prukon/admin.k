@@ -41,6 +41,7 @@ class PartnerBasePermissionsTest extends CrmTestCase
         foreach ([
             'sport_types.manage',
             'legal_entities.sm_register',
+            'schoolWidget.view',
         ] as $permissionName) {
             $this->assertNotContains($permissionName, $adminPerms, "Permission {$permissionName} must not be auto-assigned");
         }
@@ -48,6 +49,8 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertContains('sport_types.view', $adminPerms);
         $this->assertContains('legal_entities.view', $adminPerms);
         $this->assertContains('legal_entities.manage', $adminPerms);
+        $this->assertContains('schoolLeads.view', $adminPerms);
+        $this->assertContains('schoolLeadLanding.view', $adminPerms);
     }
 
     public function test_base_permissions_are_isolated_between_partners(): void

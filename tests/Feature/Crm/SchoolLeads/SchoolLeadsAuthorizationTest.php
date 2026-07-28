@@ -54,8 +54,8 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
         $adminPermissions = config('role_base_permissions.roles.admin', []);
 
         $this->assertContains('schoolLeads.view', $adminPermissions);
-        $this->assertContains('schoolWidget.view', $adminPermissions);
-        $this->assertNotContains('schoolLeadLanding.view', $adminPermissions);
+        $this->assertContains('schoolLeadLanding.view', $adminPermissions);
+        $this->assertNotContains('schoolWidget.view', $adminPermissions);
     }
 
     public function test_user_role_does_not_have_school_leads_permissions_in_config(): void
@@ -63,6 +63,7 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
         $userPermissions = config('role_base_permissions.roles.user', []);
 
         $this->assertNotContains('schoolLeads.view', $userPermissions);
+        $this->assertNotContains('schoolLeadLanding.view', $userPermissions);
         $this->assertNotContains('schoolWidget.view', $userPermissions);
     }
 }

@@ -263,13 +263,17 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
         Carbon::setTestNow(Carbon::create(2026, 10, 1));
 
-        $this->getJson(route('lead.team-info', [
+        $rows = $this->getJson(route('lead.team-info', [
             'landingSlug'  => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id'     => $this->landingTeam->id,
         ]))
             ->assertOk()
-            ->assertJsonPath('data.rows.6.value', '01.09.2026 — 30.06.2027');
+            ->json('data.rows');
+
+        $periodRow = collect($rows)->firstWhere('label', 'Период занятий');
+        $this->assertNotNull($periodRow);
+        $this->assertSame('01.09.2026 — 30.06.2027', $periodRow['value']);
 
         Carbon::setTestNow();
     }

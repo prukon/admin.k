@@ -161,37 +161,40 @@ final class SchoolLeadLandingService
             ->filter(fn ($title) => trim((string) $title) !== '')
             ->implode(', ');
 
+        $rows = [
+            ['label' => 'Адрес', 'value' => $this->displayValue($location?->address)],
+            ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
+            ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price)],
+            ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : ''],
+            ['label' => 'Занятий в месяц', 'value' => $weekdaysCount > 0 ? (string) ($weekdaysCount * 4) : ''],
+            ['label' => 'Продолжительность занятия', 'value' => $this->formatDuration($team->default_duration_minutes)],
+            ['label' => 'Период занятий', 'value' => $this->formatTrainingPeriod()],
+            ['label' => 'Расписание занятий', 'value' => $scheduleLabel],
+        ];
+
         return [
             'title' => (string) $team->title,
-            'rows'  => [
-                ['label' => 'Адрес', 'value' => $this->displayValue($location?->address)],
-                ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
-                ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price)],
-                ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : '—'],
-                ['label' => 'Занятий в месяц', 'value' => $weekdaysCount > 0 ? (string) ($weekdaysCount * 4) : '—'],
-                ['label' => 'Продолжительность занятия', 'value' => $this->formatDuration($team->default_duration_minutes)],
-                ['label' => 'Период занятий', 'value' => $this->formatTrainingPeriod()],
-                ['label' => 'Расписание занятий', 'value' => $scheduleLabel !== '' ? $scheduleLabel : '—'],
-            ],
+            'rows'  => array_values(array_filter(
+                $rows,
+                static fn (array $row): bool => $row['value'] !== ''
+            )),
         ];
     }
 
     private function displayValue(mixed $value): string
     {
-        $value = trim((string) ($value ?? ''));
-
-        return $value !== '' ? $value : '—';
+        return trim((string) ($value ?? ''));
     }
 
     private function formatMonthPrice(mixed $price): string
     {
         if ($price === null || $price === '') {
-            return '—';
+            return '';
         }
 
         $amount = (int) $price;
         if ($amount < 0) {
-            return '—';
+            return '';
         }
 
         return number_format($amount, 0, ',', ' ') . ' ₽';
@@ -201,7 +204,7 @@ final class SchoolLeadLandingService
     {
         $minutes = (int) $minutes;
         if ($minutes <= 0) {
-            return '—';
+            return '';
         }
 
         if ($minutes % 60 === 0) {

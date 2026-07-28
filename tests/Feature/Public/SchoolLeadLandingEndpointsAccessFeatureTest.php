@@ -178,6 +178,39 @@ final class SchoolLeadLandingEndpointsAccessFeatureTest extends TestCase
             ->assertJsonStructure(['id', 'message']);
     }
 
+    public function test_authenticated_user_without_crm_permissions_json_endpoints_return_expected_statuses_not_403(): void
+    {
+        $user = User::factory()->create([
+            'partner_id' => $this->landingPartner->id,
+        ]);
+        $this->actingAs($user);
+        $this->fakeRecaptchaSuccess();
+
+        foreach ($this->guestExpectedStatusesPayload() as $item) {
+            if ($item['name'] === 'show') {
+                continue;
+            }
+
+            $response = $this->call(
+                $item['method'],
+                $item['url'],
+                $item['data'] ?? [],
+                [],
+                [],
+                $item['headers'] ?? ['HTTP_ACCEPT' => 'application/json']
+            );
+
+            $this->assertSame(
+                $item['expected'],
+                $response->getStatusCode(),
+                "Auth без CRM-прав: {$item['name']} → {$response->getStatusCode()}"
+            );
+            $this->assertNotSame(403, $response->getStatusCode(), "Auth без CRM-прав: {$item['name']}");
+            $this->assertNotSame(500, $response->getStatusCode(), "Auth без CRM-прав: {$item['name']}");
+            $this->assertNotSame(401, $response->getStatusCode(), "Auth без CRM-прав: {$item['name']}");
+        }
+    }
+
     public function test_guest_submit_with_valid_payload_returns_json_not_empty_200(): void
     {
         Auth::logout();

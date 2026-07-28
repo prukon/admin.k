@@ -152,7 +152,7 @@
     <li><b>Услуга</b> (<code>team_id</code>) — необязательна. Подгружается после выбора объекта: <code>GET /lead/{slug}/teams?location_id=</code> — только группы с <code>teams.location_id</code>, равным выбранному объекту (<code>TeamLocationAvailabilityService</code>). Группы без объекта на лендинг не попадают.</li>
   </ol>
   <ul>
-    <li>Блок «Детали услуги» (<code>GET …/team-info</code>): строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы. Поле «Тренировочная база» (<code>teams.training_base</code>) снято — в ответе только актуальные строки деталей услуги.</li>
+    <li>Блок «Детали услуги» (<code>GET …/team-info</code>): строка «Адрес» берётся из <code>locations.address</code> выбранного объекта, не из группы. Поле «Тренировочная база» (<code>teams.training_base</code>) снято — в ответе только актуальные строки деталей услуги. Пустые поля (без значения) <b>не включаются</b> в <code>data.rows</code> и не показываются прочерком; если после фильтрации строк нет — блок «Об услуге» на лендинге скрывается целиком. «Период занятий» считается автоматически и всегда присутствует, пока остальные поля могут отсутствовать.</li>
     <li>Чекбокс <code>needs_contact_help</code> — «Не могу определиться с секцией…»: при включении <code>team_id</code> сбрасывается и не обязателен.</li>
     <li>Submit: объект должен принадлежать выбранному району; иначе 422 на <code>location_id</code>.</li>
   </ul>
@@ -243,9 +243,9 @@
     <li>Контроллер: <code>App\Http\Controllers\Admin\SchoolLeadLandingController</code> (<code>landingTab</code>, <code>updateSlug</code>).</li>
     <li>Request: <code>App\Http\Requests\UpdateSchoolLeadLandingSlugRequest</code>.</li>
     <li>View: <code>resources/views/admin/school-leads/index.blade.php</code> → <code>admin/school-leads/tabs/landing.blade.php</code> (поле slug, AJAX PUT, блок готовой ссылки).</li>
-    <li>Право: <code>schoolLeadLanding.view</code> — достаточно для вкладки и сохранения slug; <code>schoolLeads.view</code> для списка заявок не обязателен.</li>
+    <li>Право: <code>schoolLeadLanding.view</code> — достаточно для вкладки и сохранения slug; <code>schoolLeads.view</code> для списка заявок не обязателен. В базовый набор роли <code>admin</code> <b>входит</b> (<code>config/role_base_permissions.php</code>); <code>schoolWidget.view</code> — нет.</li>
     <li>Маршрут <code>PUT …/landing-slug</code> регистрируется <b>до</b> <code>PUT …/{schoolLead}</code>, иначе Laravel воспринимает <code>landing-slug</code> как id заявки.</li>
-    <li>Раздел «Заявки с сайта» — вкладки: <b>Заявки</b> (<code>schoolLeads.view</code>) · <b>Страница заявки</b> · <b>Виджет для сайта</b> (<code>schoolWidget.view</code>).</li>
+    <li>Раздел «Заявки с сайта» — вкладки: <b>Заявки</b> (<code>schoolLeads.view</code>) · <b>Страница заявки</b> (<code>schoolLeadLanding.view</code>) · <b>Виджет для сайта</b> (<code>schoolWidget.view</code>).</li>
     <li>Если <code>is_landing_active = false</code>, на вкладке показывается предупреждение; публичная страница при этом недоступна (404).</li>
   </ul>
 
@@ -301,6 +301,10 @@
         <td>CRM-вкладка «Страница заявки», UI, slug в представлении, права</td>
       </tr>
       <tr>
+        <td><code>SchoolLeadLandingTeamInfoFeatureTest.php</code></td>
+        <td>«Об услуге»: пустые поля не в <code>rows</code> / без прочерка; AJAX JSON-контракт; non-AJAX GET → JSON не пустой 200; гость и auth без CRM-прав → 200; JS-guard скрытия блока при пустых <code>rows</code></td>
+      </tr>
+      <tr>
         <td><code>SchoolLeadLandingFullFeatureTest.php</code></td>
         <td>Форма, каскад район→объект→услуга, валидация, reCAPTCHA, <code>district_id</code>, source=landing</td>
       </tr>
@@ -314,7 +318,7 @@
       </tr>
       <tr>
         <td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td>
-        <td>Гость/авторизованный: ожидаемые статусы 200/422/404 на все endpoint'ы; не 500</td>
+        <td>Гость/авторизованный (в т.ч. без CRM-прав): ожидаемые статусы 200/422/404 на JSON-endpoint'ы; не 403/500; submit AJAX JSON</td>
       </tr>
       <tr>
         <td><code>DistrictLocationLandingIntegrationFeatureTest.php</code></td>

@@ -72,14 +72,17 @@ final class SchoolLeadLandingSportTypeFeatureTest extends TestCase
 
     public function test_team_info_shows_sport_type(): void
     {
-        $this->getJson(route('lead.team-info', [
+        $rows = $this->getJson(route('lead.team-info', [
             'landingSlug' => $this->landingWidget->landing_slug,
             'location_id' => $this->landingLocation->id,
             'team_id' => $this->landingTeam->id,
         ]))
             ->assertOk()
-            ->assertJsonPath('data.rows.1.label', 'Вид спорта')
-            ->assertJsonPath('data.rows.1.value', 'Плавание вид');
+            ->json('data.rows');
+
+        $sportTypeRow = collect($rows)->firstWhere('label', 'Вид спорта');
+        $this->assertNotNull($sportTypeRow);
+        $this->assertSame('Плавание вид', $sportTypeRow['value']);
     }
 
     public function test_submit_stores_sport_type_id_from_selected_team(): void

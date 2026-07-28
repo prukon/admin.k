@@ -379,11 +379,12 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
         $this->assertSame('Страница заявки (CRM)', $permission->description);
     }
 
-    public function test_admin_role_does_not_receive_school_lead_landing_view_by_default(): void
+    public function test_admin_role_receives_school_lead_landing_view_by_default(): void
     {
         $adminPermissions = config('role_base_permissions.roles.admin', []);
 
-        $this->assertNotContains('schoolLeadLanding.view', $adminPermissions);
+        $this->assertContains('schoolLeadLanding.view', $adminPermissions);
+        $this->assertNotContains('schoolWidget.view', $adminPermissions);
 
         $permissionId = $this->permissionId('schoolLeadLanding.view');
         $adminRoleId = $this->roleId('admin');
@@ -394,7 +395,7 @@ final class SchoolLeadLandingPageFullAccessFeatureTest extends CrmTestCase
             ->where('permission_id', $permissionId)
             ->exists();
 
-        $this->assertFalse($assigned, 'Роль admin партнёра не должна получать schoolLeadLanding.view автоматически');
+        $this->assertTrue($assigned, 'Роль admin партнёра должна получать schoolLeadLanding.view автоматически');
     }
 
     private function grantPermission(User $actor, string $permissionName): void

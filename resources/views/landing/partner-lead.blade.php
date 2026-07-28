@@ -526,11 +526,17 @@
                     return;
                 }
 
+                var rows = result.json.data.rows || [];
+                if (!rows.length) {
+                    hideTeamInfo();
+                    return;
+                }
+
                 if (teamInfoTitle && result.json.data.title) {
                     teamInfoTitle.textContent = result.json.data.title;
                 }
 
-                renderTeamInfoTable(result.json.data.rows || []);
+                renderTeamInfoTable(rows);
                 teamInfoBlock.classList.add('is-visible');
             })
             .catch(function () {

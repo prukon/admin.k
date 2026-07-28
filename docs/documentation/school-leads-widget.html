@@ -76,9 +76,9 @@
   <div class="note">
     В <code>/config/role_base_permissions.php</code> для роли <code>admin</code> (в разрезе партнёра):
     <ul>
-      <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete заявок, CRUD настраиваемых статусов (§5.4).</li>
-      <li><code>schoolLeadLanding.view</code> — вкладка «Страница заявки», настройка <code>landing_slug</code>, ссылка <code>/lead/{landingSlug}</code>.</li>
-      <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта», код iframe, подключение Telegram.</li>
+      <li><code>schoolLeads.view</code> — страница «Заявки с сайта», datatable, update/delete заявок, CRUD настраиваемых статусов (§5.4). В базовый набор <b>входит</b>.</li>
+      <li><code>schoolLeadLanding.view</code> — вкладка «Страница заявки», настройка <code>landing_slug</code>, ссылка <code>/lead/{landingSlug}</code>. В базовый набор <b>входит</b>.</li>
+      <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта», код iframe, подключение Telegram. В базовый набор <b>не входит</b> — назначается отдельно (право с <code>is_visible = 0</code>).</li>
       <li>Для колонки «Договор» и конвертации в ученика дополнительно нужны <code>users.view</code> и/или <code>contracts.view</code> (§5.6) — в базовый набор роли <code>admin</code> партнёра обычно уже входят.</li>
     </ul>
     Роль <code>user</code> этих прав <b>не получает</b> по умолчанию. Назначение — через «Права и роли» или сидеры (см. <a href="/docs/documentation/partners-permissions">партнёры: базовые права</a>).
