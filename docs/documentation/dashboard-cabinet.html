@@ -132,8 +132,10 @@
   <p>Размер шрифта сумм в блоках оплат и сезонах: <code>font-size: 20px</code> (<code>resources/css/style.css</code>, селекторы <code>.custom-payments-block</code> и <code>.seasons</code>). У символа ₽ — один <code>padding-left: 0.25em</code> (без второго зазора от соседнего flex-элемента).</p>
 
   <h3 id="cabinet-custom-payments">2.4) Дополнительные платежи на консоли</h3>
-  <div class="warn">
-    Блок обёрнут в <code>@can('setPrices.customPayments.view')</code>. У роли <code>user</code> этого права <b>нет</b> в базовом наборе — его нужно выдать явно (или через роль admin). Иначе записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>.
+  <div class="note">
+    Блок обёрнут в <code>@can('setPrices.customPayments.view')</code>.
+    Базовые роли новых партнёров: <code>user</code> и <code>admin</code> получают право из <code>config/role_base_permissions.php</code>; у <code>trainer</code> по умолчанию <b>нет</b>.
+    Без права записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>.
   </div>
   <ul>
     <li>Данные: все <code>user_custom_payment</code> активного ученика текущего партнёра (даты в БД необязательны).</li>

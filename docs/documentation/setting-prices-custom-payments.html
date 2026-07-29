@@ -42,8 +42,10 @@
       <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Не относится к доп. платежам — только сезоны на консоли. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-seasons-permission">dashboard-cabinet §2.1</a></td></tr>
     </tbody>
   </table>
-  <div class="warn">
-    <b>Важно.</b> Право <code>setPrices.customPayments.view</code> <b>не</b> входит в базовый набор роли <code>user</code> (<code>config/role_base_permissions.php</code>) — только у <code>admin</code> (и кому выдали вручную). Без него ученик на <code>/cabinet</code> <b>не видит</b> блок доп. платежей, даже если записи в БД есть.
+  <div class="note">
+    Право <code>setPrices.customPayments.view</code> входит в базовый набор ролей <code>user</code> и <code>admin</code>
+    (<code>config/role_base_permissions.php</code>) — для <b>новых</b> партнёров. У <code>trainer</code> по умолчанию <b>нет</b>.
+    Без права блок доп. платежей на <code>/cabinet</code> не показывается, даже если записи в БД есть.
   </div>
   <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> на page/data/store/search. Без <code>setPrices.manualPaid.manage</code> — <b>403</b> на update/delete/manual-paid. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
 

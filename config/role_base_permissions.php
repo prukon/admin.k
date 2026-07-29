@@ -17,6 +17,7 @@ return [
             'users.sex',
             'paying.classes',
             'setPrices.cabinetSeasons.view',
+            'setPrices.customPayments.view',
             // 'payment.clubfee',
             // 'payment.method.robokassa',
             'payment.method.tbankCard',

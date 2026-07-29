@@ -208,7 +208,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
         $this->assertStringNotContainsString('class="row seasons"', $html);
         $this->assertStringContainsString('Назначенные абонементы', $html);
         $this->assertStringContainsString('Пакет без сезонов', $html);
-        $this->assertStringContainsString('<span class="price-value">4 200</span>', $html);
+        $this->assertStringContainsString('<span class="price-value">4200<span', $html);
     }
 
     public function test_cabinet_seasons_permission_exists_in_set_prices_group(): void

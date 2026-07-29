@@ -195,7 +195,7 @@
 
                                     $note = (string) ($a->note ?? '');
                                     $amountNormalized = number_format((float) $a->amount, 2, '.', '');
-                                    $amountDisplay = number_format((float) $a->amount, 0, ',', ' ');
+                                    $amountDisplay = number_format((float) $a->amount, 0, ',', '');
                                     $paid = (bool) ($a->effective_is_paid ?? false);
                                     $paymentDateLabel = trim('Дополнительный платеж' . ($note !== '' ? ": {$note}" : ''));
                                 @endphp
@@ -257,24 +257,28 @@
                                 @php
                                     $pkgName = $ulp->lessonPackage->name ?? 'Абонемент';
                                     $amountNormalized = number_format((float) $ulp->fee_amount, 2, '.', '');
-                                    $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', ' ');
+                                    $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', '');
                                     $paid = (bool) ($ulp->effective_is_paid ?? false);
-                                    $periodRu = trim(
-                                        ($ulp->starts_at ? $ulp->starts_at->locale('ru')->isoFormat('D.MM.YYYY') : '')
-                                        . ' — '
-                                        . ($ulp->ends_at ? $ulp->ends_at->locale('ru')->isoFormat('D.MM.YYYY') : '')
-                                    );
+                                    $periodParts = [];
+                                    if ($ulp->starts_at) {
+                                        $periodParts[] = $ulp->starts_at->locale('ru')->isoFormat('D.MM.YYYY');
+                                    }
+                                    if ($ulp->ends_at) {
+                                        $periodParts[] = $ulp->ends_at->locale('ru')->isoFormat('D.MM.YYYY');
+                                    }
+                                    $periodRu = implode(' — ', $periodParts);
                                     $paymentDateLabel = 'Абонемент: '.$pkgName.' №'.(int) $ulp->id;
                                 @endphp
                                 <div class="custom-payment-price col-3">
                                     <div class="row align-items-center justify-content-center">
-                                        <span class="price-value">{{ $amountDisplay }}</span>
-                                        <span class="hide-currency">₽</span>
+                                        <span class="price-value">{{ $amountDisplay }}<span class="hide-currency" style="padding-left: 0.25em; margin-left: 0;">₽</span></span>
                                     </div>
                                     <div class="row justify-content-center align-items-center">
                                         <div class="new-price-description">
                                             <div>{{ $pkgName }}</div>
-                                            <div class="small text-muted">{{ $periodRu }}</div>
+                                            @if($periodRu !== '')
+                                                <div class="small text-muted">{{ $periodRu }}</div>
+                                            @endif
                                         </div>
                                     </div>
                                     <div class="row new-main-button-wrap">
