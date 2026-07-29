@@ -32,7 +32,9 @@
   <div class="warn">
     <strong>Не путать</strong> с разделом <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (абонементы, календарь слотов).<br>
     Журнал <code>/schedule</code> — отдельная посещаемость по дням месяца (<code>schedule_users</code>).
-    Справочник статусов общий: <code>lesson_occurrence_statuses</code> (вкладка «Статусы занятий» на <code>/schedule</code> и в разделе абонементов).
+    Справочник статусов общий: <code>lesson_occurrence_statuses</code>
+    (вкладка «Статусы занятий» на <code>/schedule</code> и в разделе абонементов —
+    toolbar / DataTable / история, см. <a href="#occurrence-statuses">§8</a>).
     Списание занятий абонемента из журнала <strong>не</strong> выполняется — только календарь школы.
   </div>
 
@@ -81,7 +83,7 @@
       <tr><td>POST</td><td><code>/schedule/user/{user}/sync-teams</code></td><td><code>user.sync.teams</code></td><td>Sync полного списка групп ученика (<code>team_ids[]</code>, pivot <code>team_user</code>); пустой массив — снять со всех групп</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Legacy: attach одной группы или detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code></td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
-      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code></td><td>Вкладка «Статусы занятий» (UI как в абонементах). Право: <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code></td></tr>
+      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code></td><td>Вкладка «Статусы занятий» (toolbar / DataTable, UI как в абонементах). Право: <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code></td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Вкладка «Нагрузка тренеров» — см. <a href="/docs/documentation/schedule-trainer-workload">отдельный раздел</a></td></tr>
       <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
     </tbody>
@@ -195,6 +197,9 @@
     </thead>
     <tbody>
       <tr><td>GET</td><td><code>/admin/lesson-packages/occurrence-statuses</code></td><td><code>admin.lesson-packages.occurrence-statuses.index</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/lesson-packages/occurrence-statuses/data</code></td><td><code>…data</code> (DataTables)</td></tr>
+      <tr><td>GET/POST</td><td><code>/admin/lesson-packages/occurrence-statuses/columns-settings</code></td><td><code>…columns-settings.get/save</code></td></tr>
+      <tr><td>GET</td><td><code>/admin/lesson-packages/occurrence-statuses/logs-data</code></td><td><code>logs.data.lesson-occurrence-status</code></td></tr>
       <tr><td>POST</td><td><code>/admin/lesson-packages/occurrence-statuses</code></td><td><code>…store</code></td></tr>
       <tr><td>PUT</td><td><code>/admin/lesson-packages/occurrence-statuses/{id}</code></td><td><code>…update</code></td></tr>
       <tr><td>DELETE</td><td><code>/admin/lesson-packages/occurrence-statuses/{id}</code></td><td><code>…destroy</code></td></tr>
@@ -202,7 +207,7 @@
       <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code> (тот же UI, layout журнала)</td></tr>
     </tbody>
   </table>
-  <p>Право: Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code> (см. <code>AuthServiceProvider</code>). UI: общий partial <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code>.</p>
+  <p>Право: Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> <strong>OR</strong> <code>lessonPackages.view</code> (см. <code>AuthServiceProvider</code>). UI: общий partial <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code> — toolbar как у справочников, DataTables, модалка «История». Аудит CRUD: <code>lesson_occurrence_status.created|updated|deleted</code>.</p>
   <h4>Ответы при изменении статусов</h4>
   <table>
     <thead>
@@ -224,7 +229,7 @@
     <tbody>
       <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Таблица учеников × дни месяца</td></tr>
       <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.view</code></td><td><a href="/docs/documentation/schedule-trainer-workload">Нагрузка</a></td></tr>
-      <tr><td>Статусы занятий</td><td><code>/schedule/occurrence-statuses</code></td><td><code>lessonOccurrenceStatuses.manage</code></td><td>CRUD справочника (см. <a href="#occurrence-statuses">§8</a>)</td></tr>
+      <tr><td>Статусы занятий</td><td><code>/schedule/occurrence-statuses</code></td><td><code>lessonOccurrenceStatuses.manage</code></td><td>CRUD справочника: toolbar / DataTable / история (см. <a href="#occurrence-statuses">§8</a>)</td></tr>
       <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td><code>schedule.trainerSalary.view</code></td><td><a href="/docs/documentation/schedule-trainer-salary">ЗП</a></td></tr>
       <tr><td>Листы ЗП</td><td><code>/schedule/trainer-salary-sheets</code></td><td><code>schedule.trainerSalary.view</code></td><td><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы</a></td></tr>
     </tbody>
@@ -293,8 +298,14 @@
   <p>
     Управление справочником <code>lesson_occurrence_statuses</code>:
     вкладка на <code>/schedule/occurrence-statuses</code> и вкладка в абонементах
-    <code>/admin/lesson-packages/occurrence-statuses</code>. Один API, один UI-partial.
+    <code>/admin/lesson-packages/occurrence-statuses</code>. Один API, один UI-partial
+    <code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code>.
   </p>
+  <div class="note">
+    С 2026‑07 UI совпадает с паттерном справочников (как <a href="/docs/documentation/admin-sport-types">Виды спорта</a> / Группы):
+    toolbar + server-side DataTables + columns-settings + модалка «История».
+    Статическая HTML-таблица без AJAX <strong>больше не используется</strong>.
+  </div>
 
   <h3>8.1) Право <code>lessonOccurrenceStatuses.manage</code></h3>
   <table>
@@ -302,18 +313,39 @@
       <tr><th>Ситуация</th><th>Результат</th></tr>
     </thead>
     <tbody>
-      <tr><td>Гость</td><td>HTML → redirect на логин; JSON → 401</td></tr>
-      <tr><td>Нет ни <code>schedule.view</code>, ни <code>lessonPackages.view</code></td><td><b>403</b></td></tr>
-      <tr><td>Есть хотя бы одно из двух</td><td>страница и CRUD → <b>200</b> при валидных данных</td></tr>
+      <tr><td>Гость</td><td>HTML → redirect на логин; JSON → 401 / 302</td></tr>
+      <tr><td>Нет ни <code>schedule.view</code>, ни <code>lessonPackages.view</code></td><td><b>403</b> на страницы и все endpoint'ы раздела (data, columns, logs, CRUD, reorder)</td></tr>
+      <tr><td>Есть хотя бы одно из двух</td><td>страница, чтение и CRUD → <b>200</b> при валидных данных (Gate = OR; отдельного <code>*.manage</code> permission нет)</td></tr>
     </tbody>
   </table>
 
-  <h3>8.2) UI</h3>
+  <h3>8.2) UI (toolbar + DataTables)</h3>
+  <p>CSS: <code>@vite(['resources/css/admin-list-toolbar.css'])</code>. Паттерн —
+    <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>.</p>
   <ul>
-    <li>Таблица: порядок, название (badge с цветом), иконка, тип (системный/свой), «Списывает», «Активен», действия.</li>
-    <li>Модалки <code>#losCreateModal</code> / <code>#losEditModal</code>: название, цвет, иконка из <code>config/lesson_occurrence_status_icons.php</code>, <code>consumes_lesson</code>, <code>is_active</code>, порядок (edit).</li>
-    <li>Системные: нельзя удалить и переименовать; цвет/иконка/порядок/флаги — можно.</li>
-    <li>Partial: <code>admin/shared/occurrence_statuses_crud.blade.php</code>; контроллер: <code>LessonOccurrenceStatusController</code> (<code>index</code> / <code>scheduleIndex</code>).</li>
+    <li><b>Toolbar</b> — «Добавить» (модалка <code>#losCreateModal</code>, при Gate), «История»
+      (<code>#historyModal</code> / <code>includes.logModal</code>), «Фильтры» (collapse), «Колонки» (dropdown).</li>
+    <li><b>Фильтры</b> (серверные, в AJAX <code>…/data</code>; встроенный поиск DataTables выключен — <code>searching: false</code>):
+      <ul>
+        <li><code>title</code> — поиск по названию / code / id;</li>
+        <li><code>type</code> — пусто / <code>system</code> / <code>custom</code>;</li>
+        <li><code>status</code> — пусто / <code>active</code> / <code>inactive</code>;</li>
+        <li><code>consumes</code> — пусто / <code>yes</code> / <code>no</code>.</li>
+      </ul>
+    </li>
+    <li><b>Колонки</b> (настраиваемые, <code>user_table_settings.table_key = lesson_occurrence_statuses_index</code>):
+      <code>sort_order</code>, <code>title</code>, <code>icon</code>, <code>type_label</code>,
+      <code>consumes_lesson_label</code>, <code>is_active_label</code>, <code>actions</code>.</li>
+    <li><b>Таблица</b> <code>#los-statuses-table</code> — <code>KidsCrmDataTable.create</code>,
+      <code>GET …/occurrence-statuses/data</code>; название — цветной badge; иконка Font Awesome;
+      «Списывает» / «Активен» — badge Да/Нет.</li>
+    <li><b>Модалки</b> <code>#losCreateModal</code> / <code>#losEditModal</code>: название, цвет (picker + палитра),
+      иконка из <code>config/lesson_occurrence_status_icons.php</code>, <code>consumes_lesson</code>,
+      <code>is_active</code>, порядок (только edit). Ошибки валидации — JSON <code>errors</code> под полями (<code>data-err</code>).</li>
+    <li>Системные: нельзя удалить и переименовать; цвет / иконка / порядок / флаги — можно.</li>
+    <li>После успешного AJAX create/update/delete таблица перезагружается (<code>dtApi.reload</code>) без F5.</li>
+    <li>Контроллер: <code>LessonOccurrenceStatusController</code> (<code>index</code> / <code>scheduleIndex</code> / <code>data</code> / <code>log</code>…);
+      columns-settings — <code>LessonOccurrenceStatusColumnsSettingsController</code>.</li>
   </ul>
 
   <h3>8.3) AJAX-контракт</h3>
@@ -322,6 +354,24 @@
       <tr><th>Метод</th><th>Успех</th><th>Тело</th><th>Ошибки</th></tr>
     </thead>
     <tbody>
+      <tr>
+        <td><code>GET …/occurrence-statuses/data</code></td>
+        <td><b>200</b></td>
+        <td>DataTables: <code>{ draw, recordsTotal, recordsFiltered, data[] }</code></td>
+        <td><b>403</b> без Gate; <b>422</b> невалидные query-параметры</td>
+      </tr>
+      <tr>
+        <td><code>GET/POST …/occurrence-statuses/columns-settings</code></td>
+        <td><b>200</b></td>
+        <td>GET — объект колонок; POST — <code>{ success: true }</code></td>
+        <td><b>422</b> без <code>columns</code></td>
+      </tr>
+      <tr>
+        <td><code>GET …/occurrence-statuses/logs-data</code></td>
+        <td><b>200</b></td>
+        <td>DataTables логов (категория <code>lesson_occurrence_status</code>)</td>
+        <td><b>403</b></td>
+      </tr>
       <tr>
         <td><code>POST …/occurrence-statuses</code></td>
         <td><b>200</b></td>
@@ -344,22 +394,40 @@
         <td><code>POST …/occurrence-statuses/reorder</code></td>
         <td><b>200</b></td>
         <td><code>{ message: "Порядок сохранён" }</code></td>
-        <td><b>422</b> если список id неполный</td>
+        <td><b>422</b> если список id неполный / чужие id</td>
       </tr>
     </tbody>
   </table>
-  <p>Requests: <code>StoreLessonOccurrenceStatusRequest</code>, <code>UpdateLessonOccurrenceStatusRequest</code>, <code>ReorderLessonOccurrenceStatusesRequest</code> — authorize через <code>lessonOccurrenceStatuses.manage</code>. Ошибки валидации в JSON <code>errors</code>, на фронте под полями (<code>data-err</code>).</p>
+  <p>Requests: <code>StoreLessonOccurrenceStatusRequest</code>, <code>UpdateLessonOccurrenceStatusRequest</code>,
+    <code>ReorderLessonOccurrenceStatusesRequest</code> — authorize через <code>lessonOccurrenceStatuses.manage</code>.
+    Имя маршрута логов: <code>logs.data.lesson-occurrence-status</code>.</p>
 
   <h3>8.4) Safety-net: non-AJAX</h3>
   <p>Без <code>Accept: application/json</code> / без ожидания JSON (<code>!$request->expectsJson()</code>):</p>
   <ul>
-    <li><code>store</code> / <code>update</code> / <code>destroy</code> — запись создаётся/обновляется/удаляется, ответ <strong>302</strong> на <code>admin.lesson-packages.occurrence-statuses.index</code> (не пустой 200);</li>
-    <li>ошибка валидации FormRequest — <strong>302</strong> back + session errors.</li>
+    <li><code>store</code> / <code>update</code> / <code>destroy</code> — запись создаётся/обновляется/удаляется, ответ
+      <strong>302</strong> на <code>admin.lesson-packages.occurrence-statuses.index</code> (не пустой 200);</li>
+    <li>ошибка валидации FormRequest — <strong>302</strong> back + session errors;</li>
+    <li><code>POST …/columns-settings</code> без AJAX-заголовков — по-прежнему JSON <code>{ success: true }</code>
+      (как у других справочников); невалидный payload → <b>422</b> / <b>302</b>, не пустой 200.</li>
   </ul>
 
-  <h3>8.5) Инициализация</h3>
+  <h3>8.5) Аудит (<code>my_logs</code>)</h3>
+  <p>Запись через <code>AuditLogger</code> (<a href="/docs/documentation/audit-my-logs">audit-my-logs</a>).
+    Категория модалки «История»: <code>lesson_occurrence_status</code> (не путать с
+    <code>schedule.occurrence_status_set</code> / <code>schedule.occurrence_status_auto_set</code> —
+    это выставление статуса в календаре школы, категория <code>schedule</code>).</p>
   <ul>
-    <li><code>LessonOccurrenceStatusesSeeder::ensureForPartner</code> — при <code>Partner::created</code>, в <code>DatabaseSeeder</code>, при открытии вкладок статусов / журнала.</li>
+    <li><code>lesson_occurrence_status.created</code> — снимок: название, цвет, иконка, порядок, списывает, активность, тип.</li>
+    <li><code>lesson_occurrence_status.updated</code> — diff «старое → новое» по тем же полям (кроме типа); лог только при изменениях.</li>
+    <li><code>lesson_occurrence_status.deleted</code> — «Статус занятия удалён: {title}. ID: {id}.» (<code>level = security</code>).</li>
+    <li>UI — кнопка «История» в toolbar → <code>showLogModal(route('logs.data.lesson-occurrence-status'))</code>.</li>
+  </ul>
+
+  <h3>8.6) Инициализация</h3>
+  <ul>
+    <li><code>LessonOccurrenceStatusesSeeder::ensureForPartner</code> — при <code>Partner::created</code>, в <code>DatabaseSeeder</code>,
+      при открытии вкладок статусов / журнала / data-endpoint.</li>
     <li>Отдельного <code>DevScheduleStatusesSeeder</code> / таблицы <code>statuses</code> больше нет.</li>
   </ul>
 
@@ -374,25 +442,33 @@
   <h2>10) Связанные файлы</h2>
   <ul class="small">
     <li><code>app/Models/LessonOccurrenceStatus.php</code>, <code>ScheduleUser.php</code></li>
-    <li><code>app/Http/Controllers/Admin/LessonOccurrenceStatusController.php</code>, <code>ScheduleController.php</code></li>
-    <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code></li>
+    <li><code>app/Http/Controllers/Admin/LessonOccurrenceStatusController.php</code>,
+      <code>LessonOccurrenceStatusColumnsSettingsController.php</code>, <code>ScheduleController.php</code></li>
+    <li><code>app/Http/Requests/Admin/UpdateScheduleCellRequest.php</code>,
+      <code>Store/Update/ReorderLessonOccurrenceStatus*Request</code></li>
+    <li><code>app/Enums/AuditEvent.php</code> — <code>LessonOccurrenceStatusCreated|Updated|Deleted</code></li>
     <li><code>app/Services/Schedule/TrainerWorkloadReportService.php</code></li>
     <li><code>resources/views/admin/shared/occurrence_statuses_crud.blade.php</code></li>
     <li><code>resources/views/admin/schedule/_schedule_section_tabs.blade.php</code>, <code>journal.blade.php</code>, <code>index.blade.php</code></li>
-    <li><code>resources/js/schedule.js</code> — ячейки журнала (без CRUD статусов)</li>
+    <li><code>resources/js/schedule.js</code> — ячейки журнала (без CRUD статусов); CRUD — inline JS в partial</li>
+    <li><code>resources/css/admin-list-toolbar.css</code>, <code>resources/js/kids-datatable.js</code></li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>lessonOccurrenceStatuses.manage</code></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — списание по <code>consumes_lesson</code></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — автосписание</li>
+    <li><a href="/docs/documentation/reusable-ui-partials">Переиспользуемые UI-блоки</a> — toolbar / DataTable</li>
   </ul>
 
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>ScheduleStatusesFeatureTest</code> — UI вкладки, CRUD, reorder, journal update / inactive / foreign, нет событий абонементов</li>
-      <li><code>ScheduleStatusesFullAccessFeatureTest</code> — гость / 403 / OR-права / smoke 200 всех endpoint'ов и JSON-контракты</li>
-      <li><code>ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest</code> — non-AJAX 302 + запись в БД; AJAX 200/422</li>
-      <li><code>BladeInlineJsSyntaxTest</code> — <code>occurrence_statuses_crud.blade.php</code>, <code>schedule/index.blade.php</code></li>
+      <li><code>ScheduleStatusesFeatureTest</code> — UI вкладки (toolbar/DataTable-маркеры), CRUD, reorder, journal update / inactive / foreign</li>
+      <li><code>ScheduleStatusesFullAccessFeatureTest</code> — гость / 403 / OR-права / матрица всех endpoint'ов (data, columns, logs, CRUD, reorder)</li>
+      <li><code>ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest</code> — non-AJAX 302 + запись в БД; columns-settings; AJAX 200/422</li>
+      <li><code>LessonOccurrenceStatusesPageFullAccessFeatureTest</code> — доступ страниц + полный smoke endpoint'ов</li>
+      <li><code>LessonOccurrenceStatusesAjaxContractFeatureTest</code> — JSON-контракты data/filters/columns/logs/CRUD/reorder</li>
+      <li><code>LessonOccurrenceStatusesToolbarFeatureTest</code> — toolbar UI, columns-settings, logs, audit created/updated/deleted</li>
       <li><code>LessonOccurrenceStatusesFeatureTest</code> — CRUD со стороны абонементов</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>occurrence_statuses_crud.blade.php</code> (+ отдельный тест DataTables/fetch)</li>
       <li><code>ScheduleJournalAccessFeatureTest</code> / <code>ScheduleJournalFullAccessFeatureTest</code> — журнал + вкладка статусов</li>
       <li><code>ScheduleCellTrainerFeatureTest</code>, <code>ScheduleTrainerWorkload*FeatureTest</code></li>
     </ul>
@@ -401,8 +477,9 @@
   tests/Feature/Crm/Schedule/ScheduleStatusesFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleStatusesFullAccessFeatureTest.php \
   tests/Feature/Crm/Schedule/ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest.php \
-  tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php \
-  tests/Feature/Crm/Schedule/ScheduleJournalFullAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonOccurrenceStatusesPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonOccurrenceStatusesAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonOccurrenceStatusesToolbarFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonOccurrenceStatusesFeatureTest.php</code></pre>
 
   <p class="small">

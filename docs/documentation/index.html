@@ -26,19 +26,119 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Конфликт привязки фиксированного абонемента: дата = starts_at (2026‑07)</h2>
+  <div class="note">
+    При <code>POST …/school-schedule/assign-fixed</code> проверка пересечения времени у ученика смотрит только на
+    <b>дату занятия</b> в календаре — <code>user_team_schedule_slots.starts_at</code>.
+    Поле <code>ends_at</code> у строки календаря (для flexible/fixed/разового часто = конец периода назначения
+    <code>user_lesson_packages.ends_at</code>; у пробного <code>ends_at = starts_at</code>)
+    <b>не</b> разворачивает занятие на последующие дни недели.
+    <br>
+    Раньше интервал <code>starts_at…ends_at</code> + тот же weekday давал ложный «Конфликт расписания» на даты
+    после последнего реального занятия, пока не истёк срок абонемента (например, новый фикс с якоря 27.07
+    при старой записи с <code>starts_at=20.07</code> и <code>ends_at=29.07</code>).
+    <br>
+    Календарь недели, статусы и автосписание и раньше опирались на <code>starts_at</code> — проверка конфликта
+    приведена к той же модели. Время в <b>один и тот же день</b> по-прежнему конфликтует; разные слоты
+    без пересечения часов в один день — нет.
+    <br>
+    Проверка кросс-слотового пересечения времени есть только у <b>assign-fixed</b> (цепочка).
+    Гибкий / разовое / пробное проверяют дубликат «тот же слот + дата» (<code>starts_at</code>), без сравнения часов между разными слотами.
+    <br>
+    Подробно —
+    <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-overlap">school-schedule-calendar § конфликт</a>,
+    <a href="/docs/documentation/lesson-packages#fixed-schedule-overlap">lesson-packages § фиксированное / конфликт</a>.
+  </div>
+
+  <h2>Статусы занятий: toolbar + DataTable + история (2026‑07)</h2>
+  <div class="note">
+    Вкладка <b>«Статусы занятий»</b> (<code>/admin/lesson-packages/occurrence-statuses</code> и
+    <code>/schedule/occurrence-statuses</code>) переведена на общий паттерн справочников:
+    toolbar «Добавить / История / Фильтры / Колонки» (<code>admin-list-toolbar.css</code>),
+    server-side <code>KidsCrmDataTable</code> (<code>GET …/occurrence-statuses/data</code>, встроенный поиск DataTables выключен),
+    columns-settings (<code>table_key = lesson_occurrence_statuses_index</code>),
+    история <code>GET …/occurrence-statuses/logs-data</code>
+    (категория <code>lesson_occurrence_status</code>: created / updated / deleted).
+    Фильтры: название, тип (системный/свой), активен, списывает занятие.
+    Один partial <code>admin/shared/occurrence_statuses_crud.blade.php</code> на обоих экранах.
+    Gate <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code>.
+    AJAX CRUD перезагружает таблицу без F5; non-AJAX store/update/destroy → <code>302</code> на index.
+    Подробно — <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>,
+    обзор в абонементах — <a href="/docs/documentation/lesson-packages#occurrence-statuses-tab">lesson-packages §occurrence-statuses-tab</a>,
+    аудит — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>,
+    UI-паттерн — <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>.
+  </div>
+
+  <h2>Выгрузка Excel: контакты ученика и родителя (2026‑07)</h2>
+  <div class="note">
+    В выгрузке с календаря школы (<code>/admin/lesson-packages/school-schedule</code>, право
+    <code>lessonPackages.export</code>) на листах <b>«Занятия»</b> и <b>«Назначения»</b> после колонки «Ученик»
+    добавлены три колонки:
+    <br>
+    1) <b>Телефон ученика</b> — <code>users.phone</code> (учётка ученика; для SMS/входа — тот же источник, что в
+    <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>);
+    <br>
+    2) <b>ФИО родителя</b> — <code>ParentProfile::full_name</code> из <code>parents</code> через
+    <code>users.parent_id</code> (фамилия + имя + отчество);
+    <br>
+    3) <b>Телефон родителя</b> — <code>parents.phone</code> (карточка родителя, не телефон ученика).
+    <br>
+    Без <code>parent_id</code> / без карточки / soft-deleted родитель — поля родителя пустые; пустые телефоны
+    остаются пустыми ячейками. Номера с <code>+</code> пишутся в Excel текстом.
+    Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-contacts">school-schedule-calendar § контакты</a>,
+    обзор выгрузки — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">§ выгрузка</a>,
+    <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
+  </div>
+
+  <h2>Выгрузка Excel: исторический остаток на листе «Занятия» (2026‑07)</h2>
+  <div class="note">
+    В выгрузке с календаря школы (<code>/admin/lesson-packages/school-schedule</code>, право
+    <code>lessonPackages.export</code>) колонка <b>«Остаток»</b> на листе <b>«Занятия»</b> больше не берёт
+    текущий <code>user_lesson_packages.lessons_remaining</code>. Считается <b>исторический</b> остаток
+    сервисом <code>LessonOccurrenceHistoricalRemainingResolver</code>:
+    <br>
+    1) есть статус по строке → остаток <b>после</b> последнего события статуса (в т.ч. если статус не списывает);
+    <br>
+    2) нет статуса → остаток <b>на эту дату до статуса</b> (после более ранних списаний/возвратов по абонементу);
+    <br>
+    3) реконструкция от <code>lessons_total</code> / <code>trial_lessons_total</code> по <b>всем</b> событиям назначения
+    (включая даты вне периода отчёта), дельты как в <code>UserLessonPackageConsumptionAdjuster</code>.
+    <br>
+    Лист <b>«Назначения»</b>: колонка «Остаток» без изменений алгоритма — там по-прежнему <b>текущий</b> остаток
+    (<code>lessons_remaining</code>). Набор колонок листа при этом расширен контактами (см. блок выше).
+    Колонка «Всего» — объём абонемента/пробного. Отдельной таблицы «списаний» в БД нет.
+    Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-historical-remaining">school-schedule-calendar § исторический остаток</a>,
+    обзор выгрузки — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">§ выгрузка</a>,
+    <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
+  </div>
+
   <h2>Выгрузка абонементов в Excel с календаря школы (2026‑07)</h2>
   <div class="note">
     На вкладке <b>«Расписание школы»</b> (<code>/admin/lesson-packages/school-schedule</code>) — кнопка Excel в тулбаре
     (между настройками отображения и «на весь экран»), право <code>lessonPackages.export</code> (дополнительно к
     <code>lessonPackages.view</code>). Модалка периода: пресеты «Этот месяц» / «Прошлый месяц», произвольный диапазон
     (не более 366 дней). Файл <code>.xlsx</code> с двумя листами: <b>«Занятия»</b> (записи календаря, включая пробные;
-    текущий статус, списано да/нет, источник статуса вручную/авто) и <b>«Назначения»</b> (сводка абонементов, включая
-    ещё не привязанные к расписанию). На листе «Занятия» колонка «Остаток» — исторический
-    (после статуса строки). Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
+    текущий статус, списано да/нет, источник статуса вручную/авто; колонка «Остаток» — <b>исторический</b>, см. блок выше)
+    и <b>«Назначения»</b> (сводка абонементов, включая ещё не привязанные; остаток — <b>текущий</b>).
+    Контакты: телефон ученика, ФИО и телефон родителя — на обоих листах.
+    Endpoint <code>GET …/school-schedule/export</code>; AJAX-ошибки валидации —
     <code>422</code> + <code>errors</code> под полями дат; non-AJAX — <code>302</code> + session errors.
     Подробно — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
     права — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>,
     обзор абонементов — <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
+  </div>
+
+  <h2>Шаблоны абонементов: toolbar + DataTable + история (2026‑07)</h2>
+  <div class="note">
+    Список шаблонов (<code>/admin/lesson-packages</code> и дубль
+    <code>/admin/directories/lesson-packages</code>) переведён на общий паттерн справочников:
+    toolbar «Добавить / История / Фильтры / Колонки», server-side <code>KidsCrmDataTable</code>
+    (<code>GET …/data</code>), columns-settings (<code>table_key = lesson_packages_index</code>),
+    история <code>GET …/logs-data</code> (категория <code>lesson_package</code>: created/updated/deleted).
+    Фильтры: поиск по названию + тип. Подпись поля срока — «Срок действия (дни)».
+    AJAX CRUD перезагружает таблицу без F5. Право — <code>lessonPackages.view</code>.
+    Подробно — <a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a>,
+    аудит — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.
   </div>
 
   <h2>Справочники → вкладка «Абонементы» (2026‑07)</h2>
@@ -167,6 +267,7 @@
       <tr><td><code>/client-contract-templates</code></td><td><code>logs.data.contract-template</code></td><td><code>contracts.view</code></td><td><code>contract_template</code></td><td><a href="/docs/documentation/contract-templates#contract-templates-audit">contract-templates §5.0</a></td></tr>
       <tr><td><code>/admin/school-leads</code></td><td><code>logs.data.school-lead</code></td><td><code>schoolLeads.view</code></td><td><code>school_lead</code></td><td><a href="/docs/documentation/school-leads-widget#school-leads-audit">school-leads §5.1.3</a></td></tr>
       <tr><td><code>/admin/lesson-packages/school-schedule</code></td><td><code>logs.data.school-schedule</code></td><td><code>lessonPackages.view</code></td><td><code>schedule</code></td><td><a href="/docs/documentation/school-schedule-calendar#school-schedule-audit">school-schedule-calendar</a></td></tr>
+      <tr><td><code>/admin/lesson-packages</code>, <code>/admin/directories/lesson-packages</code></td><td><code>logs.data.lesson-package</code></td><td><code>lessonPackages.view</code></td><td><code>lesson_package</code></td><td><a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a></td></tr>
       <tr><td><code>/admin/locations</code></td><td><code>logs.data.location</code></td><td><code>locations.view</code></td><td><code>location</code></td><td><a href="/docs/documentation/admin-locations">admin-locations §5</a></td></tr>
       <tr><td><code>/admin/districts</code></td><td><code>logs.data.district</code></td><td><code>districts.view</code></td><td><code>district</code></td><td><a href="/docs/documentation/admin-districts">admin-districts §5</a></td></tr>
       <tr><td><code>/admin/sport-types</code></td><td><code>logs.data.sport-type</code></td><td><code>sport_types.view</code></td><td><code>sport_type</code></td><td><a href="/docs/documentation/admin-sport-types">admin-sport-types §6</a></td></tr>
@@ -198,9 +299,9 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы; <b>«Исходящие письма»</b> — модалка просмотра, datetime-колонки, iframe HTML (§8)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (<code>auto_attendance_enabled</code>, автосписание «Посетил»), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий», «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), фильтры, DataTable, календарь, разовое (<code>no_schedule</code>)</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения»), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>lesson_occurrence_statuses</code>, вкладка «Статусы занятий», тренер при «Посетил»</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа»), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>lesson_occurrence_statuses</code>, вкладка «Статусы занятий» (<b>toolbar / DataTable / фильтры / колонки / история</b> <code>lesson_occurrence_status.*</code>), тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

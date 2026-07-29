@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\SetManualUserLessonPackagePaidRequest;
 use App\Http\Requests\Admin\StoreLessonPackageRequest;
@@ -18,6 +19,8 @@ use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTableSetting;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
@@ -45,6 +48,8 @@ final class LessonPackageController extends AdminBaseController
 
     private const ASSIGNMENTS_TABLE_KEY = 'lesson_packages_assignments';
 
+    private const PACKAGES_TABLE_KEY = 'lesson_packages_index';
+
     /** @var list<string> */
     private const ASSIGNMENT_SCHEDULE_TYPES = ['fixed', 'flexible', 'no_schedule'];
 
@@ -52,6 +57,7 @@ final class LessonPackageController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly SchoolCalendarAssignmentEligibilityService $schoolCalendarAssignmentEligibility,
         private readonly TeamLocationAvailabilityService $teamLocationAvailability,
+        private readonly AuditLogger $auditLogger,
     ) {
         parent::__construct($partnerContext);
     }
@@ -71,14 +77,103 @@ final class LessonPackageController extends AdminBaseController
     }
 
     /**
-     * @return array{activeTab: string, packages: \Illuminate\Contracts\Pagination\LengthAwarePaginator, weekdays: array<int, string>}
+     * @return array{activeTab: string, packagesHasActiveFilters: bool}
      */
     private function packagesIndexViewData(): array
     {
+        $this->requirePartnerId();
+
+        return [
+            'activeTab' => 'packages',
+            'packagesHasActiveFilters' => false,
+        ];
+    }
+
+    public function packagesData(Request $request): JsonResponse
+    {
         $partnerId = $this->requirePartnerId();
 
-        $packages = LessonPackage::query()
-            ->where('partner_id', $partnerId)
+        $validated = $request->validate([
+            'name' => ['nullable', 'string'],
+            'schedule_type' => ['nullable', 'string'],
+            'draw' => ['nullable', 'integer'],
+            'start' => ['nullable', 'integer'],
+            'length' => ['nullable', 'integer'],
+        ]);
+
+        $baseQuery = LessonPackage::query()
+            ->where('partner_id', $partnerId);
+
+        $search = trim((string) ($validated['name'] ?? ''));
+        if ($search === '' && $request->filled('search.value')) {
+            $search = trim((string) $request->input('search.value'));
+        }
+
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $baseQuery->where(function ($q) use ($like, $search) {
+                $q->where('name', 'like', $like);
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        $scheduleType = trim((string) ($validated['schedule_type'] ?? ''));
+        if ($scheduleType !== '' && in_array($scheduleType, self::ASSIGNMENT_SCHEDULE_TYPES, true)) {
+            $baseQuery->where('schedule_type', $scheduleType);
+        }
+
+        $totalRecords = LessonPackage::query()->where('partner_id', $partnerId)->count();
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $columnsDef = $request->input('columns', []);
+        $orderColumnName = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        switch ($orderColumnName) {
+            case 'name':
+                $baseQuery->orderBy('name', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'schedule_type_label':
+                $baseQuery->orderBy('schedule_type', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'duration_days':
+                $baseQuery->orderBy('duration_days', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'lessons_count':
+                $baseQuery->orderBy('lessons_count', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'price_label':
+                $baseQuery->orderBy('price_cents', $orderDir)->orderBy('id', 'desc');
+                break;
+            case 'freeze_label':
+                $baseQuery->orderBy('freeze_enabled', $orderDir)
+                    ->orderBy('freeze_days', $orderDir)
+                    ->orderBy('id', 'desc');
+                break;
+            case 'id':
+                $baseQuery->orderBy('id', $orderDir);
+                break;
+            default:
+                $baseQuery->orderBy('id', 'desc');
+                break;
+        }
+
+        $start = max(0, (int) ($validated['start'] ?? 0));
+        $length = (int) ($validated['length'] ?? 20);
+        if ($length <= 0) {
+            $length = 20;
+        }
+        if ($length > 100) {
+            $length = 100;
+        }
+
+        $packages = (clone $baseQuery)
             ->withCount([
                 'userAssignments as partner_assignments_count' => function ($q) use ($partnerId) {
                     $q->whereHas('user', function ($uq) use ($partnerId) {
@@ -89,14 +184,85 @@ final class LessonPackageController extends AdminBaseController
                     $q->where('partner_id', $partnerId);
                 },
             ])
-            ->orderByDesc('id')
-            ->paginate(20);
+            ->skip($start)
+            ->take($length)
+            ->get();
 
-        return [
-            'activeTab' => 'packages',
-            'packages' => $packages,
-            'weekdays' => self::weekdaysMap(),
-        ];
+        $data = $packages->map(function (LessonPackage $package) {
+            $canDelete = (int) ($package->partner_assignments_count ?? 0) === 0
+                && (int) ($package->partner_linked_lessons_count ?? 0) === 0;
+
+            return [
+                'id' => (int) $package->id,
+                'name' => (string) $package->name,
+                'schedule_type' => (string) $package->schedule_type,
+                'schedule_type_label' => $this->scheduleTypeLabel((string) $package->schedule_type),
+                'duration_days' => (int) $package->duration_days,
+                'lessons_count' => (int) $package->lessons_count,
+                'price_cents' => (int) $package->price_cents,
+                'price_label' => number_format(((int) $package->price_cents) / 100, 2, ',', ' ') . ' ₽',
+                'freeze_enabled' => (bool) $package->freeze_enabled,
+                'freeze_days' => (int) $package->freeze_days,
+                'freeze_label' => $package->freeze_enabled ? (string) (int) $package->freeze_days : 'нет',
+                'can_delete' => $canDelete,
+            ];
+        })->values()->all();
+
+        return response()->json([
+            'draw' => (int) ($validated['draw'] ?? 0),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ]);
+    }
+
+    public function packagesColumnsSettingsGet(): JsonResponse
+    {
+        $this->requirePartnerId();
+
+        $settings = UserTableSetting::query()
+            ->where('user_id', (int) Auth::id())
+            ->where('table_key', self::PACKAGES_TABLE_KEY)
+            ->first();
+
+        $columns = $settings?->columns;
+        if (! is_array($columns)) {
+            $columns = [];
+        }
+
+        return response()->json($columns);
+    }
+
+    public function packagesColumnsSettingsSave(Request $request): JsonResponse
+    {
+        $this->requirePartnerId();
+
+        $data = $request->validate([
+            'columns' => 'required|array',
+        ]);
+
+        $normalized = [];
+        foreach ((array) $data['columns'] as $key => $value) {
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            $normalized[(string) $key] = $bool ?? false;
+        }
+
+        UserTableSetting::updateOrCreate(
+            [
+                'user_id' => (int) Auth::id(),
+                'table_key' => self::PACKAGES_TABLE_KEY,
+            ],
+            [
+                'columns' => $normalized,
+            ]
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    public function packagesLogs(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('lesson_package');
     }
 
     public function schoolSchedule()
@@ -1050,7 +1216,8 @@ final class LessonPackageController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
 
         try {
-            DB::transaction(function () use ($data, $priceCents, $freezeDays, $partnerId) {
+            /** @var LessonPackage $package */
+            $package = DB::transaction(function () use ($data, $priceCents, $freezeDays, $partnerId) {
                 $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
                 $freezeDaysStored = $freezeDays;
                 $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
@@ -1060,8 +1227,7 @@ final class LessonPackageController extends AdminBaseController
                     $autoAttendanceEnabled = false;
                 }
 
-                /** @var LessonPackage $package */
-                $package = LessonPackage::create([
+                return LessonPackage::create([
                     'partner_id' => $partnerId,
                     'name' => (string) $data['name'],
                     'schedule_type' => (string) $data['schedule_type'],
@@ -1074,6 +1240,15 @@ final class LessonPackageController extends AdminBaseController
                     'is_active' => true,
                 ]);
             });
+
+            $this->auditLogger->record(
+                AuditEvent::LessonPackageCreated,
+                AuditContext::make($this->formatLessonPackageSnapshotDescription($package))
+                    ->withTarget($package, $package->name)
+                    ->withAuthorId($request->user()?->id)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
         } catch (QueryException $e) {
             Log::warning('LessonPackage store failed', [
                 'error' => $e->getMessage(),
@@ -1130,7 +1305,10 @@ final class LessonPackageController extends AdminBaseController
 
     public function update(StoreLessonPackageRequest $request, LessonPackage $lessonPackage)
     {
-        $this->assertLessonPackageBelongsToPartner($lessonPackage, $this->requirePartnerId());
+        $partnerId = $this->requirePartnerId();
+        $this->assertLessonPackageBelongsToPartner($lessonPackage, $partnerId);
+
+        $beforeSnapshot = $this->lessonPackageAuditSnapshot($lessonPackage);
 
         $data = $request->validated();
         $priceCents = (int) $request->input('price_cents', 0);
@@ -1159,6 +1337,23 @@ final class LessonPackageController extends AdminBaseController
                 ]);
                 $lessonPackage->save();
             });
+
+            $lessonPackage->refresh();
+            $changes = $this->diffLessonPackageAuditSnapshots(
+                $beforeSnapshot,
+                $this->lessonPackageAuditSnapshot($lessonPackage),
+            );
+
+            if ($changes !== []) {
+                $this->auditLogger->record(
+                    AuditEvent::LessonPackageUpdated,
+                    AuditContext::make(implode("\n", $changes))
+                        ->withTarget($lessonPackage, $lessonPackage->name)
+                        ->withAuthorId($request->user()?->id)
+                        ->withPartnerId($partnerId)
+                        ->withCreatedAt(Carbon::now())
+                );
+            }
         } catch (QueryException $e) {
             Log::warning('LessonPackage update failed', [
                 'lesson_package_id' => (int) $lessonPackage->id,
@@ -1229,6 +1424,15 @@ final class LessonPackageController extends AdminBaseController
         }
 
         try {
+            $this->auditLogger->record(
+                AuditEvent::LessonPackageDeleted,
+                AuditContext::make("Абонемент удалён: {$lessonPackage->name}. ID: {$lessonPackage->id}.")
+                    ->withTarget($lessonPackage, $lessonPackage->name)
+                    ->withAuthorId(auth()->id())
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
+
             DB::transaction(function () use ($lessonPackage) {
                 $lessonPackage->delete();
             });
@@ -1261,6 +1465,79 @@ final class LessonPackageController extends AdminBaseController
         return redirect()
             ->route($routeName)
             ->with('success', $successMessage);
+    }
+
+    private function scheduleTypeLabel(string $scheduleType): string
+    {
+        return match ($scheduleType) {
+            'fixed' => 'Фиксированный',
+            'flexible' => 'Гибкий',
+            'no_schedule' => 'Разовое занятие',
+            default => $scheduleType,
+        };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function lessonPackageAuditSnapshot(LessonPackage $package): array
+    {
+        $priceLabel = number_format(((int) $package->price_cents) / 100, 2, ',', ' ') . ' ₽';
+        $freezeLabel = $package->freeze_enabled
+            ? ((int) $package->freeze_days) . ' дн.'
+            : 'нет';
+
+        return [
+            'name' => (string) $package->name,
+            'schedule_type' => $this->scheduleTypeLabel((string) $package->schedule_type),
+            'duration_days' => (string) (int) $package->duration_days,
+            'lessons_count' => (string) (int) $package->lessons_count,
+            'price' => $priceLabel,
+            'freeze' => $freezeLabel,
+            'auto_attendance' => $package->auto_attendance_enabled ? 'Да' : 'Нет',
+        ];
+    }
+
+    private function formatLessonPackageSnapshotDescription(LessonPackage $package): string
+    {
+        $snapshot = $this->lessonPackageAuditSnapshot($package);
+
+        return implode("\n", [
+            "Название: {$snapshot['name']}",
+            "Тип: {$snapshot['schedule_type']}",
+            "Срок действия (дни): {$snapshot['duration_days']}",
+            "Занятий: {$snapshot['lessons_count']}",
+            "Стоимость: {$snapshot['price']}",
+            "Заморозка: {$snapshot['freeze']}",
+            "Автосписание: {$snapshot['auto_attendance']}",
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffLessonPackageAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'name' => 'Название',
+            'schedule_type' => 'Тип',
+            'duration_days' => 'Срок действия (дни)',
+            'lessons_count' => 'Занятий',
+            'price' => 'Стоимость',
+            'freeze' => 'Заморозка',
+            'auto_attendance' => 'Автосписание',
+        ];
+
+        $changes = [];
+        foreach ($labels as $key => $label) {
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
     }
 
     private function assertLessonPackageBelongsToPartner(LessonPackage $lessonPackage, int $partnerId): void

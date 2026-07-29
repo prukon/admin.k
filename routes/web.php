@@ -399,6 +399,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         // Дубль вкладки «Абонементы» в разделе «Справочники» (общий partial + те же API)
         Route::get('/admin/directories/lesson-packages', [LessonPackageController::class, 'directoriesIndex'])
             ->name('admin.directories.lesson-packages.index');
+        Route::get('/admin/lesson-packages/data', [LessonPackageController::class, 'packagesData'])
+            ->name('admin.lesson-packages.data');
+        Route::get('/admin/lesson-packages/columns-settings', [LessonPackageController::class, 'packagesColumnsSettingsGet'])
+            ->name('admin.lesson-packages.columns-settings.get');
+        Route::post('/admin/lesson-packages/columns-settings', [LessonPackageController::class, 'packagesColumnsSettingsSave'])
+            ->name('admin.lesson-packages.columns-settings.save');
+        Route::get('/admin/lesson-packages/logs-data', [LessonPackageController::class, 'packagesLogs'])
+            ->name('logs.data.lesson-package');
         Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
         Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
             ->name('admin.lesson-packages.assignments.data');
@@ -501,16 +509,24 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:lessonOccurrenceStatuses.manage')->group(function () {
         Route::get('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'index'])
             ->name('admin.lesson-packages.occurrence-statuses.index');
+        Route::get('/admin/lesson-packages/occurrence-statuses/data', [LessonOccurrenceStatusController::class, 'data'])
+            ->name('admin.lesson-packages.occurrence-statuses.data');
+        Route::get('/admin/lesson-packages/occurrence-statuses/columns-settings', [\App\Http\Controllers\Admin\LessonOccurrenceStatusColumnsSettingsController::class, 'getColumnsSettings'])
+            ->name('admin.lesson-packages.occurrence-statuses.columns-settings.get');
+        Route::post('/admin/lesson-packages/occurrence-statuses/columns-settings', [\App\Http\Controllers\Admin\LessonOccurrenceStatusColumnsSettingsController::class, 'saveColumnsSettings'])
+            ->name('admin.lesson-packages.occurrence-statuses.columns-settings.save');
+        Route::get('/admin/lesson-packages/occurrence-statuses/logs-data', [LessonOccurrenceStatusController::class, 'log'])
+            ->name('logs.data.lesson-occurrence-status');
         Route::post('/admin/lesson-packages/occurrence-statuses', [LessonOccurrenceStatusController::class, 'store'])
             ->name('admin.lesson-packages.occurrence-statuses.store');
+        Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
+            ->name('admin.lesson-packages.occurrence-statuses.reorder');
         Route::put('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'update'])
             ->whereNumber('lessonOccurrenceStatus')
             ->name('admin.lesson-packages.occurrence-statuses.update');
         Route::delete('/admin/lesson-packages/occurrence-statuses/{lessonOccurrenceStatus}', [LessonOccurrenceStatusController::class, 'destroy'])
             ->whereNumber('lessonOccurrenceStatus')
             ->name('admin.lesson-packages.occurrence-statuses.destroy');
-        Route::post('/admin/lesson-packages/occurrence-statuses/reorder', [LessonOccurrenceStatusController::class, 'reorder'])
-            ->name('admin.lesson-packages.occurrence-statuses.reorder');
 
         Route::get('/schedule/occurrence-statuses', [LessonOccurrenceStatusController::class, 'scheduleIndex'])
             ->name('schedule.occurrence-statuses');

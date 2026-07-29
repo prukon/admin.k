@@ -54,7 +54,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         $this->get(route('schedule.occurrence-statuses'))->assertRedirect();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertRedirect();
 
-        foreach ($this->allMutationEndpointsPayload() as $item) {
+        foreach ($this->allSectionEndpointsPayload() as $item) {
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -66,7 +66,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
 
             $this->assertContains(
                 $response->getStatusCode(),
-                [401, 419, 302],
+                [401, 419, 302, 403],
                 "Гость: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
             );
         }
@@ -81,7 +81,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         $this->get(route('schedule.occurrence-statuses'))->assertForbidden();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertForbidden();
 
-        foreach ($this->allMutationEndpointsPayload() as $item) {
+        foreach ($this->allSectionEndpointsPayload() as $item) {
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -110,9 +110,10 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             ->assertSee('losCreateModal', false)
             ->assertSee('losEditModal', false)
             ->assertSee('Списывает', false)
-            ->assertSee('Посетил', false)
             ->assertSee('id="scheduleSectionTabs"', false)
-            ->assertSee(route('schedule.occurrence-statuses', [], false), false);
+            ->assertSee(route('schedule.occurrence-statuses', [], false), false)
+            ->assertSee('>История</span>', false)
+            ->assertSee('los-statuses-table', false);
     }
 
     public function test_admin_occurrence_statuses_page_ok_with_ui_markers_for_lesson_packages_view(): void
@@ -123,8 +124,9 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             ->assertOk()
             ->assertSee('Статусы занятий', false)
             ->assertSee('losCreateModal', false)
-            ->assertSee('Посетил', false)
-            ->assertSee('Списывает', false);
+            ->assertSee('Списывает', false)
+            ->assertSee('>История</span>', false)
+            ->assertSee('los-statuses-table', false);
     }
 
     public function test_viewer_with_schedule_view_all_endpoints_return_expected_status(): void
@@ -134,7 +136,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         $this->get(route('schedule.occurrence-statuses'))->assertOk();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertOk();
 
-        foreach ($this->allMutationEndpointsPayload() as $item) {
+        foreach ($this->allSectionEndpointsPayload() as $item) {
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -154,6 +156,9 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
             if (($item['assert_json'] ?? null) !== null && $response->getStatusCode() === 200) {
                 $response->assertJsonStructure($item['assert_json']);
             }
+
+            $this->assertNotSame(500, $response->getStatusCode());
+            $this->assertNotSame('', trim((string) $response->getContent()));
         }
     }
 
@@ -164,7 +169,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
         $this->get(route('schedule.occurrence-statuses'))->assertOk();
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))->assertOk();
 
-        foreach ($this->allMutationEndpointsPayload() as $item) {
+        foreach ($this->allSectionEndpointsPayload() as $item) {
             $response = $this->call(
                 $item['method'],
                 $item['url'],
@@ -179,6 +184,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
                 $response->getStatusCode(),
                 "lessonPackages.view: {$item['method']} {$item['url']} → {$response->getStatusCode()}"
             );
+            $this->assertNotSame('', trim((string) $response->getContent()));
         }
     }
 
@@ -288,12 +294,77 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
      *     assert_json?: list<string|array>
      * }>
      */
-    private function allMutationEndpointsPayload(): array
+    private function allSectionEndpointsPayload(): array
     {
         $deleteTarget = $this->createCustomOccurrenceStatus('Удалить access '.uniqid());
         $updateTarget = $this->customStatus;
 
+        $reorderItems = LessonOccurrenceStatus::query()
+            ->forPartner((int) $this->partner->id)
+            ->ordered()
+            ->get(['id'])
+            ->values()
+            ->map(fn (LessonOccurrenceStatus $row, int $i) => [
+                'id' => $row->id,
+                'sort_order' => ($i + 1) * 10,
+            ])
+            ->all();
+
+        $jsonHeaders = [
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X-Requested-With' => 'XMLHttpRequest',
+        ];
+
         return [
+            [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.occurrence-statuses.data', [
+                    'draw' => 1,
+                    'start' => 0,
+                    'length' => 10,
+                ]),
+                'headers' => ['HTTP_ACCEPT' => 'application/json'],
+                'expected' => 200,
+                'assert_json' => ['draw', 'recordsTotal', 'recordsFiltered', 'data'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.occurrence-statuses.columns-settings.get'),
+                'headers' => ['HTTP_ACCEPT' => 'application/json'],
+                'expected' => 200,
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('admin.lesson-packages.occurrence-statuses.columns-settings.save'),
+                'data' => [
+                    'columns' => [
+                        'title' => true,
+                        'actions' => true,
+                    ],
+                ],
+                'headers' => $jsonHeaders,
+                'expected' => 200,
+                'assert_json' => ['success'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('logs.data.lesson-occurrence-status', [
+                    'draw' => 1,
+                    'start' => 0,
+                    'length' => 10,
+                ]),
+                'headers' => ['HTTP_ACCEPT' => 'application/json'],
+                'expected' => 200,
+                'assert_json' => ['draw', 'recordsTotal', 'recordsFiltered', 'data'],
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('admin.lesson-packages.occurrence-statuses.reorder'),
+                'data' => ['items' => $reorderItems],
+                'headers' => $jsonHeaders,
+                'expected' => 200,
+                'assert_json' => ['message'],
+            ],
             [
                 'method' => 'POST',
                 'url' => route('admin.lesson-packages.occurrence-statuses.store'),
@@ -304,10 +375,7 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
                     'consumes_lesson' => 0,
                     'is_active' => 1,
                 ],
-                'headers' => [
-                    'HTTP_ACCEPT' => 'application/json',
-                    'HTTP_X-Requested-With' => 'XMLHttpRequest',
-                ],
+                'headers' => $jsonHeaders,
                 'expected' => 200,
                 'assert_json' => ['message', 'status'],
             ],
@@ -322,20 +390,14 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
                     'consumes_lesson' => 0,
                     'is_active' => 1,
                 ],
-                'headers' => [
-                    'HTTP_ACCEPT' => 'application/json',
-                    'HTTP_X-Requested-With' => 'XMLHttpRequest',
-                ],
+                'headers' => $jsonHeaders,
                 'expected' => 200,
                 'assert_json' => ['message'],
             ],
             [
                 'method' => 'DELETE',
                 'url' => route('admin.lesson-packages.occurrence-statuses.destroy', $deleteTarget->id),
-                'headers' => [
-                    'HTTP_ACCEPT' => 'application/json',
-                    'HTTP_X-Requested-With' => 'XMLHttpRequest',
-                ],
+                'headers' => $jsonHeaders,
                 'expected' => 200,
                 'assert_json' => ['message'],
             ],

@@ -100,6 +100,110 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertTrue($exportScriptFound, 'В schoolSchedule.blade.php не найден script с initSchoolCalExport');
     }
 
+    /**
+     * P1: inline JS привязки фиксированного абонемента в модалке слота (fetch + errors.patterns).
+     */
+    public function test_school_schedule_fixed_bind_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('submitSchoolCalSlotFixedRegistration', $content);
+        $this->assertStringContainsString('showSchoolCalSlotFixedFieldErrs', $content);
+        $this->assertStringContainsString('routes.fixedAssign', $content);
+        $this->assertStringContainsString('schoolCalSlotFixedFormWrap', $content);
+        $this->assertStringContainsString('data-err="patterns"', $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $fixedScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'submitSchoolCalSlotFixedRegistration')) {
+                continue;
+            }
+            $fixedScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-fixed-bind-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in school schedule fixed-bind script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($fixedScriptFound, 'В schoolSchedule.blade.php не найден script с submitSchoolCalSlotFixedRegistration');
+    }
+
+    /**
+     * P1: inline JS вкладки «Статусы занятий» (toolbar + DataTables + AJAX CRUD fetch).
+     */
+    public function test_occurrence_statuses_crud_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/shared/occurrence_statuses_crud.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $content);
+        $this->assertStringContainsString('los-create-submit', $content);
+        $this->assertStringContainsString('los-edit-submit', $content);
+        $this->assertStringContainsString('reloadLosTable', $content);
+        $this->assertStringContainsString('showLogModal', $content);
+        $this->assertStringContainsString('fetch(', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $crudScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'KidsCrmDataTable.create')) {
+                continue;
+            }
+            $crudScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-los-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in occurrence_statuses_crud script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($crudScriptFound, 'В occurrence_statuses_crud.blade.php не найден script с KidsCrmDataTable.create');
+    }
+
     #[DataProvider('criticalModalBladePathsProvider')]
     public function test_critical_modal_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
     {

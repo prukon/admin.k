@@ -48,6 +48,25 @@
   <h2>Фиксированное расписание</h2>
   <p>В модалке календаря выбирается уже существующее назначение (<code>user_lesson_package_id</code>) без периода; затем по якорной дате и шаблону (<code>patterns[]</code>: день недели и интервал времени) строится цепочка занятий и создаются строки <code>user_team_schedule_slots</code>. Период назначения задаётся в той же транзакции перед построением цепочки (<code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>).</p>
   <p>Длина цепочки ограничена доступным «слотом» в календаре: берётся <code>lessons_total − уже существующее число строк</code> по этому назначению. Если за период абонемента не удаётся разместить все вхождения шаблона или есть конфликты — привязка отклоняется с сообщением об ошибке (<code>TeamScheduleCalendarService</code>: проверка шаблона, построение цепочки, пересечения с другими занятиями ученика).</p>
+
+  <h3 id="fixed-schedule-overlap">Конфликт по времени (assign-fixed)</h3>
+  <p>Перед созданием строк вызывается <code>TeamScheduleCalendarService::assertFixedChainHasNoTimeOverlapWithExistingUserLessons</code>.</p>
+  <ul>
+    <li>Для <strong>каждой даты</strong> цепочки ищутся строки <code>user_team_schedule_slots</code> ученика с <code>starts_at</code> = эта дата (дата занятия в календаре — так же, как в недельном API, статусах и автосписании).</li>
+    <li>Если время слота кандидата пересекается со временем слота найденной записи — ошибка «Конфликт расписания на YYYY-MM-DD: время … пересекается…».</li>
+    <li>AJAX: <code>422</code>, поле <code>errors.patterns</code> (+ <code>message</code>). Non-AJAX: <code>302</code> + session errors по <code>patterns</code> (не пустой <code>200</code>).</li>
+  </ul>
+  <div class="note">
+    <b>Поля строки календаря при привязке абонемента (flexible / fixed / разовое):</b>
+    <code>starts_at</code> = дата занятия; <code>ends_at</code> = конец периода назначения (<code>user_lesson_packages.ends_at</code>).
+    У пробного: <code>ends_at = starts_at</code> (один день).
+    <br>
+    Длинный <code>ends_at</code> у строки <strong>не</strong> означает «ученик занят этим слотом все подходящие дни недели до конца периода».
+    В конфликт и отображение календаря входит только дата <code>starts_at</code>. Иначе «хвост» периода после последнего занятия блокировал бы новый фикс на том же weekday/времени.
+  </div>
+  <p>Кросс-слотовое сравнение часов есть <strong>только</strong> у <code>assign-fixed</code>. Гибкий, разовое и пробное проверяют дубликат «тот же <code>team_schedule_slot_id</code> + <code>starts_at</code>», без пересечения времени между разными слотами в один день.</p>
+  <p class="small">Тесты: <code>LessonPackageSchoolScheduleAssignmentsValidationFeatureTest</code>, <code>LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest</code>, <code>LessonPackageSchoolScheduleFixedOverlapNonAjaxSafetyNetFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code>. UI/API — <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-overlap">school-schedule-calendar § конфликт</a>.</p>
+
   <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (отдельная модалка <code>#schoolCalFixedModal</code> снята с UI). Список подходящих назначений — в <code>GET …/slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>; при одном назначении кнопка в две строки (<code>"название" (остаток N)</code>), но форма «Шаблон привязки» (<code>patterns[]</code>) всё равно обязательна; при нескольких — select в <code>#schoolCalSlotFixedFormWrap</code>. Submit — <code>POST …/assign-fixed</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Фиксированные абонементы в модалке слота», <a href="/docs/documentation/school-schedule-calendar#school-schedule-bind-panels-ui">inline-панели</a>).</p>
   <p><strong>Важно:</strong> при успешной привязке фиксированного (как и гибкого или разового) абонемента поле <code>lessons_remaining</code> в <code>user_lesson_packages</code> <strong>не уменьшается</strong> — см. раздел ниже.</p>
 
@@ -135,12 +154,43 @@
 
   <h2 id="packages-tab">Страница «Абонементы» — шаблоны (<code>/admin/lesson-packages</code>)</h2>
   <div class="note">
-    Вкладка раздела «Расписание школы» → «Абонементы». View: <code>admin/lessonPackages/tabs/packages.blade.php</code>
-    (оболочка <code>admin/lessonPackages/index.blade.php</code>, <code>$activeTab = 'packages'</code>).
-    Доступ — право <code>lessonPackages.view</code> (включая store/update/show/destroy шаблона).
+    Вкладка раздела «Расписание школы» → «Абонементы» и дубль в «Справочниках»
+    (<a href="#directories-packages-tab">§directories-packages-tab</a>). Общий partial:
+    <code>admin/lessonPackages/tabs/packages.blade.php</code>.
+    Доступ — право <code>lessonPackages.view</code> (включая store/update/show/destroy, data, columns-settings, logs-data).
+    UI-паттерн — как у <a href="/docs/documentation/admin-locations">объектов</a> / <a href="/docs/documentation/admin-legal-entities">юр. лиц</a>
+    (<a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>).
   </div>
-  <p>Таблица шаблонов партнёра: название, тип, длительность, число занятий, стоимость, заморозка, действия «Изменить» / «Удалить» (удаление только без назначений и без привязок в календаре).</p>
-  <p>Модалки создания и редактирования — AJAX <code>fetch</code> + <code>JSON</code> (<code>Content-Type: application/json</code>, <code>Accept: application/json</code>). Поля формы совпадают с <code>StoreLessonPackageRequest</code>, включая <code>auto_attendance_enabled</code> (boolean, только <code>fixed</code>/<code>flexible</code>).</p>
+
+  <h3>Toolbar и таблица</h3>
+  <ul>
+    <li>Шапка: карточка <code>payments-report-surface</code> + <code>@vite(['resources/css/admin-list-toolbar.css'])</code>.</li>
+    <li>Кнопки: <b>Добавить</b> (модалка create), <b>История</b> (<code>#historyModal</code> / <code>includes.logModal</code>),
+      <b>Фильтры</b> (collapse), <b>Колонки</b> (dropdown с <code>.column-toggle</code>).</li>
+    <li>Таблица <code>#lesson-packages-table</code> — server-side <code>KidsCrmDataTable.create</code>
+      (init в <code>@push('scripts')</code> + <code>$(document).ready</code>, иначе Vite-модуль ещё не готов).</li>
+    <li>После успешного AJAX create/update/delete — <code>reloadPackagesTable()</code> (<code>dtApi.reload({ keepPage: true })</code>), без F5.</li>
+    <li>Колонки: название, тип, <b>Срок действия (дни)</b>, занятий, стоимость, заморозка, действия
+      («Изменить» / «Удалить» — удаление только если нет назначений и привязок в календаре, флаг <code>can_delete</code> в JSON).</li>
+    <li>Настройки колонок: <code>user_table_settings.table_key = lesson_packages_index</code>.</li>
+  </ul>
+
+  <h3>Фильтры</h3>
+  <ul>
+    <li>Поиск по названию (query <code>name</code>; также совпадение по id, если строка из цифр).</li>
+    <li>Тип: все / <code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> (query <code>schedule_type</code>).</li>
+  </ul>
+
+  <h3>Модалки create / edit</h3>
+  <ul>
+    <li>AJAX <code>fetch</code> + JSON (<code>Content-Type: application/json</code>, <code>Accept: application/json</code>).</li>
+    <li>Поля по <code>StoreLessonPackageRequest</code>, включая <code>auto_attendance_enabled</code> (только <code>fixed</code>/<code>flexible</code>; для <code>no_schedule</code> скрыт и принудительно <code>false</code>).</li>
+    <li>Подпись поля срока — <b>«Срок действия (дни) *»</b> (не «Длительность»).</li>
+    <li>Раскладка: по 2 поля в ряд (<code>col-md-6</code>); в create у обязательных полей стоят <code>*</code>.</li>
+    <li>Ширина модалок — стандартная Bootstrap (не full-screen).</li>
+  </ul>
+
+  <h3>Endpoint’ы шаблонов</h3>
   <table>
     <thead>
       <tr><th>Действие</th><th>Метод</th><th>Контракт</th></tr>
@@ -157,9 +207,29 @@
         <td><code>200</code> — оболочка «Справочники» + тот же partial; см. <a href="#directories-packages-tab">§directories-packages-tab</a></td>
       </tr>
       <tr>
+        <td>DataTables JSON</td>
+        <td><code>GET /admin/lesson-packages/data</code></td>
+        <td><code>200</code> — <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code> (+ фильтры <code>name</code>, <code>schedule_type</code>). Изоляция по <code>partner_id</code>.</td>
+      </tr>
+      <tr>
+        <td>Колонки (чтение)</td>
+        <td><code>GET /admin/lesson-packages/columns-settings</code></td>
+        <td><code>200</code> — объект колонок или <code>[]</code></td>
+      </tr>
+      <tr>
+        <td>Колонки (сохранение)</td>
+        <td><code>POST /admin/lesson-packages/columns-settings</code></td>
+        <td>Body <code>{ "columns": { "name": true, … } }</code> → <code>200</code> <code>{ success: true }</code>; без <code>columns</code> → <code>422</code></td>
+      </tr>
+      <tr>
+        <td>История (модалка)</td>
+        <td><code>GET /admin/lesson-packages/logs-data</code></td>
+        <td>Маршрут <code>logs.data.lesson-package</code>; категория аудита <code>lesson_package</code> (не путать с <code>schedule</code> календаря школы). См. <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.</td>
+      </tr>
+      <tr>
         <td>Создать шаблон</td>
         <td><code>POST /admin/lesson-packages</code></td>
-        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code>. <b>Non-AJAX safety-net:</b> <code>302</code> redirect на index раздела-источника (см. ниже) + flash; валидация → redirect back с <code>errors</code> (не пустой <code>200</code>).</td>
+        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code> + audit <code>lesson_package.created</code>. <b>Non-AJAX:</b> <code>302</code> на index раздела-источника + flash; валидация → redirect back с <code>errors</code> (не пустой <code>200</code>).</td>
       </tr>
       <tr>
         <td>Данные для редактирования</td>
@@ -169,12 +239,12 @@
       <tr>
         <td>Обновить шаблон</td>
         <td><code>PUT /admin/lesson-packages/{id}</code></td>
-        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code>. <b>Non-AJAX:</b> <code>302</code> redirect на index раздела-источника; ошибки валидации → redirect back с <code>errors</code>.</td>
+        <td><b>AJAX:</b> <code>200</code> + <code>{ success: true }</code>; audit <code>lesson_package.updated</code> только при непустом diff. <b>Non-AJAX:</b> <code>302</code> на index раздела-источника.</td>
       </tr>
       <tr>
         <td>Удалить шаблон</td>
         <td><code>DELETE /admin/lesson-packages/{id}</code></td>
-        <td><code>200</code> + <code>{ success: true }</code> или <code>422</code> при назначениях / привязках в календаре</td>
+        <td><code>200</code> + <code>{ success: true }</code> + audit <code>lesson_package.deleted</code>; или <code>422</code> при назначениях / привязках в календаре (лог не пишется).</td>
       </tr>
     </tbody>
   </table>
@@ -182,17 +252,19 @@
     если <code>url()->previous()</code> начинается с <code>/admin/directories/lesson-packages</code>, redirect на
     <code>admin.directories.lesson-packages.index</code>; иначе на <code>admin.lesson-packages.index</code>.</p>
   <p>Изоляция партнёра: чужой шаблон → <code>404</code> на show/update/destroy. Гость → redirect на login; без <code>lessonPackages.view</code> → <code>403</code>.</p>
-  <p class="small">Синтаксис inline JS модалок проверяется в <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (путь <code>admin/lessonPackages/tabs/packages.blade.php</code>).</p>
+  <p class="small">Синтаксис inline JS модалок — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (путь <code>admin/lessonPackages/tabs/packages.blade.php</code>).</p>
 
   <h2 id="directories-packages-tab">Дубль в «Справочниках» (<code>/admin/directories/lesson-packages</code>)</h2>
   <div class="note">
     С 2026‑07 шаблоны абонементов доступны также как последняя вкладка раздела «Справочники»
-    (после «Юр. лица»). Обзор вкладок — <a href="/docs/documentation/directories-hierarchy#directories-lesson-packages">directories-hierarchy §5.6</a>.
+    (после «Юр. лица»). UI списка — <strong>тот же</strong> partial с toolbar / DataTable / фильтрами / историей
+    (см. <a href="#packages-tab">§packages-tab</a>).
+    Обзор вкладок — <a href="/docs/documentation/directories-hierarchy#directories-lesson-packages">directories-hierarchy §5.6</a>.
   </div>
   <ul>
     <li><b>GET</b> <code>/admin/directories/lesson-packages</code> — <code>admin.directories.lesson-packages.index</code> → <code>directoriesIndex()</code>.</li>
-    <li>View: <code>admin/directories/lesson-packages.blade.php</code> + общий partial <code>admin.lessonPackages.tabs.packages</code> (те же модалки и AJAX).</li>
-    <li>Мутации — только общие <code>/admin/lesson-packages</code> (отдельного API нет).</li>
+    <li>View: <code>admin/directories/lesson-packages.blade.php</code> + общий partial <code>admin.lessonPackages.tabs.packages</code>.</li>
+    <li>Мутации и data/columns/logs — только общие <code>/admin/lesson-packages*</code> (отдельного API нет).</li>
     <li>Вкладка в <code>_section_tabs</code> при <code>@can('lessonPackages.view')</code>; в <code>DirectoriesMenu</code> <strong>не</strong> участвует.</li>
     <li>Параллельно живёт страница «Расписание школы» → «Абонементы» (<code>/admin/lesson-packages</code>) — не удалена.</li>
   </ul>
@@ -201,21 +273,46 @@
   <h2 id="occurrence-statuses-tab">Вкладка «Статусы занятий» (<code>/admin/lesson-packages/occurrence-statuses</code>)</h2>
   <div class="note">
     Справочник <code>lesson_occurrence_statuses</code> партнёра: системные (<code>attended</code>, <code>not_attended</code>, …) и кастомные.
-    Тот же UI и API, что на <code>/schedule/occurrence-statuses</code>.
+    Тот же UI и API, что на <code>/schedule/occurrence-statuses</code>
+    (общий partial <code>admin/shared/occurrence_statuses_crud.blade.php</code>).
     Право: Gate <code>lessonOccurrenceStatuses.manage</code> (= <code>schedule.view</code> OR <code>lessonPackages.view</code>).
-    Полный контракт CRUD, soft-rules системных статусов и отличие от журнала (журнал <strong>не</strong> списывает) —
-    <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>.
   </div>
+  <h3>UI и API (кратко)</h3>
+  <ul>
+    <li><b>Toolbar</b> — «Добавить», «История», «Фильтры», «Колонки» + <code>admin-list-toolbar.css</code>
+      (как у <a href="/docs/documentation/admin-sport-types">Видов спорта</a> / шаблонов абонементов).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable</code>, <code>GET …/occurrence-statuses/data</code>
+      (фильтры: название, тип, активен, списывает; <code>searching: false</code>).</li>
+    <li><b>Колонки</b> — <code>user_table_settings.table_key = lesson_occurrence_statuses_index</code>
+      (<code>GET/POST …/columns-settings</code>).</li>
+    <li><b>История</b> — <code>GET …/occurrence-statuses/logs-data</code>
+      (<code>logs.data.lesson-occurrence-status</code>), категория <code>lesson_occurrence_status</code>
+      (события <code>lesson_occurrence_status.created|updated|deleted</code>).
+      Не путать с <code>schedule.occurrence_status_set</code> (календарь школы).</li>
+    <li>AJAX create/update/delete → reload таблицы без F5; non-AJAX → <code>302</code> на эту вкладку.</li>
+  </ul>
+  <p>Полный контракт CRUD, soft-rules системных статусов, отличие от журнала (журнал <strong>не</strong> списывает) —
+    <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>.
+    UI-паттерн — <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>.</p>
 
   <h2 id="school-schedule-export">Выгрузка Excel с календаря школы</h2>
   <div class="note">
     На вкладке <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> доступна выгрузка
     <code>.xlsx</code> (право <code>lessonPackages.export</code> + <code>lessonPackages.view</code>).
     Два листа: занятия календаря за период (включая пробные) и сводка назначений абонементов
-    (включая ещё не привязанные к расписанию). Колонка «Остаток» на листе «Занятия» —
-    <strong>исторический</strong> (после статуса строки / до статуса, если статуса нет); на листе «Назначения» —
-    текущий <code>lessons_remaining</code>.
-    Полный контракт UI/API/колонок/тестов — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>.
+    (включая ещё не привязанные к расписанию).
+    После «Ученик» на обоих листах: телефон ученика (<code>users.phone</code>), ФИО родителя
+    (<code>ParentProfile::full_name</code> = <code>lastname</code> + <code>firstname</code> + <code>middlename</code>),
+    телефон родителя (<code>parents.phone</code>). Без карточки родителя поля родителя пустые —
+    см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-contacts">§ контакты</a>.
+    <br><br>
+    <b>Остаток на листе «Занятия»</b> — <strong>исторический</strong>
+    (<code>LessonOccurrenceHistoricalRemainingResolver</code>): после статуса строки; если статуса нет —
+    остаток на дату до статуса (с учётом списаний <em>вне</em> периода отчёта). Не путать с полем
+    <code>lessons_remaining</code> в БД и с колонкой «Остаток» на листе «Назначения» (там — <b>текущий</b> счётчик).
+    «Списано» по занятию — флаг <code>consumes_lesson</code> текущего статуса (отдельного ledger нет).
+    Полный контракт — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export">school-schedule-calendar § выгрузка</a>,
+    алгоритм остатка — <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-historical-remaining">§ исторический остаток</a>.
   </div>
 
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
@@ -361,15 +458,19 @@
 
   <h3>Тесты</h3>
   <ul>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php</code> — содержимое Excel (листы, статусы, пробные, изоляция партнёра, UI-маркеры модалки)</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php</code> — содержимое Excel (листы, статусы, пробные, <b>исторический остаток</b> vs текущий счётчик, изоляция партнёра, UI-маркеры модалки)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAccessFeatureTest.php</code> — доступ: guest / без view / view без export / оба права / superadmin</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code> — AJAX: <code>422</code> + <code>errors</code> под полями дат; успех → непустой <code>.xlsx</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX GET: ошибка → <code>302</code> + session errors; успех → файл (не пустой 200)</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> для inline JS выгрузки на <code>schoolSchedule.blade.php</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php</code> — UI-маркеры «Автосписание», AJAX store/update/show, валидация <code>no_schedule</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceAccessFeatureTest.php</code> — доступ: guest → login, без права → 403, с <code>lessonPackages.view</code> → 200</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST/PUT шаблона → redirect на <code>/admin/lesson-packages</code> + запись в БД / errors в сессии</li>
-    <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesAccessFeatureTest.php</code> — доступ дубля в «Справочниках»</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST/PUT шаблона → redirect на <code>/admin/lesson-packages</code> + запись в БД / errors; columns-settings non-AJAX → JSON success / 422</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesPageFullAccessFeatureTest.php</code> — доступ списка: guest / без права / с <code>lessonPackages.view</code>; toolbar UI; все endpoint’ы (data/columns/logs/CRUD) → 200; изоляция партнёра в <code>…/data</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesAjaxContractFeatureTest.php</code> — AJAX JSON store/update/show/destroy/data/columns 200/422, матрица статусов без 500</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesAuditLogsFeatureTest.php</code> — audit <code>lesson_package.*</code>, logs-data 200/403, UI «История»</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesListWorkflowFeatureTest.php</code> — [P2] страница → AJAX CRUD → строка в DataTables без F5</li>
+    <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesAccessFeatureTest.php</code> — доступ дубля в «Справочниках» + data/columns/logs</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesFeatureTest.php</code> — UI оболочки, вкладка на <code>/admin/teams</code>, AJAX CRUD</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX с <code>from</code> дубля → redirect на <code>/admin/directories/lesson-packages</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code> — job/сервис: «Посетил», списание, пропуски (статус уже есть, флаг выкл, trial, <code>no_schedule</code>, исключённая дата слота, нулевой остаток), идемпотентность</li>
@@ -386,7 +487,11 @@
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php \
   tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php \
-  tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php
+  tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackagesPageFullAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackagesAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackagesAuditLogsFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackagesListWorkflowFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Directories/DirectoriesLessonPackagesAccessFeatureTest.php \
   tests/Feature/Crm/Directories/DirectoriesLessonPackagesFeatureTest.php \
   tests/Feature/Crm/Directories/DirectoriesLessonPackagesNonAjaxSafetyNetFeatureTest.php

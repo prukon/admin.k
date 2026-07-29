@@ -90,6 +90,24 @@ final class DirectoriesLessonPackagesAccessFeatureTest extends CrmTestCase
                 'url' => route('admin.directories.lesson-packages.index'),
             ],
             [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.data', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.columns-settings.get'),
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('admin.lesson-packages.columns-settings.save'),
+                'data' => ['columns' => ['name' => true]],
+                'headers' => ['HTTP_ACCEPT' => 'application/json'],
+            ],
+            [
+                'method' => 'GET',
+                'url' => route('logs.data.lesson-package', ['draw' => 1, 'start' => 0, 'length' => 10]),
+            ],
+            [
                 'method' => 'POST',
                 'url' => route('admin.lesson-packages.store'),
                 'data' => $this->validStorePayload(['name' => 'Dirs guest/denied store']),
@@ -216,5 +234,47 @@ final class DirectoriesLessonPackagesAccessFeatureTest extends CrmTestCase
             ->assertJson(['success' => true]);
 
         $this->assertDatabaseMissing('lesson_packages', ['id' => $packageId]);
+    }
+
+    public function test_viewer_can_access_data_columns_and_logs_endpoints(): void
+    {
+        $actor = $this->createUserWithoutPermission('lessonPackages.view', $this->partner);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+        $this->grantPermission($actor, 'lessonPackages.view');
+
+        LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Dirs data row',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $this->getJson(route('admin.lesson-packages.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'name' => 'Dirs data',
+            'schedule_type' => 'fixed',
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
+
+        $this->getJson(route('admin.lesson-packages.columns-settings.get'))->assertOk();
+
+        $this->postJson(route('admin.lesson-packages.columns-settings.save'), [
+            'columns' => ['name' => true, 'actions' => false],
+        ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->getJson(route('logs.data.lesson-package', ['draw' => 1, 'start' => 0, 'length' => 10]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
     }
 }

@@ -62,7 +62,7 @@
       <tr><td><code>partner_id</code></td><td>Организация (обязательно, FK → <code>partners</code>, cascade)</td></tr>
       <tr><td><code>lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО родителя / подписанта (nullable, max 100)</td></tr>
       <tr><td><code>passport</code>, <code>passport_issued</code>, <code>address</code></td><td>Паспорт и адрес (nullable; миграция <code>2026_06_03_120000_…</code>)</td></tr>
-      <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты карточки; <code>email</code> также в сайдбаре при семейном режиме. Редактируются в админке и в ЛК (при <code>account.user.parent.update</code>)</td></tr>
+      <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты карточки; <code>email</code> также в сайдбаре при семейном режиме. Редактируются в админке и в ЛК (при <code>account.user.parent.update</code>). Телефон родителя и ФИО из этой карточки попадают в <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-contacts">выгрузку Excel календаря школы</a> (колонки «ФИО родителя» / «Телефон родителя»); телефон ученика в той же выгрузке — из <code>users.phone</code></td></tr>
       <tr><td><code>deleted_at</code></td><td>Soft delete</td></tr>
     </tbody>
   </table>

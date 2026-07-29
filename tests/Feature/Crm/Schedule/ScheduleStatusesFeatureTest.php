@@ -31,12 +31,24 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
             ->assertSee('Статусы занятий', false)
             ->assertSee('losCreateModal', false)
             ->assertSee('losEditModal', false)
-            ->assertSee('Посетил', false)
-            ->assertSee('Не посетил', false)
-            ->assertSee('Запись', false)
             ->assertSee('Списывает', false)
             ->assertSee('Активен', false)
-            ->assertSee('Добавить статус', false);
+            ->assertSee('payments-report-surface', false)
+            ->assertSee('>История</span>', false)
+            ->assertSee('>Фильтры</span>', false)
+            ->assertSee('>Колонки</span>', false)
+            ->assertSee('los-statuses-table', false)
+            ->assertSee('historyModal', false);
+
+        $this->getJson(route('admin.lesson-packages.occurrence-statuses.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 25,
+        ]))
+            ->assertOk()
+            ->assertJsonFragment(['title' => 'Посетил'])
+            ->assertJsonFragment(['title' => 'Не посетил'])
+            ->assertJsonFragment(['title' => 'Запись']);
     }
 
     public function test_journal_shows_active_occurrence_statuses_tab_link_and_hides_legacy_settings_modal(): void
@@ -225,12 +237,21 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
 
         $this->get(route('schedule.occurrence-statuses'))
             ->assertOk()
-            ->assertSee('Посетил', false);
+            ->assertSee('Статусы занятий', false)
+            ->assertSee('los-statuses-table', false);
 
         $this->assertSame(
             5,
             LessonOccurrenceStatus::query()->where('partner_id', $this->partner->id)->count()
         );
+
+        $this->getJson(route('admin.lesson-packages.occurrence-statuses.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 25,
+        ]))
+            ->assertOk()
+            ->assertJsonFragment(['title' => 'Посетил']);
     }
 
     public function test_consumes_lesson_flag_visible_on_schedule_tab_but_journal_does_not_change_package_balance(): void

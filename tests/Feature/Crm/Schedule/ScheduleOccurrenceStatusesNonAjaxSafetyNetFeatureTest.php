@@ -10,7 +10,11 @@ use Database\Seeders\LessonOccurrenceStatusesSeeder;
 /**
  * Non-AJAX safety-net для CRUD статусов занятий (общий API вкладки /schedule и абонементов).
  * store/update/destroy без X-Requested-With → redirect 302, запись в БД создана/обновлена/удалена.
+ * columns-settings без X-Requested-With → JSON success (не пустой 200).
  * Не допускаем пустой 200.
+ *
+ * @see TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
+ * @see SportTypesNonAjaxSafetyNetFeatureTest
  */
 final class ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest extends ScheduleJournalTestCase
 {
@@ -117,6 +121,45 @@ final class ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest extends Schedu
             ->assertRedirect(route('admin.lesson-packages.occurrence-statuses.index'));
 
         $this->assertDatabaseMissing('lesson_occurrence_statuses', ['id' => $status->id]);
+    }
+
+    public function test_columns_settings_non_ajax_post_saves_and_returns_json_success_not_empty_200(): void
+    {
+        $response = $this->post(route('admin.lesson-packages.occurrence-statuses.columns-settings.save'), [
+            'columns' => [
+                'title' => 1,
+                'icon' => 0,
+                'actions' => 1,
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJson(['success' => true]);
+        $this->assertNotSame('', trim((string) $response->getContent()));
+
+        $this->getJson(route('admin.lesson-packages.occurrence-statuses.columns-settings.get'))
+            ->assertOk()
+            ->assertJson([
+                'title' => true,
+                'icon' => false,
+            ]);
+    }
+
+    public function test_columns_settings_non_ajax_validation_failure_returns_422_or_redirect_not_empty_200(): void
+    {
+        $response = $this->from(route('admin.lesson-packages.occurrence-statuses.index'))
+            ->post(route('admin.lesson-packages.occurrence-statuses.columns-settings.save'), []);
+
+        $this->assertContains(
+            $response->getStatusCode(),
+            [302, 422],
+            'Ожидался 302 или 422, получено '.$response->getStatusCode()
+        );
+        $this->assertNotSame(
+            200,
+            $response->getStatusCode(),
+            'Пустой/успешный 200 на невалидный columns-settings недопустим'
+        );
     }
 
     public function test_ajax_store_returns_json_contract_not_empty_200(): void

@@ -142,4 +142,38 @@ final class LessonPackagesNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $this->assertSame('Валидация non-ajax', $package->fresh()->name);
         $this->assertFalse((bool) $package->fresh()->auto_attendance_enabled);
     }
+
+    public function test_columns_settings_non_ajax_post_saves_and_returns_json_success_not_empty_200(): void
+    {
+        $response = $this->post(route('admin.lesson-packages.columns-settings.save'), [
+            'columns' => [
+                'name' => 1,
+                'actions' => 0,
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJson(['success' => true]);
+        $this->assertNotSame('', trim((string) $response->getContent()));
+
+        $this->getJson(route('admin.lesson-packages.columns-settings.get'))
+            ->assertOk()
+            ->assertJson([
+                'name' => true,
+                'actions' => false,
+            ]);
+    }
+
+    public function test_columns_settings_non_ajax_validation_failure_returns_422_or_redirect_not_empty_200(): void
+    {
+        $response = $this->from(route('admin.lesson-packages.index'))
+            ->post(route('admin.lesson-packages.columns-settings.save'), []);
+
+        $this->assertContains(
+            $response->getStatusCode(),
+            [302, 422],
+            'Ожидался 302 или 422, получено ' . $response->getStatusCode()
+        );
+        $this->assertNotSame(200, $response->getStatusCode(), 'Пустой/успешный 200 на невалидный columns-settings недопустим');
+    }
 }

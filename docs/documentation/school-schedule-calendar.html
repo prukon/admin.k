@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание школы: календарь, модалка слота, inline-привязка, подписи кнопок, API</title>
+  <title>Расписание школы: календарь, модалка слота, выгрузка Excel (контакты, исторический остаток), API</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -27,7 +27,10 @@
   <div class="note">
     Страница входит в раздел <strong>«Абонементы»</strong> как вкладка <strong>«Расписание школы»</strong>.
     Доступ к экрану и JSON календаря задаётся правом <code>lessonPackages.view</code> (группа маршрутов в <code>routes/web.php</code> с middleware <code>can:lessonPackages.view</code>).
-    Выгрузка Excel дополнительно требует <code>lessonPackages.export</code> — см. <a href="#school-schedule-export">§ выгрузка</a>.
+    Выгрузка Excel дополнительно требует <code>lessonPackages.export</code> — см. <a href="#school-schedule-export">§ выгрузка</a>
+    (листы «Занятия» / «Назначения», <a href="#school-schedule-export-contacts">контакты ученика и родителя</a>,
+    <a href="#school-schedule-export-historical-remaining">исторический остаток</a>).
+    Конфликт времени при привязке фикса — <a href="#school-schedule-fixed-overlap">§ конфликт (starts_at)</a>.
     Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
     <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблица <code>schedule_users</code>).
     Справочник статусов общий (<code>lesson_occurrence_statuses</code>); CRUD — вкладка «Статусы занятий» здесь и на <code>/schedule/occurrence-statuses</code>
@@ -271,7 +274,8 @@
   <p>Функции обновления кнопок: <code>applyFlexibleBindButtonState</code>, <code>applyFixedBindButtonState</code>, <code>applySingleBindButtonState</code> — вызываются из <code>applySlotUserBindActionsPayload</code> после каждого ответа <code>slot-user-bind-actions</code>.</p>
 
   <h2>Привязка абонементов и лимит строк календаря</h2>
-  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода <code>starts_at</code>/<code>ends_at</code> и логики фиксированной цепочки — в <a href="/docs/documentation/lesson-packages">разделе «Абонементы»</a>.</p>
+  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода назначения <code>user_lesson_packages.starts_at</code>/<code>ends_at</code>, полей строки календаря и конфликта fixed — в <a href="/docs/documentation/lesson-packages">«Абонементы»</a> и <a href="#school-schedule-fixed-overlap">§ конфликт assign-fixed</a>.</p>
+  <p class="small">У строк календаря абонемента: <code>starts_at</code> = дата занятия, <code>ends_at</code> = конец периода назначения. У пробного: <code>ends_at = starts_at</code>. Отображение в сетке и статусы ключуют занятие по <code>starts_at</code>.</p>
 
   <h2>Статусы занятия и списание остатков</h2>
   <p>Для каждой записи ученика на слот и дату (абонемент или пробное) в календаре школы можно сохранять статус из справочника партнёра <code>lesson_occurrence_statuses</code>. У статуса есть флаг <code>consumes_lesson</code> (например, «Посетил» и «Не посетил» — списывают, «Запись», «Отмена», «Заморозка» — нет; точный набор создаётся сидером и может быть расширен во вкладке «Статусы занятий»: <code>/admin/lesson-packages/occurrence-statuses</code> или <code>/schedule/occurrence-statuses</code>, см. <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>).</p>
@@ -344,7 +348,8 @@
       <tr><td>Имя маршрута</td><td><code>admin.lesson-packages.school-schedule.export</code></td></tr>
       <tr><td>Контроллер</td><td><code>App\Http\Controllers\Admin\LessonPackageSchoolScheduleExportController</code> (invokable)</td></tr>
       <tr><td>Request</td><td><code>ExportLessonPackagesSchoolScheduleRequest</code> — <code>date_from</code>, <code>date_to</code>; max период <strong>366</strong> дней включительно</td></tr>
-      <tr><td>Сервис</td><td><code>App\Services\LessonPackages\Export\LessonPackagesSchoolScheduleExportBuilder</code> (PhpSpreadsheet)</td></tr>
+      <tr><td>Сервис файла</td><td><code>App\Services\LessonPackages\Export\LessonPackagesSchoolScheduleExportBuilder</code> (PhpSpreadsheet)</td></tr>
+      <tr><td>Исторический остаток</td><td><code>App\Services\LessonPackages\Export\LessonOccurrenceHistoricalRemainingResolver</code> — только лист «Занятия»</td></tr>
       <tr><td>Имя файла</td><td><code>lesson-packages-export_{date_from}_{date_to}.xlsx</code></td></tr>
       <tr><td>Изоляция</td><td>только данные текущего партнёра (<code>PartnerContext</code> / <code>requirePartnerId()</code>)</td></tr>
     </tbody>
@@ -358,24 +363,75 @@
       с <code>errors</code> в сессии (не пустой <code>200</code>); успех — stream download файла.</li>
   </ul>
 
-  <h3>Лист «Занятия»</h3>
+  <h3 id="school-schedule-export-historical-remaining">Исторический остаток (лист «Занятия»)</h3>
+  <div class="note">
+    Колонка <b>«Остаток»</b> на листе «Занятия» — <em>не</em> снимок <code>user_lesson_packages.lessons_remaining</code>
+    и <em>не</em> <code>trial_lessons_remaining</code> «как сейчас в БД». Значение восстанавливается при выгрузке
+    по истории <code>user_lesson_occurrence_status_events</code>. На листе «Назначения» остаток по-прежнему
+    <b>текущий</b> (<code>lessons_remaining</code>). Отдельного ledger списаний в схеме нет.
+  </div>
+  <ol>
+    <li><b>Есть статус</b> по строке (последнее событие по ключу ученик+слот+дата+ulp) → остаток
+      <strong>после</strong> применения этого статуса (даже если <code>consumes_lesson = false</code> — дельта 0, число не меняется).</li>
+    <li><b>Нет статуса</b> → остаток <strong>на эту дату до статуса по строке</strong>: после всех более ранних событий
+      того же абонемента; для пробного без событий — <code>trial_lessons_total</code>.</li>
+    <li><b>Старт</b> реконструкции — <code>lessons_total</code> (абонемент) / <code>trial_lessons_total</code> (пробное).</li>
+    <li><b>Объём истории</b> — <strong>все</strong> события назначения партнёра по этому <code>user_lesson_package_id</code>,
+      включая даты <em>вне</em> периода отчёта (иначе остаток внутри месяца был бы неверным).</li>
+    <li><b>Порядок событий</b> — <code>occurrence_date</code> ASC, затем <code>id</code> ASC. Дельта −1 / +1 / 0 —
+      <code>UserLessonPackageConsumptionAdjuster::remainingLessonsDelta</code>. Выход за [0, total] при реконструкции
+      clamp’ится (выгрузка не падает).</li>
+    <li><b>Строка без статуса, тот же день что и другие занятия</b> — более ранними считаются слоты с меньшим
+      <code>time_start</code>, при равенстве — меньший <code>team_schedule_slot_id</code>.</li>
+  </ol>
+
+  <h3 id="school-schedule-export-contacts">Контакты ученика и родителя</h3>
+  <div class="note">
+    На <b>обоих</b> листах сразу после колонки «Ученик» идут три колонки контактов.
+    Источники совпадают со справочником родителей
+    (<a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>):
+    телефон для SMS/входа ученика — <code>users.phone</code>; ФИО и телефон родителя —
+    карточка <code>parents</code> через <code>users.parent_id</code> (модель <code>ParentProfile</code>).
+    Это <em>не</em> телефон из учётки «родителя» (отдельной учётки нет).
+  </div>
+  <table>
+    <thead>
+      <tr><th>Колонка Excel</th><th>Источник</th><th>Пустое значение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Телефон ученика</td>
+        <td><code>users.phone</code> (как в карточке ученика; обычно E.164)</td>
+        <td>телефон не задан</td>
+      </tr>
+      <tr>
+        <td>ФИО родителя</td>
+        <td><code>ParentProfile::full_name</code> =
+          <code>lastname</code> + <code>firstname</code> + <code>middlename</code>
+          (пробелы, пустые части отбрасываются)</td>
+        <td>нет <code>parent_id</code>, нет карточки, soft-deleted <code>parents</code>,
+          либо все части ФИО пустые</td>
+      </tr>
+      <tr>
+        <td>Телефон родителя</td>
+        <td><code>parents.phone</code> (карточка родителя, не <code>users.phone</code>)</td>
+        <td>нет родителя / телефон в карточке не задан</td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Порядок колонок фиксирован: Ученик → Телефон ученика → ФИО родителя → Телефон родителя → …</li>
+    <li>Загрузка без N+1: <code>user.parentProfile</code> в eager load билдера
+      <code>LessonPackagesSchoolScheduleExportBuilder</code>.</li>
+    <li>Значения с ведущим <code>+</code> пишутся в Excel как текст (<code>TYPE_STRING</code>), чтобы не ломать E.164.</li>
+    <li>Пробные занятия на листе «Занятия» тоже получают контакты того же ученика (если есть).</li>
+  </ul>
+
+  <h3>Лист «Занятия» (колонки)</h3>
   <p>Одна строка = запись <code>user_team_schedule_slots</code> с <code>starts_at</code> в выбранном периоде
     (включая <strong>пробные</strong>: <code>is_trial_lesson = true</code>, без абонемента).
     Текущий статус — последнее событие <code>user_lesson_occurrence_status_events</code> по ключу
     ученик + слот + дата + назначение (для пробного <code>user_lesson_package_id</code> = null).</p>
-  <p><strong>Колонка «Остаток»</strong> — <em>исторический</em> остаток (сервис
-    <code>LessonOccurrenceHistoricalRemainingResolver</code>), не поле <code>lessons_remaining</code> «как сейчас»:</p>
-  <ul>
-    <li>есть статус по строке → остаток <strong>после</strong> последнего события статуса по этой строке
-      (в том числе если статус не списывает — остаток после перехода);</li>
-    <li>нет статуса → остаток <strong>на эту дату до статуса по строке</strong>
-      (после всех более ранних событий по тому же абонементу);</li>
-    <li>реконструкция стартует от <code>lessons_total</code> / <code>trial_lessons_total</code> и проигрывает
-      <strong>все</strong> события назначения (включая даты вне периода отчёта), порядок:
-      <code>occurrence_date</code> ASC, затем <code>id</code>; в пределах одного дня для строк без статуса
-      более ранними считаются слоты с меньшим <code>time_start</code> / <code>team_schedule_slot_id</code>;</li>
-    <li>дельта списания — та же, что в <code>UserLessonPackageConsumptionAdjuster</code> (−1 / +1 / 0).</li>
-  </ul>
   <table>
     <thead>
       <tr><th>Колонка</th><th>Источник / правило</th></tr>
@@ -383,6 +439,7 @@
     <tbody>
       <tr><td>Дата, время начала/конца</td><td><code>utss.starts_at</code>, <code>team_schedule_slots.time_start</code> / <code>time_end</code></td></tr>
       <tr><td>Ученик</td><td><code>lastname</code> + <code>name</code></td></tr>
+      <tr><td>Телефон ученика / ФИО родителя / Телефон родителя</td><td>см. <a href="#school-schedule-export-contacts">§ контакты</a></td></tr>
       <tr><td>Группа</td><td>команда слота (<code>slot.team.title</code>), иначе группа назначения</td></tr>
       <tr><td>Тип записи</td><td>«Пробное» / «Фиксированный» / «Гибкий» / «Разовое» (<code>schedule_type</code>)</td></tr>
       <tr><td>Абонемент, № назначения</td><td>название шаблона; id <code>user_lesson_packages</code> (для пробного — пусто / «Пробное занятие»)</td></tr>
@@ -390,7 +447,7 @@
       <tr><td>Статус</td><td>текущий <code>lesson_occurrence_statuses.title</code> или пусто</td></tr>
       <tr><td>Списано</td><td>«да» / «нет» по <code>consumes_lesson</code> текущего статуса; без статуса — пусто</td></tr>
       <tr><td>Источник статуса</td><td>«вручную» (<code>created_by</code> задан) / «авто» (<code>created_by</code> null) / пусто</td></tr>
-      <tr><td>Остаток</td><td>исторический (см. выше)</td></tr>
+      <tr><td>Остаток</td><td>исторический — см. <a href="#school-schedule-export-historical-remaining">§ выше</a></td></tr>
       <tr><td>Всего</td><td><code>lessons_total</code> / <code>trial_lessons_total</code></td></tr>
     </tbody>
   </table>
@@ -401,12 +458,29 @@
     <li>период назначения пересекается с выбранным диапазоном дат, <strong>или</strong></li>
     <li><code>starts_at</code> и <code>ends_at</code> оба <code>NULL</code> (ещё не привязаны к календарю — всегда попадают в выгрузку при любом периоде).</li>
   </ul>
-  <p>Колонки: ученик, группа, абонемент, тип, № назначения, период с/по («не задан» если NULL), стоимость, оплата,
-    всего, остаток, списано (<code>lessons_total − lessons_remaining</code>), число привязок в календаре
-    (<code>withCount('userTeamScheduleSlots')</code>).</p>
+  <table>
+    <thead>
+      <tr><th>Колонка</th><th>Источник / правило</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ученик</td><td><code>lastname</code> + <code>name</code></td></tr>
+      <tr><td>Телефон ученика / ФИО родителя / Телефон родителя</td><td>см. <a href="#school-schedule-export-contacts">§ контакты</a> (те же правила, что на «Занятиях»)</td></tr>
+      <tr><td>Группа</td><td><code>user_lesson_packages.team</code> → <code>teams.title</code></td></tr>
+      <tr><td>Абонемент, тип</td><td>название шаблона; «Фиксированный» / «Гибкий» / «Разовое» по <code>schedule_type</code></td></tr>
+      <tr><td>№ назначения</td><td><code>user_lesson_packages.id</code></td></tr>
+      <tr><td>Период с / по</td><td><code>starts_at</code> / <code>ends_at</code>; если NULL — «не задан»</td></tr>
+      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code>; «Оплачен» / «Не оплачен» (+ «(ручная отметка)» при <code>is_manual_paid</code>)</td></tr>
+      <tr><td>Всего</td><td><code>lessons_total</code></td></tr>
+      <tr><td>Остаток</td><td><b>текущий</b> <code>lessons_remaining</code> (не исторический)</td></tr>
+      <tr><td>Списано</td><td><code>lessons_total − lessons_remaining</code></td></tr>
+      <tr><td>Привязок в календаре</td><td><code>withCount('userTeamScheduleSlots')</code></td></tr>
+    </tbody>
+  </table>
 
   <p class="small">Тесты:
-    <code>LessonPackageSchoolScheduleExportFeatureTest</code> (содержимое),
+    <code>LessonPackageSchoolScheduleExportFeatureTest</code> (содержимое, контакты на обоих листах,
+    пустой родитель / пустые телефоны, исторический остаток,
+    <code>test_export_workflow_page_modal_ajax_download_includes_contact_columns</code> — P2 HTTP-smoke),
     <code>LessonPackageSchoolScheduleExportAccessFeatureTest</code> (доступ),
     <code>LessonPackageSchoolScheduleExportAjaxContractFeatureTest</code> (AJAX 422/xlsx),
     <code>LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest</code> (non-AJAX 302/файл),
@@ -495,6 +569,50 @@
     <li><strong>Non-AJAX safety-net</strong> (обычный POST без AJAX): успех — редирект <code>302</code> на <code>/admin/lesson-packages/school-schedule</code> с flash <code>status</code>; ошибка FormRequest или бизнес-логики — редирект с <code>errors</code> в сессии (не пустой <code>200</code>). Метод <code>schoolScheduleMutationResponse</code>.</li>
   </ul>
   <p>Успешная операция: в транзакции выставляется период назначения (<code>applyFirstCalendarAnchor</code>), строится цепочка (<code>TeamScheduleCalendarService::buildFixedOccurrenceChain</code>), создаются строки календаря, пишется аудит <code>schedule.fixed_linked</code>. <code>lessons_remaining</code> при привязке не меняется.</p>
+  <p>У каждой созданной строки: <code>starts_at</code> = дата вхождения цепочки, <code>ends_at</code> = конец периода назначения (<code>ulp.ends_at</code>). Это не «повтор слота до конца периода» — см. <a href="#school-schedule-fixed-overlap">§ конфликт</a>.</p>
+
+  <h3 id="school-schedule-fixed-overlap">Конфликт расписания при assign-fixed</h3>
+  <p>Метод <code>TeamScheduleCalendarService::assertFixedChainHasNoTimeOverlapWithExistingUserLessons</code> (перед insert строк).</p>
+  <table>
+    <thead>
+      <tr><th>Правило</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Дата занятия</td>
+        <td>Строка календаря ученика с <code>user_team_schedule_slots.starts_at</code> = дата кандидата из цепочки</td>
+      </tr>
+      <tr>
+        <td>Время</td>
+        <td>Пересечение интервалов <code>time_start</code>–<code>time_end</code> слотов (<code>clockIntervalsOverlap</code>, полуоткрытый интервал в минутах)</td>
+      </tr>
+      <tr>
+        <td><code>ends_at</code> строки календаря</td>
+        <td><strong>Не</strong> участвует в развороте на другие дни недели. «Хвост» до конца абонемента без отдельной записи на дату не блокирует новый фикс</td>
+      </tr>
+      <tr>
+        <td>Ответ при конфликте</td>
+        <td>Текст «Конфликт расписания на …». AJAX → <code>422</code> + <code>errors.patterns</code>; non-AJAX → <code>302</code> + session errors (не пустой <code>200</code>)</td>
+      </tr>
+      <tr>
+        <td>Где ещё та же модель даты</td>
+        <td>Недельный JSON календаря, статусы, автосписание, выгрузка листа «Занятия» — фильтр/ключ по <code>starts_at</code></td>
+      </tr>
+      <tr>
+        <td>Не путать с гибким / разовым / пробным</td>
+        <td>Там дубликат = тот же слот + <code>starts_at</code>; кросс-слотового сравнения часов в один день нет. У разового два разных слота в один день разрешены</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="note">
+    Пример: старый фикс, занятие пн 14:15–16:00 с <code>starts_at=2026-07-20</code>, <code>ends_at=2026-07-29</code>.
+    Новый фикс с якоря <code>2026-07-27</code> на тот же weekday/время — <strong>разрешён</strong> (на 27.07 нет строки с таким <code>starts_at</code>).
+    Якорь <code>2026-07-20</code> при уже существующей записи на эту дату и пересечении часов — <strong>отклонён</strong>.
+  </div>
+  <p class="small">Тесты: <code>AssignmentsValidation</code>, <code>FixedOverlapAjaxContract</code>, <code>FixedOverlapNonAjaxSafetyNet</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code>.
+    Описание в абонементах — <a href="/docs/documentation/lesson-packages#fixed-schedule-overlap">lesson-packages § конфликт</a>.</p>
+
   <p>Вспомогательный <code>GET …/fixed-assignments?user_id=</code> (тот же формат label) — legacy/API; основной UI модалки слота берёт список из <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>.</p>
 
   <h2>Разовые занятия в модалке слота</h2>
@@ -591,6 +709,7 @@
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
     <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
+    <strong>конфликт расписания assign-fixed (starts_at)</strong> — <code>LessonPackageSchoolScheduleAssignmentsValidationFeatureTest.php</code>, <code>LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest.php</code>, <code>LessonPackageSchoolScheduleFixedOverlapNonAjaxSafetyNetFeatureTest.php</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code>;
     <strong>панели привязки в модалке слота (UX)</strong> — <code>LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php</code> (маркеры <code>#schoolCalSlotBindPanelsHost</code>, <code>data-school-cal-bind-cancel</code>, <code>school-cal-slot-modal--bind-focus</code>, static backdrop, кэш <code>schoolCalSlotBindActionsCache</code>, Esc/отмена, независимость flexible/single в одном ответе bind-actions, AJAX/non-AJAX контракты);
     <strong>выгрузка Excel</strong> — <code>LessonPackageSchoolScheduleExportFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_export_modal_inline_script_is_valid_javascript</code> (см. <a href="#school-schedule-export">§ выгрузка</a>);
     шаблоны и цепочка фикса — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
@@ -601,6 +720,9 @@
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleAssignmentsValidationFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedOverlapNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedPatternsFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php \

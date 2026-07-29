@@ -687,7 +687,10 @@ final class TeamScheduleCalendarService
     }
 
     /**
-     * Нельзя ставить новую серию занятий, если у ученика уже есть любое занятие в календаре с пересечением по времени в ту же дату.
+     * Нельзя ставить новую серию занятий, если у ученика уже есть занятие в календаре
+     * с пересечением по времени в ту же календарную дату ({@see UserTeamScheduleSlot::$starts_at}).
+     * Поле {@see UserTeamScheduleSlot::$ends_at} (часто = конец периода абонемента) в конфликт не входит —
+     * иначе «хвост» периода давал бы ложные пересечения на последующих днях недели без реальной записи.
      *
      * @param list<array{date: CarbonImmutable, slot: TeamScheduleSlot}> $chain
      */
@@ -719,11 +722,11 @@ final class TeamScheduleCalendarService
     ): void {
         $dateStr = $date->toDateString();
 
+        // Дата занятия в календаре = starts_at (как в недельном API, статусах, выгрузке).
         $rows = UserTeamScheduleSlot::query()
             ->where('partner_id', $partnerId)
             ->where('user_id', $userId)
-            ->whereDate('starts_at', '<=', $dateStr)
-            ->whereDate('ends_at', '>=', $dateStr)
+            ->whereDate('starts_at', $dateStr)
             ->get(['team_schedule_slot_id']);
 
         $cStart = substr((string) $candidateSlot->time_start, 0, 5);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\LessonPackages\Export;
 
+use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
@@ -61,6 +62,9 @@ final class LessonPackagesSchoolScheduleExportBuilder
             'Время начала',
             'Время окончания',
             'Ученик',
+            'Телефон ученика',
+            'ФИО родителя',
+            'Телефон родителя',
             'Группа',
             'Тип записи',
             'Абонемент',
@@ -80,7 +84,8 @@ final class LessonPackagesSchoolScheduleExportBuilder
             ->whereDate('starts_at', '>=', $fromYmd)
             ->whereDate('starts_at', '<=', $toYmd)
             ->with([
-                'user:id,name,lastname',
+                'user:id,name,lastname,phone,parent_id',
+                'user.parentProfile:id,lastname,firstname,middlename,phone',
                 'slot:id,team_id,time_start,time_end',
                 'slot.team:id,title',
                 'userLessonPackage:id,fee_amount,is_paid,is_manual_paid,lessons_remaining,lessons_total,lesson_package_id,team_id',
@@ -145,11 +150,16 @@ final class LessonPackagesSchoolScheduleExportBuilder
 
             $consumed = $status !== null && (bool) $status->consumes_lesson;
 
+            $contact = $this->studentParentContactFields($utss->user instanceof User ? $utss->user : null);
+
             $this->writeDataRow($sheet, $excelRow, [
                 $dateYmd,
                 $this->formatTime($utss->slot?->time_start),
                 $this->formatTime($utss->slot?->time_end),
                 $this->userLabel($utss->user, (int) $utss->user_id),
+                $contact['student_phone'],
+                $contact['parent_full_name'],
+                $contact['parent_phone'],
                 (string) $teamTitle,
                 $typeLabel,
                 $packageName,
@@ -172,6 +182,9 @@ final class LessonPackagesSchoolScheduleExportBuilder
     {
         $headers = [
             'Ученик',
+            'Телефон ученика',
+            'ФИО родителя',
+            'Телефон родителя',
             'Группа',
             'Абонемент',
             'Тип',
@@ -206,7 +219,8 @@ final class LessonPackagesSchoolScheduleExportBuilder
                 });
             })
             ->with([
-                'user:id,name,lastname',
+                'user:id,name,lastname,phone,parent_id',
+                'user.parentProfile:id,lastname,firstname,middlename,phone',
                 'team:id,title',
                 'lessonPackage:id,name,schedule_type,partner_id',
             ])
@@ -228,8 +242,13 @@ final class LessonPackagesSchoolScheduleExportBuilder
                 ? $ulp->ends_at->format('Y-m-d')
                 : ($ulp->ends_at !== null ? (string) $ulp->ends_at : '');
 
+            $contact = $this->studentParentContactFields($ulp->user instanceof User ? $ulp->user : null);
+
             $this->writeDataRow($sheet, $excelRow, [
                 $this->userLabel($ulp->user, (int) $ulp->user_id),
+                $contact['student_phone'],
+                $contact['parent_full_name'],
+                $contact['parent_phone'],
                 (string) ($ulp->team?->title ?? ''),
                 trim((string) ($lp?->name ?? 'Абонемент')),
                 $this->scheduleTypeLabel($lp?->schedule_type),
@@ -336,6 +355,31 @@ final class LessonPackagesSchoolScheduleExportBuilder
         return $label !== '' ? $label : 'Ученик #'.$userId;
     }
 
+    /**
+     * Контакты ученика и родителя для колонок выгрузки.
+     *
+     * @return array{student_phone: string, parent_full_name: string, parent_phone: string}
+     */
+    private function studentParentContactFields(?User $user): array
+    {
+        if ($user === null) {
+            return [
+                'student_phone' => '',
+                'parent_full_name' => '',
+                'parent_phone' => '',
+            ];
+        }
+
+        $user->loadMissing('parentProfile');
+        $profile = $user->parentProfile;
+
+        return [
+            'student_phone' => trim((string) ($user->phone ?? '')),
+            'parent_full_name' => $profile !== null ? trim((string) $profile->full_name) : '',
+            'parent_phone' => $profile !== null ? trim((string) ($profile->phone ?? '')) : '',
+        ];
+    }
+
     private function formatTime(mixed $time): string
     {
         if ($time === null || $time === '') {
@@ -377,8 +421,11 @@ final class LessonPackagesSchoolScheduleExportBuilder
     {
         foreach ($values as $index => $value) {
             $col = $index + 1;
-            // Деньги и коды с ведущими нулями/хвостовыми нулями — как текст, иначе Excel съедает формат.
-            if (is_string($value) && preg_match('/^\d+\.\d{2}$/', $value) === 1) {
+            // Деньги / телефоны E.164 (+…) — как текст, иначе Excel съедает формат.
+            if (is_string($value) && (
+                preg_match('/^\d+\.\d{2}$/', $value) === 1
+                || str_starts_with($value, '+')
+            )) {
                 $sheet->setCellValueExplicit([$col, $row], $value, DataType::TYPE_STRING);
             } else {
                 $sheet->setCellValue([$col, $row], $value);

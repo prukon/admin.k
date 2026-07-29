@@ -2,21 +2,31 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\ReorderLessonOccurrenceStatusesRequest;
 use App\Http\Requests\Admin\StoreLessonOccurrenceStatusRequest;
 use App\Http\Requests\Admin\UpdateLessonOccurrenceStatusRequest;
+use App\Http\Requests\LessonOccurrenceStatus\FilterRequest;
 use App\Models\LessonOccurrenceStatus;
-use Database\Seeders\LessonOccurrenceStatusesSeeder;
+use App\Services\Audit\AuditContext;
+use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
+use App\Support\BuildsLogTable;
+use Carbon\Carbon;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 final class LessonOccurrenceStatusController extends AdminBaseController
 {
-    public function __construct(PartnerContext $partnerContext)
-    {
+    use BuildsLogTable;
+
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly AuditLogger $auditLogger,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -26,15 +36,9 @@ final class LessonOccurrenceStatusController extends AdminBaseController
 
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
 
-        $statuses = LessonOccurrenceStatus::query()
-            ->forPartner($partnerId)
-            ->ordered()
-            ->get();
-
         return view('admin.lessonPackages.index', [
             'activeTab' => 'occurrence-statuses',
-            'occurrenceStatuses' => $statuses,
-            'weekdays' => [], // вкладка не использует дни недели
+            'weekdays' => [],
         ]);
     }
 
@@ -48,14 +52,133 @@ final class LessonOccurrenceStatusController extends AdminBaseController
 
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
 
-        $statuses = LessonOccurrenceStatus::query()
-            ->forPartner($partnerId)
-            ->ordered()
-            ->get();
-
         return view('admin.schedule.index', [
             'activeTab' => 'occurrence-statuses',
-            'occurrenceStatuses' => $statuses,
+        ]);
+    }
+
+    public function data(Request $request)
+    {
+        $partnerId = $this->requirePartnerId();
+
+        LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
+
+        $validated = $request->validate([
+            'title' => 'nullable|string',
+            'type' => 'nullable|string',
+            'status' => 'nullable|string',
+            'consumes' => 'nullable|string',
+            'draw' => 'nullable|integer',
+            'start' => 'nullable|integer',
+            'length' => 'nullable|integer',
+        ]);
+
+        $baseQuery = LessonOccurrenceStatus::query()
+            ->forPartner($partnerId);
+
+        $titleSearch = trim((string) ($validated['title'] ?? ''));
+        if ($titleSearch === '' && $request->filled('search.value')) {
+            $titleSearch = trim((string) $request->input('search.value'));
+        }
+
+        if ($titleSearch !== '') {
+            $like = '%'.$titleSearch.'%';
+            $baseQuery->where(function ($q) use ($like, $titleSearch) {
+                $q->where('title', 'like', $like)
+                    ->orWhere('code', 'like', $like);
+
+                if (ctype_digit($titleSearch)) {
+                    $q->orWhere('id', (int) $titleSearch);
+                }
+            });
+        }
+
+        if (! empty($validated['type'])) {
+            if ($validated['type'] === 'system') {
+                $baseQuery->where('is_system', true);
+            } elseif ($validated['type'] === 'custom') {
+                $baseQuery->where('is_system', false);
+            }
+        }
+
+        if (! empty($validated['status'])) {
+            if ($validated['status'] === 'active') {
+                $baseQuery->where('is_active', true);
+            } elseif ($validated['status'] === 'inactive') {
+                $baseQuery->where('is_active', false);
+            }
+        }
+
+        if (! empty($validated['consumes'])) {
+            if ($validated['consumes'] === 'yes') {
+                $baseQuery->where('consumes_lesson', true);
+            } elseif ($validated['consumes'] === 'no') {
+                $baseQuery->where('consumes_lesson', false);
+            }
+        }
+
+        $totalRecords = LessonOccurrenceStatus::query()
+            ->forPartner($partnerId)
+            ->count();
+        $recordsFiltered = (clone $baseQuery)->count();
+
+        $orderColumnIndex = $request->input('order.0.column');
+        $orderDir = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
+        $columnsDef = $request->input('columns', []);
+        $orderColumnName = null;
+        if ($orderColumnIndex !== null && isset($columnsDef[(int) $orderColumnIndex]['name'])) {
+            $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
+        }
+
+        switch ($orderColumnName) {
+            case 'title':
+                $baseQuery->orderBy('title', $orderDir)->orderBy('id', 'asc');
+                break;
+            case 'type_label':
+                $baseQuery->orderBy('is_system', $orderDir)->orderBy('sort_order', 'asc');
+                break;
+            case 'consumes_lesson_label':
+                $baseQuery->orderBy('consumes_lesson', $orderDir)->orderBy('sort_order', 'asc');
+                break;
+            case 'is_active_label':
+                $baseQuery->orderBy('is_active', $orderDir)->orderBy('sort_order', 'asc');
+                break;
+            case 'sort_order':
+            default:
+                $baseQuery->orderBy('sort_order', $orderDir)->orderBy('id', 'asc');
+                break;
+        }
+
+        $start = $validated['start'] ?? 0;
+        $length = $validated['length'] ?? 10;
+
+        $statuses = $baseQuery
+            ->skip($start)
+            ->take($length)
+            ->get();
+
+        $data = $statuses->map(function (LessonOccurrenceStatus $status) {
+            return [
+                'id' => $status->id,
+                'sort_order' => $status->sort_order,
+                'title' => $status->title,
+                'color' => $status->color,
+                'icon' => $status->icon ?? '',
+                'code' => $status->code,
+                'is_system' => $status->is_system ? 1 : 0,
+                'type_label' => $status->is_system ? 'Системный' : 'Свой',
+                'consumes_lesson' => $status->consumes_lesson ? 1 : 0,
+                'consumes_lesson_label' => $status->consumes_lesson ? 'Да' : 'Нет',
+                'is_active' => $status->is_active ? 1 : 0,
+                'is_active_label' => $status->is_active ? 'Да' : 'Нет',
+            ];
+        })->toArray();
+
+        return response()->json([
+            'draw' => (int) ($validated['draw'] ?? 0),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
         ]);
     }
 
@@ -85,6 +208,15 @@ final class LessonOccurrenceStatusController extends AdminBaseController
                 'is_system' => false,
                 'is_active' => (bool) ($data['is_active'] ?? true),
             ]);
+
+            $this->auditLogger->record(
+                AuditEvent::LessonOccurrenceStatusCreated,
+                AuditContext::make($this->formatStatusSnapshotDescription($status))
+                    ->withTarget($status, $status->title)
+                    ->withAuthorId($request->user()?->id)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(Carbon::now())
+            );
         } catch (QueryException $e) {
             return response()->json([
                 'message' => 'Ошибка сохранения',
@@ -110,6 +242,8 @@ final class LessonOccurrenceStatusController extends AdminBaseController
             abort(404);
         }
 
+        $beforeSnapshot = $this->statusAuditSnapshot($lessonOccurrenceStatus);
+
         $data = $request->validated();
 
         $icon = isset($data['icon']) && $data['icon'] !== '' ? (string) $data['icon'] : null;
@@ -133,6 +267,22 @@ final class LessonOccurrenceStatusController extends AdminBaseController
             ]);
         }
 
+        $lessonOccurrenceStatus->refresh();
+
+        $changes = $this->diffStatusAuditSnapshots(
+            $beforeSnapshot,
+            $this->statusAuditSnapshot($lessonOccurrenceStatus),
+        );
+
+        if ($changes !== []) {
+            $this->auditLogger->record(
+                AuditEvent::LessonOccurrenceStatusUpdated,
+                AuditContext::make(implode("\n", $changes))
+                    ->withTarget($lessonOccurrenceStatus, $lessonOccurrenceStatus->title)
+                    ->withCreatedAt(now())
+            );
+        }
+
         if ($request->expectsJson()) {
             return response()->json(['message' => 'Статус обновлён']);
         }
@@ -154,6 +304,13 @@ final class LessonOccurrenceStatusController extends AdminBaseController
                 'errors' => ['id' => ['Системный статус удалять нельзя']],
             ], 422);
         }
+
+        $this->auditLogger->record(
+            AuditEvent::LessonOccurrenceStatusDeleted,
+            AuditContext::make("Статус занятия удалён: {$lessonOccurrenceStatus->title}. ID: {$lessonOccurrenceStatus->id}.")
+                ->withTarget($lessonOccurrenceStatus, $lessonOccurrenceStatus->title)
+                ->withCreatedAt(now())
+        );
 
         $lessonOccurrenceStatus->delete();
 
@@ -200,6 +357,76 @@ final class LessonOccurrenceStatusController extends AdminBaseController
         });
 
         return response()->json(['message' => 'Порядок сохранён']);
+    }
+
+    public function log(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('lesson_occurrence_status');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function statusAuditSnapshot(LessonOccurrenceStatus $status): array
+    {
+        return [
+            'title' => (string) ($status->title ?? ''),
+            'color' => (string) ($status->color ?? ''),
+            'icon' => $this->auditTextValue($status->icon, 'без иконки'),
+            'sort_order' => (string) ($status->sort_order ?? 0),
+            'consumes_lesson' => $status->consumes_lesson ? 'Да' : 'Нет',
+            'is_active' => $status->is_active ? 'Да' : 'Нет',
+            'type' => $status->is_system ? 'Системный' : 'Свой',
+        ];
+    }
+
+    private function formatStatusSnapshotDescription(LessonOccurrenceStatus $status): string
+    {
+        $snapshot = $this->statusAuditSnapshot($status);
+
+        return implode("\n", [
+            "Название: {$snapshot['title']}",
+            "Цвет: {$snapshot['color']}",
+            "Иконка: {$snapshot['icon']}",
+            "Порядок: {$snapshot['sort_order']}",
+            "Списывает занятие: {$snapshot['consumes_lesson']}",
+            "Активность: {$snapshot['is_active']}",
+            "Тип: {$snapshot['type']}",
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffStatusAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'title' => 'Название',
+            'color' => 'Цвет',
+            'icon' => 'Иконка',
+            'sort_order' => 'Порядок',
+            'consumes_lesson' => 'Списывает занятие',
+            'is_active' => 'Активность',
+        ];
+
+        $changes = [];
+
+        foreach ($labels as $key => $label) {
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
+    }
+
+    private function auditTextValue(mixed $value, string $emptyLabel): string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : $emptyLabel;
     }
 
     private function generateUniqueCustomCode(int $partnerId): string

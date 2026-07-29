@@ -62,8 +62,11 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
         $this->get(route('admin.lesson-packages.occurrence-statuses.index'))
             ->assertOk()
             ->assertSee('Статусы занятий')
-            ->assertSee('Запись')
-            ->assertSee('Списывает');
+            ->assertSee('Списывает')
+            ->assertSee('los-statuses-table', false)
+            ->assertSee('>История</span>', false)
+            ->assertSee('>Фильтры</span>', false)
+            ->assertSee('>Колонки</span>', false);
 
         $this->assertSame(
             5,
@@ -94,6 +97,16 @@ final class LessonOccurrenceStatusesFeatureTest extends CrmTestCase
             ->where('partner_id', $this->partner->id)
             ->where('code', 'scheduled')
             ->value('consumes_lesson'));
+
+        $data = $this->getJson(route('admin.lesson-packages.occurrence-statuses.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 25,
+        ]))->assertOk()->json('data');
+
+        $titles = collect($data)->pluck('title')->all();
+        $this->assertContains('Запись', $titles);
+        $this->assertContains('Посетил', $titles);
     }
 
     public function test_store_forbidden_without_manage_permission(): void

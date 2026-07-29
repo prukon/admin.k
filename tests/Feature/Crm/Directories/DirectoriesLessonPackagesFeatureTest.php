@@ -109,11 +109,14 @@ final class DirectoriesLessonPackagesFeatureTest extends CrmTestCase
             ->assertSee('id="directoriesSectionTabs"', false)
             ->assertSee(route('admin.directories.lesson-packages.index'), false)
             ->assertSee('>Абонементы</a>', false)
-            ->assertSee('Добавить абонемент', false)
+            ->assertSee('Добавить', false)
             ->assertSee('lessonPackageCreateModal', false)
             ->assertSee('lessonPackageEditModal', false)
             ->assertSee('lessonPackageDeleteModal', false)
-            ->assertSee('Пакет в справочниках', false);
+            ->assertSee('lesson-packages-table', false)
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('lessonPackagesFiltersCollapse', false);
 
         $html = (string) $response->getContent();
         $this->assertNotSame('', trim($html));

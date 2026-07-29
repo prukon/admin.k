@@ -75,10 +75,108 @@ final class LessonPackagesFeatureTest extends CrmTestCase
 
         $this->get(route('admin.lesson-packages.index'))
             ->assertOk()
-            ->assertSee('Добавить абонемент')
-            ->assertSee('Изменить')
+            ->assertSee('Добавить')
             ->assertSee('lessonPackageCreateModal')
-            ->assertSee('lessonPackageEditModal');
+            ->assertSee('lessonPackageEditModal')
+            ->assertSee('lesson-packages-table')
+            ->assertSee('KidsCrmDataTable.create', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('lessonPackagesFiltersCollapse', false)
+            ->assertSee('lessonPackagesColumnsDropdown', false);
+    }
+
+    public function test_packages_data_returns_partner_scoped_rows_and_filters(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Alpha Fixed',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Beta Flexible',
+            'schedule_type' => 'flexible',
+            'duration_days' => 14,
+            'lessons_count' => 4,
+            'price_cents' => 5000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $otherPartner = \App\Models\Partner::factory()->create();
+        LessonPackage::query()->create([
+            'partner_id' => $otherPartner->id,
+            'name' => 'Foreign',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 10000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $all = $this->getJson(route('admin.lesson-packages.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+        ]))->assertOk()->json();
+
+        $names = collect($all['data'])->pluck('name')->all();
+        $this->assertContains('Alpha Fixed', $names);
+        $this->assertContains('Beta Flexible', $names);
+        $this->assertNotContains('Foreign', $names);
+
+        $filtered = $this->getJson(route('admin.lesson-packages.data', [
+            'draw' => 2,
+            'start' => 0,
+            'length' => 50,
+            'name' => 'Alpha',
+            'schedule_type' => 'fixed',
+        ]))->assertOk()->json();
+
+        $this->assertCount(1, $filtered['data']);
+        $this->assertSame('Alpha Fixed', $filtered['data'][0]['name']);
+    }
+
+    public function test_packages_columns_settings_get_and_save(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $this->getJson(route('admin.lesson-packages.columns-settings.get'))
+            ->assertOk()
+            ->assertExactJson([]);
+
+        $this->postJson(route('admin.lesson-packages.columns-settings.save'), [
+            'columns' => [
+                'name' => true,
+                'actions' => false,
+            ],
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $this->getJson(route('admin.lesson-packages.columns-settings.get'))
+            ->assertOk()
+            ->assertJson([
+                'name' => true,
+                'actions' => false,
+            ]);
+    }
+
+    public function test_packages_logs_data_ok(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $this->getJson(route('logs.data.lesson-package'))
+            ->assertOk();
     }
 
     public function test_store_denied_without_view_permission(): void

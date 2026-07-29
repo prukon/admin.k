@@ -55,6 +55,16 @@ enum AuditEvent: string
     case LegalEntityUpdated = 'legal_entity.updated';
     case LegalEntityDeleted = 'legal_entity.deleted';
 
+    // --- lesson_package templates (legacy type 91) ---
+    case LessonPackageCreated = 'lesson_package.created';
+    case LessonPackageUpdated = 'lesson_package.updated';
+    case LessonPackageDeleted = 'lesson_package.deleted';
+
+    // --- lesson_occurrence_status dictionary (legacy type 92) ---
+    case LessonOccurrenceStatusCreated = 'lesson_occurrence_status.created';
+    case LessonOccurrenceStatusUpdated = 'lesson_occurrence_status.updated';
+    case LessonOccurrenceStatusDeleted = 'lesson_occurrence_status.deleted';
+
     // --- school_lead (legacy type 89) ---
     case SchoolLeadUpdated = 'school_lead.updated';
     case SchoolLeadDeleted = 'school_lead.deleted';
@@ -172,6 +182,14 @@ enum AuditEvent: string
             self::LegalEntityUpdated => 'Изменение юр. лица',
             self::LegalEntityDeleted => 'Удаление юр. лица',
 
+            self::LessonPackageCreated => 'Создание абонемента',
+            self::LessonPackageUpdated => 'Изменение абонемента',
+            self::LessonPackageDeleted => 'Удаление абонемента',
+
+            self::LessonOccurrenceStatusCreated => 'Создание статуса занятия',
+            self::LessonOccurrenceStatusUpdated => 'Изменение статуса занятия',
+            self::LessonOccurrenceStatusDeleted => 'Удаление статуса занятия',
+
             self::SchoolLeadUpdated => 'Изменение заявки с сайта',
             self::SchoolLeadDeleted => 'Удаление заявки с сайта',
             self::SchoolLeadStatusCreated => 'Создание статуса заявки',
@@ -250,6 +268,8 @@ enum AuditEvent: string
             self::DistrictDeleted,
             self::SportTypeDeleted,
             self::LegalEntityDeleted,
+            self::LessonPackageDeleted,
+            self::LessonOccurrenceStatusDeleted,
             self::SchoolLeadDeleted,
             self::ContractRevoked,
             self::AuthLogin,
@@ -318,6 +338,14 @@ enum AuditEvent: string
             self::LegalEntityCreated,
             self::LegalEntityUpdated,
             self::LegalEntityDeleted => 'legal_entity',
+
+            self::LessonPackageCreated,
+            self::LessonPackageUpdated,
+            self::LessonPackageDeleted => 'lesson_package',
+
+            self::LessonOccurrenceStatusCreated,
+            self::LessonOccurrenceStatusUpdated,
+            self::LessonOccurrenceStatusDeleted => 'lesson_occurrence_status',
 
             self::SchoolLeadUpdated,
             self::SchoolLeadDeleted,
@@ -432,6 +460,14 @@ enum AuditEvent: string
             self::LegalEntityUpdated,
             self::LegalEntityDeleted => 90,
 
+            self::LessonPackageCreated,
+            self::LessonPackageUpdated,
+            self::LessonPackageDeleted => 91,
+
+            self::LessonOccurrenceStatusCreated,
+            self::LessonOccurrenceStatusUpdated,
+            self::LessonOccurrenceStatusDeleted => 92,
+
             self::SchoolLeadUpdated,
             self::SchoolLeadDeleted,
             self::SchoolLeadStatusCreated,
@@ -541,6 +577,14 @@ enum AuditEvent: string
             self::LegalEntityCreated => 901,
             self::LegalEntityUpdated => 902,
             self::LegalEntityDeleted => 903,
+
+            self::LessonPackageCreated => 911,
+            self::LessonPackageUpdated => 912,
+            self::LessonPackageDeleted => 913,
+
+            self::LessonOccurrenceStatusCreated => 921,
+            self::LessonOccurrenceStatusUpdated => 922,
+            self::LessonOccurrenceStatusDeleted => 923,
 
             self::SchoolLeadUpdated => 891,
             self::SchoolLeadDeleted => 892,
@@ -782,6 +826,14 @@ enum AuditEvent: string
             901 => self::LegalEntityCreated,
             902 => self::LegalEntityUpdated,
             903 => self::LegalEntityDeleted,
+
+            911 => self::LessonPackageCreated,
+            912 => self::LessonPackageUpdated,
+            913 => self::LessonPackageDeleted,
+
+            921 => self::LessonOccurrenceStatusCreated,
+            922 => self::LessonOccurrenceStatusUpdated,
+            923 => self::LessonOccurrenceStatusDeleted,
 
             891 => self::SchoolLeadUpdated,
             892 => self::SchoolLeadDeleted,

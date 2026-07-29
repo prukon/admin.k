@@ -1,15 +1,138 @@
-<div class="tab-content">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-3">
-        <h4 class="mb-0">Абонементы</h4>
+@php
+    $packagesHasActiveFilters = $packagesHasActiveFilters ?? false;
+@endphp
 
-        @can('lessonPackages.view')
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#lessonPackageCreateModal">
-                Добавить абонемент
-            </button>
-        @endcan
+@vite(['resources/css/admin-list-toolbar.css'])
+
+<div class="tab-content">
+    <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
+        <div class="card-body px-3 py-3">
+            <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
+                <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Абонементы</h1>
+                <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
+                    @can('lessonPackages.view')
+                        <button type="button"
+                                class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#lessonPackageCreateModal"
+                                title="Добавить абонемент">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-plus payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
+                        </button>
+                    @endcan
+
+                    <button type="button"
+                            class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#historyModal"
+                            title="История изменений">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-clock-rotate-left payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">История</span>
+                    </button>
+
+                    <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#lessonPackagesFiltersCollapse"
+                            aria-expanded="{{ $packagesHasActiveFilters ? 'true' : 'false' }}"
+                            aria-controls="lessonPackagesFiltersCollapse"
+                            id="lessonPackagesFiltersToggle">
+                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                            <i class="fas fa-sliders-h payments-report-toolbar-icon"></i>
+                        </span>
+                        <span class="payments-report-toolbar-label d-none d-sm-inline">Фильтры</span>
+                        <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="dropdown payments-report-toolbar-dropdown">
+                        <button class="payments-report-toolbar-action payments-report-columns-toggle d-inline-flex align-items-center gap-2"
+                                type="button"
+                                id="lessonPackagesColumnsDropdown"
+                                data-bs-toggle="dropdown"
+                                data-bs-auto-close="outside"
+                                aria-expanded="false"
+                                aria-haspopup="true"
+                                title="Какие колонки показывать в таблице">
+                            <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                <i class="fas fa-table-columns payments-report-toolbar-icon"></i>
+                            </span>
+                            <span class="payments-report-toolbar-label d-none d-sm-inline">Колонки</span>
+                            <i class="fas fa-chevron-down payments-report-toolbar-chevron" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="dropdown-menu dropdown-menu-end payments-report-toolbar-dropdown-panel payments-report-columns-menu"
+                             aria-labelledby="lessonPackagesColumnsDropdown">
+                            <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
+
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="name" id="colLessonPackageName" checked>
+                                <label class="form-check-label" for="colLessonPackageName">Название</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="schedule_type_label" id="colLessonPackageType" checked>
+                                <label class="form-check-label" for="colLessonPackageType">Тип</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="duration_days" id="colLessonPackageDuration" checked>
+                                <label class="form-check-label" for="colLessonPackageDuration">Срок действия (дни)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="lessons_count" id="colLessonPackageLessons" checked>
+                                <label class="form-check-label" for="colLessonPackageLessons">Занятий</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="price_label" id="colLessonPackagePrice" checked>
+                                <label class="form-check-label" for="colLessonPackagePrice">Стоимость</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input column-toggle" type="checkbox" data-column-key="freeze_label" id="colLessonPackageFreeze" checked>
+                                <label class="form-check-label" for="colLessonPackageFreeze">Заморозка</label>
+                            </div>
+                            @can('lessonPackages.view')
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle" type="checkbox" data-column-key="actions" id="colLessonPackageActions" checked>
+                                    <label class="form-check-label" for="colLessonPackageActions">Действия</label>
+                                </div>
+                            @endcan
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <hr>
+    <div class="collapse {{ $packagesHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="lessonPackagesFiltersCollapse">
+        <form id="lesson-packages-filters" class="border rounded p-2 p-md-3 bg-light">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="filter-lesson-package-search">Поиск</label>
+                    <input id="filter-lesson-package-search"
+                           class="form-control"
+                           type="text"
+                           placeholder="По названию">
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="filter-lesson-package-type">Тип</label>
+                    <select id="filter-lesson-package-type" class="form-select">
+                        <option value="">Все типы</option>
+                        <option value="fixed">Фиксированный</option>
+                        <option value="flexible">Гибкий</option>
+                        <option value="no_schedule">Разовое занятие</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
+                    <button id="filter-lesson-package-apply" class="btn btn-primary payments-report-filters-submit" type="button">Применить</button>
+                    <button id="filter-lesson-package-reset" class="btn btn-outline-secondary payments-report-filters-reset" type="button">Сброс</button>
+                </div>
+            </div>
+        </form>
+    </div>
 
     @if (session('success'))
         <div class="alert alert-success">
@@ -18,12 +141,12 @@
     @endif
 
     <div class="table-responsive">
-        <table class="table table-striped table-bordered align-middle w-100">
+        <table id="lesson-packages-table" class="table table-striped table-bordered align-middle w-100 dt-columns-managed">
             <thead>
             <tr>
                 <th>Название</th>
                 <th>Тип</th>
-                <th>Длительность</th>
+                <th>Срок действия (дни)</th>
                 <th>Занятий</th>
                 <th>Стоимость</th>
                 <th>Заморозка</th>
@@ -32,68 +155,8 @@
                 @endcan
             </tr>
             </thead>
-            <tbody>
-            @forelse ($packages as $package)
-                <tr>
-                    <td>{{ $package->name }}</td>
-                    <td>
-                        @if ($package->schedule_type === 'fixed')
-                            Фиксированный
-                        @elseif($package->schedule_type === 'flexible')
-                            Гибкий
-                        @else
-                            Разовое занятие
-                        @endif
-                    </td>
-                    <td class="text-center">{{ $package->duration_days }}</td>
-                    <td class="text-center">{{ $package->lessons_count }}</td>
-                    <td class="text-end">
-                        {{ number_format($package->price_cents / 100, 2, ',', ' ') }} ₽
-                    </td>
-                    <td class="text-center">
-                        @if ($package->freeze_enabled)
-                            {{ $package->freeze_days }}
-                        @else
-                            нет
-                        @endif
-                    </td>
-                    @can('lessonPackages.view')
-                        <td class="text-start">
-                            <div class="d-flex flex-wrap gap-1 justify-content-start">
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-primary lesson-package-edit-btn"
-                                        data-id="{{ $package->id }}"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#lessonPackageEditModal">
-                                    Изменить
-                                </button>
-                                @if ((int) ($package->partner_assignments_count ?? 0) === 0 && (int) ($package->partner_linked_lessons_count ?? 0) === 0)
-                                    <button type="button"
-                                            class="btn btn-sm btn-outline-danger lesson-package-delete-btn"
-                                            data-id="{{ $package->id }}"
-                                            data-name="{{ $package->name }}"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#lessonPackageDeleteModal">
-                                        Удалить
-                                    </button>
-                                @endif
-                            </div>
-                        </td>
-                    @endcan
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="@can('lessonPackages.view') 7 @else 6 @endcan" class="text-center text-muted">
-                        Абонементов пока нет.
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
+            <tbody></tbody>
         </table>
-    </div>
-
-    <div class="d-flex justify-content-center">
-        {{ $packages->links() }}
     </div>
 </div>
 
@@ -109,14 +172,14 @@
                 <div class="modal-body">
                     <form id="lessonPackageCreateForm" novalidate>
                         <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label">Название</label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Название *</label>
                                 <input type="text" name="create[name]" class="form-control" maxlength="255" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[name]"></div>
                             </div>
 
-                            <div class="col-12">
-                                <label class="form-label">Тип</label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Тип *</label>
                                 <select name="create[schedule_type]" id="create_schedule_type" class="form-select" required>
                                     <option value="fixed">Фиксированный</option>
                                     <option value="flexible">Гибкий</option>
@@ -125,24 +188,20 @@
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
 
-                            <div class="col-12">
-                                <div class="row g-3">
-                                    <div class="col-12 col-sm-4">
-                                        <label class="form-label">Длительность (дни)</label>
-                                        <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
-                                        <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
-                                    </div>
-                                    <div class="col-12 col-sm-4">
-                                        <label class="form-label">Занятий</label>
-                                        <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
-                                        <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
-                                    </div>
-                                    <div class="col-12 col-sm-4">
-                                        <label class="form-label">Стоимость (руб.)</label>
-                                        <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
-                                        <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
-                                    </div>
-                                </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Срок действия (дни) *</label>
+                                <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
+                                <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Занятий *</label>
+                                <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
+                                <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Стоимость (руб.) *</label>
+                                <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
+                                <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
                             </div>
 
                             <div class="col-12" id="create_freeze_section">
@@ -218,19 +277,19 @@
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
                             </div>
 
-                            <div class="col-12 col-md-4">
-                                <label class="form-label">Длительность (дни) *</label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Срок действия (дни) *</label>
                                 <input type="number" name="edit[duration_days]" id="edit_duration_days" class="form-control" min="1" max="3650" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[duration_days]"></div>
                             </div>
 
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Занятий *</label>
                                 <input type="number" name="edit[lessons_count]" id="edit_lessons_count" class="form-control" min="1" max="1000" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[lessons_count]"></div>
                             </div>
 
-                            <div class="col-12 col-md-4">
+                            <div class="col-12 col-md-6">
                                 <label class="form-label">Стоимость (руб.) *</label>
                                 <input type="number" name="edit[price]" class="form-control" min="0" max="99999999.99" step="0.01" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[price]"></div>
@@ -296,12 +355,14 @@
     </div>
 @endcan
 
+@include('includes.logModal')
+
 @can('lessonPackages.view')
-    @section('scripts')
-        @parent
-        <script>
-            (function () {
+@push('scripts')
+    <script>
+        $(document).ready(function () {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const canManagePackages = @json(auth()->user()->can('lessonPackages.view'));
 
                 function clearErrors(modalEl) {
                     modalEl.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
@@ -364,6 +425,148 @@
                         setFieldError(modalEl, inputName, msg);
                     });
                 }
+
+                function packagesFilterParams() {
+                    return {
+                        name: $('#filter-lesson-package-search').val() || '',
+                        schedule_type: $('#filter-lesson-package-type').val() || '',
+                    };
+                }
+
+                function packagesHasNonDefaultFilters() {
+                    const params = packagesFilterParams();
+                    return params.name !== '' || params.schedule_type !== '';
+                }
+
+                function syncPackagesFiltersCollapseState() {
+                    const hasActive = packagesHasNonDefaultFilters();
+                    const collapseEl = document.getElementById('lessonPackagesFiltersCollapse');
+                    const $toggle = $('#lessonPackagesFiltersToggle');
+
+                    if (collapseEl && hasActive && !collapseEl.classList.contains('show')) {
+                        bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+                    }
+
+                    if ($toggle.length && collapseEl) {
+                        $toggle.attr('aria-expanded', collapseEl.classList.contains('show') ? 'true' : 'false');
+                    }
+                }
+
+                const dtApi = KidsCrmDataTable.create('#lesson-packages-table', {
+                    columnsSettings: {
+                        defaults: {
+                            name: true,
+                            schedule_type_label: true,
+                            duration_days: true,
+                            lessons_count: true,
+                            price_label: true,
+                            freeze_label: true,
+                            ...(canManagePackages ? { actions: true } : {}),
+                        },
+                        urls: {
+                            get: @json(route('admin.lesson-packages.columns-settings.get')),
+                            save: @json(route('admin.lesson-packages.columns-settings.save')),
+                        },
+                        csrfToken: csrfToken,
+                    },
+                    dataTable: {
+                        ajax: {
+                            url: @json(route('admin.lesson-packages.data')),
+                            type: 'GET',
+                            data: function (d) {
+                                const params = packagesFilterParams();
+                                d.name = params.name;
+                                d.schedule_type = params.schedule_type;
+                            }
+                        },
+                        order: [[0, 'asc']],
+                        language: @include('partials.datatables.ru')
+                    },
+                    columns: [
+                        {
+                            key: 'name',
+                            type: 'text',
+                            data: 'name',
+                            name: 'name',
+                            className: 'dt-col-text',
+                        },
+                        {
+                            key: 'schedule_type_label',
+                            type: 'text',
+                            data: 'schedule_type_label',
+                            name: 'schedule_type_label',
+                        },
+                        {
+                            key: 'duration_days',
+                            type: 'count',
+                            data: 'duration_days',
+                            name: 'duration_days',
+                            className: 'text-center',
+                        },
+                        {
+                            key: 'lessons_count',
+                            type: 'count',
+                            data: 'lessons_count',
+                            name: 'lessons_count',
+                            className: 'text-center',
+                        },
+                        {
+                            key: 'price_label',
+                            type: 'text',
+                            data: 'price_label',
+                            name: 'price_label',
+                            className: 'text-end text-nowrap',
+                        },
+                        {
+                            key: 'freeze_label',
+                            type: 'text',
+                            data: 'freeze_label',
+                            name: 'freeze_label',
+                            className: 'text-center',
+                        },
+                        {
+                            key: 'actions',
+                            type: 'actions',
+                            when: canManagePackages,
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-start',
+                            render: function (data, type, row) {
+                                let html = '<div class="d-flex flex-wrap gap-1 justify-content-start">' +
+                                    '<button type="button" class="btn btn-sm btn-outline-primary lesson-package-edit-btn" ' +
+                                    'data-id="' + row.id + '" data-bs-toggle="modal" data-bs-target="#lessonPackageEditModal">' +
+                                    'Изменить</button>';
+                                if (row.can_delete) {
+                                    html += '<button type="button" class="btn btn-sm btn-outline-danger lesson-package-delete-btn" ' +
+                                        'data-id="' + row.id + '" data-name="' + $('<div>').text(row.name || '').html() + '" ' +
+                                        'data-bs-toggle="modal" data-bs-target="#lessonPackageDeleteModal">Удалить</button>';
+                                }
+                                html += '</div>';
+                                return html;
+                            }
+                        },
+                    ],
+                });
+
+                function reloadPackagesTable() {
+                    dtApi.reload({ keepPage: true });
+                    syncPackagesFiltersCollapseState();
+                }
+
+                $('#filter-lesson-package-apply').on('click', function () {
+                    reloadPackagesTable();
+                });
+
+                $('#lesson-packages-filters').on('submit', function (e) {
+                    e.preventDefault();
+                    reloadPackagesTable();
+                });
+
+                $('#filter-lesson-package-reset').on('click', function () {
+                    $('#filter-lesson-package-search').val('');
+                    $('#filter-lesson-package-type').val('');
+                    reloadPackagesTable();
+                });
 
                 const createModalEl = document.getElementById('lessonPackageCreateModal');
                 const createFormEl = document.getElementById('lessonPackageCreateForm');
@@ -453,7 +656,8 @@
 
                     try {
                         await requestJson('POST', @json(route('admin.lesson-packages.store')), payload);
-                        window.location.reload();
+                        bootstrap.Modal.getInstance(createModalEl)?.hide();
+                        reloadPackagesTable();
                     } catch (err) {
                         const p = err.payload || {};
                         if (p.errors) {
@@ -481,7 +685,6 @@
                     applyCreateScheduleTypeUi();
                 });
 
-                // ---------- EDIT MODAL ----------
                 const editModalEl = document.getElementById('lessonPackageEditModal');
                 const editFormEl = document.getElementById('lessonPackageEditForm');
                 const editFreezeEnabled = document.getElementById('edit_freeze_enabled');
@@ -581,7 +784,8 @@
 
                     try {
                         await requestJson('PUT', '/admin/lesson-packages/' + id, payload);
-                        window.location.reload();
+                        bootstrap.Modal.getInstance(editModalEl)?.hide();
+                        reloadPackagesTable();
                     } catch (err) {
                         const p = err.payload || {};
                         if (p.errors) {
@@ -595,13 +799,12 @@
                 const deleteConfirmBtn = document.getElementById('lessonPackageDeleteConfirmBtn');
                 let deleteTargetId = null;
 
-                document.querySelectorAll('.lesson-package-delete-btn').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        deleteTargetId = btn.getAttribute('data-id');
-                        if (deleteNameEl) {
-                            deleteNameEl.textContent = btn.getAttribute('data-name') || '';
-                        }
-                    });
+                $(document).on('click', '.lesson-package-delete-btn', function () {
+                    const btn = this;
+                    deleteTargetId = btn.getAttribute('data-id');
+                    if (deleteNameEl) {
+                        deleteNameEl.textContent = btn.getAttribute('data-name') || '';
+                    }
                 });
 
                 deleteConfirmBtn?.addEventListener('click', async function () {
@@ -610,7 +813,8 @@
                     }
                     try {
                         await requestJson('DELETE', '/admin/lesson-packages/' + deleteTargetId);
-                        window.location.reload();
+                        bootstrap.Modal.getInstance(deleteModalEl)?.hide();
+                        reloadPackagesTable();
                     } catch (err) {
                         const msg = (err.payload && err.payload.message)
                             ? err.payload.message
@@ -623,76 +827,78 @@
                     deleteTargetId = null;
                 });
 
-                document.querySelectorAll('.lesson-package-edit-btn').forEach(function (btn) {
-                    btn.addEventListener('click', async function () {
-                        clearErrors(editModalEl);
-                        const id = btn.getAttribute('data-id');
-                        editIdEl.value = id;
+                $(document).on('click', '.lesson-package-edit-btn', async function () {
+                    clearErrors(editModalEl);
+                    const id = this.getAttribute('data-id');
+                    editIdEl.value = id;
 
-                        try {
-                            const json = await requestJson('GET', '/admin/lesson-packages/' + id);
-                            const lp = json.lesson_package || {};
+                    try {
+                        const json = await requestJson('GET', '/admin/lesson-packages/' + id);
+                        const lp = json.lesson_package || {};
 
-                            editModalEl.querySelector('[name="edit[name]"]').value = lp.name || '';
-                            editModalEl.querySelector('[name="edit[schedule_type]"]').value = lp.schedule_type || 'fixed';
-                            editModalEl.querySelector('[name="edit[duration_days]"]').value = lp.duration_days || 30;
-                            editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
-                            editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
+                        editModalEl.querySelector('[name="edit[name]"]').value = lp.name || '';
+                        editModalEl.querySelector('[name="edit[schedule_type]"]').value = lp.schedule_type || 'fixed';
+                        editModalEl.querySelector('[name="edit[duration_days]"]').value = lp.duration_days || 30;
+                        editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
+                        editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
 
-                            editFreezeEnabled.checked = !!lp.freeze_enabled;
-                            editModalEl.querySelector('[name="edit[freeze_days]"]').value = lp.freeze_days || 7;
-                            if (editAutoAttendanceEnabled) {
-                                editAutoAttendanceEnabled.checked = !!lp.auto_attendance_enabled;
-                            }
-
-                            editSnapshotBeforeSingle = null;
-                            const st = (lp.schedule_type || 'fixed').toString();
-                            if (st === 'no_schedule') {
-                                if (editDuration) {
-                                    editDuration.readOnly = true;
-                                }
-                                if (editLessons) {
-                                    editLessons.readOnly = true;
-                                }
-                                if (editFreezeSection) {
-                                    editFreezeSection.style.display = 'none';
-                                }
-                                if (editAutoAttendanceSection) {
-                                    editAutoAttendanceSection.style.display = 'none';
-                                }
-                                if (editFreezeEnabled) {
-                                    editFreezeEnabled.checked = false;
-                                }
-                                if (editAutoAttendanceEnabled) {
-                                    editAutoAttendanceEnabled.checked = false;
-                                }
-                                editToggleFreezeDays();
-                            } else {
-                                if (editDuration) {
-                                    editDuration.readOnly = false;
-                                }
-                                if (editLessons) {
-                                    editLessons.readOnly = false;
-                                }
-                                if (editFreezeSection) {
-                                    editFreezeSection.style.display = '';
-                                }
-                                if (editAutoAttendanceSection) {
-                                    editAutoAttendanceSection.style.display = '';
-                                }
-                                editToggleFreezeDays();
-                            }
-                        } catch (err) {
-                            // silent
+                        editFreezeEnabled.checked = !!lp.freeze_enabled;
+                        editModalEl.querySelector('[name="edit[freeze_days]"]').value = lp.freeze_days || 7;
+                        if (editAutoAttendanceEnabled) {
+                            editAutoAttendanceEnabled.checked = !!lp.auto_attendance_enabled;
                         }
-                    });
+
+                        editSnapshotBeforeSingle = null;
+                        const st = (lp.schedule_type || 'fixed').toString();
+                        if (st === 'no_schedule') {
+                            if (editDuration) {
+                                editDuration.readOnly = true;
+                            }
+                            if (editLessons) {
+                                editLessons.readOnly = true;
+                            }
+                            if (editFreezeSection) {
+                                editFreezeSection.style.display = 'none';
+                            }
+                            if (editAutoAttendanceSection) {
+                                editAutoAttendanceSection.style.display = 'none';
+                            }
+                            if (editFreezeEnabled) {
+                                editFreezeEnabled.checked = false;
+                            }
+                            if (editAutoAttendanceEnabled) {
+                                editAutoAttendanceEnabled.checked = false;
+                            }
+                            editToggleFreezeDays();
+                        } else {
+                            if (editDuration) {
+                                editDuration.readOnly = false;
+                            }
+                            if (editLessons) {
+                                editLessons.readOnly = false;
+                            }
+                            if (editFreezeSection) {
+                                editFreezeSection.style.display = '';
+                            }
+                            if (editAutoAttendanceSection) {
+                                editAutoAttendanceSection.style.display = '';
+                            }
+                            editToggleFreezeDays();
+                        }
+                    } catch (err) {
+                        // silent
+                    }
                 });
 
                 editModalEl?.addEventListener('shown.bs.modal', function () {
                     editToggleFreezeDays();
                 });
-            })();
-        </script>
-    @endsection
+
+                if (typeof showLogModal === 'function') {
+                    showLogModal(@json(route('logs.data.lesson-package')));
+                }
+        });
+    </script>
+@endpush
 @endcan
 

@@ -58,8 +58,10 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             ->assertViewIs('admin.directories.lesson-packages')
             ->assertSee('Справочники', false)
             ->assertSee('id="directoriesSectionTabs"', false)
-            ->assertSee('Добавить абонемент', false)
-            ->assertSee('lessonPackageCreateModal', false);
+            ->assertSee('Добавить', false)
+            ->assertSee('lessonPackageCreateModal', false)
+            ->assertSee('lesson-packages-table', false)
+            ->assertSee('historyModal', false);
 
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk();

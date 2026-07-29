@@ -249,7 +249,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>Шестая (последняя) вкладка в <code>_section_tabs</code>; право <code>lessonPackages.view</code>; <code>$activeTab = 'packages'</code>.</li>
     <li>Маршрут: <code>GET /admin/directories/lesson-packages</code> → <code>admin.directories.lesson-packages.index</code> → <code>LessonPackageController@directoriesIndex</code>.</li>
     <li>View: <code>admin/directories/lesson-packages.blade.php</code> (заголовок «Справочники» + вкладки) + <code>@include('admin.lessonPackages.tabs.packages')</code>.</li>
-    <li>CRUD шаблонов — <strong>те же</strong> endpoint'ы <code>/admin/lesson-packages</code> (store/show/update/destroy). Отдельного API-префикса нет.</li>
+    <li>UI списка — общий partial с toolbar (Добавить / История / Фильтры / Колонки) и <code>KidsCrmDataTable</code>; детали — <a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a>.</li>
+    <li>CRUD и data/columns/logs — <strong>те же</strong> endpoint'ы <code>/admin/lesson-packages*</code>. Отдельного API-префикса нет.</li>
     <li>Non-AJAX store/update: если <code>url()->previous()</code> начинается с URL дубля — <code>302</code> на <code>admin.directories.lesson-packages.index</code>; иначе — на <code>admin.lesson-packages.index</code> (метод <code>redirectAfterLessonPackageMutation</code>).</li>
     <li>В <code>DirectoriesMenu::ENTRIES</code> <strong>нет</strong> — сайдбар «Справочники» не ведёт на эту страницу и не учитывает одно только <code>lessonPackages.view</code>.</li>
     <li>Старая страница <code>/admin/lesson-packages</code> (оболочка «Расписание школы») сохранена параллельно.</li>
@@ -318,7 +319,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>DirectoriesSmokeFeatureTest.php</code></td><td>Меню и вкладки: подпись сайдбара (имя справочника / «Справочники»), комбинации прав, 403</td></tr>
       <tr><td><code>DirectoriesPageFullAccessFeatureTest.php</code></td><td>Все endpoint'ы четырёх справочников → 200 (admin и актор с правами); порядок вкладок на HTML</td></tr>
       <tr><td><code>TeamsDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Группы», сайдбар, full access groups (CRUD → 200)</td></tr>
-      <tr><td><code>DirectoriesLessonPackagesAccessFeatureTest.php</code></td><td>Доступ дубля «Абонементы»: guest / без права / с <code>lessonPackages.view</code> на HTML и CRUD JSON</td></tr>
+      <tr><td><code>DirectoriesLessonPackagesAccessFeatureTest.php</code></td><td>Доступ дубля «Абонементы»: guest / без права / с <code>lessonPackages.view</code> на HTML, CRUD JSON, data/columns/logs</td></tr>
       <tr><td><code>DirectoriesLessonPackagesFeatureTest.php</code></td><td>Оболочка справочников, active-вкладка, видимость таба на <code>/admin/teams</code>, AJAX store/update/show/destroy + 422</td></tr>
       <tr><td><code>DirectoriesLessonPackagesNonAjaxSafetyNetFeatureTest.php</code></td><td>Non-AJAX store/update с <code>from</code> дубля → <code>302</code> на <code>/admin/directories/lesson-packages</code> + БД</td></tr>
       <tr><td><code>SportTypesDirectoriesIntegrationFeatureTest.php</code></td><td>Интеграция вкладки «Виды спорта», сайдбар, full access sport-types</td></tr>

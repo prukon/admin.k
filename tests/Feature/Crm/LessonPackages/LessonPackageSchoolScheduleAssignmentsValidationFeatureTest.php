@@ -276,6 +276,347 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             ->assertJsonPath('errors.patterns.0', 'Конфликт расписания на '.self::MONDAY.': время 12:00–12:50 пересекается с уже существующей записью ученика (12:00–12:50).');
     }
 
+    public function test_assign_fixed_allows_when_existing_utss_ends_at_covers_anchor_but_starts_at_differs(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        // Следующий понедельник после MONDAY (2026-05-04).
+        $nextMonday = '2026-05-11';
+        $this->assertSame(1, (int) CarbonImmutable::parse($nextMonday)->format('N'));
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot('14:15', '16:00');
+
+        $oldPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Старый фикс',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $oldUlp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $oldPackage->id,
+            'starts_at' => self::MONDAY,
+            'ends_at' => '2026-06-03',
+            'lessons_total' => 8,
+            'lessons_remaining' => 8,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        // Как при assign-fixed: starts_at = дата занятия, ends_at = конец периода абонемента.
+        // «Хвост» ends_at покрывает nextMonday, но реальной записи на nextMonday нет.
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $oldUlp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::MONDAY,
+            'ends_at' => '2026-06-03',
+            'created_by' => $this->user->id,
+        ]);
+
+        $newPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Новый фикс',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $newUlp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $newPackage->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $newUlp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'anchor_date' => $nextMonday,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '14:15', 'time_end' => '16:00'],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
+
+        $this->assertDatabaseHas('user_team_schedule_slots', [
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $newUlp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => $nextMonday,
+        ]);
+    }
+
+    public function test_assign_fixed_422_when_existing_fixed_utss_starts_at_equals_anchor(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $slot = $this->mondaySlot('14:15', '16:00');
+
+        $oldPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Старый фикс на якорь',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 8,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $oldUlp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $oldPackage->id,
+            'starts_at' => self::MONDAY,
+            'ends_at' => '2026-06-03',
+            'lessons_total' => 8,
+            'lessons_remaining' => 8,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $oldUlp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => self::MONDAY,
+            'ends_at' => '2026-06-03',
+            'created_by' => $this->user->id,
+        ]);
+
+        $newPackage = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Новый фикс конфликт на starts_at',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $newUlp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $newPackage->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $newUlp->id,
+            'team_schedule_slot_id' => $slot->id,
+            'anchor_date' => self::MONDAY,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '14:15', 'time_end' => '16:00'],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'errors.patterns.0',
+                'Конфликт расписания на '.self::MONDAY.': время 14:15–16:00 пересекается с уже существующей записью ученика (14:15–16:00).'
+            );
+
+        $this->assertSame(
+            0,
+            UserTeamScheduleSlot::query()->where('user_lesson_package_id', $newUlp->id)->count()
+        );
+    }
+
+    public function test_assign_fixed_422_when_chain_non_anchor_occurrence_overlaps_existing_lesson(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $thursday = '2026-05-07';
+        $this->assertSame(4, (int) CarbonImmutable::parse($thursday)->format('N'));
+
+        $student = $this->studentUser();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slotMon = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '15:00',
+            'time_end' => '16:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $slotThu = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 4,
+            'time_start' => '10:00',
+            'time_end' => '11:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        // Конфликт на втором вхождении цепочки (четверг), не на якоре (понедельник).
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slotThu->id,
+            'starts_at' => $thursday,
+            'ends_at' => $thursday,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Фикс цепочка конфликт',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 2,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 2,
+            'lessons_remaining' => 2,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotMon->id,
+            'anchor_date' => self::MONDAY,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '15:00', 'time_end' => '16:00'],
+                ['weekday' => 4, 'time_start' => '10:00', 'time_end' => '11:00'],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'errors.patterns.0',
+                'Конфликт расписания на '.$thursday.': время 10:00–11:00 пересекается с уже существующей записью ученика (10:00–11:00).'
+            );
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
+    }
+
+    public function test_assign_fixed_allows_same_date_when_clock_intervals_do_not_overlap(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slotMorning = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '10:00',
+            'time_end' => '11:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+        $slotEvening = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '14:00',
+            'time_end' => '15:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slotMorning->id,
+            'starts_at' => self::MONDAY,
+            'ends_at' => self::MONDAY,
+            'is_trial_lesson' => true,
+            'created_by' => $this->user->id,
+        ]);
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Фикс без пересечения времени',
+            'schedule_type' => 'fixed',
+            'duration_days' => 30,
+            'lessons_count' => 1,
+            'price_cents' => 1000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+        $ulp = UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), [
+            'user_id' => $student->id,
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotEvening->id,
+            'anchor_date' => self::MONDAY,
+            'patterns' => [
+                ['weekday' => 1, 'time_start' => '14:00', 'time_end' => '15:00'],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Абонемент назначен, занятия привязаны к расписанию школы.');
+
+        $this->assertDatabaseHas('user_team_schedule_slots', [
+            'user_lesson_package_id' => $ulp->id,
+            'team_schedule_slot_id' => $slotEvening->id,
+            'starts_at' => self::MONDAY,
+        ]);
+    }
+
     public function test_assign_flexible_422_when_slot_already_has_user_calendar_row_on_that_date(): void
     {
         $this->grantPermission('lessonPackages.view');

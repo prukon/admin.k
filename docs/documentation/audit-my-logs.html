@@ -49,7 +49,7 @@
   <ul>
     <li><b>Значение</b> — канонический <code>event</code>, например <code>user.updated</code>, <code>schedule.user_range_updated</code>.</li>
     <li><b>Уровень</b> — <code>AuditLevel</code>: <code>info</code> (изменения в CRM), <code>security</code> (входы), <code>integration</code> (платежи, webhook, подписание).</li>
-    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
+    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>lesson_package</code>, <code>lesson_occurrence_status</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
     <li><b>Методы <code>legacyType()</code> / <code>legacyAction()</code> / <code>fromLegacy()</code></b> — только для миграций backfill и unit-тестов реестра, не для HTTP/UI.</li>
   </ul>
   <p>Примеры событий расписания (вместо старых «type=6, action=60» в документации):</p>
@@ -110,6 +110,8 @@
       <tr><td>Объекты → История</td><td><code>GET /admin/locations/logs-data</code></td><td><code>location</code></td><td><code>locations.view</code></td></tr>
       <tr><td>Районы → История</td><td><code>GET /admin/districts/logs-data</code></td><td><code>district</code></td><td><code>districts.view</code></td></tr>
       <tr><td>Виды спорта → История</td><td><code>GET /admin/sport-types/logs-data</code></td><td><code>sport_type</code></td><td><code>sport_types.view</code></td></tr>
+      <tr><td>Абонементы (шаблоны) → История</td><td><code>GET /admin/lesson-packages/logs-data</code></td><td><code>lesson_package</code></td><td><code>lessonPackages.view</code></td></tr>
+      <tr><td>Статусы занятий → История</td><td><code>GET /admin/lesson-packages/occurrence-statuses/logs-data</code></td><td><code>lesson_occurrence_status</code></td><td><code>lessonOccurrenceStatuses.manage</code> (Gate)</td></tr>
       <tr><td>Заявки с сайта → История</td><td><code>GET /admin/school-leads/logs-data</code></td><td><code>school_lead</code></td><td><code>schoolLeads.view</code></td></tr>
       <tr><td>Шаблоны договоров → История</td><td><code>GET /client-contract-templates/logs-data</code></td><td><code>contract_template</code></td><td><code>contracts.view</code></td></tr>
       <tr><td>Договоры → История</td><td><code>GET /client-contracts/logs-data</code></td><td><code>contract</code></td><td><code>contracts.view</code></td></tr>
@@ -184,6 +186,17 @@
         <td><code>logs.data.sport-type</code></td>
         <td><code>sport_type.created</code>, <code>sport_type.updated</code>, <code>sport_type.deleted</code></td>
         <td><code>SportTypesAuditLogsFeatureTest</code>, <code>SportTypesPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td><a href="/docs/documentation/lesson-packages#packages-tab">/admin/lesson-packages</a> (шаблоны; дубль в справочниках)</td>
+        <td><code>logs.data.lesson-package</code></td>
+        <td><code>lesson_package.created</code>, <code>lesson_package.updated</code>, <code>lesson_package.deleted</code></td>
+        <td><code>LessonPackagesAuditLogsFeatureTest</code>, <code>LessonPackagesPageFullAccessFeatureTest</code></td>
+      </tr>
+      <tr>
+        <td>Статусы занятий (справочник)</td>
+        <td><code>lesson_occurrence_status.created</code>, <code>lesson_occurrence_status.updated</code>, <code>lesson_occurrence_status.deleted</code></td>
+        <td><code>LessonOccurrenceStatusesToolbarFeatureTest</code>, <code>LessonOccurrenceStatusesAjaxContractFeatureTest</code>, <code>LessonOccurrenceStatusesPageFullAccessFeatureTest</code></td>
       </tr>
     </tbody>
   </table>

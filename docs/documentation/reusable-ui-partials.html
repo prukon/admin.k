@@ -81,12 +81,14 @@
     <tbody>
       <tr><td><code>/admin/locations</code></td><td><code>admin/locations/index.blade.php</code></td></tr>
       <tr><td><code>/admin/sport-types</code></td><td><code>admin/sport-types/index.blade.php</code></td></tr>
+      <tr><td><code>/admin/lesson-packages/occurrence-statuses</code>, <code>/schedule/occurrence-statuses</code></td><td><code>admin/shared/occurrence_statuses_crud.blade.php</code></td></tr>
       <tr><td><code>/admin/teams</code></td><td><code>admin/team.blade.php</code></td></tr>
       <tr><td><code>/admin/users</code></td><td><code>admin/user.blade.php</code></td></tr>
       <tr><td><code>/admin/trainers</code></td><td><code>admin/trainers/index.blade.php</code></td></tr>
       <tr><td><code>/admin/administrators</code>, <code>/admin/roles/{name}</code></td><td><code>admin/role_staff/index.blade.php</code> (общий шаблон сотрудников по роли)</td></tr>
       <tr><td><code>/admin/school-leads</code></td><td><code>admin/school-leads/index.blade.php</code> (вкладка «Заявки» → <code>tabs/leads.blade.php</code>)</td></tr>
       <tr><td><code>/admin/lesson-packages/assignments</code></td><td><code>admin/lessonPackages/tabs/assignments.blade.php</code> (вкладка «Назначение абонементов»)</td></tr>
+      <tr><td><code>/admin/lesson-packages</code>, <code>/admin/directories/lesson-packages</code></td><td><code>admin/lessonPackages/tabs/packages.blade.php</code> (шаблоны абонементов: Добавить / История / Фильтры / Колонки)</td></tr>
       <tr><td>Отчёты «Платежи», «Задолженности», LTV, «Платежи по месяцам», «Платежные запросы», «Чеки», «Исходящие письма»</td><td><code>admin/report/*.blade.php</code> (вкладки в <code>admin/report/index.blade.php</code>)</td></tr>
       <tr><td><code>/admin/settings/logs</code></td><td><code>admin/setting/logs.blade.php</code></td></tr>
       <tr><td><code>/admin/settings/tbank-commissions</code></td><td><code>admin/setting/tbankCommissions.blade.php</code></td></tr>
@@ -425,6 +427,9 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
   <ul>
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — locations, list, badge, columns-settings, multiselect групп</li>
     <li><code>/admin/sport-types</code> — sort, text, count, badge</li>
+    <li><a href="/docs/documentation/schedule-journal#occurrence-statuses">Статусы занятий</a>
+      (<code>/admin/lesson-packages/occurrence-statuses</code>, <code>/schedule/occurrence-statuses</code>) —
+      sort, text (+ цветной badge title), badge, actions; <code>searching: false</code>; filters title/type/status/consumes</li>
     <li><a href="/docs/documentation/admin-users">/admin/users</a> — <code>image</code>, <code>link</code>, <code>badge</code>, <code>icon</code> (договор); 0 <code>custom</code></li>
     <li><code>/admin/trainers</code> — <code>image</code>, <code>list</code>, <code>actions</code> (0 <code>custom</code>)</li>
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
