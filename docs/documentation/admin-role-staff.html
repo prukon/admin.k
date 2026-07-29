@@ -69,11 +69,24 @@
   <ul>
     <li>Колонки: аватар, ФИО, email, телефон, активен, действия.</li>
     <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
-    <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, пароль (опционально), активен.</li>
-    <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code>.</li>
+    <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен.</li>
+    <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code>. Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
     <li><b>Удаление</b> — soft delete пользователя из модалки редактирования.</li>
     <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
   </ul>
+
+  <h3 id="staff-welcome-credentials">3.3) Welcome-письмо при создании (<code>send_welcome_email</code>)</h3>
+  <div class="note">
+    Общий механизм с учениками и тренерами (<a href="/docs/documentation/admin-users#user-welcome-manual-create">admin-users §5.1.4</a>).
+    Применяется и к <code>POST /admin/administrators</code>, и к <code>POST /admin/roles/{name}</code> (одна форма <code>role_staff/index.blade.php</code>).
+    <ul>
+      <li>UI: <code>#role-staff-create-send-welcome-email</code>, по умолчанию включён; пароль скрывается при checked.</li>
+      <li>При <code>true</code>: email обязателен; пароль генерируется; письмо синхронно.</li>
+      <li>AJAX 200: <code>message</code>, <code>user</code>, <code>welcome_email_sent</code>. SMTP fail → пользователь создан, флаг <code>false</code>.</li>
+      <li>Non-AJAX → redirect <code>back()</code> (обычно на index вкладки), запись создана.</li>
+      <li>Права: <code>users.view</code> + <code>users.role.update</code>.</li>
+    </ul>
+  </div>
 
   <h2 id="custom-roles">4) Кастомные роли — <code>/admin/roles/{name}</code></h2>
   <p>
@@ -98,7 +111,7 @@
     </tbody>
   </table>
 
-  <p>UI и поля — те же, что у администраторов (§3.2). <code>table_key</code> в настройках колонок: <code>role_staff_{roles.name}</code>.</p>
+  <p>UI и поля — те же, что у администраторов (§3.2, §<a href="#staff-welcome-credentials">3.3</a>). <code>table_key</code> в настройках колонок: <code>role_staff_{roles.name}</code>.</p>
 
   <h2>5) Валидация (store / update)</h2>
   <table>
@@ -107,9 +120,10 @@
     </thead>
     <tbody>
       <tr><td><code>name</code>, <code>lastname</code></td><td>обязательны, max 25</td></tr>
-      <tr><td><code>email</code></td><td>nullable, unique в <code>users</code></td></tr>
+      <tr><td><code>email</code></td><td>nullable, unique в <code>users</code>; обязателен при <code>send_welcome_email</code></td></tr>
       <tr><td><code>phone</code></td><td>nullable, unique, канон <code>+7XXXXXXXXXX</code></td></tr>
-      <tr><td><code>password</code></td><td>nullable, min 8 при создании</td></tr>
+      <tr><td><code>send_welcome_email</code></td><td>sometimes boolean; при true — генерация пароля + welcome-письмо</td></tr>
+      <tr><td><code>password</code></td><td>nullable, min 8 при создании; игнорируется при <code>send_welcome_email</code></td></tr>
       <tr><td><code>avatar</code></td><td>jpeg/png/webp, max 5120 КБ</td></tr>
       <tr><td><code>is_enabled</code></td><td>boolean</td></tr>
     </tbody>
@@ -137,6 +151,9 @@
       <li><code>AdministratorsPageFullAccessFeatureTest.php</code> — страница и все endpoint’ы <code>/admin/administrators</code>: 200 / 403 / 404</li>
       <li><code>CustomRoleUsersPageFullAccessFeatureTest.php</code> — <code>/admin/roles/{role}</code>: 200 / 403 / 404</li>
       <li><code>RoleStaffUsersFeatureTest.php</code> — валидация, CRUD, <code>table_key</code></li>
+      <li><code>RoleStaffCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
+      <li><code>RoleStaffCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>
+      <li><code>SendWelcomeEmailCreateFullAccessFeatureTest.php</code> — доступ и UI-маркеры чекбокса</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \

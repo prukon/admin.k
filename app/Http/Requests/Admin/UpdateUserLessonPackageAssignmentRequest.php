@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests\Admin;
 
 use App\Models\UserLessonPackage;
+use App\Models\UserTeamScheduleSlot;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -34,10 +36,19 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
         if ($this->has('payment_status') && $this->input('payment_status') === '') {
             $this->merge(['payment_status' => null]);
         }
+
+        if ($this->has('ends_at') && $this->input('ends_at') === '') {
+            $this->merge(['ends_at' => null]);
+        }
     }
 
     public function rules(): array
     {
+        $assignment = $this->assignmentFromRoute();
+        $periodSet = $assignment instanceof UserLessonPackage
+            && $assignment->starts_at !== null
+            && $assignment->ends_at !== null;
+
         $rules = [
             'fee_amount' => [
                 'required',
@@ -46,6 +57,12 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
                 'max:999999.99',
             ],
         ];
+
+        if ($periodSet) {
+            $rules['ends_at'] = ['required', 'date', 'date_format:Y-m-d'];
+        } else {
+            $rules['ends_at'] = ['prohibited'];
+        }
 
         if ($this->user()?->can('lessonPackages.manualPaid.manage')) {
             $rules['payment_status'] = ['nullable', Rule::in(['paid', 'unpaid'])];
@@ -59,6 +76,7 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
     {
         return [
             'fee_amount' => 'стоимость для ученика',
+            'ends_at' => 'дата окончания',
             'payment_status' => 'статус оплаты',
             'payment_comment' => 'комментарий к изменению статуса',
         ];
@@ -71,6 +89,10 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
             'fee_amount.numeric' => 'Стоимость должна быть числом.',
             'fee_amount.min' => 'Стоимость не может быть отрицательной.',
             'fee_amount.max' => 'Слишком большая сумма.',
+            'ends_at.required' => 'Укажите дату окончания.',
+            'ends_at.date' => 'Укажите корректную дату окончания.',
+            'ends_at.date_format' => 'Укажите корректную дату окончания.',
+            'ends_at.prohibited' => 'Период ещё не задан — дату окончания можно менять после привязки к календарю.',
             'payment_status.in' => 'Выберите корректный статус оплаты.',
         ];
     }
@@ -112,6 +134,43 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
 
                 if (! $allowsViaUnpaidTransition) {
                     $v->errors()->add('fee_amount', 'Нельзя менять сумму у оплаченного абонемента.');
+                }
+            }
+
+            $periodSet = $assignment->starts_at !== null && $assignment->ends_at !== null;
+            if (! $periodSet || $v->errors()->has('ends_at')) {
+                return;
+            }
+
+            $endsRaw = $this->input('ends_at');
+            if (! is_string($endsRaw) || $endsRaw === '') {
+                return;
+            }
+
+            try {
+                $newEnd = CarbonImmutable::createFromFormat('Y-m-d', $endsRaw)->startOfDay();
+            } catch (\Throwable) {
+                return;
+            }
+
+            $start = CarbonImmutable::parse($assignment->starts_at->format('Y-m-d'))->startOfDay();
+            if ($newEnd->lt($start)) {
+                $v->errors()->add('ends_at', 'Дата окончания не может быть раньше даты начала.');
+
+                return;
+            }
+
+            $lastLessonRaw = UserTeamScheduleSlot::query()
+                ->where('user_lesson_package_id', (int) $assignment->id)
+                ->max('starts_at');
+
+            if ($lastLessonRaw !== null && $lastLessonRaw !== '') {
+                $lastLesson = CarbonImmutable::parse((string) $lastLessonRaw)->startOfDay();
+                if ($newEnd->lt($lastLesson)) {
+                    $v->errors()->add(
+                        'ends_at',
+                        'Дата окончания не может быть раньше последнего занятия в календаре ('.$lastLesson->format('d.m.Y').').'
+                    );
                 }
             }
         });

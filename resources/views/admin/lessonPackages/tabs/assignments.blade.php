@@ -329,9 +329,18 @@
                                 <label class="form-label">Абонемент</label>
                                 <input type="text" class="form-control" id="ulp-modal-package" disabled readonly>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12" id="ulp-modal-period-readonly-wrap">
                                 <label class="form-label">Период</label>
                                 <input type="text" class="form-control" id="ulp-modal-period" disabled readonly>
+                            </div>
+                            <div class="col-md-6 d-none" id="ulp-modal-period-start-wrap">
+                                <label class="form-label" for="ulp-modal-period-start">Дата начала</label>
+                                <input type="date" class="form-control" id="ulp-modal-period-start" disabled readonly>
+                            </div>
+                            <div class="col-md-6 d-none" id="ulp-modal-period-end-wrap">
+                                <label class="form-label" for="ulp-modal-period-end">Дата окончания</label>
+                                <input type="date" class="form-control" id="ulp-modal-period-end">
+                                <div class="invalid-feedback d-block" id="ulp-modal-period-end-err"></div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Остаток занятий</label>
@@ -778,11 +787,17 @@
 
                 const alertBox = document.getElementById('ulp-modal-alert');
                 const feeErr = document.getElementById('ulp-modal-fee-err');
+                const periodEndErr = document.getElementById('ulp-modal-period-end-err');
                 const paymentCommentErr = document.getElementById('ulp-modal-payment-comment-err');
                 const paymentStatusSel = document.getElementById('ulp-modal-payment-status');
                 const paymentCommentEl = document.getElementById('ulp-modal-payment-comment');
                 const paymentCommentWrap = document.getElementById('ulp-modal-payment-comment-wrap');
                 const deleteBtn = document.getElementById('ulp-modal-delete');
+                const periodReadonlyWrap = document.getElementById('ulp-modal-period-readonly-wrap');
+                const periodStartWrap = document.getElementById('ulp-modal-period-start-wrap');
+                const periodEndWrap = document.getElementById('ulp-modal-period-end-wrap');
+                const periodStartInput = document.getElementById('ulp-modal-period-start');
+                const periodEndInput = document.getElementById('ulp-modal-period-end');
 
                 function showErr(msg) {
                     if (!alertBox) return;
@@ -793,6 +808,7 @@
                 function clearErrors() {
                     showErr('');
                     if (feeErr) feeErr.textContent = '';
+                    if (periodEndErr) periodEndErr.textContent = '';
                     if (paymentCommentErr) paymentCommentErr.textContent = '';
                 }
 
@@ -811,7 +827,26 @@
                     currentId = String(a.id);
                     document.getElementById('ulp-modal-user').value = a.user_display || '';
                     document.getElementById('ulp-modal-package').value = a.lesson_package_name || '';
-                    document.getElementById('ulp-modal-period').value = a.period_display || '';
+
+                    const periodEditable = !!a.period_editable;
+                    if (periodReadonlyWrap) {
+                        periodReadonlyWrap.classList.toggle('d-none', periodEditable);
+                    }
+                    if (periodStartWrap) {
+                        periodStartWrap.classList.toggle('d-none', !periodEditable);
+                    }
+                    if (periodEndWrap) {
+                        periodEndWrap.classList.toggle('d-none', !periodEditable);
+                    }
+                    document.getElementById('ulp-modal-period').value = a.period_display || 'не задан';
+                    if (periodStartInput) {
+                        periodStartInput.value = a.period_start || '';
+                    }
+                    if (periodEndInput) {
+                        periodEndInput.value = a.period_end || '';
+                        periodEndInput.disabled = !periodEditable;
+                    }
+
                     document.getElementById('ulp-modal-balance').value =
                         String(a.lessons_remaining) + ' / ' + String(a.lessons_total);
                     document.getElementById('ulp-modal-sched-type').value = a.schedule_type_label || '';
@@ -907,6 +942,10 @@
                     const feeInput = document.getElementById('ulp-modal-fee');
                     const body = { fee_amount: feeInput.value };
 
+                    if (periodEndInput && periodEndWrap && !periodEndWrap.classList.contains('d-none')) {
+                        body.ends_at = periodEndInput.value;
+                    }
+
                     if (paymentStatusSel) {
                         body.payment_status = paymentStatusSel.value;
                         const initial = paymentStatusSel.dataset.initial || '';
@@ -925,6 +964,11 @@
                                 ? payload.errors.fee_amount[0]
                                 : String(payload.errors.fee_amount);
                         }
+                        if (payload.errors && payload.errors.ends_at && periodEndErr) {
+                            periodEndErr.textContent = Array.isArray(payload.errors.ends_at)
+                                ? payload.errors.ends_at[0]
+                                : String(payload.errors.ends_at);
+                        }
                         if (payload.errors && payload.errors.payment_comment && paymentCommentErr) {
                             paymentCommentErr.textContent = Array.isArray(payload.errors.payment_comment)
                                 ? payload.errors.payment_comment[0]
@@ -940,7 +984,12 @@
                                 showErr(ps);
                             }
                         }
-                        if (!payload.errors || (!payload.errors.fee_amount && !payload.errors.payment_comment && !payload.errors.payment_status)) {
+                        if (!payload.errors || (
+                            !payload.errors.fee_amount
+                            && !payload.errors.ends_at
+                            && !payload.errors.payment_comment
+                            && !payload.errors.payment_status
+                        )) {
                             showErr((payload && payload.message) || ('Не удалось сохранить (' + status + ')'));
                         }
                         return;

@@ -105,6 +105,9 @@ final class SchoolLeadClientWelcomeCredentialsFeatureTest extends CrmTestCase
                 'sent'  => false,
                 'error' => 'SMTP down',
             ]);
+            $mock->shouldReceive('createResponseMessage')->once()->andReturn(
+                'Клиент создан, но не удалось отправить письмо на mail-fail@example.com.'
+            );
         });
 
         $this->asAdmin();

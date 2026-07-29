@@ -117,7 +117,9 @@ final class ClientWelcomeCredentialsFullAccessFeatureTest extends CrmTestCase
         $this->get(route('admin.user1'))
             ->assertOk()
             ->assertSee('id="send-welcome-credentials-btn"', false)
-            ->assertSee('Отправить новый пароль по почте', false);
+            ->assertSee('Отправить новый пароль по почте', false)
+            ->assertSee('id="create-send-welcome-email"', false)
+            ->assertSee('Отправить письмо', false);
     }
 
     public function test_school_leads_page_contains_create_client_workflow_markers(): void

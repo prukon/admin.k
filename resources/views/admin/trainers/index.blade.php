@@ -203,7 +203,24 @@
                                     <div class="invalid-feedback d-block" data-error-for="phone"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12" id="trainer-create-send-welcome-wrap">
+                                <div class="mb-3">
+                                    <input type="hidden" name="send_welcome_email" value="0">
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="send_welcome_email"
+                                               value="1"
+                                               id="trainer-create-send-welcome-email"
+                                               checked>
+                                        <label class="form-check-label" for="trainer-create-send-welcome-email">
+                                            Отправить письмо
+                                        </label>
+                                    </div>
+                                    <div class="invalid-feedback d-block" data-error-for="send_welcome_email"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6" id="trainer-create-password-wrap">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-password">Пароль</label>
                                     <input type="password" class="form-control" name="password" id="trainer-create-password" autocomplete="new-password" placeholder="Пароль" />
@@ -772,6 +789,23 @@
             const createForm = document.getElementById('trainerCreateForm');
             const editForm = document.getElementById('trainerEditForm');
 
+            function syncTrainerCreateWelcomeUi() {
+                if (!createForm) return;
+                const cb = createForm.querySelector('#trainer-create-send-welcome-email');
+                const pwdWrap = createForm.querySelector('#trainer-create-password-wrap');
+                const pwdInput = createForm.querySelector('#trainer-create-password');
+                if (!cb || !pwdWrap || !pwdInput) return;
+                const hide = cb.checked;
+                pwdWrap.classList.toggle('d-none', hide);
+                pwdInput.disabled = hide;
+                if (hide) pwdInput.value = '';
+            }
+
+            createForm?.querySelector('#trainer-create-send-welcome-email')
+                ?.addEventListener('change', syncTrainerCreateWelcomeUi);
+            document.getElementById('trainerCreateModal')?.addEventListener('shown.bs.modal', syncTrainerCreateWelcomeUi);
+            syncTrainerCreateWelcomeUi();
+
             document.getElementById('trainer-change-password-btn')?.addEventListener('click', function () {
                 this.style.display = 'none';
                 const passWrap = document.getElementById('trainer-change-pass-wrap');
@@ -832,6 +866,11 @@
                     modalId: 'trainerCreateModal',
                     resetForm: true,
                 });
+                if (ok) {
+                    const cb = createForm.querySelector('#trainer-create-send-welcome-email');
+                    if (cb) cb.checked = true;
+                    syncTrainerCreateWelcomeUi();
+                }
                 if (ok && typeof showSuccessModal === 'function') {
                     showSuccessModal(
                         'Создание тренера',

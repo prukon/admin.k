@@ -40,6 +40,54 @@
     <li><code>ends_at</code> — <code>starts_at</code> плюс <code>duration_days</code> из шаблона абонемента (<code>lesson_packages.duration_days</code>), по той же логике, что использовалась раньше при ручном вводе даты начала на форме назначения.</li>
   </ul>
   <p>Если период уже задан (обе даты не NULL), повторно через этот механизм он не перезаписывается. Для фиксированного абонемента повторная привязка того же назначения к календарю блокируется, если у записи уже есть даты периода или уже есть строки в <code>user_team_schedule_slots</code>.</p>
+  <p>После первой привязки дату окончания можно скорректировать вручную — см. <a href="#assignment-ends-at">§ ручная смена <code>ends_at</code></a>.</p>
+
+  <h2 id="assignment-ends-at">Ручная смена даты окончания (<code>ends_at</code>)</h2>
+  <div class="note">
+    UI только на вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>), модалка
+    <code>#ulpAssignmentEditModal</code> («Изменение абонемента»). На календаре школы отдельного редактора периода нет.
+  </div>
+  <h3>Поведение UI</h3>
+  <ul>
+    <li>Период ещё не задан (<code>starts_at</code>/<code>ends_at</code> = NULL) — одно поле «Период» со значением «не задан» (readonly). Флаг JSON <code>period_editable = false</code>.</li>
+    <li>Период задан — два поля: <b>Дата начала</b> (<code>#ulp-modal-period-start</code>, только просмотр) и <b>Дата окончания</b> (<code>#ulp-modal-period-end</code>, редактируемая). <code>period_editable = true</code>.</li>
+    <li>Ошибки валидации выводятся под полем окончания (<code>#ulp-modal-period-end-err</code>).</li>
+  </ul>
+  <h3>API и валидация</h3>
+  <ul>
+    <li>Endpoint: <code>PUT /admin/lesson-packages/assignments/{id}</code> (<code>UpdateUserLessonPackageAssignmentRequest</code>), право <code>lessonPackages.view</code>.</li>
+    <li>Если период задан — поле <code>ends_at</code> (<code>Y-m-d</code>) <strong>обязательно</strong> в теле запроса вместе с <code>fee_amount</code>.</li>
+    <li>Если период не задан — <code>ends_at</code> <strong>prohibited</strong> (попытка передать дату → <code>422</code>).</li>
+    <li><code>ends_at</code> ≥ <code>starts_at</code>.</li>
+    <li><code>ends_at</code> не раньше даты последнего занятия в календаре по назначению
+      (<code>max(user_team_schedule_slots.starts_at)</code> где <code>user_lesson_package_id</code> = id назначения).
+      Равенство дате последнего занятия разрешено.</li>
+    <li>AJAX (<code>X-Requested-With</code> / <code>Accept: application/json</code>): успех → <code>200</code>
+      <code>{ success, assignment }</code>; ошибка → <code>422</code> + <code>errors.ends_at</code>.</li>
+    <li>Non-AJAX: успех → <code>302</code> на вкладку назначений + flash «Назначение абонемента обновлено»;
+      валидация → <code>302</code> back + session <code>errors</code> (не пустой <code>200</code>).</li>
+  </ul>
+  <h3>Побочные эффекты при сохранении</h3>
+  <ul>
+    <li>Обновляется <code>user_lesson_packages.ends_at</code>; <code>starts_at</code> не меняется.</li>
+    <li>У всех связанных строк <code>user_team_schedule_slots</code> с этим <code>user_lesson_package_id</code>
+      поле <code>ends_at</code> синхронизируется с новым концом периода (как при создании flexible/fixed/разового —
+      там <code>utss.ends_at</code> = конец периода назначения; у пробного без ULP это не затрагивается).</li>
+    <li><strong>Не</strong> создаются и <strong>не</strong> удаляются занятия календаря: удлинение периода для фикса
+      не достраивает цепочку; укорачивание (в пределах «не раньше последнего занятия») не снимает уже стоящие слоты.</li>
+    <li><code>lessons_remaining</code> / <code>lessons_total</code> не меняются.</li>
+    <li>Правило конфликта <code>assign-fixed</code> не меняется: занятость ученика по-прежнему по
+      <code>utss.starts_at</code>, а не по «хвосту» <code>utss.ends_at</code>
+      (см. <a href="#fixed-schedule-overlap">§ конфликт</a>).</li>
+  </ul>
+  <p>Сервис: <code>UserLessonPackageCalendarPeriodService::updateEndsAt</code>. Request/контроллер:
+    <code>UpdateUserLessonPackageAssignmentRequest</code>, <code>LessonPackageController::updateAssignment</code>.</p>
+  <p class="small">Тесты: <code>LessonPackageAssignmentEndsAtAccessFeatureTest</code>,
+    <code>LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest</code>,
+    <code>LessonPackageAssignmentEndsAtAjaxContractFeatureTest</code>,
+    <code>LessonPackageAssignmentEndsAtWorkflowFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code>
+    (также частично в <code>LessonPackageAssignmentsTabFeatureTest</code>).</p>
 
   <h2>Гибкое расписание</h2>
   <p>Эндпоинт привязки одного занятия (<code>assign-flexible</code>) выставляет период при первом успешном сохранении привязки, если даты ещё были NULL. Одна успешная операция добавляет одну строку в <code>user_team_schedule_slots</code>; при достижении лимита по числу строк (равному <code>lessons_total</code>) следующая привязка возвращает ошибку валидации.</p>
@@ -137,7 +185,7 @@
   <p class="small"><strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule_users</code> + тот же справочник <code>lesson_occurrence_statuses</code>): журнал <strong>не</strong> списывает абонемент и не пишет в <code>user_lesson_occurrence_status_events</code>. Автосписание — только календарь школы. Управление справочником — вкладка «Статусы занятий» (см. <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>).</p>
 
   <h2>Сервис</h2>
-  <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>.</p>
+  <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>; ручная смена даты окончания — <code>::updateEndsAt</code>.</p>
 
   <h2>Пробные занятия (trial) в календаре школы</h2>
   <p>Пробное занятие не является назначением абонемента. Это отдельная запись в <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code> и <code>user_lesson_package_id = NULL</code>; у записи задаётся пробный баланс <code>trial_lessons_remaining</code> / <code>trial_lessons_total</code> (обычно 1/1). Списание пробного баланса и флаг «пробное уже использовано» у ученика описаны в <a href="/docs/documentation/school-schedule-calendar">разделе про календарь школы</a>.</p>
@@ -395,7 +443,9 @@
     <li>Тип абонемента (фиксированный / гибкий / разовое занятие)</li>
     <li>Действия (кнопка «Изменить»)</li>
   </ol>
-  <p class="small">Колонка «Период» (<code>starts_at</code>–<code>ends_at</code>) в таблице не выводится; период по-прежнему виден в модалке редактирования и в JSON строки DataTables (поле <code>period</code>).</p>
+  <p class="small">Колонка «Период» (<code>starts_at</code>–<code>ends_at</code>) в таблице не выводится; период виден в модалке редактирования
+    (и редактируется дата окончания — <a href="#assignment-ends-at">§ ручная смена ends_at</a>)
+    и в JSON строки DataTables (поле <code>period</code>, формат <code>j.m.y - j.m.y</code>).</p>
   <p>Настройки видимости колонок — per user в <code>user_table_settings</code>, ключ <code>lesson_packages_assignments</code>:</p>
   <ul>
     <li><code>GET /admin/lesson-packages/assignments/columns-settings</code> — <code>admin.lesson-packages.assignments.columns-settings.get</code></li>
@@ -426,7 +476,17 @@
         <td>Открыть / изменить</td>
         <td>Модалка <code>#ulpAssignmentEditModal</code>, загрузка и сохранение через <code>fetch</code></td>
         <td><code>GET …/assignments/{id}</code>, <code>PUT …/assignments/{id}</code></td>
-        <td>JSON: <code>{ assignment: { … } }</code> / <code>{ success, assignment }</code>. Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте). Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса.</td>
+        <td>
+          JSON: <code>{ assignment: { …, period_start, period_end, period_editable, … } }</code> /
+          <code>{ success, assignment }</code>.
+          Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте:
+          <code>fee_amount</code>, <code>ends_at</code>, <code>payment_comment</code>).
+          Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса.
+          Если период задан (<code>period_editable</code>), в PUT обязательно <code>ends_at</code>
+          (дата начала только для просмотра); иначе <code>ends_at</code> prohibited.
+          Non-AJAX PUT: успех → <code>302</code> + flash; валидация → <code>302</code> + session errors.
+          Подробности смены конца периода — <a href="#assignment-ends-at">§assignment-ends-at</a>.
+        </td>
       </tr>
       <tr>
         <td>Удалить</td>
@@ -448,11 +508,14 @@
       </tr>
     </tbody>
   </table>
-  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show/update/destroy/public-pay-link.</p>
+  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show / destroy / public-pay-link
+    (проверка в контроллере). На <code>PUT</code> update — <code>403</code>
+    (<code>UpdateUserLessonPackageAssignmentRequest::authorize</code> отклоняет чужой партнёр до контроллера).</p>
 
   <h3>Код</h3>
   <ul>
     <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
+    <li>Смена периода: <code>UserLessonPackageCalendarPeriodService::updateEndsAt</code>, Request <code>UpdateUserLessonPackageAssignmentRequest</code>.</li>
     <li>Фильтры списка: <code>applyAssignmentListFilters()</code>, <code>resolveAssignmentUserStatusFilter()</code> в том же контроллере.</li>
   </ul>
 
@@ -480,10 +543,14 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamAccessFeatureTest.php</code> — <code>teams-for-user</code>, store с <code>team_id</code> в multi legal entity, доступ</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры (кроме детальной логики <code>status</code> — см. файл выше), columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAccessFeatureTest.php</code> — доступ смены <code>ends_at</code>: guest → 302/401/403; без <code>lessonPackages.view</code> → 403; с правом → 200; чужой партнёр на update → 403 (FormRequest authorize); UI-маркеры модалки</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX PUT: успех → <code>302</code> + flash + обновление ULP/UTSS; валидация → <code>302</code> + session <code>errors.ends_at</code> (не пустой 200)</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAjaxContractFeatureTest.php</code> — AJAX show/update: структура JSON, успех + sync UTSS, граница «= последнее занятие», <code>422</code> под полем, prohibited без периода</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php</code> — [P2] страница → show → update <code>ends_at</code> → show/data без F5</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача public-pay-link, Init при открытии <code>/pay/ulp/{token}</code>, expired/404.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма без копеек, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки и <code>payment/ulp-public-pay.blade.php</code> (<code>node --check</code>).</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки (в т.ч. <code>ends_at</code> в модалке) и <code>payment/ulp-public-pay.blade.php</code> (<code>node --check</code>).</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php \
   tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php \
@@ -496,7 +563,12 @@ php artisan test --env=testing tests/Feature/Crm/Directories/DirectoriesLessonPa
   tests/Feature/Crm/Directories/DirectoriesLessonPackagesFeatureTest.php \
   tests/Feature/Crm/Directories/DirectoriesLessonPackagesNonAjaxSafetyNetFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php
-php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code></pre>
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php
+php artisan test --env=testing --filter=test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code></pre>
 </div>
 </body>
 </html>

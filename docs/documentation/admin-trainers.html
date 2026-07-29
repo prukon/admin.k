@@ -76,7 +76,7 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.index</code></td><td>Список тренеров (HTML)</td></tr>
       <tr><td>GET</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.show</code></td><td>JSON карточки (редактирование)</td></tr>
-      <tr><td>POST</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.store</code></td><td>Создание user + profile + опционально <code>team_ids</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.store</code></td><td>Создание user + profile + опционально <code>team_ids</code>; опционально welcome-письмо (§<a href="#trainer-welcome-credentials">6.2</a>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.update</code></td><td>Обновление user + profile + <code>team_ids</code></td></tr>
       <tr><td>DELETE</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.destroy</code></td><td>Soft delete профиля и пользователя</td></tr>
     </tbody>
@@ -141,8 +141,8 @@
   <h2>6) UI страницы <code>/admin/trainers</code></h2>
   <ul>
     <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку», статус, действия.</li>
-    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны; поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (число ≥ 0).</li>
-    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>).</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>); поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (число ≥ 0).</li>
+    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
@@ -153,6 +153,18 @@
     Изменение в карточке тренера не перезаписывает уже существующий черновик за прошлые/текущие месяцы.
   </p>
   <p>Права на расчёт ЗП — отдельные: <code>schedule.trainerSalary.view</code> / <code>schedule.trainerSalary.manage</code> (не <code>trainers.view</code>).</p>
+
+  <h3 id="trainer-welcome-credentials">6.2) Welcome-письмо при создании (<code>send_welcome_email</code>)</h3>
+  <div class="note">
+    Тот же механизм, что у учеников и сотрудников (<a href="/docs/documentation/admin-users#user-welcome-manual-create">admin-users §5.1.4</a>).
+    <ul>
+      <li>UI: чекбокс «Отправить письмо» (<code>#trainer-create-send-welcome-email</code>), по умолчанию включён; при включении поле пароля скрывается.</li>
+      <li>При <code>true</code>: email обязателен; пароль генерируется на сервере; синхронная отправка <code>ClientWelcomeCredentialsMail</code>.</li>
+      <li>AJAX 200: <code>message</code>, <code>trainer</code>, <code>welcome_email_sent</code>. SMTP fail → пользователь/профиль созданы, <code>welcome_email_sent: false</code>.</li>
+      <li>Non-AJAX POST → redirect 302 на <code>admin.trainers.index</code>, запись создана.</li>
+      <li>Право: <code>trainers.view</code> (как у всего раздела).</li>
+    </ul>
+  </div>
 
   <h2 id="schedule-journal-trainer">7) Тренер в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
@@ -202,6 +214,8 @@
     <ul>
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — CRUD, права, валидация, sync роли</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — store/show team_ids, user update, смена роли</li>
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — привязка через группу и update тренера</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер» на <code>/admin/teams</code></li>

@@ -274,7 +274,7 @@
   <p>Функции обновления кнопок: <code>applyFlexibleBindButtonState</code>, <code>applyFixedBindButtonState</code>, <code>applySingleBindButtonState</code> — вызываются из <code>applySlotUserBindActionsPayload</code> после каждого ответа <code>slot-user-bind-actions</code>.</p>
 
   <h2>Привязка абонементов и лимит строк календаря</h2>
-  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода назначения <code>user_lesson_packages.starts_at</code>/<code>ends_at</code>, полей строки календаря и конфликта fixed — в <a href="/docs/documentation/lesson-packages">«Абонементы»</a> и <a href="#school-schedule-fixed-overlap">§ конфликт assign-fixed</a>.</p>
+  <p>При успешной привязке гибкого, фиксированного или разового абонемента к слотам создаются строки <code>user_team_schedule_slots</code> с заполненным <code>user_lesson_package_id</code>. Поле <code>user_lesson_packages.lessons_remaining</code> при этом <strong>не изменяется</strong> — оно корректируется только при смене статуса занятия (см. ниже). Ограничение по объёму абонемента выражено в том, что число таких строк по назначению не может превысить <code>lessons_total</code>. Детали периода назначения <code>user_lesson_packages.starts_at</code>/<code>ends_at</code> (автопри первой привязке и <a href="/docs/documentation/lesson-packages#assignment-ends-at">ручная смена конца</a>), полей строки календаря и конфликта fixed — в <a href="/docs/documentation/lesson-packages">«Абонементы»</a> и <a href="#school-schedule-fixed-overlap">§ конфликт assign-fixed</a>.</p>
   <p class="small">У строк календаря абонемента: <code>starts_at</code> = дата занятия, <code>ends_at</code> = конец периода назначения. У пробного: <code>ends_at = starts_at</code>. Отображение в сетке и статусы ключуют занятие по <code>starts_at</code>.</p>
 
   <h2>Статусы занятия и списание остатков</h2>
@@ -689,9 +689,11 @@
   </ul>
 
   <h2>Связь с логикой абонементов</h2>
-  <p>Период назначения <code>starts_at</code>/<code>ends_at</code>, лимит строк календаря по <code>lessons_total</code>, разовое занятие (<code>no_schedule</code>) и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
+  <p>Период назначения <code>starts_at</code>/<code>ends_at</code> (в т.ч. <a href="/docs/documentation/lesson-packages#assignment-ends-at">ручная смена <code>ends_at</code></a>),
+    лимит строк календаря по <code>lessons_total</code>, разовое занятие (<code>no_schedule</code>) и отсутствие списания <code>lessons_remaining</code> при самой привязке описаны в
     <a href="/docs/documentation/lesson-packages">«Абонементы: назначение и период с календаря школы»</a>. Текущая страница дополняет это правилами статусов, пробного баланса, разовой записи из модалки слота, полей JSON недели и
-    <a href="#school-schedule-export">выгрузкой Excel</a>; разметка модалки и право <code>locations.view</code> — только отображение.</p>
+    <a href="#school-schedule-export">выгрузкой Excel</a>; разметка модалки и право <code>locations.view</code> — только отображение.
+    Синхронизация <code>utss.ends_at</code> при ручной смене конца периода <strong>не</strong> меняет ключ конфликта/сетки — он остаётся <code>starts_at</code>.</p>
 
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a></p>
 

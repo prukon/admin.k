@@ -28,6 +28,7 @@ use App\Services\Payments\UserLessonPackagePublicPayService;
 use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
+use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Support\PartnerLegalEntityMode;
 use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
@@ -860,6 +861,7 @@ final class LessonPackageController extends AdminBaseController
         UpdateUserLessonPackageAssignmentRequest $request,
         UserLessonPackage $assignment,
         UserLessonPackagePublicPayService $publicPayService,
+        UserLessonPackageCalendarPeriodService $calendarPeriodService,
     ): JsonResponse|RedirectResponse {
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
@@ -868,7 +870,7 @@ final class LessonPackageController extends AdminBaseController
         $feeWas = round((float) $assignment->fee_amount, 2);
         $feeChanging = abs($feeWas - $fee) > 0.00001;
 
-        DB::transaction(function () use ($request, $assignment, $fee, $validated) {
+        DB::transaction(function () use ($request, $assignment, $fee, $validated, $calendarPeriodService) {
             $assignment->refresh();
 
             $canManual = $request->user()->can('lessonPackages.manualPaid.manage');
@@ -899,6 +901,8 @@ final class LessonPackageController extends AdminBaseController
                     $assignment->fee_amount = $fee;
                     $assignment->save();
 
+                    $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
+
                     return;
                 }
 
@@ -915,6 +919,8 @@ final class LessonPackageController extends AdminBaseController
                     ]);
                     $assignment->save();
 
+                    $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
+
                     return;
                 }
             }
@@ -925,6 +931,8 @@ final class LessonPackageController extends AdminBaseController
 
             $assignment->fee_amount = $fee;
             $assignment->save();
+
+            $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
         });
 
         $assignment->refresh();
@@ -1064,6 +1072,8 @@ final class LessonPackageController extends AdminBaseController
                 .' - '.$ulp->ends_at->format('j.m.y');
         }
 
+        $periodEditable = $ulp->starts_at !== null && $ulp->ends_at !== null;
+
         return [
             'id' => (int) $ulp->id,
             'user_display' => $userDisplay,
@@ -1071,6 +1081,7 @@ final class LessonPackageController extends AdminBaseController
             'period_display' => $periodDisplay,
             'period_start' => $ulp->starts_at?->format('Y-m-d'),
             'period_end' => $ulp->ends_at?->format('Y-m-d'),
+            'period_editable' => $periodEditable,
             'lessons_remaining' => (int) $ulp->lessons_remaining,
             'lessons_total' => (int) $ulp->lessons_total,
             'schedule_type_label' => $schedLabel,
@@ -1084,6 +1095,24 @@ final class LessonPackageController extends AdminBaseController
             'manual_paid_by_display' => $manualByDisplay,
             'can_delete' => (int) $ulp->lessons_remaining === (int) $ulp->lessons_total,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function applyAssignmentEndsAtIfPresent(
+        UserLessonPackage $assignment,
+        array $validated,
+        UserLessonPackageCalendarPeriodService $calendarPeriodService,
+    ): void {
+        if (! array_key_exists('ends_at', $validated) || $validated['ends_at'] === null) {
+            return;
+        }
+
+        $calendarPeriodService->updateEndsAt(
+            $assignment,
+            CarbonImmutable::createFromFormat('Y-m-d', (string) $validated['ends_at'])->startOfDay()
+        );
     }
 
     /**

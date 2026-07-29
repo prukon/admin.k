@@ -168,7 +168,22 @@
                                 @include('includes.fields.phone-input', ['name' => 'phone', 'id' => 'role-staff-create-phone'])
                                 <div class="invalid-feedback d-block" data-error-for="phone"></div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12" id="role-staff-create-send-welcome-wrap">
+                                <input type="hidden" name="send_welcome_email" value="0">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="send_welcome_email"
+                                           value="1"
+                                           id="role-staff-create-send-welcome-email"
+                                           checked>
+                                    <label class="form-check-label" for="role-staff-create-send-welcome-email">
+                                        Отправить письмо
+                                    </label>
+                                </div>
+                                <div class="invalid-feedback d-block" data-error-for="send_welcome_email"></div>
+                            </div>
+                            <div class="col-12 col-md-6" id="role-staff-create-password-wrap">
                                 <label class="form-label" for="role-staff-create-password">Пароль</label>
                                 <input type="password" class="form-control" name="password" id="role-staff-create-password" autocomplete="new-password">
                                 <div class="invalid-feedback d-block" data-error-for="password"></div>
@@ -485,6 +500,27 @@
             const createForm = document.getElementById('roleStaffCreateForm');
             const editForm = document.getElementById('roleStaffEditForm');
 
+            function syncRoleStaffCreateWelcomeUi() {
+                if (!createForm) return;
+                const cb = createForm.querySelector('#role-staff-create-send-welcome-email');
+                const pwdWrap = createForm.querySelector('#role-staff-create-password-wrap');
+                const pwdInput = createForm.querySelector('#role-staff-create-password');
+                if (!cb || !pwdWrap || !pwdInput) return;
+                const hide = cb.checked;
+                pwdWrap.classList.toggle('d-none', hide);
+                pwdInput.disabled = hide;
+                if (hide) pwdInput.value = '';
+            }
+
+            createForm?.querySelector('#role-staff-create-send-welcome-email')
+                ?.addEventListener('change', syncRoleStaffCreateWelcomeUi);
+            document.getElementById('roleStaffCreateModal')?.addEventListener('shown.bs.modal', function () {
+                const cb = createForm?.querySelector('#role-staff-create-send-welcome-email');
+                if (cb) cb.checked = true;
+                syncRoleStaffCreateWelcomeUi();
+            });
+            syncRoleStaffCreateWelcomeUi();
+
             document.getElementById('roleStaffCreateSubmit')?.addEventListener('click', async function () {
                 clearErrors(createForm);
                 const result = await postForm(cfg.storeUrl, createForm, 'POST');
@@ -492,6 +528,16 @@
                     reloadTable();
                     bootstrap.Modal.getInstance(document.getElementById('roleStaffCreateModal'))?.hide();
                     createForm.reset();
+                    const cb = createForm.querySelector('#role-staff-create-send-welcome-email');
+                    if (cb) cb.checked = true;
+                    syncRoleStaffCreateWelcomeUi();
+                    if (typeof showSuccessModal === 'function') {
+                        showSuccessModal(
+                            'Создание пользователя',
+                            result.data.message || 'Пользователь создан',
+                            0
+                        );
+                    }
                     return;
                 }
                 if (result.status === 422) {

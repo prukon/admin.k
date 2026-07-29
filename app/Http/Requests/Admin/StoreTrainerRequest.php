@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ValidatesSendWelcomeEmail;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTrainerRequest extends FormRequest
 {
+    use ValidatesSendWelcomeEmail;
+
     public function authorize(): bool
     {
         return $this->user()?->can('trainers.view') ?? false;
@@ -43,13 +46,14 @@ class StoreTrainerRequest extends FormRequest
         }
 
         $this->mergeSalaryRubles(['default_base_salary', 'default_rate_per_training']);
+        $this->prepareSendWelcomeEmailForValidation();
     }
 
     public function rules(): array
     {
         $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
 
-        return [
+        return array_merge([
             'lastname' => ['required', 'string', 'max:25'],
             'name' => ['required', 'string', 'max:25'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
@@ -70,12 +74,19 @@ class StoreTrainerRequest extends FormRequest
                     }
                 }),
             ],
-        ];
+        ], $this->sendWelcomeEmailRules());
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $this->validateSendWelcomeEmailRequiresAddress($validator);
+        });
     }
 
     public function attributes(): array
     {
-        return [
+        return array_merge([
             'lastname' => 'фамилия',
             'name' => 'имя',
             'email' => 'email',
@@ -89,7 +100,7 @@ class StoreTrainerRequest extends FormRequest
             'avatar' => 'аватар',
             'team_ids' => 'группы',
             'team_ids.*' => 'группа',
-        ];
+        ], $this->sendWelcomeEmailAttributes());
     }
 
     public function messages(): array

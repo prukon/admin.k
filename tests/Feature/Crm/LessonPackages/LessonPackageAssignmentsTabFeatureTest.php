@@ -7,9 +7,11 @@ namespace Tests\Feature\Crm\LessonPackages;
 use App\Models\LessonPackage;
 use App\Models\Location;
 use App\Models\Team;
+use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTableSetting;
+use App\Models\UserTeamScheduleSlot;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -669,6 +671,171 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         )
             ->assertStatus(422)
             ->assertJsonValidationErrors(['fee_amount']);
+    }
+
+    public function test_show_assignment_period_editable_flag(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $ctx = $this->seedAssignmentContext();
+
+        $this->getJson(
+            route('admin.lesson-packages.assignments.show', ['assignment' => $ctx['assignment']->id]),
+            $this->ajaxHeaders()
+        )
+            ->assertOk()
+            ->assertJsonPath('assignment.period_editable', false)
+            ->assertJsonPath('assignment.period_start', null)
+            ->assertJsonPath('assignment.period_end', null);
+
+        $ctx['assignment']->forceFill([
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-05-01',
+        ])->save();
+
+        $this->getJson(
+            route('admin.lesson-packages.assignments.show', ['assignment' => $ctx['assignment']->id]),
+            $this->ajaxHeaders()
+        )
+            ->assertOk()
+            ->assertJsonPath('assignment.period_editable', true)
+            ->assertJsonPath('assignment.period_start', '2026-04-01')
+            ->assertJsonPath('assignment.period_end', '2026-05-01');
+    }
+
+    public function test_update_assignment_ends_at_success_and_syncs_calendar_rows(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $ctx = $this->seedAssignmentContext(scheduleType: 'flexible');
+
+        $ctx['assignment']->forceFill([
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-05-01',
+        ])->save();
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'weekday' => 1,
+            'time_start' => '10:00:00',
+            'time_end' => '11:00:00',
+            'date_start' => '2020-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $utss = UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $ctx['student']->id,
+            'user_lesson_package_id' => $ctx['assignment']->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => '2026-04-06',
+            'ends_at' => '2026-05-01',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->putJson(
+            route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]),
+            [
+                'fee_amount' => '100.00',
+                'ends_at' => '2026-06-15',
+            ],
+            $this->ajaxHeaders()
+        )
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('assignment.period_end', '2026-06-15')
+            ->assertJsonPath('assignment.period_start', '2026-04-01');
+
+        $this->assertDatabaseHas('user_lesson_packages', [
+            'id' => $ctx['assignment']->id,
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-06-15',
+        ]);
+        $this->assertDatabaseHas('user_team_schedule_slots', [
+            'id' => $utss->id,
+            'ends_at' => '2026-06-15',
+        ]);
+        $this->assertSame(1, UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', $ctx['assignment']->id)
+            ->count());
+    }
+
+    public function test_update_assignment_ends_at_rejects_before_last_lesson_and_before_start(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $ctx = $this->seedAssignmentContext(scheduleType: 'flexible');
+
+        $ctx['assignment']->forceFill([
+            'starts_at' => '2026-04-01',
+            'ends_at' => '2026-05-01',
+        ])->save();
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $slot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'weekday' => 1,
+            'time_start' => '10:00:00',
+            'time_end' => '11:00:00',
+            'date_start' => '2020-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        UserTeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'user_id' => $ctx['student']->id,
+            'user_lesson_package_id' => $ctx['assignment']->id,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => '2026-04-20',
+            'ends_at' => '2026-05-01',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->putJson(
+            route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]),
+            [
+                'fee_amount' => '100.00',
+                'ends_at' => '2026-04-10',
+            ],
+            $this->ajaxHeaders()
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        $this->putJson(
+            route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]),
+            [
+                'fee_amount' => '100.00',
+                'ends_at' => '2026-03-01',
+            ],
+            $this->ajaxHeaders()
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        $this->assertDatabaseHas('user_lesson_packages', [
+            'id' => $ctx['assignment']->id,
+            'ends_at' => '2026-05-01',
+        ]);
+    }
+
+    public function test_update_assignment_ends_at_prohibited_when_period_not_set(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $ctx = $this->seedAssignmentContext();
+
+        $this->putJson(
+            route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]),
+            [
+                'fee_amount' => '100.00',
+                'ends_at' => '2026-06-01',
+            ],
+            $this->ajaxHeaders()
+        )
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
     }
 
     public function test_destroy_assignment_ajax_contract_success_and_business_rejection(): void

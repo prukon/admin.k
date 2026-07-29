@@ -29,6 +29,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
         yield 'admin users page' => ['admin/user.blade.php'];
         yield 'admin users parent form ajax handlers' => ['admin/users/_parent_form.blade.php'];
+        yield 'admin trainers create welcome email ajax' => ['admin/trainers/index.blade.php'];
+        yield 'admin role staff create welcome email ajax' => ['admin/role_staff/index.blade.php'];
         yield 'school leads tab ajax handlers' => ['admin/school-leads/tabs/leads.blade.php'];
         yield 'account user parent form' => ['account/users.blade.php'];
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
@@ -150,6 +152,59 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($fixedScriptFound, 'В schoolSchedule.blade.php не найден script с submitSchoolCalSlotFixedRegistration');
+    }
+
+    /**
+     * P1: inline JS модалки смены даты окончания назначения (ends_at + errors под полем).
+     */
+    public function test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('ulp-modal-period-end', $content);
+        $this->assertStringContainsString('ulp-modal-period-end-err', $content);
+        $this->assertStringContainsString('period_editable', $content);
+        $this->assertStringContainsString('body.ends_at', $content);
+        $this->assertStringContainsString('payload.errors.ends_at', $content);
+        $this->assertStringContainsString('ulp-modal-save', $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $endsAtScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'body.ends_at') && ! str_contains($rawScript, 'period_editable')) {
+                continue;
+            }
+            $endsAtScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-ends-at-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in assignment ends_at modal script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($endsAtScriptFound, 'В assignments.blade.php не найден script с period_editable / ends_at');
     }
 
     /**

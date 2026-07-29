@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Models\Role;
-use App\Services\PartnerContext;
+use App\Http\Requests\Concerns\ValidatesSendWelcomeEmail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreRoleStaffUserRequest extends FormRequest
 {
+    use ValidatesSendWelcomeEmail;
+
     public function authorize(): bool
     {
         return $this->user()?->can('users.role.update') ?? false;
@@ -34,11 +35,13 @@ class StoreRoleStaffUserRequest extends FormRequest
         if ($password === null || trim((string) $password) === '') {
             $this->merge(['password' => null]);
         }
+
+        $this->prepareSendWelcomeEmailForValidation();
     }
 
     public function rules(): array
     {
-        return [
+        return array_merge([
             'lastname' => ['required', 'string', 'max:25'],
             'name'     => ['required', 'string', 'max:25'],
             'email'    => ['nullable', 'email', 'max:255', 'unique:users,email'],
@@ -46,12 +49,19 @@ class StoreRoleStaffUserRequest extends FormRequest
             'password' => ['nullable', 'string', 'min:8', 'max:255'],
             'is_enabled' => ['nullable', 'boolean'],
             'avatar'   => ['nullable', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],
-        ];
+        ], $this->sendWelcomeEmailRules());
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $this->validateSendWelcomeEmailRequiresAddress($validator);
+        });
     }
 
     public function attributes(): array
     {
-        return [
+        return array_merge([
             'lastname' => 'фамилия',
             'name'     => 'имя',
             'email'    => 'email',
@@ -59,7 +69,7 @@ class StoreRoleStaffUserRequest extends FormRequest
             'password' => 'пароль',
             'is_enabled' => 'активен',
             'avatar'   => 'аватар',
-        ];
+        ], $this->sendWelcomeEmailAttributes());
     }
 
     public function messages(): array

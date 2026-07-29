@@ -584,6 +584,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <h4 id="school-lead-welcome-credentials">5.7.1) Welcome-письмо при «Создать клиента»</h4>
   <div class="note">
     При конвертации лида письмо отправляется <b>всегда</b> (если SMTP доступен): логин = email родителя из заявки, пароль — сгенерированный сервером (plain-text в теле письма).
+    Чекбокс <code>send_welcome_email</code> из ручного «Добавить» здесь <b>не</b> используется — см. <a href="/docs/documentation/admin-users#user-welcome-manual-create">admin-users §5.1.4</a>.
     Повторная отправка пароля уже созданному ученику — из модалки edit на <a href="/docs/documentation/admin-users#user-welcome-credentials">/admin/users</a> (кнопка «Отправить новый пароль по почте»).
     Письма попадают в отчёт <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a> (<code>ClientWelcomeCredentialsMail</code>, класс Mailable в фильтре; просмотр — модалка на списке, §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a>).
     Backend: <code>ClientWelcomeCredentialsService</code>, <code>UserController::store</code> / <code>sendWelcomeCredentials</code>. Подробный контракт AJAX/non-AJAX — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\UserLessonPackage;
+use App\Models\UserTeamScheduleSlot;
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
 
@@ -47,5 +48,54 @@ final class UserLessonPackageCalendarPeriodService
         $ulp->starts_at = $start->toDateString();
         $ulp->ends_at = $end->toDateString();
         $ulp->save();
+    }
+
+    /**
+     * Меняет только {@code ends_at} уже заданного периода. {@code starts_at} не трогает.
+     * Синхронизирует {@code ends_at} у связанных строк календаря; новые занятия не создаёт и не удаляет.
+     *
+     * @throws InvalidArgumentException если период не задан или новая дата раньше начала / последнего занятия
+     */
+    public function updateEndsAt(UserLessonPackage $ulp, CarbonImmutable $newEndsAt): void
+    {
+        if ($ulp->starts_at === null || $ulp->ends_at === null) {
+            throw new InvalidArgumentException(
+                'Период назначения ещё не задан — дату окончания можно менять после привязки к календарю.'
+            );
+        }
+
+        $start = CarbonImmutable::parse($ulp->starts_at->format('Y-m-d'))->startOfDay();
+        $end = $newEndsAt->startOfDay();
+
+        if ($end->lt($start)) {
+            throw new InvalidArgumentException(
+                'Дата окончания не может быть раньше даты начала.'
+            );
+        }
+
+        $lastLessonRaw = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', (int) $ulp->id)
+            ->max('starts_at');
+
+        if ($lastLessonRaw !== null && $lastLessonRaw !== '') {
+            $lastLesson = CarbonImmutable::parse((string) $lastLessonRaw)->startOfDay();
+            if ($end->lt($lastLesson)) {
+                throw new InvalidArgumentException(
+                    'Дата окончания не может быть раньше последнего занятия в календаре ('.$lastLesson->format('d.m.Y').').'
+                );
+            }
+        }
+
+        $endYmd = $end->toDateString();
+        if ($ulp->ends_at->format('Y-m-d') === $endYmd) {
+            return;
+        }
+
+        $ulp->ends_at = $endYmd;
+        $ulp->save();
+
+        UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', (int) $ulp->id)
+            ->update(['ends_at' => $endYmd]);
     }
 }

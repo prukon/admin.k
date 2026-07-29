@@ -11,11 +11,13 @@ use App\Models\User;
 use App\Models\Team;
 use App\Services\PartnerContext;
 use App\Services\TeamTrainerSyncService;
+use App\Services\Users\ClientWelcomeCredentialsService;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
@@ -27,6 +29,7 @@ class TrainerController extends AdminBaseController
     public function __construct(
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
+        private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
     ) {
         parent::__construct($partnerContext);
     }
@@ -201,6 +204,15 @@ class TrainerController extends AdminBaseController
         $trainerRoleId = $this->trainerRoleId();
 
         $data = $request->validated();
+        $sendWelcomeEmail = !empty($data['send_welcome_email']);
+        unset($data['send_welcome_email']);
+
+        $welcomeCredentialsPlainPassword = null;
+        if ($sendWelcomeEmail) {
+            $welcomeCredentialsPlainPassword = $this->welcomeCredentialsService->generatePassword();
+            $data['password'] = $welcomeCredentialsPlainPassword;
+        }
+
         $profileData = [
             'partner_id' => $partnerId,
             'description' => $data['description'] ?? null,
@@ -248,10 +260,35 @@ class TrainerController extends AdminBaseController
             ], 422);
         }
 
+        $responseMessage = 'Тренер создан';
+        $welcomeEmailSent = false;
+        if ($sendWelcomeEmail && $welcomeCredentialsPlainPassword !== null && $profile->user) {
+            $mailResult = $this->welcomeCredentialsService->send(
+                $profile->user,
+                $welcomeCredentialsPlainPassword,
+                $partnerId,
+            );
+            $welcomeEmailSent = $mailResult['sent'];
+            $responseMessage = $this->welcomeCredentialsService->createResponseMessage(
+                'Тренер создан',
+                $profile->user->email,
+                $mailResult['sent'],
+            );
+
+            if (!$mailResult['sent'] && !empty($mailResult['error'])) {
+                Log::warning('[TrainerController@store] welcome credentials email failed', [
+                    'user_id'    => $profile->user->id,
+                    'partner_id' => $partnerId,
+                    'error'      => $mailResult['error'],
+                ]);
+            }
+        }
+
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Тренер создан',
+                'message' => $responseMessage,
                 'trainer' => $this->trainerPayload($profile),
+                'welcome_email_sent' => $welcomeEmailSent,
             ]);
         }
 

@@ -9,9 +9,11 @@ use App\Http\Requests\Admin\UpdateRoleStaffUserRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\PartnerContext;
+use App\Services\Users\ClientWelcomeCredentialsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
@@ -28,8 +30,10 @@ class RoleStaffUserController extends AdminBaseController
         'trainer',
     ];
 
-    public function __construct(PartnerContext $partnerContext)
-    {
+    public function __construct(
+        PartnerContext $partnerContext,
+        private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
+    ) {
         parent::__construct($partnerContext);
     }
 
@@ -251,6 +255,15 @@ class RoleStaffUserController extends AdminBaseController
         $data = $request->validated();
         $enabled = (bool) ($data['is_enabled'] ?? true);
 
+        $sendWelcomeEmail = !empty($data['send_welcome_email']);
+        unset($data['send_welcome_email']);
+
+        $welcomeCredentialsPlainPassword = null;
+        if ($sendWelcomeEmail) {
+            $welcomeCredentialsPlainPassword = $this->welcomeCredentialsService->generatePassword();
+            $data['password'] = $welcomeCredentialsPlainPassword;
+        }
+
         try {
             $user = DB::transaction(function () use ($request, $data, $partnerId, $role, $enabled) {
                 $user = User::create([
@@ -282,10 +295,35 @@ class RoleStaffUserController extends AdminBaseController
             ], 422);
         }
 
+        $responseMessage = 'Пользователь создан';
+        $welcomeEmailSent = false;
+        if ($sendWelcomeEmail && $welcomeCredentialsPlainPassword !== null) {
+            $mailResult = $this->welcomeCredentialsService->send(
+                $user,
+                $welcomeCredentialsPlainPassword,
+                $partnerId,
+            );
+            $welcomeEmailSent = $mailResult['sent'];
+            $responseMessage = $this->welcomeCredentialsService->createResponseMessage(
+                'Пользователь создан',
+                $user->email,
+                $mailResult['sent'],
+            );
+
+            if (!$mailResult['sent'] && !empty($mailResult['error'])) {
+                Log::warning('[RoleStaffUserController@store] welcome credentials email failed', [
+                    'user_id'    => $user->id,
+                    'partner_id' => $partnerId,
+                    'error'      => $mailResult['error'],
+                ]);
+            }
+        }
+
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Пользователь создан',
+                'message' => $responseMessage,
                 'user'    => $this->userPayload($user),
+                'welcome_email_sent' => $welcomeEmailSent,
             ]);
         }
 

@@ -90,6 +90,23 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12" id="create-send-welcome-wrap">
+                                                    <div class="mb-3">
+                                                        <input type="hidden" name="send_welcome_email" value="0">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input"
+                                                                   type="checkbox"
+                                                                   name="send_welcome_email"
+                                                                   value="1"
+                                                                   id="create-send-welcome-email"
+                                                                   checked>
+                                                            <label class="form-check-label" for="create-send-welcome-email">
+                                                                Отправить письмо
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                                 <div class="col-12 col-md-6">
                                                     <div class="mb-3 wrap-cur-password">
                                                         <label for="create-password" class="form-label">Пароль</label>
@@ -214,6 +231,29 @@
 
         showCurPassword();
 
+        function syncCreateWelcomeCredentialsUi() {
+            const isFromLead = !!String($('#create-school-lead-id').val() || '').trim();
+            const $wrap = $('#create-send-welcome-wrap');
+            const $pwd = $('#create-user-form .wrap-cur-password');
+            const $cb = $('#create-send-welcome-email');
+            const $pwdCol = $pwd.closest('.col-12, .col-md-6');
+
+            if (isFromLead) {
+                $wrap.addClass('d-none');
+                $pwdCol.addClass('d-none');
+                $pwd.find('input').prop('disabled', true).val('');
+                return;
+            }
+
+            $wrap.removeClass('d-none');
+            const send = $cb.is(':checked');
+            $pwdCol.toggleClass('d-none', send);
+            $pwd.find('input').prop('disabled', send);
+            if (send) {
+                $pwd.find('input').val('');
+            }
+        }
+
         function createStudentRoleId() {
             const studentRoleId = $('.js-student-parent-fields[data-parent-prefix="create"]').data('student-role-id');
             return studentRoleId ? parseInt(studentRoleId, 10) : null;
@@ -318,9 +358,13 @@
         syncCreateUserStudentSection(currentCreateRoleId());
         syncCreateUserHealthFields(currentCreateRoleId());
         syncCreateUserCommentSexFields(currentCreateRoleId());
+        syncCreateWelcomeCredentialsUi();
+
+        $createUserFormRoot.on('change', '#create-send-welcome-email', syncCreateWelcomeCredentialsUi);
 
         $('#createUserModal').on('shown.bs.modal', function () {
             syncCreateUserStudentSection(currentCreateRoleId());
+            syncCreateWelcomeCredentialsUi();
         });
 
         $createUserFormRoot.on('submit', function (e) {
@@ -350,7 +394,11 @@
                         return;
                     }
 
-                    showSuccessModal("Создание пользователя", "Пользователь успешно создан.", 1);
+                    showSuccessModal(
+                        "Создание пользователя",
+                        (response && response.message) ? response.message : "Пользователь успешно создан.",
+                        1
+                    );
                     window.location.reload();
                 },
                 error: function (xhr) {

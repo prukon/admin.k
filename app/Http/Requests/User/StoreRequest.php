@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\Concerns\ValidatesSendWelcomeEmail;
 use App\Http\Requests\User\Concerns\ForbidsSuperadminRole;
 use App\Http\Requests\User\Concerns\ValidatesStudentCommentAndSex;
 use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
@@ -14,6 +15,7 @@ use Illuminate\Validation\Rule;
 class StoreRequest extends FormRequest
 {
     use ForbidsSuperadminRole;
+    use ValidatesSendWelcomeEmail;
     use ValidatesStudentCommentAndSex;
     use ValidatesStudentHealthFields;
     use ValidatesStudentParent;
@@ -66,6 +68,12 @@ class StoreRequest extends FormRequest
         $this->prepareStudentParentForValidation();
         $this->prepareStudentHealthFieldsForValidation();
         $this->prepareStudentCommentAndSexForValidation();
+        $this->prepareSendWelcomeEmailForValidation();
+    }
+
+    protected function shouldSkipSendWelcomeEmailAddressRequirement(): bool
+    {
+        return $this->filled('school_lead_id');
     }
 
     public function rules(): array
@@ -93,6 +101,7 @@ class StoreRequest extends FormRequest
 
         $rules = array_merge(
             $rules,
+            $this->sendWelcomeEmailRules(),
             $this->studentParentRules(),
             $this->studentHealthFieldRules(),
             $this->studentCommentAndSexRules(),
@@ -136,7 +145,8 @@ class StoreRequest extends FormRequest
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
             'school_lead_id' => 'Заявка с сайта',
-        ] + $this->studentParentAttributes()
+        ] + $this->sendWelcomeEmailAttributes()
+            + $this->studentParentAttributes()
             + $this->studentHealthFieldAttributes()
             + $this->studentCommentAndSexAttributes();
     }
@@ -145,6 +155,7 @@ class StoreRequest extends FormRequest
     {
         $validator->after(function ($validator): void {
             $this->forbidSuperadminRoleAssignment($validator);
+            $this->validateSendWelcomeEmailRequiresAddress($validator);
 
             if ($this->filled('school_lead_id') && trim((string) $this->input('parent_email', '')) === '') {
                 $validator->errors()->add(

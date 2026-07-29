@@ -370,6 +370,10 @@ class UserController extends AdminBaseController
             : null;
         unset($validatedData['school_lead_id']);
 
+        $sendWelcomeEmail = $schoolLeadId
+            || !empty($validatedData['send_welcome_email']);
+        unset($validatedData['send_welcome_email']);
+
         $isEnabled  = $request->boolean('is_enabled');
         $teamIds    = $validatedData['team_ids'] ?? [];
         unset($validatedData['team_ids'], $validatedData['team_id']);
@@ -384,7 +388,7 @@ class UserController extends AdminBaseController
         $data = $this->applySchoolLeadHealthFlags($data, $schoolLeadId, $partnerId);
 
         $welcomeCredentialsPlainPassword = null;
-        if ($schoolLeadId) {
+        if ($sendWelcomeEmail) {
             $welcomeCredentialsPlainPassword = $this->welcomeCredentialsService->generatePassword();
             $data['password'] = $welcomeCredentialsPlainPassword;
         }
@@ -480,30 +484,26 @@ class UserController extends AdminBaseController
 
         $responseMessage = 'Пользователь создан успешно';
         $mailResult = ['sent' => false, 'error' => null];
-        if ($schoolLeadId && $welcomeCredentialsPlainPassword !== null) {
+        if ($sendWelcomeEmail && $welcomeCredentialsPlainPassword !== null) {
             $mailResult = $this->welcomeCredentialsService->send(
                 $user,
                 $welcomeCredentialsPlainPassword,
                 $partnerId,
             );
 
-            $recipientEmail = trim((string) ($user->email ?? ''));
-            if ($mailResult['sent']) {
-                $responseMessage = $recipientEmail !== ''
-                    ? "Клиент создан. Письмо с данными для входа отправлено на {$recipientEmail}."
-                    : 'Клиент создан. Письмо с данными для входа отправлено.';
-            } else {
-                $responseMessage = $recipientEmail !== ''
-                    ? "Клиент создан, но не удалось отправить письмо на {$recipientEmail}."
-                    : 'Клиент создан, но не удалось отправить письмо с данными для входа.';
+            $createdPrefix = $schoolLeadId ? 'Клиент создан' : 'Пользователь создан';
+            $responseMessage = $this->welcomeCredentialsService->createResponseMessage(
+                $createdPrefix,
+                $user->email,
+                $mailResult['sent'],
+            );
 
-                if (!empty($mailResult['error'])) {
-                    Log::warning('[UserController@store] welcome credentials email failed', [
-                        'user_id'    => $user->id,
-                        'partner_id' => $partnerId,
-                        'error'      => $mailResult['error'],
-                    ]);
-                }
+            if (!$mailResult['sent'] && !empty($mailResult['error'])) {
+                Log::warning('[UserController@store] welcome credentials email failed', [
+                    'user_id'    => $user->id,
+                    'partner_id' => $partnerId,
+                    'error'      => $mailResult['error'],
+                ]);
             }
         }
 
@@ -527,7 +527,7 @@ class UserController extends AdminBaseController
                     'email'      => $user->email ?? '',
                     'is_enabled' => $user->is_enabled ? 'Да' : 'Нет',
                 ],
-                'welcome_email_sent' => ($schoolLeadId && $mailResult['sent']) ? true : false,
+                'welcome_email_sent' => ($sendWelcomeEmail && $mailResult['sent']) ? true : false,
             ], 200);
         }
 
