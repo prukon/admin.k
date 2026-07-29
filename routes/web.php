@@ -291,6 +291,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/reports/emails', [OutgoingEmailReportController::class, 'index'])->name('reports.emails.index');
         Route::get('/admin/reports/emails/total', [OutgoingEmailReportController::class, 'total'])->name('reports.emails.total');
         Route::get('/admin/reports/emails/data', [OutgoingEmailReportController::class, 'data'])->name('reports.emails.data');
+        Route::get('/admin/reports/emails/partners-search', [OutgoingEmailReportController::class, 'partnersSearch'])->name('reports.emails.partners.search');
         Route::get('/admin/reports/emails/mailable-classes-search', [OutgoingEmailReportController::class, 'mailableClassesSearch'])->name('reports.emails.mailable.classes.search');
         Route::get('/admin/reports/emails/columns-settings', [OutgoingEmailReportController::class, 'getColumnsSettings']);
         Route::post('/admin/reports/emails/columns-settings', [OutgoingEmailReportController::class, 'saveColumnsSettings']);

@@ -94,6 +94,9 @@
                     <!-- Контент вкладки платежные запросы -->
                     @include('admin.report.payment_intents', [
                         'filters' => $filters ?? [],
+                        'piFilterPartner' => $piFilterPartner ?? null,
+                        'piCanFilterPartner' => $piCanFilterPartner ?? false,
+                        'piFilterUser' => $piFilterUser ?? null,
                     ])
                 @elseif($activeTab === 'fiscal-receipts')
                     <!-- Контент вкладки чеки -->
@@ -101,6 +104,7 @@
                         'filters' => $filters ?? [],
                         'totalPaidPrice' => $totalPaidPrice ?? '0',
                         'frFilterPartner' => $frFilterPartner ?? null,
+                        'frCanFilterPartner' => $frCanFilterPartner ?? false,
                         'frHasActiveFilters' => $frHasActiveFilters ?? false,
                     ])
                 @elseif($activeTab === 'emails')
@@ -109,6 +113,8 @@
                         'filters' => $filters ?? [],
                         'emailsToolbar' => $emailsToolbar ?? null,
                         'emailsFilterMailable' => $emailsFilterMailable ?? null,
+                        'emailsFilterPartner' => $emailsFilterPartner ?? null,
+                        'emailsCanFilterPartner' => $emailsCanFilterPartner ?? false,
                         'emailsHasActiveFilters' => $emailsHasActiveFilters ?? false,
                     ])
                 @endif

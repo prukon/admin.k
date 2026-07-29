@@ -26,19 +26,16 @@ class PaymentIntentReportController extends AdminBaseController
     public function paymentIntents(Request $request)
     {
         $totalQuery = PaymentIntent::query();
+        $canFilterPartner = $this->canFilterByPartner();
 
-        $partnerId = $this->partnerId();
-        if ($partnerId) {
-            $totalQuery->where('partner_id', (int) $partnerId);
-        }
-
+        $this->applyPartnerScopeToQuery($totalQuery, $request);
         $this->applyFilters($totalQuery, $request);
 
         $totalRaw = (float) $totalQuery->sum('out_sum');
         $totalPaidPrice = number_format($totalRaw, 0, '', ' ');
 
         $filters = $request->query();
-        $piFilterPartner = $this->resolvePartnerLabel($filters);
+        $piFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
         $piFilterUser = $this->resolveUserLabel($filters);
 
         return view('admin.report.index', [
@@ -46,6 +43,7 @@ class PaymentIntentReportController extends AdminBaseController
             'filters'   => $filters,
             'totalPaidPrice' => $totalPaidPrice,
             'piFilterPartner' => $piFilterPartner,
+            'piCanFilterPartner' => $canFilterPartner,
             'piFilterUser' => $piFilterUser,
         ]);
     }
@@ -57,11 +55,7 @@ class PaymentIntentReportController extends AdminBaseController
     {
         $totalQuery = PaymentIntent::query();
 
-        $partnerId = $this->partnerId();
-        if ($partnerId) {
-            $totalQuery->where('partner_id', (int) $partnerId);
-        }
-
+        $this->applyPartnerScopeToQuery($totalQuery, $request);
         $this->applyFilters($totalQuery, $request);
 
         $raw = (float) $totalQuery->sum('out_sum');
@@ -79,12 +73,7 @@ class PaymentIntentReportController extends AdminBaseController
             ->with(['user', 'partner'])
             ->select('payment_intents.*');
 
-        // По умолчанию ограничиваем текущим партнёром (если контекст выбран)
-        $partnerId = $this->partnerId();
-        if ($partnerId) {
-            $q->where('partner_id', (int) $partnerId);
-        }
-
+        $this->applyPartnerScopeToQuery($q, $request);
         $this->applyFilters($q, $request);
 
         // Важно: базовая сортировка по id desc (если DataTables не прислал order)
@@ -271,6 +260,34 @@ class PaymentIntentReportController extends AdminBaseController
         };
     }
 
+    private function canFilterByPartner(): bool
+    {
+        return $this->isSuperAdmin();
+    }
+
+    /**
+     * Superadmin: без принудительного current_partner, опционально partner_id из фильтра.
+     * Остальные: только свой/текущий партнёр.
+     */
+    private function applyPartnerScopeToQuery($q, Request $request): void
+    {
+        if ($this->isSuperAdmin()) {
+            if ($request->filled('partner_id') && ctype_digit((string) $request->query('partner_id'))) {
+                $pid = (int) $request->query('partner_id');
+                if ($pid > 0) {
+                    $q->where('partner_id', $pid);
+                }
+            }
+
+            return;
+        }
+
+        $partnerId = $this->partnerId();
+        if ($partnerId) {
+            $q->where('partner_id', (int) $partnerId);
+        }
+    }
+
     private function applyFilters($q, Request $request): void
     {
         if ($request->filled('inv_id') && ctype_digit((string) $request->query('inv_id'))) {
@@ -280,12 +297,8 @@ class PaymentIntentReportController extends AdminBaseController
             });
         }
 
-        if ($request->filled('partner_id') && ctype_digit((string) $request->query('partner_id'))) {
-            $pid = (int) $request->query('partner_id');
-            if ($pid > 0) {
-                $q->where('partner_id', $pid);
-            }
-        } elseif ($request->filled('partner_title')) {
+        // partner_title — legacy текстовый фильтр; только для superadmin (UI-фильтр id у SA).
+        if ($this->isSuperAdmin() && $request->filled('partner_title') && ! $request->filled('partner_id')) {
             $needle = trim((string) $request->query('partner_title'));
             if ($needle !== '') {
                 $like = '%'.$needle.'%';

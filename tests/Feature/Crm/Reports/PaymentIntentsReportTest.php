@@ -58,7 +58,8 @@ class PaymentIntentsReportTest extends CrmTestCase
     }
 
     /**
-     * [P0] /admin/reports/payment-intents/total возвращает сумму out_sum по фильтрам.
+     * [P0] /admin/reports/payment-intents/total: superadmin без фильтра — все;
+     * с partner_id — только выбранный.
      */
     public function test_payment_intents_total_endpoint_returns_correct_sum(): void
     {
@@ -78,13 +79,18 @@ class PaymentIntentsReportTest extends CrmTestCase
             'out_sum' => 9999,
         ]);
 
-        $expectedRaw = 3000.0;
-        $expectedFormatted = number_format($expectedRaw, 0, '', ' ');
-
         $this->get(route('reports.payment-intents.total'))
             ->assertOk()
             ->assertJson([
-                'total_formatted' => $expectedFormatted,
+                'total_formatted' => number_format(12999.0, 0, '', ' '),
+                'total_raw' => 12999.0,
+            ]);
+
+        $expectedRaw = 3000.0;
+        $this->get(route('reports.payment-intents.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_formatted' => number_format($expectedRaw, 0, '', ' '),
                 'total_raw' => $expectedRaw,
             ]);
     }
@@ -533,7 +539,7 @@ class PaymentIntentsReportTest extends CrmTestCase
     }
 
     /**
-     * [P1] В контексте партнёра чужие payment_intents не попадают в data.
+     * [P1] Superadmin: без фильтра видит все партнёры; с partner_id — изоляция.
      */
     public function test_payment_intents_partner_scope_isolation(): void
     {
@@ -544,25 +550,35 @@ class PaymentIntentsReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'out_sum' => 700,
         ]);
-        PaymentIntent::factory()->create([
+        $foreign = PaymentIntent::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'out_sum' => 9000,
         ]);
 
-        $ids = collect(
+        $allIds = collect(
             $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
                 ->get(route('reports.payment-intents.data', ['draw' => 1]))
                 ->assertOk()
                 ->json('data')
         )->pluck('id')->all();
 
-        $this->assertContains($own->id, $ids);
-        $this->assertNotContains(
-            PaymentIntent::query()->where('partner_id', $this->foreignPartner->id)->value('id'),
-            $ids
-        );
+        $this->assertContains($own->id, $allIds);
+        $this->assertContains($foreign->id, $allIds);
 
-        $this->get(route('reports.payment-intents.total'))
+        $ids = collect(
+            $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+                ->get(route('reports.payment-intents.data', [
+                    'draw' => 1,
+                    'partner_id' => $this->partner->id,
+                ]))
+                ->assertOk()
+                ->json('data')
+        )->pluck('id')->all();
+
+        $this->assertContains($own->id, $ids);
+        $this->assertNotContains($foreign->id, $ids);
+
+        $this->get(route('reports.payment-intents.total', ['partner_id' => $this->partner->id]))
             ->assertOk()
             ->assertJson(['total_raw' => 700.0]);
     }
@@ -595,6 +611,7 @@ class PaymentIntentsReportTest extends CrmTestCase
 
     /**
      * [P1] Страница с partner_id/user_id в query подставляет опции Select2.
+     * Фильтр партнёра у superadmin всегда виден.
      */
     public function test_payment_intents_index_with_filter_query_params_renders_select2_options(): void
     {
@@ -613,6 +630,8 @@ class PaymentIntentsReportTest extends CrmTestCase
             'user_id' => $student->id,
         ]))
             ->assertOk()
+            ->assertViewHas('piCanFilterPartner', true)
+            ->assertSee('pi-filter-partner', false)
             ->assertSee('Query Partner PI', false)
             ->assertSee('Сидоров', false);
     }

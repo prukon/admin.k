@@ -139,12 +139,19 @@ final class PaymentIntentsPageFullAccessFeatureTest extends CrmTestCase
 
     private function assertAllSectionEndpointsSucceedForAuthorizedUser(bool $isSuperadmin = false): void
     {
-        $this->get(route('reports.payment-intents.index'))
+        $index = $this->get(route('reports.payment-intents.index'))
             ->assertOk()
             ->assertViewIs('admin.report.index')
             ->assertViewHas('activeTab', 'payment-intents')
+            ->assertViewHas('piCanFilterPartner', $isSuperadmin)
             ->assertSee('id="payment-intents-table"', false)
             ->assertSee('KidsCrmDataTable.create', false);
+
+        if ($isSuperadmin) {
+            $index->assertSee('pi-filter-partner', false);
+        } else {
+            $index->assertDontSee('pi-filter-partner', false);
+        }
 
         $dataParams = $this->baseDataTableParams();
         if ($isSuperadmin) {

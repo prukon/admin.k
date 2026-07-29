@@ -6,6 +6,8 @@
     $etSent   = $et['sent_formatted']   ?? '0';
     $etFailed = $et['failed_formatted'] ?? '0';
     $emailsFilterMailable = $emailsFilterMailable ?? null;
+    $emailsFilterPartner = $emailsFilterPartner ?? null;
+    $emailsCanFilterPartner = $emailsCanFilterPartner ?? false;
     $emailsHasActiveFilters = $emailsHasActiveFilters ?? false;
 
     $emFilterStatusRaw = $filters['status'] ?? [];
@@ -82,6 +84,7 @@
                             <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
                             <div class="form-check"><input class="form-check-input emails-column-toggle" type="checkbox" data-column-key="id" id="emColId" checked><label class="form-check-label" for="emColId">ID</label></div>
+                            <div class="form-check"><input class="form-check-input emails-column-toggle" type="checkbox" data-column-key="partner" id="emColPartner" checked><label class="form-check-label" for="emColPartner">Партнер</label></div>
                             <div class="form-check"><input class="form-check-input emails-column-toggle" type="checkbox" data-column-key="created_at" id="emColCreatedAt" checked><label class="form-check-label" for="emColCreatedAt">Создано</label></div>
                             <div class="form-check"><input class="form-check-input emails-column-toggle" type="checkbox" data-column-key="sent_at" id="emColSentAt" checked><label class="form-check-label" for="emColSentAt">Отправлено</label></div>
                             <div class="form-check"><input class="form-check-input emails-column-toggle" type="checkbox" data-column-key="status" id="emColStatus" checked><label class="form-check-label" for="emColStatus">Статус</label></div>
@@ -103,6 +106,22 @@
 <div class="collapse {{ $emailsHasActiveFilters ? 'show' : '' }} mb-2 mb-md-3" id="emailsReportFiltersCollapse">
     <form id="emails-report-filters" method="GET" action="/admin/reports/emails" class="border rounded p-2 p-md-3 bg-light">
         <div class="row g-2 align-items-end">
+            @if($emailsCanFilterPartner)
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="em-filter-partner">Партнер</label>
+                <select class="form-select payments-report-filter-select2"
+                        id="em-filter-partner"
+                        name="partner_id"
+                        data-placeholder="Все партнеры"
+                        data-search-url="{{ route('reports.emails.partners.search') }}">
+                    <option value=""></option>
+                    @if($emailsFilterPartner)
+                        <option value="{{ $emailsFilterPartner['id'] }}" selected>{{ $emailsFilterPartner['text'] }}</option>
+                    @endif
+                </select>
+            </div>
+            @endif
+
             <div class="col-12 col-md-2">
                 <label class="form-label" for="em-filter-created-from">Создано: с</label>
                 <input class="form-control" id="em-filter-created-from" type="date" name="created_at_from" value="{{ $filters['created_at_from'] ?? '' }}">
@@ -161,6 +180,7 @@
     <tr>
         <th>№</th>
         <th>ID</th>
+        <th>Партнер</th>
         <th>Создано</th>
         <th>Отправлено</th>
         <th>Статус</th>
@@ -203,10 +223,11 @@ $(function () {
     var $statSent   = $('#emailsReportSentStat');
     var $statFailed = $('#emailsReportFailedStat');
     var $toolbarRoot = $('#emailsReportToolbarTotals');
+    var canFilterPartner = @json((bool) $emailsCanFilterPartner);
 
     function getFilterParams() {
         var statuses = ($form.find('[name="status[]"]').val() || []);
-        return {
+        var params = {
             created_at_from: $form.find('[name="created_at_from"]').val() || '',
             created_at_to: $form.find('[name="created_at_to"]').val() || '',
             sent_at_from: $form.find('[name="sent_at_from"]').val() || '',
@@ -215,6 +236,10 @@ $(function () {
             mailable_class: $form.find('[name="mailable_class"]').val() || '',
             q: $form.find('[name="q"]').val() || ''
         };
+        if (canFilterPartner) {
+            params.partner_id = $form.find('[name="partner_id"]').val() || '';
+        }
+        return params;
     }
 
     function setStat($stat, formatted) {
@@ -241,6 +266,27 @@ $(function () {
             });
     }
 
+    // Select2 для партнёра (ajax) — только superadmin
+    @if($emailsCanFilterPartner)
+    var $partner = $('#em-filter-partner');
+    if ($partner.length && $partner.data('search-url')) {
+        $partner.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: $partner.data('placeholder') || '',
+            language: @include('partials.select2.ru'),
+            allowClear: true,
+            ajax: {
+                url: $partner.data('search-url'),
+                delay: 250,
+                data: function (params) { return {q: params.term || ''}; },
+                processResults: function (data) { return data; }
+            },
+            minimumInputLength: 0
+        });
+    }
+    @endif
+
     // Select2 для класса письма (ajax)
     var $mailable = $('#em-filter-mailable');
     if ($mailable.length && $mailable.data('search-url')) {
@@ -253,7 +299,13 @@ $(function () {
             ajax: {
                 url: $mailable.data('search-url'),
                 delay: 250,
-                data: function (params) { return {q: params.term || ''}; },
+                data: function (params) {
+                    var payload = {q: params.term || ''};
+                    if (canFilterPartner) {
+                        payload.partner_id = $form.find('[name="partner_id"]').val() || '';
+                    }
+                    return payload;
+                },
                 processResults: function (data) { return data; }
             },
             minimumInputLength: 0
@@ -333,6 +385,7 @@ $(function () {
         columnsSettings: {
             defaults: {
                 id: true,
+                partner: true,
                 created_at: true,
                 sent_at: true,
                 status: true,
@@ -361,12 +414,28 @@ $(function () {
                     });
                 }
             },
-            order: [[2, 'desc']],
+            order: [[3, 'desc']],
             language: @include('partials.datatables.ru')
         },
         columns: [
             { type: 'rownum' },
             { key: 'id', type: 'id', data: 'id' },
+            {
+                key: 'partner',
+                type: 'text',
+                data: 'partner_id',
+                name: 'partner_id',
+                className: 'dt-col-text',
+                render: function (data, type, row) {
+                    if (type !== 'display') {
+                        return row.partner_id || '';
+                    }
+                    var title = row.partner_title
+                        ? ('<div class="small text-muted">' + $('<div/>').text(row.partner_title).html() + '</div>')
+                        : '';
+                    return (row.partner_id || '') + title;
+                }
+            },
             { key: 'created_at', type: 'datetime', data: 'created_at', name: 'created_at' },
             { key: 'sent_at', type: 'datetime', data: 'sent_at', name: 'sent_at' },
             {
@@ -440,6 +509,9 @@ $(function () {
         $form[0].reset();
         $('#em-filter-mailable').val(null).trigger('change');
         $('#em-filter-status').val(null).trigger('change');
+        @if($emailsCanFilterPartner)
+        $('#em-filter-partner').val(null).trigger('change');
+        @endif
         refreshTotals();
         dtApi.reload();
     });

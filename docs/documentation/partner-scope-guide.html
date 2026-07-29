@@ -57,7 +57,10 @@
   </table>
   <div class="warn">
     Permission <code>viewing.all.logs</code> и похожие названия <b>не означают</b> «все партнёры».
-    Cross-partner — только явный режим <code>SUPERADMIN_ALL_OR_FILTER</code> + проверка роли на сервере.
+    Cross-partner на сервере — только при явной проверке роли <code>superadmin</code>:
+    либо режим <code>SUPERADMIN_ALL_OR_FILTER</code> (логи), либо локальный soft-scope в контроллере отчёта
+    (<a href="/docs/documentation/reports-admin#partner-filter-cross-report">reports-admin §2.4</a>).
+    Не-superadmin никогда не расширяет выборку через query-параметр партнёра.
   </div>
 
   <h2>2) Цепочка на каждый HTTP-запрос</h2>
@@ -171,6 +174,17 @@
   Для не-superadmin <code>partnerId()</code> всегда совпадает с его школой.</p>
 
   <h2>5) Задача B — страница «все партнёры» (только superadmin)</h2>
+
+  <div class="note">
+    <b>Два рабочих паттерна (не путать):</b>
+    <ul>
+      <li><b>Логи</b> — <code>PartnerScopeMode::SUPERADMIN_ALL_OR_FILTER</code> + query <code>filter_partner_id</code> (<code>all</code> / id). См. <a href="/docs/documentation/settings-logs">settings-logs</a>.</li>
+      <li><b>Отчёты</b> payment-intents / чеки / исходящие письма — локальный soft-scope в контроллере
+        (<code>canFilterByPartner() === isSuperAdmin()</code>, query <code>partner_id</code>, UI-фильтр только у SA).
+        <code>SetPartner</code> по-прежнему требует <code>current_partner</code> для входа на страницу, но SA-выборка по сессии <b>не режется</b>.
+        Подробно: <a href="/docs/documentation/reports-admin#partner-filter-cross-report">reports-admin §2.4</a>.</li>
+    </ul>
+  </div>
 
   <h3>5.1 Когда нужен отдельный режим</h3>
   <ul>

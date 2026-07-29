@@ -85,12 +85,39 @@ final class OutgoingEmailsNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $this->postJson('/admin/reports/emails/columns-settings', [
             'columns' => [
                 'to_summary' => true,
+                'partner'    => true,
                 'actions'    => true,
             ],
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
             ->assertJsonStructure(['success'])
             ->assertJson(['success' => true]);
+    }
+
+    public function test_partners_search_ajax_validation_failure_returns_422_json(): void
+    {
+        $this->getJson(route('reports.emails.partners.search', [
+            'q' => str_repeat('z', 300),
+        ]), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['q']);
+    }
+
+    public function test_partners_search_ajax_returns_results_contract(): void
+    {
+        $this->partner->update(['title' => 'Safety Net Partner Emails']);
+
+        $this->getJson(route('reports.emails.partners.search', ['q' => 'Safety Net']), [
+            'X-Requested-With' => 'XMLHttpRequest',
+        ])
+            ->assertOk()
+            ->assertJsonStructure(['results'])
+            ->assertJsonFragment([
+                'id'   => $this->partner->id,
+                'text' => 'Safety Net Partner Emails',
+            ]);
     }
 
     public function test_show_modal_ajax_contract_returns_html_fragment(): void

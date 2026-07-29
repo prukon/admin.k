@@ -22,20 +22,22 @@ class FiscalReceiptReportController extends AdminBaseController
     public function index(Request $request)
     {
         $filters = $request->query();
+        $canFilterPartner = $this->canFilterByPartner();
 
         $totalQuery = FiscalReceipt::query();
         $this->applyFiscalReceiptReportFilters($totalQuery, $request);
         $totalRaw = (float) $totalQuery->sum('amount');
         $totalPaidPrice = number_format($totalRaw, 0, '', ' ');
 
-        $frFilterPartner = $this->resolvePartnerLabel($filters);
+        $frFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
 
         return view('admin.report.index', [
             'activeTab' => 'fiscal-receipts',
             'filters' => $filters,
             'totalPaidPrice' => $totalPaidPrice,
             'frFilterPartner' => $frFilterPartner,
-            'frHasActiveFilters' => $this->fiscalReceiptsHasActiveFilters($filters),
+            'frCanFilterPartner' => $canFilterPartner,
+            'frHasActiveFilters' => $this->fiscalReceiptsHasActiveFilters($filters, $canFilterPartner),
         ]);
     }
 
@@ -153,11 +155,25 @@ class FiscalReceiptReportController extends AdminBaseController
     /**
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      */
+    private function canFilterByPartner(): bool
+    {
+        return $this->isSuperAdmin();
+    }
+
     private function applyFiscalReceiptReportFilters($query, Request $request): void
     {
-        $partnerId = $this->partnerId();
-        if ($partnerId) {
-            $query->where('partner_id', (int) $partnerId);
+        if ($this->isSuperAdmin()) {
+            if ($request->filled('partner_id') && ctype_digit((string) $request->input('partner_id'))) {
+                $pid = (int) $request->input('partner_id');
+                if ($pid > 0) {
+                    $query->where('partner_id', $pid);
+                }
+            }
+        } else {
+            $partnerId = $this->partnerId();
+            if ($partnerId) {
+                $query->where('partner_id', (int) $partnerId);
+            }
         }
 
         if ($request->filled('id') && ctype_digit((string) $request->input('id'))) {
@@ -170,10 +186,6 @@ class FiscalReceiptReportController extends AdminBaseController
 
         if ($request->filled('payment_id') && ctype_digit((string) $request->input('payment_id'))) {
             $query->where('payment_id', (int) $request->input('payment_id'));
-        }
-
-        if ($request->filled('partner_id') && ctype_digit((string) $request->input('partner_id'))) {
-            $query->where('partner_id', (int) $request->input('partner_id'));
         }
 
         if ($request->filled('type')) {
@@ -225,12 +237,15 @@ class FiscalReceiptReportController extends AdminBaseController
      *
      * @param  array<string, mixed>  $filters
      */
-    private function fiscalReceiptsHasActiveFilters(array $filters): bool
+    private function fiscalReceiptsHasActiveFilters(array $filters, bool $canFilterPartner): bool
     {
         $keys = [
-            'id', 'payment_intent_id', 'payment_id', 'partner_id', 'type', 'status', 'external_id',
+            'id', 'payment_intent_id', 'payment_id', 'type', 'status', 'external_id',
             'created_from', 'created_to', 'processed_from', 'processed_to', 'failed_from', 'failed_to',
         ];
+        if ($canFilterPartner) {
+            $keys[] = 'partner_id';
+        }
         foreach ($keys as $k) {
             $v = $filters[$k] ?? null;
             if ($v !== null && $v !== '') {

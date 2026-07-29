@@ -862,7 +862,7 @@ class UserController extends AdminBaseController
 
             if ($actor && $actor->can('users.other.update')) {
                 $healthLabels = [
-                    'is_individual_traits' => 'Индивидуальные особенности',
+                    'is_individual_traits' => 'Инд. особенности',
                     'is_on_medical_register' => 'Учёт у медспециалистов',
                     'is_with_disability' => 'Инвалидность',
                 ];

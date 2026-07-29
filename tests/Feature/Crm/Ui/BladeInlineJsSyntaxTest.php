@@ -34,6 +34,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'school leads tab ajax handlers' => ['admin/school-leads/tabs/leads.blade.php'];
         yield 'account user parent form' => ['account/users.blade.php'];
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
+        yield 'fiscal receipts report tab' => ['admin/report/fiscal_receipts.blade.php'];
+        yield 'payment intents report tab' => ['admin/report/payment_intents.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
         yield 'schedule section index shell' => ['admin/schedule/index.blade.php'];
@@ -257,6 +259,60 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($crudScriptFound, 'В occurrence_statuses_crud.blade.php не найден script с KidsCrmDataTable.create');
+    }
+
+    /**
+     * P1: inline JS отчёта «Исходящие письма» — фильтр партнёра, DataTables reload, модалка show.
+     */
+    public function test_outgoing_emails_report_partner_filter_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/report/outgoing_emails.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('em-filter-partner', $content);
+        $this->assertStringContainsString('emailsCanFilterPartner', $content);
+        $this->assertStringContainsString('getFilterParams', $content);
+        $this->assertStringContainsString('partner_id', $content);
+        $this->assertStringContainsString('openOutgoingEmailShowModal', $content);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $content);
+        $this->assertStringContainsString("key: 'partner'", $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'getFilterParams')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-emails-partner-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in outgoing_emails partner-filter script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В outgoing_emails.blade.php не найден script с getFilterParams');
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

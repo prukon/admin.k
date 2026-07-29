@@ -1,3 +1,6 @@
+@php
+    $frCanFilterPartner = $frCanFilterPartner ?? false;
+@endphp
 @vite(['resources/css/admin-list-toolbar.css'])
 
 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
@@ -161,6 +164,7 @@
                 <label class="form-label">Payment</label>
                 <input class="form-control" name="payment_id" value="{{ $filters['payment_id'] ?? '' }}" placeholder="456">
             </div>
+            @if(!empty($frCanFilterPartner))
             <div class="col-12 col-md-2">
                 <label class="form-label" for="fr-filter-partner">Партнер</label>
                 <select class="form-select payments-report-filter-select2"
@@ -174,6 +178,7 @@
                     @endif
                 </select>
             </div>
+            @endif
             <div class="col-12 col-md-2">
                 <label class="form-label">Тип</label>
                 @php($type = $filters['type'] ?? '')
@@ -261,10 +266,12 @@
     <script type="text/javascript">
         $(function () {
             var $form = $('#fiscal-receipts-filters');
-            var $frFilterPartner = $('#fr-filter-partner');
             var $frTotalAmount = $('.payments-report-total-amount');
             var $frTotalStat = $('#fiscalReceiptsReportTotalStat');
             var $frTotalValueInner = $('.payments-report-total-value-inner');
+            @if($frCanFilterPartner)
+            var $frFilterPartner = $('#fr-filter-partner');
+            @endif
 
             function initPaymentsReportFilterSelect2($el) {
                 var searchUrl = $el.data('search-url');
@@ -291,7 +298,9 @@
                 });
             }
 
+            @if($frCanFilterPartner)
             initPaymentsReportFilterSelect2($frFilterPartner);
+            @endif
 
             function frParseTotalToInt(str) {
                 return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
@@ -674,7 +683,9 @@
 
             $('#fiscalReceiptsResetBtn').on('click', function () {
                 $form[0].reset();
+                @if($frCanFilterPartner)
                 $frFilterPartner.val(null).trigger('change');
+                @endif
                 refreshFiscalReceiptsTotal();
                 dtApi.reload();
             });

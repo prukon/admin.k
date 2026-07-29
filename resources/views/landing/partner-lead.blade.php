@@ -282,7 +282,7 @@
                 <div class="form-check">
                     <input type="checkbox" name="is_individual_traits" id="is_individual_traits" value="1" class="form-check-input">
                     <label for="is_individual_traits" class="form-check-label">
-                        Индивидуальные особенности воспитанника (физические, психологические)
+                        Инд. особенности (физические, психологические)
                     </label>
                 </div>
                 <div class="form-check">

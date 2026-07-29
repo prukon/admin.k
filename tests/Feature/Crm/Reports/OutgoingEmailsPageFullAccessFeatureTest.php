@@ -183,7 +183,10 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
 
     public function test_show_forbids_foreign_partner_log(): void
     {
-        $this->asSuperadmin();
+        $actor = $this->createUserWithRole('admin', $this->partner);
+        $this->grantReportsEmailsView((int) $actor->role_id);
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id]);
 
         $foreignLog = OutgoingEmailLog::create([
             'partner_id' => $this->foreignPartner->id,
@@ -201,15 +204,25 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
 
     private function assertAllSectionEndpointsSucceedForAuthorizedUser(): void
     {
-        $this->get(route('reports.emails.index'))
+        $isSuperadmin = Auth::user()?->role?->name === 'superadmin';
+
+        $index = $this->get(route('reports.emails.index'))
             ->assertOk()
             ->assertViewIs('admin.report.index')
             ->assertViewHas('activeTab', 'emails')
+            ->assertViewHas('emailsCanFilterPartner', $isSuperadmin)
             ->assertSee('id="emails-table"', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('id="outgoingEmailShowModal"', false)
             ->assertSee('js-outgoing-email-show', false)
-            ->assertSee('openOutgoingEmailShowModal', false);
+            ->assertSee('openOutgoingEmailShowModal', false)
+            ->assertSee('data-column-key="partner"', false);
+
+        if ($isSuperadmin) {
+            $index->assertSee('em-filter-partner', false);
+        } else {
+            $index->assertDontSee('em-filter-partner', false);
+        }
 
         $html = $this->get(route('reports.emails.index'))->assertOk()->getContent();
         $this->assertMatchesRegularExpression(
@@ -224,6 +237,10 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
             "/key:\s*'to_summary'[\s\S]{0,120}?type:\s*'link'/",
             $html
         );
+        $this->assertMatchesRegularExpression(
+            "/key:\s*'partner'[\s\S]{0,80}?type:\s*'text'/",
+            $html
+        );
 
         $this->withHeaders($this->ajaxHeaders())
             ->getJson(route('reports.emails.data', $this->baseDataTableParams()))
@@ -234,11 +251,16 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('reports.emails.mailable.classes.search', ['q' => '']))->assertOk();
 
+        $this->get(route('reports.emails.partners.search', ['q' => '']))
+            ->assertOk()
+            ->assertJsonStructure(['results']);
+
         $this->get('/admin/reports/emails/columns-settings')->assertOk();
 
         $this->postJson('/admin/reports/emails/columns-settings', [
             'columns' => [
                 'id'        => true,
+                'partner'   => true,
                 'subject'   => false,
                 'to_summary'=> true,
             ],
@@ -285,6 +307,10 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
             ],
             [
                 'method'  => 'GET',
+                'url'     => route('reports.emails.partners.search', ['q' => '']),
+            ],
+            [
+                'method'  => 'GET',
                 'url'     => '/admin/reports/emails/columns-settings',
             ],
             [
@@ -322,6 +348,7 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
     {
         return [
             [],
+            ['partner_id' => $this->partner->id],
             ['created_at_from' => now()->subWeek()->toDateString()],
             ['created_at_to' => now()->toDateString()],
             ['sent_at_from' => now()->subWeek()->toDateString()],
@@ -331,6 +358,7 @@ final class OutgoingEmailsPageFullAccessFeatureTest extends CrmTestCase
             ['mailable_class' => 'App\\Mail\\ClientWelcomeCredentialsMail'],
             ['q' => 'parent@'],
             [
+                'partner_id'      => $this->partner->id,
                 'created_at_from' => now()->subMonth()->toDateString(),
                 'sent_at_to'      => now()->toDateString(),
                 'status'          => ['sent'],

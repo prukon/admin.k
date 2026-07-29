@@ -299,7 +299,7 @@ class UpdateSchoolLeadRequest extends FormRequest
             'child_middlename'       => 'Отчество ученика',
             'child_birthday'         => 'Дата рождения ученика',
             'team_id'                => 'Группа',
-            'is_individual_traits'   => 'Индивидуальные особенности воспитанника',
+            'is_individual_traits'   => 'Инд. особенности (физические, психологические)',
             'is_on_medical_register' => 'Учёт у медицинских специалистов',
             'is_with_disability'     => 'Наличие инвалидности',
         ];

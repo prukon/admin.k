@@ -193,6 +193,30 @@
                                     <div class="invalid-feedback d-block" data-error-for="email"></div>
                                 </div>
                             </div>
+                            <div class="col-12 col-md-6 d-flex" id="trainer-create-send-welcome-wrap">
+                                <div class="mb-3 w-100 d-flex flex-column flex-grow-1">
+                                    <label class="form-label d-none d-md-block" aria-hidden="true">&nbsp;</label>
+                                    <div class="flex-grow-1 d-flex align-items-center">
+                                        <input type="hidden" name="send_welcome_email" value="0">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   name="send_welcome_email"
+                                                   value="1"
+                                                   id="trainer-create-send-welcome-email"
+                                                   checked>
+                                            <label class="form-check-label" for="trainer-create-send-welcome-email">
+                                                Отправить письмо
+                                            </label>
+                                            @include('partials.ui.tooltip-hint', [
+                                                'title' => 'На указанный email уйдёт письмо с логином и паролем для входа в личный кабинет. Пароль сформируется автоматически.',
+                                                'placement' => 'top',
+                                            ])
+                                        </div>
+                                    </div>
+                                    <div class="invalid-feedback d-block" data-error-for="send_welcome_email"></div>
+                                </div>
+                            </div>
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-phone">Телефон</label>
@@ -201,23 +225,6 @@
                                         'id' => 'trainer-create-phone',
                                     ])
                                     <div class="invalid-feedback d-block" data-error-for="phone"></div>
-                                </div>
-                            </div>
-                            <div class="col-12" id="trainer-create-send-welcome-wrap">
-                                <div class="mb-3">
-                                    <input type="hidden" name="send_welcome_email" value="0">
-                                    <div class="form-check">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               name="send_welcome_email"
-                                               value="1"
-                                               id="trainer-create-send-welcome-email"
-                                               checked>
-                                        <label class="form-check-label" for="trainer-create-send-welcome-email">
-                                            Отправить письмо
-                                        </label>
-                                    </div>
-                                    <div class="invalid-feedback d-block" data-error-for="send_welcome_email"></div>
                                 </div>
                             </div>
                             <div class="col-12 col-md-6" id="trainer-create-password-wrap">

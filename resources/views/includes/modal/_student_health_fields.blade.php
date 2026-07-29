@@ -26,7 +26,7 @@
                            name="is_individual_traits"
                            value="1">
                     <label class="form-check-label" for="{{ $fieldPrefix }}is_individual_traits">
-                        Индивидуальные особенности воспитанника (физические, психологические)
+                        Инд. особенности (физические, психологические)
                     </label>
                 </div>
                 <div class="form-check mb-0">
@@ -62,7 +62,7 @@
             <div class="row g-3">
                 <div class="col-12">
                     <label for="{{ $fieldPrefix }}is_individual_traits" class="form-label">
-                        Индивидуальные особенности воспитанника (физические, психологические)
+                        Инд. особенности (физические, психологические)
                     </label>
                     <select id="{{ $fieldPrefix }}is_individual_traits" name="is_individual_traits" class="form-select js-user-health-field">
                         <option value="">Не указано</option>

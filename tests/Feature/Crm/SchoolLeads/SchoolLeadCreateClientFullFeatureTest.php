@@ -70,7 +70,7 @@ final class SchoolLeadCreateClientFullFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="lead-is_individual_traits"', false)
             ->assertSee('js-lead-health-checkbox', false)
-            ->assertSee('Индивидуальные особенности воспитанника', false)
+            ->assertSee('Инд. особенности (физические, психологические)', false)
             ->assertSee('Состоит на учёте у медицинских специалистов', false)
             ->assertSee('Наличие инвалидности', false);
     }

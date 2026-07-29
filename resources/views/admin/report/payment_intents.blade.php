@@ -1,5 +1,9 @@
 @php
-    $piFilterKeys = ['inv_id', 'partner_id', 'user_id', 'partner_title', 'user_name', 'provider', 'status', 'created_from', 'created_to', 'paid_from', 'paid_to'];
+    $piCanFilterPartner = $piCanFilterPartner ?? false;
+    $piFilterKeys = ['inv_id', 'user_id', 'partner_title', 'user_name', 'provider', 'status', 'created_from', 'created_to', 'paid_from', 'paid_to'];
+    if ($piCanFilterPartner) {
+        $piFilterKeys[] = 'partner_id';
+    }
     $piHasActiveFilters = false;
     foreach ($piFilterKeys as $k) {
         $v = $filters[$k] ?? null;
@@ -146,6 +150,7 @@
                 <input class="form-control" id="pi-filter-inv-id" name="inv_id" value="{{ $filters['inv_id'] ?? '' }}"
                        placeholder="123">
             </div>
+            @if($piCanFilterPartner)
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-partner">Партнер</label>
                 <select class="form-select payments-report-filter-select2"
@@ -159,6 +164,7 @@
                     @endif
                 </select>
             </div>
+            @endif
             <div class="col-12 col-md-2">
                 <label class="form-label" for="pi-filter-user">Пользователь</label>
                 <select class="form-select payments-report-filter-select2"
@@ -292,11 +298,13 @@
     <script type="text/javascript">
         $(function () {
             var $form = $('#payment-intents-filters');
-            var $piFilterPartner = $('#pi-filter-partner');
             var $piFilterUser = $('#pi-filter-user');
             var $piTotalAmount = $('.payments-report-total-amount');
             var $piTotalStat = $('#paymentIntentsReportTotalStat');
             var $piTotalValueInner = $('.payments-report-total-value-inner');
+            @if(!empty($piCanFilterPartner))
+            var $piFilterPartner = $('#pi-filter-partner');
+            @endif
 
             function initPaymentsReportFilterSelect2($el, extraParamsFn) {
                 var searchUrl = $el.data('search-url');
@@ -330,12 +338,16 @@
                 });
             }
 
+            @if(!empty($piCanFilterPartner))
             initPaymentsReportFilterSelect2($piFilterPartner);
             initPaymentsReportFilterSelect2($piFilterUser, function () {
                 return {
                     partner_id: $piFilterPartner.val() || ''
                 };
             });
+            @else
+            initPaymentsReportFilterSelect2($piFilterUser);
+            @endif
 
             function piParseTotalToInt(str) {
                 return parseInt(String(str || '').replace(/\s/g, ''), 10) || 0;
@@ -725,7 +737,9 @@
 
             $('#paymentIntentsResetBtn').on('click', function () {
                 $form[0].reset();
+                @if(!empty($piCanFilterPartner))
                 $piFilterPartner.val(null).trigger('change');
+                @endif
                 $piFilterUser.val(null).trigger('change');
                 refreshPiTotal();
                 dtApi.reload();

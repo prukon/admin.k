@@ -32,8 +32,8 @@ class PayableFactory extends Factory
         }
 
         $month = Carbon::now()
-            ->subMonths(rand(0, 6))
             ->startOfMonth()
+            ->subMonths(rand(0, 6))
             ->format('Y-m-01');
 
         // ✅ только целые суммы

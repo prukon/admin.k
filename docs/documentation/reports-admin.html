@@ -46,12 +46,13 @@
   </div>
   <ul>
     <li><b><code>reports.view</code></b> — отчёты в группе <code>/admin/reports/*</code> (Платежи, Задолженности, LTV, Платежи по месяцам).</li>
-    <li><b><code>reports.payment.intents.view</code></b> — отчёт “Платежные запросы”.</li>
-    <li><b><code>reports.fiscal.receipts.view</code></b> — отчёт “Чеки”.</li>
-    <li><b><code>reports.emails.view</code></b> — отчёт “Исходящие письма”.</li>
+    <li><b><code>reports.payment.intents.view</code></b> — отчёт “Платежные запросы” (<code>Gate::define</code> в <code>AuthServiceProvider</code>; <code>is_visible = 0</code>, в базовый набор admin/user не входит).</li>
+    <li><b><code>reports.fiscal.receipts.view</code></b> — отчёт “Чеки” (тот же паттерн: Gate + <code>is_visible = 0</code>, не в базовом наборе).</li>
+    <li><b><code>reports.emails.view</code></b> — отчёт “Исходящие письма” (тот же паттерн).</li>
   </ul>
   <div class="note">
     Модель прав в разрезе партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a>.
+    Скрытые права отчётов (<code>is_visible = 0</code>) в матрице ролей для не-superadmin не показываются — выдаются явно (обычно только superadmin).
   </div>
   <ul>
     <li><b><code>locations.view</code></b> — не открывает отчёты само по себе, но даёт фильтр «Локация» в отчётах платежей и задолженностей (см. §2.1).</li>
@@ -259,6 +260,45 @@
     <li>Подробнее про отчёт «Платежи»: <a href="/docs/documentation/reports-payments#user-status-filter">reports-payments §2.2</a>.</li>
   </ul>
 
+  <h2 id="partner-filter-cross-report">2.4) Фильтр «Партнер» (payment-intents / чеки / исходящие письма)</h2>
+  <div class="note">
+    С <b>2026‑07</b> три отчёта с кросс-партнёрным доступом используют один и тот же паттерн (не путать с <code>SUPERADMIN_ALL_OR_FILTER</code> / <code>filter_partner_id</code> на вкладке «Логи» —
+    <a href="/docs/documentation/settings-logs">settings-logs</a>).
+    Middleware <code>SetPartner</code> по-прежнему требует выбранный <code>current_partner</code> для входа на страницу;
+    для <b>superadmin</b> эти три отчёта <b>не режут</b> выборку по сессии — смотрят всех партнёров, сужение только через UI/query <code>partner_id</code>.
+  </div>
+  <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr><th>Роль</th><th>UI-фильтр «Партнер»</th><th>Scope data / total / search</th><th>Query <code>partner_id</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Superadmin</td>
+        <td>Всегда виден (Select2 «Все партнеры»)</td>
+        <td>Все партнёры; при выбранном id — один партнёр</td>
+        <td>Применяется</td>
+      </tr>
+      <tr>
+        <td>Не-superadmin с правом отчёта</td>
+        <td>Скрыт (бесполезен)</td>
+        <td>Только партнёр пользователя / <code>current_partner</code></td>
+        <td>Игнорируется (anti-leak)</td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Отчёты:</b>
+      <ul>
+        <li>Платежные запросы — <code>#pi-filter-partner</code>, <code>$piCanFilterPartner</code> → §6</li>
+        <li>Чеки — <code>#fr-filter-partner</code>, <code>$frCanFilterPartner</code> → §7</li>
+        <li>Исходящие письма — <code>#em-filter-partner</code>, <code>$emailsCanFilterPartner</code>, колонка <code>partner</code> → §8</li>
+      </ul>
+    </li>
+    <li><b>Select2:</b> <code>GET …/partners-search?q=</code> → <code>{ results: [{id, text}] }</code>; валидация <code>q</code> (nullable string, max 255) → <b>422</b> при ошибке.</li>
+    <li><b>Контроллеры:</b> <code>canFilterByPartner() === isSuperAdmin()</code>; soft-scope в <code>applyPartnerScopeToQuery</code> / аналог в fiscal filters.</li>
+    <li><b>Не относится</b> к отчётам Платежи / LTV / monthly / debts — там всегда жёсткий partner-scope через <code>requirePartnerId()</code> / контекст, отдельного фильтра «Партнер» нет.</li>
+  </ul>
+
   <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
@@ -361,6 +401,7 @@
     <li><b>DataTables</b>: <code>GET /admin/reports/getPaymentIntents</code> (AJAX; UI — <code>KidsCrmDataTable.create('#payment-intents-table')</code>)</li>
     <li><b>Контроллер</b>: <code>PaymentIntentReportController::getPaymentIntents</code></li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/payment-intents/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+    <li><b>Фильтр «Партнер»</b>: Select2 <code>#pi-filter-partner</code> рендерится <b>только для superadmin</b> (<code>$piCanFilterPartner</code>). Superadmin не режется по <code>current_partner</code> — видит всех, сужение через <code>partner_id</code>. Для не-superadmin scope жёсткий по партнёру пользователя, UI-фильтр скрыт. Единые правила — <a href="#partner-filter-cross-report">§2.4</a>.</li>
     <li><b>Колонки (настройки)</b>:
       <ul>
         <li><code>GET /admin/reports/payment-intents/columns-settings</code></li>
@@ -425,6 +466,7 @@
     <li><b>Страница</b>: <code>/admin/reports/fiscal-receipts</code> (middleware <code>can:reports.fiscal.receipts.view</code>)</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/fiscal-receipts/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#fiscal-receipts-table')</code>)</li>
     <li><b>Общая сумма</b>: <code>GET /admin/reports/fiscal-receipts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>, считает <code>sum(fiscal_receipts.amount)</code>)</li>
+    <li><b>Фильтр «Партнер»</b>: Select2 <code>#fr-filter-partner</code> рендерится <b>только для superadmin</b> (<code>$frCanFilterPartner</code>). Superadmin не режется по <code>current_partner</code>; не-superadmin — только свой партнёр, фильтр скрыт. Единые правила — <a href="#partner-filter-cross-report">§2.4</a>.</li>
     <li><b>Колонки (настройки)</b>:
       <ul>
         <li><code>GET /admin/reports/fiscal-receipts/columns-settings</code></li>
@@ -437,15 +479,21 @@
 
   <h2 id="reports-outgoing-emails">8) Отчёт “Исходящие письма” (outgoing_emails)</h2>
   <div class="note">
-    Журнал исходящих писем CRM по текущему партнёру. С <b>2026‑07</b> — модалка просмотра без ухода со списка, колонки «Создано»/«Отправлено» в формате <code>datetime</code>, кликабельная колонка «Кому», HTML-тело в iframe (не экранированный исходник).
+    Журнал исходящих писем CRM. <b>Superadmin</b> видит все партнёры (+ опциональный фильтр <code>partner_id</code>); остальные с <code>reports.emails.view</code> — только свой партнёр (фильтр скрыт). Паритет с чеками / payment intents — см. <a href="#partner-filter-cross-report">§2.4</a>.
+    С <b>2026‑07</b> — модалка просмотра без ухода со списка, колонки «Создано»/«Отправлено» в формате <code>datetime</code>, кликабельная колонка «Кому», HTML-тело в iframe (не экранированный исходник).
     Welcome-письма ученикам (<code>ClientWelcomeCredentialsMail</code>) попадают сюда после конвертации лида и resend — см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>.
   </div>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/emails</code> (вкладка <code>activeTab=emails</code> в <code>admin/report/index.blade.php</code>; middleware <code>can:reports.emails.view</code>)</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/emails/data</code> — только AJAX (<code>X-Requested-With</code> или <code>$request-&gt;ajax()</code>); без AJAX → <b>404</b>. UI: <code>KidsCrmDataTable.create('#emails-table')</code></li>
-    <li><b>Счётчики</b>: <code>GET /admin/reports/emails/total</code> (JSON: <code>total_*</code>, <code>sent_*</code>, <code>failed_*</code> по <code>current_partner</code> и тем же фильтрам, что таблица)</li>
+    <li><b>Счётчики</b>: <code>GET /admin/reports/emails/total</code> (JSON: <code>total_*</code>, <code>sent_*</code>, <code>failed_*</code> по тому же partner-scope и фильтрам, что таблица)</li>
     <li><b>Источник записей</b>: листенер <code>App\Listeners\LogOutgoingEmail</code> на <code>MessageSending</code> / <code>MessageSent</code>; <code>partner_id</code> — из заголовка <code>X-Partner-Id</code> на Mailable (приоритет) или из <code>PartnerContext</code> в web-запросе. Таблица БД: <code>outgoing_email_logs</code>.</li>
-    <li><b>Select2</b>: <code>GET /admin/reports/emails/mailable-classes-search</code> → <code>{ results: [{id, text}] }</code> (уникальные классы Mailable/Notification партнёра)</li>
+    <li><b>Select2</b>:
+      <ul>
+        <li><code>GET /admin/reports/emails/partners-search</code> → <code>{ results: [{id, text}] }</code> (Request <code>PaymentsReportSelect2SearchRequest</code>)</li>
+        <li><code>GET /admin/reports/emails/mailable-classes-search</code> → <code>{ results: [{id, text}] }</code> (уникальные классы в рамках partner-scope; для superadmin принимает query <code>partner_id</code>)</li>
+      </ul>
+    </li>
     <li><b>Карточка письма</b>: <code>GET /admin/reports/emails/{log}</code> — см. §8.3</li>
   </ul>
 
@@ -454,6 +502,7 @@
     <li>Форма <code>#emails-report-filters</code> (GET <code>/admin/reports/emails</code>): при submit — <code>preventDefault()</code>, <code>dtApi.reload()</code> + обновление счётчиков через <code>…/total</code> (без полной перезагрузки страницы).</li>
     <li>Поля фильтра (query string, передаются и в <code>…/data</code>, и в <code>…/total</code>):
       <ul>
+        <li><code>partner_id</code> — Select2 AJAX по <code>partners-search</code>; UI <code>#em-filter-partner</code> только у <b>superadmin</b> (<code>$emailsCanFilterPartner</code>)</li>
         <li><code>created_at_from</code>, <code>created_at_to</code> — дата создания записи лога</li>
         <li><code>sent_at_from</code>, <code>sent_at_to</code> — дата успешной отправки</li>
         <li><code>status[]</code> — multiselect Select2: <code>sending</code>, <code>sent</code>, <code>failed</code></li>
@@ -471,6 +520,7 @@
     <tbody>
       <tr><td>№</td><td><code>rownum</code></td><td>—</td></tr>
       <tr><td>ID</td><td><code>id</code></td><td>—</td></tr>
+      <tr><td>Партнер</td><td><code>text</code></td><td><code>partner_id</code> + <code>partner_title</code> подписью (как в чеках); ключ колонок <code>partner</code></td></tr>
       <tr><td>Создано</td><td><code>datetime</code></td><td>класс <code>pay-cell-datetime</code> (<code>admin-list-toolbar.css</code>); формат с сервера <code>Y-m-d H:i:s</code></td></tr>
       <tr><td>Отправлено</td><td><code>datetime</code></td><td>аналогично «Создано»</td></tr>
       <tr><td>Статус</td><td><code>badge</code></td><td>отправлено / в процессе / ошибка</td></tr>
@@ -480,7 +530,7 @@
       <tr><td>Действия</td><td><code>actions</code></td><td>кнопка «Открыть» — та же модалка</td></tr>
     </tbody>
   </table>
-  <p class="small">JSON <code>…/data</code> добавляет вычисляемые поля: <code>mailable_short</code>, <code>error_excerpt</code>, <code>show_url</code> (<code>route('reports.emails.show', log)</code>).</p>
+  <p class="small">JSON <code>…/data</code> добавляет вычисляемые поля: <code>partner_title</code>, <code>mailable_short</code>, <code>error_excerpt</code>, <code>show_url</code> (<code>route('reports.emails.show', log)</code>).</p>
 
   <h3 id="reports-outgoing-emails-show">8.3) Просмотр письма: модалка и отдельная страница</h3>
   <div class="note">
@@ -506,12 +556,15 @@
     <thead><tr><th>Сценарий</th><th>Ответ</th></tr></thead>
     <tbody>
       <tr><td>Гость</td><td>302 на login / 401 / 403 (как у прочих admin routes)</td></tr>
-      <tr><td>Авторизован без <code>reports.emails.view</code></td><td><b>403</b> на index, data, total, show, columns-settings, mailable-classes-search</td></tr>
-      <tr><td>С правом / superadmin, свой партнёр</td><td><b>200</b> / JSON по контракту endpoint'а</td></tr>
-      <tr><td><code>show</code> для лога другого партнёра</td><td><b>403</b> (<code>OutgoingEmailReportController::show</code>)</td></tr>
+      <tr><td>Авторизован без <code>reports.emails.view</code></td><td><b>403</b> на index, data, total, show, columns-settings, mailable-classes-search, partners-search</td></tr>
+      <tr><td>Не-superadmin с правом</td><td>фильтр «Партнер» скрыт; data/total/show только по своему партнёру; чужой <code>show</code> → <b>403</b>; query <code>partner_id</code> игнорируется</td></tr>
+      <tr><td>Superadmin</td><td>фильтр «Партнер» всегда виден; без <code>partner_id</code> — все партнёры; с <code>partner_id</code> — сужение; <code>show</code> любого лога — <b>200</b> (не зависит от <code>current_partner</code>)</td></tr>
       <tr><td><code>…/data</code> без AJAX</td><td><b>404</b></td></tr>
     </tbody>
   </table>
+  <div class="note">
+    Право <code>reports.emails.view</code>: <code>is_visible = 0</code> (скрыто в матрице для не-superadmin), в базовый набор admin/user <b>не входит</b> — выдаётся явно (обычно только superadmin).
+  </div>
 
   <h3 id="reports-outgoing-emails-columns-settings">8.5) columns-settings</h3>
   <ul>
@@ -554,30 +607,33 @@
   <div class="note">
     Feature‑тесты покрывают: контроль доступа (403 без права; smoke 200 при наличии прав на страницу и все AJAX endpoints),
     работу <code>…/total</code>, columns-settings (save/load), server-side детализацию с <code>draw</code>, Select2 search,
-    фильтр по локации (§2.1), фильтр «Активность ученика» (§2.3).
+    фильтр по локации (§2.1), фильтр «Активность ученика» (§2.3), <b>фильтр «Партнер»</b> (§2.4).
   </div>
   <ul>
+    <li><code>tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php</code> — <b>фильтр «Партнер»</b> в emails / fiscal / payment-intents: UI SA vs admin, soft-scope, isolation (игнор чужого <code>partner_id</code>), partners-search + 422, show foreign</li>
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
     <li><code>tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php</code> — <b>KidsCrmDataTable</b> для debt/LTV/monthly: UI, columns-settings, детализация с <code>draw</code> и legacy JSON, полный доступ 200; smoke emails/fiscal/payment-intents</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
-    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, isolation, totals, data, columns-settings, show (modal partial, HTML iframe)</li>
-    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов, UI модалки, datetime/link колонки, foreign log 403, data без AJAX 404</li>
-    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX/AJAX, validation 302/422, modal show contract</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>outgoing_emails.blade.php</code> (модалка, AJAX show)</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, totals/data с partner_id, columns-settings, show (modal partial, HTML iframe), listener</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов (в т.ч. partners-search), UI фильтра/колонки partner, datetime/link, foreign log 403 для admin, data без AJAX 404</li>
+    <li><code>tests/Feature/Crm/Reports/OutgoingEmailsNonAjaxSafetyNetFeatureTest.php</code> — columns-settings non-AJAX/AJAX, partners-search 422/JSON, validation 302/422, modal show contract</li>
+    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php</code> — guest/403/smoke чеков, UI фильтра partner, columns-settings AJAX/non-AJAX</li>
+    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields</li>
+    <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
+    <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code> (+ отдельный кейс partner-filter в emails)</li>
     <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>
     <li><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> — запись <code>payments.location_id</code> при оплате</li>
-    <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context</li>
-    <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтр <code>filter_trainer_profile_id</code> по группам тренера</li>
     <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, <code>trainers-search</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php
-php artisan test --env=testing tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php
-php artisan test --env=testing tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php
-php artisan test --env=testing --filter "(DeptReportTest|LtvReportTest|PaymentMonthlyReportTest|PaymentReportLocationFeatureTest|PaymentLedgerLocationTest)"</code></pre>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code></pre>
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/reusable-ui-partials">UI: KidsCrmDataTable</a> · <a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></p>
 </div>
 </body>

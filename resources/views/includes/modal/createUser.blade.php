@@ -90,19 +90,26 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="col-12" id="create-send-welcome-wrap">
-                                                    <div class="mb-3">
-                                                        <input type="hidden" name="send_welcome_email" value="0">
-                                                        <div class="form-check">
-                                                            <input class="form-check-input"
-                                                                   type="checkbox"
-                                                                   name="send_welcome_email"
-                                                                   value="1"
-                                                                   id="create-send-welcome-email"
-                                                                   checked>
-                                                            <label class="form-check-label" for="create-send-welcome-email">
-                                                                Отправить письмо
-                                                            </label>
+                                                <div class="col-12 col-md-6 d-flex" id="create-send-welcome-wrap">
+                                                    <div class="mb-3 w-100 d-flex flex-column flex-grow-1">
+                                                        <label class="form-label d-none d-md-block" aria-hidden="true">&nbsp;</label>
+                                                        <div class="flex-grow-1 d-flex align-items-center">
+                                                            <input type="hidden" name="send_welcome_email" value="0">
+                                                            <div class="form-check mb-0">
+                                                                <input class="form-check-input"
+                                                                       type="checkbox"
+                                                                       name="send_welcome_email"
+                                                                       value="1"
+                                                                       id="create-send-welcome-email"
+                                                                       checked>
+                                                                <label class="form-check-label" for="create-send-welcome-email">
+                                                                    Отправить письмо
+                                                                </label>
+                                                                @include('partials.ui.tooltip-hint', [
+                                                                    'title' => 'На указанный email уйдёт письмо с логином и паролем для входа в личный кабинет. Пароль сформируется автоматически.',
+                                                                    'placement' => 'top',
+                                                                ])
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>

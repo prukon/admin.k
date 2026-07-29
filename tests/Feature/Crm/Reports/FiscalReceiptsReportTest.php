@@ -31,7 +31,8 @@ class FiscalReceiptsReportTest extends CrmTestCase
     }
 
     /**
-     * [P0] /admin/reports/fiscal-receipts/total отдаёт сумму amount по фильтрам и current_partner.
+     * [P0] /admin/reports/fiscal-receipts/total: superadmin без фильтра — все;
+     * с partner_id — только выбранный партнёр.
      */
     public function test_fiscal_receipts_total_endpoint_returns_correct_sum(): void
     {
@@ -54,13 +55,18 @@ class FiscalReceiptsReportTest extends CrmTestCase
             'type' => 'income',
         ]);
 
-        $expectedRaw = 3000.0;
-        $expectedFormatted = number_format($expectedRaw, 0, '', ' ');
-
         $this->get(route('reports.fiscal-receipts.total'))
             ->assertOk()
             ->assertJson([
-                'total_formatted' => $expectedFormatted,
+                'total_formatted' => number_format(12999.0, 0, '', ' '),
+                'total_raw' => 12999.0,
+            ]);
+
+        $expectedRaw = 3000.0;
+        $this->get(route('reports.fiscal-receipts.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_formatted' => number_format($expectedRaw, 0, '', ' '),
                 'total_raw' => $expectedRaw,
             ]);
     }
@@ -114,6 +120,20 @@ class FiscalReceiptsReportTest extends CrmTestCase
         $this->assertArrayHasKey('results', $json);
         $ids = collect($json['results'])->pluck('id')->all();
         $this->assertContains($p->id, $ids);
+    }
+
+    /**
+     * [P1] Фильтр «Партнер»: у superadmin всегда виден, у admin — скрыт.
+     */
+    public function test_fiscal_receipts_partner_filter_hidden_when_current_partner_set(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->get(route('reports.fiscal-receipts.index'))
+            ->assertOk()
+            ->assertViewHas('frCanFilterPartner', true)
+            ->assertSee('fr-filter-partner', false);
     }
 
     /**

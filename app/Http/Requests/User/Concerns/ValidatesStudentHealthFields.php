@@ -29,7 +29,7 @@ trait ValidatesStudentHealthFields
     protected function studentHealthFieldAttributes(): array
     {
         return [
-            'is_individual_traits'   => 'Индивидуальные особенности воспитанника',
+            'is_individual_traits'   => 'Инд. особенности (физические, психологические)',
             'is_on_medical_register' => 'Учёт у медицинских специалистов',
             'is_with_disability'     => 'Наличие инвалидности',
         ];
@@ -38,7 +38,7 @@ trait ValidatesStudentHealthFields
     protected function studentHealthFieldMessages(): array
     {
         return [
-            'is_individual_traits.boolean'   => 'Некорректное значение поля «Индивидуальные особенности воспитанника».',
+            'is_individual_traits.boolean'   => 'Некорректное значение поля «Инд. особенности (физические, психологические)».',
             'is_on_medical_register.boolean' => 'Некорректное значение поля «Учёт у медицинских специалистов».',
             'is_with_disability.boolean'     => 'Некорректное значение поля «Наличие инвалидности».',
         ];

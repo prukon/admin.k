@@ -266,6 +266,18 @@
     (§<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a> модалка, §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-access">8.4</a> доступ).
   </div>
 
+  <h2>Фильтр «Партнер» в отчётах emails / чеки / payment-intents (2026‑07)</h2>
+  <div class="note">
+    На вкладках <a href="/docs/documentation/reports-admin#reports-outgoing-emails">Исходящие письма</a>,
+    <a href="/docs/documentation/reports-admin#partner-filter-cross-report">Чеки</a> и
+    <a href="/docs/documentation/reports-admin#partner-filter-cross-report">Платежные запросы</a>:
+    у <b>superadmin</b> Select2 «Партнер» всегда виден, выборка <b>не</b> ограничена <code>current_partner</code>
+    (можно смотреть всех или сузить через <code>partner_id</code>); у остальных с правом отчёта фильтр скрыт,
+    данные только своего партнёра, чужой <code>partner_id</code> в query игнорируется.
+    В «Исходящих письмах» добавлена колонка «Партнер» и endpoint <code>…/emails/partners-search</code>.
+    Единое описание — <a href="/docs/documentation/reports-admin#partner-filter-cross-report">reports-admin §2.4</a>.
+  </div>
+
   <h2>Dev-фикстуры (2026‑07)</h2>
   <div class="note">
     Локальная и test-БД: при <code>SEED_DEV_DATA=true</code> в <code>.env</code> блок <code>Dev*</code>-сидеров в <code>DatabaseSeeder</code> создаёт детерминированные партнёры 1–3, юр. лица (<code>SHOP-DEV-*</code>), справочники районов/видов спорта, группы с <code>legal_entity_id</code>, правила комиссий T‑Bank, историю платежей/выплат, Robokassa (1–2) и глобальный T‑Bank. На production флаг выключен. Подробно — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
@@ -335,7 +347,7 @@
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>customPayments.view</code> + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
-    <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (руководство для рефакторинга)</a></li>
+    <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)</a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo), <code>PartnerLegacyLegalFields</code>, доступ guest/403, AJAX/non-AJAX, оплаты без fallback</a></li>
@@ -351,7 +363,7 @@
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments (0 custom), LTV/monthly (chevron custom), фильтры (локация, тренер, <b>активность ученика</b>), AJAX/суммы; <b>«Исходящие письма»</b> — модалка просмотра, datetime-колонки, iframe HTML (§8)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>lesson_occurrence_statuses</code>, вкладка «Статусы занятий» (<b>toolbar / DataTable / фильтры / колонки / история</b> <code>lesson_occurrence_status.*</code>), тренер при «Посетил»</a></li>

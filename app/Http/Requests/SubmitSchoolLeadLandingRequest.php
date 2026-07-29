@@ -138,7 +138,7 @@ class SubmitSchoolLeadLandingRequest extends FormRequest
             'child_firstname'        => 'Имя ребёнка',
             'child_middlename'       => 'Отчество ребёнка',
             'child_birthday'         => 'Дата рождения ребёнка',
-            'is_individual_traits'   => 'Индивидуальные особенности воспитанника',
+            'is_individual_traits'   => 'Инд. особенности (физические, психологические)',
             'is_on_medical_register' => 'Учёт у медицинских специалистов',
             'is_with_disability'     => 'Наличие инвалидности',
             'district_id'            => 'Район',

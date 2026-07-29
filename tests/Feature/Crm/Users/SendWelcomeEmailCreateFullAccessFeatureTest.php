@@ -158,6 +158,8 @@ final class SendWelcomeEmailCreateFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="create-send-welcome-email"', false)
             ->assertSee('Отправить письмо', false)
+            ->assertSee('kids-tooltip-hint', false)
+            ->assertSee('На указанный email уйдёт письмо с логином и паролем для входа в личный кабинет. Пароль сформируется автоматически.', false)
             ->assertSee('syncCreateWelcomeCredentialsUi', false)
             ->assertSee('name="send_welcome_email"', false);
     }
@@ -171,7 +173,9 @@ final class SendWelcomeEmailCreateFullAccessFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertSee('id="trainer-create-send-welcome-email"', false)
             ->assertSee('syncTrainerCreateWelcomeUi', false)
-            ->assertSee('Отправить письмо', false);
+            ->assertSee('Отправить письмо', false)
+            ->assertSee('kids-tooltip-hint', false)
+            ->assertSee('На указанный email уйдёт письмо с логином и паролем для входа в личный кабинет. Пароль сформируется автоматически.', false);
     }
 
     public function test_administrators_page_contains_send_welcome_email_checkbox_markers(): void

@@ -146,9 +146,10 @@ class DevPricesSeeder extends Seeder
     {
         $months = [];
         for ($ago = $monthsAgoMin; $ago <= $monthsAgoMax; $ago++) {
+            // startOfMonth() до subMonths — иначе на 29–31 числе overflow даёт дубли месяцев (напр. февраль→март).
             $months[] = Carbon::now()
-                ->subMonths($ago)
                 ->startOfMonth()
+                ->subMonths($ago)
                 ->format('Y-m-01');
         }
 

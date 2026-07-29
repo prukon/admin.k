@@ -42,6 +42,7 @@ class OutgoingEmailReportTest extends CrmTestCase
         $this->get(route('reports.emails.index'))->assertForbidden();
         $this->get(route('reports.emails.total'))->assertForbidden();
         $this->get(route('reports.emails.mailable.classes.search', ['q' => 'x']))->assertForbidden();
+        $this->get(route('reports.emails.partners.search', ['q' => 'x']))->assertForbidden();
 
         $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('reports.emails.data', ['draw' => 1]))
@@ -53,7 +54,7 @@ class OutgoingEmailReportTest extends CrmTestCase
     }
 
     /**
-     * [P0] Index доступен суперадмину и устанавливает активный таб.
+     * [P0] Index доступен суперадмину: фильтр «Партнер» всегда виден.
      */
     public function test_index_returns_ok_for_superadmin_and_sets_active_tab(): void
     {
@@ -63,12 +64,131 @@ class OutgoingEmailReportTest extends CrmTestCase
         $this->get(route('reports.emails.index'))
             ->assertOk()
             ->assertViewIs('admin.report.index')
-            ->assertViewHas('activeTab', 'emails');
+            ->assertViewHas('activeTab', 'emails')
+            ->assertViewHas('emailsCanFilterPartner', true)
+            ->assertSee('em-filter-partner', false);
     }
 
     /**
-     * [P0] /admin/reports/emails/total — счётчики Всего/Отправлено/Ошибки
-     * считаются только по current_partner (изоляция).
+     * [P0] Не-superadmin с правом: фильтр «Партнер» скрыт.
+     */
+    public function test_partner_filter_hidden_for_non_superadmin_with_permission(): void
+    {
+        $actor = $this->createUserWithRole('admin', $this->partner);
+        \Illuminate\Support\Facades\DB::table('permission_role')->updateOrInsert(
+            [
+                'partner_id' => $this->partner->id,
+                'role_id' => (int) $actor->role_id,
+                'permission_id' => $this->permissionId('reports.emails.view'),
+            ],
+            [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+        $this->actingAs($actor);
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->get(route('reports.emails.index'))
+            ->assertOk()
+            ->assertViewHas('emailsCanFilterPartner', false)
+            ->assertDontSee('em-filter-partner', false);
+    }
+
+    /**
+     * [P1] Select2 partners-search возвращает results[].
+     */
+    public function test_partners_search_returns_results(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $this->partner->update(['title' => 'EMAILS Partner Alpha']);
+
+        $json = $this->get(route('reports.emails.partners.search', ['q' => 'EMAILS Partner']))
+            ->assertOk()
+            ->json();
+
+        $this->assertArrayHasKey('results', $json);
+        $ids = collect($json['results'])->pluck('id')->all();
+        $this->assertContains($this->partner->id, $ids);
+    }
+
+    /**
+     * [P0] Superadmin: без partner_id видит все партнёры; с partner_id — сужение.
+     */
+    public function test_superadmin_sees_all_partners_unless_filtered(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $own = OutgoingEmailLog::create([
+            'partner_id' => $this->partner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'subject' => 'OwnFilter',
+        ]);
+        $foreign = OutgoingEmailLog::create([
+            'partner_id' => $this->foreignPartner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'subject' => 'ForeignFilter',
+        ]);
+
+        $allJson = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.emails.data', ['draw' => 1, 'start' => 0, 'length' => 50]))
+            ->assertOk()
+            ->json();
+        $allIds = collect($allJson['data'])->pluck('id')->all();
+        $this->assertContains($own->id, $allIds);
+        $this->assertContains($foreign->id, $allIds);
+
+        $this->get(route('reports.emails.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJson([
+                'total_raw' => 1,
+                'sent_raw' => 1,
+                'failed_raw' => 0,
+            ]);
+
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.emails.data', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 50,
+                'partner_id' => $this->partner->id,
+            ]))
+            ->assertOk()
+            ->json();
+
+        $ids = collect($json['data'])->pluck('id')->all();
+        $this->assertSame([$own->id], array_values($ids));
+
+        $row = collect($json['data'])->firstWhere('id', $own->id);
+        $this->assertSame($this->partner->id, (int) ($row['partner_id'] ?? 0));
+        $this->assertArrayHasKey('partner_title', $row);
+    }
+
+    /**
+     * [P0] Superadmin: show чужого партнёра разрешён.
+     */
+    public function test_show_allows_foreign_log_for_superadmin(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $foreignLog = OutgoingEmailLog::create([
+            'partner_id' => $this->foreignPartner->id,
+            'status' => OutgoingEmailLog::STATUS_SENT,
+            'subject' => 'CrossPartnerShow',
+        ]);
+
+        $this->get(route('reports.emails.show', ['log' => $foreignLog->id]))
+            ->assertOk()
+            ->assertViewIs('admin.report.outgoing_email_show');
+    }
+
+    /**
+     * [P0] /admin/reports/emails/total — для superadmin без фильтра считает всех;
+     * с partner_id — только выбранного партнёра (чужой не входит).
      */
     public function test_total_endpoint_returns_correct_counts_and_isolates_by_partner(): void
     {
@@ -96,7 +216,6 @@ class OutgoingEmailReportTest extends CrmTestCase
             'status' => OutgoingEmailLog::STATUS_SENDING,
             'subject' => 's4',
         ]);
-        // Чужого партнёра не должно быть в подсчёте:
         OutgoingEmailLog::create([
             'partner_id' => $this->foreignPartner->id,
             'status' => OutgoingEmailLog::STATUS_SENT,
@@ -106,6 +225,14 @@ class OutgoingEmailReportTest extends CrmTestCase
         $this->get(route('reports.emails.total'))
             ->assertOk()
             ->assertJson([
+                'total_raw'  => 5,
+                'sent_raw'   => 3,
+                'failed_raw' => 1,
+            ]);
+
+        $this->get(route('reports.emails.total', ['partner_id' => $this->partner->id]))
+            ->assertOk()
+            ->assertJson([
                 'total_raw'  => 4,
                 'sent_raw'   => 2,
                 'failed_raw' => 1,
@@ -113,7 +240,7 @@ class OutgoingEmailReportTest extends CrmTestCase
     }
 
     /**
-     * [P0] DataTables data: возвращает только записи current_partner.
+     * [P0] DataTables data: superadmin без фильтра видит все; с partner_id — только своего.
      */
     public function test_data_endpoint_returns_only_current_partner_logs(): void
     {
@@ -125,20 +252,33 @@ class OutgoingEmailReportTest extends CrmTestCase
             'status' => OutgoingEmailLog::STATUS_SENT,
             'subject' => 'OwnSubject',
         ]);
-        OutgoingEmailLog::create([
+        $foreign = OutgoingEmailLog::create([
             'partner_id' => $this->foreignPartner->id,
             'status' => OutgoingEmailLog::STATUS_SENT,
             'subject' => 'ForeignSubject',
         ]);
 
-        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+        $allJson = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('reports.emails.data', ['draw' => 1, 'start' => 0, 'length' => 50]))
             ->assertOk()
             ->json();
+        $allIds = collect($allJson['data'])->pluck('id')->all();
+        $this->assertContains($own->id, $allIds);
+        $this->assertContains($foreign->id, $allIds);
 
-        $this->assertArrayHasKey('data', $json);
+        $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get(route('reports.emails.data', [
+                'draw' => 1,
+                'start' => 0,
+                'length' => 50,
+                'partner_id' => $this->partner->id,
+            ]))
+            ->assertOk()
+            ->json();
+
         $ids = collect($json['data'])->pluck('id')->all();
         $this->assertContains($own->id, $ids);
+        $this->assertNotContains($foreign->id, $ids);
         $this->assertCount(1, $ids);
 
         $row = collect($json['data'])->firstWhere('id', $own->id);
@@ -181,7 +321,7 @@ class OutgoingEmailReportTest extends CrmTestCase
     }
 
     /**
-     * [P1] mailable-classes-search возвращает results[] и фильтрует по партнёру.
+     * [P1] mailable-classes-search: без фильтра — все партнёры; с partner_id — только свой.
      */
     public function test_mailable_classes_search_returns_results_for_current_partner(): void
     {
@@ -201,7 +341,17 @@ class OutgoingEmailReportTest extends CrmTestCase
             'subject' => 's',
         ]);
 
-        $json = $this->get(route('reports.emails.mailable.classes.search', ['q' => 'NewPartner']))
+        $allJson = $this->get(route('reports.emails.mailable.classes.search', ['q' => '']))
+            ->assertOk()
+            ->json();
+        $allIds = collect($allJson['results'])->pluck('id')->all();
+        $this->assertContains('App\\Mail\\NewPartnerLeadSubmission', $allIds);
+        $this->assertContains('App\\Notifications\\ForeignNotification', $allIds);
+
+        $json = $this->get(route('reports.emails.mailable.classes.search', [
+            'q' => 'NewPartner',
+            'partner_id' => $this->partner->id,
+        ]))
             ->assertOk()
             ->json();
 
@@ -314,11 +464,23 @@ class OutgoingEmailReportTest extends CrmTestCase
     }
 
     /**
-     * [P0] show — запрещает доступ к чужому логу.
+     * [P0] show — не-superadmin не видит чужой лог; superadmin — видит.
      */
     public function test_show_forbids_foreign_log(): void
     {
-        $this->asSuperadmin();
+        $actor = $this->createUserWithRole('admin', $this->partner);
+        \Illuminate\Support\Facades\DB::table('permission_role')->updateOrInsert(
+            [
+                'partner_id' => $this->partner->id,
+                'role_id' => (int) $actor->role_id,
+                'permission_id' => $this->permissionId('reports.emails.view'),
+            ],
+            [
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+        $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id]);
 
         $foreignLog = OutgoingEmailLog::create([

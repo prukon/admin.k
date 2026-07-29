@@ -59,7 +59,7 @@
     </thead>
     <tbody>
       <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …</td></tr>
-      <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.emails.view</code>, <code>reports.payments.*</code>, вложенные страницы отчётов</td></tr>
+      <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
       <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.*</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code>, <code>lessonPackages.export</code> (выгрузка Excel с календаря школы)</td></tr>

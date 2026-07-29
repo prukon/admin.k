@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\Report\OutgoingEmailReportSelect2SearchRequest;
+use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 use App\Models\OutgoingEmailLog;
+use App\Models\Partner;
 use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +22,8 @@ use Yajra\DataTables\DataTables;
  * Источник данных: таблица outgoing_email_logs (наполняется
  * App\Listeners\LogOutgoingEmail на событиях MessageSending/MessageSent).
  *
- * Все методы требуют requirePartnerId() — отчёт строго в рамках текущего партнёра.
+ * Scope: non-superadmin — только свой partner_id; superadmin — все партнёры
+ * + опциональный фильтр partner_id (паритет с чеками / payment intents).
  */
 class OutgoingEmailReportController extends AdminBaseController
 {
@@ -43,19 +46,21 @@ class OutgoingEmailReportController extends AdminBaseController
 
     public function index(Request $request)
     {
-        $partnerId = $this->requirePartnerId();
-
-        $totals = $this->computeTotals($partnerId, $request);
+        $canFilterPartner = $this->canFilterByPartner();
+        $totals = $this->computeTotals($request);
         $filters = $request->query();
 
-        $emailsFilterMailable = $this->resolveMailableFilterLabel($partnerId, $filters);
+        $emailsFilterMailable = $this->resolveMailableFilterLabel($request, $filters);
+        $emailsFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
 
         return view('admin.report.index', [
             'activeTab' => 'emails',
             'filters' => $filters,
             'emailsToolbar' => $totals,
             'emailsFilterMailable' => $emailsFilterMailable,
-            'emailsHasActiveFilters' => $this->hasActiveFilters($filters),
+            'emailsFilterPartner' => $emailsFilterPartner,
+            'emailsCanFilterPartner' => $canFilterPartner,
+            'emailsHasActiveFilters' => $this->hasActiveFilters($filters, $canFilterPartner),
         ]);
     }
 
@@ -64,8 +69,7 @@ class OutgoingEmailReportController extends AdminBaseController
      */
     public function total(Request $request)
     {
-        $partnerId = $this->requirePartnerId();
-        $totals = $this->computeTotals($partnerId, $request);
+        $totals = $this->computeTotals($request);
 
         return response()->json($totals);
     }
@@ -79,11 +83,9 @@ class OutgoingEmailReportController extends AdminBaseController
             abort(404);
         }
 
-        $partnerId = $this->requirePartnerId();
-
         // Лёгкая выборка: тяжёлые поля (html_body/text_body/attachments) не тащим.
         $query = OutgoingEmailLog::query()
-            ->where('partner_id', $partnerId)
+            ->with(['partner:id,title'])
             ->select([
                 'id',
                 'partner_id',
@@ -101,6 +103,7 @@ class OutgoingEmailReportController extends AdminBaseController
                 'error_message',
             ]);
 
+        $this->applyPartnerScopeToQuery($query, $request);
         $this->applyFilters($query, $request);
 
         $hasOrder = is_array($request->input('order')) && count($request->input('order')) > 0;
@@ -110,6 +113,9 @@ class OutgoingEmailReportController extends AdminBaseController
 
         return DataTables::of($query)
             ->addIndexColumn()
+            ->addColumn('partner_title', function (OutgoingEmailLog $row) {
+                return (string) ($row->partner->title ?? '');
+            })
             ->addColumn('mailable_short', function (OutgoingEmailLog $row) {
                 return $this->shortClassName(
                     $row->mailable_class !== null && $row->mailable_class !== ''
@@ -145,33 +151,65 @@ class OutgoingEmailReportController extends AdminBaseController
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
                 $query->orderByRaw("COALESCE(mailable_class, notification_class) {$dir}");
             })
+            ->orderColumn('partner_id', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('outgoing_email_logs.partner_id', $dir);
+            })
             ->toJson();
     }
 
     /**
-     * Select2: уникальные классы Mailable/Notification у логов текущего партнёра.
+     * Select2: поиск партнёров (по названию).
+     */
+    public function partnersSearch(PaymentsReportSelect2SearchRequest $request)
+    {
+        $q = (string) ($request->validated()['q'] ?? '');
+
+        $partners = Partner::query()
+            ->when($q !== '', function ($qq) use ($q) {
+                $qq->where('title', 'like', '%'.$q.'%');
+            })
+            ->orderBy('title')
+            ->limit(50)
+            ->get(['id', 'title']);
+
+        $results = $partners->map(static function (Partner $p) {
+            return [
+                'id' => $p->id,
+                'text' => (string) ($p->title ?? ''),
+            ];
+        });
+
+        return response()->json(['results' => $results]);
+    }
+
+    /**
+     * Select2: уникальные классы Mailable/Notification у логов (в рамках scope).
      */
     public function mailableClassesSearch(OutgoingEmailReportSelect2SearchRequest $request)
     {
-        $partnerId = $this->requirePartnerId();
         $q = (string) ($request->validated()['q'] ?? '');
 
-        $rows = OutgoingEmailLog::query()
-            ->where('partner_id', $partnerId)
+        $query = OutgoingEmailLog::query()
             ->select([
                 DB::raw('COALESCE(mailable_class, notification_class) as class_name'),
             ])
-            ->whereNotNull(DB::raw('COALESCE(mailable_class, notification_class)'))
-            ->when($q !== '', function ($qq) use ($q) {
-                $needle = '%'.$q.'%';
-                $qq->where(function ($w) use ($needle) {
-                    $w->where('mailable_class', 'like', $needle)
-                        ->orWhere('notification_class', 'like', $needle);
-                });
-            })
+            ->whereNotNull(DB::raw('COALESCE(mailable_class, notification_class)'));
+
+        $this->applyPartnerScopeToQuery($query, $request);
+
+        $query->when($q !== '', function ($qq) use ($q) {
+            $needle = '%'.$q.'%';
+            $qq->where(function ($w) use ($needle) {
+                $w->where('mailable_class', 'like', $needle)
+                    ->orWhere('notification_class', 'like', $needle);
+            });
+        })
             ->groupBy('class_name')
             ->orderBy('class_name')
-            ->limit(50)
+            ->limit(50);
+
+        $rows = $query
             ->pluck('class_name')
             ->filter(fn ($v) => is_string($v) && $v !== '')
             ->values();
@@ -188,8 +226,6 @@ class OutgoingEmailReportController extends AdminBaseController
 
     public function getColumnsSettings()
     {
-        $this->requirePartnerId();
-
         $settings = UserTableSetting::query()
             ->where('user_id', (int) Auth::id())
             ->where('table_key', self::TABLE_KEY)
@@ -205,8 +241,6 @@ class OutgoingEmailReportController extends AdminBaseController
 
     public function saveColumnsSettings(Request $request)
     {
-        $this->requirePartnerId();
-
         $data = $request->validate([
             'columns' => 'required|array',
         ]);
@@ -238,10 +272,11 @@ class OutgoingEmailReportController extends AdminBaseController
      */
     public function show(Request $request, OutgoingEmailLog $log)
     {
-        $partnerId = $this->requirePartnerId();
-
-        if ((int) ($log->partner_id ?? 0) !== (int) $partnerId) {
-            abort(403);
+        if (! $this->isSuperAdmin()) {
+            $partnerId = $this->requirePartnerId();
+            if ((int) ($log->partner_id ?? 0) !== $partnerId) {
+                abort(403);
+            }
         }
 
         $inModal = $request->ajax() || $request->boolean('modal');
@@ -263,11 +298,42 @@ class OutgoingEmailReportController extends AdminBaseController
     // -----------------------------------------------------------------------
 
     /**
+     * Фильтр «Партнер» — только superadmin (видит кросс-партнёрные данные).
+     */
+    private function canFilterByPartner(): bool
+    {
+        return $this->isSuperAdmin();
+    }
+
+    /**
+     * @param  Builder<OutgoingEmailLog>  $query
+     */
+    private function applyPartnerScopeToQuery($query, Request $request): void
+    {
+        if ($this->isSuperAdmin()) {
+            if ($request->filled('partner_id') && ctype_digit((string) $request->input('partner_id'))) {
+                $pid = (int) $request->input('partner_id');
+                if ($pid > 0) {
+                    $query->where('outgoing_email_logs.partner_id', $pid);
+                }
+            }
+
+            return;
+        }
+
+        $partnerId = $this->requirePartnerId();
+        $query->where('outgoing_email_logs.partner_id', $partnerId);
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      */
-    private function hasActiveFilters(array $filters): bool
+    private function hasActiveFilters(array $filters, bool $canFilterPartner): bool
     {
         $keys = ['created_at_from', 'created_at_to', 'sent_at_from', 'sent_at_to', 'status', 'mailable_class', 'q'];
+        if ($canFilterPartner) {
+            $keys[] = 'partner_id';
+        }
         foreach ($keys as $k) {
             $v = $filters[$k] ?? null;
             if (is_array($v)) {
@@ -293,9 +359,10 @@ class OutgoingEmailReportController extends AdminBaseController
      *     failed_formatted: string
      * }
      */
-    private function computeTotals(int $partnerId, Request $request): array
+    private function computeTotals(Request $request): array
     {
-        $base = OutgoingEmailLog::query()->where('partner_id', $partnerId);
+        $base = OutgoingEmailLog::query();
+        $this->applyPartnerScopeToQuery($base, $request);
         $this->applyFilters($base, $request);
 
         $totalRaw  = (int) (clone $base)->count();
@@ -365,29 +432,53 @@ class OutgoingEmailReportController extends AdminBaseController
      * @param  array<string, mixed>  $filters
      * @return array{id: string, text: string}|null
      */
-    private function resolveMailableFilterLabel(int $partnerId, array $filters): ?array
+    private function resolveMailableFilterLabel(Request $request, array $filters): ?array
     {
         $cls = $filters['mailable_class'] ?? null;
         if (! is_string($cls) || $cls === '') {
             return null;
         }
 
-        $exists = OutgoingEmailLog::query()
-            ->where('partner_id', $partnerId)
+        $existsQuery = OutgoingEmailLog::query()
             ->where(function ($w) use ($cls) {
                 $w->where('mailable_class', $cls)
                     ->orWhere('notification_class', $cls);
-            })
-            ->limit(1)
-            ->exists();
+            });
+        $this->applyPartnerScopeToQuery($existsQuery, $request);
 
-        if (! $exists) {
+        if (! $existsQuery->limit(1)->exists()) {
             return null;
         }
 
         return [
             'id' => $cls,
             'text' => $this->shortClassName($cls).' ('.$cls.')',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{id: int, text: string}|null
+     */
+    private function resolvePartnerLabel(array $filters): ?array
+    {
+        $raw = $filters['partner_id'] ?? null;
+        if ($raw === null || $raw === '' || ! ctype_digit((string) $raw)) {
+            return null;
+        }
+        $pid = (int) $raw;
+        if ($pid <= 0) {
+            return null;
+        }
+
+        $p = Partner::query()->where('id', $pid)->first(['id', 'title']);
+        if (! $p) {
+            return null;
+        }
+
+        return [
+            'id' => $p->id,
+            'text' => (string) ($p->title ?? ''),
         ];
     }
 

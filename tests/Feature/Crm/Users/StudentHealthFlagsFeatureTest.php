@@ -206,7 +206,7 @@ final class StudentHealthFlagsFeatureTest extends CrmTestCase
 
         $this->assertNotNull($log);
         $desc = (string) $log->description;
-        $this->assertStringContainsString('Индивидуальные особенности', $desc);
+        $this->assertStringContainsString('Инд. особенности', $desc);
         $this->assertStringContainsString('Учёт у медспециалистов', $desc);
         $this->assertStringContainsString('Инвалидность', $desc);
     }
