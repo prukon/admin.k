@@ -302,9 +302,9 @@
         </div>
     </div>
 
-    <!-- Модалка №2: добавление группы ученику -->
+    <!-- Модалка №2: управление группами ученика (закрытие только явно: крестик / Отмена / Сохранить) -->
     <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel"
-         aria-hidden="true">
+         aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -318,6 +318,9 @@
                         'teamOptions' => $teams,
                         'canEditTeams' => true,
                     ])
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
                     <button type="button" id="btnSaveUserGroup" class="btn btn-primary">Сохранить</button>
                 </div>
             </div>

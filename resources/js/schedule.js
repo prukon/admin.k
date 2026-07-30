@@ -356,23 +356,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 html += `
                     <button type="button"
-                            class="btn btn-primary mb-3 me-2"
+                            class="btn btn-primary mb-3"
                             id="btnChooseGroup"
                             data-user-id="${user.id}"
                             data-team-ids='${JSON.stringify(user.team_ids || [])}'>
                         Изменить группы
                     </button>
                 `;
-                if (hasTeams) {
-                    html += `
-                        <button type="button"
-                                class="btn btn-outline-danger mb-3"
-                                id="btnDetachAllGroups"
-                                data-user-id="${user.id}">
-                            Снять все группы
-                        </button>
-                    `;
-                }
 
                 let days = [
                     {id: 1, label: 'Пн'},
@@ -426,7 +416,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     let chooseGroupModalEl = document.getElementById('chooseGroupModal');
-    let chooseGroupModal = new bootstrap.Modal(chooseGroupModalEl);
+    let chooseGroupModal = new bootstrap.Modal(chooseGroupModalEl, {
+        backdrop: 'static',
+        keyboard: false
+    });
 
   // Вызов «Изменить группы»
     $(document).on('click', '#btnChooseGroup', function () {
@@ -477,14 +470,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
-
-    $(document).on('click', '#btnDetachAllGroups', function () {
-        let userId = $(this).data('user-id');
-        postUserTeamsSync(userId, [], function (resp) {
-            showSuccessModal('Группы ученика', resp.message || 'Ученик снят со всех групп.', 1);
-        });
-    });
 
 
     //Сохранить группы
