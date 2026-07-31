@@ -10,6 +10,8 @@ class LessonOccurrenceStatus extends Model
 {
     public const CODE_ATTENDED = 'attended';
 
+    public const CODE_SCHEDULED = 'scheduled';
+
     protected $table = 'lesson_occurrence_statuses';
 
     protected $guarded = [];
@@ -50,6 +52,16 @@ class LessonOccurrenceStatus extends Model
         $id = static::query()
             ->forPartner($partnerId)
             ->where('code', self::CODE_ATTENDED)
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    public static function scheduledIdForPartner(int $partnerId): ?int
+    {
+        $id = static::query()
+            ->forPartner($partnerId)
+            ->where('code', self::CODE_SCHEDULED)
             ->value('id');
 
         return $id !== null ? (int) $id : null;

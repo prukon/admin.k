@@ -182,7 +182,9 @@
     <li>Регистрация в <code>App\Console\Kernel</code>: <code>dailyAt('00:05')->timezone('Europe/Moscow')->withoutOverlapping(30)</code>.</li>
     <li>Ручная установка статуса в календаре: <code>LessonPackageSchoolCalendarOccurrenceStatusController::store</code> → тот же <code>UserLessonOccurrenceStatusService</code>.</li>
   </ul>
-  <p class="small"><strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule_users</code> + тот же справочник <code>lesson_occurrence_statuses</code>): журнал <strong>не</strong> списывает абонемент и не пишет в <code>user_lesson_occurrence_status_events</code>. Автосписание — только календарь школы. Управление справочником — вкладка «Статусы занятий» (см. <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>).</p>
+  <p class="small"><strong>Журнал /schedule</strong> с 2026‑07 читает те же <code>user_team_schedule_slots</code>
+    и пишет статусы через тот же <code>UserLessonOccurrenceStatusService</code> (списание остатка едино).
+    См. <a href="/docs/documentation/schedule-journal">schedule-journal</a>.</p>
 
   <h2>Сервис</h2>
   <p>Логика выставления дат инкапсулирована в <code>App\Services\UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>; ручная смена даты окончания — <code>::updateEndsAt</code>.</p>

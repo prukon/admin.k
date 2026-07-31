@@ -42,11 +42,18 @@ trait ValidatesSendWelcomeEmail
             return;
         }
 
-        if (trim((string) $this->input('email', '')) === '') {
-            $validator->errors()->add(
-                'email',
-                'Укажите email для отправки письма с данными для входа.'
-            );
+        if (trim((string) $this->input('email', '')) !== '') {
+            return;
         }
+
+        // Ученик: можно опереться на parent_email (логин семьи / sibling-письмо).
+        if (trim((string) $this->input('parent_email', '')) !== '') {
+            return;
+        }
+
+        $validator->errors()->add(
+            'email',
+            'Укажите email для отправки письма с данными для входа.'
+        );
     }
 }

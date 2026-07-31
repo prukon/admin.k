@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
-use App\Models\ScheduleUser;
 use App\Models\Team;
 use App\Models\User;
 
@@ -125,12 +124,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         $trainer = $this->makeTrainerProfile('ТренерЯчейка');
         $date = '2026-05-12';
 
-        ScheduleUser::query()->create([
-            'user_id' => $trainer->user_id,
-            'date' => $date,
-            'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'trainer_profile_id' => $trainer->id,
-        ]);
+        $this->createVisitedScheduleEntry($trainer->user_id, $trainer->id, $date);
 
         $html = $this->get(route('schedule.index', [
             'year' => 2026,
@@ -182,8 +176,15 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         $disabledStudent = $this->makeStudent();
         $disabledStudent->update(['is_enabled' => 0]);
 
+        // Валидный utss нужен только для того, чтобы пройти правило exists у utss_id —
+        // реальный 404 приходит раньше, из поиска ученика по роли/is_enabled.
+        [$anyStudent, $anyTeam] = $this->makeStudentTeamAndTrainer();
+        $date = '2026-05-15';
+        $utss = $this->createTrialUtss($anyStudent, $anyTeam, $date);
+
         $payload = [
-            'date' => '2026-05-15',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
         ];
 
@@ -194,46 +195,29 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
         }
     }
 
-    public function test_user_schedule_info_returns_404_for_non_student_users(): void
+    public function test_abonement_context_returns_404_for_non_student_users(): void
     {
-        $trainer = $this->makeTrainerProfile('ТренерInfo404');
-        $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
-        $customRoleUser = $this->makeCustomRoleUser();
-
-        foreach ([$trainer->user, $admin, $customRoleUser] as $user) {
-            $this->getJson(route('user.schedule.info', $user))->assertNotFound();
-        }
-    }
-
-    public function test_set_user_group_returns_404_for_non_student_users(): void
-    {
-        $trainer = $this->makeTrainerProfile('ТренерGroup404');
-        $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
-        $customRoleUser = $this->makeCustomRoleUser();
-
-        foreach ([$trainer->user, $admin, $customRoleUser] as $user) {
-            $this->postJson(route('user.set.group', $user), [
-                'team_id' => null,
-            ])->assertNotFound();
-        }
-    }
-
-    public function test_update_user_schedule_range_returns_404_for_non_student_users(): void
-    {
-        $trainer = $this->makeTrainerProfile('ТренерRange404');
+        $trainer = $this->makeTrainerProfile('ТренерAbon404');
         $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
         $customRoleUser = $this->makeCustomRoleUser();
         $disabledStudent = $this->makeStudent();
         $disabledStudent->update(['is_enabled' => 0]);
 
-        $payload = [
-            'weekdays' => [1],
-            'date_from' => '2026-05-01',
-            'date_to' => '2026-05-01',
-        ];
-
         foreach ([$trainer->user, $admin, $customRoleUser, $disabledStudent] as $user) {
-            $this->postJson(route('user.update.schedule', $user), $payload)->assertNotFound();
+            $this->getJson(route('schedule.abonement.context', $user))->assertNotFound();
+        }
+    }
+
+    public function test_sync_teams_returns_404_for_non_student_users(): void
+    {
+        $trainer = $this->makeTrainerProfile('ТренерSync404');
+        $admin = $this->createUserWithRole('admin', $this->partner, ['is_enabled' => 1]);
+        $customRoleUser = $this->makeCustomRoleUser();
+
+        foreach ([$trainer->user, $admin, $customRoleUser] as $user) {
+            $this->postJson(route('user.sync.teams', $user), [
+                'team_ids' => [],
+            ])->assertNotFound();
         }
     }
 
@@ -241,6 +225,7 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
     {
         [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-20';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->getJson(route('schedule.cell-context', [
             'user_id' => $student->id,
@@ -249,24 +234,19 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ])->assertOk()->assertJson(['success' => true]);
 
-        $this->getJson(route('user.schedule.info', $student))
+        $this->getJson(route('schedule.abonement.context', $student))
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('user.id', $student->id);
 
-        $this->postJson(route('user.set.group', $student), [
-            'team_id' => $team->id,
-        ])->assertOk()->assertJson(['success' => true]);
-
-        $this->postJson(route('user.update.schedule', $student), [
-            'weekdays' => [1],
-            'date_from' => $date,
-            'date_to' => $date,
+        $this->postJson(route('user.sync.teams', $student), [
+            'team_ids' => [$team->id],
         ])->assertOk()->assertJson(['success' => true]);
     }
 

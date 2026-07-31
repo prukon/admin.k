@@ -92,14 +92,16 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
     public function test_schedule_update_returns_ok_for_student(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-15';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => 'Комментарий smoke',
+            'comment' => 'Комментарий smoke',
             'trainer_profile_id' => $trainer->id,
         ])
             ->assertOk()
@@ -108,38 +110,19 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
     public function test_schedule_logs_data_returns_ok(): void
     {
-        [$student] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
+        $date = '2026-05-15';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-15',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
         ])->assertOk();
 
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))
             ->assertOk();
-    }
-
-    public function test_user_schedule_info_returns_ok(): void
-    {
-        [$student, $team] = $this->makeStudentTeamAndTrainer();
-
-        $this->getJson(route('user.schedule.info', $student))
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('user.id', $student->id)
-            ->assertJsonPath('user.team_id', $team->id);
-    }
-
-    public function test_user_set_group_returns_ok(): void
-    {
-        [$student, $team] = $this->makeStudentTeamAndTrainer();
-
-        $this->postJson(route('user.set.group', $student), [
-            'team_id' => $team->id,
-        ])
-            ->assertOk()
-            ->assertJson(['success' => true]);
     }
 
     public function test_user_sync_teams_returns_ok(): void
@@ -154,25 +137,14 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertJsonStructure(['team_ids', 'teams_label']);
     }
 
-    public function test_user_update_schedule_range_returns_ok(): void
+    public function test_abonement_context_returns_ok_for_student(): void
     {
-        Carbon::setTestNow('2026-05-15 12:00:00');
+        [$student] = $this->makeStudentTeamAndTrainer();
 
-        try {
-            [$student] = $this->makeStudentTeamAndTrainer();
-            $weekday = (int) now()->isoWeekday();
-            $today = now()->toDateString();
-
-            $this->postJson(route('user.update.schedule', $student), [
-                'weekdays' => [$weekday],
-                'date_from' => $today,
-                'date_to' => $today,
-            ])
-                ->assertOk()
-                ->assertJson(['success' => true]);
-        } finally {
-            Carbon::setTestNow();
-        }
+        $this->getJson(route('schedule.abonement.context', $student))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure(['user' => ['id', 'name', 'team_ids', 'teams_label'], 'teams', 'assignments', 'default_start_date']);
     }
 
     public function test_occurrence_statuses_tab_returns_ok(): void
@@ -241,8 +213,7 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         try {
             [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
             $date = '2026-05-15';
-            $weekday = (int) now()->isoWeekday();
-            $today = now()->toDateString();
+            $utss = $this->createTrialUtss($student, $team, $date);
 
             $this->get(route('schedule.index'))->assertOk();
 
@@ -253,27 +224,18 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
             $this->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
-                'date' => $date,
+                'utss_id' => $utss->id,
+                'occurrence_date' => $date,
                 'lesson_occurrence_status_id' => $this->visitedStatusId,
                 'trainer_profile_id' => $trainer->id,
             ])->assertOk();
 
             $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertOk();
 
-            $this->getJson(route('user.schedule.info', $student))->assertOk();
-
-            $this->postJson(route('user.set.group', $student), [
-                'team_id' => $team->id,
-            ])->assertOk();
+            $this->getJson(route('schedule.abonement.context', $student))->assertOk();
 
             $this->postJson(route('user.sync.teams', $student), [
                 'team_ids' => [$team->id],
-            ])->assertOk();
-
-            $this->postJson(route('user.update.schedule', $student), [
-                'weekdays' => [$weekday],
-                'date_from' => $today,
-                'date_to' => $today,
             ])->assertOk();
 
             $this->get(route('schedule.occurrence-statuses'))->assertOk();

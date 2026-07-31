@@ -5,8 +5,10 @@ namespace Tests\Feature\Crm\StudentTeams;
 use App\Models\Role;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\Team;
+use App\Models\TeamScheduleSlot;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Models\UserTeamScheduleSlot;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -51,35 +53,27 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
                 'label'      => 'schedule',
                 'permission' => 'schedule.view',
                 'callback'   => function () use ($student, $team, $visitedStatusId): void {
+                    $date = '2026-06-15';
+
                     $this->get(route('schedule.index'))->assertOk();
                     $this->getJson(route('schedule.cell-context', [
                         'user_id' => $student->id,
-                        'date'    => '2026-06-15',
+                        'date'    => $date,
                     ]))->assertOk();
+
+                    $utss = $this->createTrialUtssForTest($student, $team, $date);
+
                     $this->postJson(route('schedule.update'), [
                         'user_id'   => $student->id,
-                        'date'      => '2026-06-15',
+                        'utss_id'   => $utss->id,
+                        'occurrence_date' => $date,
                         'lesson_occurrence_status_id' => $visitedStatusId,
                     ])->assertOk();
                     $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertOk();
-                    $this->getJson(route('user.schedule.info', $student))->assertOk();
-                    $this->postJson(route('user.set.group', $student), [
-                        'team_id' => $team->id,
-                    ])->assertOk();
+                    $this->getJson(route('schedule.abonement.context', $student))->assertOk();
                     $this->postJson(route('user.sync.teams', $student), [
                         'team_ids' => [$team->id],
                     ])->assertOk();
-
-                    Carbon::setTestNow('2026-06-15 12:00:00');
-                    try {
-                        $this->postJson(route('user.update.schedule', $student), [
-                            'weekdays'  => [(int) now()->isoWeekday()],
-                            'date_from' => now()->toDateString(),
-                            'date_to'   => now()->toDateString(),
-                        ])->assertOk();
-                    } finally {
-                        Carbon::setTestNow();
-                    }
                 },
             ],
             [
@@ -249,8 +243,7 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
 
         $this->get(route('schedule.index'))
             ->assertOk()
-            ->assertSee('id="chooseGroupModal"', false)
-            ->assertSee('id="journalUserTeamIds"', false)
+            ->assertSee('id="abonementPlaceModal"', false)
             ->assertSee('data-team-ids=', false)
             ->assertSee($this->student->full_name, false);
     }
@@ -263,7 +256,49 @@ final class StudentTeamPivotFullAccessFeatureTest extends StudentTeamPivotTestCa
             'date'    => '2026-06-15',
         ]))->assertForbidden();
         $this->postJson(route('user.sync.teams', $this->student), ['team_ids' => []])->assertForbidden();
-        $this->getJson(route('user.schedule.info', $this->student))->assertForbidden();
+        $this->getJson(route('schedule.abonement.context', $this->student))->assertForbidden();
+    }
+
+    /**
+     * Пробное занятие (UTSS без абонемента) для ученика в конкретной группе на дату —
+     * минимальный набор данных, чтобы schedule.update прошло валидацию utss_id/occurrence_date.
+     */
+    private function createTrialUtssForTest(User $student, Team $team, string $date): UserTeamScheduleSlot
+    {
+        $weekday = CarbonImmutable::parse($date)->isoWeekday();
+
+        $slot = TeamScheduleSlot::query()
+            ->where('partner_id', $student->partner_id)
+            ->where('team_id', $team->id)
+            ->where('weekday', $weekday)
+            ->first();
+
+        if (! $slot) {
+            $slot = TeamScheduleSlot::query()->create([
+                'partner_id' => $student->partner_id,
+                'team_id' => $team->id,
+                'location_id' => null,
+                'weekday' => $weekday,
+                'time_start' => '10:00:00',
+                'time_end' => '11:00:00',
+                'date_start' => '2020-01-01',
+                'date_end' => '9999-12-31',
+                'is_enabled' => true,
+            ]);
+        }
+
+        return UserTeamScheduleSlot::query()->create([
+            'partner_id' => $student->partner_id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => $date,
+            'ends_at' => $date,
+            'is_trial_lesson' => true,
+            'trial_lessons_total' => 1,
+            'trial_lessons_remaining' => 1,
+            'created_by' => $this->user->id,
+        ]);
     }
 
     private function assertAdminUsersForbidden(): void

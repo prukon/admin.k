@@ -104,7 +104,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
             ->assertSee('Журнал-B', false);
     }
 
-    public function test_user_schedule_info_returns_all_team_titles(): void
+    public function test_abonement_context_returns_all_team_titles(): void
     {
         $this->seedPartnerOccurrenceStatuses();
 
@@ -117,7 +117,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Sched-B']);
         $student = $this->makeStudentWithTeams([$teamA, $teamB]);
 
-        $response = $this->getJson(route('user.schedule.info', $student))
+        $response = $this->getJson(route('schedule.abonement.context', $student))
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -126,7 +126,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
             $response->json('user.team_ids')
         );
 
-        $titles = (string) $response->json('user.team_titles');
+        $titles = (string) $response->json('user.teams_label');
         $this->assertStringContainsString('Sched-A', $titles);
         $this->assertStringContainsString('Sched-B', $titles);
     }

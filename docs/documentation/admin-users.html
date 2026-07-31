@@ -680,15 +680,18 @@
   </div>
   <ul>
     <li>Опциональное поле <code>school_lead_id</code> в <code>StoreRequest</code>: заявка текущего партнёра, не удалена, <code>school_leads.user_id</code> ещё <code>null</code>.</li>
-    <li>При заполненном <code>school_lead_id</code> поле <code>parent_email</code> <b>обязательно</b> (валидация в <code>withValidator</code>); значение копируется в <code>users.email</code>, если <code>email</code> в запросе пуст (<code>prepareForValidation</code>).</li>
-    <li>Пароль в теле запроса при конвертации лида <b>игнорируется</b>: сервер генерирует случайный пароль (12 символов, буквы+цифры) через <code>ClientWelcomeCredentialsService::generatePassword()</code> и сохраняет его в <code>users.password</code>.</li>
-    <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции); затем отправка welcome-письма (§<a href="#user-welcome-credentials">5.1</a>).</li>
+    <li>При заполненном <code>school_lead_id</code> поле <code>parent_email</code> <b>обязательно</b> (валидация в <code>withValidator</code>).</li>
+    <li><b>Логин семьи</b> (<code>FamilyStudentLoginResolver</code>): <code>parent_email</code> — контакт родителя и канал письма; в <code>users.email</code> попадает только у <b>первого</b> ребёнка семьи (если адрес ещё свободен). Если у того же <code>parent_id</code> уже есть ученик с <code>users.email = parent_email</code> — новый ученик создаётся с <code>users.email = null</code> (вход через семейный кабинет, см. <a href="/docs/documentation/parents-and-family-cabinet">parents-and-family-cabinet</a>). Если адрес занят тренером/сотрудником или учеником <b>другой</b> семьи — <b>422</b> на <code>parent_email</code>.</li>
+    <li>Пароль в теле запроса при конвертации лида <b>игнорируется</b>. Для первого ребёнка сервер генерирует случайный пароль (12 символов) через <code>ClientWelcomeCredentialsService::generatePassword()</code>. Для второго и далее пароль не создаётся.</li>
+    <li>После успешного <code>store</code> в <code>UserController</code>: <code>school_leads.user_id</code> = id нового ученика (в той же транзакции); затем письмо (§<a href="#user-welcome-credentials">5.1</a>): credentials для первого ребёнка или sibling-уведомление для следующих.</li>
+    <li>При выборе родителя из справочника (<code>parent_id</code>) правка полей родителя (в т.ч. email) обновляет карточку <code>parents</code> через <code>StudentParentSyncService</code>.</li>
     <li>Отдельного маршрута у заявок для создания клиента нет — только <code>POST /admin/users</code> с middleware <code>can:users.view</code>.</li>
   </ul>
 
   <h3 id="user-welcome-credentials">5.1) Welcome-письмо с данными для входа</h3>
   <div class="note">
-    <b>Назначение:</b> при создании учётки отправить на email логин и пароль для входа в личный кабинет.
+    <b>Назначение:</b> при создании учётки отправить на email логин и пароль для входа в личный кабинет
+    <b>или</b> (второй ребёнок в семье) уведомление «входите как раньше» через семейный кабинет.
     Сценарии: (1) ручное «Добавить» с чекбоксом <code>send_welcome_email</code> — ученик / тренер / сотрудник (§5.1.4);
     (2) конвертация лида (<code>school_lead_id</code>) — всегда (§5.1.1);
     (3) повторная отправка нового пароля из edit ученика (§5.1.2).<br>
@@ -699,11 +702,11 @@
   <h4>5.1.1) Отправка при создании из лида</h4>
   <ul>
     <li>Условие: в <code>POST /admin/users</code> передан валидный <code>school_lead_id</code> (чекбокс <code>send_welcome_email</code> не нужен — письмо уходит всегда).</li>
-    <li>Сервис: <code>App\Services\Users\ClientWelcomeCredentialsService</code>; Mailable: <code>App\Mail\ClientWelcomeCredentialsMail</code>; шаблон: <code>resources/views/emails/client-welcome-credentials.blade.php</code>.</li>
-    <li>Тема письма: «Доступ в личный кабинет — {название школы}» (<code>partners.title</code>).</li>
-    <li>Тело: ФИО пользователя (<code>full_name</code>), название школы в кавычках, email для входа, пароль в открытом виде, кнопка «Войти в личный кабинет» (<code>/login</code>). Тот же шаблон используется и для тренеров/сотрудников при ручном create.</li>
-    <li>Заголовок <code>X-Partner-Id</code> на Mailable — для привязки записи в отчёте «Исходящие письма» (<a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>, листенер <code>LogOutgoingEmail</code>; просмотр записи — модалка §<a href="/docs/documentation/reports-admin#reports-outgoing-emails-show">8.3</a>).</li>
-    <li>Если SMTP недоступен: ученик и привязка лида всё равно создаются; в JSON-ответе AJAX <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение о неудачной отправке.</li>
+    <li>Сервис: <code>App\Services\Users\ClientWelcomeCredentialsService</code>; резолв логина семьи — <code>FamilyStudentLoginResolver</code>.</li>
+    <li><b>Первый ребёнок</b> (адрес <code>parent_email</code> свободен): <code>users.email = parent_email</code>, генерируется пароль, Mailable <code>ClientWelcomeCredentialsMail</code>, шаблон <code>emails/client-welcome-credentials.blade.php</code>. Тема: «Доступ в личный кабинет — {название школы}».</li>
+    <li><b>Второй и далее</b> (тот же <code>parent_id</code>, у брата уже <code>users.email = parent_email</code>): <code>users.email = null</code>, пароль не создаётся, Mailable <code>ClientSiblingAddedMail</code>, шаблон <code>emails/client-sibling-added.blade.php</code>. Тема: «Новый ученик в семейном кабинете — {название школы}». В письме — email для входа семьи и напоминание про переключатель в сайдбаре.</li>
+    <li>Заголовок <code>X-Partner-Id</code> на обоих Mailable — для отчёта «Исходящие письма».</li>
+    <li>Если SMTP недоступен: ученик и привязка лида всё равно создаются; в JSON <code>welcome_email_sent: false</code>, в <code>message</code> — предупреждение.</li>
   </ul>
 
   <h4>5.1.2) Повторная отправка из модалки edit</h4>
@@ -741,8 +744,8 @@
     <ul>
       <li>UI: чекбокс «Отправить письмо» (<code>#create-send-welcome-email</code>) в модалке create после email, по умолчанию включён; при включении поле «Пароль» скрывается (<code>syncCreateWelcomeCredentialsUi</code>).</li>
       <li>Поле запроса: <code>send_welcome_email</code> (bool; в форме — hidden <code>0</code> + checkbox <code>1</code>). При отсутствии ключа сервер считает флаг выключенным (безопасный default для API/тестов); UI всегда шлёт явное значение.</li>
-      <li>При <code>true</code>: email обязателен (ошибка под полем <code>email</code>), пароль формы игнорируется, генерируется новый, письмо синхронно после commit транзакции.</li>
-      <li>При <code>false</code>: письмо не шлётся; пароль из формы сохраняется как раньше (опционален).</li>
+      <li>При <code>true</code>: нужен <code>email</code> ученика <b>или</b> (для ученика) <code>parent_email</code> для резолва логина семьи; пароль формы игнорируется. Если <code>email</code> пуст и задан <code>parent_email</code> — тот же <code>FamilyStudentLoginResolver</code>, что при лиде (первый ребёнок / sibling). Письмо синхронно после commit.</li>
+      <li>При <code>false</code>: письмо не шлётся; пароль из формы сохраняется как раньше (опционален); <code>parent_email</code> в <code>users.email</code> не копируется.</li>
       <li>Конвертация из заявки (<code>school_lead_id</code>) — по-прежнему всегда шлёт, без чекбокса (§5.1.1); чекбокс в UI create при заполненном <code>school_lead_id</code> скрыт.</li>
       <li>Импорт Excel — welcome-письмо не отправляется.</li>
       <li>Тот же механизм на create тренера / администратора / кастомной роли (см. <a href="/docs/documentation/admin-trainers#trainer-welcome-credentials">admin-trainers §6.2</a>, <a href="/docs/documentation/admin-role-staff#staff-welcome-credentials">admin-role-staff §3.3</a>).</li>
@@ -784,8 +787,11 @@
     <li><a href="/docs/documentation/student-team-membership">student-team-membership</a> — pivot M:N, все разделы CRM</li>
     <li><code>app/Services/SchoolLeads/LatestUserContractLookup.php</code> — последний договор по <code>user_id</code> (§<a href="#user-contract-column">2.3</a>)</li>
     <li><code>app/Services/Users/ClientWelcomeCredentialsService.php</code></li>
+    <li><code>app/Services/Users/FamilyStudentLoginResolver.php</code></li>
     <li><code>app/Mail/ClientWelcomeCredentialsMail.php</code></li>
+    <li><code>app/Mail/ClientSiblingAddedMail.php</code></li>
     <li><code>resources/views/emails/client-welcome-credentials.blade.php</code></li>
+    <li><code>resources/views/emails/client-sibling-added.blade.php</code></li>
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
     <li><code>app/Enums/UserSex.php</code></li>
     <li><code>app/Http/Requests/User/Concerns/ValidatesStudentCommentAndSex.php</code></li>
@@ -1056,6 +1062,7 @@
       <li><code>tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code> — изоляция партнёра для edit/update/data и флагов</li>
       <li><code>tests/Feature/Crm/Users/UsersPartnerScopeFullAccessFeatureTest.php</code> — smoke 200 всех endpoint’ов раздела, изоляция CRUD</li>
       <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadClientWelcomeCredentialsFeatureTest.php</code> — welcome-письмо при <code>store</code> из лида, resend, SMTP-failure, валидация <code>parent_email</code></li>
+      <li><code>tests/Feature/Crm/Users/FamilyStudentLoginOnCreateFeatureTest.php</code> — логин семьи: первый/второй ребёнок из лида и ручного create, 422 чужая семья / тренер</li>
       <li><code>tests/Feature/Crm/Users/UserCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при ручном create ученика</li>
       <li><code>tests/Feature/Crm/Users/UserCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт create ученика</li>
       <li><code>tests/Feature/Crm/Users/RoleStaffCreateWelcomeCredentialsFeatureTest.php</code> — welcome при create администратора</li>

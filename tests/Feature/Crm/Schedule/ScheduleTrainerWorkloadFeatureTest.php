@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
-use App\Models\ScheduleUser;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\TrainerProfile;
 use App\Models\User;
@@ -54,6 +53,7 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
         $tuesday = '2026-05-05';
 
         $studentTwo = $this->makeStudent($team->id);
+        $studentThree = $this->makeStudent($team->id);
 
         foreach ([$mondayOne, $mondayTwo] as $date) {
             $this->createVisitedScheduleEntry($student->id, $trainer->id, $date);
@@ -61,19 +61,17 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
 
         $this->createVisitedScheduleEntry($studentTwo->id, $trainer->id, $mondayOne);
         $this->createVisitedScheduleEntry($student->id, $trainer->id, $tuesday);
-        $this->createVisitedScheduleEntry($student->id, $otherTrainer->id, $mondayOne);
+        // Отдельный ученик/группа-слот, чтобы запись другого тренера не перекрывала событие $student.
+        $this->createVisitedScheduleEntry($studentThree->id, $otherTrainer->id, $mondayOne);
 
         $notVisited = LessonOccurrenceStatus::query()
             ->forPartner($this->partner->id)
             ->where('code', 'not_attended')
             ->value('id');
 
-        ScheduleUser::query()->create([
-            'user_id' => $student->id,
-            'date' => $mondayOne,
-            'lesson_occurrence_status_id' => $notVisited,
-            'trainer_profile_id' => $trainer->id,
-        ]);
+        // Более поздний статус "не посетил" по тому же занятию ($student, mondayOne)
+        // вытесняет визит — эта дата не должна учитываться для $student.
+        $this->createScheduleStatusEntry($student->id, $notVisited, $mondayOne, $trainer->id);
 
         $report = app(TrainerWorkloadReportService::class)->build(
             $this->partner->id,
@@ -85,6 +83,7 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
         $trainerCells = $report['cells'][$trainer->id];
         $this->assertCount(1, $trainerCells[1]);
         $this->assertSame($team->title, $trainerCells[1][0]['team_title']);
+        // mondayOne учитывается через studentTwo, mondayTwo — через student.
         $this->assertSame(2, $trainerCells[1][0]['dates_count']);
 
         $this->assertCount(1, $trainerCells[2]);
@@ -102,24 +101,16 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
 
         $this->createVisitedScheduleEntry($student->id, $trainer->id, $date);
 
-        ScheduleUser::query()->create([
-            'user_id' => $student->id,
-            'date' => $date,
-            'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'trainer_profile_id' => null,
-        ]);
+        // Отдельное занятие: "посетил", но без тренера — не должно учитываться.
+        $this->createScheduleStatusEntry($student->id, (int) $this->visitedStatusId, '2026-05-06', null);
 
         $notVisitedId = LessonOccurrenceStatus::query()
             ->forPartner($this->partner->id)
             ->where('code', 'not_attended')
             ->value('id');
 
-        ScheduleUser::query()->create([
-            'user_id' => $student->id,
-            'date' => '2026-05-08',
-            'lesson_occurrence_status_id' => $notVisitedId,
-            'trainer_profile_id' => $trainer->id,
-        ]);
+        // Отдельное занятие: "не посетил" с тренером — тоже не должно учитываться.
+        $this->createScheduleStatusEntry($student->id, $notVisitedId, '2026-05-08', $trainer->id);
 
         $report = app(TrainerWorkloadReportService::class)->build(
             $this->partner->id,
@@ -131,23 +122,6 @@ final class ScheduleTrainerWorkloadFeatureTest extends ScheduleJournalTestCase
         $this->assertCount(1, $report['cells'][$trainer->id][4]);
         $this->assertSame(1, $report['cells'][$trainer->id][4][0]['dates_count']);
         $this->assertSame($team->title, $report['cells'][$trainer->id][4][0]['team_title']);
-    }
-
-    public function test_student_without_team_shown_as_bez_gruppy(): void
-    {
-        $student = $this->makeStudent(null);
-        $trainer = $this->makeTrainerProfile('Тренер solo');
-
-        $this->createVisitedScheduleEntry($student->id, $trainer->id, '2026-05-05');
-
-        $report = app(TrainerWorkloadReportService::class)->build(
-            $this->partner->id,
-            '2026-05-01',
-            '2026-05-31',
-            true,
-        );
-
-        $this->assertSame('Без группы', $report['cells'][$trainer->id][2][0]['team_title']);
     }
 
     public function test_inactive_trainer_listed_with_empty_cells(): void

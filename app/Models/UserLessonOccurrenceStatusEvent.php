@@ -20,6 +20,7 @@ class UserLessonOccurrenceStatusEvent extends Model
         'occurrence_date' => 'date:Y-m-d',
         'user_lesson_package_id' => 'integer',
         'lesson_occurrence_status_id' => 'int',
+        'trainer_profile_id' => 'int',
         'created_by' => 'int',
     ];
 
@@ -46,6 +47,11 @@ class UserLessonOccurrenceStatusEvent extends Model
     public function lessonOccurrenceStatus(): BelongsTo
     {
         return $this->belongsTo(LessonOccurrenceStatus::class, 'lesson_occurrence_status_id');
+    }
+
+    public function trainerProfile(): BelongsTo
+    {
+        return $this->belongsTo(TrainerProfile::class, 'trainer_profile_id');
     }
 
     public function createdBy(): BelongsTo

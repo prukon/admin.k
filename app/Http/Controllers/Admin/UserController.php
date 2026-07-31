@@ -34,6 +34,7 @@ use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Services\TeamUserSyncService;
 use App\Services\UserService;
 use App\Services\Users\ClientWelcomeCredentialsService;
+use App\Services\Users\FamilyStudentLoginResolver;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 
 class UserController extends AdminBaseController
@@ -50,6 +51,7 @@ class UserController extends AdminBaseController
         private readonly AuditLogger $auditLogger,
         private readonly TeamUserSyncService $teamUserSync,
         private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
+        private readonly FamilyStudentLoginResolver $familyStudentLoginResolver,
     )
     {
         parent::__construct($partnerContext); // <-- КРИТИЧЕСКИЙ МОМЕНТ
@@ -387,10 +389,42 @@ class UserController extends AdminBaseController
 
         $data = $this->applySchoolLeadHealthFlags($data, $schoolLeadId, $partnerId);
 
+        $explicitEmail = trim((string) ($data['email'] ?? ''));
+        $parentEmail = trim((string) ($data['parent_email'] ?? ''));
+        $parentId = isset($data['parent_id']) && $data['parent_id'] !== null && $data['parent_id'] !== ''
+            ? (int) $data['parent_id']
+            : null;
+
+        $familyLoginMode = null;
+        $familyLoginUser = null;
+        $familyNotifyEmail = null;
+
+        if ($this->familyStudentLoginResolver->shouldApplyFromParentEmail(
+            (bool) $schoolLeadId,
+            $sendWelcomeEmail,
+            $explicitEmail,
+            $parentEmail,
+        )) {
+            $resolution = $this->familyStudentLoginResolver->resolve(
+                $partnerId,
+                $parentEmail,
+                $parentId,
+            );
+            $familyLoginMode = $resolution['mode'];
+            $familyLoginUser = $resolution['family_login_user'];
+            $familyNotifyEmail = $resolution['notify_email'];
+            $data['email'] = $resolution['user_email'];
+        }
+
         $welcomeCredentialsPlainPassword = null;
-        if ($sendWelcomeEmail) {
+        $isSiblingWelcome = $familyLoginMode === FamilyStudentLoginResolver::MODE_SIBLING;
+
+        if ($sendWelcomeEmail && !$isSiblingWelcome) {
             $welcomeCredentialsPlainPassword = $this->welcomeCredentialsService->generatePassword();
             $data['password'] = $welcomeCredentialsPlainPassword;
+        } elseif ($isSiblingWelcome) {
+            // Второй ребёнок в семье: отдельный логин/пароль не создаём.
+            $data['password'] = null;
         }
 
         $fieldsPayload = $this->buildUserFieldsPayloadForCurrentPartner();
@@ -484,14 +518,36 @@ class UserController extends AdminBaseController
 
         $responseMessage = 'Пользователь создан успешно';
         $mailResult = ['sent' => false, 'error' => null];
-        if ($sendWelcomeEmail && $welcomeCredentialsPlainPassword !== null) {
+        $createdPrefix = $schoolLeadId ? 'Клиент создан' : 'Пользователь создан';
+
+        if ($sendWelcomeEmail && $isSiblingWelcome && $familyLoginUser) {
+            $mailResult = $this->welcomeCredentialsService->sendSiblingAdded(
+                $user,
+                $familyLoginUser,
+                (string) ($familyNotifyEmail ?? $parentEmail),
+                $partnerId,
+            );
+
+            $responseMessage = $this->welcomeCredentialsService->createSiblingResponseMessage(
+                $createdPrefix,
+                $familyNotifyEmail ?? $parentEmail,
+                $mailResult['sent'],
+            );
+
+            if (!$mailResult['sent'] && !empty($mailResult['error'])) {
+                Log::warning('[UserController@store] sibling-added email failed', [
+                    'user_id'    => $user->id,
+                    'partner_id' => $partnerId,
+                    'error'      => $mailResult['error'],
+                ]);
+            }
+        } elseif ($sendWelcomeEmail && $welcomeCredentialsPlainPassword !== null) {
             $mailResult = $this->welcomeCredentialsService->send(
                 $user,
                 $welcomeCredentialsPlainPassword,
                 $partnerId,
             );
 
-            $createdPrefix = $schoolLeadId ? 'Клиент создан' : 'Пользователь создан';
             $responseMessage = $this->welcomeCredentialsService->createResponseMessage(
                 $createdPrefix,
                 $user->email,

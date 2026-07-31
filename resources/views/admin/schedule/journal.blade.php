@@ -1,8 +1,6 @@
     <!-- Обёртка для фильтров и таблицы (для полноэкранного режима) -->
     <div class="schedule-fullscreen-wrapper mt-3">
-        <!-- Ряд с фильтрами, легендой, кнопками полноэкранного/обычного режима и поиском -->
         <div class="row mb-3 align-items-center schedule-controls">
-            <!-- Фильтр по году -->
             <div class="col-auto wrap-filter-year">
                 <select id="filter-year" class="form-select schedule-filter-year">
                     @for($y = date('Y') - 5; $y <= date('Y') + 5; $y++)
@@ -10,23 +8,13 @@
                     @endfor
                 </select>
             </div>
-            <!-- Фильтр по месяцу -->
             <div class="col-auto wrap-filter-month">
                 <select id="filter-month" class="form-select schedule-filter-month">
                     @php
                         $months = [
-                            '01' => 'Январь',
-                            '02' => 'Февраль',
-                            '03' => 'Март',
-                            '04' => 'Апрель',
-                            '05' => 'Май',
-                            '06' => 'Июнь',
-                            '07' => 'Июль',
-                            '08' => 'Август',
-                            '09' => 'Сентябрь',
-                            '10' => 'Октябрь',
-                            '11' => 'Ноябрь',
-                            '12' => 'Декабрь'
+                            '01' => 'Январь', '02' => 'Февраль', '03' => 'Март', '04' => 'Апрель',
+                            '05' => 'Май', '06' => 'Июнь', '07' => 'Июль', '08' => 'Август',
+                            '09' => 'Сентябрь', '10' => 'Октябрь', '11' => 'Ноябрь', '12' => 'Декабрь',
                         ];
                     @endphp
                     @foreach($months as $mKey => $mName)
@@ -34,7 +22,6 @@
                     @endforeach
                 </select>
             </div>
-            <!-- Фильтр по группам -->
             <div class="col-auto wrap-filter-team">
                 <select id="filter-team" class="form-select schedule-filter-team">
                     <option value="all" @if($team_id=='all') selected @endif>Все группы</option>
@@ -46,43 +33,38 @@
                 </select>
             </div>
 
-            <!-- Кнопка полноэкранного/обычного режима -->
             <div class="col-auto wrap-filter-fullscreen">
-                <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen">
+                <button id="btn-fullscreen" class="btn btn-primary schedule-btn-fullscreen" type="button">
                     <i class="fas fa-expand"></i>
                 </button>
             </div>
 
-            <!-- Поисковая строка -->
             <div class="col wrap-filter-search">
                 <input type="text" id="table-search" class="form-control table-search" placeholder="Поиск">
             </div>
-            {{--Логи--}}
             <div class="wrap-icon btn btn-history-modal" data-bs-toggle="modal" data-bs-target="#historyModal">
                 <i class="fa-solid fa-clock-rotate-left logs "></i>
             </div>
         </div>
 
-        <!-- Таблица расписания -->
         <div class="table-responsive schedule-table-container">
             <table id="schedule-table" class="table table-bordered schedule-table">
                 <thead>
                 <tr>
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
                     <th class="sticky-col-2 zi-50 col-name">ФИО</th>
-
                     <th class="schedule-payment-status sticky-col-2">
                         <i class="nav-icon fa-solid fa-ruble-sign"></i>
                     </th>
-                    <th class="schedule-col-setup sticky-col-3 text-center">
-                        <i class="fa-solid fa-user-pen"></i>
+                    <th class="schedule-col-setup sticky-col-3 text-center" title="Абонементы">
+                        <i class="fa-solid fa-ticket"></i>
                     </th>
 
                     @php
                         $days = [];
                         $start = $startOfMonth->copy();
-                        $end   = $endOfMonth->copy();
-                        while($start->lte($end)){
+                        $end = $endOfMonth->copy();
+                        while ($start->lte($end)) {
                             $days[] = $start->copy();
                             $start->addDay();
                         }
@@ -108,11 +90,12 @@
                         } elseif ($studentTeamIds !== []) {
                             $journalContextTeamId = (int) $studentTeamIds[0];
                         }
+                        $userAssignments = $journalAssignments[(int) $user->id] ?? [];
+                        $hasAnyAssignment = count($userAssignments) > 0;
+                        $hasPlaceable = collect($userAssignments)->contains(fn ($a) => !empty($a['placeable']));
                     @endphp
                     <tr data-user-id="{{ $user->id }}">
-
                         <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
-                        {{--<td class="schedule-user-name sticky-col-2">{{ $user->name }}</td>--}}
                         <td class="schedule-user-name sticky-col-2">
                             <div>{{ $user?->full_name ?: 'Без имени' }}</div>
                             @if($team_id === 'all' && $user->teams->isNotEmpty())
@@ -124,80 +107,61 @@
                                 <i class="fas fa-circle-check text-success"></i>
                             @endif
                         </td>
-
-                        <!-- В ячейке таблицы, рядом с юзером -->
                         <td class="text-center">
-                            <i class="fa-regular fa-pen-to-square edit-user-schedule"
-                               data-user-id="{{ $user->id }}"
-                               style="cursor: pointer;"
-                               title="Редактировать расписание"
-                            ></i>
+                            @if($hasAnyAssignment)
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary journal-abonement-btn"
+                                        data-user-id="{{ $user->id }}"
+                                        @if(!$hasPlaceable) disabled title="Все абонементы уже разложены" @else title="Разложить абонемент" @endif>
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            @endif
                         </td>
-
 
                         @foreach($days as $day)
                             @php
                                 $dateKey = $user->id . '_' . $day->format('Y-m-d');
-                                $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
-                                $cellStatus = '';
-                                $cellIcon   = '';
-                                $bgColor    = '';
-                                if($entry){
-                                    if($entry->status == 'N'){
-                                        $cellStatus = 'Н';
-                                        $bgColor    = 'rgba(255,0,0,0.3)';
-                                    } elseif($entry->status == 'R'){
-                                        $cellIcon = '<i class="fas fa-check"></i>';
-                                        $bgColor  = 'rgba(255,255,0,0.3)';
-                                    } elseif($entry->status == 'Z'){
-                                        $cellIcon = '<i class="fas fa-snowflake"></i>';
-                                        $bgColor  = 'rgba(0,191,255,0.3)';
-                                    }
-                                }
+                                $dayItems = $journalOccurrences[$dateKey] ?? [];
+                                $count = count($dayItems);
+                                $primary = $count === 1 ? $dayItems[0] : null;
+                                // Без статуса (типично после привязки в календаре школы) ячейка всё равно должна быть видна.
+                                $cellColor = $primary['status_color'] ?? ($count > 0 ? '#e9ecef' : '');
+                                $cellIcon = $primary['status_icon'] ?? '';
+                                $cellTitle = $primary['status_title'] ?? '';
+                                $hasStatusVisual = ($cellIcon !== '' && $cellIcon !== null) || ($cellTitle !== '' && $cellTitle !== null);
                             @endphp
-
-                            @php
-                                $entry   = $scheduleEntries->has($dateKey) ? $scheduleEntries->get($dateKey) : null;
-                                $statusId = $entry?->lesson_occurrence_status_id; // null или число
-                                $statusObject = $statusId
-                                    ? ($statusesForDisplay ?? $availableStatuses)->firstWhere('id', $statusId)
-                                    : null;
-                                $cellName = $statusObject?->title ?? '';
-                                $cellIcon = $statusObject?->icon ?? '';
-                                $cellColor= $statusObject?->color ?? '';
-                            @endphp
-
-                            <td class="schedule-cell text-center
+                            <td class="schedule-cell text-center position-relative
                                 @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
-
                                 data-user-id="{{ $user->id }}"
                                 data-user-name="{{ $user?->full_name ?: 'Без имени' }}"
                                 data-context-team-id="{{ $journalContextTeamId ?? '' }}"
                                 data-team-ids="{{ implode(',', $studentTeamIds) }}"
                                 data-date="{{ $day->format('Y-m-d') }}"
-                                data-status-id="{{ $statusId }}"
-                                data-comment="{{ $entry?->description }}"
-                                style="background-color:{{ $cellColor ? $cellColor : 'transparent' }};">
-                                @if($cellIcon)
-                                    <i class="{{ $cellIcon }}"></i>
-                                @else
-                                    {{ $cellName }}
+                                data-occurrence-count="{{ $count }}"
+                                @if($primary)
+                                    data-utss-id="{{ $primary['utss_id'] }}"
+                                    data-status-id="{{ $primary['lesson_occurrence_status_id'] }}"
+                                    data-comment="{{ $primary['comment'] }}"
                                 @endif
-
-                                @if($entry && !empty($entry->description))
-                                    <div class="cell-comment-indicator"
-                                         style="position: absolute;
-                                          top: 0;
-                                          right: 0;
-                                          width: 0;
-                                           height: 0;
-                                            border-top: 5px solid red;
-                                             border-left: 5px solid transparent;">
-
-                                    </div>
+                                style="background-color:{{ $count > 0 && $cellColor ? $cellColor : 'transparent' }}; cursor: {{ $count > 0 ? 'pointer' : 'default' }};">
+                                @if($count > 1)
+                                    <span class="badge bg-primary">×{{ $count }}</span>
+                                @elseif($count === 1)
+                                    @if($hasStatusVisual)
+                                        @if($cellIcon)
+                                            <i class="{{ $cellIcon }}"></i>
+                                        @else
+                                            {{ $cellTitle }}
+                                        @endif
+                                    @else
+                                        <i class="fa-solid fa-circle text-secondary" title="{{ $primary['package_name'] ?? 'Занятие' }}" style="font-size: 0.55rem;"></i>
+                                    @endif
+                                    @if(!empty($primary['comment']))
+                                        <div class="cell-comment-indicator"
+                                             style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
+                                    @endif
                                 @endif
                             </td>
-
                         @endforeach
                     </tr>
                 @endforeach
@@ -206,40 +170,43 @@
         </div>
     </div>
 
-    <!-- Модальное окно для редактирования ячейки -->
+    {{-- Список занятий за день (×N) --}}
+    <div class="modal fade" id="dayOccurrencesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dayOccurrencesModalLabel">Занятия за день</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body" id="dayOccurrencesModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Редактирование статуса одного занятия --}}
     <div class="modal fade" id="cellEditModal" tabindex="-1" aria-labelledby="cellEditModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content schedule-modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="cellEditModalLabel">Редактирование ячейки</h5>
+                    <h5 class="modal-title" id="cellEditModalLabel">Статус занятия</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
-
-                    {{-- Добавленный блок: информация о редактируемой ячейке --}}
                     <div class="mb-3">
                         <div><span id="edit-user-name-display"></span></div>
                         <div><small class="text-muted" id="edit-user-teams-display"></small></div>
                         <div><span id="edit-date-display"></span></div>
+                        <div><small class="text-muted" id="edit-occurrence-meta"></small></div>
                     </div>
 
-
                     <form id="cellEditForm">
-
                         <input type="hidden" name="user_id" id="edit-user-id">
-                        <input type="hidden" name="date" id="edit-date">
+                        <input type="hidden" name="utss_id" id="edit-utss-id">
+                        <input type="hidden" name="occurrence_date" id="edit-date">
 
                         <div class="mb-3">
                             <label class="form-label d-block">Статус</label>
-
-                            <!-- Радиокнопка для варианта "не выбрано" -->
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio"
-                                       name="lesson_occurrence_status_id" id="status-empty" value="">
-                                <label class="form-check-label" for="status-empty">
-                                    -- не выбрано --
-                                </label>
-                            </div>
+                            <div class="invalid-feedback d-block" id="cell-status-error" style="display:none;"></div>
 
                             @foreach($availableStatuses as $st)
                                 <div class="form-check mb-2 d-flex align-items-center">
@@ -251,19 +218,14 @@
                                            data-icon="{{ $st->icon }}"
                                            data-color="{{ $st->color }}"
                                            @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
-
                                     <label class="form-check-label ms-2" for="status-{{ $st->id }}">
-            <span style="display: inline-block;
-                    background-color: {{ $st->color }};
-                    padding: 0.3rem;
-                    border-radius: 0.25rem;">
-                <i class="{{ $st->icon }}"></i>
-            </span>
+                                        <span style="display: inline-block; background-color: {{ $st->color }}; padding: 0.3rem; border-radius: 0.25rem;">
+                                            <i class="{{ $st->icon }}"></i>
+                                        </span>
                                         <span class="ms-1">{{ $st->title }}</span>
                                     </label>
                                 </div>
                             @endforeach
-
                         </div>
 
                         <div class="mb-3 d-none" id="cell-trainer-wrap">
@@ -272,11 +234,13 @@
                                 <option value="">Без тренера</option>
                             </select>
                             <div class="form-text text-muted" id="cell-trainer-hint"></div>
+                            <div class="invalid-feedback" id="cell-trainer-error"></div>
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Комментарий</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <textarea class="form-control" id="description" name="comment" rows="3"></textarea>
+                            <div class="invalid-feedback" id="cell-comment-error"></div>
                         </div>
                         <button type="submit" class="btn btn-primary">Сохранить</button>
                     </form>
@@ -285,47 +249,49 @@
         </div>
     </div>
 
-    <!-- Модалка №1: редактирование расписания конкретного пользователя -->
-    <div class="modal fade" id="userScheduleModal" tabindex="-1" aria-labelledby="userScheduleModalLabel"
-         aria-hidden="true">
+    {{-- Раскладка фиксированного абонемента --}}
+    <div class="modal fade" id="abonementPlaceModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 id="userScheduleModalLabel" class="modal-title">Личное расписание ученика</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-                </div>
-                <div class="modal-body" id="userScheduleModalContent">
-                    <!-- Содержимое будет динамически подставляться через JS -->
-                    Загрузка...
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модалка №2: управление группами ученика (закрытие только явно: крестик / Отмена / Сохранить) -->
-    <div class="modal fade" id="chooseGroupModal" tabindex="-1" aria-labelledby="chooseGroupModalLabel"
-         aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 id="chooseGroupModalLabel" class="modal-title">Управление группами</h5>
+                    <h5 class="modal-title">Разложить абонемент</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
-                    @include('admin.users._student_teams_multiselect', [
-                        'teamsFieldId' => 'journalUserTeamIds',
-                        'teamsLabel' => 'Группы ученика',
-                        'teamOptions' => $teams,
-                        'canEditTeams' => true,
-                    ])
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="button" id="btnSaveUserGroup" class="btn btn-primary">Сохранить</button>
+                    <div class="mb-2"><strong id="abonement-user-name"></strong></div>
+                    <form id="abonementPlaceForm">
+                        <div class="mb-3">
+                            <label for="abonement-ulp-id" class="form-label">Абонемент</label>
+                            <select class="form-select" id="abonement-ulp-id" name="user_lesson_package_id"></select>
+                            <div class="invalid-feedback" id="abonement-ulp-error"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="abonement-team-id" class="form-label">Группа</label>
+                            <select class="form-select" id="abonement-team-id" name="team_id"></select>
+                            <div class="invalid-feedback" id="abonement-team-error"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="abonement-start-date" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="abonement-start-date" name="start_date">
+                            <div class="invalid-feedback" id="abonement-start-date-error"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-block">Дни недели</label>
+                            <div id="abonement-weekdays" class="d-flex flex-wrap gap-2"></div>
+                            <div class="invalid-feedback d-block" id="abonement-weekdays-error"></div>
+                        </div>
+                        <div class="mb-3" id="abonement-preview-wrap" style="display:none;">
+                            <label class="form-label">Превью</label>
+                            <div class="small text-muted" id="abonement-preview-text"></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="btnAbonementPreview">Превью</button>
+                            <button type="submit" class="btn btn-primary" id="btnAbonementPlace">Разложить</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно логов -->
     @include('includes.logModal')

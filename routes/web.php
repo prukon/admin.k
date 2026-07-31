@@ -388,10 +388,11 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/schedule/cell-context', [ScheduleController::class, 'cellContext'])->name('schedule.cell-context');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
-        Route::get('/schedule/user-schedule/{user}', [ScheduleController::class, 'getUserScheduleInfo'])->name('user.schedule.info');
-        Route::post('/schedule/user/{user}/set-group', [ScheduleController::class, 'setUserGroup'])->name('user.set.group');
+        Route::get('/schedule/user/{user}/abonement-context', [ScheduleController::class, 'abonementContext'])
+            ->name('schedule.abonement.context');
+        Route::post('/schedule/user/{user}/place-fixed-abonement', [ScheduleController::class, 'placeFixedAbonement'])
+            ->name('schedule.abonement.place-fixed');
         Route::post('/schedule/user/{user}/sync-teams', [ScheduleController::class, 'syncUserTeams'])->name('user.sync.teams');
-        Route::post('/schedule/user/{user}/update-schedule-range', [ScheduleController::class, 'updateUserScheduleRange'])->name('user.update.schedule');
     });
 
     // Абонементы (lesson_packages)

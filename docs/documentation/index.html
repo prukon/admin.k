@@ -26,6 +26,18 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Журнал = view над календарём школы (2026‑07)</h2>
+  <div class="note">
+    Журнал <code>/schedule</code> и календарь школы используют один контур:
+    <code>user_team_schedule_slots</code> + <code>user_lesson_occurrence_status_events</code>.
+    Таблица <code>schedule_users</code> удалена.
+    Из журнала можно разложить <b>fixed</b>-абонемент (дата начала + дни недели + группа);
+    служебные слоты при отсутствии создаются с 09:00 (час).
+    Несколько занятий в один день — бейдж ×N и список по клику.
+    Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>.
+    Нагрузка тренеров считает «Посетил» с <code>trainer_profile_id</code> на событии статуса.
+  </div>
+
   <h2>Ручная смена даты окончания абонемента (2026‑07)</h2>
   <div class="note">
     На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>) в модалке

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
-use App\Models\ScheduleUser;
 use App\Models\Team;
 use App\Models\User;
 
@@ -78,20 +77,23 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 
     public function test_update_visited_saves_trainer_and_without_trainer(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-11';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => '',
+            'comment' => '',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk()->assertJson(['success' => true]);
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
-            'date' => $date . ' 00:00:00',
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ]);
@@ -106,15 +108,17 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => '',
+            'comment' => '',
             'trainer_profile_id' => '',
         ])->assertOk();
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
-            'date' => $date . ' 00:00:00',
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'trainer_profile_id' => null,
         ]);
 
@@ -128,33 +132,39 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 
     public function test_update_accepts_none_and_zero_as_without_trainer(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-13';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         foreach (['none', '0', ''] as $rawValue) {
             $this->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
-                'date' => $date,
+                'utss_id' => $utss->id,
+                'occurrence_date' => $date,
                 'lesson_occurrence_status_id' => $this->visitedStatusId,
                 'trainer_profile_id' => $rawValue,
             ])->assertOk();
         }
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
-            'date' => $date . ' 00:00:00',
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'trainer_profile_id' => null,
         ]);
     }
 
     public function test_update_rejects_trainer_from_foreign_partner(): void
     {
-        [$student] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
         $foreignTrainer = $this->makeTrainerProfile('Чужой тренер', $this->foreignPartner->id);
+        $date = '2026-05-14';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-14',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $foreignTrainer->id,
         ])->assertStatus(422);
@@ -162,43 +172,53 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 
     public function test_update_returns_404_for_foreign_partner_student(): void
     {
+        $foreignTeam = Team::factory()->create(['partner_id' => $this->foreignPartner->id]);
         $foreignStudent = User::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'role_id' => (int) \App\Models\Role::query()->where('name', 'user')->value('id'),
+            'team_id' => $foreignTeam->id,
         ]);
+        $date = '2026-05-14';
+        $utss = $this->createTrialUtss($foreignStudent, $foreignTeam, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $foreignStudent->id,
-            'date' => '2026-05-14',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
         ])->assertNotFound();
     }
 
     public function test_non_visited_status_clears_trainer_profile_id(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-12';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $otherStatus = $this->createCustomOccurrenceStatus('Болезнь');
 
-        ScheduleUser::query()->create([
-            'user_id' => $student->id,
-            'date' => $date,
-            'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'trainer_profile_id' => $trainer->id,
-        ]);
-
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
-            'lesson_occurrence_status_id' => $otherStatus->id,
-            'description' => '',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
+            'comment' => '',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date . ' 00:00:00',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
+            'lesson_occurrence_status_id' => $otherStatus->id,
+            'comment' => '',
+            'trainer_profile_id' => $trainer->id,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $otherStatus->id,
             'trainer_profile_id' => null,
         ]);
@@ -206,21 +226,24 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 
     public function test_update_visited_saves_description(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-16';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => 'Был на тренировке',
+            'comment' => 'Был на тренировке',
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
-            'date' => $date . ' 00:00:00',
-            'description' => 'Был на тренировке',
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
+            'comment' => 'Был на тренировке',
         ]);
     }
 

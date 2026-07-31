@@ -345,27 +345,45 @@ final class TrainerWorkloadReportService
     ): Collection {
         $withoutGroup = self::TEAM_TITLE_WITHOUT_GROUP;
 
-        return DB::table('schedule_users as su')
-            ->join('users as u', 'u.id', '=', 'su.user_id')
+        // Актуальный статус занятия = последняя запись в user_lesson_occurrence_status_events.
+        // Нагрузка считает только «Посетил» с указанным тренером (как раньше в журнале).
+        $latestEventIds = DB::table('user_lesson_occurrence_status_events as e')
+            ->selectRaw('MAX(e.id) as id')
+            ->where('e.partner_id', $partnerId)
+            ->whereBetween('e.occurrence_date', [$dateFrom, $dateTo])
+            ->groupBy(
+                'e.partner_id',
+                'e.user_id',
+                'e.team_schedule_slot_id',
+                'e.occurrence_date',
+                'e.user_lesson_package_id'
+            );
+
+        return DB::table('user_lesson_occurrence_status_events as e')
+            ->joinSub($latestEventIds, 'latest', function ($join): void {
+                $join->on('latest.id', '=', 'e.id');
+            })
+            ->join('users as u', 'u.id', '=', 'e.user_id')
             ->join('trainer_profiles as tp', function ($join) use ($partnerId): void {
-                $join->on('tp.id', '=', 'su.trainer_profile_id')
+                $join->on('tp.id', '=', 'e.trainer_profile_id')
                     ->where('tp.partner_id', '=', $partnerId);
             })
-            ->leftJoin('teams as t', 't.id', '=', 'u.team_id')
+            ->join('team_schedule_slots as tss', 'tss.id', '=', 'e.team_schedule_slot_id')
+            ->leftJoin('teams as t', 't.id', '=', 'tss.team_id')
             ->where('u.partner_id', $partnerId)
             ->where('u.is_enabled', 1)
-            ->where('su.lesson_occurrence_status_id', $visitedStatusId)
-            ->whereNotNull('su.trainer_profile_id')
-            ->whereBetween('su.date', [$dateFrom, $dateTo])
+            ->where('e.lesson_occurrence_status_id', $visitedStatusId)
+            ->whereNotNull('e.trainer_profile_id')
+            ->whereBetween('e.occurrence_date', [$dateFrom, $dateTo])
             ->selectRaw(
-                'su.trainer_profile_id as trainer_profile_id,
-                (WEEKDAY(su.date) + 1) as iso_weekday,
-                u.team_id as team_id,
+                'e.trainer_profile_id as trainer_profile_id,
+                (WEEKDAY(e.occurrence_date) + 1) as iso_weekday,
+                tss.team_id as team_id,
                 COALESCE(MAX(t.title), ?) as team_title,
-                COUNT(DISTINCT DATE(su.date)) as dates_count',
+                COUNT(DISTINCT DATE(e.occurrence_date)) as dates_count',
                 [$withoutGroup],
             )
-            ->groupByRaw('su.trainer_profile_id, (WEEKDAY(su.date) + 1), u.team_id')
+            ->groupByRaw('e.trainer_profile_id, (WEEKDAY(e.occurrence_date) + 1), tss.team_id')
             ->orderBy('team_title')
             ->get();
     }

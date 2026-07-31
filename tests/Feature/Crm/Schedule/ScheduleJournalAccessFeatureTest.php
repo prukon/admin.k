@@ -25,7 +25,9 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
     public function test_schedule_journal_forbidden_without_schedule_view_permission(): void
     {
         $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
-        [$student] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
+        $date = '2026-05-01';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->actingAs($actor)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
@@ -35,13 +37,14 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
         $session = ['current_partner' => $this->partner->id, '2fa:passed' => true];
 
         $this->actingAs($actor)->withSession($session)
-            ->getJson(route('schedule.cell-context', ['user_id' => $student->id, 'date' => '2026-05-01']))
+            ->getJson(route('schedule.cell-context', ['user_id' => $student->id, 'date' => $date]))
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)
             ->postJson(route('schedule.update'), [
                 'user_id' => $student->id,
-                'date' => '2026-05-01',
+                'utss_id' => $utss->id,
+                'occurrence_date' => $date,
                 'lesson_occurrence_status_id' => $this->visitedStatusId,
             ])
             ->assertStatus(403);
@@ -51,23 +54,11 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)
-            ->getJson(route('user.schedule.info', $student))
-            ->assertStatus(403);
-
-        $this->actingAs($actor)->withSession($session)
-            ->postJson(route('user.set.group', $student), ['team_id' => null])
+            ->getJson(route('schedule.abonement.context', $student))
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)
             ->postJson(route('user.sync.teams', $student), ['team_ids' => []])
-            ->assertStatus(403);
-
-        $this->actingAs($actor)->withSession($session)
-            ->postJson(route('user.update.schedule', $student), [
-                'weekdays' => [1],
-                'date_from' => '2026-05-01',
-                'date_to' => '2026-05-01',
-            ])
             ->assertStatus(403);
 
         // Без schedule.view и без lessonPackages.view вкладка/CRUD статусов недоступны

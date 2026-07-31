@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Team\FilterRequest;
 
 use App\Models\MyLog;
-use App\Models\ScheduleUser;
 use App\Models\Setting;
+use App\Models\UserTeamScheduleSlot;
 use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\TeamWeekday;
@@ -61,8 +61,8 @@ class DashboardController extends Controller
         $curTeamsLabel = $this->teamUserSync->teamTitlesLabel($curUser);
         $curTeam = $curUser->teams->first();
 
-        $scheduleUser = ScheduleUser::where('user_id', $curUser->id)->get();
-        $scheduleUserArray = ScheduleUser::where('user_id', $curUser->id)->get()->toArray();
+        $scheduleUser = $this->cabinetScheduleEntries((int) $curUser->id, $partnerId);
+        $scheduleUserArray = $scheduleUser;
         $userPriceArray = UserPrice::with('team:id,title')
             ->where('user_id', $curUser->id)
             ->get()
@@ -128,7 +128,7 @@ class DashboardController extends Controller
         $userTeam = $user->teams->first();
         $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
         $userPrice = UserPrice::where('user_id', $userId)->get();
-        $scheduleUser = ScheduleUser::where('user_id', $userId)->get();
+        $scheduleUser = $this->cabinetScheduleEntries((int) $userId, $partnerId);
 
         $allFields = UserField::where('partner_id', $partnerId)
             ->get();
@@ -180,7 +180,7 @@ class DashboardController extends Controller
         $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
 
         $userPrice = UserPrice::where('user_id', $user->id)->get();
-        $scheduleUser = ScheduleUser::where('user_id', $user->id)->get();
+        $scheduleUser = $this->cabinetScheduleEntries((int) $user->id, $partnerId);
 
         $allFields = UserField::where('partner_id', $partnerId)
             ->get();
@@ -360,5 +360,34 @@ class DashboardController extends Controller
         return User::query()
             ->where('partner_id', $partnerId)
             ->whereDoesntHave('teams', fn ($q) => $q->where('teams.partner_id', $partnerId));
+    }
+
+    /**
+     * Календарь консоли: дни с занятиями из user_team_schedule_slots
+     * (совместимость с legacy-флагами is_enabled / is_hospital в dashboard JS).
+     *
+     * @return list<array{date: string, is_enabled: bool, is_hospital: bool}>
+     */
+    private function cabinetScheduleEntries(int $userId, int $partnerId): array
+    {
+        $dates = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_id', $userId)
+            ->orderBy('starts_at')
+            ->pluck('starts_at')
+            ->map(fn ($d) => Carbon::parse($d)->format('Y-m-d'))
+            ->unique()
+            ->values();
+
+        $entries = [];
+        foreach ($dates as $date) {
+            $entries[] = [
+                'date' => $date,
+                'is_enabled' => true,
+                'is_hospital' => false,
+            ];
+        }
+
+        return $entries;
     }
 }

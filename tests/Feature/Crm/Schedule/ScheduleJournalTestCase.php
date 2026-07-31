@@ -5,9 +5,14 @@ namespace Tests\Feature\Crm\Schedule;
 use App\Models\LessonOccurrenceStatus;
 use App\Models\Role;
 use App\Models\Team;
+use App\Models\TeamScheduleSlot;
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
+use App\Models\UserTeamScheduleSlot;
+use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
@@ -149,14 +154,126 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         return (int) Role::query()->where('name', 'user')->value('id');
     }
 
-    protected function createVisitedScheduleEntry(int $userId, int $trainerProfileId, string $date): void
+    /**
+     * Единый контур журнала: событие «Посетил» с тренером для агрегатов (нагрузка тренеров и т.п.).
+     * Повторные вызовы для того же ученика в тот же день недели попадают в один и тот же
+     * team_schedule_slot — новое событие становится актуальным (последним) для этой даты.
+     */
+    protected function createVisitedScheduleEntry(int $userId, int $trainerProfileId, string $date): UserLessonOccurrenceStatusEvent
     {
-        \App\Models\ScheduleUser::query()->create([
+        return $this->createScheduleStatusEntry($userId, (int) $this->visitedStatusId, $date, $trainerProfileId);
+    }
+
+    /**
+     * Произвольное событие статуса занятия (без создания UTSS) — для сценариев,
+     * где нужен просто факт "было такое событие в этот день" (нагрузка, история статусов).
+     */
+    protected function createScheduleStatusEntry(
+        int $userId,
+        int $statusId,
+        string $date,
+        ?int $trainerProfileId = null,
+    ): UserLessonOccurrenceStatusEvent {
+        $user = User::query()->findOrFail($userId);
+        $slot = $this->teamScheduleSlotForUser($user, $date);
+
+        return UserLessonOccurrenceStatusEvent::query()->create([
+            'partner_id' => $user->partner_id,
             'user_id' => $userId,
-            'date' => $date,
-            'lesson_occurrence_status_id' => $this->visitedStatusId,
+            'team_schedule_slot_id' => $slot->id,
+            'occurrence_date' => $date,
+            'user_lesson_package_id' => null,
+            'lesson_occurrence_status_id' => $statusId,
             'trainer_profile_id' => $trainerProfileId,
+            'created_by' => $this->user->id,
         ]);
+    }
+
+    /**
+     * Пробное занятие (UTSS без абонемента) для ученика в конкретной группе на дату —
+     * основа для тестов schedule.update / cell-context в едином контуре журнала.
+     */
+    protected function createTrialUtss(User $student, Team $team, string $date): UserTeamScheduleSlot
+    {
+        $slot = $this->resolveOrCreateTeamScheduleSlot((int) $student->partner_id, (int) $team->id, $date);
+
+        return UserTeamScheduleSlot::query()->create([
+            'partner_id' => $student->partner_id,
+            'user_id' => $student->id,
+            'user_lesson_package_id' => null,
+            'team_schedule_slot_id' => $slot->id,
+            'starts_at' => $date,
+            'ends_at' => $date,
+            'is_trial_lesson' => true,
+            'trial_lessons_total' => 1,
+            'trial_lessons_remaining' => 1,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
+    /**
+     * Слот группы (team_schedule_slot) на день недели даты; создаётся при отсутствии,
+     * подбирая свободное время, чтобы не нарушить unique(partner_id, weekday, time, date range).
+     */
+    protected function resolveOrCreateTeamScheduleSlot(int $partnerId, int $teamId, string $date): TeamScheduleSlot
+    {
+        $weekday = CarbonImmutable::parse($date)->isoWeekday();
+
+        $slot = TeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('team_id', $teamId)
+            ->where('weekday', $weekday)
+            ->first();
+
+        if ($slot) {
+            return $slot;
+        }
+
+        for ($attempt = 0; $attempt < 30; $attempt++) {
+            $hour = 6 + random_int(0, 12);
+            $minute = random_int(0, 59);
+
+            try {
+                return TeamScheduleSlot::query()->create([
+                    'partner_id' => $partnerId,
+                    'team_id' => $teamId,
+                    'location_id' => null,
+                    'weekday' => $weekday,
+                    'time_start' => sprintf('%02d:%02d:00', $hour, $minute),
+                    'time_end' => sprintf('%02d:%02d:00', $hour + 1, $minute),
+                    'date_start' => '2020-01-01',
+                    'date_end' => '9999-12-31',
+                    'is_enabled' => true,
+                ]);
+            } catch (QueryException $e) {
+                if ($attempt === 29) {
+                    throw $e;
+                }
+            }
+        }
+
+        throw new \RuntimeException('Не удалось создать team_schedule_slot для теста.');
+    }
+
+    /**
+     * Группа ученика для авто-создания слота: legacy team_id, иначе первая группа из pivot,
+     * иначе — временная группа партнёра (для сущностей без группы, напр. тренер как user).
+     */
+    protected function teamScheduleSlotForUser(User $user, string $date): TeamScheduleSlot
+    {
+        $partnerId = (int) $user->partner_id;
+        $teamId = $user->team_id ? (int) $user->team_id : null;
+
+        if ($teamId === null) {
+            $pivotTeamId = DB::table('team_user')->where('user_id', $user->id)->value('team_id');
+            $teamId = $pivotTeamId ? (int) $pivotTeamId : null;
+        }
+
+        if ($teamId === null) {
+            $teamId = (int) Team::factory()->create(['partner_id' => $partnerId])->id;
+        }
+
+        return $this->resolveOrCreateTeamScheduleSlot($partnerId, $teamId, $date);
     }
 
     protected function workloadSession(): array

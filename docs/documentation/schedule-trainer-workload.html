@@ -35,7 +35,10 @@
 
   <div class="warn">
     <strong>Не путать</strong> с <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (слоты абонементов, <code>team_schedule_slots</code>, <code>lessonPackages.view</code>).<br>
-    Отчёт строится только из <a href="/docs/documentation/schedule-journal">журнала посещаемости</a> (<code>schedule_users</code> + статус «Посетил» + <code>trainer_profile_id</code>).
+    Отчёт строится из актуальных статусов занятий (<code>user_lesson_occurrence_status_events</code>):
+    статус «Посетил» + заполненный <code>trainer_profile_id</code> на событии.
+    Группа берётся из слота (<code>team_schedule_slots.team_id</code>).
+    Журнал и календарь школы пишут в один контур — см. <a href="/docs/documentation/schedule-journal">журнал</a>.
   </div>
 
   <div class="note">
@@ -106,7 +109,8 @@
   <h2>3) Источник данных и формула ячейки</h2>
   <h3>3.1) Какие записи журнала попадают в отчёт</h3>
   <ul>
-    <li>Таблица <code>schedule_users</code>, join <code>users</code> (<code>is_enabled = 1</code>, партнёр текущий).</li>
+    <li>Последнее событие статуса на занятие (ключ user/slot/date/ulp) с «Посетил» и непустым <code>trainer_profile_id</code>.</li>
+    <li>Join <code>users</code> (<code>is_enabled = 1</code>, партнёр текущий) и <code>team_schedule_slots</code> → группа.</li>
     <li><code>lesson_occurrence_status_id</code> = «Посетил» текущего партнёра (<code>LessonOccurrenceStatus::attendedIdForPartner($partnerId)</code>, <code>code = attended</code>).</li>
     <li><code>trainer_profile_id IS NOT NULL</code>.</li>
     <li><code>date</code> в выбранном периоде [<code>date_from</code>, <code>date_to</code>].</li>
@@ -119,7 +123,7 @@
     <li>ось Y — все <strong>активные</strong> тренеры партнёра (<code>trainer_profiles.is_enabled</code>, user включён), сортировка <code>sort_order</code>, <code>id</code> (даже без визитов за период — пустая строка);</li>
     <li>ось X — дни недели ISO 1–7 (Пн … Вс), из <code>WEEKDAY(date)+1</code>;</li>
     <li>в ячейке — уникальные <strong>группы</strong> ученика (<code>users.team_id</code> → <code>teams.title</code>, без группы → «Без группы»). <span class="small">Примечание: отчёт нагрузки пока группирует по legacy-колонке <code>users.team_id</code>, не по pivot M:N — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</span></li>
-    <li>число в ячейке — <code>COUNT(DISTINCT DATE(schedule_users.date))</code> для пары (тренер, день недели, группа) за период (не число учеников и не число строк <code>schedule_users</code>).</li>
+    <li>число в ячейке — <code>COUNT(DISTINCT DATE(occurrence_date))</code> для пары (тренер, день недели, группа) за период.</li>
   </ul>
 
   <h3>3.3) Режим «Показывать группы»</h3>

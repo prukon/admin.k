@@ -9,6 +9,7 @@ use App\Http\Requests\User\Concerns\ValidatesStudentHealthFields;
 use App\Http\Requests\User\Concerns\ValidatesStudentParent;
 use App\Models\UserField;
 use App\Services\PartnerContext;
+use App\Services\Users\FamilyStudentLoginResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -56,13 +57,6 @@ class StoreRequest extends FormRequest
             $this->merge([
                 'team_ids' => array_values(array_filter(array_map('intval', $ids), fn (int $id) => $id > 0)),
             ]);
-        }
-
-        if ($this->filled('school_lead_id')) {
-            $parentEmail = trim((string) $this->input('parent_email', ''));
-            if ($parentEmail !== '' && trim((string) $this->input('email', '')) === '') {
-                $this->merge(['email' => $parentEmail]);
-            }
         }
 
         $this->prepareStudentParentForValidation();
@@ -164,6 +158,8 @@ class StoreRequest extends FormRequest
                 );
             }
 
+            $this->validateFamilyStudentLoginFromParentEmail($validator);
+
             $custom = $this->input('custom');
             if (!is_array($custom) || $custom === []) {
                 return;
@@ -188,6 +184,37 @@ class StoreRequest extends FormRequest
                 }
             }
         });
+    }
+
+    private function validateFamilyStudentLoginFromParentEmail($validator): void
+    {
+        $partnerId = app(PartnerContext::class)->partnerId();
+        if (!$partnerId) {
+            return;
+        }
+
+        $resolver = app(FamilyStudentLoginResolver::class);
+        $parentEmail = trim((string) $this->input('parent_email', ''));
+        $explicitEmail = trim((string) $this->input('email', ''));
+
+        if (!$resolver->shouldApplyFromParentEmail(
+            $this->filled('school_lead_id'),
+            $this->boolean('send_welcome_email') || $this->filled('school_lead_id'),
+            $explicitEmail,
+            $parentEmail,
+        )) {
+            return;
+        }
+
+        $parentId = $this->filled('parent_id') ? (int) $this->input('parent_id') : null;
+        $resolution = $resolver->resolve((int) $partnerId, $parentEmail, $parentId);
+
+        if ($resolution['error_message'] !== null) {
+            $validator->errors()->add(
+                $resolution['error_field'] ?? 'parent_email',
+                $resolution['error_message']
+            );
+        }
     }
 
     public function messages()

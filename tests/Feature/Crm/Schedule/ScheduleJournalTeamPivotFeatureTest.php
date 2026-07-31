@@ -64,54 +64,6 @@ final class ScheduleJournalTeamPivotFeatureTest extends ScheduleJournalTestCase
         $this->assertSame(0, DB::table('team_user')->where('user_id', $student->id)->count());
     }
 
-    public function test_set_group_attaches_second_team_without_removing_first(): void
-    {
-        $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Alpha']);
-        $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Beta']);
-        $student = $this->makeStudent($teamA->id);
-
-        $this->postJson(route('user.set.group', $student), [
-            'team_id' => $teamB->id,
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('teams_label', 'Alpha, Beta');
-
-        $teamIds = DB::table('team_user')
-            ->where('user_id', $student->id)
-            ->pluck('team_id')
-            ->map(fn ($id) => (int) $id)
-            ->sort()
-            ->values()
-            ->all();
-
-        $this->assertSame([$teamA->id, $teamB->id], $teamIds);
-    }
-
-    public function test_set_group_with_empty_team_id_detaches_all_teams(): void
-    {
-        [$student, $team] = $this->makeStudentTeamAndTrainer();
-
-        $this->postJson(route('user.set.group', $student), [
-            'team_id' => '',
-        ])
-            ->assertOk()
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('teams_label', null);
-
-        $this->assertSame(0, DB::table('team_user')->where('user_id', $student->id)->count());
-    }
-
-    public function test_set_group_rejects_foreign_partner_team(): void
-    {
-        $student = $this->makeStudent(null);
-        $foreignTeam = Team::factory()->create(['partner_id' => $this->foreignPartner->id]);
-
-        $this->postJson(route('user.set.group', $student), [
-            'team_id' => $foreignTeam->id,
-        ])->assertStatus(422)->assertJsonValidationErrors(['team_id']);
-    }
-
     public function test_cell_context_uses_context_team_id_for_default_trainer(): void
     {
         $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Alpha']);
@@ -196,7 +148,7 @@ final class ScheduleJournalTeamPivotFeatureTest extends ScheduleJournalTestCase
         }
     }
 
-    public function test_user_schedule_info_uses_context_team_for_weekdays(): void
+    public function test_abonement_context_returns_weekdays_per_team(): void
     {
         $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
         $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
@@ -215,9 +167,13 @@ final class ScheduleJournalTeamPivotFeatureTest extends ScheduleJournalTestCase
             'updated_at' => now(),
         ]);
 
-        $this->getJson(route('user.schedule.info', $student) . '?context_team_id=' . $teamB->id)
-            ->assertOk()
-            ->assertJsonPath('user.team_id', $teamB->id)
-            ->assertJsonPath('groupWeekdays', [3]);
+        $response = $this->getJson(route('schedule.abonement.context', $student))
+            ->assertOk();
+
+        $this->assertEqualsCanonicalizing([$teamA->id, $teamB->id], $response->json('user.team_ids'));
+
+        $teams = collect($response->json('teams'))->keyBy('id');
+        $this->assertSame([1], $teams[$teamA->id]['weekdays']);
+        $this->assertSame([3], $teams[$teamB->id]['weekdays']);
     }
 }

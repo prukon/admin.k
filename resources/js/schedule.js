@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     var numDays = $('.schedule-day-header').length;
-
     var dtColumns = [
         {orderable: false},
         {orderable: true},
@@ -42,33 +41,24 @@ document.addEventListener('DOMContentLoaded', function () {
         table.search(this.value).draw();
     });
 
-
-
     function formatDateHuman(dateStr) {
         const months = [
             'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
             'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
         ];
-
         const dateObj = new Date(dateStr);
-        const day = dateObj.getDate();
-        const month = months[dateObj.getMonth()];
-        const year = dateObj.getFullYear();
-
-        return `${day} ${month} ${year}`;
+        return dateObj.getDate() + ' ' + months[dateObj.getMonth()] + ' ' + dateObj.getFullYear();
     }
 
-    //Изменение фильтров
+    function csrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
     $('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change', function () {
-        var year = $('#filter-year').val();
-        var month = $('#filter-month').val();
-        var team = $('#filter-team').val();
-
         var newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('year', year);
-        newUrl.searchParams.set('month', month);
-        newUrl.searchParams.set('team', team);
-
+        newUrl.searchParams.set('year', $('#filter-year').val());
+        newUrl.searchParams.set('month', $('#filter-month').val());
+        newUrl.searchParams.set('team', $('#filter-team').val());
         if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
             newUrl.searchParams.set('fullscreen', '1');
         } else {
@@ -78,11 +68,25 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
-    var currentCell;
+    var dayOccurrencesModal = new bootstrap.Modal(document.getElementById('dayOccurrencesModal'), {});
+    var abonementPlaceModal = new bootstrap.Modal(document.getElementById('abonementPlaceModal'), {});
+    var currentCell = null;
     var visitedStatusId = window.SCHEDULE_VISITED_STATUS_ID
         ? parseInt(window.SCHEDULE_VISITED_STATUS_ID, 10)
         : null;
     var cellContextCache = null;
+    var abonementContextCache = null;
+    var abonementUserId = null;
+
+    var weekdayLabels = [
+        {id: 1, label: 'Пн'},
+        {id: 2, label: 'Вт'},
+        {id: 3, label: 'Ср'},
+        {id: 4, label: 'Чт'},
+        {id: 5, label: 'Пт'},
+        {id: 6, label: 'Сб'},
+        {id: 7, label: 'Вс'}
+    ];
 
     function isVisitedStatusId(statusId) {
         return visitedStatusId && parseInt(statusId, 10) === visitedStatusId;
@@ -91,15 +95,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function populateTrainerSelect(trainers, selectedValue) {
         var $sel = $('#cell-trainer-profile-id');
         $sel.empty();
-        $sel.append($('<option>', { value: '', text: 'Без тренера' }));
+        $sel.append($('<option>', {value: '', text: 'Без тренера'}));
         (trainers || []).forEach(function (trainer) {
-            $sel.append($('<option>', { value: trainer.id, text: trainer.name }));
+            $sel.append($('<option>', {value: trainer.id, text: trainer.name}));
         });
-        if (selectedValue === null || selectedValue === undefined) {
-            $sel.val('');
-        } else {
-            $sel.val(String(selectedValue));
-        }
+        $sel.val(selectedValue === null || selectedValue === undefined ? '' : String(selectedValue));
     }
 
     function trainerSelectValueForVisited(ctx) {
@@ -116,15 +116,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function syncTrainerBlock() {
-        var checked = $('input[name="lesson_occurrence_status_id"]:checked');
-        var statusVal = checked.val();
+        var statusVal = $('input[name="lesson_occurrence_status_id"]:checked').val();
         if (!isVisitedStatusId(statusVal)) {
             $('#cell-trainer-wrap').addClass('d-none');
             $('#cell-trainer-profile-id').val('');
             $('#cell-trainer-hint').text('');
             return;
         }
-
         $('#cell-trainer-wrap').removeClass('d-none');
         var selectVal = trainerSelectValueForVisited(cellContextCache);
         if ($('#cell-trainer-profile-id option').length <= 1 && cellContextCache && cellContextCache.trainers) {
@@ -132,7 +130,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             $('#cell-trainer-profile-id').val(selectVal === null ? '' : String(selectVal));
         }
-
         var hint = '';
         if (cellContextCache && cellContextCache.team_default_trainer_profile_id && selectVal === String(cellContextCache.team_default_trainer_profile_id)) {
             hint = 'По умолчанию — первый тренер группы.';
@@ -140,9 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#cell-trainer-hint').text(hint);
     }
 
-    $(document).on('change', 'input[name="lesson_occurrence_status_id"]', function () {
-        syncTrainerBlock();
-    });
+    $(document).on('change', 'input[name="lesson_occurrence_status_id"]', syncTrainerBlock);
 
     function scheduleJournalContextTeamId(cellEl) {
         var fromCell = cellEl ? $(cellEl).data('context-team-id') : null;
@@ -156,63 +151,130 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
-    function showChooseGroupFieldError(message) {
-        var $select = $('#journalUserTeamIds');
-        var $feedback = $('[data-error-for="team_ids"]');
-        if (message) {
-            if (window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.markInvalid($select);
-            } else {
-                $select.addClass('is-invalid');
-            }
-            $feedback.text(message).show();
-        } else {
-            if (window.KidsCrmGenericMultiselectSelect2) {
-                KidsCrmGenericMultiselectSelect2.clearInvalid($select);
-            } else {
-                $select.removeClass('is-invalid');
-            }
-            $feedback.text('').hide();
-        }
+    function clearCellFieldErrors() {
+        $('#cell-status-error, #cell-trainer-error, #cell-comment-error').text('').hide();
+        $('#cell-trainer-profile-id, #description').removeClass('is-invalid');
     }
 
-    function initJournalTeamsMultiselect() {
-        var $select = $('#journalUserTeamIds');
-        if (!$select.length || !window.KidsCrmGenericMultiselectSelect2) {
+    function showCellFieldErrors(errors) {
+        clearCellFieldErrors();
+        if (!errors) {
             return;
         }
-        KidsCrmGenericMultiselectSelect2.init($select, {
-            dropdownParent: $('#chooseGroupModal'),
-        });
+        if (errors.lesson_occurrence_status_id) {
+            $('#cell-status-error').text(errors.lesson_occurrence_status_id[0]).show();
+        }
+        if (errors.trainer_profile_id) {
+            $('#cell-trainer-profile-id').addClass('is-invalid');
+            $('#cell-trainer-error').text(errors.trainer_profile_id[0]).show();
+        }
+        if (errors.comment) {
+            $('#description').addClass('is-invalid');
+            $('#cell-comment-error').text(errors.comment[0]).show();
+        }
+        if (errors.utss_id) {
+            $('#cell-status-error').text(errors.utss_id[0]).show();
+        }
     }
 
-    //Вызов Редактирование ячейки
-    $(document).on('click', '.schedule-cell', function () {
-        currentCell = $(this);
-        let userId = $(this).data('user-id');
-        let date = $(this).data('date');
-        let statusId = $(this).data('status-id');
-        let comment = $(this).attr('data-comment') || '';
-        let userName = $(this).data('user-name');
-
+    function openOccurrenceEditor(userId, date, utssId, userName) {
+        clearCellFieldErrors();
         $('#edit-user-id').val(userId);
         $('#edit-date').val(date);
-        $('#description').val(comment);
+        $('#edit-utss-id').val(utssId || '');
+        $('#description').val('');
         $('input[name="lesson_occurrence_status_id"]').prop('checked', false);
-        if (statusId) {
-            $('input[name="lesson_occurrence_status_id"][value="' + statusId + '"]').prop('checked', true);
-        } else {
-            $('#status-empty').prop('checked', true);
-        }
-
-        $('#edit-user-name-display').text(userName);
+        $('#edit-user-name-display').text(userName || '');
         $('#edit-date-display').text(formatDateHuman(date));
         $('#edit-user-teams-display').text('');
-
+        $('#edit-occurrence-meta').text('');
         cellContextCache = null;
         populateTrainerSelect([], '');
         $('#cell-trainer-wrap').addClass('d-none');
-        $('#cell-trainer-hint').text('');
+
+        $.ajax({
+            url: '/schedule/cell-context',
+            method: 'GET',
+            data: {
+                user_id: userId,
+                date: date,
+                utss_id: utssId || '',
+                context_team_id: scheduleJournalContextTeamId(currentCell)
+            },
+            headers: {'Accept': 'application/json'},
+            success: function (ctx) {
+                cellContextCache = ctx;
+                var selected = ctx.selected;
+                if (!selected) {
+                    if (typeof showErrorModal === 'function') {
+                        showErrorModal('Нет занятий', 'На эту дату нет записей занятий.');
+                    }
+                    return;
+                }
+                $('#edit-utss-id').val(selected.utss_id);
+                $('#description').val(selected.comment || '');
+                if (selected.lesson_occurrence_status_id) {
+                    $('input[name="lesson_occurrence_status_id"][value="' + selected.lesson_occurrence_status_id + '"]').prop('checked', true);
+                }
+                var metaParts = [];
+                if (selected.team_title) {
+                    metaParts.push(selected.team_title);
+                }
+                if (selected.time_start && selected.time_end) {
+                    metaParts.push(selected.time_start + '–' + selected.time_end);
+                }
+                if (selected.package_name) {
+                    metaParts.push(selected.package_name);
+                }
+                $('#edit-occurrence-meta').text(metaParts.join(' · '));
+                if (ctx.teams_label) {
+                    $('#edit-user-teams-display').text('Группы: ' + ctx.teams_label);
+                }
+                populateTrainerSelect(ctx.trainers || [], '');
+                syncTrainerBlock();
+                cellEditModal.show();
+            }
+        });
+    }
+
+    function renderDayOccurrencesList(ctx, userId, date, userName) {
+        var items = ctx.occurrences || [];
+        var $body = $('#dayOccurrencesModalBody').empty();
+        $('#dayOccurrencesModalLabel').text('Занятия: ' + (userName || '') + ', ' + formatDateHuman(date));
+        if (!items.length) {
+            $body.append($('<div class="text-muted">').text('Нет занятий на эту дату.'));
+            return;
+        }
+        items.forEach(function (item) {
+            var label = (item.time_start || '?') + '–' + (item.time_end || '?')
+                + ' · ' + (item.team_title || 'Группа')
+                + ' · ' + (item.package_name || '')
+                + (item.status_title ? (' · ' + item.status_title) : '');
+            var $btn = $('<button type="button" class="btn btn-outline-secondary w-100 mb-2 text-start">')
+                .text(label)
+                .on('click', function () {
+                    dayOccurrencesModal.hide();
+                    openOccurrenceEditor(userId, date, item.utss_id, userName);
+                });
+            $body.append($btn);
+        });
+    }
+
+    $(document).on('click', '.schedule-cell', function () {
+        currentCell = $(this);
+        var count = parseInt($(this).attr('data-occurrence-count') || '0', 10);
+        if (!count) {
+            return;
+        }
+        var userId = $(this).data('user-id');
+        var date = $(this).data('date');
+        var userName = $(this).data('user-name');
+        var utssId = $(this).data('utss-id');
+
+        if (count === 1) {
+            openOccurrenceEditor(userId, date, utssId, userName);
+            return;
+        }
 
         $.ajax({
             url: '/schedule/cell-context',
@@ -222,26 +284,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 date: date,
                 context_team_id: scheduleJournalContextTeamId(currentCell)
             },
-            headers: { 'Accept': 'application/json' },
+            headers: {'Accept': 'application/json'},
             success: function (ctx) {
-                cellContextCache = ctx;
-                populateTrainerSelect(ctx.trainers || [], '');
-                syncTrainerBlock();
-                if (ctx.teams_label) {
-                    $('#edit-user-teams-display').text('Группы: ' + ctx.teams_label);
-                }
-            },
+                renderDayOccurrencesList(ctx, userId, date, userName);
+                dayOccurrencesModal.show();
+            }
         });
-
-        cellEditModal.show();
     });
 
-    //Сохранить Редактирование ячейки
     $('#cellEditForm').on('submit', function (e) {
         e.preventDefault();
-
+        clearCellFieldErrors();
         var formData = $(this).serializeArray();
         var chosenStatus = $('input[name="lesson_occurrence_status_id"]:checked').val();
+        if (!chosenStatus) {
+            $('#cell-status-error').text('Выберите статус.').show();
+            return;
+        }
         if (!isVisitedStatusId(chosenStatus)) {
             formData = formData.filter(function (item) {
                 return item.name !== 'trainer_profile_id';
@@ -249,58 +308,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         $.ajax({
-            url: "/schedule/update",
-            method: "POST",
+            url: '/schedule/update',
+            method: 'POST',
             data: $.param(formData),
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
+            headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
             success: function (response) {
                 if (response.success) {
-                    let chosenRadio = $('input[name="lesson_occurrence_status_id"]:checked');
-                    let chosenStatusId = chosenRadio.val();
-                    let icon = chosenRadio.data('icon') || '';
-                    let color = chosenRadio.data('color') || '';
-                    let text = chosenRadio.closest('.form-check').find('label').text().trim();
-
-                    let comment = $('#description').val().trim();
-
-                    // Очищаем текущее содержимое ячейки
-                    currentCell.empty();
-
-
-                    // Добавляем иконку или текст
-
-                    if (icon) {
-                        currentCell.html('<i class="' + icon + '"></i>');
-                    } else {
-                        currentCell.text(text);
-                    }
-
-                    // Добавляем индикатор комментария, если комментарий есть
-                    if (comment !== '') {
-                        currentCell.append('<div class="cell-comment-indicator" style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>');
-                    }
-
-                    // Обновляем фон, data-атрибуты
-                    currentCell.css('background-color', color);
-                    currentCell.attr('data-status-id', chosenStatusId);
-                    // currentCell.attr('data-comment', $('#description').val().trim());
-                    currentCell.attr('data-comment', comment);
-
-
-                    cellEditModal.hide();
+                    window.location.reload();
+                }
+            },
+            error: function (xhr) {
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    showCellFieldErrors(xhr.responseJSON.errors);
                 }
             }
         });
     });
 
-
-    //Клик переход в полноэкранный режим
     $('#btn-fullscreen').on('click', function () {
         $('.schedule-fullscreen-wrapper').toggleClass('fullscreen');
         $('body').toggleClass('no-scroll');
-
         var newUrl = new URL(window.location.href);
         if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
             $('#btn-fullscreen').html('<i class="fas fa-compress"></i>');
@@ -314,224 +341,176 @@ document.addEventListener('DOMContentLoaded', function () {
         window.history.replaceState({}, '', newUrl);
     });
 
+    function clearAbonementErrors() {
+        ['ulp', 'team', 'start-date', 'weekdays'].forEach(function (key) {
+            $('#abonement-' + key + '-error').text('').hide();
+        });
+        $('#abonement-ulp-id, #abonement-team-id, #abonement-start-date').removeClass('is-invalid');
+    }
 
-    let userScheduleModalEl = document.getElementById('userScheduleModal');
-    let userScheduleModal = new bootstrap.Modal(userScheduleModalEl);
+    function showAbonementErrors(errors) {
+        clearAbonementErrors();
+        if (!errors) {
+            return;
+        }
+        if (errors.user_lesson_package_id) {
+            $('#abonement-ulp-id').addClass('is-invalid');
+            $('#abonement-ulp-error').text(errors.user_lesson_package_id[0]).show();
+        }
+        if (errors.team_id) {
+            $('#abonement-team-id').addClass('is-invalid');
+            $('#abonement-team-error').text(errors.team_id[0]).show();
+        }
+        if (errors.start_date) {
+            $('#abonement-start-date').addClass('is-invalid');
+            $('#abonement-start-date-error').text(errors.start_date[0]).show();
+        }
+        if (errors.weekdays) {
+            $('#abonement-weekdays-error').text(errors.weekdays[0]).show();
+        }
+    }
 
+    function fillAbonementWeekdays(selectedIds) {
+        var selected = {};
+        (selectedIds || []).forEach(function (id) {
+            selected[parseInt(id, 10)] = true;
+        });
+        var $wrap = $('#abonement-weekdays').empty();
+        weekdayLabels.forEach(function (d) {
+            var checked = selected[d.id] ? ' checked' : '';
+            var highlight = selected[d.id] ? ' border border-primary' : '';
+            $wrap.append(
+                '<label class="day-checkbox' + highlight + '" style="margin-right:0.25rem;">' +
+                '<input class="form-check-input abonement-day-chk" type="checkbox" value="' + d.id + '"' + checked + '> ' +
+                d.label +
+                '</label>'
+            );
+        });
+    }
 
-    //Вызов Личное расписание ученика
-    $(document).on('click', '.edit-user-schedule', function () {
-        let userId = $(this).data('user-id');
+    function applyTeamWeekdayTemplate() {
+        var teamId = parseInt($('#abonement-team-id').val(), 10);
+        var weekdays = [];
+        if (abonementContextCache && abonementContextCache.teams) {
+            abonementContextCache.teams.forEach(function (team) {
+                if (parseInt(team.id, 10) === teamId) {
+                    weekdays = team.weekdays || [];
+                }
+            });
+        }
+        fillAbonementWeekdays(weekdays);
+    }
 
-        $('#userScheduleModalContent').html('Загрузка...');
+    function fillAbonementForm(ctx) {
+        abonementContextCache = ctx;
+        $('#abonement-user-name').text(ctx.user.name || '');
+        var $ulp = $('#abonement-ulp-id').empty();
+        (ctx.assignments || []).forEach(function (a) {
+            var label = a.name + ' (' + a.lessons_remaining + '/' + a.lessons_total + ')';
+            var $opt = $('<option>', {value: a.id, text: label});
+            if (!a.placeable) {
+                $opt.prop('disabled', true);
+                $opt.text(label + ' — уже разложен');
+            }
+            $ulp.append($opt);
+        });
+        var placeable = (ctx.assignments || []).filter(function (a) { return a.placeable; });
+        if (placeable.length) {
+            $ulp.val(String(placeable[0].id));
+        }
+
+        var $team = $('#abonement-team-id').empty();
+        (ctx.teams || []).forEach(function (team) {
+            $team.append($('<option>', {value: team.id, text: team.title}));
+        });
+        if (ctx.teams && ctx.teams.length) {
+            $team.val(String(ctx.teams[0].id));
+        }
+        $('#abonement-start-date').val(ctx.default_start_date || '');
+        applyTeamWeekdayTemplate();
+        $('#abonement-preview-wrap').hide();
+        $('#abonement-preview-text').text('');
+        clearAbonementErrors();
+    }
+
+    $(document).on('change', '#abonement-team-id', applyTeamWeekdayTemplate);
+
+    $(document).on('click', '.journal-abonement-btn:not(:disabled)', function () {
+        abonementUserId = $(this).data('user-id');
         $.ajax({
-            url: '/schedule/user-schedule/' + userId,
+            url: '/schedule/user/' + abonementUserId + '/abonement-context',
             method: 'GET',
-            data: {
-                context_team_id: scheduleJournalContextTeamId(null)
-            },
-            success: function (resp) {
-
-                if (!resp.success) {
-                    $('#userScheduleModalContent').html('Ошибка при получении данных.');
-                    userScheduleModal.show();
+            headers: {'Accept': 'application/json'},
+            success: function (ctx) {
+                if (!ctx.success) {
                     return;
                 }
-
-                let user = resp.user;
-                let groupWeekdays = resp.groupWeekdays;
-                let defaultFrom = resp.defaultFrom;
-                let defaultTo = resp.defaultTo;
-                let hasTeams = Array.isArray(user.team_ids) && user.team_ids.length > 0;
-                let teamsLabel = user.team_titles || user.team_title || '';
-
-                let html = `<div><p><strong>ФИО:</strong> ${user.name}</p>`;
-                if (!hasTeams) {
-                    html += `
-                        <p><strong>Группы:</strong> <span class="text-danger">не выбраны</span></p>
-                    `;
-                } else {
-                    html += `<p><strong>Группы:</strong> ${teamsLabel}</p>`;
-                }
-
-                html += `
-                    <button type="button"
-                            class="btn btn-primary mb-3"
-                            id="btnChooseGroup"
-                            data-user-id="${user.id}"
-                            data-team-ids='${JSON.stringify(user.team_ids || [])}'>
-                        Изменить группы
-                    </button>
-                `;
-
-                let days = [
-                    {id: 1, label: 'Пн'},
-                    {id: 2, label: 'Вт'},
-                    {id: 3, label: 'Ср'},
-                    {id: 4, label: 'Чт'},
-                    {id: 5, label: 'Пт'},
-                    {id: 6, label: 'Суб'},
-                    {id: 7, label: 'Вск'},
-                ];
-                html += `<div class="mb-3"><div class="label-ind-day"><strong>Новое расписание:</strong></div>`;
-                days.forEach((d) => {
-                    let highlight = groupWeekdays.includes(d.id) ? 'highlight-border' : '';
-                    html += `
-                        <label class="day-checkbox ${highlight}" style="margin-right: 0.5rem;">
-                            <input class="form-check-input user-day-chk"
-                                   type="checkbox"
-                                   value="${d.id}"
-                                   id="chk_${d.id}"
-                                   style="margin-right: 0.3rem;" />
-                            ${d.label}
-                        </label>
-                    `;
-                });
-                html += `</div>`;
-
-                html += `
-                    <div><strong>Период действия нового расписания:</strong></div>
-                    <div class="mb-3">
-                        <label for="dateFrom" class="form-label">От:</label>
-                        <input type="date" id="dateFrom" class="form-control" value="${defaultFrom}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="dateTo" class="form-label">До:</label>
-                        <input type="date" id="dateTo" class="form-control" value="${defaultTo}">
-                    </div>
-                    <button type="button" class="btn btn-success" id="btnSaveUserSchedule" data-user-id="${user.id}">
-                        Изменить расписание
-                    </button>
-                </div>`;
-
-                $('#userScheduleModalContent').html(html);
-                $('.highlight-border').css('border', '2px dashed #0d6efd');
-                userScheduleModal.show();
-            },
-            error: function () {
-                $('#userScheduleModalContent').html('Ошибка AJAX-запроса.');
-                userScheduleModal.show();
+                fillAbonementForm(ctx);
+                abonementPlaceModal.show();
             }
         });
     });
 
-    let chooseGroupModalEl = document.getElementById('chooseGroupModal');
-    let chooseGroupModal = new bootstrap.Modal(chooseGroupModalEl, {
-        backdrop: 'static',
-        keyboard: false
-    });
+    function collectedWeekdays() {
+        var days = [];
+        $('.abonement-day-chk:checked').each(function () {
+            days.push(parseInt($(this).val(), 10));
+        });
+        return days;
+    }
 
-  // Вызов «Изменить группы»
-    $(document).on('click', '#btnChooseGroup', function () {
-        let userId = $(this).data('user-id');
-        let teamIds = [];
-        try {
-            teamIds = JSON.parse($(this).attr('data-team-ids') || '[]');
-        } catch (e) {
-            teamIds = [];
-        }
-        $('#chooseGroupModal').data('user-id', userId);
-        showChooseGroupFieldError('');
-        initJournalTeamsMultiselect();
-        if (window.KidsCrmGenericMultiselectSelect2) {
-            KidsCrmGenericMultiselectSelect2.setValues($('#journalUserTeamIds'), teamIds);
-        } else {
-            $('#journalUserTeamIds').val(teamIds.map(String));
-        }
-        chooseGroupModal.show();
-    });
+    function postAbonementPlacement(preview) {
+        clearAbonementErrors();
+        var payload = {
+            user_lesson_package_id: $('#abonement-ulp-id').val(),
+            team_id: $('#abonement-team-id').val(),
+            start_date: $('#abonement-start-date').val(),
+            weekdays: collectedWeekdays(),
+            preview: preview ? 1 : 0
+        };
 
-    function postUserTeamsSync(userId, teamIds, onSuccess) {
         $.ajax({
-            url: '/schedule/user/' + userId + '/sync-teams',
+            url: '/schedule/user/' + abonementUserId + '/place-fixed-abonement',
             method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            data: {team_ids: teamIds},
+            data: payload,
+            headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
             success: function (resp) {
-                if (resp.success) {
-                    if (typeof onSuccess === 'function') {
-                        onSuccess(resp);
-                    }
-                } else {
-                    $('#errorModal').modal('show');
+                if (!resp.success) {
+                    return;
                 }
+                if (preview) {
+                    var r = resp.result || {};
+                    var dates = (r.preview_dates || []).slice(0, 12).join(', ');
+                    var more = (r.preview_dates || []).length > 12 ? '…' : '';
+                    $('#abonement-preview-text').text(
+                        'Занятий: ' + (r.linked_count || 0) +
+                        '; период ' + (r.starts_at || '') + ' — ' + (r.ends_at || '') +
+                        (dates ? ('; даты: ' + dates + more) : '')
+                    );
+                    $('#abonement-preview-wrap').show();
+                    return;
+                }
+                abonementPlaceModal.hide();
+                window.location.reload();
             },
             error: function (xhr) {
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                    var errors = xhr.responseJSON.errors;
-                    var teamErrors = errors.team_ids || errors['team_ids.0'] || [];
-                    var firstError = Array.isArray(teamErrors) ? teamErrors[0] : teamErrors;
-                    showChooseGroupFieldError(firstError || 'Проверьте выбранные группы.');
-                    return;
+                    showAbonementErrors(xhr.responseJSON.errors);
                 }
-                $('#errorModal').modal('show');
             }
         });
     }
 
-
-    //Сохранить группы
-    $('#btnSaveUserGroup').on('click', function () {
-        let userId = $('#chooseGroupModal').data('user-id');
-        let teamIds = $('#journalUserTeamIds').val() || [];
-        if (!Array.isArray(teamIds)) {
-            teamIds = teamIds ? [teamIds] : [];
-        }
-        teamIds = teamIds.map(function (id) {
-            return parseInt(id, 10);
-        }).filter(function (id) {
-            return id > 0;
-        });
-
-        showChooseGroupFieldError('');
-
-        postUserTeamsSync(userId, teamIds, function (resp) {
-            chooseGroupModal.hide();
-            showSuccessModal('Группы ученика', resp.message || 'Группы успешно обновлены.', 1);
-        });
+    $('#btnAbonementPreview').on('click', function () {
+        postAbonementPlacement(true);
     });
 
-
-    //Сохранить Личное расписание ученика
-    $(document).on('click', '#btnSaveUserSchedule', function () {
-        let userId = $(this).data('user-id');
-        showConfirmDeleteModal(
-            "Изменение расписания",
-            "Вы уверены, что хотите изменить расписание пользователя?",
-            function () {
-                let checked = [];
-                $('.user-day-chk:checked').each(function () {
-                    checked.push($(this).val());
-                });
-                let dateFrom = $('#dateFrom').val();
-                let dateTo = $('#dateTo').val();
-
-                $.ajax({
-                    // url: '/admin/user/' + userId + '/update-schedule-range',
-                    url: '/schedule/user/' + userId + '/update-schedule-range',
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    data: {
-                        weekdays: checked,
-                        date_from: dateFrom,
-                        date_to: dateTo
-                    },
-                    success: function (resp) {
-                        if (resp.success) {
-                            showSuccessModal("Изменение расписания", "Индивидуальное расписание пользователя изменено.", 1);
-                        } else {
-                            $('#errorModal').modal('show');
-                        }
-                    }
-                });
-            });
+    $('#abonementPlaceForm').on('submit', function (e) {
+        e.preventDefault();
+        postAbonementPlacement(false);
     });
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    showLogModal("/schedule/logs-data");
+    showLogModal('/schedule/logs-data');
 });

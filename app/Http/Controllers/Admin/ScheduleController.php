@@ -1,33 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\AdminBaseController;
 use App\Enums\AuditEvent;
+use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
-use App\Http\Requests\Admin\GetScheduleUserScheduleInfoRequest;
-use App\Http\Requests\Admin\SetScheduleUserGroupRequest;
+use App\Http\Requests\Admin\GetScheduleJournalAbonementContextRequest;
+use App\Http\Requests\Admin\PlaceScheduleJournalFixedAbonementRequest;
 use App\Http\Requests\Admin\SyncScheduleUserTeamsRequest;
-use App\Http\Requests\Admin\UpdateScheduleCellRequest;
+use App\Http\Requests\Admin\UpdateScheduleJournalOccurrenceRequest;
 use App\Http\Requests\Team\FilterRequest;
+use App\Models\LessonOccurrenceStatus;
+use App\Models\Team;
+use App\Models\TrainerProfile;
+use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
+use App\Models\UserLessonPackage;
+use App\Models\UserTeamScheduleSlot;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
-use App\Services\TeamUserSyncService;
-use App\Models\TrainerProfile;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\ScheduleUser;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
-use App\Models\Team;
-use App\Models\LessonOccurrenceStatus;
-use Database\Seeders\LessonOccurrenceStatusesSeeder;
-use Yajra\DataTables\DataTables;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use App\Support\BuildsLogTable;
+use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\PartnerContext;
-
+use App\Services\Schedule\JournalFixedAbonementPlacementService;
+use App\Services\Schedule\ScheduleJournalMonthService;
+use App\Services\TeamUserSyncService;
+use App\Support\BuildsLogTable;
+use Carbon\Carbon;
+use Database\Seeders\LessonOccurrenceStatusesSeeder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use Throwable;
 
 class ScheduleController extends AdminBaseController
 {
@@ -37,34 +43,32 @@ class ScheduleController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly ScheduleJournalMonthService $journalMonthService,
+        private readonly JournalFixedAbonementPlacementService $fixedPlacementService,
+        private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
     ) {
         parent::__construct($partnerContext);
     }
 
     public function index(Request $request)
     {
-        // 1) Текущий партнер
         $partnerId = $this->requirePartnerId();
 
         LessonOccurrenceStatusesSeeder::ensureForPartner($partnerId);
 
-        // 2) Статусы занятий партнёра (для ячеек — все; в селекте — только активные)
         $statusesForDisplay = LessonOccurrenceStatus::query()
             ->forPartner($partnerId)
             ->ordered()
             ->get();
         $availableStatuses = $statusesForDisplay->where('is_active', true)->values();
 
-        // 3) Фильтры: год, месяц и группа
-        $year    = $request->get('year',  date('Y'));
-        $month   = $request->get('month', date('m'));
-        $team_id = $request->get('team',  'all');
+        $year = $request->get('year', date('Y'));
+        $month = $request->get('month', date('m'));
+        $team_id = $request->get('team', 'all');
 
-        // 4) Начало и конец месяца
-        $startOfMonth = Carbon::createFromDate($year, $month, 1);
-        $endOfMonth   = $startOfMonth->copy()->endOfMonth();
+        $startOfMonth = Carbon::createFromDate((int) $year, (int) $month, 1);
+        $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        // 5) Ученики: активные, партнёр, системная роль user
         $usersQuery = User::where('partner_id', $partnerId)
             ->where('is_enabled', 1)
             ->withSystemRoleUser();
@@ -78,61 +82,66 @@ class ScheduleController extends AdminBaseController
             ->orderBy('lastname')
             ->get();
 
-        // 6) Записи расписания за месяц — по выбранным users
-        $scheduleEntries = ScheduleUser::whereIn('user_id', $users->pluck('id'))
-            ->whereBetween('date', [
-                $startOfMonth->format('Y-m-d'),
-                $endOfMonth->format('Y-m-d'),
-            ])
+        $journalOccurrences = $this->journalMonthService->occurrencesByUserDate(
+            $partnerId,
+            $users->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            $startOfMonth,
+            $endOfMonth,
+            $team_id,
+        );
+
+        $journalAssignments = [];
+        foreach ($users as $user) {
+            $journalAssignments[(int) $user->id] = $this->journalMonthService->fixedAssignmentsForUser(
+                $partnerId,
+                (int) $user->id
+            );
+        }
+
+        $userPrices = DB::table('users_prices')
+            ->select('user_id', 'is_paid')
+            ->whereIn('user_id', $users->pluck('id'))
+            ->whereYear('new_month', $year)
+            ->whereMonth('new_month', $month)
             ->get()
-            ->keyBy(fn($item) => $item->user_id . '_' . Carbon::parse($item->date)->format('Y-m-d'));
+            ->keyBy('user_id');
 
-    // 7) Статусы оплат — только для пользователей этого партнера
-    $userPrices = DB::table('users_prices')
-        ->select('user_id', 'is_paid')
-        ->whereIn('user_id', $users->pluck('id'))
-        ->whereYear('new_month',  $year)
-        ->whereMonth('new_month', $month)
-        ->get()
-        ->keyBy('user_id');
+        $teams = Team::where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->orderBy('order_by')
+            ->get();
 
-    // 8) Список групп (команд) фильтра — только для текущего партнёра
-    $teams = Team::where('partner_id', $partnerId)
-        ->where('is_enabled', 1)
-        ->orderBy('order_by')
-        ->get();
+        $teamWeekdays = [];
+        if ($team_id !== 'all' && $team_id !== 'none' && is_numeric($team_id)) {
+            $teamWeekdays = DB::table('team_weekdays')
+                ->where('team_id', (int) $team_id)
+                ->pluck('weekday_id')
+                ->toArray();
+        }
 
-    // 9) Дни недели для выбранной группы
-    $teamWeekdays = [];
-    if ($team_id !== 'all' && $team_id !== 'none') {
-        $teamWeekdays = DB::table('team_weekdays')
-            ->where('team_id', $team_id)
-            ->pluck('weekday_id')
-            ->toArray();
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+
+        return view('admin.schedule.index', array_merge(compact(
+            'year',
+            'month',
+            'team_id',
+            'users',
+            'journalOccurrences',
+            'journalAssignments',
+            'userPrices',
+            'teams',
+            'startOfMonth',
+            'endOfMonth',
+            'teamWeekdays',
+            'availableStatuses',
+            'statusesForDisplay',
+            'visitedStatusId',
+        ), [
+            'activeTab' => 'journal',
+        ]));
     }
 
-    $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-
-    return view('admin.schedule.index', array_merge(compact(
-        'year',
-        'month',
-        'team_id',
-        'users',
-        'scheduleEntries',
-        'userPrices',
-        'teams',
-        'startOfMonth',
-        'endOfMonth',
-        'teamWeekdays',
-        'availableStatuses',
-        'statusesForDisplay',
-        'visitedStatusId',
-    ), [
-        'activeTab' => 'journal',
-    ]));
-}
-
-    public function cellContext(GetScheduleCellContextRequest $request)
+    public function cellContext(GetScheduleCellContextRequest $request): JsonResponse
     {
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
@@ -140,35 +149,55 @@ class ScheduleController extends AdminBaseController
         $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
         $user->load('teams');
 
-        $entry = ScheduleUser::query()
-            ->with('trainerProfile.user')
-            ->where('user_id', $user->id)
-            ->where('date', $data['date'])
-            ->first();
+        $date = (string) $data['date'];
+        $occurrences = $this->journalMonthService->occurrencesByUserDate(
+            $partnerId,
+            [(int) $user->id],
+            Carbon::parse($date)->startOfDay(),
+            Carbon::parse($date)->endOfDay(),
+            'all',
+        );
+        $dayKey = $user->id.'_'.$date;
+        $dayOccurrences = $occurrences[$dayKey] ?? [];
+
+        $selectedUtssId = isset($data['utss_id']) ? (int) $data['utss_id'] : null;
+        $selected = null;
+        if ($selectedUtssId) {
+            foreach ($dayOccurrences as $item) {
+                if ((int) $item['utss_id'] === $selectedUtssId) {
+                    $selected = $item;
+                    break;
+                }
+            }
+        } elseif (count($dayOccurrences) === 1) {
+            $selected = $dayOccurrences[0];
+        }
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-        $contextTeamId = $this->resolveScheduleContextTeamId(
-            $user,
-            isset($data['context_team_id']) ? (int) $data['context_team_id'] : null
-        );
+        $contextTeamId = $selected['team_id']
+            ?? $this->resolveScheduleContextTeamId(
+                $user,
+                isset($data['context_team_id']) ? (int) $data['context_team_id'] : null
+            );
         $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $contextTeamId);
         $trainers = $this->trainerOptionsForPartner($partnerId);
 
-        $currentStatusId = $entry?->lesson_occurrence_status_id;
+        $currentStatusId = $selected['lesson_occurrence_status_id'] ?? null;
         $isVisitedEntry = $visitedStatusId !== null
             && $currentStatusId !== null
             && (int) $currentStatusId === (int) $visitedStatusId;
 
         $trainerForSelect = '';
-        if ($isVisitedEntry) {
-            $trainerForSelect = $entry->trainer_profile_id !== null
-                ? (string) $entry->trainer_profile_id
-                : '';
+        if ($isVisitedEntry && ! empty($selected['trainer_profile_id'])) {
+            $trainerForSelect = (string) $selected['trainer_profile_id'];
         }
 
         return response()->json([
             'visited_status_id' => $visitedStatusId,
+            'occurrences' => $dayOccurrences,
+            'selected' => $selected,
             'current_status_id' => $currentStatusId,
+            'comment' => $selected['comment'] ?? null,
             'team_id' => $contextTeamId,
             'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
             'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
@@ -181,169 +210,260 @@ class ScheduleController extends AdminBaseController
         ]);
     }
 
-    public function update(UpdateScheduleCellRequest $request)
+    public function update(UpdateScheduleJournalOccurrenceRequest $request): JsonResponse
     {
         $authorId = auth()->id();
         $partnerId = $this->requirePartnerId();
         $data = $request->validated();
 
-        DB::transaction(function () use ($authorId, $partnerId, $data) {
-            $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
+        try {
+            DB::transaction(function () use ($authorId, $partnerId, $data) {
+                $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
 
-            $status = LessonOccurrenceStatus::findActiveForPartner(
-                (int) $data['lesson_occurrence_status_id'],
-                $partnerId
-            );
-            $descriptionText = $data['description'] ?? '';
-
-            $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-            $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
-                ? ($data['trainer_profile_id'] ?? null)
-                : null;
-
-            if ($trainerProfileId !== null) {
-                $validTrainer = TrainerProfile::query()
+                /** @var UserTeamScheduleSlot|null $utss */
+                $utss = UserTeamScheduleSlot::query()
+                    ->with(['slot.team'])
                     ->where('partner_id', $partnerId)
-                    ->whereKey($trainerProfileId)
-                    ->exists();
+                    ->where('user_id', (int) $user->id)
+                    ->whereKey((int) $data['utss_id'])
+                    ->first();
 
-                if (! $validTrainer) {
-                    throw new \InvalidArgumentException('Тренер не найден.');
+                if (! $utss) {
+                    throw new InvalidArgumentException('Запись занятия не найдена.');
                 }
-            }
 
-            $existingSchedule = ScheduleUser::query()
-                ->with(['statusRelation', 'trainerProfile.user'])
-                ->where('user_id', $user->id)
-                ->where('date', $data['date'])
-                ->first();
+                $occurrenceDate = Carbon::parse($utss->starts_at)->format('Y-m-d');
+                if ($occurrenceDate !== (string) $data['occurrence_date']) {
+                    throw new InvalidArgumentException('Дата не совпадает с записью занятия.');
+                }
 
-            $oldStatusName = $existingSchedule?->statusRelation?->title ?? 'не было';
-            $oldTrainerName = $this->trainerDisplayName($existingSchedule?->trainerProfile);
+                $status = LessonOccurrenceStatus::findActiveForPartner(
+                    (int) $data['lesson_occurrence_status_id'],
+                    $partnerId
+                );
 
-            $schedule = ScheduleUser::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'date' => $data['date'],
-                ],
-                [
-                    'lesson_occurrence_status_id' => $status->id,
-                    'description' => $descriptionText,
-                    'trainer_profile_id' => $trainerProfileId,
-                ]
-            );
-            $schedule->load(['statusRelation', 'trainerProfile.user']);
+                $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+                $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
+                    ? ($data['trainer_profile_id'] ?? null)
+                    : null;
 
-            $newStatusName = $schedule->statusRelation?->title ?? 'неопределён';
-            $newTrainerName = $this->trainerDisplayName($schedule->trainerProfile);
+                if ($trainerProfileId !== null) {
+                    $validTrainer = TrainerProfile::query()
+                        ->where('partner_id', $partnerId)
+                        ->whereKey($trainerProfileId)
+                        ->exists();
 
-            $formattedDate = Carbon::parse($data['date'])->format('d.m.Y');
+                    if (! $validTrainer) {
+                        throw new InvalidArgumentException('Тренер не найден.');
+                    }
+                }
 
-            $this->auditLogger->record(
-                AuditEvent::ScheduleDayUpdated,
-                AuditContext::make(sprintf(
-                    'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sТренер до: "%s", Тренер после: "%s",%sКомментарий: "%s"',
-                    $formattedDate,
-                    $user->full_name,
-                    "\n",
-                    $oldStatusName,
-                    $newStatusName,
-                    "\n",
-                    $oldTrainerName,
-                    $newTrainerName,
-                    "\n",
-                    $descriptionText
-                ))
-                    ->withUser($user)
-                    ->withTargetReference('App\Models\ScheduleUser', (int) $user->id, $user->full_name)
-                    ->withPartnerId($partnerId)
-                    ->withCreatedAt(now())
-            );
-        });
+                $ulpId = $utss->user_lesson_package_id !== null ? (int) $utss->user_lesson_package_id : null;
+                $prevEvent = UserLessonOccurrenceStatusEvent::query()
+                    ->with(['lessonOccurrenceStatus', 'trainerProfile.user'])
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', (int) $user->id)
+                    ->where('team_schedule_slot_id', (int) $utss->team_schedule_slot_id)
+                    ->whereDate('occurrence_date', $occurrenceDate)
+                    ->when(
+                        $ulpId !== null,
+                        fn ($q) => $q->where('user_lesson_package_id', $ulpId),
+                        fn ($q) => $q->whereNull('user_lesson_package_id')
+                    )
+                    ->orderByDesc('id')
+                    ->first();
+
+                $oldStatusName = $prevEvent?->lessonOccurrenceStatus?->title ?? 'не было';
+                $oldTrainerName = $this->trainerDisplayName($prevEvent?->trainerProfile);
+                $comment = isset($data['comment']) ? (string) $data['comment'] : null;
+
+                $this->occurrenceStatusService->apply(
+                    $partnerId,
+                    (int) $user->id,
+                    (int) $utss->team_schedule_slot_id,
+                    $occurrenceDate,
+                    $ulpId,
+                    $status,
+                    $authorId !== null ? (int) $authorId : null,
+                    $trainerProfileId !== null ? (int) $trainerProfileId : null,
+                    $comment,
+                );
+
+                $formattedDate = Carbon::parse($occurrenceDate)->format('d.m.Y');
+                $this->auditLogger->record(
+                    AuditEvent::ScheduleDayUpdated,
+                    AuditContext::make(sprintf(
+                        'Дата: "%s", Имя: "%s",%sСтатус до: "%s", Статус после: "%s",%sТренер до: "%s", Тренер после: "%s",%sКомментарий: "%s"',
+                        $formattedDate,
+                        $user->full_name,
+                        "\n",
+                        $oldStatusName,
+                        $status->title,
+                        "\n",
+                        $oldTrainerName,
+                        $trainerProfileId
+                            ? $this->trainerDisplayName(
+                                TrainerProfile::query()->with('user')->find($trainerProfileId)
+                            )
+                            : 'Без тренера',
+                        "\n",
+                        (string) ($comment ?? '')
+                    ))
+                        ->withUser($user)
+                        ->withTargetReference('App\Models\UserTeamScheduleSlot', (int) $utss->id, $user->full_name)
+                        ->withPartnerId($partnerId)
+                        ->withCreatedAt(now())
+                );
+            });
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'errors' => ['utss_id' => [$e->getMessage()]],
+            ], 422);
+        }
 
         return response()->json(['success' => true]);
     }
 
-    public function getUserInfo(User $user)
+    public function abonementContext(GetScheduleJournalAbonementContextRequest $request, User $user): JsonResponse
     {
         $partnerId = $this->requirePartnerId();
         $this->assertScheduleStudent($user, $partnerId);
 
-        $user->load(['teams' => function ($q) use ($partnerId) {
-            $q->where('teams.partner_id', $partnerId)->with('weekdays');
-        }]);
+        $user->load(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->with('weekdays')]);
 
-        $contextTeam = $user->teams->first();
-        $teamWeekdays = [];
-        if ($contextTeam) {
-            foreach ($contextTeam->weekdays as $wd) {
-                $teamWeekdays[] = $wd->id;
-            }
-        }
+        $assignments = $this->journalMonthService->fixedAssignmentsForUser($partnerId, (int) $user->id);
+        $teamsPayload = $user->teams->map(function (Team $team) {
+            return [
+                'id' => (int) $team->id,
+                'title' => (string) $team->title,
+                'weekdays' => $team->weekdays->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
+            ];
+        })->values()->all();
 
         return response()->json([
             'success' => true,
             'user' => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'team_id'    => $contextTeam?->id,
-                'team_ids'   => $this->teamUserSync->teamIdsForStudent($user),
-                'team_title' => $contextTeam?->title,
-                'team_titles'=> $this->teamUserSync->teamTitlesLabel($user),
-                'weekdays'   => $teamWeekdays,
+                'id' => (int) $user->id,
+                'name' => $user->full_name ?: $user->name,
+                'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
+                'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
             ],
+            'teams' => $teamsPayload,
+            'assignments' => $assignments,
+            'default_start_date' => now()->format('Y-m-d'),
         ]);
     }
 
-    public function getUserScheduleInfo(GetScheduleUserScheduleInfoRequest $request, User $user)
+    public function placeFixedAbonement(PlaceScheduleJournalFixedAbonementRequest $request, User $user): JsonResponse
     {
         $partnerId = $this->requirePartnerId();
         $this->assertScheduleStudent($user, $partnerId);
+        $data = $request->validated();
 
-        $contextTeamId = $request->filled('context_team_id')
-            ? (int) $request->input('context_team_id')
-            : null;
+        /** @var UserLessonPackage|null $ulp */
+        $ulp = UserLessonPackage::query()
+            ->with('lessonPackage')
+            ->whereKey((int) $data['user_lesson_package_id'])
+            ->first();
 
-        $contextTeam = $this->resolveContextTeamModel($user, $partnerId, $contextTeamId);
-        $groupWeekdays = $this->weekdayIdsForTeam($contextTeam);
+        /** @var Team|null $team */
+        $team = Team::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey((int) $data['team_id'])
+            ->first();
 
-        // Пример: хотим по умолчанию "от" = сегодня, "до" = ближайший 31 августа
-        $today = now()->format('Y-m-d');
-        $year  = now()->year;
-        $aug31 = Carbon::create($year, 8, 31);
-        if (now()->greaterThan($aug31)) {
-            $year++;
+        if (! $ulp || ! $team) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Назначение или группа не найдены.',
+                'errors' => [
+                    'user_lesson_package_id' => ! $ulp ? ['Назначение не найдено.'] : null,
+                    'team_id' => ! $team ? ['Группа не найдена.'] : null,
+                ],
+            ], 422);
         }
-        $defaultTo = Carbon::create($year, 8, 31)->format('Y-m-d');
 
-        $teamIds = $this->teamUserSync->teamIdsForStudent($user->loadMissing([
-            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId),
-        ]));
+        $startDate = Carbon::createFromFormat('Y-m-d', (string) $data['start_date'])->startOfDay();
+        $weekdays = array_map('intval', $data['weekdays'] ?? []);
+        $previewOnly = (bool) ($data['preview'] ?? false);
+
+        try {
+            $result = $this->fixedPlacementService->place(
+                $partnerId,
+                $user,
+                $ulp,
+                $team,
+                \Carbon\CarbonImmutable::instance($startDate),
+                $weekdays,
+                auth()->id() !== null ? (int) auth()->id() : null,
+                $previewOnly,
+            );
+        } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = 'start_date';
+            if (str_contains($msg, 'день недели') || str_contains($msg, 'День')) {
+                $field = 'weekdays';
+            } elseif (str_contains($msg, 'групп')) {
+                $field = 'team_id';
+            } elseif (str_contains($msg, 'назначен') || str_contains($msg, 'абонемент') || str_contains($msg, 'Абонемент')) {
+                $field = 'user_lesson_package_id';
+            } elseif (str_contains($msg, 'Конфликт') || str_contains($msg, 'слот') || str_contains($msg, 'периоде')) {
+                $field = 'weekdays';
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $msg,
+                'errors' => [$field => [$msg]],
+            ], 422);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось разложить абонемент.',
+                'errors' => ['user_lesson_package_id' => ['Не удалось разложить абонемент.']],
+            ], 422);
+        }
+
+        if (! $previewOnly) {
+            $this->auditLogger->record(
+                AuditEvent::ScheduleFixedLinked,
+                AuditContext::make(sprintf(
+                    'Журнал: фиксированный абонемент #%d разложен; ученик: %s; записей: %d; период %s — %s',
+                    (int) $ulp->id,
+                    $user->full_name,
+                    (int) $result['linked_count'],
+                    $result['starts_at'],
+                    $result['ends_at'],
+                ))
+                    ->withUser($user)
+                    ->withTargetReference('App\Models\UserLessonPackage', (int) $ulp->id, $user->full_name)
+                    ->withPartnerId($partnerId)
+                    ->withCreatedAt(now())
+            );
+        }
 
         return response()->json([
-            'success'       => true,
-            'user'          => [
-                'id'          => $user->id,
-                'name'        => $user->name,
-                'team_id'     => $contextTeam?->id,
-                'team_ids'    => $teamIds,
-                'team_title'  => $contextTeam?->title,
-                'team_titles' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
-            ],
-            'groupWeekdays' => $groupWeekdays,
-            'defaultFrom'   => $today,
-            'defaultTo'     => $defaultTo,
+            'success' => true,
+            'preview' => $previewOnly,
+            'result' => $result,
+            'message' => $previewOnly
+                ? 'Превью построено.'
+                : 'Абонемент разложен в расписание.',
         ]);
     }
 
-    public function syncUserTeams(SyncScheduleUserTeamsRequest $request, User $user)
+    public function syncUserTeams(SyncScheduleUserTeamsRequest $request, User $user): JsonResponse
     {
         $partnerId = $this->requirePartnerId();
         $this->assertScheduleStudent($user, $partnerId);
 
         $teamIds = $request->validated()['team_ids'] ?? [];
 
-        DB::transaction(function () use ($partnerId, $teamIds, $user) {
+        DB::transaction(function () use ($teamIds, $user) {
             $this->teamUserSync->syncTeamsForStudent($user, $teamIds);
 
             $labels = $this->teamUserSync->teamTitlesLabel($user) ?: '—';
@@ -353,10 +473,10 @@ class ScheduleController extends AdminBaseController
                 AuditContext::make(sprintf(
                     'Имя: %s, %s',
                     $user->full_name,
-                    'Группы: ' . $labels
+                    'Группы: '.$labels
                 ))
                     ->withUser($user)
-                    ->withTargetReference('App\Models\ScheduleUser', (int) $user->id, $labels)
+                    ->withTargetReference('App\Models\User', (int) $user->id, $labels)
                     ->withCreatedAt(now())
             );
         });
@@ -371,148 +491,6 @@ class ScheduleController extends AdminBaseController
         ]);
     }
 
-    //Установка группы через расписание
-    public function setUserGroup(SetScheduleUserGroupRequest $request, User $user)
-    {
-        $partnerId = $this->requirePartnerId();
-        $this->assertScheduleStudent($user, $partnerId);
-
-        $validated = $request->validated();
-        $teamId = isset($validated['team_id']) ? (int) $validated['team_id'] : null;
-
-        $message = 'Группы ученика обновлены.';
-
-        DB::transaction(function () use ($partnerId, $teamId, $user, &$message) {
-            if ($teamId) {
-                $team = Team::where('id', $teamId)
-                    ->where('partner_id', $partnerId)
-                    ->firstOrFail();
-
-                $this->teamUserSync->attachTeamForStudent($user, $teamId);
-
-                $this->auditLogger->record(
-                    AuditEvent::ScheduleUserTeamAssigned,
-                    AuditContext::make(sprintf(
-                        'Имя: %s, %s',
-                        $user->full_name,
-                        'Добавлена группа: ' . $team->title
-                    ))
-                        ->withUser($user)
-                        ->withTargetReference('App\Models\ScheduleUser', (int) $team->id, $team->title)
-                        ->withCreatedAt(now())
-                );
-
-                $message = 'Группа успешно добавлена ученику.';
-            } else {
-                $this->teamUserSync->detachAllTeamsForStudent($user);
-
-                $this->auditLogger->record(
-                    AuditEvent::ScheduleUserTeamAssigned,
-                    AuditContext::make(sprintf(
-                        'Имя: %s, %s',
-                        $user->full_name,
-                        'Сняты все группы'
-                    ))
-                        ->withUser($user)
-                        ->withTargetReference('App\Models\ScheduleUser', 0, '—')
-                        ->withCreatedAt(now())
-                );
-
-                $message = 'Ученик снят со всех групп.';
-            }
-        });
-
-        $user->load(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)]);
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
-            'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
-        ]);
-    }
-
-    //Установка индивидуального расписания юзеру
-    public function updateUserScheduleRange(Request $request, User $user)
-    {
-        $partnerId = $this->requirePartnerId();
-        $this->assertScheduleStudent($user, $partnerId);
-
-        // 3) Валидация
-        $data = $request->validate([
-            'weekdays'   => 'array',
-            'weekdays.*' => 'in:1,2,3,4,5,6,7',
-            'date_from'  => 'required|date',
-            'date_to'    => 'required|date|after_or_equal:date_from',
-        ]);
-
-        $weekdays = $data['weekdays'] ?? [];
-        $from     = Carbon::parse($data['date_from']);
-        $to       = Carbon::parse($data['date_to']);
-
-
-        $defaultVisitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-        if (! $defaultVisitedStatusId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Системный статус «Посетил» не найден.',
-            ], 422);
-        }
-
-        // 4) Формируем массив вставок
-        $period  = CarbonPeriod::create($from, $to);
-        $inserts = [];
-        foreach ($period as $day) {
-            if (in_array($day->isoWeekday(), $weekdays)) {
-                $inserts[] = [
-                    'user_id'     => $user->id,
-                    'date'        => $day->toDateString(),
-                    'lesson_occurrence_status_id' => $defaultVisitedStatusId,
-                    'description' => null,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
-                ];
-            }
-        }
-
-        DB::transaction(function () use ($user, $from, $to, $inserts, $partnerId, $weekdays) {
-            // 5) Удаляем старые через Eloquent, чтобы не запутываться с join
-            $deleted = ScheduleUser::where('user_id', $user->id)
-                ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
-                ->delete();
-
-            // 6) Вставляем новые
-            if (!empty($inserts)) {
-                $inserted = ScheduleUser::insert($inserts);
-            }
-
-            $map   = [1=>'пн',2=>'вт',3=>'ср',4=>'чт',5=>'пт',6=>'суб',7=>'вск'];
-            $days  = implode(', ', array_map(fn($d)=> $map[$d] ?? $d, $weekdays));
-
-        $this->auditLogger->record(
-            AuditEvent::ScheduleUserRangeUpdated,
-            AuditContext::make(sprintf(
-                "Пользователь: %s (ID:%d)\nПериод: %s - %s\nДни: %s",
-                $user->name,
-                $user->id,
-                $from->format('d.m.Y'),
-                $to->format('d.m.Y'),
-                $days
-            ))
-                ->withUser($user)
-                ->withTargetReference('App\Models\ScheduleUser', (int) $user->id, $user->full_name)
-                ->withCreatedAt(now())
-        );
-    });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Расписание успешно обновлено.',
-        ]);
-    }
-
-
-    //Настройка логов
     public function getLogsData(FilterRequest $request)
     {
         return $this->buildLogDataTable('schedule');
@@ -552,44 +530,6 @@ class ScheduleController extends AdminBaseController
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
-    }
-
-    private function resolveContextTeamModel(User $user, int $partnerId, ?int $preferredTeamId = null): ?Team
-    {
-        $user->loadMissing([
-            'teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->with('weekdays'),
-        ]);
-
-        if ($user->teams->isEmpty()) {
-            return null;
-        }
-
-        if ($preferredTeamId) {
-            $match = $user->teams->firstWhere('id', $preferredTeamId);
-            if ($match) {
-                return $match;
-            }
-        }
-
-        return $user->teams->first();
-    }
-
-    /**
-     * @return int[]
-     */
-    private function weekdayIdsForTeam(?Team $team): array
-    {
-        if (! $team) {
-            return [];
-        }
-
-        $team->loadMissing('weekdays');
-
-        return $team->weekdays
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
     }
 
     private function resolveScheduleContextTeamId(User $user, ?int $preferredTeamId = null): ?int
@@ -633,8 +573,3 @@ class ScheduleController extends AdminBaseController
         return $name !== '' ? $name : 'Без тренера';
     }
 }
-
-
-
-
-

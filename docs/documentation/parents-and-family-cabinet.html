@@ -41,6 +41,7 @@
   <div class="ok">
     <b>Пример.</b> Брат 1 и брат 2 — две записи <code>users</code> с одним <code>parent_id</code> (одна строка в <code>parents</code>).
     Вход под любым из них даёт доступ к данным обоих через переключатель «Просмотр данных ученика» в левом сайдбаре (layout <code>admin2</code>).
+    При создании из лида / «Добавить» с welcome: логин (<code>users.email = parent_email</code>) выдаётся первому ребёнку; второму — <code>users.email = null</code> и письмо «входите как раньше» (<code>FamilyStudentLoginResolver</code>, см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>).
   </div>
   <ul>
     <li>Права (роли, permissions) остаются у <b>залогиненного</b> ученика; переключатель меняет только <b>контекст просмотра</b> (платежи, консоль и т.д.) — session <code>active_student_user_id</code>.</li>

@@ -18,6 +18,10 @@ class GetScheduleCellContextRequest extends FormRequest
         if ($this->has('context_team_id') && $this->input('context_team_id') === '') {
             $this->merge(['context_team_id' => null]);
         }
+
+        if ($this->has('utss_id') && $this->input('utss_id') === '') {
+            $this->merge(['utss_id' => null]);
+        }
     }
 
     public function rules(): array
@@ -34,6 +38,7 @@ class GetScheduleCellContextRequest extends FormRequest
                     fn ($query) => $query->where('partner_id', $partnerId)
                 ),
             ],
+            'utss_id' => ['nullable', 'integer', 'exists:user_team_schedule_slots,id'],
         ];
     }
 
@@ -43,6 +48,7 @@ class GetScheduleCellContextRequest extends FormRequest
             'user_id' => 'ученик',
             'date' => 'дата',
             'context_team_id' => 'группа контекста',
+            'utss_id' => 'занятие',
         ];
     }
 
@@ -54,6 +60,7 @@ class GetScheduleCellContextRequest extends FormRequest
             'date.date_format' => 'Некорректный формат даты.',
             'context_team_id.integer' => 'Некорректный формат группы.',
             'context_team_id.exists' => 'Выберите группу из списка.',
+            'utss_id.exists' => 'Занятие не найдено.',
         ];
     }
 }

@@ -6,7 +6,7 @@ namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\LessonOccurrenceStatus;
 use App\Models\Partner;
-use App\Models\ScheduleUser;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\DB;
 
@@ -148,55 +148,63 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
 
     public function test_journal_update_saves_lesson_occurrence_status_and_attended_keeps_trainer(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-18';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => 'Был на занятии',
+            'comment' => 'Был на занятии',
             'trainer_profile_id' => $trainer->id,
         ])
             ->assertOk()
             ->assertJson(['success' => true]);
 
-        $entry = ScheduleUser::query()
+        $entry = UserLessonOccurrenceStatusEvent::query()
             ->where('user_id', $student->id)
-            ->whereDate('date', $date)
+            ->whereDate('occurrence_date', $date)
+            ->latest('id')
             ->first();
 
         $this->assertNotNull($entry);
         $this->assertSame((int) $this->visitedStatusId, (int) $entry->lesson_occurrence_status_id);
         $this->assertSame((int) $trainer->id, (int) $entry->trainer_profile_id);
-        $this->assertSame('Был на занятии', $entry->description);
+        $this->assertSame('Был на занятии', $entry->comment);
     }
 
     public function test_journal_update_non_attended_clears_trainer(): void
     {
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
         $date = '2026-05-19';
+        $utss = $this->createTrialUtss($student, $team, $date);
         $notAttended = LessonOccurrenceStatus::query()
             ->forPartner((int) $this->partner->id)
             ->where('code', 'not_attended')
             ->firstOrFail();
 
-        ScheduleUser::query()->create([
+        $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
-        ]);
+        ])->assertOk();
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => $date,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $notAttended->id,
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $notAttended->id,
             'trainer_profile_id' => null,
         ]);
@@ -204,13 +212,16 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
 
     public function test_inactive_status_rejected_on_schedule_update(): void
     {
-        [$student] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
         $status = $this->createCustomOccurrenceStatus('Неактивный');
         $status->update(['is_active' => false]);
+        $date = '2026-05-15';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-15',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $status->id,
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['lesson_occurrence_status_id']);
@@ -218,14 +229,17 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
 
     public function test_foreign_partner_status_rejected_on_schedule_update(): void
     {
-        [$student] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentTeamAndTrainer();
         $foreignPartner = Partner::factory()->create();
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $foreignPartner->id);
         $foreignAttended = LessonOccurrenceStatus::attendedIdForPartner((int) $foreignPartner->id);
+        $date = '2026-05-15';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-15',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $foreignAttended,
         ])->assertStatus(422)
             ->assertJsonValidationErrors(['lesson_occurrence_status_id']);
@@ -254,28 +268,40 @@ final class ScheduleStatusesFeatureTest extends ScheduleJournalTestCase
             ->assertJsonFragment(['title' => 'Посетил']);
     }
 
-    public function test_consumes_lesson_flag_visible_on_schedule_tab_but_journal_does_not_change_package_balance(): void
+    public function test_consumes_lesson_flag_visible_on_schedule_tab_and_journal_writes_occurrence_event(): void
     {
-        // UI показывает колонку; журнал не списывает абонемент (нет вызова UserLessonOccurrenceStatusService).
+        // UI показывает колонку "Списывает"; в едином контуре журнал теперь пишет событие статуса
+        // через UserLessonOccurrenceStatusService (для UTSS без абонемента корректирует пробный остаток).
         $this->get(route('schedule.occurrence-statuses'))
             ->assertOk()
             ->assertSee('Списывает занятие с абонемента', false);
 
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
+        $date = '2026-05-21';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $beforeEvents = DB::table('user_lesson_occurrence_status_events')->count();
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-21',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ])->assertOk();
 
+        // Занятие пробное (без абонемента) — журнал пишет статус, но не должен трогать баланс абонемента.
         $this->assertSame(
-            $beforeEvents,
+            $beforeEvents + 1,
             DB::table('user_lesson_occurrence_status_events')->count(),
-            'Журнал /schedule не должен писать события статусов абонементов'
+            'Журнал /schedule должен писать событие статуса занятия'
         );
+
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
+            'user_lesson_package_id' => null,
+        ]);
     }
 }

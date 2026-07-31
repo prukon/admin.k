@@ -30,12 +30,15 @@
   <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a></div>
 
   <div class="warn">
-    <strong>Не путать</strong> с разделом <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (абонементы, календарь слотов).<br>
-    Журнал <code>/schedule</code> — отдельная посещаемость по дням месяца (<code>schedule_users</code>).
+    <strong>Единый контур с календарём школы (2026‑07).</strong>
+    Журнал <code>/schedule</code> — <b>дневное представление</b> тех же занятий
+    (<code>user_team_schedule_slots</code> + статусы <code>user_lesson_occurrence_status_events</code>).
+    Календарь школы — то же + время слота.
+    Таблица <code>schedule_users</code> <b>удалена</b>.
+    Смена статуса в журнале списывает/возвращает <code>lessons_remaining</code> через
+    <code>UserLessonOccurrenceStatusService</code> (как в календаре).
     Справочник статусов общий: <code>lesson_occurrence_statuses</code>
-    (вкладка «Статусы занятий» на <code>/schedule</code> и в разделе абонементов —
-    toolbar / DataTable / история, см. <a href="#occurrence-statuses">§8</a>).
-    Списание занятий абонемента из журнала <strong>не</strong> выполняется — только календарь школы.
+    (вкладка «Статусы занятий», см. <a href="#occurrence-statuses">§8</a>).
   </div>
 
   <div class="note">
@@ -75,20 +78,19 @@
       <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: таблица активных учеников (роль <code>user</code>, §2.1) × дни месяца, фильтры год/месяц/группа</td></tr>
-      <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON для модалки ячейки: статусы, тренеры, дефолт группы</td></tr>
-      <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Сохранение одной ячейки (статус, комментарий, тренер для «Посетил»)</td></tr>
-      <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи изменений (DataTables, категория <code>schedule</code> по <code>event</code> — <a href="/docs/documentation/audit-my-logs">аудит</a>)</td></tr>
-      <tr><td>GET</td><td><code>/schedule/user-schedule/{user}</code></td><td><code>user.schedule.info</code></td><td>Данные для модалки «Личное расписание ученика»</td></tr>
-      <tr><td>POST</td><td><code>/schedule/user/{user}/sync-teams</code></td><td><code>user.sync.teams</code></td><td>Sync полного списка групп ученика (<code>team_ids[]</code>, pivot <code>team_user</code>); пустой массив — снять со всех групп</td></tr>
-      <tr><td>POST</td><td><code>/schedule/user/{user}/set-group</code></td><td><code>user.set.group</code></td><td>Legacy: attach одной группы или detach all (<code>team_id</code> пустой). UI журнала использует <code>sync-teams</code></td></tr>
-      <tr><td>POST</td><td><code>/schedule/user/{user}/update-schedule-range</code></td><td><code>user.update.schedule</code></td><td>Массовая проставка «Посетил» по дням недели в диапазоне дат</td></tr>
-      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code></td><td>Вкладка «Статусы занятий» (toolbar / DataTable, UI как в абонементах). Право: <code>lessonOccurrenceStatuses.manage</code> = <code>schedule.view</code> OR <code>lessonPackages.view</code></td></tr>
-      <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Вкладка «Нагрузка тренеров» — см. <a href="/docs/documentation/schedule-trainer-workload">отдельный раздел</a></td></tr>
-      <tr><td>GET</td><td><code>/schedule/trainer-workload/data</code></td><td><code>schedule.trainer-workload.data</code></td><td>AJAX-данные матрицы нагрузки (HTML фрагмент таблицы)</td></tr>
+      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: ученики × дни месяца; ячейки из <code>user_team_schedule_slots</code> (+ актуальный статус)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON: занятия ученика на дату (список), выбранное <code>utss_id</code>, тренеры</td></tr>
+      <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Статус конкретного занятия (<code>utss_id</code> + дата) через <code>UserLessonOccurrenceStatusService</code>; тренер/комментарий на событии статуса</td></tr>
+      <tr><td>GET</td><td><code>/schedule/user/{user}/abonement-context</code></td><td><code>schedule.abonement.context</code></td><td>Fixed-назначения ученика + группы/дни недели для модалки раскладки</td></tr>
+      <tr><td>POST</td><td><code>/schedule/user/{user}/place-fixed-abonement</code></td><td><code>schedule.abonement.place-fixed</code></td><td>Раскладка fixed: дата начала + дни недели + группа → цепочка <code>utss</code> + статус «Запись»; <code>preview=1</code> без записи</td></tr>
+      <tr><td>POST</td><td><code>/schedule/user/{user}/sync-teams</code></td><td><code>user.sync.teams</code></td><td>Sync групп ученика (<code>team_ids[]</code>)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/logs-data</code></td><td><code>logs.data.schedule</code></td><td>Логи (категория <code>schedule</code>)</td></tr>
+      <tr><td>GET</td><td><code>/schedule/occurrence-statuses</code></td><td><code>schedule.occurrence-statuses</code></td><td>Вкладка «Статусы занятий»</td></tr>
+      <tr><td>GET</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.trainer-workload</code></td><td>Нагрузка тренеров — см. <a href="/docs/documentation/schedule-trainer-workload">раздел</a></td></tr>
     </tbody>
   </table>
-  <p>Изоляция: ученик, группа, статус и тренер в запросах проверяются на <code>partner_id = current_partner</code>; чужой ученик → <b>404</b>. Пользователь другой роли или неактивный ученик → <b>404</b> на user-эндпоинтах журнала (см. <a href="#student-list">§2.1</a>).</p>
+  <p class="small">Удалены: «Личное расписание» (<code>user.schedule.info</code> / <code>user.update.schedule</code>), legacy <code>user.set.group</code>, таблица <code>schedule_users</code>.</p>
+  <p>Изоляция: ученик, группа, статус и тренер проверяются на <code>partner_id = current_partner</code>; чужой ученик → <b>404</b>.</p>
 
   <h2 id="student-list">2.1) Список строк в журнале: только активные ученики</h2>
   <div class="note">

@@ -265,20 +265,25 @@ final class ScheduleStatusesFullAccessFeatureTest extends ScheduleJournalTestCas
     public function test_journal_cell_update_with_occurrence_status_returns_ok_under_schedule_view(): void
     {
         $this->grantScheduleView();
-        [$student, , $trainer] = $this->makeStudentTeamAndTrainer();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
+        $date = '2026-05-20';
+        $utss = $this->createTrialUtss($student, $team, $date);
 
         $this->postJson(route('schedule.update'), [
             'user_id' => $student->id,
-            'date' => '2026-05-20',
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
-            'description' => 'Smoke journal cell',
+            'comment' => 'Smoke journal cell',
             'trainer_profile_id' => $trainer->id,
         ])
             ->assertOk()
             ->assertJson(['success' => true]);
 
-        $this->assertDatabaseHas('schedule_users', [
+        $this->assertDatabaseHas('user_lesson_occurrence_status_events', [
             'user_id' => $student->id,
+            'team_schedule_slot_id' => $utss->team_schedule_slot_id,
+            'occurrence_date' => $date,
             'lesson_occurrence_status_id' => $this->visitedStatusId,
             'trainer_profile_id' => $trainer->id,
         ]);

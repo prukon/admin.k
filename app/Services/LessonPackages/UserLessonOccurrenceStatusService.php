@@ -13,7 +13,7 @@ use App\Services\UserLessonPackageConsumptionAdjuster;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Сохранение статуса занятия в календаре школы и корректировка остатка абонемента / пробного баланса.
+ * Сохранение статуса занятия в календаре школы / журнале и корректировка остатка абонемента / пробного баланса.
  */
 final class UserLessonOccurrenceStatusService
 {
@@ -28,8 +28,10 @@ final class UserLessonOccurrenceStatusService
         ?int $userLessonPackageId,
         LessonOccurrenceStatus $status,
         ?int $createdByUserId,
+        ?int $trainerProfileId = null,
+        ?string $comment = null,
     ): UserLessonOccurrenceStatusEvent {
-        return DB::transaction(function () use (
+        $run = function () use (
             $partnerId,
             $userId,
             $teamScheduleSlotId,
@@ -37,6 +39,8 @@ final class UserLessonOccurrenceStatusService
             $userLessonPackageId,
             $status,
             $createdByUserId,
+            $trainerProfileId,
+            $comment,
         ): UserLessonOccurrenceStatusEvent {
             if ($userLessonPackageId !== null) {
                 $prevEvent = UserLessonOccurrenceStatusEvent::query()
@@ -92,6 +96,10 @@ final class UserLessonOccurrenceStatusService
                 }
             }
 
+            $attended = (string) $status->code === LessonOccurrenceStatus::CODE_ATTENDED;
+            $resolvedTrainerId = $attended ? $trainerProfileId : null;
+            $resolvedComment = $comment !== null && trim($comment) !== '' ? trim($comment) : null;
+
             return UserLessonOccurrenceStatusEvent::query()->create([
                 'partner_id' => $partnerId,
                 'user_id' => $userId,
@@ -99,8 +107,18 @@ final class UserLessonOccurrenceStatusService
                 'occurrence_date' => $occurrenceDateYmd,
                 'user_lesson_package_id' => $userLessonPackageId,
                 'lesson_occurrence_status_id' => (int) $status->id,
+                'trainer_profile_id' => $resolvedTrainerId,
+                'comment' => $resolvedComment,
                 'created_by' => $createdByUserId,
             ]);
-        });
+        };
+
+        // Уже внутри внешней транзакции (раскладка из журнала) — без вложенного DB::transaction,
+        // иначе на части окружений savepoint/nested commit даёт рассинхрон со строками utss.
+        if (DB::transactionLevel() > 0) {
+            return $run();
+        }
+
+        return DB::transaction($run);
     }
 }
