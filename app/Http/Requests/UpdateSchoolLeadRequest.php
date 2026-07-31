@@ -160,12 +160,23 @@ class UpdateSchoolLeadRequest extends FormRequest
 
             $lead = $this->route('schoolLead');
             if ($lead?->user_id) {
-                $afterValidator->errors()->add(
-                    'school_lead',
-                    'Заявка уже привязана к клиенту и не может быть изменена.'
-                );
+                $disallowedKeys = collect($this->keys())
+                    ->reject(static fn ($key) => in_array((string) $key, [
+                        'school_lead_status_id',
+                        '_token',
+                        '_method',
+                    ], true))
+                    ->values()
+                    ->all();
 
-                return;
+                if ($disallowedKeys !== []) {
+                    $afterValidator->errors()->add(
+                        'school_lead',
+                        'Заявка уже привязана к клиенту и не может быть изменена.'
+                    );
+
+                    return;
+                }
             }
 
             if ($this->filled('school_lead_status_id')) {

@@ -30,6 +30,7 @@ use App\Support\BuildsLogTable;
 use Carbon\Carbon;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -210,7 +211,7 @@ class ScheduleController extends AdminBaseController
         ]);
     }
 
-    public function update(UpdateScheduleJournalOccurrenceRequest $request): JsonResponse
+    public function update(UpdateScheduleJournalOccurrenceRequest $request): JsonResponse|RedirectResponse
     {
         $authorId = auth()->id();
         $partnerId = $this->requirePartnerId();
@@ -316,14 +317,14 @@ class ScheduleController extends AdminBaseController
                 );
             });
         } catch (InvalidArgumentException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'errors' => ['utss_id' => [$e->getMessage()]],
-            ], 422);
+            return $this->journalMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['utss_id' => [$e->getMessage()]],
+            );
         }
 
-        return response()->json(['success' => true]);
+        return $this->journalMutationResponse($request, 'Статус занятия сохранён.');
     }
 
     public function abonementContext(GetScheduleJournalAbonementContextRequest $request, User $user): JsonResponse
@@ -356,7 +357,7 @@ class ScheduleController extends AdminBaseController
         ]);
     }
 
-    public function placeFixedAbonement(PlaceScheduleJournalFixedAbonementRequest $request, User $user): JsonResponse
+    public function placeFixedAbonement(PlaceScheduleJournalFixedAbonementRequest $request, User $user): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $this->assertScheduleStudent($user, $partnerId);
@@ -375,14 +376,16 @@ class ScheduleController extends AdminBaseController
             ->first();
 
         if (! $ulp || ! $team) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Назначение или группа не найдены.',
-                'errors' => [
-                    'user_lesson_package_id' => ! $ulp ? ['Назначение не найдено.'] : null,
-                    'team_id' => ! $team ? ['Группа не найдена.'] : null,
-                ],
-            ], 422);
+            $errors = array_filter([
+                'user_lesson_package_id' => ! $ulp ? ['Назначение не найдено.'] : null,
+                'team_id' => ! $team ? ['Группа не найдена.'] : null,
+            ]);
+
+            return $this->journalMutationResponse(
+                $request,
+                'Назначение или группа не найдены.',
+                $errors,
+            );
         }
 
         $startDate = Carbon::createFromFormat('Y-m-d', (string) $data['start_date'])->startOfDay();
@@ -413,19 +416,19 @@ class ScheduleController extends AdminBaseController
                 $field = 'weekdays';
             }
 
-            return response()->json([
-                'success' => false,
-                'message' => $msg,
-                'errors' => [$field => [$msg]],
-            ], 422);
+            return $this->journalMutationResponse(
+                $request,
+                $msg,
+                [$field => [$msg]],
+            );
         } catch (Throwable $e) {
             report($e);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Не удалось разложить абонемент.',
-                'errors' => ['user_lesson_package_id' => ['Не удалось разложить абонемент.']],
-            ], 422);
+            return $this->journalMutationResponse(
+                $request,
+                'Не удалось разложить абонемент.',
+                ['user_lesson_package_id' => ['Не удалось разложить абонемент.']],
+            );
         }
 
         if (! $previewOnly) {
@@ -446,17 +449,23 @@ class ScheduleController extends AdminBaseController
             );
         }
 
-        return response()->json([
-            'success' => true,
-            'preview' => $previewOnly,
-            'result' => $result,
-            'message' => $previewOnly
-                ? 'Превью построено.'
-                : 'Абонемент разложен в расписание.',
-        ]);
+        $message = $previewOnly
+            ? 'Превью построено.'
+            : 'Абонемент разложен в расписание.';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'preview' => $previewOnly,
+                'result' => $result,
+                'message' => $message,
+            ]);
+        }
+
+        return $this->journalMutationResponse($request, $message);
     }
 
-    public function syncUserTeams(SyncScheduleUserTeamsRequest $request, User $user): JsonResponse
+    public function syncUserTeams(SyncScheduleUserTeamsRequest $request, User $user): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $this->assertScheduleStudent($user, $partnerId);
@@ -482,13 +491,18 @@ class ScheduleController extends AdminBaseController
         });
 
         $user->load(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)]);
+        $message = 'Группы ученика обновлены.';
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Группы ученика обновлены.',
-            'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
-            'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
-        ]);
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
+                'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
+            ]);
+        }
+
+        return $this->journalMutationResponse($request, $message);
     }
 
     public function getLogsData(FilterRequest $request)
@@ -571,5 +585,45 @@ class ScheduleController extends AdminBaseController
         $name = trim($profile->user?->full_name ?? '');
 
         return $name !== '' ? $name : 'Без тренера';
+    }
+
+    /**
+     * AJAX → JSON {success,message,errors?}; non-AJAX → 302 на /schedule (+ flash/errors).
+     * Не отдаёт пустой 200 при нативном submit без JS.
+     *
+     * @param  array<string, list<string>>  $errors
+     */
+    private function journalMutationResponse(
+        Request $request,
+        string $message,
+        array $errors = [],
+        int $errorStatus = 422,
+    ): JsonResponse|RedirectResponse {
+        if ($errors === []) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                ]);
+            }
+
+            return redirect()
+                ->route('schedule.index')
+                ->with('status', $message);
+        }
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => $errors,
+            ], $errorStatus);
+        }
+
+        return redirect()
+            ->route('schedule.index')
+            ->withInput()
+            ->withErrors($errors)
+            ->with('error', $message);
     }
 }

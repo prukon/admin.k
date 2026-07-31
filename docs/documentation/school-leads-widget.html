@@ -158,7 +158,7 @@
       <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Настройки видимости колонок (<code>user_table_settings</code>, ключ <code>school_leads_index</code>)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости колонок (<code>columns</code> — объект ключ → bool)</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
-      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей; при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code> → <b>422</b> (<code>UpdateSchoolLeadRequest</code>, §5.5.2)</td></tr>
+      <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей; при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code>: можно менять только <code>school_lead_status_id</code>; любые другие поля → <b>422</b> (<code>UpdateSchoolLeadRequest</code>, §5.5.2)</td></tr>
       <tr><td>DELETE</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Soft delete</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>JSON: список статусов партнёра + системный «Новый» (§5.4)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>Создать кастомный статус</td></tr>
@@ -406,7 +406,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr><td><code>is_individual_traits</code>, <code>is_on_medical_register</code>, <code>is_with_disability</code></td><td><code>users.other.update</code></td><td><code>0</code> / <code>1</code> (в UI — чекбоксы)</td></tr>
     </tbody>
   </table>
-  <p>В ответе — поля для обновления badge: <code>status_label</code>, <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code>. Ошибки валидации — <b>422</b>, тексты на русском под полями формы. Если у заявки уже есть <code>user_id</code> (клиент создан) — <b>422</b> с ошибкой <code>school_lead</code> (редактирование закрыто). Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
+  <p>В ответе — поля для обновления badge: <code>status_label</code>, <code>status_color</code>, <code>status_text_color</code>, <code>status_badge_style</code>. Ошибки валидации — <b>422</b>, тексты на русском под полями формы. Если у заявки уже есть <code>user_id</code> (клиент создан), разрешён только запрос с <code>school_lead_status_id</code>; любые другие поля → <b>422</b> с ошибкой <code>school_lead</code>. Статус лида при создании клиента или договора <b>не меняется автоматически</b>.</p>
 
   <h3 id="school-leads-inline-status">5.5.1) Inline-смена статуса в таблице (цветные бейджи)</h3>
   <p>Колонка «Статус» расположена сразу после «ФИО родителя» (заголовок <code>.lead-status-col-header</code> с подсказкой, тот же порядок в меню «Колонки» и в массиве <code>columns</code> DataTable).</p>
@@ -429,7 +429,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       </tr>
       <tr>
         <td>Сохранение</td>
-        <td>Клик по пункту меню в <b>таблице</b> → <code>PUT /admin/school-leads/{id}</code> с новым <code>school_lead_status_id</code> → toast → перезагрузка строк (<code>dtApi.reload</code>). В <b>модалке</b> §5.5.2 выбор статуса только меняет форму; сохранение — кнопкой «Сохранить изменения».</td>
+        <td>Клик по пункту меню в <b>таблице</b> → <code>PUT /admin/school-leads/{id}</code> с новым <code>school_lead_status_id</code> → toast → перезагрузка строк (<code>dtApi.reload</code>). В <b>модалке</b> §5.5.2 без клиента выбор статуса только меняет форму (сохранение — «Сохранить изменения»); у лида с <code>user_id</code> статус сохраняется сразу тем же <code>PUT</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -480,7 +480,8 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
       <tr>
         <td>Заявка с <code>user_id</code> (read-only)</td>
         <td>
-          Все поля формы только для чтения; кнопки «Сохранить» и «Создать клиента» скрыты.<br>
+          Поля формы только для чтения, кроме <b>статуса</b> (picker активен, сохранение сразу через <code>PUT</code> с <code>school_lead_status_id</code>).<br>
+          Кнопки «Сохранить» и «Создать клиента» скрыты.<br>
           Под статусом — плашка <b>«На основании лида был создан клиент.»</b><br>
           При <code>contracts.view</code> и отсутствии договора — кнопка <b>«Создать договор»</b> (остаётся активной; §5.8).
         </td>
@@ -517,7 +518,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Кнопка удаления рендерится <b>всегда</b> (вне проверки <code>user_id</code>).</li>
     <li>Просмотр заявки с клиентом — по клику на <b>ФИО родителя</b> (колонка <code>name</code>, класс <code>edit-lead</code>): модалка §5.5.2 в режиме read-only (<code>setLeadModalReadOnly(true)</code>).</li>
     <li>В JSON <code>GET /admin/school-leads/data</code> поле <code>user_id</code> используется и для колонки «Договор» (§5.6), и для логики «Действий».</li>
-    <li>Inline-смена статуса в таблице (§5.5.1) при наличии <code>user_id</code> по-прежнему отображается, но <code>PUT /admin/school-leads/{id}</code> вернёт <b>422</b> (<code>UpdateSchoolLeadRequest</code>: «Заявка уже привязана к клиенту…»).</li>
+    <li>Inline-смена статуса в таблице (§5.5.1) и в read-only модалке при наличии <code>user_id</code> разрешена: <code>PUT</code> только с <code>school_lead_status_id</code>. Любые другие поля → <b>422</b> («Заявка уже привязана к клиенту…»).</li>
   </ul>
   <p class="small">
     На <code>/admin/partner-leads</code> (лиды платформы, другая сущность) кнопка редактирования в «Действиях» <b>не скрывается</b> — поведение только у вкладки «Заявки» (<code>/admin/school-leads</code>).
@@ -569,7 +570,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <div class="note">
     Связь хранится в <code>school_leads.user_id</code> (nullable FK на <code>users</code>, <code>nullOnDelete</code>).
     У старых учеников и лидов без конвертации поле <code>null</code>.
-    Повторная конвертация одной заявки блокируется валидацией <code>school_lead_id</code> (заявка уже с <code>user_id</code>) и <code>PUT</code> заявки (422).
+    Повторная конвертация одной заявки блокируется валидацией <code>school_lead_id</code> (заявка уже с <code>user_id</code>). После привязки <code>PUT</code> заявки разрешает только смену <code>school_lead_status_id</code>; остальные поля → 422.
     Unique-индекс <code>school_leads_user_id_unique</code> на колонке <code>user_id</code> (миграция <code>2026_05_19_170000_add_user_id_to_school_leads_table.php</code>) — один ученик не может быть привязан к двум заявкам.
   </div>
   <ul>

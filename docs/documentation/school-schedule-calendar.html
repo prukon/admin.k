@@ -32,9 +32,13 @@
     <a href="#school-schedule-export-historical-remaining">исторический остаток</a>).
     Конфликт времени при привязке фикса — <a href="#school-schedule-fixed-overlap">§ конфликт (starts_at)</a>.
     Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
-    <strong>Не путать</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>, таблица <code>schedule_users</code>).
+    <strong>Не путать UI</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>):
+    календарь — день + время слота, журнал — дневная сетка учеников.
+    Данные общие: <code>user_team_schedule_slots</code> + <code>user_lesson_occurrence_status_events</code>
+    (таблица <code>schedule_users</code> удалена). Смена статуса и там, и там списывает/возвращает остаток через
+    <code>UserLessonOccurrenceStatusService</code>.
     Справочник статусов общий (<code>lesson_occurrence_statuses</code>); CRUD — вкладка «Статусы занятий» здесь и на <code>/schedule/occurrence-statuses</code>
-    (Gate <code>lessonOccurrenceStatuses.manage</code>). Журнал статусы сохраняет, но <strong>не</strong> списывает абонемент — см. <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
+    (Gate <code>lessonOccurrenceStatuses.manage</code>). Подробно — <a href="/docs/documentation/schedule-journal">Журнал расписания</a>.
   </div>
 
   <h2>Данные недели для сетки</h2>

@@ -30,11 +30,16 @@
   <div class="note">
     Журнал <code>/schedule</code> и календарь школы используют один контур:
     <code>user_team_schedule_slots</code> + <code>user_lesson_occurrence_status_events</code>.
-    Таблица <code>schedule_users</code> удалена.
-    Из журнала можно разложить <b>fixed</b>-абонемент (дата начала + дни недели + группа);
+    Таблица <code>schedule_users</code> удалена; «Личное расписание» снято.
+    Из журнала можно разложить <b>fixed</b>-абонемент
+    (<code>POST …/place-fixed-abonement</code>: дата начала + дни недели + группа → цепочка UTSS + статус «Запись»);
     служебные слоты при отсутствии создаются с 09:00 (час).
+    Смена статуса в журнале списывает/возвращает <code>lessons_remaining</code> тем же
+    <code>UserLessonOccurrenceStatusService</code>, что и календарь.
     Несколько занятий в один день — бейдж ×N и список по клику.
-    Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>.
+    AJAX-мутации → JSON 200/422; non-AJAX → 302 на <code>/schedule</code> (не пустой 200).
+    Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>
+    (§7 place-fixed, §6 статусы, §11 тесты).
     Нагрузка тренеров считает «Посетил» с <code>trainer_profile_id</code> на событии статуса.
   </div>
 
@@ -378,7 +383,7 @@
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code>, ученики (<code>roles.name = user</code>), справочник <code>lesson_occurrence_statuses</code>, вкладка «Статусы занятий» (<b>toolbar / DataTable / фильтры / колонки / история</b> <code>lesson_occurrence_status.*</code>), тренер при «Посетил»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>, раскладка fixed (<code>place-fixed-abonement</code>), статусы со списанием, ×N занятий в день, справочник <code>lesson_occurrence_statuses</code> (toolbar/DataTable), тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

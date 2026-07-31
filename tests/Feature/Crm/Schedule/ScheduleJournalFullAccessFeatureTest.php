@@ -147,6 +147,23 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertJsonStructure(['user' => ['id', 'name', 'team_ids', 'teams_label'], 'teams', 'assignments', 'default_start_date']);
     }
 
+    public function test_place_fixed_abonement_returns_ok_for_student(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->attachWeekdays($team, [1]);
+        $ulp = $this->makeFixedAssignment($student, lessons: 2, durationDays: 14);
+
+        $this->postJson(route('schedule.abonement.place-fixed', $student), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $team->id,
+            'start_date' => '2026-08-03',
+            'weekdays' => [1],
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure(['success', 'message', 'preview', 'result']);
+    }
+
     public function test_occurrence_statuses_tab_returns_ok(): void
     {
         $this->get(route('schedule.occurrence-statuses'))
@@ -234,6 +251,16 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
             $this->getJson(route('schedule.abonement.context', $student))->assertOk();
 
+            [$placeUser, $placeTeam] = $this->makeStudentWithTeam();
+            $this->attachWeekdays($placeTeam, [1]);
+            $ulp = $this->makeFixedAssignment($placeUser, lessons: 1, durationDays: 7);
+            $this->postJson(route('schedule.abonement.place-fixed', $placeUser), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $placeTeam->id,
+                'start_date' => '2026-08-03',
+                'weekdays' => [1],
+            ])->assertOk();
+
             $this->postJson(route('user.sync.teams', $student), [
                 'team_ids' => [$team->id],
             ])->assertOk();
@@ -267,11 +294,22 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
 
     public function test_guest_schedule_journal_endpoints_return_unauthorized(): void
     {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeFixedAssignment($student, lessons: 1, durationDays: 7);
+
         Auth::logout();
 
-        $this->getJson(route('schedule.cell-context', ['user_id' => 1, 'date' => '2026-05-01']))
+        $this->getJson(route('schedule.cell-context', ['user_id' => $student->id, 'date' => '2026-05-01']))
             ->assertUnauthorized();
         $this->postJson(route('schedule.update'), [])->assertUnauthorized();
+        $this->getJson(route('schedule.abonement.context', $student))->assertUnauthorized();
+        $this->postJson(route('schedule.abonement.place-fixed', $student), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $team->id,
+            'start_date' => '2026-08-03',
+            'weekdays' => [1],
+        ])->assertUnauthorized();
+        $this->postJson(route('user.sync.teams', $student), ['team_ids' => []])->assertUnauthorized();
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertUnauthorized();
         $this->get(route('schedule.occurrence-statuses'))->assertRedirect();
     }

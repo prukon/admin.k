@@ -136,7 +136,7 @@ final class SchoolLeadEditModalFeatureTest extends CrmTestCase
         $this->assertSame($team->id, (int) $lead->team_id);
     }
 
-    public function test_update_rejects_linked_lead(): void
+    public function test_update_rejects_non_status_fields_on_linked_lead(): void
     {
         $linkedUser = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -156,5 +156,52 @@ final class SchoolLeadEditModalFeatureTest extends CrmTestCase
         ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['school_lead']);
+    }
+
+    public function test_update_allows_status_change_on_linked_lead(): void
+    {
+        $linkedUser = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id'    => (int) Role::query()->where('name', 'user')->value('id'),
+        ]);
+
+        $newStatus = $this->createPartnerSchoolLeadStatus([
+            'name' => 'После клиента',
+        ]);
+
+        $lead = SchoolLead::create([
+            'partner_id'            => $this->partner->id,
+            'name'                  => 'Связанный',
+            'phone'                 => '+7 900 888-88-88',
+            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
+            'user_id'               => $linkedUser->id,
+            'comment'               => 'Исходный комментарий',
+        ]);
+
+        $this->putJson(route('admin.school-leads.update', ['schoolLead' => $lead->id]), [
+            'school_lead_status_id' => $newStatus->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('school_lead_status_id', $newStatus->id);
+
+        $lead->refresh();
+
+        $this->assertSame($newStatus->id, (int) $lead->school_lead_status_id);
+        $this->assertSame('Исходный комментарий', $lead->comment);
+    }
+
+    public function test_leads_page_allows_status_change_in_readonly_linked_modal(): void
+    {
+        $html = $this->get(route('admin.school-leads'))
+            ->assertOk()
+            ->assertSee('У лида с клиентом нет «Сохранить»', false)
+            ->assertSee('saveLeadStatusInline(modalLeadId, newStatusId', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString(
+            '.lead-modal-status-picker .lead-status-inline-trigger {' . "\n"
+            . '            pointer-events: none;',
+            $html
+        );
     }
 }

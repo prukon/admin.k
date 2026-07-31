@@ -168,9 +168,10 @@
 
   <h2 id="schedule-journal-trainer">7) Тренер в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
-    Отдельно от фильтра в отчётах: при сохранении ячейки журнала со статусом «Посетил» в <code>schedule_users.trainer_profile_id</code> можно указать тренера или «Без тренера».
-    UI — только модалка ячейки на <code>/schedule</code>; право <code>schedule.view</code> (не <code>trainers.view</code>).
-    По умолчанию подставляется первый тренер группы ученика из <code>team_trainer</code> (тот же порядок, что при одном тренере на группу в §4).
+    Отдельно от фильтра в отчётах: при сохранении статуса занятия в журнале со статусом «Посетил»
+    тренер пишется в <code>user_lesson_occurrence_status_events.trainer_profile_id</code> (можно «Без тренера»).
+    UI — модалка ячейки на <code>/schedule</code>; право <code>schedule.view</code> (не <code>trainers.view</code>).
+    По умолчанию подставляется первый тренер группы слота из <code>team_trainer</code> (тот же порядок, что при одном тренере на группу в §4).
     Подробно: <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал расписания: тренер при «Посетил»</a>.
     Агрегация визитов по тренеру и дню недели — отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> (<code>/schedule/trainer-workload</code>, то же право <code>schedule.view</code>; это <strong>не</strong> фильтр «Тренер» в платёжных отчётах ниже).
   </div>

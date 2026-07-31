@@ -14,20 +14,45 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
 
     public function test_guest_cannot_access_schedule_journal(): void
     {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeFixedAssignment($student, lessons: 1, durationDays: 7);
+        $utss = $this->createTrialUtss($student, $team, '2026-05-01');
+
         Auth::logout();
 
         $this->get(route('schedule.index'))->assertStatus(302);
-        $this->getJson(route('schedule.cell-context', ['user_id' => 1, 'date' => '2026-05-01']))->assertStatus(401);
-        $this->postJson(route('schedule.update'), [])->assertStatus(401);
+        $this->getJson(route('schedule.cell-context', ['user_id' => $student->id, 'date' => '2026-05-01']))->assertStatus(401);
+        $this->postJson(route('schedule.update'), [
+            'user_id' => $student->id,
+            'utss_id' => $utss->id,
+            'occurrence_date' => '2026-05-01',
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
+        ])->assertStatus(401);
+        $this->getJson(route('schedule.abonement.context', $student))->assertStatus(401);
+        $this->postJson(route('schedule.abonement.place-fixed', $student), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $team->id,
+            'start_date' => '2026-08-03',
+            'weekdays' => [1],
+        ])->assertStatus(401);
+        $this->postJson(route('user.sync.teams', $student), ['team_ids' => []])->assertStatus(401);
+        $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertStatus(401);
         $this->get(route('schedule.occurrence-statuses'))->assertStatus(302);
+        $this->post(route('schedule.abonement.place-fixed', $student), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $team->id,
+            'start_date' => '2026-08-03',
+            'weekdays' => [1],
+        ])->assertRedirect();
     }
 
     public function test_schedule_journal_forbidden_without_schedule_view_permission(): void
     {
         $actor = $this->createUserWithoutPermission('schedule.view', $this->partner);
-        [$student, $team] = $this->makeStudentTeamAndTrainer();
+        [$student, $team] = $this->makeStudentWithTeam();
         $date = '2026-05-01';
         $utss = $this->createTrialUtss($student, $team, $date);
+        $ulp = $this->makeFixedAssignment($student, lessons: 1, durationDays: 7);
 
         $this->actingAs($actor)
             ->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true])
@@ -55,6 +80,25 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
 
         $this->actingAs($actor)->withSession($session)
             ->getJson(route('schedule.abonement.context', $student))
+            ->assertStatus(403);
+
+        $this->actingAs($actor)->withSession($session)
+            ->postJson(route('schedule.abonement.place-fixed', $student), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'start_date' => '2026-08-03',
+                'weekdays' => [1],
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($actor)->withSession($session)
+            ->post(route('schedule.abonement.place-fixed', $student), [
+                '_token' => csrf_token(),
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'start_date' => '2026-08-03',
+                'weekdays' => [1],
+            ])
             ->assertStatus(403);
 
         $this->actingAs($actor)->withSession($session)

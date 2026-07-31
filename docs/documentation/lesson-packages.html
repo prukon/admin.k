@@ -341,8 +341,10 @@
       Не путать с <code>schedule.occurrence_status_set</code> (календарь школы).</li>
     <li>AJAX create/update/delete → reload таблицы без F5; non-AJAX → <code>302</code> на эту вкладку.</li>
   </ul>
-  <p>Полный контракт CRUD, soft-rules системных статусов, отличие от журнала (журнал <strong>не</strong> списывает) —
+  <p>Полный контракт CRUD и soft-rules системных статусов —
     <a href="/docs/documentation/schedule-journal#occurrence-statuses">schedule-journal §8</a>.
+    Журнал <code>/schedule</code> и календарь школы списывают остаток одинаково через
+    <code>UserLessonOccurrenceStatusService</code> (см. <a href="/docs/documentation/schedule-journal">schedule-journal</a>).
     UI-паттерн — <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>.</p>
 
   <h2 id="school-schedule-export">Выгрузка Excel с календаря школы</h2>

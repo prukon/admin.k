@@ -55,6 +55,34 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: Vite-модуль журнала /schedule — AJAX place-fixed + update (не inline blade).
+     * node --check + контракт обработчиков (preventDefault, Accept JSON).
+     */
+    public function test_schedule_journal_vite_module_ajax_handlers_have_valid_javascript_syntax(): void
+    {
+        $path = resource_path('js/schedule.js');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('place-fixed-abonement', $content);
+        $this->assertStringContainsString('/schedule/update', $content);
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('$.ajax', $content);
+        // jQuery $.ajax по умолчанию ставит X-Requested-With: XMLHttpRequest;
+        // backend также принимает expectsJson через Accept: application/json.
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/schedule.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
      * P1: inline JS модалки выгрузки Excel на календаре школы (fetch + ошибки под полями).
      */
     public function test_school_schedule_export_modal_inline_script_is_valid_javascript(): void

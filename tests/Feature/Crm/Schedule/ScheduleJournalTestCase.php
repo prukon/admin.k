@@ -3,13 +3,16 @@
 namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\LessonOccurrenceStatus;
+use App\Models\LessonPackage;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\TeamScheduleSlot;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
+use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\TeamUserSyncService;
 use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
@@ -281,6 +284,71 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         return [
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
+        ];
+    }
+
+    /**
+     * @return array{0: User, 1: Team}
+     */
+    protected function makeStudentWithTeam(): array
+    {
+        [$student, $team] = array_slice($this->makeStudentTeamAndTrainer(), 0, 2);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+
+        return [$student, $team];
+    }
+
+    /**
+     * @param  list<int>  $weekdayIds
+     */
+    protected function attachWeekdays(Team $team, array $weekdayIds): void
+    {
+        foreach ($weekdayIds as $weekdayId) {
+            DB::table('team_weekdays')->insertOrIgnore([
+                'team_id' => $team->id,
+                'weekday_id' => $weekdayId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    protected function makeFixedAssignment(User $student, int $lessons = 2, int $durationDays = 14): UserLessonPackage
+    {
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Журнал фикс '.uniqid(),
+            'schedule_type' => 'fixed',
+            'duration_days' => $durationDays,
+            'lessons_count' => $lessons,
+            'price_cents' => 100000,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        return UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'team_id' => null,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => $lessons,
+            'lessons_remaining' => $lessons,
+            'fee_amount' => '10.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function ajaxHeaders(): array
+    {
+        return [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
         ];
     }
 

@@ -1131,6 +1131,62 @@
                 });
             }
 
+            function buildCreateClientMissingHint(missing) {
+                if (!missing.length) {
+                    return '';
+                }
+
+                if (missing.length === 1) {
+                    return 'Заполните ' + missing[0];
+                }
+
+                if (missing.length === 2) {
+                    return 'Заполните ' + missing[0] + ' и ' + missing[1];
+                }
+
+                return 'Заполните ' + missing.slice(0, -1).join(', ') + ' и ' + missing[missing.length - 1];
+            }
+
+            function updateCreateClientBtnTooltip(enabled, missing) {
+                var $wrap = $('#createClientBtnWrap');
+                if (!$wrap.length) {
+                    return;
+                }
+
+                var wrapEl = $wrap[0];
+                var tip = (typeof bootstrap !== 'undefined' && bootstrap.Tooltip)
+                    ? bootstrap.Tooltip.getInstance(wrapEl)
+                    : null;
+
+                // dispose восстанавливает старый data-bs-original-title в title —
+                // сначала снимаем инстанс, затем уже пишем новый текст.
+                if (tip) {
+                    tip.dispose();
+                }
+
+                if (enabled) {
+                    $wrap
+                        .removeAttr('title')
+                        .removeAttr('data-bs-original-title')
+                        .removeAttr('data-bs-toggle')
+                        .removeAttr('data-kids-tooltip-hint');
+                    return;
+                }
+
+                var title = buildCreateClientMissingHint(missing);
+                $wrap
+                    .removeAttr('data-bs-original-title')
+                    .attr('title', title)
+                    .attr('data-kids-tooltip-hint', '')
+                    .attr('data-bs-toggle', 'tooltip')
+                    .attr('data-bs-placement', 'top')
+                    .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+
+                if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function') {
+                    window.KidsCrmTooltip.init(wrapEl.parentElement || editLeadModalEl, { scopes: ['hint'] });
+                }
+            }
+
             function syncCreateClientBtnState() {
                 var $btn = $('#createClientBtn');
                 if (!$btn.length || leadModalReadOnly) {
@@ -1140,9 +1196,21 @@
                 var firstname = String($('#leadChildFirstname').val() || '').trim();
                 var lastname = String($('#leadChildLastname').val() || '').trim();
                 var parentEmail = String($('#lead-parent-email').val() || '').trim();
-                var enabled = firstname !== '' && lastname !== '' && parentEmail !== '';
+                var missing = [];
 
+                if (lastname === '') {
+                    missing.push('фамилию ученика');
+                }
+                if (firstname === '') {
+                    missing.push('имя ученика');
+                }
+                if (parentEmail === '') {
+                    missing.push('email родителя');
+                }
+
+                var enabled = missing.length === 0;
                 $btn.prop('disabled', !enabled);
+                updateCreateClientBtnTooltip(enabled, missing);
             }
 
             function setLeadHealthFields(values) {
@@ -1257,8 +1325,8 @@
                 $fields.prop('disabled', leadModalReadOnly);
                 $editLeadForm.find('.accordion-button').prop('disabled', false);
                 $('#leadCreateContractBtn').prop('disabled', false);
-                var $pickerTrigger = $('#leadModalStatusPicker .lead-status-inline-trigger');
-                $pickerTrigger.attr('tabindex', leadModalReadOnly ? '-1' : '0');
+                // Статус можно менять и у лида с клиентом (сохраняется сразу).
+                $('#leadModalStatusPicker .lead-status-inline-trigger').attr('tabindex', '0');
 
                 window.syncStudentParentFieldsVisibility?.('lead');
 
@@ -1614,18 +1682,12 @@
             });
 
             $('#editLeadModal').on('click', '.lead-modal-status-picker .lead-status-inline-trigger', function(event) {
-                if (leadModalReadOnly) {
-                    return;
-                }
                 event.preventDefault();
                 event.stopPropagation();
                 openLeadStatusInlineSelect($(this));
             });
 
             $('#editLeadModal').on('keydown', '.lead-modal-status-picker .lead-status-inline-trigger', function(event) {
-                if (leadModalReadOnly) {
-                    return;
-                }
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1679,6 +1741,18 @@
                         status_text_color: optionMeta.text_color,
                         status_badge_style: optionMeta.badge_style,
                     });
+
+                    // У лида с клиентом нет «Сохранить» — статус пишем сразу.
+                    if (leadModalReadOnly) {
+                        var modalLeadId = $('#editLeadId').val();
+                        if (modalLeadId) {
+                            saveLeadStatusInline(modalLeadId, newStatusId, $picker);
+                        } else {
+                            closeAllLeadStatusMenus();
+                        }
+                        return;
+                    }
+
                     closeAllLeadStatusMenus();
                     return;
                 }

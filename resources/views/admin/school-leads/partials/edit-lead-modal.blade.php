@@ -281,7 +281,7 @@
                               data-bs-toggle="tooltip"
                               data-bs-placement="top"
                               data-bs-custom-class="ulp-assignment-paid-tooltip"
-                              title="Заполните имя и фамилию ученика">
+                              title="Заполните фамилию ученика, имя ученика и email родителя">
                             <button type="button"
                                     class="btn btn-success"
                                     id="createClientBtn"
@@ -359,8 +359,7 @@
         #editLeadModal.lead-modal-readonly .js-parent-passport-issued,
         #editLeadModal.lead-modal-readonly .js-parent-address,
         #editLeadModal.lead-modal-readonly .js-parent-email,
-        #editLeadModal.lead-modal-readonly .js-user-health-field,
-        #editLeadModal.lead-modal-readonly .lead-modal-status-picker .lead-status-inline-trigger {
+        #editLeadModal.lead-modal-readonly .js-user-health-field {
             pointer-events: none;
             background-color: #e9ecef;
         }
