@@ -12,6 +12,8 @@ use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SchoolLeadStatusController extends AdminBaseController
@@ -42,7 +44,7 @@ class SchoolLeadStatusController extends AdminBaseController
         ]);
     }
 
-    public function store(StoreSchoolLeadStatusRequest $request): JsonResponse
+    public function store(StoreSchoolLeadStatusRequest $request): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
@@ -73,13 +75,22 @@ class SchoolLeadStatusController extends AdminBaseController
             );
         });
 
-        return response()->json([
+        $payload = [
             'success' => true,
             'status'  => $status?->toFrontendArray(0),
-        ]);
+            'message' => 'Статус создан.',
+        ];
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('admin.school-leads')
+            ->with('success', (string) $payload['message']);
     }
 
-    public function update(UpdateSchoolLeadStatusRequest $request, int $schoolLeadStatus): JsonResponse
+    public function update(UpdateSchoolLeadStatusRequest $request, int $schoolLeadStatus): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
@@ -87,9 +98,11 @@ class SchoolLeadStatusController extends AdminBaseController
         $status = SchoolLeadStatus::query()->whereKey($schoolLeadStatus)->firstOrFail();
 
         if ($status->is_system) {
-            return response()->json([
-                'message' => 'Системные статусы нельзя редактировать.',
-            ], 403);
+            return $this->statusMutationDenied(
+                $request,
+                'Системные статусы нельзя редактировать.',
+                403
+            );
         }
 
         if ((int) $status->partner_id !== $partnerId) {
@@ -125,13 +138,22 @@ class SchoolLeadStatusController extends AdminBaseController
 
         $status->loadCount('schoolLeads');
 
-        return response()->json([
+        $payload = [
             'success' => true,
             'status'  => $status->toFrontendArray((int) $status->school_leads_count),
-        ]);
+            'message' => 'Статус обновлён.',
+        ];
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('admin.school-leads')
+            ->with('success', (string) $payload['message']);
     }
 
-    public function destroy(int $schoolLeadStatus): JsonResponse
+    public function destroy(Request $request, int $schoolLeadStatus): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerId();
         $authorId = auth()->id();
@@ -139,9 +161,11 @@ class SchoolLeadStatusController extends AdminBaseController
         $status = SchoolLeadStatus::query()->whereKey($schoolLeadStatus)->firstOrFail();
 
         if ($status->is_system) {
-            return response()->json([
-                'message' => 'Системные статусы нельзя удалять.',
-            ], 403);
+            return $this->statusMutationDenied(
+                $request,
+                'Системные статусы нельзя удалять.',
+                403
+            );
         }
 
         if ((int) $status->partner_id !== $partnerId) {
@@ -155,12 +179,20 @@ class SchoolLeadStatusController extends AdminBaseController
             ->count();
 
         if ($leadsCount > 0) {
-            return response()->json([
-                'message' => 'Нельзя удалить статус: на нём есть заявки.',
-                'errors'  => [
-                    'status' => ['Нельзя удалить статус: на нём есть заявки.'],
-                ],
-            ], 422);
+            $message = 'Нельзя удалить статус: на нём есть заявки.';
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors'  => [
+                        'status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()
+                ->route('admin.school-leads')
+                ->withErrors(['status' => $message]);
         }
 
         DB::transaction(function () use ($authorId, $status, $partnerId) {
@@ -175,9 +207,34 @@ class SchoolLeadStatusController extends AdminBaseController
             );
         });
 
-        return response()->json([
+        $payload = [
             'success' => true,
-        ]);
+            'message' => 'Статус удалён.',
+        ];
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('admin.school-leads')
+            ->with('success', (string) $payload['message']);
+    }
+
+    private function statusMutationDenied(
+        Request $request,
+        string $message,
+        int $statusCode
+    ): JsonResponse|RedirectResponse {
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+            ], $statusCode);
+        }
+
+        return redirect()
+            ->route('admin.school-leads')
+            ->withErrors(['status' => $message]);
     }
 
     private function nextCustomSortOrder(int $partnerId): int

@@ -343,6 +343,63 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertTrue($found, 'В outgoing_emails.blade.php не найден script с getFilterParams');
     }
 
+    /**
+     * P1: inline JS лидов — смена статуса у лида с клиентом + динамический tooltip «Создать клиента».
+     */
+    public function test_school_leads_linked_status_and_create_client_tooltip_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('buildCreateClientMissingHint', $content);
+        $this->assertStringContainsString('updateCreateClientBtnTooltip', $content);
+        $this->assertStringContainsString('syncCreateClientBtnState', $content);
+        $this->assertStringContainsString('saveLeadStatusInline', $content);
+        $this->assertStringContainsString('saveLeadStatusInline(modalLeadId, newStatusId', $content);
+        $this->assertStringContainsString('У лида с клиентом нет «Сохранить»', $content);
+        $this->assertStringContainsString('email родителя', $content);
+        $this->assertStringContainsString('school_lead_status_id', $content);
+        $this->assertStringContainsString("type: 'PUT'", $content);
+        $this->assertStringContainsString('X-CSRF-TOKEN', $content);
+        $this->assertStringContainsString('$.ajax', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'saveLeadStatusInline') || ! str_contains($rawScript, 'buildCreateClientMissingHint')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-school-leads-linked-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in school-leads linked-status script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В leads.blade.php не найден script с saveLeadStatusInline + buildCreateClientMissingHint');
+    }
+
     #[DataProvider('criticalModalBladePathsProvider')]
     public function test_critical_modal_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
     {

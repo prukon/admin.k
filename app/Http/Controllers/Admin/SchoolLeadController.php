@@ -20,6 +20,7 @@ use App\Services\PartnerContext;
 use App\Services\SchoolLeads\LatestUserContractLookup;
 use App\Support\BuildsLogTable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
@@ -392,7 +393,7 @@ class SchoolLeadController extends AdminBaseController
         ]);
     }
 
-    public function update(UpdateSchoolLeadRequest $request, SchoolLead $schoolLead): JsonResponse
+    public function update(UpdateSchoolLeadRequest $request, SchoolLead $schoolLead): JsonResponse|RedirectResponse
     {
         $partnerId = $this->requirePartnerContext();
         $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
@@ -476,7 +477,15 @@ class SchoolLeadController extends AdminBaseController
         $response['team_id']    = $schoolLead->team_id;
         $response['team_title'] = $schoolLead->team?->title;
 
-        return response()->json($response + $this->schoolLeadExtendedFieldsPayload($schoolLead));
+        $payload = $response + $this->schoolLeadExtendedFieldsPayload($schoolLead);
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return redirect()
+            ->route('admin.school-leads')
+            ->with('success', (string) ($payload['message'] ?? 'Изменения сохранены.'));
     }
 
     public function destroy(SchoolLead $schoolLead): JsonResponse
