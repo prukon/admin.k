@@ -71,6 +71,16 @@
     <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности»: фильтр локации — по группам ученика в pivot; фильтр группы для месячных долгов — по <code>users_prices.team_id</code> (§<a href="#users-prices-by-team">2.1</a>).</li>
   </ul>
 
+  <h3 id="ulp-billing-month"><code>user_lesson_packages.billing_month</code> (зарезервировано)</h3>
+  <div class="note">
+    С 2026‑08 в <code>user_lesson_packages</code> есть nullable <code>billing_month</code> (<code>date</code>, формат как у
+    <code>users_prices.new_month</code>: <code>YYYY-MM-01</code>) и неуникальный индекс
+    <code>(user_id, team_id, billing_month)</code>. Поле зарезервировано под будущие месячные назначения абонементов
+    при постепенном отказе от <code>users_prices</code> как источника истины. Сейчас для обычных абонементов —
+    <code>NULL</code>; оплата <code>lesson_package_fee</code> и витрина <code>monthly_fee</code> поведение не меняют.
+    Подробнее — <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>.
+  </div>
+
   <h3 id="users-prices"><code>users_prices</code> (начисления и оплаты по месяцам и группам)</h3>
   <ul>
     <li><b>user_id</b> — ученик</li>

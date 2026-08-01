@@ -101,7 +101,7 @@ class AccountUpdateRequest extends FormRequest
             $rules['phone'] = ['sometimes','nullable','string','max:32'];
         }
 
-        if ($this->user()->can('account.user.parent.update')) {
+        if ($this->user()->hasRole('user') && $this->user()->can('account.user.parent.update')) {
             $rules = array_merge($rules, $this->accountStudentParentRules());
         }
 

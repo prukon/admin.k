@@ -149,7 +149,8 @@ users (role=user) — ученик, вход в CRM
   <h2 id="account-parent">4) Личный кабинет: учётная запись</h2>
   <div class="note">
     Страница: <code>GET /account-settings/user/edit</code> (<code>account.user.edit</code>), middleware <code>can:account.user.view</code>.<br>
-    Блок «Данные родителя» на вкладке «Личные данные» (<code>resources/views/account/users.blade.php</code>).
+    Блок «Данные родителя» на вкладке «Личные данные» (<code>resources/views/account/users.blade.php</code>).<br>
+    Блок показывается <b>только</b> пользователям с системной ролью <code>user</code> (ученик). У <code>admin</code>, <code>trainer</code> и прочих ролей секция скрыта, даже если есть право или заполненный <code>parentProfile</code>.
   </div>
 
   <h3>4.1) Права</h3>
@@ -168,7 +169,7 @@ users (role=user) — ученик, вход в CRM
   <h3>4.2) Сохранение</h3>
   <ul>
     <li><code>PATCH /account-settings/user</code> — <code>AccountUpdateRequest</code> + <code>AccountController@update</code>.</li>
-    <li>Поля родителя валидируются только при <code>account.user.parent.update</code>.</li>
+    <li>Поля родителя валидируются и сохраняются только при роли <code>user</code> <b>и</b> праве <code>account.user.parent.update</code>.</li>
     <li>Пол (<code>sex</code>) — только при <code>users.sex</code> (§<a href="#account-sex">4.4</a>).</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
     <li>Правка ФИО/профиля в ЛК меняет <b>общую</b> карточку — sibling с тем же <code>parent_id</code> видит изменения сразу (без отдельной учётки родителя).</li>

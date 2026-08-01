@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Crm\Account;
 
+use App\Models\ParentProfile;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\SmsRuService;
 use App\Services\TeamUserSyncService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -115,6 +117,79 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
         $this->assertStringNotContainsString('id="team"', $html);
         $this->assertStringNotContainsString('name="team_id"', $html);
         $this->assertStringNotContainsString('>Группы</label>', $html);
+    }
+
+    public function test_admin_edit_page_hides_parent_section_even_with_parent_profile(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'АдминРодитель',
+            'firstname'  => 'Скрытый',
+        ]);
+
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'name'      => 'Admin',
+            'lastname'  => 'Boss',
+            'parent_id' => $parent->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        $html = (string) $this->get(route('account.user.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringNotContainsString('Данные родителя', $html);
+        $this->assertStringNotContainsString('parent_lastname', $html);
+        $this->assertStringNotContainsString('АдминРодитель', $html);
+    }
+
+    public function test_student_edit_page_shows_parent_section(): void
+    {
+        $this->actingAs($this->user);
+
+        $html = (string) $this->get(route('account.user.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Данные родителя', $html);
+        $this->assertStringContainsString('name="parent_lastname"', $html);
+    }
+
+    public function test_admin_cannot_update_parent_via_account_even_with_permission(): void
+    {
+        DB::table('permission_role')->insertOrIgnore([
+            'role_id'       => $this->roleId('admin'),
+            'permission_id' => $this->permissionId('account.user.parent.update'),
+            'partner_id'    => $this->partner->id,
+        ]);
+
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname'   => 'Иванов',
+            'firstname'  => 'Иван',
+        ]);
+
+        $admin = $this->createUserWithRole('admin', $this->partner, [
+            'name'      => 'Admin',
+            'lastname'  => 'Boss',
+            'parent_id' => $parent->id,
+        ]);
+
+        $this->actingAs($admin);
+
+        $this->patchJson(route('account.user.update'), [
+            'name'             => $admin->name,
+            'lastname'         => $admin->lastname,
+            'parent_lastname'  => 'Петров',
+            'parent_firstname' => 'Пётр',
+        ], $this->jsonHeaders())
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $parent->refresh();
+        $this->assertSame('Иванов', $parent->lastname);
+        $this->assertSame('Иван', $parent->firstname);
     }
 
     public function test_guest_is_redirected_from_account_user_edit_page_routes(): void

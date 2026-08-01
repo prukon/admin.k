@@ -15,6 +15,7 @@ class UserLessonPackage extends Model
     protected $casts = [
         'starts_at' => 'date:Y-m-d',
         'ends_at' => 'date:Y-m-d',
+        'billing_month' => 'date:Y-m-d',
         'lessons_total' => 'int',
         'lessons_remaining' => 'int',
         'fee_amount' => 'decimal:2',

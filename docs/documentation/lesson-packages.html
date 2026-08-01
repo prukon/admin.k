@@ -33,6 +33,17 @@
     <a href="#directories-packages-tab">§directories-packages-tab</a>).
   </div>
 
+  <h2 id="ulp-billing-month">Поле <code>billing_month</code> (зарезервировано под месячные назначения)</h2>
+  <div class="note">
+    Миграция <code>2026_08_01_030000_add_billing_month_to_user_lesson_packages_table.php</code>.
+    Колонка <code>user_lesson_packages.billing_month</code> — <code>date</code>, <b>nullable</b>, смысл как у
+    <code>users_prices.new_month</code>: хранить 1-е число месяца (<code>YYYY-MM-01</code>).
+    Неуникальный индекс <code>(user_id, team_id, billing_month)</code>.
+    Для текущих fixed / flexible / no_schedule назначений значение остаётся <code>NULL</code>
+    (backfill не делается). UI и валидация назначений поле пока не используют.
+    См. также <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
+  </div>
+
   <h2>Правило периода</h2>
   <p>При <strong>первой привязке</strong> назначения к календарю (одна и та же точка для гибкого и фиксированного типа расписания шаблона):</p>
   <ul>

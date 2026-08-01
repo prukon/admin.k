@@ -75,10 +75,13 @@ class AccountController extends AdminBaseController
         $partners = $user->partner ? collect([$user->partner]) : collect();
         $currentUser = $user;
 
-        $canEditAccountParent = Gate::allows('account.user.parent.update');
+        $isStudentRole = $user->hasRole('user');
+        $canEditAccountParent = $isStudentRole && Gate::allows('account.user.parent.update');
         $accountParentFields = $user->accountParentFormFields();
-        $showAccountParentSection = $canEditAccountParent
-            || collect($accountParentFields)->filter(fn ($value) => filled($value))->isNotEmpty();
+        $showAccountParentSection = $isStudentRole && (
+            $canEditAccountParent
+            || collect($accountParentFields)->filter(fn ($value) => filled($value))->isNotEmpty()
+        );
     
         // Загружаем поля текущего партнёра вместе с ролями (pivot user_field_role)
         $fields = UserField::where('partner_id', $partnerId)
@@ -130,7 +133,8 @@ class AccountController extends AdminBaseController
         $validated  = $request->validated();
         $parentPayload = $this->studentParentSync->extractParentPayload($validated);
         $validatedForUser = $this->studentParentSync->stripParentPayload($validated);
-        $canUpdateAccountParent = $user->can('account.user.parent.update')
+        $canUpdateAccountParent = $user->hasRole('user')
+            && $user->can('account.user.parent.update')
             && $this->studentParentSync->hasAccountParentProfilePayload($parentPayload);
 
         // --- локализованные подписи полей для человекочитаемых логов
