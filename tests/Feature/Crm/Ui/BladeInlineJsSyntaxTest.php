@@ -238,6 +238,57 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS модалки «История» на вкладке назначений (showLogModal + logs-data).
+     */
+    public function test_lesson_package_assignments_history_modal_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('historyModal', $content);
+        $this->assertStringContainsString('showLogModal', $content);
+        $this->assertStringContainsString('logs.data.lesson-package-assignment', $content);
+        $this->assertStringContainsString('fa-clock-rotate-left', $content);
+        $this->assertStringContainsString("includes.logModal", $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $historyScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'showLogModal')) {
+                continue;
+            }
+            $historyScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-ulp-history-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in assignments history script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($historyScriptFound, 'В assignments.blade.php не найден script с showLogModal');
+    }
+
+    /**
      * P1: inline JS вкладки «Статусы занятий» (toolbar + DataTables + AJAX CRUD fetch).
      */
     public function test_occurrence_statuses_crud_inline_script_is_valid_javascript(): void

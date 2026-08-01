@@ -105,6 +105,14 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ],
             [
                 'method' => 'GET',
+                'url' => route('logs.data.lesson-package-assignment', [
+                    'draw' => 1,
+                    'start' => 0,
+                    'length' => 10,
+                ]),
+            ],
+            [
+                'method' => 'GET',
                 'url' => route('admin.lesson-packages.assignments.data', [
                     'draw' => 1,
                     'start' => 0,
@@ -192,6 +200,10 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ->assertSee('Назначение абонементов', false)
             ->assertSee('payments-report-toolbar-action', false)
             ->assertSee('Назначить абонемент', false)
+            ->assertSee('historyModal', false)
+            ->assertSee('История', false)
+            ->assertSee('showLogModal', false)
+            ->assertSee('lesson-packages\/assignments\/logs-data', false)
             ->assertSee('ulpAssignmentsFiltersCollapse', false)
             ->assertSee('ulp-assignments-filters', false)
             ->assertSee('ulp-filter-schedule-type', false)
@@ -445,6 +457,14 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         $student = $ctx['student'];
 
         $this->get(route('admin.lesson-packages.assignments'))->assertOk();
+
+        $this->getJson(route('logs.data.lesson-package-assignment', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))
+            ->assertOk()
+            ->assertJsonStructure(['draw', 'recordsTotal', 'recordsFiltered', 'data']);
 
         $this->getJson(route('admin.lesson-packages.assignments.data', [
             'draw' => 1,

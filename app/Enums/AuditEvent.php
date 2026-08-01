@@ -60,6 +60,13 @@ enum AuditEvent: string
     case LessonPackageUpdated = 'lesson_package.updated';
     case LessonPackageDeleted = 'lesson_package.deleted';
 
+    // --- user_lesson_package assignments (legacy type 93) ---
+    case UserLessonPackageCreated = 'user_lesson_package.created';
+    case UserLessonPackageUpdated = 'user_lesson_package.updated';
+    case UserLessonPackageDeleted = 'user_lesson_package.deleted';
+    case UserLessonPackageManualPaid = 'user_lesson_package.manual_paid';
+    case UserLessonPackagePublicPayLinkIssued = 'user_lesson_package.public_pay_link_issued';
+
     // --- lesson_occurrence_status dictionary (legacy type 92) ---
     case LessonOccurrenceStatusCreated = 'lesson_occurrence_status.created';
     case LessonOccurrenceStatusUpdated = 'lesson_occurrence_status.updated';
@@ -186,6 +193,12 @@ enum AuditEvent: string
             self::LessonPackageUpdated => 'Изменение абонемента',
             self::LessonPackageDeleted => 'Удаление абонемента',
 
+            self::UserLessonPackageCreated => 'Назначение абонемента',
+            self::UserLessonPackageUpdated => 'Изменение назначения абонемента',
+            self::UserLessonPackageDeleted => 'Удаление назначения абонемента',
+            self::UserLessonPackageManualPaid => 'Ручная отметка оплаты назначения',
+            self::UserLessonPackagePublicPayLinkIssued => 'Выдача ссылки на оплату назначения',
+
             self::LessonOccurrenceStatusCreated => 'Создание статуса занятия',
             self::LessonOccurrenceStatusUpdated => 'Изменение статуса занятия',
             self::LessonOccurrenceStatusDeleted => 'Удаление статуса занятия',
@@ -269,6 +282,7 @@ enum AuditEvent: string
             self::SportTypeDeleted,
             self::LegalEntityDeleted,
             self::LessonPackageDeleted,
+            self::UserLessonPackageDeleted,
             self::LessonOccurrenceStatusDeleted,
             self::SchoolLeadDeleted,
             self::ContractRevoked,
@@ -342,6 +356,12 @@ enum AuditEvent: string
             self::LessonPackageCreated,
             self::LessonPackageUpdated,
             self::LessonPackageDeleted => 'lesson_package',
+
+            self::UserLessonPackageCreated,
+            self::UserLessonPackageUpdated,
+            self::UserLessonPackageDeleted,
+            self::UserLessonPackageManualPaid,
+            self::UserLessonPackagePublicPayLinkIssued => 'user_lesson_package',
 
             self::LessonOccurrenceStatusCreated,
             self::LessonOccurrenceStatusUpdated,
@@ -464,6 +484,12 @@ enum AuditEvent: string
             self::LessonPackageUpdated,
             self::LessonPackageDeleted => 91,
 
+            self::UserLessonPackageCreated,
+            self::UserLessonPackageUpdated,
+            self::UserLessonPackageDeleted,
+            self::UserLessonPackageManualPaid,
+            self::UserLessonPackagePublicPayLinkIssued => 93,
+
             self::LessonOccurrenceStatusCreated,
             self::LessonOccurrenceStatusUpdated,
             self::LessonOccurrenceStatusDeleted => 92,
@@ -581,6 +607,12 @@ enum AuditEvent: string
             self::LessonPackageCreated => 911,
             self::LessonPackageUpdated => 912,
             self::LessonPackageDeleted => 913,
+
+            self::UserLessonPackageCreated => 931,
+            self::UserLessonPackageUpdated => 932,
+            self::UserLessonPackageDeleted => 933,
+            self::UserLessonPackageManualPaid => 934,
+            self::UserLessonPackagePublicPayLinkIssued => 935,
 
             self::LessonOccurrenceStatusCreated => 921,
             self::LessonOccurrenceStatusUpdated => 922,
@@ -830,6 +862,12 @@ enum AuditEvent: string
             911 => self::LessonPackageCreated,
             912 => self::LessonPackageUpdated,
             913 => self::LessonPackageDeleted,
+
+            931 => self::UserLessonPackageCreated,
+            932 => self::UserLessonPackageUpdated,
+            933 => self::UserLessonPackageDeleted,
+            934 => self::UserLessonPackageManualPaid,
+            935 => self::UserLessonPackagePublicPayLinkIssued,
 
             921 => self::LessonOccurrenceStatusCreated,
             922 => self::LessonOccurrenceStatusUpdated,

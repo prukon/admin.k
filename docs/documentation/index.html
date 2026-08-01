@@ -197,6 +197,26 @@
     обзор абонементов — <a href="/docs/documentation/lesson-packages#school-schedule-export">lesson-packages § выгрузка</a>.
   </div>
 
+  <h2>История назначений абонементов (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>) в toolbar
+    добавлена кнопка <b>«История»</b> по тому же паттерну, что у шаблонов:
+    <code>#historyModal</code> / <code>includes.logModal</code> →
+    <code>GET /admin/lesson-packages/assignments/logs-data</code>
+    (<code>logs.data.lesson-package-assignment</code>).
+    <br>
+    Категория аудита — <code>user_lesson_package</code> (не путать с шаблонами <code>lesson_package</code>
+    и календарём <code>schedule</code>):
+    <code>created</code>, <code>updated</code> (только при непустом diff), <code>deleted</code>
+    (<code>level=security</code>; при 422 лог не пишется), <code>manual_paid</code>,
+    <code>public_pay_link_issued</code> (выдача ссылки и перевыпуск при смене суммы).
+    Привязки к календарю (<code>schedule.*</code>) в эту модалку <b>не</b> входят.
+    Право — <code>lessonPackages.view</code>.
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#assignments-history">lesson-packages §assignments-history</a>,
+    реестр — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.
+  </div>
+
   <h2>Шаблоны абонементов: toolbar + DataTable + история (2026‑07)</h2>
   <div class="note">
     Список шаблонов (<code>/admin/lesson-packages</code> и дубль
@@ -375,6 +395,7 @@
       <tr><td><code>/admin/school-leads</code></td><td><code>logs.data.school-lead</code></td><td><code>schoolLeads.view</code></td><td><code>school_lead</code></td><td><a href="/docs/documentation/school-leads-widget#school-leads-audit">school-leads §5.1.3</a></td></tr>
       <tr><td><code>/admin/lesson-packages/school-schedule</code></td><td><code>logs.data.school-schedule</code></td><td><code>lessonPackages.view</code></td><td><code>schedule</code></td><td><a href="/docs/documentation/school-schedule-calendar#school-schedule-audit">school-schedule-calendar</a></td></tr>
       <tr><td><code>/admin/lesson-packages</code>, <code>/admin/directories/lesson-packages</code></td><td><code>logs.data.lesson-package</code></td><td><code>lessonPackages.view</code></td><td><code>lesson_package</code></td><td><a href="/docs/documentation/lesson-packages#packages-tab">lesson-packages §packages-tab</a></td></tr>
+      <tr><td><code>/admin/lesson-packages/assignments</code></td><td><code>logs.data.lesson-package-assignment</code></td><td><code>lessonPackages.view</code></td><td><code>user_lesson_package</code></td><td><a href="/docs/documentation/lesson-packages#assignments-history">lesson-packages §assignments-history</a></td></tr>
       <tr><td><code>/admin/locations</code></td><td><code>logs.data.location</code></td><td><code>locations.view</code></td><td><code>location</code></td><td><a href="/docs/documentation/admin-locations">admin-locations §5</a></td></tr>
       <tr><td><code>/admin/districts</code></td><td><code>logs.data.district</code></td><td><code>districts.view</code></td><td><code>district</code></td><td><a href="/docs/documentation/admin-districts">admin-districts §5</a></td></tr>
       <tr><td><code>/admin/sport-types</code></td><td><code>logs.data.sport-type</code></td><td><code>sport_types.view</code></td><td><code>sport_type</code></td><td><a href="/docs/documentation/admin-sport-types">admin-sport-types §6</a></td></tr>
@@ -406,7 +427,7 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>, раскладка fixed (<code>place-fixed-abonement</code>), статусы со списанием, ×N занятий в день, справочник <code>lesson_occurrence_statuses</code> (toolbar/DataTable), тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>

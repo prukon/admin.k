@@ -410,6 +410,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/lesson-packages/logs-data', [LessonPackageController::class, 'packagesLogs'])
             ->name('logs.data.lesson-package');
         Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
+        Route::get('/admin/lesson-packages/assignments/logs-data', [LessonPackageController::class, 'assignmentsLogs'])
+            ->name('logs.data.lesson-package-assignment');
         Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
             ->name('admin.lesson-packages.assignments.data');
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])

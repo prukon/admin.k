@@ -31,6 +31,10 @@
     «Расписание школы» → <code>/admin/lesson-packages</code> и дубль в «Справочниках» →
     <code>/admin/directories/lesson-packages</code> (<a href="#packages-tab">§packages-tab</a>,
     <a href="#directories-packages-tab">§directories-packages-tab</a>).
+    <br><br>
+    <b>История назначений (2026‑08):</b> на вкладке «Назначение абонементов» — кнопка «История»
+    (категория аудита <code>user_lesson_package</code>, отдельно от шаблонов <code>lesson_package</code>
+    и календаря <code>schedule</code>). Подробно — <a href="#assignments-history">§assignments-history</a>.
   </div>
 
   <h2 id="ulp-billing-month">Поле <code>billing_month</code> (зарезервировано под месячные назначения)</h2>
@@ -390,7 +394,7 @@
   <h3>Шапка (toolbar)</h3>
   <ul>
     <li>Карточка <code>payments-report-surface</code> + CSS <code>admin-list-toolbar.css</code>.</li>
-    <li>Кнопки в едином стиле <code>payments-report-toolbar-action</code>: «Назначить абонемент» (иконка <code>fa-plus</code>, модалка создания), «Фильтры» (collapse), «Колонки» (dropdown).</li>
+    <li>Кнопки в едином стиле <code>payments-report-toolbar-action</code>: «Назначить абонемент» (иконка <code>fa-plus</code>, модалка создания), «История» (<code>#historyModal</code> / <code>includes.logModal</code>, <code>GET …/assignments/logs-data</code>), «Фильтры» (collapse), «Колонки» (dropdown).</li>
     <li>Встроенный поиск DataTables на странице <b>отключён</b> (<code>searching: false</code>) — отбор только через панель фильтров.</li>
   </ul>
 
@@ -482,10 +486,16 @@
         <td>JSON <code>{ results: [{ id, text }] }</code></td>
       </tr>
       <tr>
+        <td>История (модалка)</td>
+        <td>Кнопка «История» в toolbar</td>
+        <td><code>GET /admin/lesson-packages/assignments/logs-data</code></td>
+        <td>Маршрут <code>logs.data.lesson-package-assignment</code>; категория аудита <code>user_lesson_package</code> (не путать с шаблонами <code>lesson_package</code> и календарём <code>schedule</code>). См. <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.</td>
+      </tr>
+      <tr>
         <td>Создать назначение</td>
         <td>Модалка <code>#ulpAssignmentCreateModal</code>, обычная HTML-форма</td>
         <td><code>POST /admin/lesson-packages/assignments</code></td>
-        <td><b>Non-AJAX safety-net:</b> успех → <code>302</code> redirect на вкладку + flash «Абонемент назначен ученику»; валидация → redirect back с <code>errors</code> в сессии (не пустой <code>200</code>). Request: <code>StoreUserLessonPackageRequest</code>. Создаёт запись без периода (<code>starts_at</code>/<code>ends_at</code> = NULL), <code>lessons_remaining = lessons_total</code> из шаблона.</td>
+        <td><b>Non-AJAX safety-net:</b> успех → <code>302</code> redirect на вкладку + flash «Абонемент назначен ученику» + audit <code>user_lesson_package.created</code>; валидация → redirect back с <code>errors</code> в сессии (не пустой <code>200</code>). Request: <code>StoreUserLessonPackageRequest</code>. Создаёт запись без периода (<code>starts_at</code>/<code>ends_at</code> = NULL), <code>lessons_remaining = lessons_total</code> из шаблона.</td>
       </tr>
       <tr>
         <td>Открыть / изменить</td>
@@ -496,24 +506,37 @@
           <code>{ success, assignment }</code>.
           Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте:
           <code>fee_amount</code>, <code>ends_at</code>, <code>payment_comment</code>).
-          Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса.
+          Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса;
+          audit <code>user_lesson_package.manual_paid</code> при смене эффективного статуса оплаты;
+          audit <code>user_lesson_package.updated</code> только при непустом diff полей, которые реально меняет форма
+          (обычно <code>fee_amount</code> / <code>ends_at</code>);
+          при ротации публичной ссылки из‑за смены суммы — ещё <code>user_lesson_package.public_pay_link_issued</code>.
           Если период задан (<code>period_editable</code>), в PUT обязательно <code>ends_at</code>
           (дата начала только для просмотра); иначе <code>ends_at</code> prohibited.
           Non-AJAX PUT: успех → <code>302</code> + flash; валидация → <code>302</code> + session errors.
-          Подробности смены конца периода — <a href="#assignment-ends-at">§assignment-ends-at</a>.
+          Подробности смены конца периода — <a href="#assignment-ends-at">§assignment-ends-at</a>;
+          аудит — <a href="#assignments-history">§assignments-history</a>.
         </td>
       </tr>
       <tr>
         <td>Удалить</td>
         <td>Кнопка в модалке редактирования</td>
         <td><code>DELETE …/assignments/{id}</code></td>
-        <td><code>{ success: true }</code> или <code>422</code>, если часть занятий уже списана (<code>lessons_remaining &lt; lessons_total</code>)</td>
+        <td><code>{ success: true }</code> + audit <code>user_lesson_package.deleted</code>; или <code>422</code>, если часть занятий уже списана (<code>lessons_remaining &lt; lessons_total</code>) — лог не пишется</td>
+      </tr>
+      <tr>
+        <td>Ручная отметка оплаты</td>
+        <td>Отдельный endpoint (и смена статуса в модалке редактирования)</td>
+        <td><code>POST …/assignments/{id}/manual-paid</code></td>
+        <td>Право <code>lessonPackages.manualPaid.manage</code>. JSON <code>{ success, assignment }</code>.
+          При смене эффективного статуса оплаты — audit <code>user_lesson_package.manual_paid</code>
+          (комментарий попадает в <code>description</code>). Без смены статуса лог не пишется.</td>
       </tr>
       <tr>
         <td>Ссылка на оплату</td>
         <td>Кнопка «Скопировать ссылку на оплату» в строке таблицы (<code>.js-ulp-copy-pay-link</code>, AJAX <code>fetch</code>)</td>
         <td><code>POST …/assignments/{id}/public-pay-link</code></td>
-        <td>JSON <code>{ url }</code> — абсолютный HTTPS URL <code>/pay/ulp/{token}</code>. Право <code>lessonPackages.view</code>; гость → 302/401/403; без права → 403; чужой партнёр → 404. Init T‑Bank <b>не</b> при выдаче ссылки — при первом <code>GET /pay/ulp/{token}</code>. Публичная QR-страница: группа + «Поставщик услуг», сумма без копеек — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, §<a href="/docs/documentation/payments#payment-checkout-service-provider">3.1.2</a>.</td>
+        <td>JSON <code>{ url }</code> — абсолютный HTTPS URL <code>/pay/ulp/{token}</code> + audit <code>user_lesson_package.public_pay_link_issued</code>. Право <code>lessonPackages.view</code>; гость → 302/401/403; без права → 403; чужой партнёр → 404. Init T‑Bank <b>не</b> при выдаче ссылки — при первом <code>GET /pay/ulp/{token}</code>. Публичная QR-страница: группа + «Поставщик услуг», сумма без копеек — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, §<a href="/docs/documentation/payments#payment-checkout-service-provider">3.1.2</a>.</td>
       </tr>
       <tr>
         <td>DataTables</td>
@@ -527,9 +550,74 @@
     (проверка в контроллере). На <code>PUT</code> update — <code>403</code>
     (<code>UpdateUserLessonPackageAssignmentRequest::authorize</code> отклоняет чужой партнёр до контроллера).</p>
 
+  <h3 id="assignments-history">История изменений назначений (аудит)</h3>
+  <div class="note">
+    Паттерн тот же, что у шаблонов абонементов и справочников:
+    toolbar → «История» (<code>fa-clock-rotate-left</code>) → <code>#historyModal</code>
+    (<code>includes/logModal</code>) → <code>showLogModal(url)</code> →
+    <code>GET /admin/lesson-packages/assignments/logs-data</code>
+    (<code>logs.data.lesson-package-assignment</code>).
+    Чтение — <code>LessonPackageController::assignmentsLogs()</code> →
+    <code>buildLogDataTable('user_lesson_package')</code>.
+    Общий UX — <a href="/docs/documentation/audit-my-logs#history-ui-pattern">audit-my-logs §5.1</a>,
+    UI — <a href="/docs/documentation/reusable-ui-partials#logmodal">reusable-ui-partials § logModal</a>.
+  </div>
+  <table>
+    <thead>
+      <tr><th><code>event</code></th><th>Подпись в UI</th><th>Когда пишется</th><th><code>level</code></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>user_lesson_package.created</code></td>
+        <td>Назначение абонемента</td>
+        <td>Успешный <code>POST …/assignments</code> (store)</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.updated</code></td>
+        <td>Изменение назначения абонемента</td>
+        <td>Успешный <code>PUT …/assignments/{id}</code>, только если snapshot-diff непустой
+          (поля снимка: абонемент, стоимость, окончание, группа, остаток; форма обычно меняет стоимость / окончание)</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.deleted</code></td>
+        <td>Удаление назначения абонемента</td>
+        <td>Успешный <code>DELETE …/assignments/{id}</code>; при <code>422</code> (остаток уже неполный) — не пишется</td>
+        <td><code>security</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.manual_paid</code></td>
+        <td>Ручная отметка оплаты назначения</td>
+        <td><code>POST …/manual-paid</code> или смена <code>payment_status</code> в PUT, только если изменился
+          <code>effective_is_paid</code>; в описание добавляется комментарий</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.public_pay_link_issued</code></td>
+        <td>Выдача ссылки на оплату назначения</td>
+        <td>Успешный <code>POST …/public-pay-link</code>; также при перевыпуске токена после смены
+          <code>fee_amount</code> (если у назначения уже была ссылка)</td>
+        <td><code>info</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Не входит в эту модалку:</b> события календаря школы (<code>schedule.*</code> — привязка fixed/flexible/разовое, статусы занятий).
+      Их история — на вкладке «Расписание школы» (<code>logs.data.school-schedule</code>).</li>
+    <li><b>Не смешивается с шаблонами:</b> категория <code>lesson_package</code> (CRUD шаблонов на
+      <code>/admin/lesson-packages</code>) — отдельный logs-data.</li>
+    <li><b>Контекст записи:</b> <code>AuditLogger</code> + <code>AuditContext</code> —
+      <code>partner_id</code>, <code>author_id</code>, <code>user_id</code> (ученик),
+      <code>target_*</code> (модель <code>UserLessonPackage</code>, label вида «Фамилия Имя — Название абонемента»).</li>
+    <li><b>Legacy:</b> type <code>93</code>, action <code>931</code>…<code>935</code> — только для реестра/backfill, в runtime не используются.</li>
+    <li><b>Доступ:</b> то же право <code>lessonPackages.view</code>, что и у вкладки; без права — 403; гость — 302/401.</li>
+  </ul>
+
   <h3>Код</h3>
   <ul>
-    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
+    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsLogs</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>setAssignmentManualPaid</code>, <code>issueAssignmentPublicPayLink</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
+    <li>События: <code>App\Enums\AuditEvent</code> — <code>UserLessonPackage*</code>, категория <code>user_lesson_package</code>.</li>
     <li>Смена периода: <code>UserLessonPackageCalendarPeriodService::updateEndsAt</code>, Request <code>UpdateUserLessonPackageAssignmentRequest</code>.</li>
     <li>Фильтры списка: <code>applyAssignmentListFilters()</code>, <code>resolveAssignmentUserStatusFilter()</code> в том же контроллере.</li>
   </ul>
@@ -547,6 +635,12 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesPageFullAccessFeatureTest.php</code> — доступ списка: guest / без права / с <code>lessonPackages.view</code>; toolbar UI; все endpoint’ы (data/columns/logs/CRUD) → 200; изоляция партнёра в <code>…/data</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesAjaxContractFeatureTest.php</code> — AJAX JSON store/update/show/destroy/data/columns 200/422, матрица статусов без 500</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesAuditLogsFeatureTest.php</code> — audit <code>lesson_package.*</code>, logs-data 200/403, UI «История»</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsAuditLogsFeatureTest.php</code> — audit <code>user_lesson_package.*</code> (create/update/delete/manual_paid/public_pay_link), logs-data 200/403/guest, UI «История» на вкладке назначений</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsHistoryPageFullAccessFeatureTest.php</code> — доступ истории: guest / без <code>lessonPackages.view</code> → 403 / с правом → ожидаемые статусы; UI «История»; изоляция партнёра в logs-data</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsHistoryAjaxContractFeatureTest.php</code> — AJAX JSON logs-data / update / destroy / manual-paid / public-pay-link + audit; матрица статусов без 500</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX store/update → 302 + запись в БД + audit; валидация → 302 + session errors (не пустой 200)</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsHistoryWorkflowFeatureTest.php</code> — [P2] страница → store/update/manual-paid/destroy → события видны в logs-data без F5</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> для inline JS «История» / <code>showLogModal</code> в <code>assignments.blade.php</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesListWorkflowFeatureTest.php</code> — [P2] страница → AJAX CRUD → строка в DataTables без F5</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesAccessFeatureTest.php</code> — доступ дубля в «Справочниках» + data/columns/logs</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesLessonPackagesFeatureTest.php</code> — UI оболочки, вкладка на <code>/admin/teams</code>, AJAX CRUD</li>

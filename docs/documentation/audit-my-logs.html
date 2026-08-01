@@ -49,7 +49,7 @@
   <ul>
     <li><b>Значение</b> — канонический <code>event</code>, например <code>user.updated</code>, <code>schedule.user_range_updated</code>.</li>
     <li><b>Уровень</b> — <code>AuditLevel</code>: <code>info</code> (изменения в CRM), <code>security</code> (входы), <code>integration</code> (платежи, webhook, подписание).</li>
-    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>lesson_package</code>, <code>lesson_occurrence_status</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
+    <li><code>location</code> — домен для модалок «История изменений»: <code>pricing</code>, <code>user</code>, <code>team</code>, <code>location</code>, <code>district</code>, <code>sport_type</code>, <code>lesson_package</code>, <code>user_lesson_package</code>, <code>lesson_occurrence_status</code>, <code>school_lead</code>, <code>contract_template</code>, <code>schedule</code>, <code>role</code>, <code>partner</code>, <code>settings</code>, <code>payment</code>, <code>auth</code>, <code>contract</code> и др.</li>
     <li><b>Методы <code>legacyType()</code> / <code>legacyAction()</code> / <code>fromLegacy()</code></b> — только для миграций backfill и unit-тестов реестра, не для HTTP/UI.</li>
   </ul>
   <p>Примеры событий расписания (вместо старых «type=6, action=60» в документации):</p>
@@ -111,6 +111,7 @@
       <tr><td>Районы → История</td><td><code>GET /admin/districts/logs-data</code></td><td><code>district</code></td><td><code>districts.view</code></td></tr>
       <tr><td>Виды спорта → История</td><td><code>GET /admin/sport-types/logs-data</code></td><td><code>sport_type</code></td><td><code>sport_types.view</code></td></tr>
       <tr><td>Абонементы (шаблоны) → История</td><td><code>GET /admin/lesson-packages/logs-data</code></td><td><code>lesson_package</code></td><td><code>lessonPackages.view</code></td></tr>
+      <tr><td>Назначение абонементов → История</td><td><code>GET /admin/lesson-packages/assignments/logs-data</code></td><td><code>user_lesson_package</code></td><td><code>lessonPackages.view</code></td></tr>
       <tr><td>Статусы занятий → История</td><td><code>GET /admin/lesson-packages/occurrence-statuses/logs-data</code></td><td><code>lesson_occurrence_status</code></td><td><code>lessonOccurrenceStatuses.manage</code> (Gate)</td></tr>
       <tr><td>Заявки с сайта → История</td><td><code>GET /admin/school-leads/logs-data</code></td><td><code>school_lead</code></td><td><code>schoolLeads.view</code></td></tr>
       <tr><td>Шаблоны договоров → История</td><td><code>GET /client-contract-templates/logs-data</code></td><td><code>contract_template</code></td><td><code>contracts.view</code></td></tr>
@@ -123,13 +124,14 @@
     </tbody>
   </table>
 
-  <h2>5.1) Единый паттерн UI «История»</h2>
+  <h2 id="history-ui-pattern">5.1) Единый паттерн UI «История»</h2>
   <div class="note">
     На страницах разделов CRM (см. таблицу ниже) используется один и тот же UX:
     toolbar → кнопка с иконкой <code>fa-clock-rotate-left</code> и подписью «История» (на узких экранах — только иконка)
     → Bootstrap-модалка <code>#historyModal</code> из <code>includes/logModal.blade.php</code>
     → при открытии вызывается <code>showLogModal(url)</code> с URL <code>GET …/logs-data</code>.
-    Контроллер подключает трейт <code>BuildsLogTable</code> и метод <code>log()</code> / <code>schoolScheduleLogs()</code>:
+    Контроллер подключает трейт <code>BuildsLogTable</code> и метод
+    <code>log()</code> / <code>packagesLogs()</code> / <code>assignmentsLogs()</code> / <code>schoolScheduleLogs()</code> и т.п.:
     JSON DataTables с колонками дата, автор, действие (<code>eventLabel</code>), описание; фильтр по категории через
     <code>applyCategoryScope()</code> — только события одного домена, без legacy <code>type</code>/<code>action</code>.
   </div>
@@ -194,13 +196,22 @@
         <td><code>LessonPackagesAuditLogsFeatureTest</code>, <code>LessonPackagesPageFullAccessFeatureTest</code></td>
       </tr>
       <tr>
+        <td><a href="/docs/documentation/lesson-packages#assignments-tab">/admin/lesson-packages/assignments</a></td>
+        <td><code>logs.data.lesson-package-assignment</code></td>
+        <td><code>user_lesson_package.created</code>, <code>user_lesson_package.updated</code>, <code>user_lesson_package.deleted</code>, <code>user_lesson_package.manual_paid</code>, <code>user_lesson_package.public_pay_link_issued</code> (события календаря <code>schedule.*</code> не включаются)</td>
+        <td><code>LessonPackageAssignmentsAuditLogsFeatureTest</code>, <code>LessonPackageAssignmentsHistoryPageFullAccessFeatureTest</code>, <code>LessonPackageAssignmentsHistoryAjaxContractFeatureTest</code>, <code>LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest</code>, <code>LessonPackageAssignmentsHistoryWorkflowFeatureTest</code></td>
+      </tr>
+      <tr>
         <td>Статусы занятий (справочник)</td>
+        <td><code>logs.data.lesson-occurrence-status</code> (см. occurrence-statuses)</td>
         <td><code>lesson_occurrence_status.created</code>, <code>lesson_occurrence_status.updated</code>, <code>lesson_occurrence_status.deleted</code></td>
         <td><code>LessonOccurrenceStatusesToolbarFeatureTest</code>, <code>LessonOccurrenceStatusesAjaxContractFeatureTest</code>, <code>LessonOccurrenceStatusesPageFullAccessFeatureTest</code></td>
       </tr>
     </tbody>
   </table>
-  <p class="small">Фильтрация категорий в HTTP — <code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code> (по одному тесту на каждую категорию из таблицы выше).</p>
+  <p class="small">Фильтрация категорий в HTTP — <code>tests/Feature/Crm/Audit/AuditLogsEventOnlyFeatureTest.php</code>
+    (основные категории модалок; для <code>user_lesson_package</code> — изоляция от <code>lesson_package</code>
+    в <code>LessonPackageAssignmentsAuditLogsFeatureTest</code> / History FullAccess).</p>
 
   <h2>6) Миграции БД (справочно)</h2>
   <ul>

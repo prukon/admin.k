@@ -266,6 +266,11 @@ final class LessonPackageController extends AdminBaseController
         return $this->buildLogDataTable('lesson_package');
     }
 
+    public function assignmentsLogs(FilterRequest $request)
+    {
+        return $this->buildLogDataTable('user_lesson_package');
+    }
+
     public function schoolSchedule()
     {
         $partnerId = $this->requirePartnerId();
@@ -839,8 +844,22 @@ final class LessonPackageController extends AdminBaseController
             return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         }
 
-        $assignment->loadMissing('user:id,partner_id');
+        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name']);
+        $hadLink = $assignment->publicPayLink()->exists();
+        $previousToken = $hadLink
+            ? (string) ($assignment->publicPayLink()->value('token') ?? '')
+            : '';
+
         $link = $service->ensureFreshLink($assignment);
+        $rotated = ! $hadLink || $previousToken === '' || $previousToken !== (string) $link->token;
+
+        $this->recordUserLessonPackageAudit(
+            AuditEvent::UserLessonPackagePublicPayLinkIssued,
+            $assignment,
+            $rotated
+                ? 'Выдана / перевыпущена ссылка на оплату назначения.'
+                : 'Выдана действующая ссылка на оплату назначения.',
+        );
 
         return response()->json([
             'url' => route('ulp.public.pay', ['token' => $link->token], true),
@@ -864,6 +883,10 @@ final class LessonPackageController extends AdminBaseController
         UserLessonPackageCalendarPeriodService $calendarPeriodService,
     ): JsonResponse|RedirectResponse {
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
+
+        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name', 'team:id,title']);
+        $beforeSnapshot = $this->userLessonPackageAuditSnapshot($assignment);
+        $beforePaid = (bool) $assignment->effective_is_paid;
 
         $validated = $request->validated();
         $fee = round((float) $validated['fee_amount'], 2);
@@ -948,8 +971,42 @@ final class LessonPackageController extends AdminBaseController
         $assignment = $assignment->fresh([
             'user:id,name,lastname,partner_id',
             'lessonPackage:id,name,schedule_type,duration_days,lessons_count',
+            'team:id,title',
             'manualPaidBy:id,name,lastname',
         ]);
+
+        $afterSnapshot = $this->userLessonPackageAuditSnapshot($assignment);
+        $fieldChanges = $this->diffUserLessonPackageAuditSnapshots($beforeSnapshot, $afterSnapshot);
+        if ($fieldChanges !== []) {
+            $this->recordUserLessonPackageAudit(
+                AuditEvent::UserLessonPackageUpdated,
+                $assignment,
+                implode("\n", $fieldChanges),
+            );
+        }
+
+        $afterPaid = (bool) $assignment->effective_is_paid;
+        if ($beforePaid !== $afterPaid) {
+            $paymentComment = trim((string) ($validated['payment_comment'] ?? ''));
+            $paidLabel = $afterPaid ? 'Оплачен' : 'Не оплачен';
+            $desc = "Статус оплаты: ".($beforePaid ? 'Оплачен' : 'Не оплачен')." → {$paidLabel}.";
+            if ($paymentComment !== '') {
+                $desc .= "\nКомментарий: {$paymentComment}";
+            }
+            $this->recordUserLessonPackageAudit(
+                AuditEvent::UserLessonPackageManualPaid,
+                $assignment,
+                $desc,
+            );
+        }
+
+        if ($publicPayUrl !== null) {
+            $this->recordUserLessonPackageAudit(
+                AuditEvent::UserLessonPackagePublicPayLinkIssued,
+                $assignment,
+                'Ссылка на оплату перевыпущена из‑за изменения суммы.',
+            );
+        }
 
         if ($request->expectsJson()) {
             $payload = [
@@ -974,6 +1031,9 @@ final class LessonPackageController extends AdminBaseController
         $this->authorize('lessonPackages.view');
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
+        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name', 'team:id,title']);
+        $deleteDescription = 'Назначение абонемента удалено.'."\n".$this->formatUserLessonPackageSnapshotDescription($assignment);
+
         try {
             $deletionService->deleteOrAbort($assignment);
         } catch (HttpException $e) {
@@ -982,6 +1042,12 @@ final class LessonPackageController extends AdminBaseController
                 'message' => $e->getMessage(),
             ], $e->getStatusCode());
         }
+
+        $this->recordUserLessonPackageAudit(
+            AuditEvent::UserLessonPackageDeleted,
+            $assignment,
+            $deleteDescription,
+        );
 
         return response()->json(['success' => true]);
     }
@@ -993,6 +1059,7 @@ final class LessonPackageController extends AdminBaseController
         $mode = (string) $request->validated('mode');
         $comment = trim((string) $request->validated('comment'));
         $authorId = auth()->id();
+        $beforePaid = (bool) $assignment->effective_is_paid;
 
         DB::transaction(function () use ($assignment, $mode, $comment, $authorId) {
             $assignment->forceFill([
@@ -1005,7 +1072,21 @@ final class LessonPackageController extends AdminBaseController
         });
 
         $assignment->refresh();
-        $assignment->load(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type,duration_days,lessons_count', 'manualPaidBy:id,name,lastname']);
+        $assignment->load(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type,duration_days,lessons_count', 'team:id,title', 'manualPaidBy:id,name,lastname']);
+
+        $afterPaid = (bool) $assignment->effective_is_paid;
+        if ($beforePaid !== $afterPaid) {
+            $paidLabel = $afterPaid ? 'Оплачен' : 'Не оплачен';
+            $desc = "Статус оплаты: ".($beforePaid ? 'Оплачен' : 'Не оплачен')." → {$paidLabel}.";
+            if ($comment !== '') {
+                $desc .= "\nКомментарий: {$comment}";
+            }
+            $this->recordUserLessonPackageAudit(
+                AuditEvent::UserLessonPackageManualPaid,
+                $assignment,
+                $desc,
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -1206,9 +1287,9 @@ final class LessonPackageController extends AdminBaseController
             ->findOrFail((int) $data['lesson_package_id']);
 
         try {
-            DB::transaction(function () use ($data, $user, $package) {
-                /** @var UserLessonPackage $assignment */
-                UserLessonPackage::query()->create([
+            /** @var UserLessonPackage $assignment */
+            $assignment = DB::transaction(function () use ($data, $user, $package) {
+                return UserLessonPackage::query()->create([
                     'user_id' => (int) $user->id,
                     'team_id' => ! empty($data['team_id']) ? (int) $data['team_id'] : null,
                     'lesson_package_id' => (int) $package->id,
@@ -1221,6 +1302,18 @@ final class LessonPackageController extends AdminBaseController
                     'created_by' => auth()->id(),
                 ]);
             });
+
+            $assignment->setRelation('user', $user);
+            $assignment->setRelation('lessonPackage', $package);
+            if (! empty($data['team_id'])) {
+                $assignment->loadMissing('team:id,title');
+            }
+
+            $this->recordUserLessonPackageAudit(
+                AuditEvent::UserLessonPackageCreated,
+                $assignment,
+                $this->formatUserLessonPackageSnapshotDescription($assignment),
+            );
         } catch (QueryException $e) {
             Log::warning('UserLessonPackage storeAssignment failed', [
                 'error' => $e->getMessage(),
@@ -1557,6 +1650,112 @@ final class LessonPackageController extends AdminBaseController
             'price' => 'Стоимость',
             'freeze' => 'Заморозка',
             'auto_attendance' => 'Автосписание',
+        ];
+
+        $changes = [];
+        foreach ($labels as $key => $label) {
+            if (($before[$key] ?? '') !== ($after[$key] ?? '')) {
+                $changes[] = "{$label}: {$before[$key]} → {$after[$key]}";
+            }
+        }
+
+        return $changes;
+    }
+
+    private function recordUserLessonPackageAudit(
+        AuditEvent $event,
+        UserLessonPackage $assignment,
+        string $description,
+    ): void {
+        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name']);
+
+        $context = AuditContext::make($description)
+            ->withTarget($assignment, $this->userLessonPackageAuditLabel($assignment))
+            ->withAuthorId(auth()->id())
+            ->withPartnerId($this->requirePartnerId())
+            ->withCreatedAt(Carbon::now());
+
+        if ($assignment->user) {
+            $context = $context->withUser($assignment->user);
+        }
+
+        $this->auditLogger->record($event, $context);
+    }
+
+    private function userLessonPackageAuditLabel(UserLessonPackage $assignment): string
+    {
+        $assignment->loadMissing(['user:id,name,lastname', 'lessonPackage:id,name']);
+
+        $student = $this->userLessonPackageStudentDisplay($assignment);
+        $packageName = trim((string) ($assignment->lessonPackage->name ?? ''));
+        if ($packageName === '') {
+            $packageName = 'Абонемент #'.(int) $assignment->lesson_package_id;
+        }
+
+        return $student.' — '.$packageName;
+    }
+
+    private function userLessonPackageStudentDisplay(UserLessonPackage $assignment): string
+    {
+        if (! $assignment->user) {
+            return 'Ученик #'.(int) $assignment->user_id;
+        }
+
+        $display = trim(($assignment->user->lastname ?? '').' '.($assignment->user->name ?? ''));
+
+        return $display !== '' ? $display : ('Ученик #'.(int) $assignment->user_id);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function userLessonPackageAuditSnapshot(UserLessonPackage $assignment): array
+    {
+        $assignment->loadMissing(['lessonPackage:id,name', 'team:id,title']);
+
+        $feeInt = (int) round((float) ($assignment->fee_amount ?? 0));
+        $endsAt = $assignment->ends_at
+            ? $assignment->ends_at->format('d.m.Y')
+            : 'не задана';
+        $teamTitle = trim((string) ($assignment->team?->title ?? ''));
+
+        return [
+            'package_name' => (string) ($assignment->lessonPackage->name ?? '—'),
+            'fee' => number_format($feeInt, 0, '.', ' ').' ₽',
+            'ends_at' => $endsAt,
+            'team' => $teamTitle !== '' ? $teamTitle : '—',
+            'balance' => ((int) $assignment->lessons_remaining).' / '.((int) $assignment->lessons_total),
+        ];
+    }
+
+    private function formatUserLessonPackageSnapshotDescription(UserLessonPackage $assignment): string
+    {
+        $snapshot = $this->userLessonPackageAuditSnapshot($assignment);
+        $student = $this->userLessonPackageStudentDisplay($assignment);
+
+        return implode("\n", [
+            'Ученик: '.$student,
+            'Абонемент: '.$snapshot['package_name'],
+            'Стоимость: '.$snapshot['fee'],
+            'Окончание: '.$snapshot['ends_at'],
+            'Группа: '.$snapshot['team'],
+            'Остаток: '.$snapshot['balance'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, string>  $before
+     * @param  array<string, string>  $after
+     * @return list<string>
+     */
+    private function diffUserLessonPackageAuditSnapshots(array $before, array $after): array
+    {
+        $labels = [
+            'package_name' => 'Абонемент',
+            'fee' => 'Стоимость',
+            'ends_at' => 'Окончание',
+            'team' => 'Группа',
+            'balance' => 'Остаток',
         ];
 
         $changes = [];
