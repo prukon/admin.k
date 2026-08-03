@@ -85,7 +85,7 @@
                 <div class="personal-data-header">
 
                     <div class="name">
-                        Имя:<span class="name-value">{{ $curUser?->full_name ?: '-' }}</span>
+                        Имя: <span class="name-value">{{ $curUser?->full_name ?: '-' }}</span>
                     </div>
 
                     <div class="birthday">Дата рождения: <span class="birthday-value"> @if($curUser->birthday)
