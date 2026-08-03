@@ -20,7 +20,7 @@ return new class extends Migration
         DB::table('permissions')->upsert(
             [[
                 'name'                => self::PERMISSION_NAME,
-                'description'         => 'Консоль: просмотр и оплата сезонов (месячных начислений)',
+                'description'         => 'Оплата сезонов',
                 'permission_group_id' => $groupId,
                 'is_visible'          => 0,
                 'sort_order'          => 19,

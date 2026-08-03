@@ -73,10 +73,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'lessonPackages.export',          'description' => 'Абонементы: выгрузка занятий и назначений в Excel', 'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 37],
 
             // group_slug setPrices
-            ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Консоль: просмотр и оплата сезонов (месячных начислений)', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],
-            ['name' => 'setPrices.customPayments.view',  'description' => 'Установка цен / Консоль: просмотр дополнительных платежей', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
+            ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Оплата сезонов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],
+            ['name' => 'setPrices.customPayments.view',  'description' => 'Дополнительные платежи', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 20],
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
-            ['name' => 'setPrices.packageAssignments.view', 'description' => 'Установка цен / Консоль: назначение абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
+            ['name' => 'setPrices.packageAssignments.view', 'description' => 'Назначение абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
+            ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 23],
 
             // group_slug contracts
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],
@@ -141,7 +142,6 @@ class PermissionSeeder extends Seeder
 
             // group_slug misc
             ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
-            ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 175],
             // ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
             // ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
             // ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],

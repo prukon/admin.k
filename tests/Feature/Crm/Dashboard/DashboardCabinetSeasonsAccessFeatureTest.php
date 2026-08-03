@@ -222,7 +222,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
 
         $this->assertNotNull($row);
         $this->assertSame('setPrices', $row->slug);
-        $this->assertStringContainsString('Консоль', (string) $row->description);
+        $this->assertSame('Оплата сезонов', (string) $row->description);
     }
 
     public function test_new_partner_assigns_cabinet_seasons_permission_to_user_and_admin_roles(): void
