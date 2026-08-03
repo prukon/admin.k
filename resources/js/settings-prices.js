@@ -282,11 +282,29 @@ document.addEventListener('DOMContentLoaded', function () {
      * Переносит текущие значения select/инпута из DOM в usersPrice,
      * чтобы повторный render не откатывал несохранённый выбор абонемента/цены.
      */
+    function isFormerMemberFlag(value) {
+        return value === true || value === 1 || value === '1';
+    }
+
+    function isFormerMemberRow(up, userTeam) {
+        if (up && isFormerMemberFlag(up.is_former_member)) {
+            return true;
+        }
+        if (userTeam && isFormerMemberFlag(userTeam.is_former_member)) {
+            return true;
+        }
+        return false;
+    }
+
     function syncUsersPriceFromDom() {
         const userRows = document.querySelectorAll('#right_bar .wrap-users .setting-prices-user-card');
         for (let j = 0; j < userRows.length; j++) {
             const userId = userRows[j].getAttribute('data-user-id');
             if (!userId) {
+                continue;
+            }
+            // Бывшие участники — только просмотр: не переносим DOM в состояние.
+            if (userRows[j].getAttribute('data-is-former-member') === '1') {
                 continue;
             }
             const priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
@@ -389,6 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
         for (let i = 0; i < usersPriceList.length; i++) {
             const up = usersPriceList[i];
             const userTeam = usersTeam.find(team => team.id === up.user_id);
+            const isFormer = isFormerMemberRow(up, userTeam);
 
             const eff = effectivePaidFromUserPrice(up);
 
@@ -413,13 +432,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     + 'aria-label="Комментарий к ручной отметке оплаты"></i>';
             }
 
+            // Бывшие участники — только просмотр (без карандаша и режима редактирования).
             let pencilHtml = '';
-            if (canManage && uid) {
+            if (!isFormer && canManage && uid) {
                 pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус и сумму">' +
                     '<i class="fa fa-edit" aria-hidden="true"></i></button>';
             }
 
-            const isEditing = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === uid;
+            const isEditing = !isFormer && uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === uid;
 
             let statusCellHtml = '';
             if (isEditing) {
@@ -455,12 +475,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
-            const packageSelectDisabled = eff ? 'disabled' : '';
+            // Бывшие: всегда disabled. Текущие: как раньше (оплаченные / режим карандаша).
+            let packageSelectDisabled = 'disabled';
             let priceInputDisabled = 'disabled';
-            if (isEditing) {
-                priceInputDisabled = '';
-            } else if (!canManage && !eff) {
-                priceInputDisabled = '';
+            if (!isFormer) {
+                packageSelectDisabled = eff ? 'disabled' : '';
+                if (isEditing) {
+                    priceInputDisabled = '';
+                } else if (!canManage && !eff) {
+                    priceInputDisabled = '';
+                }
             }
 
             const nameHtml = (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.renderText === 'function')
@@ -468,11 +492,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '<span class="setting-prices-monthly-name-text text-truncate" title="' + escapeAttr(userNameFormatted) + '">'
                     + escapeHtml(userNameFormatted) + '</span>';
 
+            const formerBadgeHtml = isFormer
+                ? '<span class="setting-prices-former-badge text-muted" title="Ученик больше не состоит в этой группе">не в группе</span>'
+                : '';
+
+            const formerCardClass = isFormer ? ' setting-prices-user-card--former' : '';
+            const formerDataAttr = isFormer ? ' data-is-former-member="1"' : '';
+
             const userBlock = `
-                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom" data-user-id="${uid}">
+                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}>
                             <div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">
                                 <div class="setting-prices-monthly-name-col min-w-0">
-                                    <span id="${uid}" class="user-name setting-prices-monthly-name-host d-block min-w-0 w-100">${nameHtml}</span>
+                                    <span id="${uid}" class="user-name setting-prices-monthly-name-host d-flex flex-column min-w-0 w-100">${nameHtml}${formerBadgeHtml}</span>
                                 </div>
                                 <div class="setting-prices-monthly-package flex-shrink-0">
                                     <select class="form-select form-select-sm setting-prices-monthly-package-select"
@@ -486,7 +517,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                         class="form-control form-control-sm setting-prices-monthly-price-input"
                                         value="${escapeAttr(formatPriceValue(up.price))}"
                                         ${priceInputDisabled}
-                                        aria-label="Цена">
+                                        aria-label="Цена"
+                                        ${isFormer ? 'readonly' : ''}>
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
@@ -511,6 +543,9 @@ document.addEventListener('DOMContentLoaded', function () {
     $(document).on('change', '#right_bar .wrap-users .setting-prices-monthly-package-select', function () {
         const $select = $(this);
         const $card = $select.closest('.setting-prices-user-card');
+        if ($card.attr('data-is-former-member') === '1') {
+            return;
+        }
         const uid = $card.attr('data-user-id');
         const pkg = findLessonPackage($select.val());
         const $priceInput = $card.find('.setting-prices-monthly-price-input');
@@ -541,7 +576,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $(document).on('input change', '#right_bar .wrap-users .setting-prices-monthly-price-input', function () {
         const $input = $(this);
-        const uid = $input.closest('.setting-prices-user-card').attr('data-user-id');
+        const $card = $input.closest('.setting-prices-user-card');
+        if ($card.attr('data-is-former-member') === '1') {
+            return;
+        }
+        const uid = $card.attr('data-user-id');
         if (!uid) {
             return;
         }
@@ -556,7 +595,11 @@ document.addEventListener('DOMContentLoaded', function () {
     $(document).on('click', '#right_bar .wrap-users .user-price-manual-edit', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        const uid = $(this).attr('data-user-id');
+        const $btn = $(this);
+        if ($btn.closest('.setting-prices-user-card').attr('data-is-former-member') === '1') {
+            return;
+        }
+        const uid = $btn.attr('data-user-id');
         if (!uid) {
             return;
         }
@@ -804,7 +847,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 let updateUsersPrice = function (usersPriceLocal) {
                     const userRows = document.querySelectorAll('.wrap-users .setting-prices-user-card');
                     for (let i = 0; i < usersPriceLocal.length; i++) {
+                        if (isFormerMemberFlag(usersPriceLocal[i].is_former_member)) {
+                            continue;
+                        }
                         for (let j = 0; j < userRows.length; j++) {
+                            if (userRows[j].getAttribute('data-is-former-member') === '1') {
+                                continue;
+                            }
                             let userId = userRows[j].getAttribute('data-user-id');
                             let priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
                             let packageSelect = userRows[j].querySelector('.setting-prices-monthly-package-select');
@@ -821,6 +870,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 usersPrice = updateUsersPrice(usersPrice);
 
+                // В payload только текущие участники; бывшие остаются в локальном usersPrice
+                // и после success снова вливаются в список для UI.
+                const applyPayload = usersPrice.filter(function (row) {
+                    return !isFormerMemberFlag(row.is_former_member);
+                });
+                const formerSnapshot = usersPrice.filter(function (row) {
+                    return isFormerMemberFlag(row.is_former_member);
+                });
+
                 const csrf = $('meta[name="csrf-token"]').attr('content');
                 $.ajax({
                     url: '/admin/setting-prices/set-price-all-users',
@@ -834,10 +892,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     data: JSON.stringify({
                         selectedDate: selectedDate,
                         teamId: lastTeamId,
-                        usersPrice: usersPrice,
+                        usersPrice: applyPayload,
                     }),
                     success: function (response) {
-                        usersPrice = response.usersPrice;
+                        const responsePrices = Array.isArray(response.usersPrice) ? response.usersPrice : [];
+                        // Ответ сервера без бывших — восстанавливаем их из снимка до apply.
+                        usersPrice = responsePrices.concat(formerSnapshot);
                         if (Array.isArray(response.lessonPackages)) {
                             lastLessonPackages = response.lessonPackages;
                         }

@@ -83,6 +83,92 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: Vite-модуль вкладки «по месяцам» — бывшие участники (read-only) + AJAX apply.
+     */
+    public function test_setting_prices_monthly_vite_module_former_members_ajax_handlers_have_valid_javascript_syntax(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('isFormerMemberFlag', $content);
+        $this->assertStringContainsString('is_former_member', $content);
+        $this->assertStringContainsString('data-is-former-member', $content);
+        $this->assertStringContainsString('/admin/setting-prices/get-team-price', $content);
+        $this->assertStringContainsString('/admin/setting-prices/set-price-all-users', $content);
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('$.ajax', $content);
+        $this->assertStringContainsString('formerSnapshot', $content);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: inline JS вкладки «по ученикам» — фильтр former-team-ids + read-only year prices.
+     */
+    public function test_setting_prices_users_tab_former_members_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('data-former-team-ids', $content);
+        $this->assertStringContainsString('is_former_member', $content);
+        $this->assertStringContainsString('/admin/setting-prices/user-year-prices', $content);
+        $this->assertStringContainsString('user-year-prices/save', $content);
+        $this->assertStringContainsString('не в группе', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('$.ajax', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В users.blade.php нет inline <script>');
+
+        $formerScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'data-former-team-ids')
+                && ! str_contains($rawScript, 'is_former_member')) {
+                continue;
+            }
+            $formerScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-users-former-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in setting prices users former script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $formerScriptFound,
+            'В users.blade.php не найден script с обработкой бывших участников (data-former-team-ids / is_former_member)'
+        );
+    }
+
+    /**
      * P1: inline JS модалки выгрузки Excel на календаре школы (fetch + ошибки под полями).
      */
     public function test_school_schedule_export_modal_inline_script_is_valid_javascript(): void

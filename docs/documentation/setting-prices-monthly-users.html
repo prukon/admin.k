@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Установка цен: по месяцам и по ученикам (история бывших участников)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="setting-prices-monthly-users">Установка цен → «По месяцам» и «По ученикам»</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/setting-prices-monthly-users.html</code>.
+    CRM: <code>/admin/setting-prices/monthly</code>, <code>/admin/setting-prices/users</code>
+    (вкладки в <code>admin/SettingPrices/index</code>).
+  </div>
+
+  <div class="note">
+    <b>Кратко.</b> Раздел задаёт и показывает месячные начисления <code>users_prices</code> в разрезе группы
+    (<code>team_id</code>). С 2026‑08 обе вкладки умеют <b>показывать историю учеников, которых уже нет в группе</b>
+    (бывшие участники), но <b>не дают их редактировать</b>. Источник истины по членству — pivot
+    <code>team_user</code> (<a href="/docs/documentation/student-team-membership">student-team-membership</a>);
+    модель данных начислений — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
+  </div>
+
+  <h2 id="permissions">1) Права</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td><code>setPrices.view</code></td><td>Доступ к разделу «Установка цен» (middleware на все URL вкладок monthly/users)</td></tr>
+      <tr><td><code>setPrices.manualPaid.manage</code></td><td>Карандаш ручной оплаты месяца (<code>POST …/manual-paid</code>). У бывших участников UI скрывает карандаш; API всё равно требует текущее членство → <b>422</b></td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Не относится к этим вкладкам — см. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></td></tr>
+    </tbody>
+  </table>
+  <p class="small">Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b>. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
+
+  <h2 id="tabs">2) Вкладки</h2>
+  <table>
+    <thead><tr><th>Вкладка</th><th>URL</th><th>Route</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>По месяцам</td>
+        <td><code>/admin/setting-prices/monthly</code></td>
+        <td><code>admin.settingPrices.indexMenu</code></td>
+        <td>Слева группы + тариф месяца; справа ученики выбранной группы за выбранный месяц</td>
+      </tr>
+      <tr>
+        <td>По ученикам</td>
+        <td><code>/admin/setting-prices/users</code></td>
+        <td><code>admin.settingPrices.users</code></td>
+        <td>Слева ученики (+ фильтр группы); справа 12 месяцев выбранного года для пары ученик+группа</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="former-members">3) Бывшие участники группы (новый функционал)</h2>
+  <div class="ok">
+    <b>Зачем.</b> Ученик мог оплатить месяц в группе «Алмаз», затем быть переведён в «Дубль».
+    Начисление в <code>users_prices</code> остаётся, но без pivot в «Алмаз» старый UI его не показывал.
+    Теперь история видна на обеих вкладках <b>только для просмотра</b>.
+  </div>
+
+  <h3 id="former-definition">3.1) Кто считается «бывшим»</h3>
+  <ul>
+    <li>Ученик <b>не</b> состоит в выбранной группе по <code>team_user</code> (в т.ч. после soft-delete группы ученики отвязываются от pivot — см. <a href="/docs/documentation/student-team-membership#team-delete">student-team-membership §1.2</a>).</li>
+    <li>Есть история начислений с <code>users_prices.price &gt; 0</code> по этой группе (критерий зависит от вкладки — ниже).</li>
+    <li>Отключённый ученик (<code>is_enabled=0</code>), <b>ещё состоящий в pivot</b>, на вкладке «по месяцам» <b>не</b> показывается ни как текущий, ни как бывший (как и раньше: в список месяца попадают только <code>is_enabled=1</code> из pivot).</li>
+  </ul>
+  <p>Хелпер: <code>UserPriceTeamMembership::studentHasPositivePriceHistoryForTeam($userId, $teamId)</code>.</p>
+
+  <h3 id="former-monthly">3.2) Вкладка «По месяцам»</h3>
+  <ul>
+    <li><b>Endpoint:</b> <code>POST /admin/setting-prices/get-team-price</code> (<code>getTeamPrice</code>) — JSON.</li>
+    <li><b>Текущие:</b> активные ученики группы → <code>UserPrice::firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>, флаг <code>is_former_member=false</code>.</li>
+    <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
+    <li><b>Порядок:</b> сначала текущие (ФИО), затем бывшие (ФИО).</li>
+    <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша; «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>).</li>
+    <li><b>Пустая группа:</b> если текущих нет, но есть бывшие с <code>price &gt; 0</code> за месяц → <code>success: true</code> (раньше было <code>false</code>).</li>
+  </ul>
+  <div class="warn">
+    <b>Не меняют строки бывших:</b>
+    <code>setTeamPrice</code> / <code>setPriceAllTeams</code> (снимок только по <code>$team-&gt;students()</code>),
+    <code>setPriceAllUsers</code> (skip без членства),
+    <code>setManualPaid</code> (<b>422</b> без членства).
+    Non-AJAX варианты apply → <b>302</b> на monthly, запись бывшего в БД не меняется.
+  </div>
+
+  <h3 id="former-users">3.3) Вкладка «По ученикам»</h3>
+  <ul>
+    <li><b>Список (server render):</b> активные ученики с группами в pivot <b>или</b> с любой историей <code>users_prices.price &gt; 0</code> по группам партнёра.</li>
+    <li>У строки: <code>data-team-ids</code> (текущие) + <code>data-former-team-ids</code> (группы с историей <code>price &gt; 0</code>, которых нет в pivot). Подпись «ранее: …».</li>
+    <li><b>Фильтр группы (JS):</b> ученик виден, если группа в текущих <b>или</b> в former-ids. Критерий попадания в former-ids — <b>любой</b> месяц с <code>price &gt; 0</code> по группе (не только выбранный год справа).</li>
+    <li><b>Подробно / год:</b> <code>POST …/user-year-prices</code>. Если нет членства, но есть история <code>price &gt; 0</code> → <b>200</b>, <code>is_former_member=true</code>, <code>can_manage_manual_paid=false</code>, все 12 месяцев read-only.</li>
+    <li><b>Save:</b> <code>POST …/user-year-prices/save</code> — только при текущем членстве; для бывших <b>422</b> (и AJAX, и non-AJAX; не пустой 200). Ручная оплата — то же правило членства.</li>
+    <li>Заголовок справа для бывшей группы: «{группа} · не в группе».</li>
+  </ul>
+
+  <h2 id="endpoints">4) Endpoint'ы (monthly / users)</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>URL</th><th>Route</th><th>Контракт</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/monthly</code></td>
+        <td><code>admin.settingPrices.indexMenu</code></td>
+        <td>HTML; <code>activeTab=monthly</code>; JS через <code>@vite(['resources/js/settings-prices.js'])</code></td>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/admin/setting-prices/users</code></td>
+        <td><code>admin.settingPrices.users</code></td>
+        <td>HTML; <code>activeTab=users</code>; inline JS в <code>users.blade.php</code></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/get-team-price</code></td>
+        <td><code>getTeamPrice</code></td>
+        <td>JSON: <code>success</code>, <code>usersTeam[]</code> (+ <code>is_former_member</code>), <code>usersPrice[]</code> (+ <code>is_former_member</code>), <code>lessonPackages</code>, <code>can_manage_manual_paid</code>. Чужой партнёр / нет группы → <b>404</b></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/set-team-price</code></td>
+        <td><code>setTeamPrice</code></td>
+        <td>AJAX JSON / non-AJAX <b>302</b> → monthly. Снимок тарифа только текущим ученикам</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/set-price-all-teams</code></td>
+        <td><code>setPriceAllTeams</code></td>
+        <td>То же: массовый снимок по текущему составу групп</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/set-price-all-users</code></td>
+        <td><code>setPriceAllUsers</code></td>
+        <td>AJAX JSON / non-AJAX <b>302</b>. Skip без <code>studentBelongsToTeam</code></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/user-year-prices</code></td>
+        <td><code>setting-prices.user-year-prices</code></td>
+        <td>JSON год. Бывший: <code>is_former_member=true</code>. Нет членства и нет истории <code>price&gt;0</code> → <b>422</b>. Чужой ученик → <b>404</b></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/user-year-prices/save</code></td>
+        <td><code>setting-prices.user-year-prices.save</code></td>
+        <td>AJAX JSON / non-AJAX <b>302</b> на users при успехе. Без членства → <b>422</b> JSON (в т.ч. non-AJAX)</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/admin/setting-prices/manual-paid</code></td>
+        <td><code>setting-prices.manual-paid</code></td>
+        <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="code">5) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual</li>
+    <li><code>app/Support/UserPriceTeamMembership.php</code> — <code>studentBelongsToTeam</code>, <code>studentHasPositivePriceHistoryForTeam</code></li>
+    <li><code>resources/js/settings-prices.js</code> — UI monthly (Vite)</li>
+    <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
+  </ul>
+
+  <h2 id="tests">6) Feature-тесты</h2>
+  <ul>
+    <li><code>SettingPricesMonthlyFormerMembersFeatureTest</code> — список, флаги, apply не трогает бывших, нет auto-create нулей</li>
+    <li><code>SettingPricesMonthlyFormerMembersAccessFeatureTest</code> — guest / 403 / 200, AJAX-контракт, non-AJAX 302, foreign 404, manual-paid</li>
+    <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
+    <li><code>SettingPricesUsersFormerMembersAccessFeatureTest</code> — доступ, AJAX/non-AJAX save бывшего → 422</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>settings-prices.js</code> + inline JS users (former markers, <code>node --check</code>)</li>
+  </ul>
+  <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php</code></pre>
+
+  <h2 id="related">7) Связанные страницы</h2>
+  <p class="small">
+    <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a> ·
+    <a href="/docs/documentation/student-team-membership">student-team-membership</a> ·
+    <a href="/docs/documentation/setting-prices-custom-payments">доп. платежи</a> ·
+    <a href="/docs/documentation/dashboard-cabinet">консоль /cabinet</a> ·
+    <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>
+  </p>
+</div>
+</body>
+</html>

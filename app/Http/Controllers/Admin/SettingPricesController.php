@@ -229,14 +229,7 @@ class SettingPricesController extends AdminBaseController
         $this->ensureTeamPricesForMonth($allTeams, $monthDate);
         $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
 
-        // Список активных учеников текущего партнёра (с хотя бы одной группой в pivot)
-        $users = User::with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')])
-            ->where('partner_id', $partnerId)
-            ->where('is_enabled', 1)
-            ->whereHas('teams', fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at'))
-            ->orderBy('lastname')
-            ->orderBy('name')
-            ->get();
+        $users = $this->usersForPricesUsersTab($partnerId, $allTeams);
 
         return view(
             'admin.SettingPrices.index',
@@ -248,6 +241,86 @@ class SettingPricesController extends AdminBaseController
                 'users'       => $users,
             ]
         );
+    }
+
+    /**
+     * Ученики для вкладки «по ученикам»: текущие участники групп + бывшие
+     * с users_prices.price &gt; 0 хотя бы за один месяц (для фильтра по группе).
+     *
+     * @param  \Illuminate\Support\Collection<int, Team>|iterable<int, Team>  $allTeams
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    protected function usersForPricesUsersTab(int $partnerId, $allTeams)
+    {
+        $teamIds = collect($allTeams)->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $teamTitles = collect($allTeams)->pluck('title', 'id');
+
+        $historicalUserIds = [];
+        if ($teamIds !== []) {
+            $historicalUserIds = UserPrice::query()
+                ->where('price', '>', 0)
+                ->whereIn('team_id', $teamIds)
+                ->distinct()
+                ->pluck('user_id')
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+        }
+
+        $users = User::with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')])
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->where(function ($q) use ($partnerId, $historicalUserIds) {
+                $q->whereHas(
+                    'teams',
+                    fn ($tq) => $tq->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')
+                );
+                if ($historicalUserIds !== []) {
+                    $q->orWhereIn('users.id', $historicalUserIds);
+                }
+            })
+            ->orderBy('lastname')
+            ->orderBy('name')
+            ->get();
+
+        $userIds = $users->pluck('id')->map(static fn ($id) => (int) $id)->all();
+
+        $priceTeamsByUser = collect();
+        if ($userIds !== [] && $teamIds !== []) {
+            $priceTeamsByUser = UserPrice::query()
+                ->select('user_id', 'team_id')
+                ->where('price', '>', 0)
+                ->whereIn('user_id', $userIds)
+                ->whereIn('team_id', $teamIds)
+                ->distinct()
+                ->get()
+                ->groupBy('user_id')
+                ->map(static function ($rows) {
+                    return $rows->pluck('team_id')->map(static fn ($id) => (int) $id)->unique()->values()->all();
+                });
+        }
+
+        foreach ($users as $user) {
+            $currentIds = $user->teams
+                ->pluck('id')
+                ->map(static fn ($id) => (int) $id)
+                ->all();
+            $priceTeamIds = $priceTeamsByUser->get($user->id, []);
+            $formerIds = array_values(array_diff($priceTeamIds, $currentIds));
+
+            $formerTeams = [];
+            foreach ($formerIds as $fid) {
+                $title = $teamTitles->get($fid) ?? $teamTitles->get((string) $fid);
+                $formerTeams[] = [
+                    'id' => $fid,
+                    'title' => (string) ($title ?? ('#' . $fid)),
+                ];
+            }
+
+            $user->setAttribute('former_team_ids', $formerIds);
+            $user->setAttribute('former_teams', $formerTeams);
+        }
+
+        return $users;
     }
 
     public function customPayments()
@@ -594,16 +667,25 @@ class SettingPricesController extends AdminBaseController
             ], 404);
         }
 
-        $usersTeam = $team->students()
+        $selectedDate = $this->formatedDate($selectedDate);
+
+        // Все id в pivot (в т.ч. отключённые) — чтобы disabled-ученик группы
+        // не попал в блок «бывших» с бейджем «не в группе».
+        $memberIds = $team->students()
+            ->pluck('users.id')
+            ->map(static fn ($id) => (int) $id)
+            ->all();
+
+        $currentStudents = $team->students()
             ->where('is_enabled', true)
             ->orderBy('lastname', 'asc')
             ->orderBy('name', 'asc')
             ->get();
 
-        $usersPrice   = [];
-        $selectedDate = $this->formatedDate($selectedDate);
+        $usersTeam  = [];
+        $usersPrice = [];
 
-        foreach ($usersTeam as $user) {
+        foreach ($currentStudents as $user) {
             $userPrice = UserPrice::firstOrCreate(
                 [
                     'new_month' => $selectedDate,
@@ -618,12 +700,30 @@ class SettingPricesController extends AdminBaseController
             $userPrice->name = $user->name;
             $userPrice->refresh();
             $userPrice->load('user');
+            $userPrice->setAttribute('is_former_member', false);
+            $usersPrice[] = $userPrice;
+
+            $user->setAttribute('is_former_member', false);
+            $usersTeam[] = $user;
+        }
+
+        [$formerUsers, $formerPrices] = $this->formerMemberPricesForTeamMonth(
+            $team,
+            $partnerId,
+            $selectedDate,
+            $memberIds
+        );
+
+        foreach ($formerUsers as $user) {
+            $usersTeam[] = $user;
+        }
+        foreach ($formerPrices as $userPrice) {
             $usersPrice[] = $userPrice;
         }
 
         $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
 
-        if ($usersTeam->count() > 0) {
+        if (count($usersTeam) > 0) {
             return response()->json([
                 'success'                  => true,
                 'usersTeam'                => $usersTeam,
@@ -637,6 +737,58 @@ class SettingPricesController extends AdminBaseController
             'success'        => false,
             'lessonPackages' => $lessonPackages,
         ]);
+    }
+
+    /**
+     * Исторические начисления за месяц у учеников, которых уже нет в pivot группы.
+     * Только существующие строки с price &gt; 0; firstOrCreate не вызывается.
+     *
+     * @param  list<int>  $memberIds  Актуальные user_id в team_user (включая is_enabled=0).
+     * @return array{0: list<User>, 1: list<UserPrice>}
+     */
+    protected function formerMemberPricesForTeamMonth(
+        Team $team,
+        int $partnerId,
+        string $monthDate,
+        array $memberIds
+    ): array {
+        $query = UserPrice::query()
+            ->where('team_id', $team->id)
+            ->where('new_month', $monthDate)
+            ->where('price', '>', 0)
+            ->with(['user' => static function ($q) use ($partnerId) {
+                $q->where('partner_id', $partnerId);
+            }]);
+
+        if ($memberIds !== []) {
+            $query->whereNotIn('user_id', $memberIds);
+        }
+
+        $rows = $query->get()
+            ->filter(static fn (UserPrice $row) => $row->user !== null)
+            ->sortBy([
+                static fn (UserPrice $row) => mb_strtolower((string) ($row->user->lastname ?? '')),
+                static fn (UserPrice $row) => mb_strtolower((string) ($row->user->name ?? '')),
+                static fn (UserPrice $row) => (int) $row->user_id,
+            ])
+            ->values();
+
+        $users  = [];
+        $prices = [];
+
+        foreach ($rows as $userPrice) {
+            /** @var User $user */
+            $user = $userPrice->user;
+            $user->setAttribute('is_former_member', true);
+
+            $userPrice->name = $user->name;
+            $userPrice->setAttribute('is_former_member', true);
+
+            $users[]  = $user;
+            $prices[] = $userPrice;
+        }
+
+        return [$users, $prices];
     }
 
     /**
@@ -1257,7 +1409,7 @@ class SettingPricesController extends AdminBaseController
         $teamId = (int) $data['team_id'];
         $year   = (int) $data['year'];
 
-        $user = $this->findPartnerStudent($userId, $partnerId);
+        $user = $this->findPartnerEnabledStudent($userId, $partnerId);
 
         if (! $user) {
             return response()->json([
@@ -1267,7 +1419,18 @@ class SettingPricesController extends AdminBaseController
         }
 
         $team = $this->findPartnerTeam($teamId, $partnerId);
-        if (! $team || ! UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId)) {
+        if (! $team) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Группа не найдена или ученик в ней не состоит.',
+            ], 422);
+        }
+
+        $isMember = UserPriceTeamMembership::studentBelongsToTeam($user, $teamId, $partnerId);
+        $isFormer = ! $isMember
+            && UserPriceTeamMembership::studentHasPositivePriceHistoryForTeam($userId, $teamId);
+
+        if (! $isMember && ! $isFormer) {
             return response()->json([
                 'success' => false,
                 'message' => 'Группа не найдена или ученик в ней не состоит.',
@@ -1307,7 +1470,10 @@ class SettingPricesController extends AdminBaseController
 
         return response()->json([
             'success'                => true,
-            'can_manage_manual_paid' => $request->user()->can('setPrices.manualPaid.manage'),
+            'is_former_member'       => $isFormer,
+            'can_manage_manual_paid' => $isFormer
+                ? false
+                : $request->user()->can('setPrices.manualPaid.manage'),
             'user'    => [
                 'id'        => $user->id,
                 'name'      => $user->name,
@@ -1470,6 +1636,21 @@ class SettingPricesController extends AdminBaseController
         if (! $user->teams()->where('teams.partner_id', $partnerId)->whereNull('teams.deleted_at')->exists()) {
             return null;
         }
+
+        return $user;
+    }
+
+    /**
+     * Активный ученик партнёра (для read-only истории цен без требования pivot).
+     */
+    private function findPartnerEnabledStudent(int $userId, int $partnerId): ?User
+    {
+        /** @var User|null $user */
+        $user = User::query()
+            ->whereKey($userId)
+            ->where('partner_id', $partnerId)
+            ->where('is_enabled', 1)
+            ->first();
 
         return $user;
     }

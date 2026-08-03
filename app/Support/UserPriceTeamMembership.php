@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserPrice;
 use Illuminate\Database\Eloquent\Builder;
 
 final class UserPriceTeamMembership
@@ -47,5 +48,22 @@ final class UserPriceTeamMembership
             ->value('teams.id');
 
         return $id ? (int) $id : null;
+    }
+
+    /**
+     * Есть ли у ученика хотя бы одно начисление с price &gt; 0 по группе
+     * (история для UI «Цены», в т.ч. после ухода из группы).
+     */
+    public static function studentHasPositivePriceHistoryForTeam(int $userId, int $teamId): bool
+    {
+        if ($userId <= 0 || $teamId <= 0) {
+            return false;
+        }
+
+        return UserPrice::query()
+            ->where('user_id', $userId)
+            ->where('team_id', $teamId)
+            ->where('price', '>', 0)
+            ->exists();
     }
 }

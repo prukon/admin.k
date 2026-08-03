@@ -135,8 +135,7 @@
     </div>
 
 @section('scripts')
-    {{-- Vite public/build сейчас root-only; бандл кладём в public/js до нормальной сборки --}}
-    <script type="module" src="{{ asset('js/settings-prices.js') }}?v={{ @filemtime(public_path('js/settings-prices.js')) ?: time() }}"></script>
+    @vite(['resources/js/settings-prices.js'])
     <script>
         $('#single-select-date').on('change', function () {
             const selectedMonth = $(this).val();

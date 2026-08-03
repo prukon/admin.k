@@ -49,6 +49,7 @@ class DocumentationController extends Controller
         'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
         'dashboard-cabinet'           => 'Консоль (/cabinet): блоки оплат (доп./абонементы/сезоны), setPrices.customPayments/packageAssignments/cabinetSeasons',
         'setting-prices-custom-payments' => 'Установка цен → Дополнительные платежи: team_id, customPayments.view (не в базовых ролях), manualPaid.manage',
+        'setting-prices-monthly-users' => 'Установка цен → По месяцам / По ученикам: бывшие участники (is_former_member), read-only история users_prices',
         'set-prices-package-assignments' => 'Право setPrices.packageAssignments.view: вкладка назначений + блок на консоли, не в базовых ролях',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
         'admin-users'                 => 'Ученики (админка): /admin/users только role=user, импорт Excel (users.import), родители, договор, welcome-письмо (send_welcome_email / лид / resend), пол, комментарий, team_ids',

@@ -30,22 +30,36 @@
                         $teamsList = $user->teams->sortBy('title')->values();
                         $teamIds = $teamsList->pluck('id')->implode(',');
                         $teamCount = $teamsList->count();
+                        $formerTeams = collect($user->former_teams ?? []);
+                        $formerTeamIds = $formerTeams->pluck('id')->implode(',');
                     @endphp
 
                     <div class="mb-2 wrap-team user-row setting-prices-user-row d-flex align-items-center flex-nowrap w-100 min-w-0"
                          data-user-id="{{ $user->id }}"
                          data-user-name="{{ $fullName }}"
                          data-team-ids="{{ $teamIds }}"
-                         data-team-count="{{ $teamCount }}">
+                         data-team-count="{{ $teamCount }}"
+                         data-former-team-ids="{{ $formerTeamIds }}">
                         <div class="team-name setting-prices-user-name-col min-w-0 flex-grow-1">
                             <span class="setting-prices-user-name-text">{{ ($idx + 1) . '. ' . $fullName }}</span>
                             <div class="small text-muted user-row-teams">
-                                @if($teamsList->isEmpty())
+                                @if($teamsList->isEmpty() && $formerTeams->isEmpty())
                                     Группа не указана
                                 @else
                                     @foreach($teamsList as $team)
                                         <span class="user-row-team-label" data-team-id="{{ $team->id }}">{{ $team->title }}</span>@if(!$loop->last), @endif
                                     @endforeach
+                                    @if($formerTeams->isNotEmpty())
+                                        @if($teamsList->isNotEmpty())
+                                            <span class="user-row-former-sep"> · </span>
+                                        @endif
+                                        <span class="user-row-former-prefix">ранее:</span>
+                                        @foreach($formerTeams as $formerTeam)
+                                            <span class="user-row-team-label user-row-former-team-label"
+                                                  data-team-id="{{ $formerTeam['id'] }}"
+                                                  title="Ученик больше не состоит в этой группе">{{ $formerTeam['title'] }}</span>@if(!$loop->last), @endif
+                                        @endforeach
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -282,24 +296,46 @@
             function resolveTeamContext(row) {
                 const filterTeamId = getFilterTeamId();
                 const teamIds = (row.attr('data-team-ids') || '').split(',').filter(Boolean);
+                const formerIds = (row.attr('data-former-team-ids') || '').split(',').filter(Boolean);
                 const teamCount = Number(row.attr('data-team-count') || teamIds.length || 0);
 
                 if (filterTeamId) {
-                    if (!teamIds.includes(filterTeamId)) {
-                        return null;
+                    if (teamIds.includes(filterTeamId)) {
+                        return {
+                            id: filterTeamId,
+                            title: getFilterTeamTitle(),
+                            isFormer: false
+                        };
                     }
-                    return {
-                        id: filterTeamId,
-                        title: getFilterTeamTitle()
-                    };
+                    if (formerIds.includes(filterTeamId)) {
+                        return {
+                            id: filterTeamId,
+                            title: getFilterTeamTitle(),
+                            isFormer: true
+                        };
+                    }
+                    return null;
                 }
 
                 if (teamCount <= 1 && teamIds.length === 1) {
                     const onlyId = teamIds[0];
-                    const label = row.find('.user-row-team-label[data-team-id="' + onlyId + '"]').text().trim();
+                    const label = row.find('.user-row-team-label[data-team-id="' + onlyId + '"]').not('.user-row-former-team-label').first().text().trim()
+                        || row.find('.user-row-team-label[data-team-id="' + onlyId + '"]').first().text().trim();
                     return {
                         id: onlyId,
-                        title: label
+                        title: label,
+                        isFormer: false
+                    };
+                }
+
+                if (teamIds.length === 0 && formerIds.length === 1) {
+                    const onlyFormerId = formerIds[0];
+                    const label = row.find('.user-row-former-team-label[data-team-id="' + onlyFormerId + '"]').text().trim()
+                        || getFilterTeamTitle();
+                    return {
+                        id: onlyFormerId,
+                        title: label,
+                        isFormer: true
                     };
                 }
 
@@ -329,11 +365,13 @@
                 $('#left_bar .user-row').each(function () {
                     const row = $(this);
                     const btn = row.find('.user-detail-btn');
-                    const teamCount = Number(row.attr('data-team-count') || 0);
                     const teamIds = (row.attr('data-team-ids') || '').split(',').filter(Boolean);
-                    const count = teamCount || teamIds.length;
+                    const formerIds = (row.attr('data-former-team-ids') || '').split(',').filter(Boolean);
 
-                    const disabled = !filterTeamId && count > 1;
+                    const canResolveWithoutFilter =
+                        teamIds.length === 1
+                        || (teamIds.length === 0 && formerIds.length === 1);
+                    const disabled = !filterTeamId && !canResolveWithoutFilter;
 
                     btn.prop('disabled', false);
                     btn.removeClass('disabled is-visually-disabled');
@@ -450,9 +488,10 @@
 
                 lastPricesPayload = response;
                 lastLessonPackages = Array.isArray(response.lessonPackages) ? response.lessonPackages : [];
-                const canManual = !!response.can_manage_manual_paid;
+                const isFormer = !!response.is_former_member;
+                const canManual = !isFormer && !!response.can_manage_manual_paid;
 
-                let html = '<div class="user-prices-year-table">';
+                let html = '<div class="user-prices-year-table' + (isFormer ? ' user-prices-year-table--former' : '') + '">';
                 html += '<div class="user-prices-year-header d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0 mb-2 pb-2 border-bottom small text-muted">';
                 html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1">Месяц</div>';
                 html += '<div class="setting-prices-monthly-package flex-shrink-0 user-prices-year-header-package">Абонемент</div>';
@@ -462,7 +501,8 @@
 
                 response.months.forEach(function (item) {
                     const effectivePaid = !!item.effective_is_paid;
-                    const disabledAttr = effectivePaid ? 'disabled' : '';
+                    // Бывшие участники — только просмотр; текущие — как раньше (оплаченные блокируются).
+                    const disabledAttr = (isFormer || effectivePaid) ? 'disabled' : '';
                     const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
 
                     const hasRow = !!item.has_price_row;
@@ -505,7 +545,7 @@
                         '<div class="setting-prices-monthly-edit-wrap">' + pencilHtml + '</div>' +
                         '</div>';
 
-                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom" data-new-month="' + item.new_month + '">';
+                    html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + '>';
                     html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">';
                     html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">';
                     html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + escapeHtml(item.month_label) + '</span>';
@@ -520,7 +560,9 @@
                     html += '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
                         'data-new-month="' + item.new_month + '" ' +
                         'data-effective-paid="' + (effectivePaid ? '1' : '0') + '" ' +
-                        'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + disabledAttr + ' aria-label="Цена за месяц">';
+                        'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + disabledAttr +
+                        (isFormer ? ' readonly' : '') +
+                        ' aria-label="Цена за месяц">';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-status flex-shrink-0 min-w-0 user-price-status-cell">';
                     html += statusViewHtml;
@@ -532,7 +574,8 @@
                 html += '</div>';
 
                 wrapper.html(html);
-                btnSave.prop('disabled', false);
+                // Бывшие участники: без «Применить».
+                btnSave.prop('disabled', isFormer);
 
                 if (typeof window.initManualPaidBadgeTooltips === 'function') {
                     window.initManualPaidBadgeTooltips(wrapper.get(0));
@@ -629,9 +672,12 @@
                 $('#left_bar .user-row').each(function () {
                     const item = $(this);
                     const itemTeamIds = (item.attr('data-team-ids') || '').split(',').filter(Boolean);
+                    const formerTeamIds = (item.attr('data-former-team-ids') || '').split(',').filter(Boolean);
                     const userName = (item.attr('data-user-name') || '').toLowerCase();
 
-                    const matchTeam = !teamId || itemTeamIds.includes(teamId.toString());
+                    const matchTeam = !teamId
+                        || itemTeamIds.includes(teamId.toString())
+                        || formerTeamIds.includes(teamId.toString());
                     const matchName = !query || userName.indexOf(query) !== -1;
 
                     if (matchTeam && matchName) {
@@ -653,6 +699,9 @@
                 $('#user-prices-table-wrapper').on('click', '.user-price-manual-edit', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (lastPricesPayload && lastPricesPayload.is_former_member) {
+                        return;
+                    }
                     const newMonth = $(this).data('new-month');
                     if (!newMonth) {
                         return;
@@ -776,7 +825,11 @@
                     editingNewMonth = null;
 
                     $('#user-detail-name').text(userName);
-                    $('#user-detail-team').text(teamContext.title || '');
+                    if (teamContext.isFormer) {
+                        $('#user-detail-team').text((teamContext.title || '') + ' · не в группе');
+                    } else {
+                        $('#user-detail-team').text(teamContext.title || '');
+                    }
 
                     loadUserYearPrices();
                 });
@@ -804,6 +857,11 @@
                     const userId = currentUserId;
                     const teamId = currentTeamId;
                     if (!userId || !teamId) {
+                        return;
+                    }
+
+                    if (lastPricesPayload && lastPricesPayload.is_former_member) {
+                        showToast('Цены бывшего участника группы доступны только для просмотра.', true);
                         return;
                     }
 
