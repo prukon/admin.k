@@ -158,6 +158,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     private function issuePublicPayToken(UserLessonPackage $assignment): string
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $issue = $this->postJson(
             route('admin.lesson-packages.assignments.public-pay-link', ['assignment' => $assignment->id]),
@@ -374,6 +375,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_update_assignment_fee_does_not_invalidate_when_assignment_paid(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createUnpaidAssignment(6500.0);
         UserLessonPackage::query()->whereKey($ulp->id)->update(['is_paid' => true]);
 
@@ -552,6 +554,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_update_assignment_invalidates_when_fee_unchanged_but_payment_amount_mismatch(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ulp = $this->seedAssignmentWithTeam(6000.0);
         $token = bin2hex(random_bytes(32));
@@ -786,6 +789,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_public_pay_endpoints_return_200_for_authenticated_user_with_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ulp = $this->seedAssignmentWithTeam(500.0);
 
@@ -915,6 +919,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_update_assignment_non_ajax_redirects_updates_db_and_invalidates_public_pay(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ulp = $this->seedAssignmentWithTeam(6500.0);
 
@@ -955,6 +960,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_update_assignment_non_ajax_validation_failure_redirects_back_not_empty_200(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createUnpaidAssignment(500.0);
 
         $response = $this->from(route('admin.lesson-packages.assignments'))
@@ -976,6 +982,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
     public function test_update_assignment_ajax_validation_returns_422_with_field_errors(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $paid = $this->createUnpaidAssignment(500.0);
         UserLessonPackage::query()->whereKey($paid->id)->update(['is_paid' => true]);
 

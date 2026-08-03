@@ -47,6 +47,7 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
     public function test_lesson_packages_html_pages_return_200_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('scheduleSlots.table');
 
         $this->get(route('admin.lesson-packages.index'))
@@ -105,6 +106,7 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
     public function test_school_schedule_calendar_json_and_safe_posts_return_200_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $studentId = (int) $this->user->id;
 

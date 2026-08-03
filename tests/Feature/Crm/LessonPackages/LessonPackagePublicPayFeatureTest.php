@@ -107,6 +107,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
     public function test_issue_public_pay_link_422_when_tbank_not_configured(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createUnpaidAssignment();
 
         $this->postJson(route('admin.lesson-packages.assignments.public-pay-link', ['assignment' => $ulp->id]))
@@ -117,6 +118,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
     public function test_issue_public_pay_link_422_when_already_paid(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ulp = $this->createUnpaidAssignment();
         UserLessonPackage::query()->whereKey($ulp->id)->update(['is_paid' => true]);
@@ -129,6 +131,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
     public function test_issue_public_pay_link_returns_https_url_and_public_page_loads_with_fake_init(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $this->attachStudentToTeam();
         $ulp = $this->createUnpaidAssignment();

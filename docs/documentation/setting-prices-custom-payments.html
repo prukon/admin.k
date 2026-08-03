@@ -43,9 +43,9 @@
     </tbody>
   </table>
   <div class="note">
-    Право <code>setPrices.customPayments.view</code> входит в базовый набор ролей <code>user</code> и <code>admin</code>
-    (<code>config/role_base_permissions.php</code>) — для <b>новых</b> партнёров. У <code>trainer</code> по умолчанию <b>нет</b>.
-    Без права блок доп. платежей на <code>/cabinet</code> не показывается, даже если записи в БД есть.
+    Право <code>setPrices.customPayments.view</code> <b>не</b> входит в базовый набор ролей <code>user</code>, <code>admin</code> и <code>trainer</code>
+    (<code>config/role_base_permissions.php</code>) — для <b>новых</b> партнёров выдаётся вручную в матрице прав.
+    Существующих партнёров конфиг не меняет. Без права блок доп. платежей на <code>/cabinet</code> не показывается, даже если записи в БД есть.
   </div>
   <p>Гость — <b>302/401/403</b>. Без <code>setPrices.view</code> — <b>403</b> на раздел. Без <code>setPrices.customPayments.view</code> — <b>403</b> на page/data/store/search. Без <code>setPrices.manualPaid.manage</code> — <b>403</b> на update/delete/manual-paid. Успешные ответы — <b>200</b> / <b>422</b> / <b>404</b> (не <b>500</b>, не пустой <b>200</b>).</p>
 

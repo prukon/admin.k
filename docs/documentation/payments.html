@@ -531,7 +531,14 @@
   <h4 id="ulp-public-pay">3.4.1 Публичная ссылка на оплату абонемента (T‑Bank СБП, без авторизации)</h4>
   <div class="note">
     <b>Назначение:</b> родитель или ученик оплачивает назначенный абонемент по HTTPS-ссылке из CRM, без входа в кабинет. Только <b>T‑Bank СБП</b> (QR / переход на НСПК); Робокасса и оплата картой на этой странице недоступны.
-    <br><b>Выдача ссылки:</b> вкладка «Назначение абонементов» → кнопка «Скопировать ссылку на оплату» → <code>POST /admin/lesson-packages/assignments/{assignment}/public-pay-link</code> (<code>lessonPackages.view</code>). Ответ JSON <code>{ url }</code> — абсолютный URL вида <code>/pay/ulp/{token}</code>. <b>Init T‑Bank не выполняется</b> при выдаче ссылки — только ротация токена в <code>user_lesson_package_public_pay_links</code>. Успешная выдача/перевыпуск пишет audit <code>user_lesson_package.public_pay_link_issued</code> (модалка «История» на вкладке назначений — <a href="/docs/documentation/lesson-packages#assignments-history">lesson-packages §assignments-history</a>).
+    <br><b>Выдача ссылки:</b> вкладка «Назначение абонементов» → кнопка «Скопировать ссылку на оплату» → <code>POST /admin/lesson-packages/assignments/{assignment}/public-pay-link</code>
+    (<code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>).
+    Ответ JSON <code>{ url }</code> — абсолютный URL вида <code>/pay/ulp/{token}</code>.
+    <b>Init T‑Bank не выполняется</b> при выдаче ссылки — только ротация токена в <code>user_lesson_package_public_pay_links</code>.
+    Успешная выдача/перевыпуск пишет audit <code>user_lesson_package.public_pay_link_issued</code>
+    (модалка «История» на вкладке назначений —
+    <a href="/docs/documentation/lesson-packages#assignments-history">lesson-packages §assignments-history</a>).
+    Право назначений — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
     <br><b>Открытие страницы:</b> <code>GET /pay/ulp/{token}</code> → <code>PublicLessonPackagePayController::show</code> → <code>UserLessonPackagePublicPayService::resolvePublicShow()</code>. При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
     <br>Подробнее про вкладку назначений — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § «Назначение абонементов»</a>.
   </div>
@@ -597,7 +604,7 @@
     <tbody>
       <tr>
         <td><code>POST …/assignments/{id}/public-pay-link</code></td>
-        <td><code>lessonPackages.view</code></td>
+        <td><code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code></td>
         <td>302 / 401 / 403 / 419</td>
         <td>403</td>
         <td>200 JSON <code>{ url }</code>; non-AJAX POST — тоже JSON 200 (не HTML redirect). Запись в <code>user_lesson_package_public_pay_links</code></td>

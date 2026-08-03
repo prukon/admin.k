@@ -28,6 +28,7 @@ final class LessonPackageAssignmentsHistoryWorkflowFeatureTest extends CrmTestCa
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
     }
 

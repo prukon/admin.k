@@ -51,6 +51,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_index_ok_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.index'))
             ->assertOk()
@@ -60,6 +61,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_index_ui_shows_modals_and_controls_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -88,6 +90,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_packages_data_returns_partner_scoped_rows_and_filters(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -151,6 +154,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_packages_columns_settings_get_and_save(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->getJson(route('admin.lesson-packages.columns-settings.get'))
             ->assertOk()
@@ -174,6 +178,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_packages_logs_data_ok(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->getJson(route('logs.data.lesson-package'))
             ->assertOk();
@@ -198,6 +203,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_fixed_creates_package_without_template_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Фикс',
             'schedule_type' => 'fixed',
@@ -224,6 +230,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_flexible_creates_package_without_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Гибкий',
             'schedule_type' => 'flexible',
@@ -247,6 +254,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_freeze_enabled_requires_freeze_days(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->postJson(route('admin.lesson-packages.store'), [
             'name' => 'Заморозка',
             'schedule_type' => 'no_schedule',
@@ -261,6 +269,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_show_returns_json_with_empty_time_slots_for_fixed(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -313,6 +322,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_update_fixed_package_without_template_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Пакет',
@@ -397,6 +407,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_assignments_datatable_data_returns_server_side_json(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->getJson(route('admin.lesson-packages.assignments.data', [
             'draw' => 1,
@@ -415,6 +426,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_assignments_tab_ok_with_view_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -443,6 +455,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_assignments_columns_settings_save_and_get(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $payload = [
             'columns' => [
@@ -473,6 +486,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_assignments_data_applies_list_filters(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $studentA = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -567,6 +581,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_creates_user_lesson_package_and_sets_remaining(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Пакет 8',
@@ -600,6 +615,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_flexible_creates_without_assignment_time_slots(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Гибкий',
@@ -629,6 +645,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_store_assignment_fixed_ignores_slots_payload(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Фикс',
@@ -661,6 +678,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_assignments_users_search_returns_only_current_partner_users(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $response = $this->getJson(route('admin.lesson-packages.assignments.users-search', ['q' => $this->user->lastname]));
         $response->assertOk();
@@ -701,6 +719,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_admin_role_has_access_to_assignments_tab_and_endpoints_with_200_final_response(): void
     {
         $this->asAdmin();
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         // вкладка (page)
         $this->get(route('admin.lesson-packages.assignments'))
@@ -859,6 +878,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_destroy_removes_package_when_no_assignments(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -882,6 +902,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_destroy_denied_when_partner_assignment_exists(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
@@ -916,6 +937,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
     public function test_show_returns_404_for_foreign_partner_package(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $lp = LessonPackage::query()->create([
             'partner_id' => $this->foreignPartner->id,

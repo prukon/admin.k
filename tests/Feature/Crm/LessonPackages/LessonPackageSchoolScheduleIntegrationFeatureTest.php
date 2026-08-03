@@ -655,6 +655,7 @@ final class LessonPackageSchoolScheduleIntegrationFeatureTest extends CrmTestCas
     public function test_store_lesson_package_and_assignment_then_calendar_bind_flow(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $student = $this->studentUser();
 

@@ -826,6 +826,7 @@ final class LessonPackageController extends AdminBaseController
     public function issueAssignmentPublicPayLink(UserLessonPackage $assignment, UserLessonPackagePublicPayService $service): JsonResponse
     {
         $this->authorize('lessonPackages.view');
+        $this->authorize('setPrices.packageAssignments.view');
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
         if ($assignment->effective_is_paid) {
@@ -869,6 +870,7 @@ final class LessonPackageController extends AdminBaseController
     public function showAssignment(UserLessonPackage $assignment): JsonResponse
     {
         $this->authorize('lessonPackages.view');
+        $this->authorize('setPrices.packageAssignments.view');
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
         return response()->json([
@@ -1029,6 +1031,7 @@ final class LessonPackageController extends AdminBaseController
     public function destroyAssignment(UserLessonPackage $assignment, UserLessonPackageAssignmentDeletionService $deletionService): JsonResponse
     {
         $this->authorize('lessonPackages.view');
+        $this->authorize('setPrices.packageAssignments.view');
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
         $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name', 'team:id,title']);

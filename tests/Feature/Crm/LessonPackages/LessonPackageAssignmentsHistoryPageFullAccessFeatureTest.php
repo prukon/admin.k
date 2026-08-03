@@ -188,6 +188,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
     public function test_assignments_page_renders_history_toolbar_with_view(): void
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
+        $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
 
         $page = $this->get(route('admin.lesson-packages.assignments'));
         $page->assertOk();
@@ -209,6 +210,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
         $this->grantPermission($actor, 'lessonPackages.view');
+        $this->grantPermission($actor, 'setPrices.packageAssignments.view');
         $this->grantPermission($actor, 'lessonPackages.manualPaid.manage');
 
         foreach ($this->historySectionEndpoints() as $item) {
@@ -235,6 +237,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
     public function test_logs_data_does_not_leak_foreign_partner_events(): void
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
+        $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
 
         $foreignPartner = Partner::factory()->create();
 

@@ -256,7 +256,7 @@
     <li><b>LTV — не путать с колонкой «Статус»:</b> колонка <code>is_enabled</code> (badge «Активен» / «Отключен») показывает статус ученика в строке таблицы; фильтр «Активность ученика» задаёт, <i>каких</i> учеников включать в выборку.</li>
     <li><b>Не путать с отчётом «Payment intents»:</b> там колонка/ключ <code>status</code> — статус платёжного намерения провайдера; параметр фильтра активности ученика используется только в отчётах Платежи / monthly / LTV / Задолженности.</li>
     <li><b>Задолженности:</b> фильтр применяется и к месячным (<code>users_prices</code>), и к периодным (<code>user_custom_payment</code>) источникам через общий join <code>users</code>.</li>
-    <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403. На вкладке «Назначение абонементов» — право <code>lessonPackages.view</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>).</li>
+    <li><b>Доступ:</b> без <code>reports.view</code> страница и все endpoints (в т.ч. с <code>status</code> в query) — <b>403</b>; гость — редирект / 401 / 403. На вкладке «Назначение абонементов» — <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>, <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>).</li>
     <li>Подробнее про отчёт «Платежи»: <a href="/docs/documentation/reports-payments#user-status-filter">reports-payments §2.2</a>.</li>
   </ul>
 

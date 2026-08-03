@@ -36,6 +36,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
     public function test_cabinet_shows_assigned_lesson_packages_with_formatted_fee_amount(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $ulp = $this->createAssignment($student, 12_500.50, 'Зимний пакет');
 
         $html = $this->cabinetHtmlFor($student);
@@ -56,6 +57,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
     public function test_cabinet_hides_lesson_packages_with_zero_fee_amount(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $this->createAssignment($student, 0, 'Бесплатный пакет');
 
         $html = $this->cabinetHtmlFor($student);
@@ -67,6 +69,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
     public function test_cabinet_shows_paid_lesson_package_with_oplacheno_state(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $this->createAssignment($student, 3_000, 'Оплаченный пакет', [
             'is_paid' => true,
         ]);
@@ -82,6 +85,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
     public function test_cabinet_refresh_price_resets_only_season_cells_not_lesson_package_amounts(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $this->createAssignment($student, 8_800, 'Пакет для JS-guard');
 
         $html = $this->cabinetHtmlFor($student);
@@ -109,6 +113,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
         ]);
 
         $student = $this->makeStudentWithTeams([$this->team, $teamB]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $this->createAssignment($student, 15_000, 'Мультигрупповой пакет');
 
         $html = $this->cabinetHtmlFor($student);
@@ -141,6 +146,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
         ]);
 
         $localStudent = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($localStudent, 'setPrices.packageAssignments.view');
         $this->createAssignment($localStudent, 1_000, 'Свой абонемент');
 
         $html = $this->cabinetHtmlFor($localStudent);
@@ -200,6 +206,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
     public function test_student_with_dashboard_view_gets_200_on_cabinet_with_lesson_packages(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $this->createAssignment($student, 6_500, 'Доступный пакет');
 
         $this->actingAs($student);
@@ -210,6 +217,17 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
             ->assertSee('Назначенные абонементы', false)
             ->assertSee('Доступный пакет', false)
             ->assertSee('6500', false);
+    }
+
+    public function test_cabinet_hides_assigned_lesson_packages_without_package_assignments_permission(): void
+    {
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $this->createAssignment($student, 7_700, 'Скрытый пакет');
+
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertStringNotContainsString('Назначенные абонементы', $html);
+        $this->assertStringNotContainsString('Скрытый пакет', $html);
     }
 
     public function test_get_user_details_does_not_return_500_for_student_with_lesson_packages(): void

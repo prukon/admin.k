@@ -409,37 +409,40 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.columns-settings.save');
         Route::get('/admin/lesson-packages/logs-data', [LessonPackageController::class, 'packagesLogs'])
             ->name('logs.data.lesson-package');
-        Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
-        Route::get('/admin/lesson-packages/assignments/logs-data', [LessonPackageController::class, 'assignmentsLogs'])
-            ->name('logs.data.lesson-package-assignment');
-        Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
-            ->name('admin.lesson-packages.assignments.data');
+        // users-search общий с календарём школы — только lessonPackages.view
         Route::get('/admin/lesson-packages/assignments/users-search', [LessonPackageController::class, 'assignmentUsersSearch'])
             ->name('admin.lesson-packages.assignments.users-search');
-        Route::get('/admin/lesson-packages/assignments/teams-for-user', [LessonPackageController::class, 'assignmentTeamsForUser'])
-            ->name('admin.lesson-packages.assignments.teams-for-user');
-        Route::get('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsGet'])
-            ->name('admin.lesson-packages.assignments.columns-settings.get');
-        Route::post('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsSave'])
-            ->name('admin.lesson-packages.assignments.columns-settings.save');
-        Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
-            ->name('admin.lesson-packages.assignments.store');
-        Route::get('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'showAssignment'])
-            ->whereNumber('assignment')
-            ->name('admin.lesson-packages.assignments.show');
-        Route::put('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'updateAssignment'])
-            ->whereNumber('assignment')
-            ->name('admin.lesson-packages.assignments.update');
-        Route::delete('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'destroyAssignment'])
-            ->whereNumber('assignment')
-            ->name('admin.lesson-packages.assignments.destroy');
-        Route::post('/admin/lesson-packages/assignments/{assignment}/public-pay-link', [LessonPackageController::class, 'issueAssignmentPublicPayLink'])
-            ->whereNumber('assignment')
-            ->name('admin.lesson-packages.assignments.public-pay-link');
-        Route::post('/admin/lesson-packages/assignments/{assignment}/manual-paid', [LessonPackageController::class, 'setAssignmentManualPaid'])
-            ->middleware('can:lessonPackages.manualPaid.manage')
-            ->whereNumber('assignment')
-            ->name('admin.lesson-packages.assignments.manual-paid');
+        Route::middleware('can:setPrices.packageAssignments.view')->group(function () {
+            Route::get('/admin/lesson-packages/assignments', [LessonPackageController::class, 'assignments'])->name('admin.lesson-packages.assignments');
+            Route::get('/admin/lesson-packages/assignments/logs-data', [LessonPackageController::class, 'assignmentsLogs'])
+                ->name('logs.data.lesson-package-assignment');
+            Route::get('/admin/lesson-packages/assignments/data', [LessonPackageController::class, 'assignmentsData'])
+                ->name('admin.lesson-packages.assignments.data');
+            Route::get('/admin/lesson-packages/assignments/teams-for-user', [LessonPackageController::class, 'assignmentTeamsForUser'])
+                ->name('admin.lesson-packages.assignments.teams-for-user');
+            Route::get('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsGet'])
+                ->name('admin.lesson-packages.assignments.columns-settings.get');
+            Route::post('/admin/lesson-packages/assignments/columns-settings', [LessonPackageController::class, 'assignmentsColumnsSettingsSave'])
+                ->name('admin.lesson-packages.assignments.columns-settings.save');
+            Route::post('/admin/lesson-packages/assignments', [LessonPackageController::class, 'storeAssignment'])
+                ->name('admin.lesson-packages.assignments.store');
+            Route::get('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'showAssignment'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.show');
+            Route::put('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'updateAssignment'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.update');
+            Route::delete('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'destroyAssignment'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.destroy');
+            Route::post('/admin/lesson-packages/assignments/{assignment}/public-pay-link', [LessonPackageController::class, 'issueAssignmentPublicPayLink'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.public-pay-link');
+            Route::post('/admin/lesson-packages/assignments/{assignment}/manual-paid', [LessonPackageController::class, 'setAssignmentManualPaid'])
+                ->middleware('can:lessonPackages.manualPaid.manage')
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.manual-paid');
+        });
         Route::post('/admin/lesson-packages', [LessonPackageController::class, 'store'])
             ->name('admin.lesson-packages.store');
         Route::get('/admin/lesson-packages/{lessonPackage}', [LessonPackageController::class, 'show'])

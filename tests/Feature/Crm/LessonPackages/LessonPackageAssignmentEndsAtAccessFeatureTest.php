@@ -147,6 +147,7 @@ final class LessonPackageAssignmentEndsAtAccessFeatureTest extends CrmTestCase
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
         $this->grantPermission($actor, 'lessonPackages.view');
+        $this->grantPermission($actor, 'setPrices.packageAssignments.view');
 
         $page = $this->get(route('admin.lesson-packages.assignments'));
         $page->assertOk();
@@ -187,6 +188,7 @@ final class LessonPackageAssignmentEndsAtAccessFeatureTest extends CrmTestCase
     public function test_foreign_partner_cannot_update_ends_at_of_assignment(): void
     {
         $this->grantPermission($this->user, 'lessonPackages.view');
+        $this->grantPermission($this->user, 'setPrices.packageAssignments.view');
 
         $permId = $this->permissionId('lessonPackages.view');
         DB::table('permission_role')->insertOrIgnore([

@@ -31,6 +31,7 @@ final class LessonPackageAssignmentsHistoryAjaxContractFeatureTest extends CrmTe
             '2fa:passed' => true,
         ]);
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
     }
 
     private function grantPermission(string $permissionName): void

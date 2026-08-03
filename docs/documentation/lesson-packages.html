@@ -70,7 +70,7 @@
   </ul>
   <h3>API и валидация</h3>
   <ul>
-    <li>Endpoint: <code>PUT /admin/lesson-packages/assignments/{id}</code> (<code>UpdateUserLessonPackageAssignmentRequest</code>), право <code>lessonPackages.view</code>.</li>
+    <li>Endpoint: <code>PUT /admin/lesson-packages/assignments/{id}</code> (<code>UpdateUserLessonPackageAssignmentRequest</code>), права <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>.</li>
     <li>Если период задан — поле <code>ends_at</code> (<code>Y-m-d</code>) <strong>обязательно</strong> в теле запроса вместе с <code>fee_amount</code>.</li>
     <li>Если период не задан — <code>ends_at</code> <strong>prohibited</strong> (попытка передать дату → <code>422</code>).</li>
     <li><code>ends_at</code> ≥ <code>starts_at</code>.</li>
@@ -385,10 +385,14 @@
   <h2 id="assignments-tab">Страница «Назначение абонементов» (<code>/admin/lesson-packages/assignments</code>)</h2>
   <div class="note">
     Вкладка раздела «Расписание школы» → «Назначение абонементов». View: <code>admin/lessonPackages/tabs/assignments.blade.php</code>.
-    Доступ ко <b>всем</b> endpoint'ам вкладки — право <code>lessonPackages.view</code> (middleware на группе маршрутов).
+    Доступ: <code>lessonPackages.view</code> (раздел) <b>и</b> <code>setPrices.packageAssignments.view</code> (вкладка и CRUD; nested middleware).
+    Без <code>setPrices.packageAssignments.view</code> вкладка скрыта, endpoint'ы (кроме <code>users-search</code>) — <b>403</b>.
+    <code>GET …/assignments/users-search</code> — только <code>lessonPackages.view</code> (общий с календарём школы).
     Дополнительно: <code>POST …/assignments/{id}/manual-paid</code> — <code>lessonPackages.manualPaid.manage</code>.
+    Право <code>setPrices.packageAssignments.view</code>: группа <code>setPrices</code>, <code>is_visible = 0</code>, в базовые роли <b>не</b> входит.
+    Карточка права — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
     Паттерн UI — общий toolbar списков (<a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>), как у отчётов и <code>/admin/users</code>.
-    Назначения с <code>fee_amount &gt; 0</code> отображаются у ученика на консоли (<code>/cabinet</code>, блок «Назначенные абонементы») — см. <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>.
+    Назначения с <code>fee_amount &gt; 0</code> на консоли (<code>/cabinet</code>) — при том же праве; см. <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>.
   </div>
 
   <h3>Шапка (toolbar)</h3>
@@ -611,7 +615,7 @@
       <code>partner_id</code>, <code>author_id</code>, <code>user_id</code> (ученик),
       <code>target_*</code> (модель <code>UserLessonPackage</code>, label вида «Фамилия Имя — Название абонемента»).</li>
     <li><b>Legacy:</b> type <code>93</code>, action <code>931</code>…<code>935</code> — только для реестра/backfill, в runtime не используются.</li>
-    <li><b>Доступ:</b> то же право <code>lessonPackages.view</code>, что и у вкладки; без права — 403; гость — 302/401.</li>
+    <li><b>Доступ:</b> <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>; без любого из них — 403; гость — 302/401.</li>
   </ul>
 
   <h3>Код</h3>
@@ -630,6 +634,10 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX GET: ошибка → <code>302</code> + session errors; успех → файл (не пустой 200)</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> для inline JS выгрузки на <code>schoolSchedule.blade.php</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceCrudFeatureTest.php</code> — UI-маркеры «Автосписание», AJAX store/update/show, валидация <code>no_schedule</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/PackageAssignmentsPageFullAccessFeatureTest.php</code> — <code>setPrices.packageAssignments.view</code>: guest / без права / с правами по всем endpoint'ам; вкладка скрыта/видна; <code>users-search</code> при одном <code>lessonPackages.view</code>; manual-paid</li>
+    <li><code>tests/Feature/Crm/LessonPackages/PackageAssignmentsSectionAccessSmokeFeatureTest.php</code> — smoke: страница 200, все read/write → 200 (store через followRedirects), Gate, вкладка на index</li>
+    <li><code>tests/Feature/Crm/LessonPackages/PackageAssignmentsNonAjaxSafetyNetFeatureTest.php</code> — store/update без X-Requested-With → 302 + БД; 403 без права; validation errors</li>
+    <li><code>tests/Feature/Crm/LessonPackages/PackageAssignmentsAjaxContractFeatureTest.php</code> — show/update/destroy JSON (fetch-модалка); 422 validation / consumed lessons; UI-маркеры AJAX</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAutoAttendanceAccessFeatureTest.php</code> — доступ: guest → login, без права → 403, с <code>lessonPackages.view</code> → 200</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST/PUT шаблона → redirect на <code>/admin/lesson-packages</code> + запись в БД / errors; columns-settings non-AJAX → JSON success / 422</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagesPageFullAccessFeatureTest.php</code> — доступ списка: guest / без права / с <code>lessonPackages.view</code>; toolbar UI; все endpoint’ы (data/columns/logs/CRUD) → 200; изоляция партнёра в <code>…/data</code></li>

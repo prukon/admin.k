@@ -147,6 +147,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.customPayments.view');
         });
 
+        // Назначения абонементов: вкладка assignments + блок на консоли
+        Gate::define('setPrices.packageAssignments.view', function (User $user) {
+            return $user->hasPermission('setPrices.packageAssignments.view');
+        });
+
         // Журнал расписания
         Gate::define('schedule.view', function (User $user) {
             return $user->hasPermission('schedule.view');

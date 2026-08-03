@@ -70,6 +70,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_show_assignment_json_ok(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment();
 
         $this->getJson(route('admin.lesson-packages.assignments.show', ['assignment' => $ulp->id]))
@@ -81,6 +82,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_show_assignment_not_found_for_foreign_partner(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment();
 
         $permId = $this->permissionId('lessonPackages.view');
@@ -88,6 +90,13 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'role_id' => $this->foreignUser->role_id,
             'permission_id' => $permId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->foreignPartner->id,
+            'role_id' => $this->foreignUser->role_id,
+            'permission_id' => $this->permissionId('setPrices.packageAssignments.view'),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -101,6 +110,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_update_fee_success_when_unpaid(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment(100.0);
 
         $this->putJson(route('admin.lesson-packages.assignments.update', ['assignment' => $ulp->id]), [
@@ -115,6 +125,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_update_fee_forbidden_when_gateway_paid(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment(100.0, true);
 
         $this->putJson(route('admin.lesson-packages.assignments.update', ['assignment' => $ulp->id]), [
@@ -150,6 +161,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_set_manual_paid_requires_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment();
 
         $this->putJson(route('admin.lesson-packages.assignments.update', ['assignment' => $ulp->id]), [
@@ -164,6 +176,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_set_manual_paid_success_with_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
         $ulp = $this->createAssignment();
 
@@ -183,6 +196,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_update_fee_and_mark_unpaid_in_one_request(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
         $ulp = $this->createAssignment(100.0, true);
 
@@ -203,6 +217,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_delete_success_when_full_balance(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment();
 
         UserLessonPackageTimeSlot::query()->create([
@@ -233,6 +248,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
     public function test_delete_rejects_when_lessons_consumed(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ulp = $this->createAssignment(100.0, false, 7.0);
 
         $this->deleteJson(route('admin.lesson-packages.assignments.destroy', ['assignment' => $ulp->id]))

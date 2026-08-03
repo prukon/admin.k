@@ -123,6 +123,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_logs_data_returns_200_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->getJson(route('logs.data.lesson-package-assignment', ['draw' => 1, 'start' => 0, 'length' => 10]))
             ->assertOk()
@@ -162,6 +163,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_assignments_page_renders_history_button(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk()
@@ -174,6 +176,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_store_writes_user_lesson_package_created_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -215,6 +218,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_update_writes_user_lesson_package_updated_log_with_fee_diff(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignment(100.0);
 
         $this->putJson(
@@ -232,6 +236,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_update_without_changes_does_not_write_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignment(100.0);
 
         $beforeUpdated = MyLog::query()
@@ -260,6 +265,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_destroy_writes_user_lesson_package_deleted_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignment();
 
         $this->deleteJson(
@@ -279,6 +285,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_destroy_blocked_does_not_write_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignment(lessonsRemaining: 7);
 
         $beforeCount = MyLog::query()
@@ -300,6 +307,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_manual_paid_writes_user_lesson_package_manual_paid_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
         $ctx = $this->seedAssignment();
 
@@ -319,6 +327,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_public_pay_link_writes_issued_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ctx = $this->seedAssignment(500.0);
 
@@ -343,6 +352,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_fee_change_rotates_public_pay_link_and_writes_log(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->seedTbankForPartner();
         $ctx = $this->seedAssignment(500.0);
 
@@ -369,6 +379,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_logs_data_returns_written_assignment_event_in_table(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignment(100.0);
 
         $this->putJson(
@@ -394,6 +405,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
     public function test_logs_data_excludes_lesson_package_template_events(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         MyLog::query()->create([
             'partner_id' => $this->partner->id,

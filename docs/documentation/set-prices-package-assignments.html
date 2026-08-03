@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Право setPrices.packageAssignments.view — назначения абонементов</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="package-assignments-permission">Право <code>setPrices.packageAssignments.view</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/set-prices-package-assignments.html</code>.
+    CRM: вкладка <a href="/docs/documentation/lesson-packages#assignments-tab"><code>/admin/lesson-packages/assignments</code></a>;
+    консоль: блок «Назначенные абонементы» на <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet"><code>/cabinet</code></a>.</div>
+
+  <div class="ok">
+    <b>С 2026‑08</b> доступ к назначениям абонементов отделён от общего <code>lessonPackages.view</code>.
+    Нужны <b>оба</b> права: раздел «Расписание школы / Абонементы» и это право на вкладку/CRUD/блок консоли.
+  </div>
+
+  <h2 id="permissions">1) Право</h2>
+  <table>
+    <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Имя</td><td><code>setPrices.packageAssignments.view</code></td></tr>
+      <tr><td>Описание (сидер)</td><td>Установка цен / Консоль: назначение абонементов</td></tr>
+      <tr><td>Группа матрицы</td><td><code>setPrices</code> («Установка цен») — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a></td></tr>
+      <tr><td><code>is_visible</code></td><td><b>0</b> (невидимое): у admin партнёра в матрице может не отображаться; у superadmin — видно</td></tr>
+      <tr><td>Gate</td><td><code>AuthServiceProvider</code> → <code>setPrices.packageAssignments.view</code></td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 22</code>)</td></tr>
+      <tr><td>Миграция</td><td><code>2026_08_03_221000_add_set_prices_package_assignments_view_permission.php</code> — только создаёт право, <b>никому не выдаёт</b></td></tr>
+      <tr><td>Базовые роли</td><td>В <code>config/role_base_permissions.php</code> для <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит (строка закомментирована). Существующих партнёров миграция не трогает.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    После выката на уже работающих школах право нужно выдать вручную (superadmin / SQL в <code>permission_role</code>),
+    иначе вкладка «Назначение абонементов» и блок на консоли пропадут у всех, у кого не было явной выдачи.
+    Новым партнёрам по умолчанию тоже <b>не</b> выдаётся.
+  </div>
+
+  <h2 id="what-it-controls">2) Что закрывает</h2>
+  <table>
+    <thead><tr><th>Поверхность</th><th>Поведение без права</th><th>С правом (+ <code>lessonPackages.view</code> где нужно)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Вкладка «Назначение абонементов» в <code>admin/lessonPackages/index</code></td>
+        <td>Скрыта (<code>@can</code>)</td>
+        <td>Видна; страница <code>200</code></td>
+      </tr>
+      <tr>
+        <td>CRUD / data / logs / columns / teams-for-user / show / update / destroy / public-pay-link / manual-paid*</td>
+        <td><b>403</b> (nested middleware <code>can:setPrices.packageAssignments.view</code>)</td>
+        <td>Ожидаемые <code>200</code> / <code>302</code> / <code>422</code> / <code>404</code></td>
+      </tr>
+      <tr>
+        <td><code>GET …/assignments/users-search</code></td>
+        <td>Доступен при одном <code>lessonPackages.view</code> (общий с календарём школы)</td>
+        <td>То же</td>
+      </tr>
+      <tr>
+        <td>Блок «Назначенные абонементы» на <code>/cabinet</code></td>
+        <td>Скрыт, даже если строки в БД есть</td>
+        <td>Показывается при <code>fee_amount &gt; 0</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">* <code>POST …/manual-paid</code> дополнительно требует <code>lessonPackages.manualPaid.manage</code>.</p>
+
+  <h2 id="related-permissions">3) Связанные права</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td><code>lessonPackages.view</code></td><td>Родительский middleware раздела абонементов / календаря (базовый у <code>admin</code>)</td></tr>
+      <tr><td><code>setPrices.packageAssignments.view</code></td><td>Вкладка назначений + консоль</td></tr>
+      <tr><td><code>lessonPackages.manualPaid.manage</code></td><td>Ручная отметка оплаты назначения</td></tr>
+      <tr><td><code>setPrices.customPayments.view</code></td><td>Аналог для доп. платежей (тоже не в базовых ролях с 2026‑08) — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a></td></tr>
+      <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Сезоны на консоли (в базовый <code>user</code>/<code>admin</code> входит)</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="endpoints">4) Endpoint'ы (кратко)</h2>
+  <div class="note">
+    Полный контракт UI/API — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
+    Группа маршрутов: <code>can:lessonPackages.view</code> → внутри <code>can:setPrices.packageAssignments.view</code>
+    (кроме <code>users-search</code>).
+  </div>
+  <ul>
+    <li>Страница / DataTable / columns / logs / teams-for-user / store / show / update / destroy / public-pay-link — оба права.</li>
+    <li>Create-форма — classic POST → <b>302</b> на вкладку (не пустой 200).</li>
+    <li>Модалка «Изменить» — AJAX <code>fetch</code> (PUT/DELETE/GET show) → JSON <b>200</b>/<b>422</b>.</li>
+  </ul>
+
+  <h2 id="tests">5) Автотесты</h2>
+  <ul>
+    <li><code>PackageAssignmentsSectionAccessSmokeFeatureTest</code> — страница и функционал → 200 с правами; guest / 403</li>
+    <li><code>PackageAssignmentsPageFullAccessFeatureTest</code> — матрица endpoint'ов, вкладка скрыта/видна</li>
+    <li><code>PackageAssignmentsNonAjaxSafetyNetFeatureTest</code> — store/update без X-Requested-With → 302 + БД</li>
+    <li><code>PackageAssignmentsAjaxContractFeatureTest</code> — JSON-контракт модалки</li>
+    <li><code>DashboardPackageAssignmentsAccessFeatureTest</code> — блок на <code>/cabinet</code></li>
+    <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_package_assignments_view_to_base_roles</code></li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter 'PackageAssignments'</code></pre>
+
+  <p class="small">
+    <a href="/docs/documentation">К списку разделов</a> ·
+    <a href="/docs/documentation/lesson-packages#assignments-tab">Назначения</a> ·
+    <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">Консоль</a> ·
+    <a href="/docs/documentation/partners-permissions">Базовые права</a>
+  </p>
+</div>
+</body>
+</html>

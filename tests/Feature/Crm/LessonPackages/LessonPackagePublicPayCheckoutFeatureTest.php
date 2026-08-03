@@ -157,6 +157,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     private function issuePublicPayToken(UserLessonPackage $assignment): string
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->fakeTbankPublicPayHttp();
 
         $issue = $this->postJson(
@@ -308,6 +309,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     {
         $ctx = $this->seedCheckoutContext();
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $token = $this->issuePublicPayToken($ctx['assignment']);
 
         foreach ($this->publicPayEndpoints($token) as $item) {
@@ -380,6 +382,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     {
         $ctx = $this->seedCheckoutContext();
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->fakeTbankPublicPayHttp();
 
         $this->postJson(
@@ -400,6 +403,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     {
         $ctx = $this->seedCheckoutContext();
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->fakeTbankPublicPayHttp();
 
         $response = $this->post(
@@ -443,6 +447,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     public function test_update_assignment_non_ajax_redirects_and_updates_fee_amount(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedCheckoutContext(500.0);
 
         $response = $this->put(route('admin.lesson-packages.assignments.update', ['assignment' => $ctx['assignment']->id]), [
@@ -490,6 +495,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
     public function test_issue_public_pay_link_returns_not_found_for_foreign_assignment(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $foreignStudent = User::factory()->create(['partner_id' => $this->foreignPartner->id]);
         $package = LessonPackage::query()->create([

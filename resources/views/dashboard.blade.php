@@ -247,6 +247,7 @@
         @endcan
 
         {{-- Назначенные абонементы (оплата из user_lesson_packages.fee_amount) --}}
+        @can('setPrices.packageAssignments.view')
         @if(isset($userLessonPackages) && $userLessonPackages->count() > 0)
             <div class="row custom-payments custom-payments-block mt-3 mb-3">
                 <div class="col-12">
@@ -312,6 +313,7 @@
                 </div>
             </div>
         @endif
+        @endcan
 
         @can('setPrices.cabinetSeasons.view')
         @include('includes.dashboard_team_switcher')

@@ -74,7 +74,7 @@
       </tr>
       <tr>
         <td>Назначенные абонементы</td>
-        <td>— (достаточно <code>dashboard.view</code>)</td>
+        <td><code>setPrices.packageAssignments.view</code></td>
         <td><code>user_lesson_packages.fee_amount &gt; 0</code>, ученик партнёра</td>
         <td><code>payment_kind=lesson_package</code> · <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4</a>, назначение — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments</a></td>
       </tr>
@@ -118,6 +118,12 @@
   <p>Матрица прав в UI: <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.</p>
 
   <h3 id="lesson-packages-cabinet">2.2) Назначенные абонементы на консоли</h3>
+  <div class="note">
+    Блок обёрнут в <code>@can('setPrices.packageAssignments.view')</code>.
+    Базовые роли новых партнёров (<code>user</code>, <code>admin</code>, <code>trainer</code>) право <b>не</b> получают — выдаётся вручную.
+    Без права записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>,
+    <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
+  </div>
   <ul>
     <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount &gt; 0</code>, eager <code>lessonPackage</code>.</li>
     <li>Кнопка «Оплатить» / «Оплачено» — по <code>effective_is_paid</code> (как в админке назначений).</li>
@@ -134,7 +140,7 @@
   <h3 id="cabinet-custom-payments">2.4) Дополнительные платежи на консоли</h3>
   <div class="note">
     Блок обёрнут в <code>@can('setPrices.customPayments.view')</code>.
-    Базовые роли новых партнёров: <code>user</code> и <code>admin</code> получают право из <code>config/role_base_permissions.php</code>; у <code>trainer</code> по умолчанию <b>нет</b>.
+    Базовые роли новых партнёров (<code>user</code>, <code>admin</code>, <code>trainer</code>) право <b>не</b> получают из <code>config/role_base_permissions.php</code> — выдаётся вручную.
     Без права записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments §1</a>.
   </div>
   <ul>
@@ -237,6 +243,7 @@
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonsAccessFeatureTest.php</code> — право <code>setPrices.cabinetSeasons.view</code>, 200/403/гость, изоляция от <code>setPrices.view</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardSeasonsSetPricesVisibilityFeatureTest.php</code> — видимость сезонов и селекта группы</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardPackageAssignmentsAccessFeatureTest.php</code> — право <code>setPrices.packageAssignments.view</code> на консоли: guest / без права скрыт блок / с правом виден</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code> — UI селекта, partial, client-only</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>

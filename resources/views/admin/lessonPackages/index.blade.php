@@ -27,11 +27,13 @@
                    href="{{ route('admin.lesson-packages.index') }}"
                    role="tab">Абонементы</a>
             </li>
+            @can('setPrices.packageAssignments.view')
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ ($activeTab ?? '') === 'assignments' ? 'active' : '' }}"
                    href="{{ route('admin.lesson-packages.assignments') }}"
                    role="tab">Назначение абонементов</a>
             </li>
+            @endcan
    
        
         </ul>

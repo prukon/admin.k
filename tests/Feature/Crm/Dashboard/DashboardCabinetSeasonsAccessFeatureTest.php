@@ -190,6 +190,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
     public function test_lesson_packages_remain_visible_without_cabinet_seasons_permission(): void
     {
         $student = $this->studentWithoutCabinetSeasonsPermission();
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
         $package = LessonPackage::factory()->forPartner($this->partner->id)->create([
             'name' => 'Пакет без сезонов',
         ]);
@@ -203,7 +204,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
             'is_paid'           => false,
         ]);
 
-        $html = $this->cabinetHtmlFor($student);
+        $html = $this->cabinetHtmlFor($student->fresh());
 
         $this->assertStringNotContainsString('class="row seasons"', $html);
         $this->assertStringContainsString('Назначенные абонементы', $html);

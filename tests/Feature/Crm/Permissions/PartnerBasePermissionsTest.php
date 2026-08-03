@@ -53,7 +53,7 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertContains('schoolLeadLanding.view', $adminPerms);
     }
 
-    public function test_new_partner_assigns_custom_payments_view_to_user_and_admin_not_trainer(): void
+    public function test_new_partner_does_not_assign_custom_payments_view_to_base_roles(): void
     {
         $partner = Partner::factory()->create();
 
@@ -61,9 +61,22 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
         $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
 
-        $this->assertContains('setPrices.customPayments.view', $userPerms);
-        $this->assertContains('setPrices.customPayments.view', $adminPerms);
+        $this->assertNotContains('setPrices.customPayments.view', $userPerms);
+        $this->assertNotContains('setPrices.customPayments.view', $adminPerms);
         $this->assertNotContains('setPrices.customPayments.view', $trainerPerms);
+    }
+
+    public function test_new_partner_does_not_assign_package_assignments_view_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('setPrices.packageAssignments.view', $userPerms);
+        $this->assertNotContains('setPrices.packageAssignments.view', $adminPerms);
+        $this->assertNotContains('setPrices.packageAssignments.view', $trainerPerms);
     }
 
     public function test_base_permissions_are_isolated_between_partners(): void

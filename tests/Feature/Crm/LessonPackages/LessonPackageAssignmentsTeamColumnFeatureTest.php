@@ -30,6 +30,13 @@ final class LessonPackageAssignmentsTeamColumnFeatureTest extends CrmTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->user->role_id,
+            'permission_id' => $this->permissionId('setPrices.packageAssignments.view'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this->actingAs($this->user);
     }

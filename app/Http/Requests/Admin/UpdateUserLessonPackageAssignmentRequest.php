@@ -16,7 +16,10 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
-        if ($user === null || ! $user->can('lessonPackages.view')) {
+        if ($user === null
+            || ! $user->can('lessonPackages.view')
+            || ! $user->can('setPrices.packageAssignments.view')
+        ) {
             return false;
         }
 

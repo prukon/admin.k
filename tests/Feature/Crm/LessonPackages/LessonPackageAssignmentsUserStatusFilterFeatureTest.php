@@ -8,6 +8,7 @@ use App\Models\LessonPackage;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
@@ -25,6 +26,19 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+    }
+
+    private function grantAssignmentsAccess(): void
+    {
+        foreach (['lessonPackages.view', 'setPrices.packageAssignments.view'] as $permissionName) {
+            DB::table('permission_role')->insertOrIgnore([
+                'partner_id' => $this->partner->id,
+                'role_id' => $this->user->role_id,
+                'permission_id' => $this->permissionId($permissionName),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -81,6 +95,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_admin_all_assignments_user_status_endpoints_return_200(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
         $this->seedActiveInactiveAssignments();
 
         $this->assertAllAssignmentsUserStatusEndpointsReturn200();
@@ -97,6 +112,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_all_user_status_filter_param_variants_return_200_for_assignments_section(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
         $this->seedActiveInactiveAssignments();
 
         foreach ($this->userStatusFilterVariants() as $label => $statusParams) {
@@ -124,6 +140,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_assignments_page_renders_user_status_filter_with_active_selected_by_default(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
 
         $html = $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk()
@@ -142,6 +159,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_assignments_page_expands_filters_when_status_is_not_active(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
 
         $this->get(route('admin.lesson-packages.assignments', ['status' => 'inactive']))
             ->assertOk()
@@ -160,6 +178,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_assignments_data_user_status_filters_records(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
         $ctx = $this->seedActiveInactiveAssignments();
         $base = ['draw' => 1, 'start' => 0, 'length' => 50];
 
@@ -182,6 +201,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
     public function test_assignments_data_default_matches_explicit_active(): void
     {
         $this->asAdmin();
+        $this->grantAssignmentsAccess();
         $this->seedActiveInactiveAssignments();
         $base = ['draw' => 1, 'start' => 0, 'length' => 50];
 

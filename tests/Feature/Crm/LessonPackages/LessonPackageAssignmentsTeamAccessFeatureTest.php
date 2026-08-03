@@ -61,13 +61,15 @@ final class LessonPackageAssignmentsTeamAccessFeatureTest extends CrmTestCase
 
     private function grantLessonPackagesView(User $actor): void
     {
-        DB::table('permission_role')->insertOrIgnore([
-            'partner_id' => $this->partner->id,
-            'role_id' => $actor->role_id,
-            'permission_id' => $this->permissionId('lessonPackages.view'),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        foreach (['lessonPackages.view', 'setPrices.packageAssignments.view'] as $permissionName) {
+            DB::table('permission_role')->insertOrIgnore([
+                'partner_id' => $this->partner->id,
+                'role_id' => $actor->role_id,
+                'permission_id' => $this->permissionId($permissionName),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function seedMultiLegalEntityMode(): void

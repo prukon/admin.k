@@ -194,6 +194,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_page_renders_toolbar_filters_columns_and_datatable(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk()
@@ -220,6 +221,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_page_expands_filters_when_query_has_active_filter(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.assignments', [
             'filter_payment_status' => 'unpaid',
@@ -238,6 +240,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_page_hides_location_filter_without_locations_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $this->get(route('admin.lesson-packages.assignments'))
             ->assertOk()
@@ -247,6 +250,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_page_shows_location_filter_with_locations_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('locations.view');
 
         Location::factory()->create([
@@ -268,6 +272,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_columns_settings_round_trip_and_validation(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $columns = [
             'student' => true,
@@ -308,6 +313,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_data_returns_expected_row_shape_without_period_column(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $json = $this->getJson(route('admin.lesson-packages.assignments.data', [
@@ -334,6 +340,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_data_applies_all_list_filters_including_location(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('locations.view');
 
         $locA = Location::factory()->create([
@@ -449,6 +456,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_assignments_section_endpoints_ok_with_lesson_packages_view(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $this->grantPermission('lessonPackages.manualPaid.manage');
 
         $ctx = $this->seedAssignmentContext();
@@ -583,6 +591,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_manual_paid_endpoint_forbidden_without_manual_paid_permission(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $this->postJson(route('admin.lesson-packages.assignments.manual-paid', ['assignment' => $ctx['assignment']->id]), [
@@ -598,6 +607,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_store_assignment_non_ajax_redirects_and_creates_record(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
@@ -624,6 +634,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_store_assignment_non_ajax_validation_failure_redirects_back_not_empty_200(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
 
         $response = $this->from(route('admin.lesson-packages.assignments'))
             ->post(route('admin.lesson-packages.assignments.store'), [
@@ -644,6 +655,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_show_assignment_ajax_contract(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $this->getJson(route('admin.lesson-packages.assignments.show', ['assignment' => $ctx['assignment']->id]), $this->ajaxHeaders())
@@ -663,6 +675,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_update_assignment_ajax_contract_success_and_validation(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $this->putJson(
@@ -696,6 +709,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_show_assignment_period_editable_flag(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $this->getJson(
@@ -725,6 +739,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_update_assignment_ends_at_success_and_syncs_calendar_rows(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext(scheduleType: 'flexible');
 
         $ctx['assignment']->forceFill([
@@ -784,6 +799,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_update_assignment_ends_at_rejects_before_last_lesson_and_before_start(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext(scheduleType: 'flexible');
 
         $ctx['assignment']->forceFill([
@@ -844,6 +860,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_update_assignment_ends_at_prohibited_when_period_not_set(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext();
 
         $this->putJson(
@@ -861,6 +878,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
     public function test_destroy_assignment_ajax_contract_success_and_business_rejection(): void
     {
         $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
         $ctx = $this->seedAssignmentContext(lessonsRemaining: 8);
 
         $this->deleteJson(

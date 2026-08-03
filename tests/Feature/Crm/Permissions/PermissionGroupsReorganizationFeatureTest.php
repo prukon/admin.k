@@ -44,7 +44,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
             'schedule'        => 4,
             'directories'     => 8,
             'lessonPackages'  => 3,
-            'setPrices'       => 3,
+            'setPrices'       => 4,
             'contracts'       => 3,
             'leads'           => 3,
             'partner'         => 3,
@@ -133,6 +133,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'setPrices.cabinetSeasons.view',
                 'setPrices.customPayments.view',
                 'setPrices.manualPaid.manage',
+                'setPrices.packageAssignments.view',
             ],
             'contracts' => [
                 'contracts.sync',
