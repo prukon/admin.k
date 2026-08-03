@@ -346,7 +346,7 @@
                     {{--                                </div> --}}
                     <div class="info text-light">
                         <a href="#" class="d-block"></a>
-                        <h6> Имя: {{ $sidebarPanelIdentity['name'] ?? auth()->user()->name }}</h6>
+                        <h6> Имя: {{ $sidebarPanelIdentity['name'] ?? (auth()->user()->full_name ?: auth()->user()->name) }}</h6>
                         {{--                    <h6> Id: {{auth()->user()->id}}</h6> --}}
                         <h6> Почта: {{ $sidebarPanelIdentity['email'] ?? auth()->user()->email }}</h6>
                         {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6> --}}

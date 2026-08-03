@@ -75,14 +75,14 @@ class FamilyStudentContextService
             $profile = $actor->parentProfile;
             if ($profile instanceof ParentProfile) {
                 return [
-                    'name'  => $profile->full_name !== '' ? $profile->full_name : (string) ($actor->name ?? ''),
+                    'name'  => $profile->full_name !== '' ? $profile->full_name : (string) ($actor->full_name ?: ($actor->name ?? '')),
                     'email' => (string) ($profile->email ?? ''),
                 ];
             }
         }
 
         return [
-            'name'  => (string) ($actor->name ?? ''),
+            'name'  => (string) ($actor->full_name ?: ($actor->name ?? '')),
             'email' => (string) ($actor->email ?? ''),
         ];
     }

@@ -202,13 +202,14 @@ final class FamilyStudentContextTest extends CrmTestCase
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
             'role_id'    => $roleId,
-            'name'       => 'Один',
+            'lastname'   => 'Исаева',
+            'name'       => 'Татьяна',
             'email'      => 'one@example.com',
         ]);
 
         $identity = app(FamilyStudentContextService::class)->sidebarPanelIdentity($student);
 
-        $this->assertSame('Один', $identity['name']);
+        $this->assertSame('Исаева Татьяна', $identity['name']);
         $this->assertSame('one@example.com', $identity['email']);
     }
 
