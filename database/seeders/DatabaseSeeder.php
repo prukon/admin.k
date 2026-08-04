@@ -36,13 +36,13 @@ class DatabaseSeeder extends Seeder
                 DevUsersSeeder::class, // добавляем рандомных пользователей
                 DevTrainersSeeder::class, // тренеры (dev)
                 DevTrainerSalaryDefaultsSeeder::class, // оклад и ставка за тренировку у всех тренеров (dev)
-                DevScheduleJournalSeeder::class, // журнал /schedule: посещаемость за 6 мес. (dev)
                 DevSchoolLeadsSeeder::class, // заявки с сайта (dev)
-                DevLessonPackagesSeeder::class, // шаблоны абонементов (dev)
+                DevLessonPackagesSeeder::class, // шаблоны абонементов (dev), в т.ч. postpay
                 DevSchoolScheduleSeeder::class, // расписание школы и слоты (dev)
                 DevLessonPackageAssignmentsSeeder::class, // назначения абонементов (dev)
+                DevScheduleJournalSeeder::class, // статусы занятий в журнале /schedule (после UTSS)
                 DevTinkoffCommissionRulesSeeder::class, // правила комиссий T‑Bank (dev)
-                DevPricesSeeder::class, // добавляем цены
+                DevPricesSeeder::class, // users_prices + team_prices с lesson_package_id
                 DevTbankHistorySeeder::class, // история T‑Bank / выплат / чеков (dev)
                 DevPaymentSystemsSeeder::class,
                 DevIstokMenuSeeder::class, // демо-партнёр «Исток», команды, меню (dev)

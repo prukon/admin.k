@@ -91,7 +91,6 @@
                             $journalContextTeamId = (int) $studentTeamIds[0];
                         }
                         $userAssignments = $journalAssignments[(int) $user->id] ?? [];
-                        $hasAnyAssignment = count($userAssignments) > 0;
                         $hasPlaceable = collect($userAssignments)->contains(fn ($a) => !empty($a['placeable']));
                     @endphp
                     <tr data-user-id="{{ $user->id }}">
@@ -108,11 +107,11 @@
                             @endif
                         </td>
                         <td class="text-center">
-                            @if($hasAnyAssignment)
+                            @if($hasPlaceable)
                                 <button type="button"
                                         class="btn btn-sm btn-outline-primary journal-abonement-btn"
                                         data-user-id="{{ $user->id }}"
-                                        @if(!$hasPlaceable) disabled title="Все абонементы уже разложены" @else title="Разложить абонемент" @endif>
+                                        title="Разложить абонемент">
                                     <i class="fa-solid fa-plus"></i>
                                 </button>
                             @endif
@@ -156,25 +155,29 @@
                                     data-status-id="{{ $primary['lesson_occurrence_status_id'] }}"
                                     data-comment="{{ $primary['comment'] }}"
                                 @endif
-                                style="background-color:{{ $count > 0 && $cellColor ? $cellColor : 'transparent' }}; cursor: {{ $cellClickable || $isPostpayLocked ? 'pointer' : 'default' }};">
+                                style="cursor: {{ $cellClickable || $isPostpayLocked ? 'pointer' : 'default' }};">
                                 @if($count > 1)
-                                    <span class="badge bg-primary">×{{ $count }}</span>
+                                    <span class="schedule-cell__swatch" @if($cellColor) style="background-color: {{ $cellColor }};" @endif>
+                                        <span class="badge bg-primary">×{{ $count }}</span>
+                                    </span>
                                 @elseif($count === 1)
-                                    @if($hasStatusVisual)
-                                        @if($cellIcon)
-                                            <i class="{{ $cellIcon }}"></i>
+                                    <span class="schedule-cell__swatch" @if($cellColor) style="background-color: {{ $cellColor }};" @endif>
+                                        @if($hasStatusVisual)
+                                            @if($cellIcon)
+                                                <i class="{{ $cellIcon }} schedule-cell-status-icon" aria-hidden="true"></i>
+                                            @else
+                                                {{ $cellTitle }}
+                                            @endif
                                         @else
-                                            {{ $cellTitle }}
+                                            <i class="fa-solid fa-circle text-secondary schedule-cell-empty-dot" title="{{ $primary['package_name'] ?? 'Занятие' }}"></i>
                                         @endif
-                                    @else
-                                        <i class="fa-solid fa-circle text-secondary" title="{{ $primary['package_name'] ?? 'Занятие' }}" style="font-size: 0.55rem;"></i>
-                                    @endif
+                                    </span>
                                     @if(!empty($primary['comment']))
                                         <div class="cell-comment-indicator"
                                              style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
                                     @endif
                                 @elseif($canOpenEmptyPostpay)
-                                    <i class="fa-regular fa-circle text-muted" style="font-size: 0.55rem; opacity: 0.45;" title="Постоплата: отметить посещение"></i>
+                                    <i class="fa-regular fa-circle text-muted schedule-cell-empty-dot" style="opacity: 0.45;" title="Постоплата: отметить посещение"></i>
                                 @endif
                             </td>
                         @endforeach
@@ -241,13 +244,25 @@
                                            value="{{ $st->id }}"
                                            data-icon="{{ $st->icon }}"
                                            data-color="{{ $st->color }}"
+                                           data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
                                            @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
                                     <label class="form-check-label ms-2" for="status-{{ $st->id }}">
-                                        <span style="display: inline-block; background-color: {{ $st->color }}; padding: 0.3rem; border-radius: 0.25rem;">
-                                            <i class="{{ $st->icon }}"></i>
+                                        <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
+                                            <i class="{{ $st->icon }}" aria-hidden="true"></i>
                                         </span>
                                         <span class="ms-1">{{ $st->title }}</span>
                                     </label>
+                                    @if(!empty($st->consumes_lesson))
+                                        <i class="fa-solid fa-circle-info text-muted ms-2 cell-status-postpay-billing-hint d-none"
+                                           tabindex="0"
+                                           role="img"
+                                           aria-label="Идёт в расчёт постоплаты. Влияет на сумму за месяц."
+                                           data-kids-tooltip-hint="1"
+                                           data-bs-toggle="tooltip"
+                                           data-bs-placement="top"
+                                           data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                           title="Идёт в расчёт постоплаты. Влияет на сумму за месяц."></i>
+                                    @endif
                                 </div>
                             @endforeach
                         </div>

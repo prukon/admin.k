@@ -62,6 +62,26 @@ class DevLessonPackagesSeeder extends Seeder
                 'freeze_enabled' => false,
                 'freeze_days' => 0,
             ],
+            [
+                'name' => 'Постоплата — 800 ₽/занятие',
+                'schedule_type' => 'postpay',
+                'duration_days' => 31,
+                'lessons_count' => 1,
+                'price_cents' => 80000,
+                'freeze_enabled' => false,
+                'freeze_days' => 0,
+                'auto_attendance_enabled' => false,
+            ],
+            [
+                'name' => 'Постоплата — 1200 ₽/занятие',
+                'schedule_type' => 'postpay',
+                'duration_days' => 31,
+                'lessons_count' => 1,
+                'price_cents' => 120000,
+                'freeze_enabled' => false,
+                'freeze_days' => 0,
+                'auto_attendance_enabled' => false,
+            ],
         ];
     }
 

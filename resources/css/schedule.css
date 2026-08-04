@@ -132,7 +132,7 @@ table.dataTable tbody th, table.dataTable tbody td {
 .schedule-cell {
     min-width: 25px;
     min-height: 5px;
-    padding: 0;
+    padding: 1px !important;
     font-size: 8px;
     vertical-align: middle !important;
 
@@ -141,7 +141,62 @@ table.dataTable tbody th, table.dataTable tbody td {
     margin: 0;
     position: relative;
     cursor: pointer;
+    background-color: transparent !important;
+}
 
+/* Скруглённый цветной фон статуса (td + border-collapse не держат radius) */
+.schedule-cell__swatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 1.45rem;
+    border-radius: 0.4rem;
+    box-sizing: border-box;
+    line-height: 1;
+}
+
+/* Иконка статуса в ячейке: крупнее фона 8px, белая на цветном фоне */
+.schedule-cell .schedule-cell-status-icon {
+    color: #fff !important;
+    font-size: 0.95rem !important;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.25));
+}
+
+.schedule-cell .schedule-cell-empty-dot {
+    font-size: 0.7rem !important;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* Чип статуса в модалке «Статус занятия» */
+.schedule-status-option-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.45rem;
+    border-radius: 0.35rem;
+    color: #fff;
+    line-height: 1;
+}
+
+.schedule-status-option-chip i {
+    color: #fff !important;
+    font-size: 0.95rem;
+}
+
+.cell-status-postpay-billing-hint {
+    font-size: 0.85rem;
+    cursor: help;
+    opacity: 0.75;
+}
+
+.cell-status-postpay-billing-hint:hover,
+.cell-status-postpay-billing-hint:focus {
+    opacity: 1;
 }
 
 /* Подсветка столбцов расписания выбранной группы */

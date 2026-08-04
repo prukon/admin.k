@@ -2,7 +2,10 @@
     $losHasActiveFilters = false;
     $losCanManage = auth()->user()->can('lessonOccurrenceStatuses.manage');
     $losFaIcons = config('lesson_occurrence_status_icons');
-    $losColorSwatches = ['#212529', '#495057', '#6c757d', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0', '#0d6efd', '#6f42c1', '#d63384', '#adb5bd'];
+    $losColorSwatches = [
+        '#64748B', '#94A3B8', '#5B8DEF', '#6BA8B8', '#4CAF82', '#7BC47F',
+        '#E0A04A', '#E08B5A', '#E06B6B', '#C97BA5', '#8B7EC8', '#ADB5BD',
+    ];
 @endphp
 
 @vite(['resources/css/admin-list-toolbar.css'])
@@ -189,12 +192,12 @@
                         </div>
                         <div class="mb-2">
                             <label class="form-label">Цвет*</label>
-                            <input type="hidden" name="color" id="los-create-color" value="#6c757d">
+                            <input type="hidden" name="color" id="los-create-color" value="#94A3B8">
                             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                 <input type="color" id="los-create-color-picker"
                                        class="form-control form-control-color los-color-picker-input"
-                                       value="#6c757d" title="Выберите цвет">
-                                <span class="small text-muted font-monospace" id="los-create-color-hex">#6c757d</span>
+                                       value="#94A3B8" title="Выберите цвет">
+                                <span class="small text-muted font-monospace" id="los-create-color-hex">#94A3B8</span>
                             </div>
                             <div class="d-flex flex-wrap gap-1 mb-0 los-color-swatches" data-los-scope="create">
                                 @foreach ($losColorSwatches as $hex)
@@ -447,7 +450,7 @@
                             if (type !== 'display') {
                                 return value || '';
                             }
-                            const color = row.color || '#6c757d';
+                            const color = row.color || '#94A3B8';
                             return '<span class="badge rounded-pill" style="background-color: ' + escHtml(color)
                                 + '; max-width: 100%; white-space: normal;">' + escHtml(value || '') + '</span>';
                         }
@@ -598,7 +601,7 @@
                 const form = document.getElementById('los-create-form');
                 form?.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
                 form?.querySelectorAll('[data-err]').forEach(function (el) { el.textContent = ''; });
-                setLosColor('create', '#6c757d');
+                setLosColor('create', '#94A3B8');
                 setLosIconSelection('create', '');
                 const consumeCreate = document.getElementById('los-create-consumes');
                 if (consumeCreate) consumeCreate.checked = false;

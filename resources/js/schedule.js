@@ -69,6 +69,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
+    var cellEditPostpayBilling = false;
+    var cellEditModalEl = document.getElementById('cellEditModal');
+    cellEditModalEl.addEventListener('shown.bs.modal', function () {
+        applyPostpayBillingHints(cellEditPostpayBilling);
+    });
+    cellEditModalEl.addEventListener('hidden.bs.modal', function () {
+        cellEditPostpayBilling = false;
+        applyPostpayBillingHints(false);
+    });
     var dayOccurrencesModal = new bootstrap.Modal(document.getElementById('dayOccurrencesModal'), {});
     var abonementPlaceModal = new bootstrap.Modal(document.getElementById('abonementPlaceModal'), {});
     var currentCell = null;
@@ -191,6 +200,52 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#edit-postpay-team-error').text('').hide();
     }
 
+    var POSTPAY_BILLING_HINT_SELECTOR = '.cell-status-postpay-billing-hint';
+
+    function occurrenceIsPostpayBilling(selected) {
+        if (!selected) {
+            return false;
+        }
+        if (selected.is_postpay === true || selected.is_postpay === 1 || selected.is_postpay === '1') {
+            return true;
+        }
+        var ulp = selected.user_lesson_package_id;
+        var hasUlp = ulp !== null && ulp !== undefined && ulp !== '' && Number(ulp) > 0;
+        if (hasUlp || selected.is_trial_lesson) {
+            return false;
+        }
+        // Fallback: ученик на постоплате в месяце, занятие без абонемента.
+        return !!(currentCell && currentCell.attr('data-postpay') === '1');
+    }
+
+    function applyPostpayBillingHints(isPostpay) {
+        var modalEl = document.getElementById('cellEditModal');
+        if (!modalEl) {
+            return;
+        }
+
+        if (window.KidsCrmTooltip) {
+            KidsCrmTooltip.dispose(modalEl, { scopes: ['hint'] });
+        }
+
+        modalEl.querySelectorAll(POSTPAY_BILLING_HINT_SELECTOR).forEach(function (el) {
+            if (isPostpay) {
+                el.classList.remove('d-none');
+            } else {
+                el.classList.add('d-none');
+            }
+        });
+
+        if (isPostpay && window.KidsCrmTooltip) {
+            KidsCrmTooltip.init(modalEl, { scopes: ['hint'] });
+        }
+    }
+
+    function syncPostpayBillingHints(isPostpay) {
+        cellEditPostpayBilling = !!isPostpay;
+        applyPostpayBillingHints(cellEditPostpayBilling);
+    }
+
     function renderPostpayTeamUi(ctx, preferredTeamId) {
         var teams = (ctx && ctx.postpay_teams) ? ctx.postpay_teams : [];
         var $wrap = $('#edit-postpay-team-wrap');
@@ -241,6 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var createPostpay = !!options.createPostpay;
         clearCellFieldErrors();
         hidePostpayTeamUi();
+        syncPostpayBillingHints(false);
         $('#edit-user-id').val(userId);
         $('#edit-date').val(date);
         $('#edit-utss-id').val(utssId || '');
@@ -273,9 +329,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderPostpayTeamUi(ctx, $('#edit-team-id').val());
                     populateTrainerSelect(ctx.trainers || [], trainerSelectValueForVisited(ctx));
                     syncTrainerBlock();
+                    syncPostpayBillingHints(true);
                     cellEditModal.show();
                 },
                 error: function () {
+                    syncPostpayBillingHints(true);
                     cellEditModal.show();
                 }
             });
@@ -308,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (selected.lesson_occurrence_status_id) {
                     $('input[name="lesson_occurrence_status_id"][value="' + selected.lesson_occurrence_status_id + '"]').prop('checked', true);
                 }
-                var isPostpayOcc = !!selected.is_postpay;
+                var isPostpayOcc = occurrenceIsPostpayBilling(selected);
                 var metaParts = [];
                 if (selected.team_title) {
                     metaParts.push(selected.team_title);
@@ -323,16 +381,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     metaParts.push('Постоплата');
                 }
                 $('#edit-occurrence-meta').text(metaParts.join(' · '));
-                if (isPostpayOcc && selected.team_title) {
+                if (selected.team_title) {
                     $('#edit-user-teams-display').text('Группа: ' + selected.team_title);
-                } else if (ctx.teams_label) {
-                    $('#edit-user-teams-display').text('Группы: ' + ctx.teams_label);
+                } else {
+                    $('#edit-user-teams-display').text('');
                 }
                 if (selected.team_id) {
                     $('#edit-team-id').val(selected.team_id);
                 }
                 populateTrainerSelect(ctx.trainers || [], '');
                 syncTrainerBlock();
+                syncPostpayBillingHints(isPostpayOcc);
                 cellEditModal.show();
             }
         });

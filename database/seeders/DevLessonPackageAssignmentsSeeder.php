@@ -12,6 +12,7 @@ use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Support\PartnerLegalEntityMode;
 use App\Support\UserPriceTeamMembership;
+use Carbon\CarbonImmutable;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Database\Seeders\Support\DevSchoolCalendarBinder;
 use Illuminate\Database\Seeder;
@@ -45,9 +46,11 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
         ?int $userRoleId,
         DevSchoolCalendarBinder $binder,
     ): void {
+        // postpay не назначается через ULP — только через «Установка цен».
         $packages = LessonPackage::query()
             ->where('partner_id', $partnerId)
             ->where('is_active', true)
+            ->whereIn('schedule_type', LessonPackage::ASSIGNMENT_SCHEDULE_TYPES)
             ->get();
 
         if ($packages->isEmpty()) {
@@ -254,7 +257,8 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
         $ulp->loadMissing('user');
 
         $slot = $slots->random();
-        $occurrence = DevSchoolCalendarBinder::occurrenceDateForSlot($slot);
+        $from = $this->demoCalendarAnchorFrom();
+        $occurrence = DevSchoolCalendarBinder::occurrenceDateForSlot($slot, $from);
 
         $binder->bindFlexible($ulp, $slot, $occurrence, $createdBy);
 
@@ -283,7 +287,7 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
     ): void {
         $ulp->loadMissing('user');
         $slot = $slots->random();
-        $occurrence = DevSchoolCalendarBinder::occurrenceDateForSlot($slot);
+        $occurrence = DevSchoolCalendarBinder::occurrenceDateForSlot($slot, $this->demoCalendarAnchorFrom());
         $binder->bindSingleLesson($ulp, $slot, $occurrence, $createdBy);
     }
 
@@ -294,8 +298,10 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
         Collection $slots,
         ?int $createdBy,
     ): void {
+        $from = $this->demoCalendarAnchorFrom();
+
         foreach ($slots->shuffle() as $anchorSlot) {
-            $anchorDate = DevSchoolCalendarBinder::occurrenceDateForSlot($anchorSlot);
+            $anchorDate = DevSchoolCalendarBinder::occurrenceDateForSlot($anchorSlot, $from);
             $patterns = collect([DevSchoolCalendarBinder::patternFromSlot($anchorSlot)]);
 
             try {
@@ -306,5 +312,15 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
                 continue;
             }
         }
+    }
+
+    /**
+     * Якорь в прошлом, чтобы в текущем месяце журнала были «Посетил» / «Не посетил».
+     */
+    private function demoCalendarAnchorFrom(): CarbonImmutable
+    {
+        return CarbonImmutable::now()
+            ->startOfDay()
+            ->subWeeks(random_int(2, 4));
     }
 }

@@ -129,12 +129,9 @@ class DevSchoolScheduleSeeder extends Seeder
             }
 
             $occurrence = CarbonImmutable::now()
+                ->subWeeks(random_int(0, 2))
                 ->startOfWeek(CarbonImmutable::MONDAY)
                 ->addDays(max(0, (int) $slot->weekday - 1));
-
-            if ($occurrence->isPast()) {
-                $occurrence = $occurrence->addWeek();
-            }
 
             if ((int) $slot->weekday !== (int) $occurrence->format('N')) {
                 continue;

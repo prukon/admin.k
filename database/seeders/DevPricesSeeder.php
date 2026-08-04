@@ -2,8 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\LessonPackage;
 use App\Models\Payable;
+use App\Models\Team;
+use App\Models\TeamPrice;
 use App\Models\UserPrice;
+use App\Services\Postpay\PostpayUsersPriceSync;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
@@ -33,6 +37,9 @@ class DevPricesSeeder extends Seeder
 
     private const UNPAID_MONTHS_AGO_MAX = 12;
 
+    /** Доля слотов с привязанным абонементом (установка цен через пакет). */
+    private const PACKAGE_ATTACH_PERCENT = 72;
+
     public function run(): void
     {
         if (! $this->abortUnlessDevSeedEnabled()) {
@@ -45,6 +52,12 @@ class DevPricesSeeder extends Seeder
             return;
         }
 
+        /** @var Collection<int|string, Collection<int, LessonPackage>> $packagesByPartner */
+        $packagesByPartner = LessonPackage::query()
+            ->where('is_active', true)
+            ->get()
+            ->groupBy(static fn (LessonPackage $p): int => (int) $p->partner_id);
+
         $paidSlots = $this->buildUniqueSlots(
             $memberships,
             self::PAID_MONTHS_AGO_MIN,
@@ -55,15 +68,30 @@ class DevPricesSeeder extends Seeder
             ->values();
 
         foreach ($paidSlots as $slot) {
+            $package = $this->pickPackageForSlot($packagesByPartner, (int) $slot['partner_id'], preferPostpay: false);
+            $amount = $package !== null
+                ? $this->amountForPackage($package)
+                : (float) random_int(500, 10000);
+
             Payable::factory()
                 ->paidMonthlyWithAllRelations()
                 ->create([
                     'partner_id' => $slot['partner_id'],
                     'user_id' => $slot['user_id'],
                     'month' => $slot['month'],
-                    'amount' => random_int(500, 10000),
+                    'amount' => $amount,
                     'meta' => ['team_id' => $slot['team_id']],
                 ]);
+
+            if ($package !== null) {
+                $this->attachPackageToUserPrice(
+                    (int) $slot['user_id'],
+                    (int) $slot['team_id'],
+                    (string) $slot['month'],
+                    $package,
+                    $amount,
+                );
+            }
         }
 
         // Окна месяцев 0–6 и 7–12 не пересекаются → коллизий с paid нет.
@@ -77,17 +105,245 @@ class DevPricesSeeder extends Seeder
             ->values();
 
         foreach ($unpaidSlots as $slot) {
+            $package = $this->pickPackageForSlot($packagesByPartner, (int) $slot['partner_id'], preferPostpay: false);
+            $amount = $package !== null
+                ? $this->amountForPackage($package)
+                : (float) random_int(500, 10000);
+
+            $attrs = [];
+            if ($package !== null) {
+                $attrs['lesson_package_id'] = (int) $package->id;
+            }
+
             UserPrice::factory()
                 ->unpaid()
                 ->forUserAndMonth(
                     $slot['user_id'],
                     $slot['month'],
-                    random_int(500, 10000),
+                    $amount,
                     false,
                     $slot['team_id']
                 )
-                ->create();
+                ->create($attrs);
         }
+
+        $this->seedCurrentMonthPostpayRows($memberships, $packagesByPartner);
+        $this->seedTeamPrices($packagesByPartner);
+        $this->syncUnpaidPostpayRows();
+    }
+
+    /**
+     * Неоплаченные postpay-строки текущего месяца (сумма пересчитается после журнала).
+     *
+     * @param  Collection<int, array{user_id: int, team_id: int, partner_id: int}>  $memberships
+     * @param  Collection<int|string, Collection<int, LessonPackage>>  $packagesByPartner
+     */
+    private function seedCurrentMonthPostpayRows(Collection $memberships, Collection $packagesByPartner): void
+    {
+        $month = Carbon::now()->startOfMonth()->format('Y-m-01');
+        $target = app()->environment('testing') ? 8 : 24;
+
+        $candidates = $memberships
+            ->shuffle()
+            ->take($target * 3)
+            ->values();
+
+        $created = 0;
+
+        foreach ($candidates as $membership) {
+            if ($created >= $target) {
+                break;
+            }
+
+            $postpay = $this->randomPostpayPackage($packagesByPartner, (int) $membership['partner_id']);
+            if ($postpay === null) {
+                continue;
+            }
+
+            $exists = UserPrice::query()
+                ->where('user_id', $membership['user_id'])
+                ->where('team_id', $membership['team_id'])
+                ->whereDate('new_month', $month)
+                ->exists();
+
+            if ($exists) {
+                continue;
+            }
+
+            UserPrice::factory()
+                ->unpaid()
+                ->forUserAndMonth(
+                    $membership['user_id'],
+                    $month,
+                    0,
+                    false,
+                    $membership['team_id']
+                )
+                ->create([
+                    'lesson_package_id' => (int) $postpay->id,
+                ]);
+
+            $created++;
+        }
+    }
+
+    /**
+     * @param  Collection<int|string, Collection<int, LessonPackage>>  $packagesByPartner
+     */
+    private function seedTeamPrices(Collection $packagesByPartner): void
+    {
+        $teams = Team::query()
+            ->whereNull('deleted_at')
+            ->whereNotNull('partner_id')
+            ->get();
+
+        foreach ($teams as $team) {
+            $partnerId = (int) $team->partner_id;
+            $package = $this->pickNonPostpayPackage($packagesByPartner, $partnerId)
+                ?? $this->pickPackageForSlot($packagesByPartner, $partnerId, preferPostpay: false);
+
+            if ($package === null) {
+                continue;
+            }
+
+            $price = (int) round($package->price_cents / 100);
+
+            for ($ago = 0; $ago <= 2; $ago++) {
+                if (random_int(1, 100) > 65) {
+                    continue;
+                }
+
+                $month = Carbon::now()
+                    ->startOfMonth()
+                    ->subMonths($ago)
+                    ->format('Y-m-01');
+
+                TeamPrice::query()->updateOrCreate(
+                    [
+                        'team_id' => (int) $team->id,
+                        'new_month' => $month,
+                    ],
+                    [
+                        'price' => $price,
+                        'lesson_package_id' => (int) $package->id,
+                    ]
+                );
+            }
+        }
+    }
+
+    private function syncUnpaidPostpayRows(): void
+    {
+        $sync = app(PostpayUsersPriceSync::class);
+
+        $rows = UserPrice::query()
+            ->where('is_paid', 0)
+            ->whereNotNull('lesson_package_id')
+            ->with(['lessonPackage'])
+            ->get()
+            ->filter(static fn (UserPrice $row): bool => (bool) $row->lessonPackage?->isPostpay());
+
+        foreach ($rows as $row) {
+            $sync->syncRow($row);
+        }
+    }
+
+    private function attachPackageToUserPrice(
+        int $userId,
+        int $teamId,
+        string $month,
+        LessonPackage $package,
+        float $amount,
+    ): void {
+        UserPrice::query()
+            ->where('user_id', $userId)
+            ->where('team_id', $teamId)
+            ->whereDate('new_month', $month)
+            ->update([
+                'lesson_package_id' => (int) $package->id,
+                'price' => (string) (int) round($amount),
+            ]);
+    }
+
+    /**
+     * @param  Collection<int|string, Collection<int, LessonPackage>>  $packagesByPartner
+     */
+    private function pickPackageForSlot(
+        Collection $packagesByPartner,
+        int $partnerId,
+        bool $preferPostpay,
+    ): ?LessonPackage {
+        if (random_int(1, 100) > self::PACKAGE_ATTACH_PERCENT) {
+            return null;
+        }
+
+        /** @var Collection<int, LessonPackage>|null $pkgs */
+        $pkgs = $packagesByPartner->get($partnerId);
+        if ($pkgs === null || $pkgs->isEmpty()) {
+            return null;
+        }
+
+        if ($preferPostpay) {
+            $postpay = $pkgs->filter(static fn (LessonPackage $p): bool => $p->isPostpay());
+            if ($postpay->isNotEmpty()) {
+                return $postpay->random();
+            }
+        }
+
+        // В оплаченных/старых месяцах чаще обычные пакеты; postpay — реже (~18%).
+        if (random_int(1, 100) <= 18) {
+            $postpay = $pkgs->filter(static fn (LessonPackage $p): bool => $p->isPostpay());
+            if ($postpay->isNotEmpty()) {
+                return $postpay->random();
+            }
+        }
+
+        $regular = $pkgs->filter(static fn (LessonPackage $p): bool => ! $p->isPostpay());
+
+        return $regular->isNotEmpty() ? $regular->random() : $pkgs->random();
+    }
+
+    /**
+     * @param  Collection<int|string, Collection<int, LessonPackage>>  $packagesByPartner
+     */
+    private function pickNonPostpayPackage(Collection $packagesByPartner, int $partnerId): ?LessonPackage
+    {
+        /** @var Collection<int, LessonPackage>|null $pkgs */
+        $pkgs = $packagesByPartner->get($partnerId);
+        if ($pkgs === null || $pkgs->isEmpty()) {
+            return null;
+        }
+
+        $regular = $pkgs->filter(static fn (LessonPackage $p): bool => ! $p->isPostpay());
+
+        return $regular->isNotEmpty() ? $regular->random() : null;
+    }
+
+    /**
+     * @param  Collection<int|string, Collection<int, LessonPackage>>  $packagesByPartner
+     */
+    private function randomPostpayPackage(Collection $packagesByPartner, int $partnerId): ?LessonPackage
+    {
+        /** @var Collection<int, LessonPackage>|null $pkgs */
+        $pkgs = $packagesByPartner->get($partnerId);
+        if ($pkgs === null || $pkgs->isEmpty()) {
+            return null;
+        }
+
+        $postpay = $pkgs->filter(static fn (LessonPackage $p): bool => $p->isPostpay());
+
+        return $postpay->isNotEmpty() ? $postpay->random() : null;
+    }
+
+    private function amountForPackage(LessonPackage $package): float
+    {
+        $perUnit = round($package->price_cents / 100, 2);
+
+        if ($package->isPostpay()) {
+            return round($perUnit * random_int(2, 8), 2);
+        }
+
+        return $perUnit;
     }
 
     private function paidTarget(): int
