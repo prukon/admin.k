@@ -319,6 +319,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
             'fixed' => 'Фиксированный',
             'flexible' => 'Гибкий',
             'no_schedule' => 'Разовое',
+            'postpay' => 'Постоплата',
             default => $scheduleType !== null && $scheduleType !== '' ? (string) $scheduleType : '',
         };
     }

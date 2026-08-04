@@ -1249,15 +1249,34 @@
                         const newButton = borderPrice.querySelector('.new-main-button');
                         if (newButton) {
                             newButton.textContent = 'Оплатить';
-                            if (matchedData.is_paid) {
+                            const paid = !!(matchedData.effective_is_paid ?? matchedData.is_paid);
+                            const postpayBlocked = !!matchedData.is_postpay && matchedData.postpay_pay_available === false;
+                            newButton.removeAttribute('data-kids-tooltip-hint');
+                            newButton.removeAttribute('data-bs-toggle');
+                            newButton.removeAttribute('title');
+                            newButton.removeAttribute('data-bs-custom-class');
+                            if (paid) {
                                 newButton.textContent = 'Оплачено';
                                 newButton.setAttribute('disabled', 'disabled');
                                 newButton.classList.add('buttonPaided');
                             } else if (matchedData.price == 0) {
                                 newButton.setAttribute('disabled', 'disabled');
+                                newButton.classList.remove('buttonPaided');
+                            } else if (postpayBlocked) {
+                                newButton.setAttribute('disabled', 'disabled');
+                                newButton.classList.remove('buttonPaided');
+                                newButton.setAttribute('data-kids-tooltip-hint', '1');
+                                newButton.setAttribute('data-bs-toggle', 'tooltip');
+                                newButton.setAttribute('data-bs-placement', 'top');
+                                newButton.setAttribute('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+                                newButton.setAttribute('title', matchedData.postpay_pay_available_label || 'Оплата будет доступна позже');
                             } else {
                                 newButton.removeAttribute('disabled');
                                 newButton.classList.remove('buttonPaided');
+                            }
+                            if (window.KidsCrmTooltip) {
+                                window.KidsCrmTooltip.dispose(buttonWrap, { scopes: ['hint'] });
+                                window.KidsCrmTooltip.init(buttonWrap, { scopes: ['hint'] });
                             }
                         }
                         continue;
@@ -1269,8 +1288,12 @@
                         total += Number(matchedData.price) || 0;
                         const title = teamTitle(matchedData);
                         const label = title !== '' ? ('Оплатить (' + title + ')') : 'Оплатить';
-                        const paid = !!matchedData.is_paid;
-                        const disabled = paid || Number(matchedData.price) <= 0;
+                        const paid = !!(matchedData.effective_is_paid ?? matchedData.is_paid);
+                        const postpayBlocked = !!matchedData.is_postpay && matchedData.postpay_pay_available === false;
+                        const disabled = paid || Number(matchedData.price) <= 0 || postpayBlocked;
+                        const tipAttrs = (!paid && postpayBlocked)
+                            ? ` data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" title="${(matchedData.postpay_pay_available_label || '').replace(/"/g, '&quot;')}"`
+                            : '';
                         formsHtml += `
                     <form action="${paymentUrl}" method="POST" class="mb-1">
                         <input type="hidden" name="_token" value="${csrfToken}">
@@ -1278,8 +1301,8 @@
                         <input type="hidden" name="formatedPaymentDate" value="${matchedData.new_month}">
                         <input type="hidden" name="team_id" value="${matchedData.team_id || ''}">
                         <input type="hidden" name="outSum" value="${matchedData.price > 0 ? matchedData.price : ''}">
-                        <button type="submit" class="btn btn-sm btn-bd-primary new-main-button w-100"
-                            ${disabled ? 'disabled' : ''} ${paid ? 'class="btn btn-sm btn-bd-primary new-main-button w-100 buttonPaided"' : ''}>
+                        <button type="submit" class="btn btn-sm btn-bd-primary new-main-button w-100${paid ? ' buttonPaided' : ''}"
+                            ${disabled ? 'disabled' : ''}${tipAttrs}>
                             ${paid ? 'Оплачено' + (title ? ' (' + title + ')' : '') : label}
                         </button>
                     </form>`;
@@ -1288,6 +1311,10 @@
                     setSeasonPriceAmount(borderPrice, total > 0 ? total : 0);
 
                     buttonWrap.innerHTML = formsHtml;
+                    if (window.KidsCrmTooltip) {
+                        window.KidsCrmTooltip.dispose(buttonWrap, { scopes: ['hint'] });
+                        window.KidsCrmTooltip.init(buttonWrap, { scopes: ['hint'] });
+                    }
                 }
             }
 

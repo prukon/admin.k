@@ -129,6 +129,10 @@
                                 $cellIcon = $primary['status_icon'] ?? '';
                                 $cellTitle = $primary['status_title'] ?? '';
                                 $hasStatusVisual = ($cellIcon !== '' && $cellIcon !== null) || ($cellTitle !== '' && $cellTitle !== null);
+                                $isPostpayUser = !empty($postpayUsers[(int) $user->id]);
+                                $isPostpayLocked = !empty($postpayLockedUsers[(int) $user->id]);
+                                $canOpenEmptyPostpay = $isPostpayUser && $count === 0 && !$isPostpayLocked;
+                                $cellClickable = $count > 0 || $canOpenEmptyPostpay;
                             @endphp
                             <td class="schedule-cell text-center position-relative
                                 @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
@@ -138,12 +142,21 @@
                                 data-team-ids="{{ implode(',', $studentTeamIds) }}"
                                 data-date="{{ $day->format('Y-m-d') }}"
                                 data-occurrence-count="{{ $count }}"
+                                data-postpay="{{ $isPostpayUser ? '1' : '0' }}"
+                                data-postpay-locked="{{ $isPostpayLocked ? '1' : '0' }}"
+                                @if($isPostpayLocked)
+                                    data-kids-tooltip-hint="1"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                    title="Изменить данные нельзя, поскольку уже была произведена оплата"
+                                @endif
                                 @if($primary)
                                     data-utss-id="{{ $primary['utss_id'] }}"
                                     data-status-id="{{ $primary['lesson_occurrence_status_id'] }}"
                                     data-comment="{{ $primary['comment'] }}"
                                 @endif
-                                style="background-color:{{ $count > 0 && $cellColor ? $cellColor : 'transparent' }}; cursor: {{ $count > 0 ? 'pointer' : 'default' }};">
+                                style="background-color:{{ $count > 0 && $cellColor ? $cellColor : 'transparent' }}; cursor: {{ $cellClickable || $isPostpayLocked ? 'pointer' : 'default' }};">
                                 @if($count > 1)
                                     <span class="badge bg-primary">×{{ $count }}</span>
                                 @elseif($count === 1)
@@ -160,6 +173,8 @@
                                         <div class="cell-comment-indicator"
                                              style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
                                     @endif
+                                @elseif($canOpenEmptyPostpay)
+                                    <i class="fa-regular fa-circle text-muted" style="font-size: 0.55rem; opacity: 0.45;" title="Постоплата: отметить посещение"></i>
                                 @endif
                             </td>
                         @endforeach
@@ -199,10 +214,19 @@
                         <div><small class="text-muted" id="edit-occurrence-meta"></small></div>
                     </div>
 
+                    <div class="mb-3 d-none" id="edit-postpay-team-wrap">
+                        <label class="form-label" for="edit-postpay-team-select">Группа для отметки</label>
+                        <select class="form-select" id="edit-postpay-team-select" aria-label="Группа для отметки постоплаты"></select>
+                        <div class="form-control-plaintext d-none" id="edit-postpay-team-readonly"></div>
+                        <div class="invalid-feedback d-block" id="edit-postpay-team-error" style="display:none;"></div>
+                    </div>
+
                     <form id="cellEditForm">
                         <input type="hidden" name="user_id" id="edit-user-id">
                         <input type="hidden" name="utss_id" id="edit-utss-id">
                         <input type="hidden" name="occurrence_date" id="edit-date">
+                        <input type="hidden" name="create_postpay" id="edit-create-postpay" value="0">
+                        <input type="hidden" name="team_id" id="edit-team-id" value="">
 
                         <div class="mb-3">
                             <label class="form-label d-block">Статус</label>

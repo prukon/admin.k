@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\DataTables;
 use Illuminate\Support\Str;
 use App\Support\BuildsLogTable;
+use App\Support\LessonPackagePostpayPermission;
 use App\Services\PartnerContext;
 use App\Http\Requests\Admin\SaveUserYearPricesRequest;
 use App\Http\Requests\Admin\UserYearPricesRequest;
@@ -35,6 +36,7 @@ use App\Support\UserPriceTeamMembership;
 use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
 use App\Http\Requests\Admin\UserCustomPaymentUpdateRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
+use App\Services\Postpay\PostpayUsersPriceSync;
 use Illuminate\Support\Carbon as SupportCarbon;
 
 class SettingPricesController extends AdminBaseController
@@ -44,6 +46,7 @@ class SettingPricesController extends AdminBaseController
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly PostpayUsersPriceSync $postpaySync,
     ) {
         parent::__construct($partnerContext);
     }
@@ -699,7 +702,7 @@ class SettingPricesController extends AdminBaseController
 
             $userPrice->name = $user->name;
             $userPrice->refresh();
-            $userPrice->load('user');
+            $userPrice->load(['user', 'lessonPackage']);
             $userPrice->setAttribute('is_former_member', false);
             $usersPrice[] = $userPrice;
 
@@ -720,6 +723,8 @@ class SettingPricesController extends AdminBaseController
         foreach ($formerPrices as $userPrice) {
             $usersPrice[] = $userPrice;
         }
+
+        $usersPrice = $this->decorateUsersPricesForMonthlyUi($usersPrice);
 
         $lessonPackages = $this->lessonPackagesForPartnerSelect($partnerId);
 
@@ -793,25 +798,110 @@ class SettingPricesController extends AdminBaseController
 
     /**
      * Шаблоны абонементов партнёра для select на вкладке «по месяцам».
+     * Без lessonPackages.type.postpay — postpay-шаблоны скрыты, кроме уже назначенных
+     * (TeamPrice / UserPrice), чтобы текущие значения в UI не «терялись».
      *
-     * @return list<array{id: int, name: string, price: float}>
+     * @return list<array{id: int, name: string, price: float, schedule_type: string, is_postpay: bool}>
      */
     protected function lessonPackagesForPartnerSelect(int $partnerId): array
     {
-        return LessonPackage::query()
+        $canPostpay = LessonPackagePostpayPermission::userCanSelect(auth()->user());
+
+        $query = LessonPackage::query()
             ->where('partner_id', $partnerId)
             ->orderBy('name')
-            ->orderBy('id')
-            ->get(['id', 'name', 'price_cents'])
+            ->orderBy('id');
+
+        if (! $canPostpay) {
+            $keepIds = TeamPrice::query()
+                ->whereNotNull('lesson_package_id')
+                ->whereHas('team', static function ($q) use ($partnerId) {
+                    $q->where('partner_id', $partnerId)->whereNull('deleted_at');
+                })
+                ->pluck('lesson_package_id')
+                ->merge(
+                    UserPrice::query()
+                        ->whereNotNull('lesson_package_id')
+                        ->whereHas('user', static function ($q) use ($partnerId) {
+                            $q->where('partner_id', $partnerId);
+                        })
+                        ->pluck('lesson_package_id')
+                )
+                ->map(static fn ($id) => (int) $id)
+                ->unique()
+                ->filter(static fn (int $id) => $id > 0)
+                ->values()
+                ->all();
+
+            $query->where(function ($q) use ($keepIds) {
+                $q->where('schedule_type', '!=', LessonPackage::SCHEDULE_TYPE_POSTPAY);
+                if ($keepIds !== []) {
+                    $q->orWhereIn('id', $keepIds);
+                }
+            });
+        }
+
+        return $query
+            ->get(['id', 'name', 'price_cents', 'schedule_type'])
             ->map(static function (LessonPackage $package): array {
                 return [
                     'id' => (int) $package->id,
                     'name' => (string) $package->name,
-                    'price' => round(((int) $package->price_cents) / 100, 2),
+                    'price' => $package->priceRub(),
+                    'schedule_type' => (string) $package->schedule_type,
+                    'is_postpay' => $package->isPostpay(),
                 ];
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  list<UserPrice>  $rows
+     * @return list<UserPrice>
+     */
+    protected function decorateUsersPricesForMonthlyUi(iterable $rows): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            if (! $row instanceof UserPrice) {
+                continue;
+            }
+
+            // Динамические атрибуты (не колонки БД): syncRow/save и refresh() их портят.
+            $hasFormerFlag = array_key_exists('is_former_member', $row->getAttributes());
+            $formerFlag = $hasFormerFlag ? (bool) $row->getAttribute('is_former_member') : null;
+            $hasDisplayName = array_key_exists('name', $row->getAttributes());
+            $displayName = $hasDisplayName ? $row->getAttribute('name') : null;
+
+            if ($hasFormerFlag) {
+                $row->offsetUnset('is_former_member');
+            }
+            if ($hasDisplayName) {
+                $row->offsetUnset('name');
+            }
+
+            if (! $row->relationLoaded('lessonPackage')) {
+                $row->load('lessonPackage');
+            }
+            $this->postpaySync->syncRow($row);
+            $row->refresh();
+            if (! $row->relationLoaded('lessonPackage')) {
+                $row->load('lessonPackage');
+            }
+            $this->postpaySync->appendVisitMeta($row);
+
+            if ($hasFormerFlag) {
+                $row->setAttribute('is_former_member', $formerFlag);
+            }
+            if ($hasDisplayName) {
+                $row->setAttribute('name', $displayName);
+            }
+
+            $out[] = $row;
+        }
+
+        return $out;
     }
 
     /**
@@ -1019,13 +1109,18 @@ class SettingPricesController extends AdminBaseController
     /**
      * Применить снимок тарифа ко всем активным ученикам группы за месяц.
      * Не трогает записи с effective_is_paid = true.
+     * Для postpay цена = посещения × цена занятия (не цена шаблона как фиксированный месяц).
      */
     protected function applyPackageSnapshotToTeamStudents(
         Team $team,
         string $monthDate,
         float $price,
-        int $lessonPackageId
+        int $lessonPackageId,
+        ?LessonPackage $package = null
     ): void {
+        $package = $package ?? LessonPackage::query()->find($lessonPackageId);
+        $isPostpay = $package && $package->isPostpay();
+
         $users = $team->students()
             ->where('is_enabled', 1)
             ->get();
@@ -1045,22 +1140,39 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
-                $userPrice->update([
-                    'price' => $price,
-                    'lesson_package_id' => $lessonPackageId,
-                ]);
+                if ($isPostpay && $package) {
+                    $this->postpaySync->applyPackageToRow($userPrice, $package);
+                } else {
+                    $userPrice->update([
+                        'price' => $price,
+                        'lesson_package_id' => $lessonPackageId,
+                    ]);
+                }
 
                 continue;
             }
 
-            UserPrice::create([
-                'user_id' => $userId,
-                'team_id' => $team->id,
-                'new_month' => $monthDate,
-                'price' => $price,
-                'lesson_package_id' => $lessonPackageId,
-                'is_paid' => false,
-            ]);
+            if ($isPostpay && $package) {
+                $created = UserPrice::create([
+                    'user_id' => $userId,
+                    'team_id' => $team->id,
+                    'new_month' => $monthDate,
+                    'price' => 0,
+                    'lesson_package_id' => $lessonPackageId,
+                    'is_paid' => false,
+                ]);
+                $created->setRelation('lessonPackage', $package);
+                $this->postpaySync->syncRow($created);
+            } else {
+                UserPrice::create([
+                    'user_id' => $userId,
+                    'team_id' => $team->id,
+                    'new_month' => $monthDate,
+                    'price' => $price,
+                    'lesson_package_id' => $lessonPackageId,
+                    'is_paid' => false,
+                ]);
+            }
         }
     }
 
@@ -1097,9 +1209,10 @@ class SettingPricesController extends AdminBaseController
         }
 
         $price = $resolved['price'];
+        $package = $resolved['package'];
         $selectedDate = $this->formatedDate($selectedDateString);
 
-        DB::transaction(function () use ($team, $selectedDate, $price, $lessonPackageId, $selectedDateString) {
+        DB::transaction(function () use ($team, $selectedDate, $price, $lessonPackageId, $selectedDateString, $package) {
             TeamPrice::updateOrCreate(
                 [
                     'team_id' => $team->id,
@@ -1120,7 +1233,7 @@ class SettingPricesController extends AdminBaseController
                     ->withCreatedAt(now())
             );
 
-            $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId);
+            $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId, $package);
         });
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
@@ -1174,6 +1287,7 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 $price = $resolved['price'];
+                $package = $resolved['package'];
 
                 TeamPrice::updateOrCreate(
                     [
@@ -1195,7 +1309,7 @@ class SettingPricesController extends AdminBaseController
                         ->withCreatedAt(now())
                 );
 
-                $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId);
+                $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId, $package);
             }
         });
 
@@ -1324,17 +1438,53 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
-                if ($userPriceRecord->is_paid) {
+                if ($userPriceRecord->effective_is_paid) {
                     continue;
                 }
 
-                $newPrice = round((float) ($priceData['price'] ?? 0), 2);
-
-                // lesson_package_id: если ключ не передан — не трогаем существующую ссылку (старые клиенты)
                 $packageKeyPresent = array_key_exists('lesson_package_id', $priceData);
                 $newPackageId = $packageKeyPresent
                     ? ($priceData['lesson_package_id'] !== null ? (int) $priceData['lesson_package_id'] : null)
                     : ($userPriceRecord->lesson_package_id !== null ? (int) $userPriceRecord->lesson_package_id : null);
+
+                $resolvedPackage = null;
+                if ($newPackageId !== null && $newPackageId > 0) {
+                    $resolvedPackage = LessonPackage::query()
+                        ->whereKey($newPackageId)
+                        ->where('partner_id', $partnerId)
+                        ->first();
+                    if (! $resolvedPackage) {
+                        continue;
+                    }
+                }
+
+                // Postpay: сумма только из журнала, ручной price из UI игнорируем.
+                if ($resolvedPackage && $resolvedPackage->isPostpay()) {
+                    $packageChanged = $packageKeyPresent
+                        && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId;
+                    if ($packageChanged || (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId) {
+                        $userPriceRecord->lesson_package_id = $newPackageId;
+                        $userPriceRecord->save();
+                    }
+                    $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+                    $this->postpaySync->syncRow($userPriceRecord);
+                    $userPriceRecord->refresh();
+
+                    $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
+                    $this->auditLogger->record(
+                        AuditEvent::PricingStudentApply,
+                        AuditContext::make(
+                            "Обновлена постоплата: {$userPriceRecord->price} руб. Абонемент #{$newPackageId}. Период: {$selectedDateString}. Группа: {$team->title}."
+                        )
+                            ->withUserId($userId)
+                            ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
+                            ->withCreatedAt(now())
+                    );
+
+                    continue;
+                }
+
+                $newPrice = round((float) ($priceData['price'] ?? 0), 2);
 
                 $priceChanged = abs((float) $userPriceRecord->price - $newPrice) >= 0.005;
                 $packageChanged = $packageKeyPresent
@@ -1387,7 +1537,26 @@ class SettingPricesController extends AdminBaseController
             ->where('team_id', $teamId)
             ->where('new_month', $selectedDate)
             ->whereIn('user_id', $userIds)
+            ->with('lessonPackage')
             ->get();
+
+        // Если клиент прислал бывших в payload — в ответе всё равно помечаем флаг
+        // (decorate делает refresh и без этого сотрёт динамические атрибуты).
+        $memberIdSet = array_fill_keys(
+            $team->students()
+                ->pluck('users.id')
+                ->map(static fn ($id) => (int) $id)
+                ->all(),
+            true
+        );
+        foreach ($freshUsersPrice as $row) {
+            $row->setAttribute(
+                'is_former_member',
+                ! isset($memberIdSet[(int) $row->user_id])
+            );
+        }
+
+        $freshUsersPrice = $this->decorateUsersPricesForMonthlyUi($freshUsersPrice->all());
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
             'success' => true,

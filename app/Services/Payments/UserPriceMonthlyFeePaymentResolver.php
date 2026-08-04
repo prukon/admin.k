@@ -4,6 +4,8 @@ namespace App\Services\Payments;
 
 use App\Models\User;
 use App\Models\UserPrice;
+use App\Services\Postpay\PostpayMonth;
+use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\UserPriceTeamMembership;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use Carbon\Carbon;
@@ -15,6 +17,11 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  */
 final class UserPriceMonthlyFeePaymentResolver
 {
+    public function __construct(
+        private readonly PostpayUsersPriceSync $postpaySync,
+    ) {
+    }
+
     /**
      * @return array{out_sum: string, month_first_day: string, team_id: int}
      */
@@ -45,10 +52,25 @@ final class UserPriceMonthlyFeePaymentResolver
             ->where('user_id', $userId)
             ->where('team_id', $resolvedTeamId)
             ->whereDate('new_month', $monthFirst)
+            ->with('lessonPackage')
             ->first();
 
         if (!$row) {
             throw new AccessDeniedHttpException('Нет начисления за выбранный период. Обратитесь в школу.');
+        }
+
+        if ($row->lessonPackage && $row->lessonPackage->isPostpay()) {
+            $this->postpaySync->syncRow($row);
+            $row->refresh();
+
+            if (! PostpayMonth::isPayAvailableNow($monthFirst)) {
+                $label = PostpayMonth::payAvailableFromLabel($monthFirst);
+                throw new UnprocessableEntityHttpException('Оплата будет доступна с '.$label);
+            }
+        }
+
+        if ($row->effective_is_paid) {
+            throw new UnprocessableEntityHttpException('Этот период уже оплачен.');
         }
 
         $raw = $row->price;

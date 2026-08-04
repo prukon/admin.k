@@ -271,6 +271,12 @@
     <li>Несколько занятий в один день — бейдж <code>×N</code> (<code>data-occurrence-count</code>) → модалка списка → редактирование одного <code>utss_id</code>.</li>
     <li>Клик по ячейке / занятию → <code>#cellEditModal</code> (<code>#cellEditForm</code>): радио <code>lesson_occurrence_status_id</code>, комментарий, тренер при «Посетил».</li>
     <li>Кнопка «Абонемент» в строке ученика → <code>#abonementPlaceModal</code> — раскладка fixed (см. <a href="#place-fixed">§7</a>).</li>
+    <li><b>Постоплата:</b> при назначенном на месяц шаблоне <code>postpay</code> пустые ячейки кликабельны
+      (<code>data-postpay</code>); create через <code>create_postpay=1</code> без ULP; после оплаты месяца — лок.
+      Право <code>lessonPackages.type.postpay</code> для отметок в журнале <b>не</b> требуется
+      (нужен уже назначенный месяц + <code>schedule.view</code>).
+      Подробно — <a href="/docs/documentation/postpay#journal">postpay § журнал</a>,
+      <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
     <li>Модалки «Настройки статусов» / «Личное расписание» <strong>нет</strong>.</li>
     <li>Полноэкранный режим, поиск (DataTables), логи журнала, модалка «Управление группами» (<code>sync-teams</code>).</li>
   </ul>
@@ -297,7 +303,8 @@
   <p>Валидация: <code>GetScheduleCellContextRequest</code>. Ученик — круг §2.1, иначе <b>404</b>.</p>
   <ul>
     <li><code>visited_status_id</code> — id <code>attended</code> текущего партнёра</li>
-    <li><code>occurrences[]</code> — занятия дня (UTSS + актуальный статус)</li>
+    <li><code>occurrences[]</code> — занятия дня (UTSS + актуальный статус; у postpay — <code>is_postpay</code>, без времени слота)</li>
+    <li><code>postpay_teams</code>, <code>postpay_team_id</code> — группы с постоплатой на дату (для модалки create)</li>
     <li><code>selected</code> / <code>current_status_id</code> / <code>comment</code> — выбранное занятие</li>
     <li><code>team_ids</code>, <code>teams_label</code>, <code>team_default_trainer_profile_id</code>, <code>trainer_profile_id_for_select</code>, <code>trainers</code></li>
   </ul>
@@ -530,6 +537,7 @@
     <li><code>resources/js/schedule.js</code> — AJAX ячеек и place-fixed; CRUD статусов — inline JS в partial</li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — тот же контур + время</li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — назначения, автосписание</li>
+    <li><a href="/docs/documentation/postpay">Постоплата</a> — журнал без ULP, лок после оплаты</li>
     <li><a href="/docs/documentation/reusable-ui-partials">Переиспользуемые UI-блоки</a> — toolbar / DataTable</li>
   </ul>
 
@@ -539,6 +547,7 @@
       <li><code>ScheduleJournalAccessFeatureTest</code> / <code>ScheduleJournalFullAccessFeatureTest</code> — доступ + smoke endpoint'ов (в т.ч. place-fixed)</li>
       <li><code>ScheduleJournalUnifiedFeatureTest</code> — UTSS + раскладка + списание остатка</li>
       <li><code>ScheduleJournalMutationContractsFeatureTest</code> — AJAX 200/422 + non-AJAX 302 safety-net</li>
+      <li><code>tests/Feature/Crm/Postpay/*</code> — create_postpay, access, lock (см. <a href="/docs/documentation/postpay#tests">postpay § тесты</a>)</li>
       <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка → submit → данные видны</li>
       <li><code>ScheduleJournalStudentFilterFeatureTest</code> / <code>ScheduleJournalTeamPivotFeatureTest</code></li>
       <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> — <code>node --check</code> на <code>resources/js/schedule.js</code></li>

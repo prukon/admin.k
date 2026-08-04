@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastLessonPackages = [];
     /** @type {string|null} */
     let editingMonthlyUserId = null;
+    /** @type {{userId:string,price:*,lesson_package_id:*,is_postpay:*}|null} */
+    let editingMonthlySnapshot = null;
 
     function disposeTeamOkTooltip(okBtn) {
         if (!okBtn || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) {
@@ -151,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
             applyBtn.setAttribute('disabled', 'disabled');
         }
         editingMonthlyUserId = null;
+        editingMonthlySnapshot = null;
 
         const csrf = $('meta[name="csrf-token"]').attr('content');
         $.ajax({
@@ -236,10 +239,51 @@ document.addEventListener('DOMContentLoaded', function () {
             const selected = selectedPackageId != null && String(pkg.id) === String(selectedPackageId)
                 ? ' selected'
                 : '';
-            html += '<option value="' + escapeAttr(pkg.id) + '"' + selected + '>'
+            const postpayAttr = pkg.is_postpay ? ' data-is-postpay="1"' : ' data-is-postpay="0"';
+            const priceAttr = ' data-price="' + escapeAttr(pkg.price) + '"';
+            html += '<option value="' + escapeAttr(pkg.id) + '"' + selected + postpayAttr + priceAttr + '>'
                 + escapeHtml(pkg.name) + '</option>';
         }
         return html;
+    }
+
+    function packageIsPostpay(packageId) {
+        const pkg = findLessonPackage(packageId);
+        return !!(pkg && pkg.is_postpay);
+    }
+
+    function postpayVisitsTooltipTitle() {
+        const month = getSelectedMonthLabel();
+        if (month) {
+            return 'Кол-во занятий за «' + month + '»';
+        }
+        return 'Кол-во занятий за выбранный месяц';
+    }
+
+    const POSTPAY_PRICE_TOOLTIP = 'Сумма рассчитывается как «Стоимость 1 занятия × кол-во посещений за месяц»';
+
+    function applyKidsHintAttrs($el, title) {
+        if (!$el || !$el.length) {
+            return;
+        }
+        $el.attr({
+            'data-kids-tooltip-hint': '1',
+            'data-bs-toggle': 'tooltip',
+            'data-bs-placement': 'top',
+            'data-bs-custom-class': 'ulp-assignment-paid-tooltip',
+            'title': title
+        });
+    }
+
+    function buildPostpayVisitsHtml(visits) {
+        return '<div class="setting-prices-monthly-postpay-visits flex-shrink-0">'
+            + '<input type="text" readonly class="form-control form-control-sm setting-prices-monthly-postpay-visits-input"'
+            + ' value="' + escapeAttr(String(visits)) + '"'
+            + ' aria-label="Посещений за месяц"'
+            + ' data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top"'
+            + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+            + ' title="' + escapeAttr(postpayVisitsTooltipTitle()) + '">'
+            + '</div>';
     }
 
     function getSelectedMonthLabel() {
@@ -433,8 +477,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // Бывшие участники — только просмотр (без карандаша и режима редактирования).
+            // Карандаш — только после фактической установки абонемента.
+            const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
+            const hasAbon = packageId !== '';
             let pencilHtml = '';
-            if (!isFormer && canManage && uid) {
+            if (!isFormer && canManage && uid && hasAbon) {
                 pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" data-user-id="' + uid + '" title="Изменить статус и сумму">' +
                     '<i class="fa fa-edit" aria-hidden="true"></i></button>';
             }
@@ -451,6 +498,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<option value="1"' + (eff ? ' selected' : '') + '>Оплачено</option>' +
                     '<option value="0"' + (!eff ? ' selected' : '') + '>Не оплачено</option>' +
                     '</select>' +
+                    '<button type="button" class="btn btn-sm btn-success user-price-edit-accept d-inline-flex align-items-center justify-content-center px-2" title="Применить" aria-label="Применить">' +
+                    '<i class="fa fa-check" aria-hidden="true"></i></button>' +
                     '<button type="button" class="btn btn-sm btn-danger user-price-edit-cancel d-inline-flex align-items-center justify-content-center px-2" title="Отмена" aria-label="Отмена">' +
                     '<i class="fa fa-times" aria-hidden="true"></i></button>' +
                     '</div>' +
@@ -474,15 +523,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     '</div>';
             }
 
-            const packageId = up.lesson_package_id != null ? up.lesson_package_id : '';
-            // Бывшие: всегда disabled. Текущие: как раньше (оплаченные / режим карандаша).
+            const isPostpay = !!(up.is_postpay || packageIsPostpay(packageId));
+            const postpayVisits = (up.postpay_visits != null) ? up.postpay_visits : 0;
+            // Бывшие: всегда disabled. Текущие: абонемент всегда (если не оплачено);
+            // сумма открыта при первичной установке (нет абона), иначе — через карандаш.
+            // Postpay: цена только расчётная — инпут всегда readonly.
             let packageSelectDisabled = 'disabled';
             let priceInputDisabled = 'disabled';
             if (!isFormer) {
                 packageSelectDisabled = eff ? 'disabled' : '';
-                if (isEditing) {
+                if (isPostpay) {
+                    priceInputDisabled = 'disabled';
+                } else if (isEditing && !eff) {
+                    // Карандаш: сумму можно править только для неоплаченных.
                     priceInputDisabled = '';
-                } else if (!canManage && !eff) {
+                } else if (!eff && (!canManage || !hasAbon)) {
+                    // Первичная установка абона / без права карандаша — сумма доступна.
                     priceInputDisabled = '';
                 }
             }
@@ -498,10 +554,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const formerCardClass = isFormer ? ' setting-prices-user-card--former' : '';
             const formerDataAttr = isFormer ? ' data-is-former-member="1"' : '';
+            const abonEstablishedAttr = ' data-abon-established="' + (hasAbon ? '1' : '0') + '"';
+            const postpayVisitsHtml = isPostpay ? buildPostpayVisitsHtml(postpayVisits) : '';
+            const postpayPriceHintAttrs = isPostpay
+                ? (' data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top"'
+                    + ' data-bs-custom-class="ulp-assignment-paid-tooltip"'
+                    + ' title="' + escapeAttr(POSTPAY_PRICE_TOOLTIP) + '"')
+                : '';
+            const postpayPriceClass = isPostpay ? ' is-postpay-calc' : '';
 
             const userBlock = `
-                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}>
-                            <div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">
+                        <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
+                            <div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">
                                 <div class="setting-prices-monthly-name-col min-w-0">
                                     <span id="${uid}" class="user-name setting-prices-monthly-name-host d-flex flex-column min-w-0 w-100">${nameHtml}${formerBadgeHtml}</span>
                                 </div>
@@ -512,13 +576,15 @@ document.addEventListener('DOMContentLoaded', function () {
                                         ${buildPackageSelectOptions(packageId)}
                                     </select>
                                 </div>
+                                ${postpayVisitsHtml}
                                 <div class="setting-prices-monthly-price flex-shrink-0">
                                     <input type="number" step="0.01" min="0"
-                                        class="form-control form-control-sm setting-prices-monthly-price-input"
+                                        class="form-control form-control-sm setting-prices-monthly-price-input${postpayPriceClass}"
                                         value="${escapeAttr(formatPriceValue(up.price))}"
                                         ${priceInputDisabled}
                                         aria-label="Цена"
-                                        ${isFormer ? 'readonly' : ''}>
+                                        ${isFormer || isPostpay ? 'readonly' : ''}
+                                        ${postpayPriceHintAttrs}>
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
@@ -549,9 +615,43 @@ document.addEventListener('DOMContentLoaded', function () {
         const uid = $card.attr('data-user-id');
         const pkg = findLessonPackage($select.val());
         const $priceInput = $card.find('.setting-prices-monthly-price-input');
+        const isPostpay = !!(pkg && pkg.is_postpay);
 
-        if (pkg) {
-            $priceInput.val(formatPriceValue(pkg.price));
+        $card.attr('data-is-postpay', isPostpay ? '1' : '0');
+
+        let $visits = $card.find('.setting-prices-monthly-postpay-visits');
+        if (isPostpay) {
+            if ($visits.length === 0) {
+                $visits = $(buildPostpayVisitsHtml(0));
+                $card.find('.setting-prices-monthly-package').after($visits);
+            }
+            const known = uid
+                ? usersPrice.find(function (u) {
+                    return String(u.user_id) === String(uid);
+                })
+                : null;
+            const knownVisits = (known && known.postpay_visits != null) ? Number(known.postpay_visits) : 0;
+            $visits.find('input')
+                .val(String(knownVisits))
+                .attr('title', postpayVisitsTooltipTitle());
+            applyKidsHintAttrs($visits.find('input'), postpayVisitsTooltipTitle());
+            const amount = Math.round(knownVisits * Number(pkg.price) * 100) / 100;
+            $priceInput.val(formatPriceValue(amount));
+            $priceInput.prop('disabled', true).prop('readonly', true);
+            $priceInput.addClass('is-postpay-calc');
+            applyKidsHintAttrs($priceInput, POSTPAY_PRICE_TOOLTIP);
+        } else {
+            $visits.remove();
+            if (pkg) {
+                $priceInput.val(formatPriceValue(pkg.price));
+            }
+            $priceInput.prop('readonly', false);
+            $priceInput.removeClass('is-postpay-calc');
+            $priceInput.removeAttr('data-kids-tooltip-hint');
+            $priceInput.removeAttr('data-bs-toggle');
+            $priceInput.removeAttr('data-bs-placement');
+            $priceInput.removeAttr('data-bs-custom-class');
+            $priceInput.removeAttr('title');
         }
 
         // Сразу фиксируем выбор в состоянии — иначе карандаш перерисует строку из старых данных БД.
@@ -563,14 +663,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 const pkgVal = $select.val();
                 usersPrice[idx].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
                 usersPrice[idx].price = $priceInput.val();
+                usersPrice[idx].is_postpay = isPostpay;
             }
         }
 
-        // Вне режима редактирования сумму снова блокируем (выбор абонемента подставляет цену сам).
-        // В режиме карандаша оставляем поле доступным для ручной правки.
+        // Вне режима редактирования сумму блокируем только если абон уже был сохранён.
+        // При первичной установке оставляем поле открытым для правки перед «Применить».
         const inEditMode = uid && editingMonthlyUserId !== null && String(editingMonthlyUserId) === String(uid);
-        if (!inEditMode && lastCanManageManualPaid) {
+        const abonEstablished = $card.attr('data-abon-established') === '1';
+        if (isPostpay) {
+            $priceInput.prop('disabled', true).prop('readonly', true);
+        } else if (inEditMode) {
+            $priceInput.prop('disabled', false);
+        } else if (lastCanManageManualPaid && abonEstablished) {
             $priceInput.prop('disabled', true);
+        } else {
+            $priceInput.prop('disabled', false);
+        }
+
+        const rightBarEl = document.getElementById('right_bar');
+        if (rightBarEl && window.KidsCrmTooltip) {
+            window.KidsCrmTooltip.dispose(rightBarEl, { scopes: ['hint'] });
+            window.KidsCrmTooltip.init(rightBarEl, { scopes: ['hint'] });
         }
     });
 
@@ -608,19 +722,159 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (String(editingMonthlyUserId) === String(uid)) {
             editingMonthlyUserId = null;
+            editingMonthlySnapshot = null;
             renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
             return;
         }
+
+        const idx = usersPrice.findIndex(function (u) {
+            return String(u.user_id) === String(uid);
+        });
+        editingMonthlySnapshot = idx >= 0
+            ? {
+                userId: String(uid),
+                price: usersPrice[idx].price,
+                lesson_package_id: usersPrice[idx].lesson_package_id,
+                is_postpay: usersPrice[idx].is_postpay,
+            }
+            : null;
 
         editingMonthlyUserId = uid;
         renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
     });
 
+    function restoreEditingMonthlySnapshot() {
+        if (!editingMonthlySnapshot) {
+            return;
+        }
+        const idx = usersPrice.findIndex(function (u) {
+            return String(u.user_id) === String(editingMonthlySnapshot.userId);
+        });
+        if (idx >= 0) {
+            usersPrice[idx].price = editingMonthlySnapshot.price;
+            usersPrice[idx].lesson_package_id = editingMonthlySnapshot.lesson_package_id;
+            usersPrice[idx].is_postpay = editingMonthlySnapshot.is_postpay;
+        }
+        editingMonthlySnapshot = null;
+    }
+
     $(document).on('click', '#right_bar .wrap-users .user-price-edit-cancel', function (e) {
         e.preventDefault();
         syncUsersPriceFromDom();
+        restoreEditingMonthlySnapshot();
         editingMonthlyUserId = null;
         renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+    });
+
+    $(document).on('click', '#right_bar .wrap-users .user-price-edit-accept', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const $btn = $(this);
+        const $card = $btn.closest('.setting-prices-user-card');
+        if ($card.attr('data-is-former-member') === '1') {
+            return;
+        }
+        const userId = $card.attr('data-user-id');
+        if (!userId || !lastTeamId) {
+            return;
+        }
+
+        const priceInput = $card.find('.setting-prices-monthly-price-input');
+        const packageSelect = $card.find('.setting-prices-monthly-package-select');
+        const price = priceInput.length ? priceInput.val() : null;
+        const pkgVal = packageSelect.length ? packageSelect.val() : '';
+
+        const idx = usersPrice.findIndex(function (u) {
+            return String(u.user_id) === String(userId);
+        });
+        if (idx < 0) {
+            return;
+        }
+
+        const row = usersPrice[idx];
+        const eff = effectivePaidFromUserPrice(row);
+
+        // Оплаченный месяц: сумма не сохраняется — только выход из режима.
+        if (eff) {
+            editingMonthlyUserId = null;
+            editingMonthlySnapshot = null;
+            renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+            return;
+        }
+
+        const payloadRow = {
+            user_id: parseInt(userId, 10),
+            price: price !== null && price !== '' ? Number(price) : Number(row.price) || 0,
+            lesson_package_id: pkgVal !== '' ? parseInt(pkgVal, 10) : null,
+            user: row.user || { name: '' },
+        };
+
+        $btn.prop('disabled', true);
+        const selectedDate = getSelectedMonthLabel();
+        const csrf = $('meta[name="csrf-token"]').attr('content');
+
+        $.ajax({
+            url: '/admin/setting-prices/set-price-all-users',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json',
+            },
+            data: JSON.stringify({
+                selectedDate: selectedDate,
+                teamId: lastTeamId,
+                usersPrice: [payloadRow],
+            }),
+            success: function (response) {
+                const responsePrices = Array.isArray(response.usersPrice) ? response.usersPrice : [];
+                if (responsePrices.length) {
+                    const updated = responsePrices.find(function (u) {
+                        return String(u.user_id) === String(userId);
+                    });
+                    if (updated) {
+                        usersPrice[idx] = Object.assign({}, usersPrice[idx], updated);
+                    } else {
+                        usersPrice[idx].price = payloadRow.price;
+                        usersPrice[idx].lesson_package_id = payloadRow.lesson_package_id;
+                    }
+                } else {
+                    usersPrice[idx].price = payloadRow.price;
+                    usersPrice[idx].lesson_package_id = payloadRow.lesson_package_id;
+                }
+                if (Array.isArray(response.lessonPackages)) {
+                    lastLessonPackages = response.lessonPackages;
+                }
+                editingMonthlyUserId = null;
+                editingMonthlySnapshot = null;
+                renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
+                if (typeof showSuccessModal === 'function') {
+                    showSuccessModal('Установка цен', 'Изменения сохранены.');
+                }
+            },
+            error: function (xhr) {
+                $btn.prop('disabled', false);
+                let msg = 'Не удалось сохранить цену.';
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    const errs = xhr.responseJSON.errors;
+                    if (errs) {
+                        const firstKey = Object.keys(errs)[0];
+                        if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                            msg = errs[firstKey][0];
+                        }
+                    }
+                }
+                if (typeof showErrorModal === 'function') {
+                    showErrorModal('Ошибка', msg);
+                } else {
+                    alert(msg);
+                }
+            }
+        });
     });
 
     $(document).on('change', '#right_bar .wrap-users .user-manual-paid-select', function () {
@@ -907,6 +1161,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
 
                         editingMonthlyUserId = null;
+                        editingMonthlySnapshot = null;
                         const wrap = document.querySelector('#right_bar .wrap-users');
                         let usersTeam = [];
                         try {

@@ -29,6 +29,7 @@ use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\UserLessonPackageCalendarPeriodService;
+use App\Support\LessonPackagePostpayPermission;
 use App\Support\PartnerLegalEntityMode;
 use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
@@ -51,6 +52,7 @@ final class LessonPackageController extends AdminBaseController
 
     private const PACKAGES_TABLE_KEY = 'lesson_packages_index';
 
+    /** @var list<string> */
     /** @var list<string> */
     private const ASSIGNMENT_SCHEDULE_TYPES = ['fixed', 'flexible', 'no_schedule'];
 
@@ -121,8 +123,14 @@ final class LessonPackageController extends AdminBaseController
         }
 
         $scheduleType = trim((string) ($validated['schedule_type'] ?? ''));
-        if ($scheduleType !== '' && in_array($scheduleType, self::ASSIGNMENT_SCHEDULE_TYPES, true)) {
-            $baseQuery->where('schedule_type', $scheduleType);
+        if ($scheduleType !== '' && in_array($scheduleType, LessonPackage::SCHEDULE_TYPES, true)) {
+            // Фильтр postpay в UI только при lessonPackages.type.postpay; crafted query без права — пустой результат.
+            if ($scheduleType === LessonPackage::SCHEDULE_TYPE_POSTPAY
+                && ! LessonPackagePostpayPermission::userCanSelect(Auth::user())) {
+                $baseQuery->whereRaw('1 = 0');
+            } else {
+                $baseQuery->where('schedule_type', $scheduleType);
+            }
         }
 
         $totalRecords = LessonPackage::query()->where('partner_id', $partnerId)->count();
@@ -576,11 +584,16 @@ final class LessonPackageController extends AdminBaseController
         $partnerId = $this->requirePartnerId();
         $filters = $request->query();
 
-        $packagesList = LessonPackage::query()
+        $packagesListQuery = LessonPackage::query()
             ->where('partner_id', $partnerId)
             ->where('is_active', 1)
-            ->orderBy('name')
-            ->get(['id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents']);
+            ->orderBy('name');
+        if (! LessonPackagePostpayPermission::userCanSelect(Auth::user())) {
+            $packagesListQuery->where('schedule_type', '!=', LessonPackage::SCHEDULE_TYPE_POSTPAY);
+        }
+        $packagesList = $packagesListQuery->get([
+            'id', 'name', 'schedule_type', 'duration_days', 'lessons_count', 'price_cents',
+        ]);
 
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
@@ -793,6 +806,7 @@ final class LessonPackageController extends AdminBaseController
             'fixed' => 'Фиксированный',
             'flexible' => 'Гибкий',
             'no_schedule' => 'Разовое занятие',
+            'postpay' => 'Постоплата',
             default => 'Абонемент',
         };
 
@@ -1142,6 +1156,7 @@ final class LessonPackageController extends AdminBaseController
             'fixed' => 'Фиксированный',
             'flexible' => 'Гибкий',
             'no_schedule' => 'Разовое занятие',
+            'postpay' => 'Постоплата',
             default => 'Абонемент',
         };
 
@@ -1346,7 +1361,8 @@ final class LessonPackageController extends AdminBaseController
                 $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
                 $freezeDaysStored = $freezeDays;
                 $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
-                if ((string) $data['schedule_type'] === 'no_schedule') {
+                if ((string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE
+                    || (string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
                     $freezeEnabled = false;
                     $freezeDaysStored = 0;
                     $autoAttendanceEnabled = false;
@@ -1444,7 +1460,8 @@ final class LessonPackageController extends AdminBaseController
                 $freezeEnabled = (bool) ($data['freeze_enabled'] ?? false);
                 $freezeDaysStored = $freezeDays;
                 $autoAttendanceEnabled = (bool) ($data['auto_attendance_enabled'] ?? false);
-                if ((string) $data['schedule_type'] === 'no_schedule') {
+                if ((string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE
+                    || (string) $data['schedule_type'] === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
                     $freezeEnabled = false;
                     $freezeDaysStored = 0;
                     $autoAttendanceEnabled = false;
@@ -1478,6 +1495,11 @@ final class LessonPackageController extends AdminBaseController
                         ->withPartnerId($partnerId)
                         ->withCreatedAt(Carbon::now())
                 );
+            }
+
+            if ($lessonPackage->isPostpay()) {
+                app(\App\Services\Postpay\PostpayUsersPriceSync::class)
+                    ->resyncUnpaidForPackage((int) $lessonPackage->id);
             }
         } catch (QueryException $e) {
             Log::warning('LessonPackage update failed', [
@@ -1595,9 +1617,10 @@ final class LessonPackageController extends AdminBaseController
     private function scheduleTypeLabel(string $scheduleType): string
     {
         return match ($scheduleType) {
-            'fixed' => 'Фиксированный',
-            'flexible' => 'Гибкий',
-            'no_schedule' => 'Разовое занятие',
+            LessonPackage::SCHEDULE_TYPE_FIXED => 'Фиксированный',
+            LessonPackage::SCHEDULE_TYPE_FLEXIBLE => 'Гибкий',
+            LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE => 'Разовое занятие',
+            LessonPackage::SCHEDULE_TYPE_POSTPAY => 'Постоплата',
             default => $scheduleType,
         };
     }

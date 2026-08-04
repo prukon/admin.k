@@ -123,6 +123,9 @@
                         <option value="fixed">Фиксированный</option>
                         <option value="flexible">Гибкий</option>
                         <option value="no_schedule">Разовое занятие</option>
+                        @can('lessonPackages.type.postpay')
+                            <option value="postpay">Постоплата</option>
+                        @endcan
                     </select>
                 </div>
 
@@ -184,22 +187,25 @@
                                     <option value="fixed">Фиксированный</option>
                                     <option value="flexible">Гибкий</option>
                                     <option value="no_schedule">Разовое занятие</option>
+                                    @can('lessonPackages.type.postpay')
+                                        <option value="postpay">Постоплата</option>
+                                    @endcan
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="create[schedule_type]"></div>
                             </div>
 
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" id="create_duration_wrap">
                                 <label class="form-label">Срок действия (дни) *</label>
                                 <input type="number" name="create[duration_days]" id="create_duration_days" class="form-control" min="1" max="3650" value="30" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[duration_days]"></div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" id="create_lessons_wrap">
                                 <label class="form-label">Занятий *</label>
                                 <input type="number" name="create[lessons_count]" id="create_lessons_count" class="form-control" min="1" max="1000" value="8" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[lessons_count]"></div>
                             </div>
                             <div class="col-12 col-md-6">
-                                <label class="form-label">Стоимость (руб.) *</label>
+                                <label class="form-label" id="create_price_label">Стоимость (руб.) *</label>
                                 <input type="number" name="create[price]" class="form-control" min="0" max="99999999.99" step="0.01" value="0" required>
                                 <div class="invalid-feedback d-none" data-error-for="create[price]"></div>
                             </div>
@@ -273,24 +279,27 @@
                                     <option value="fixed">Фиксированный</option>
                                     <option value="flexible">Гибкий</option>
                                     <option value="no_schedule">Разовое занятие</option>
+                                    @can('lessonPackages.type.postpay')
+                                        <option value="postpay">Постоплата</option>
+                                    @endcan
                                 </select>
                                 <div class="invalid-feedback d-none" data-error-for="edit[schedule_type]"></div>
                             </div>
 
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" id="edit_duration_wrap">
                                 <label class="form-label">Срок действия (дни) *</label>
                                 <input type="number" name="edit[duration_days]" id="edit_duration_days" class="form-control" min="1" max="3650" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[duration_days]"></div>
                             </div>
 
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" id="edit_lessons_wrap">
                                 <label class="form-label">Занятий *</label>
                                 <input type="number" name="edit[lessons_count]" id="edit_lessons_count" class="form-control" min="1" max="1000" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[lessons_count]"></div>
                             </div>
 
                             <div class="col-12 col-md-6">
-                                <label class="form-label">Стоимость (руб.) *</label>
+                                <label class="form-label" id="edit_price_label">Стоимость (руб.) *</label>
                                 <input type="number" name="edit[price]" class="form-control" min="0" max="99999999.99" step="0.01" required>
                                 <div class="invalid-feedback d-none" data-error-for="edit[price]"></div>
                             </div>
@@ -578,6 +587,9 @@
                 const createAutoAttendanceEnabled = document.getElementById('create_auto_attendance_enabled');
                 const createDuration = document.getElementById('create_duration_days');
                 const createLessons = document.getElementById('create_lessons_count');
+                const createDurationWrap = document.getElementById('create_duration_wrap');
+                const createLessonsWrap = document.getElementById('create_lessons_wrap');
+                const createPriceLabel = document.getElementById('create_price_label');
                 let createSnapshotBeforeSingle = null;
 
                 function createToggleFreezeDays() {
@@ -592,18 +604,46 @@
                         return;
                     }
                     const t = createScheduleType.value;
-                    if (t === 'no_schedule') {
-                        createSnapshotBeforeSingle = {
-                            duration: (createDuration && createDuration.value) ? createDuration.value : '30',
-                            lessons: (createLessons && createLessons.value) ? createLessons.value : '8',
-                        };
-                        if (createDuration) {
-                            createDuration.value = '1';
-                            createDuration.readOnly = true;
+                    const isSingle = t === 'no_schedule';
+                    const isPostpay = t === 'postpay';
+                    if (isSingle || isPostpay) {
+                        if (isSingle) {
+                            createSnapshotBeforeSingle = {
+                                duration: (createDuration && createDuration.value) ? createDuration.value : '30',
+                                lessons: (createLessons && createLessons.value) ? createLessons.value : '8',
+                            };
+                            if (createDuration) {
+                                createDuration.value = '1';
+                                createDuration.readOnly = true;
+                            }
+                            if (createLessons) {
+                                createLessons.value = '1';
+                                createLessons.readOnly = true;
+                            }
+                            if (createDurationWrap) {
+                                createDurationWrap.style.display = '';
+                            }
+                            if (createLessonsWrap) {
+                                createLessonsWrap.style.display = '';
+                            }
+                        } else {
+                            if (createDuration) {
+                                createDuration.value = '31';
+                                createDuration.readOnly = true;
+                            }
+                            if (createLessons) {
+                                createLessons.value = '1';
+                                createLessons.readOnly = true;
+                            }
+                            if (createDurationWrap) {
+                                createDurationWrap.style.display = 'none';
+                            }
+                            if (createLessonsWrap) {
+                                createLessonsWrap.style.display = 'none';
+                            }
                         }
-                        if (createLessons) {
-                            createLessons.value = '1';
-                            createLessons.readOnly = true;
+                        if (createPriceLabel) {
+                            createPriceLabel.textContent = isPostpay ? 'Стоимость за одно занятие (руб.) *' : 'Стоимость (руб.) *';
                         }
                         if (createFreezeSection) {
                             createFreezeSection.style.display = 'none';
@@ -633,6 +673,15 @@
                         }
                         if (createLessons) {
                             createLessons.readOnly = false;
+                        }
+                        if (createDurationWrap) {
+                            createDurationWrap.style.display = '';
+                        }
+                        if (createLessonsWrap) {
+                            createLessonsWrap.style.display = '';
+                        }
+                        if (createPriceLabel) {
+                            createPriceLabel.textContent = 'Стоимость (руб.) *';
                         }
                         if (createFreezeSection) {
                             createFreezeSection.style.display = '';
@@ -695,6 +744,9 @@
                 const editAutoAttendanceEnabled = document.getElementById('edit_auto_attendance_enabled');
                 const editDuration = document.getElementById('edit_duration_days');
                 const editLessons = document.getElementById('edit_lessons_count');
+                const editDurationWrap = document.getElementById('edit_duration_wrap');
+                const editLessonsWrap = document.getElementById('edit_lessons_wrap');
+                const editPriceLabel = document.getElementById('edit_price_label');
                 const editIdEl = document.getElementById('edit_id');
                 let editSnapshotBeforeSingle = null;
 
@@ -710,18 +762,46 @@
                         return;
                     }
                     const t = editScheduleType.value;
-                    if (t === 'no_schedule') {
-                        editSnapshotBeforeSingle = {
-                            duration: (editDuration && editDuration.value) ? editDuration.value : '30',
-                            lessons: (editLessons && editLessons.value) ? editLessons.value : '8',
-                        };
-                        if (editDuration) {
-                            editDuration.value = '1';
-                            editDuration.readOnly = true;
+                    const isSingle = t === 'no_schedule';
+                    const isPostpay = t === 'postpay';
+                    if (isSingle || isPostpay) {
+                        if (isSingle) {
+                            editSnapshotBeforeSingle = {
+                                duration: (editDuration && editDuration.value) ? editDuration.value : '30',
+                                lessons: (editLessons && editLessons.value) ? editLessons.value : '8',
+                            };
+                            if (editDuration) {
+                                editDuration.value = '1';
+                                editDuration.readOnly = true;
+                            }
+                            if (editLessons) {
+                                editLessons.value = '1';
+                                editLessons.readOnly = true;
+                            }
+                            if (editDurationWrap) {
+                                editDurationWrap.style.display = '';
+                            }
+                            if (editLessonsWrap) {
+                                editLessonsWrap.style.display = '';
+                            }
+                        } else {
+                            if (editDuration) {
+                                editDuration.value = '31';
+                                editDuration.readOnly = true;
+                            }
+                            if (editLessons) {
+                                editLessons.value = '1';
+                                editLessons.readOnly = true;
+                            }
+                            if (editDurationWrap) {
+                                editDurationWrap.style.display = 'none';
+                            }
+                            if (editLessonsWrap) {
+                                editLessonsWrap.style.display = 'none';
+                            }
                         }
-                        if (editLessons) {
-                            editLessons.value = '1';
-                            editLessons.readOnly = true;
+                        if (editPriceLabel) {
+                            editPriceLabel.textContent = isPostpay ? 'Стоимость за одно занятие (руб.) *' : 'Стоимость (руб.) *';
                         }
                         if (editFreezeSection) {
                             editFreezeSection.style.display = 'none';
@@ -758,6 +838,15 @@
                         }
                         if (editLessons) {
                             editLessons.readOnly = false;
+                        }
+                        if (editDurationWrap) {
+                            editDurationWrap.style.display = '';
+                        }
+                        if (editLessonsWrap) {
+                            editLessonsWrap.style.display = '';
+                        }
+                        if (editPriceLabel) {
+                            editPriceLabel.textContent = 'Стоимость (руб.) *';
                         }
                         if (editFreezeSection) {
                             editFreezeSection.style.display = '';
@@ -835,9 +924,17 @@
                     try {
                         const json = await requestJson('GET', '/admin/lesson-packages/' + id);
                         const lp = json.lesson_package || {};
+                        const scheduleType = lp.schedule_type || 'fixed';
+                        const scheduleSelect = editModalEl.querySelector('[name="edit[schedule_type]"]');
+                        if (scheduleType === 'postpay' && scheduleSelect && !scheduleSelect.querySelector('option[value="postpay"]')) {
+                            const opt = document.createElement('option');
+                            opt.value = 'postpay';
+                            opt.textContent = 'Постоплата';
+                            scheduleSelect.appendChild(opt);
+                        }
 
                         editModalEl.querySelector('[name="edit[name]"]').value = lp.name || '';
-                        editModalEl.querySelector('[name="edit[schedule_type]"]').value = lp.schedule_type || 'fixed';
+                        scheduleSelect.value = scheduleType;
                         editModalEl.querySelector('[name="edit[duration_days]"]').value = lp.duration_days || 30;
                         editModalEl.querySelector('[name="edit[lessons_count]"]').value = lp.lessons_count || 8;
                         editModalEl.querySelector('[name="edit[price]"]').value = (lp.price !== undefined && lp.price !== null) ? lp.price : 0;
@@ -849,42 +946,7 @@
                         }
 
                         editSnapshotBeforeSingle = null;
-                        const st = (lp.schedule_type || 'fixed').toString();
-                        if (st === 'no_schedule') {
-                            if (editDuration) {
-                                editDuration.readOnly = true;
-                            }
-                            if (editLessons) {
-                                editLessons.readOnly = true;
-                            }
-                            if (editFreezeSection) {
-                                editFreezeSection.style.display = 'none';
-                            }
-                            if (editAutoAttendanceSection) {
-                                editAutoAttendanceSection.style.display = 'none';
-                            }
-                            if (editFreezeEnabled) {
-                                editFreezeEnabled.checked = false;
-                            }
-                            if (editAutoAttendanceEnabled) {
-                                editAutoAttendanceEnabled.checked = false;
-                            }
-                            editToggleFreezeDays();
-                        } else {
-                            if (editDuration) {
-                                editDuration.readOnly = false;
-                            }
-                            if (editLessons) {
-                                editLessons.readOnly = false;
-                            }
-                            if (editFreezeSection) {
-                                editFreezeSection.style.display = '';
-                            }
-                            if (editAutoAttendanceSection) {
-                                editAutoAttendanceSection.style.display = '';
-                            }
-                            editToggleFreezeDays();
-                        }
+                        applyEditScheduleTypeUi();
                     } catch (err) {
                         // silent
                     }

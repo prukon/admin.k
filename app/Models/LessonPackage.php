@@ -12,6 +12,31 @@ class LessonPackage extends Model
 {
     use HasFactory;
 
+    public const SCHEDULE_TYPE_FIXED = 'fixed';
+
+    public const SCHEDULE_TYPE_FLEXIBLE = 'flexible';
+
+    public const SCHEDULE_TYPE_NO_SCHEDULE = 'no_schedule';
+
+    /** Постоплата: цена за занятие, биллинг через users_prices (без user_lesson_packages). */
+    public const SCHEDULE_TYPE_POSTPAY = 'postpay';
+
+    /** @var list<string> */
+    public const SCHEDULE_TYPES = [
+        self::SCHEDULE_TYPE_FIXED,
+        self::SCHEDULE_TYPE_FLEXIBLE,
+        self::SCHEDULE_TYPE_NO_SCHEDULE,
+        self::SCHEDULE_TYPE_POSTPAY,
+    ];
+
+    /** Типы, для которых создаются назначения user_lesson_packages. */
+    /** @var list<string> */
+    public const ASSIGNMENT_SCHEDULE_TYPES = [
+        self::SCHEDULE_TYPE_FIXED,
+        self::SCHEDULE_TYPE_FLEXIBLE,
+        self::SCHEDULE_TYPE_NO_SCHEDULE,
+    ];
+
     protected $table = 'lesson_packages';
 
     protected $guarded = [];
@@ -26,6 +51,16 @@ class LessonPackage extends Model
         'auto_attendance_enabled' => 'bool',
         'is_active' => 'bool',
     ];
+
+    public function isPostpay(): bool
+    {
+        return (string) $this->schedule_type === self::SCHEDULE_TYPE_POSTPAY;
+    }
+
+    public function priceRub(): float
+    {
+        return round(((int) $this->price_cents) / 100, 2);
+    }
 
     public function partner(): BelongsTo
     {

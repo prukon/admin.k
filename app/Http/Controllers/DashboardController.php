@@ -18,6 +18,8 @@ use App\Models\UserPrice;
 use App\Models\Weekday;
 use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
+use App\Services\Postpay\PostpayMonth;
+use App\Services\Postpay\PostpayUsersPriceSync;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,6 +32,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly PostpayUsersPriceSync $postpaySync,
     ) {
     }
 
@@ -63,10 +66,7 @@ class DashboardController extends Controller
 
         $scheduleUser = $this->cabinetScheduleEntries((int) $curUser->id, $partnerId);
         $scheduleUserArray = $scheduleUser;
-        $userPriceArray = UserPrice::with('team:id,title')
-            ->where('user_id', $curUser->id)
-            ->get()
-            ->toArray();
+        $userPriceArray = $this->cabinetUserPricesPayload((int) $curUser->id);
 
         $userAbonements = UserCustomPayment::query()
             ->where('partner_id', $partnerId)
@@ -127,7 +127,7 @@ class DashboardController extends Controller
         ]);
         $userTeam = $user->teams->first();
         $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
-        $userPrice = UserPrice::where('user_id', $userId)->get();
+        $userPrice = $this->cabinetUserPricesPayload((int) $userId);
         $scheduleUser = $this->cabinetScheduleEntries((int) $userId, $partnerId);
 
         $allFields = UserField::where('partner_id', $partnerId)
@@ -179,7 +179,7 @@ class DashboardController extends Controller
         $userTeam = $user->teams->first();
         $userTeamsLabel = $this->teamUserSync->teamTitlesLabel($user);
 
-        $userPrice = UserPrice::where('user_id', $user->id)->get();
+        $userPrice = $this->cabinetUserPricesPayload((int) $user->id);
         $scheduleUser = $this->cabinetScheduleEntries((int) $user->id, $partnerId);
 
         $allFields = UserField::where('partner_id', $partnerId)
@@ -350,6 +350,49 @@ class DashboardController extends Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Цены сезонов для кабинета: sync postpay + метаданные разблокировки оплаты.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function cabinetUserPricesPayload(int $userId): array
+    {
+        $rows = UserPrice::with(['team:id,title', 'lessonPackage:id,schedule_type,price_cents,partner_id'])
+            ->where('user_id', $userId)
+            ->get();
+
+        $payload = [];
+        foreach ($rows as $row) {
+            $this->postpaySync->syncRow($row);
+            $row->refresh();
+            if (! $row->relationLoaded('lessonPackage')) {
+                $row->load('lessonPackage');
+            }
+            if (! $row->relationLoaded('team')) {
+                $row->load('team:id,title');
+            }
+            $this->postpaySync->appendVisitMeta($row);
+
+            $item = $row->toArray();
+            $isPostpay = (bool) ($item['is_postpay'] ?? false);
+            $month = PostpayMonth::firstDayFromDate((string) $row->new_month);
+            $item['effective_is_paid'] = (bool) $row->effective_is_paid;
+            $item['is_postpay'] = $isPostpay;
+            if ($isPostpay) {
+                $item['postpay_pay_available'] = PostpayMonth::isPayAvailableNow($month);
+                $item['postpay_pay_available_from'] = PostpayMonth::payAvailableFrom($month)->format('Y-m-d');
+                $item['postpay_pay_available_label'] = 'Оплата будет доступна с '.PostpayMonth::payAvailableFromLabel($month);
+            } else {
+                $item['postpay_pay_available'] = true;
+                $item['postpay_pay_available_from'] = null;
+                $item['postpay_pay_available_label'] = null;
+            }
+            $payload[] = $item;
+        }
+
+        return $payload;
     }
 
     /**

@@ -22,7 +22,18 @@ class UpdateScheduleJournalOccurrenceRequest extends FormRequest
 
         return [
             'user_id' => ['required', 'integer', 'exists:users,id'],
-            'utss_id' => ['required', 'integer', 'exists:user_team_schedule_slots,id'],
+            'utss_id' => [
+                Rule::requiredIf(! $this->boolean('create_postpay')),
+                'nullable',
+                'integer',
+                'exists:user_team_schedule_slots,id',
+            ],
+            'create_postpay' => ['nullable', 'boolean'],
+            'team_id' => [
+                'nullable',
+                'integer',
+                'exists:teams,id',
+            ],
             'occurrence_date' => ['required', 'date_format:Y-m-d'],
             'lesson_occurrence_status_id' => [
                 'required',
@@ -55,6 +66,16 @@ class UpdateScheduleJournalOccurrenceRequest extends FormRequest
         if ($this->filled('description') && ! $this->filled('comment')) {
             $this->merge(['comment' => $this->input('description')]);
         }
+
+        if ($this->has('create_postpay')) {
+            $this->merge([
+                'create_postpay' => filter_var($this->input('create_postpay'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        if ($this->input('utss_id') === '' || $this->input('utss_id') === null) {
+            $this->merge(['utss_id' => null]);
+        }
     }
 
     public function attributes(): array
@@ -62,6 +83,7 @@ class UpdateScheduleJournalOccurrenceRequest extends FormRequest
         return [
             'user_id' => 'ученик',
             'utss_id' => 'занятие',
+            'team_id' => 'группа',
             'occurrence_date' => 'дата',
             'lesson_occurrence_status_id' => 'статус',
             'comment' => 'комментарий',
@@ -74,6 +96,7 @@ class UpdateScheduleJournalOccurrenceRequest extends FormRequest
         return [
             'utss_id.required' => 'Выберите занятие.',
             'utss_id.exists' => 'Занятие не найдено.',
+            'team_id.required' => 'Выберите группу.',
             'lesson_occurrence_status_id.required' => 'Выберите статус.',
             'lesson_occurrence_status_id.exists' => 'Выбранный статус не найден или неактивен.',
             'trainer_profile_id.exists' => 'Выбранный тренер не найден.',

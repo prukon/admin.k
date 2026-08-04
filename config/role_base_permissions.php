@@ -48,6 +48,7 @@ return [
             'lessonPackages.view',
             'lessonPackages.manualPaid.manage',
             'lessonPackages.export',
+            // 'lessonPackages.type.postpay',
             'directories.view',
             'districts.view',
             'locations.view',

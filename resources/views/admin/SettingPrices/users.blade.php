@@ -126,7 +126,7 @@
         /* Заголовок «Абонемент» вровень с текстом в select (padding select) */
         #right_bar .wrap-users .user-prices-year-header-package {
             box-sizing: border-box;
-            padding-left: 0.35rem;
+            padding-left: 0.25rem;
         }
 
         /* Длинные названия абонемента: «...» в закрытом select */
@@ -492,7 +492,7 @@
                 const canManual = !isFormer && !!response.can_manage_manual_paid;
 
                 let html = '<div class="user-prices-year-table' + (isFormer ? ' user-prices-year-table--former' : '') + '">';
-                html += '<div class="user-prices-year-header d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0 mb-2 pb-2 border-bottom small text-muted">';
+                html += '<div class="user-prices-year-header d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0 mb-2 pb-2 border-bottom small text-muted">';
                 html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1">Месяц</div>';
                 html += '<div class="setting-prices-monthly-package flex-shrink-0 user-prices-year-header-package">Абонемент</div>';
                 html += '<div class="setting-prices-monthly-price flex-shrink-0 user-prices-year-header-price">Цена, ₽</div>';
@@ -501,11 +501,18 @@
 
                 response.months.forEach(function (item) {
                     const effectivePaid = !!item.effective_is_paid;
-                    // Бывшие участники — только просмотр; текущие — как раньше (оплаченные блокируются).
-                    const disabledAttr = (isFormer || effectivePaid) ? 'disabled' : '';
-                    const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
-
                     const hasRow = !!item.has_price_row;
+                    const packageId = item.lesson_package_id != null ? item.lesson_package_id : '';
+                    const hasAbon = packageId !== '';
+                    // Абонемент: бывшие и оплаченные — только просмотр; иначе всегда можно менять.
+                    const packageDisabledAttr = (isFormer || effectivePaid) ? 'disabled' : '';
+                    // Сумма: при первичной установке (ещё нет абона) — открыта;
+                    // после установки абона — только через карандаш (если есть право).
+                    let priceDisabledAttr = 'disabled';
+                    if (!isFormer && !effectivePaid && (!canManual || !hasAbon)) {
+                        priceDisabledAttr = '';
+                    }
+
                     const manualNote = item.manual_paid_note || '';
                     const hasManual = item.is_manual_paid !== null && item.is_manual_paid !== undefined;
                     const noteRaw = String(manualNote).trim();
@@ -522,9 +529,9 @@
                     }
 
                     let pencilHtml = '';
-                    if (canManual && hasRow) {
+                    if (canManual && hasRow && hasAbon) {
                         pencilHtml = '<button type="button" class="btn btn-link btn-sm p-0 user-price-manual-edit setting-prices-monthly-edit-btn" ' +
-                            'data-new-month="' + item.new_month + '" title="Изменить статус оплаты">' +
+                            'data-new-month="' + item.new_month + '" title="Изменить статус и сумму">' +
                             '<i class="fa fa-edit" aria-hidden="true"></i></button>';
                     }
 
@@ -546,13 +553,13 @@
                         '</div>';
 
                     html += '<div class="setting-prices-user-card mb-2 pb-2 border-bottom' + (isFormer ? ' setting-prices-user-card--former' : '') + '" data-new-month="' + item.new_month + '"' + (isFormer ? ' data-is-former-member="1"' : '') + '>';
-                    html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 gap-md-2 flex-nowrap w-100 min-w-0">';
+                    html += '<div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">';
                     html += '<div class="setting-prices-monthly-name-col d-flex align-items-center min-w-0 flex-grow-1 gap-1">';
                     html += '<span class="setting-prices-monthly-name-text text-truncate" title="' + monthTitle + '">' + escapeHtml(item.month_label) + '</span>';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-package flex-shrink-0">';
                     html += '<select class="form-select form-select-sm setting-prices-monthly-package-select" ' +
-                        disabledAttr + ' aria-label="Абонемент">' +
+                        packageDisabledAttr + ' aria-label="Абонемент">' +
                         buildPackageSelectOptions(packageId) +
                         '</select>';
                     html += '</div>';
@@ -560,7 +567,7 @@
                     html += '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
                         'data-new-month="' + item.new_month + '" ' +
                         'data-effective-paid="' + (effectivePaid ? '1' : '0') + '" ' +
-                        'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + disabledAttr +
+                        'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + priceDisabledAttr +
                         (isFormer ? ' readonly' : '') +
                         ' aria-label="Цена за месяц">';
                     html += '</div>';
@@ -600,8 +607,14 @@
                 editingNewMonth = newMonth;
                 const $row = $('#user-prices-table-wrapper .setting-prices-user-card[data-new-month="' + newMonth + '"]');
                 const $cell = $row.find('.user-price-status-cell');
+                const $priceInput = $row.find('.user-price-input');
                 const eff = !!item.effective_is_paid;
                 const selVal = eff ? '1' : '0';
+
+                // В режиме карандаша сумма доступна для правки (кроме оплаченных).
+                if (!eff) {
+                    $priceInput.prop('disabled', false);
+                }
 
                 const editHtml = '' +
                     '<div class="user-price-status-edit setting-prices-monthly-edit-panel">' +
@@ -611,6 +624,9 @@
                     '<option value="1"' + (eff ? ' selected' : '') + '>Оплачено</option>' +
                     '<option value="0"' + (!eff ? ' selected' : '') + '>Не оплачено</option>' +
                     '</select>' +
+                    '<button type="button" class="btn btn-sm btn-success user-price-edit-accept d-inline-flex align-items-center justify-content-center px-2" title="Применить" aria-label="Применить">' +
+                    '<i class="fa fa-check" aria-hidden="true"></i>' +
+                    '</button>' +
                     '<button type="button" class="btn btn-sm btn-danger user-price-edit-cancel d-inline-flex align-items-center justify-content-center px-2" title="Отмена" aria-label="Отмена">' +
                     '<i class="fa fa-times" aria-hidden="true"></i>' +
                     '</button>' +
@@ -619,6 +635,82 @@
                     '</div>';
 
                 $cell.html(editHtml);
+            }
+
+            function saveUserMonthPrice($card, $acceptBtn) {
+                if (!$card || !currentUserId || !currentTeamId) {
+                    return;
+                }
+                if (lastPricesPayload && lastPricesPayload.is_former_member) {
+                    showToast('Цены бывшего участника группы доступны только для просмотра.', true);
+                    return;
+                }
+
+                const $input = $card.find('.user-price-input');
+                const newMonth = $input.data('new-month') || $card.data('new-month');
+                const effPaid = Number($input.data('effective-paid')) === 1;
+
+                if (!newMonth) {
+                    return;
+                }
+
+                // Для оплаченного месяца сумма не меняется — только выход из режима.
+                if (effPaid) {
+                    editingNewMonth = null;
+                    loadUserYearPrices();
+                    return;
+                }
+
+                const year = $('#user-year-select').val();
+                const token = $('meta[name="csrf-token"]').attr('content');
+                const price = Number($input.val()) || 0;
+                const pkgVal = $card.find('.setting-prices-monthly-package-select').val();
+                const $btn = $acceptBtn && $acceptBtn.length ? $acceptBtn : $();
+
+                $btn.prop('disabled', true);
+
+                $.ajax({
+                    url: '/admin/setting-prices/user-year-prices/save',
+                    method: 'POST',
+                    data: {
+                        user_id: currentUserId,
+                        team_id: currentTeamId,
+                        year: year,
+                        prices: [{
+                            new_month: newMonth,
+                            price: price,
+                            lesson_package_id: pkgVal !== '' ? parseInt(pkgVal, 10) : null
+                        }],
+                        _token: token
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            editingNewMonth = null;
+                            showToast('Изменения сохранены.', false);
+                            loadUserYearPrices();
+                        } else {
+                            showToast(response.message || 'Не удалось сохранить изменения.', true);
+                            $btn.prop('disabled', false);
+                        }
+                    },
+                    error: function (xhr) {
+                        let msg = 'Ошибка при сохранении изменений.';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.message) {
+                                msg = xhr.responseJSON.message;
+                            }
+                            const errs = xhr.responseJSON.errors;
+                            if (errs) {
+                                const firstKey = Object.keys(errs)[0];
+                                if (firstKey && errs[firstKey] && errs[firstKey][0]) {
+                                    msg = errs[firstKey][0];
+                                }
+                            }
+                        }
+                        showToast(msg, true);
+                        $btn.prop('disabled', false);
+                    }
+                });
             }
 
             function loadUserYearPrices(done) {
@@ -728,6 +820,14 @@
                     loadUserYearPrices();
                 });
 
+                $('#user-prices-table-wrapper').on('click', '.user-price-edit-accept', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const $btn = $(this);
+                    const $card = $btn.closest('.setting-prices-user-card');
+                    saveUserMonthPrice($card, $btn);
+                });
+
                 $('#user-prices-table-wrapper').on('change', '.setting-prices-monthly-package-select', function () {
                     const select = this;
                     if (select.disabled) {
@@ -736,9 +836,10 @@
                     const selectedOpt = select.options[select.selectedIndex];
                     const pkgPrice = selectedOpt ? selectedOpt.getAttribute('data-price') : null;
                     const $input = $(select).closest('.setting-prices-user-card').find('.user-price-input');
-                    if (!$input.length || $input.prop('disabled')) {
+                    if (!$input.length) {
                         return;
                     }
+                    // Подставляем цену абонемента даже если сумма ещё locked (до карандаша).
                     if (select.value && pkgPrice != null && pkgPrice !== '') {
                         $input.val(formatPriceValue(pkgPrice));
                     }

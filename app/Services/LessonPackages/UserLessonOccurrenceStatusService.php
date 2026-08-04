@@ -65,12 +65,11 @@ final class UserLessonOccurrenceStatusService
                     UserLessonPackageConsumptionAdjuster::applyRemainingLessonsDelta($ulp, $delta);
                 }
             } else {
-                $trialUtss = UserTeamScheduleSlot::query()
+                $utss = UserTeamScheduleSlot::query()
                     ->where('partner_id', $partnerId)
                     ->where('user_id', $userId)
                     ->where('team_schedule_slot_id', $teamScheduleSlotId)
                     ->whereDate('starts_at', $occurrenceDateYmd)
-                    ->where('is_trial_lesson', true)
                     ->whereNull('user_lesson_package_id')
                     ->firstOrFail();
 
@@ -84,15 +83,18 @@ final class UserLessonOccurrenceStatusService
                     ->orderByDesc('id')
                     ->first();
 
-                $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
+                // Пробное — корректируем trial_lessons_remaining; постоплата (non-trial) — без списания ULP.
+                if ($utss->is_trial_lesson) {
+                    $prevConsumed = $prevEvent?->lessonOccurrenceStatus?->consumes_lesson;
 
-                $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
-                    $prevConsumed,
-                    (bool) $status->consumes_lesson
-                );
+                    $delta = UserLessonPackageConsumptionAdjuster::remainingLessonsDelta(
+                        $prevConsumed,
+                        (bool) $status->consumes_lesson
+                    );
 
-                if ($delta !== 0) {
-                    SchoolScheduleTrialLessonConsumptionAdjuster::applyRemainingLessonsDelta($trialUtss, $delta);
+                    if ($delta !== 0) {
+                        SchoolScheduleTrialLessonConsumptionAdjuster::applyRemainingLessonsDelta($utss, $delta);
+                    }
                 }
             }
 

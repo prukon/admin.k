@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\UserPrice;
+use App\Support\LessonPackagePostpayPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class SetPriceAllUsersRequest extends FormRequest
 {
@@ -63,6 +66,59 @@ final class SetPriceAllUsersRequest extends FormRequest
             'usersPrice.*.user' => ['nullable', 'array'],
             'usersPrice.*.user.name' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            if (LessonPackagePostpayPermission::userCanSelect($this->user())) {
+                return;
+            }
+
+            $rows = $this->input('usersPrice', []);
+            if (! is_array($rows) || $rows === []) {
+                return;
+            }
+
+            $teamId = (int) $this->input('teamId');
+            $monthDate = LessonPackagePostpayPermission::monthStringToDate((string) $this->input('selectedDate', ''));
+            $userIds = [];
+            foreach ($rows as $row) {
+                if (is_array($row) && isset($row['user_id'])) {
+                    $userIds[] = (int) $row['user_id'];
+                }
+            }
+            $userIds = array_values(array_unique(array_filter($userIds)));
+
+            $existingByUser = [];
+            if ($teamId > 0 && $userIds !== []) {
+                $existingByUser = UserPrice::query()
+                    ->where('team_id', $teamId)
+                    ->whereDate('new_month', $monthDate)
+                    ->whereIn('user_id', $userIds)
+                    ->pluck('lesson_package_id', 'user_id')
+                    ->all();
+            }
+
+            foreach ($rows as $index => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $packageId = isset($row['lesson_package_id']) ? (int) $row['lesson_package_id'] : 0;
+                $userId = (int) ($row['user_id'] ?? 0);
+                $previous = array_key_exists($userId, $existingByUser)
+                    ? ($existingByUser[$userId] !== null ? (int) $existingByUser[$userId] : null)
+                    : null;
+
+                LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+                    $v,
+                    $this->user(),
+                    $packageId > 0 ? $packageId : null,
+                    "usersPrice.{$index}.lesson_package_id",
+                    $previous,
+                );
+            }
+        });
     }
 
     public function attributes(): array

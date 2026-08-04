@@ -71,6 +71,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'lessonPackages.view',            'description' => 'Страница "Абонементы"',                         'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 35],
             ['name' => 'lessonPackages.manualPaid.manage', 'description' => 'Абонементы: ручная отметка оплаты назначения', 'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 36],
             ['name' => 'lessonPackages.export',          'description' => 'Абонементы: выгрузка занятий и назначений в Excel', 'group_slug' => 'lessonPackages', 'is_visible' => 1, 'sort_order' => 37],
+            ['name' => 'lessonPackages.type.postpay',    'description' => 'Абонементы, тип «Постоплата»',                  'group_slug' => 'lessonPackages', 'is_visible' => 0, 'sort_order' => 38],
 
             // group_slug setPrices
             ['name' => 'setPrices.cabinetSeasons.view',  'description' => 'Оплата сезонов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 19],

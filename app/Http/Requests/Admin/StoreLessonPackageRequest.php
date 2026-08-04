@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\LessonPackage;
+use App\Support\LessonPackagePostpayPermission;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class StoreLessonPackageRequest extends FormRequest
 {
@@ -22,12 +24,23 @@ final class StoreLessonPackageRequest extends FormRequest
 
         $freezeEnabled = $this->boolean('freeze_enabled');
         $autoAttendanceEnabled = $this->boolean('auto_attendance_enabled');
+        $scheduleType = (string) $this->input('schedule_type', '');
 
-        $this->merge([
+        $merge = [
             'price' => $price,
             'freeze_enabled' => $freezeEnabled,
             'auto_attendance_enabled' => $autoAttendanceEnabled,
-        ]);
+        ];
+
+        // Постоплата биллится календарным месяцем через users_prices — длительность/кол-во в шаблоне служебные.
+        if ($scheduleType === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
+            $merge['duration_days'] = 31;
+            $merge['lessons_count'] = 1;
+            $merge['freeze_enabled'] = false;
+            $merge['auto_attendance_enabled'] = false;
+        }
+
+        $this->merge($merge);
     }
 
     protected function passedValidation(): void
@@ -48,8 +61,6 @@ final class StoreLessonPackageRequest extends FormRequest
 
     public function rules(): array
     {
-        $scheduleType = (string) $this->input('schedule_type', '');
-
         return [
             'name' => [
                 'required',
@@ -59,16 +70,18 @@ final class StoreLessonPackageRequest extends FormRequest
             'schedule_type' => [
                 'required',
                 'string',
-                Rule::in(['fixed', 'flexible', 'no_schedule']),
+                Rule::in(LessonPackage::SCHEDULE_TYPES),
             ],
             'duration_days' => [
-                'required',
+                Rule::requiredIf(fn () => (string) $this->input('schedule_type') !== LessonPackage::SCHEDULE_TYPE_POSTPAY),
+                'nullable',
                 'integer',
                 'min:1',
                 'max:3650',
             ],
             'lessons_count' => [
-                'required',
+                Rule::requiredIf(fn () => (string) $this->input('schedule_type') !== LessonPackage::SCHEDULE_TYPE_POSTPAY),
+                'nullable',
                 'integer',
                 'min:1',
                 'max:1000',
@@ -102,7 +115,15 @@ final class StoreLessonPackageRequest extends FormRequest
         $validator->after(function (Validator $v) {
             $scheduleType = (string) $this->input('schedule_type', '');
 
-            if ($scheduleType === 'no_schedule') {
+            $existing = $this->route('lessonPackage');
+            LessonPackagePostpayPermission::rejectUnauthorizedScheduleType(
+                $v,
+                $this->user(),
+                $scheduleType,
+                $existing instanceof LessonPackage ? $existing : null,
+            );
+
+            if ($scheduleType === LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE) {
                 if ((int) $this->input('duration_days') !== 1) {
                     $v->errors()->add('duration_days', 'Для разового занятия длительность должна быть 1 день.');
                 }
@@ -114,6 +135,15 @@ final class StoreLessonPackageRequest extends FormRequest
                 }
                 if ($this->boolean('auto_attendance_enabled')) {
                     $v->errors()->add('auto_attendance_enabled', 'Для разового занятия автосписание недоступно.');
+                }
+            }
+
+            if ($scheduleType === LessonPackage::SCHEDULE_TYPE_POSTPAY) {
+                if ($this->boolean('freeze_enabled')) {
+                    $v->errors()->add('freeze_enabled', 'Для постоплаты заморозка недоступна.');
+                }
+                if ($this->boolean('auto_attendance_enabled')) {
+                    $v->errors()->add('auto_attendance_enabled', 'Для постоплаты автосписание недоступно.');
                 }
             }
         });
@@ -164,4 +194,3 @@ final class StoreLessonPackageRequest extends FormRequest
         ];
     }
 }
-

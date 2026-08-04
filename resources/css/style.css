@@ -513,18 +513,18 @@ footer .social-networks {
 }
 
 #right_bar .wrap-users .setting-prices-monthly-package {
-    flex: 0 0 8.75rem;
-    width: 8.75rem;
-    min-width: 7.5rem;
-    max-width: 8.75rem;
+    flex: 0 0 7rem;
+    width: 7rem;
+    min-width: 6.5rem;
+    max-width: 7rem;
 }
 
 #right_bar .wrap-users .setting-prices-monthly-package-select {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    padding-left: 0.35rem;
-    padding-right: 1.5rem;
+    padding-left: 0.25rem;
+    padding-right: 1.35rem;
     font-size: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -532,13 +532,35 @@ footer .social-networks {
 }
 
 #right_bar .wrap-users .setting-prices-monthly-price-input {
-    width: 9ch;
-    min-width: 9ch;
-    max-width: 9ch;
-    padding-left: 0.2rem;
-    padding-right: 0.2rem;
+    width: 7.5ch;
+    min-width: 7.5ch;
+    max-width: 7.5ch;
+    padding-left: 0.15rem;
+    padding-right: 0.15rem;
     text-align: right;
     font-size: 12px;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-postpay-visits {
+    flex: 0 0 3.25rem;
+    width: 3.25rem;
+    min-width: 3.25rem;
+    max-width: 3.25rem;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-postpay-visits-input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding-left: 0.15rem;
+    padding-right: 0.15rem;
+    text-align: center;
+    font-size: 12px;
+    cursor: help;
+}
+
+#right_bar .wrap-users .setting-prices-monthly-price-input.is-postpay-calc {
+    cursor: help;
 }
 
 /* Фиксированная ширина под иконку оплаты (галочка / пусто) */
@@ -622,20 +644,20 @@ footer .social-networks {
 }
 
 #right_bar .wrap-users .user-prices-year-header-price {
-    width: 9ch;
-    min-width: 9ch;
-    max-width: 9ch;
+    width: 7.5ch;
+    min-width: 7.5ch;
+    max-width: 7.5ch;
     text-align: right;
     flex-shrink: 0;
 }
 
 #right_bar .wrap-users .user-prices-year-header-package {
-    flex: 0 0 8.75rem;
-    width: 8.75rem;
-    min-width: 7.5rem;
-    max-width: 8.75rem;
+    flex: 0 0 7rem;
+    width: 7rem;
+    min-width: 6.5rem;
+    max-width: 7rem;
     box-sizing: border-box;
-    padding-left: 0.35rem;
+    padding-left: 0.25rem;
     text-align: left;
 }
 

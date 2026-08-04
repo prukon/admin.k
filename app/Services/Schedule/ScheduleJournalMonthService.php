@@ -6,7 +6,9 @@ namespace App\Services\Schedule;
 
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
+use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Postpay\PostpayMonth;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -58,6 +60,7 @@ final class ScheduleJournalMonthService
         }
 
         $statusMap = $this->latestStatusMap($partnerId, $rows);
+        $postpayNames = $this->postpayPackageNamesByUserTeamMonth($rows);
 
         $grouped = [];
         foreach ($rows as $row) {
@@ -74,6 +77,13 @@ final class ScheduleJournalMonthService
 
             $timeStart = $row->slot?->time_start;
             $timeEnd = $row->slot?->time_end;
+            $teamId = $row->slot?->team_id !== null ? (int) $row->slot->team_id : null;
+            $isPostpay = $row->user_lesson_package_id === null && ! (bool) $row->is_trial_lesson;
+            $postpayName = null;
+            if ($isPostpay && $teamId !== null) {
+                $monthKey = (int) $row->user_id.'|'.$teamId.'|'.PostpayMonth::firstDayFromDate($date);
+                $postpayName = $postpayNames[$monthKey] ?? 'Постоплата';
+            }
 
             $grouped[$key][] = [
                 'utss_id' => (int) $row->id,
@@ -82,13 +92,17 @@ final class ScheduleJournalMonthService
                 'team_schedule_slot_id' => (int) $row->team_schedule_slot_id,
                 'user_lesson_package_id' => $row->user_lesson_package_id !== null ? (int) $row->user_lesson_package_id : null,
                 'is_trial_lesson' => (bool) $row->is_trial_lesson,
-                'team_id' => $row->slot?->team_id !== null ? (int) $row->slot->team_id : null,
+                'is_postpay' => $isPostpay,
+                'team_id' => $teamId,
                 'team_title' => (string) ($row->slot?->team?->title ?? ''),
-                'time_start' => $timeStart ? substr((string) $timeStart, 0, 5) : null,
-                'time_end' => $timeEnd ? substr((string) $timeEnd, 0, 5) : null,
+                // Для постоплаты время слота техническое (служебный слот дня недели) — в UI не показываем.
+                'time_start' => $isPostpay ? null : ($timeStart ? substr((string) $timeStart, 0, 5) : null),
+                'time_end' => $isPostpay ? null : ($timeEnd ? substr((string) $timeEnd, 0, 5) : null),
                 'package_name' => $row->is_trial_lesson
                     ? 'Пробное'
-                    : (string) ($row->userLessonPackage?->lessonPackage?->name ?? 'Абонемент'),
+                    : ($isPostpay
+                        ? (string) $postpayName
+                        : (string) ($row->userLessonPackage?->lessonPackage?->name ?? 'Абонемент')),
                 'lesson_occurrence_status_id' => $status?->id !== null ? (int) $status->id : null,
                 'status_title' => $status?->title,
                 'status_icon' => $status?->icon,
@@ -202,6 +216,62 @@ final class ScheduleJournalMonthService
             if (! isset($map[$key])) {
                 $map[$key] = $event;
             }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Имена шаблонов постоплаты для UTSS без ULP: ключ "{userId}|{teamId}|{YYYY-MM-01}".
+     *
+     * @param  Collection<int, UserTeamScheduleSlot>  $rows
+     * @return array<string, string>
+     */
+    private function postpayPackageNamesByUserTeamMonth(Collection $rows): array
+    {
+        $pairs = [];
+        foreach ($rows as $row) {
+            if ($row->user_lesson_package_id !== null || (bool) $row->is_trial_lesson) {
+                continue;
+            }
+            $teamId = $row->slot?->team_id !== null ? (int) $row->slot->team_id : 0;
+            if ($teamId <= 0) {
+                continue;
+            }
+            $month = PostpayMonth::firstDayFromDate(Carbon::parse($row->starts_at)->format('Y-m-d'));
+            $pairs[(int) $row->user_id.'|'.$teamId.'|'.$month] = [
+                'user_id' => (int) $row->user_id,
+                'team_id' => $teamId,
+                'month' => $month,
+            ];
+        }
+
+        if ($pairs === []) {
+            return [];
+        }
+
+        $userIds = array_values(array_unique(array_column($pairs, 'user_id')));
+        $teamIds = array_values(array_unique(array_column($pairs, 'team_id')));
+        $months = array_values(array_unique(array_column($pairs, 'month')));
+
+        $priceRows = UserPrice::query()
+            ->whereIn('user_id', $userIds)
+            ->whereIn('team_id', $teamIds)
+            ->whereIn('new_month', $months)
+            ->whereNotNull('lesson_package_id')
+            ->with(['lessonPackage:id,name,schedule_type'])
+            ->get();
+
+        $map = [];
+        foreach ($priceRows as $priceRow) {
+            $package = $priceRow->lessonPackage;
+            if (! $package || ! $package->isPostpay()) {
+                continue;
+            }
+            $key = (int) $priceRow->user_id.'|'.(int) $priceRow->team_id.'|'
+                .PostpayMonth::firstDayFromDate((string) $priceRow->new_month);
+            $name = trim((string) $package->name);
+            $map[$key] = $name !== '' ? $name : 'Постоплата';
         }
 
         return $map;

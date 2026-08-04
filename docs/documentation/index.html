@@ -26,6 +26,30 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Право lessonPackages.type.postpay — тип «Постоплата» (2026‑08)</h2>
+  <div class="note">
+    Скрытое право <code>lessonPackages.type.postpay</code> (группа <code>lessonPackages</code>,
+    <code>is_visible = 0</code>) управляет <b>выбором</b> типа абонемента <code>schedule_type = postpay</code>.
+    В базовые роли <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит;
+    миграция только создаёт право, никому не выдаёт.
+    <br><br>
+    1) UI шаблонов (create/edit/фильтр, дубль в «Справочниках») — option «Постоплата» только при праве.
+    <br>
+    2) Store/update с <code>schedule_type=postpay</code> без права → <b>422</b> на <code>schedule_type</code>
+    (правка уже существующего postpay-шаблона без смены типа — разрешена).
+    <br>
+    3) «Установка цен»: новый выбор postpay-пакета без права → <b>422</b> на поле пакета;
+    уже назначенный id можно сохранить повторно; каталог скрывает неназначенные postpay.
+    <br>
+    4) Журнал <code>create_postpay</code> и оплата с консоли этим правом <b>не</b> закрываются
+    (нужен уже назначенный месяц + <code>schedule.view</code> / правила оплаты).
+    <br><br>
+    Карточка права —
+    <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>;
+    бизнес-логика постоплаты —
+    <a href="/docs/documentation/postpay">postpay</a>.
+  </div>
+
   <h2>Права setPrices: доп. платежи и назначения абонементов (2026‑08)</h2>
   <div class="note">
     1) <b><code>setPrices.customPayments.view</code></b> — больше <b>не</b> входит в базовый набор ролей
@@ -435,6 +459,7 @@
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
+    <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов + блок на консоли; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
@@ -454,6 +479,7 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
+    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code>, лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>, раскладка fixed (<code>place-fixed-abonement</code>), статусы со списанием, ×N занятий в день, справочник <code>lesson_occurrence_statuses</code> (toolbar/DataTable), тренер при «Посетил»</a></li>

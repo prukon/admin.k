@@ -55,14 +55,15 @@ class LessonPackageFactory extends Factory
         ]);
     }
 
-    public function singleLesson(): static
+    public function postpay(): static
     {
         return $this->state(fn () => [
-            'schedule_type' => 'no_schedule',
-            'duration_days' => 1,
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_POSTPAY,
+            'duration_days' => 31,
             'lessons_count' => 1,
             'freeze_enabled' => false,
             'freeze_days' => 0,
+            'auto_attendance_enabled' => false,
         ]);
     }
 }

@@ -32,6 +32,8 @@ class DocumentationController extends Controller
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
         'dev-seed-data'               => 'Dev-фикстуры: SEED_DEV_DATA, цепочка Dev*-сидеров, юр. лица, T‑Bank, ограничения prod',
         'lesson-packages'             => 'Абонементы: шаблоны, назначения (packageAssignments.view + история), ручная смена ends_at, период с календаря, конфликт fixed, статусы, Excel',
+        'postpay'                     => 'Постоплата (postpay): шаблон, users_prices без ULP, журнал create_postpay, лок после оплаты; право lessonPackages.type.postpay',
+        'lesson-packages-type-postpay' => 'Право lessonPackages.type.postpay: выбор типа «Постоплата», скрытое, не в базовых ролях',
         'school-schedule-calendar'    => 'Расписание школы: календарь, assign-fixed конфликт по starts_at, inline-панели, выгрузка Excel, JSON/API',
         'location-team-bindings'      => 'Объекты ↔ группы (teams.location_id): одна группа — один объект, sync, лендинг, слоты, отчёты',
         'directories-hierarchy'       => 'Справочники: иерархия Район → Объект → Группа; вкладки (+ Абонементы), DirectoriesMenu, права, БД, лендинг',

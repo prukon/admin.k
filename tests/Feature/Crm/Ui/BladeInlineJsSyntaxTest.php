@@ -69,6 +69,12 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
+        // Постоплата: createPostpay + выбор группы в модалке (имя поля create_postpay в blade)
+        $this->assertStringContainsString('createPostpay', $content);
+        $this->assertStringContainsString('edit-create-postpay', $content);
+        $this->assertStringContainsString('postpay_teams', $content);
+        $this->assertStringContainsString('is_postpay', $content);
+        $this->assertStringContainsString('edit-postpay-team-select', $content);
         // jQuery $.ajax по умолчанию ставит X-Requested-With: XMLHttpRequest;
         // backend также принимает expectsJson через Accept: application/json.
 
@@ -100,6 +106,12 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
         $this->assertStringContainsString('formerSnapshot', $content);
+        // Постоплата: пересчёт цены, поле визитов, is_postpay в каталоге
+        $this->assertStringContainsString('is_postpay', $content);
+        $this->assertStringContainsString('postpay_visits', $content);
+        $this->assertStringContainsString('setting-prices-monthly-postpay-visits', $content);
+        $this->assertStringContainsString('is-postpay-calc', $content);
+        $this->assertStringContainsString('packageIsPostpay', $content);
 
         $output = [];
         $exitCode = 0;
@@ -108,6 +120,114 @@ final class BladeInlineJsSyntaxTest extends TestCase
             0,
             $exitCode,
             "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: inline JS шаблонов абонементов — schedule_type=postpay (цена за занятие).
+     */
+    public function test_lesson_packages_postpay_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/packages.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('value="postpay"', $content);
+        $this->assertStringContainsString('@can(\'lessonPackages.type.postpay\')', $content);
+        $this->assertStringContainsString("t === 'postpay'", $content);
+        $this->assertStringContainsString('Стоимость за одно занятие', $content);
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В packages.blade.php нет inline <script>');
+
+        $postpayScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, "t === 'postpay'") && ! str_contains($rawScript, 'postpay')) {
+                continue;
+            }
+            $postpayScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-packages-postpay-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in lesson packages postpay script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $postpayScriptFound,
+            'В packages.blade.php не найден script с обработкой schedule_type=postpay'
+        );
+    }
+
+    /**
+     * P1: inline JS кабинета — блокировка кнопки оплаты постоплаты до 1 числа.
+     */
+    public function test_dashboard_postpay_pay_gate_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('postpay_pay_available', $content);
+        $this->assertStringContainsString('postpayBlocked', $content);
+        $this->assertStringContainsString('is_postpay', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В dashboard.blade.php нет inline <script>');
+
+        $postpayScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'postpay_pay_available')
+                && ! str_contains($rawScript, 'postpayBlocked')) {
+                continue;
+            }
+            $postpayScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-dashboard-postpay-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in dashboard postpay script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $postpayScriptFound,
+            'В dashboard.blade.php не найден script с postpay_pay_available / postpayBlocked'
         );
     }
 

@@ -63,6 +63,17 @@ final class StoreUserLessonPackageRequest extends FormRequest
             $partnerId = (int) (app('current_partner')->id ?? 0);
             $userId = (int) $this->input('user_id');
             $teamId = (int) $this->input('team_id');
+            $packageId = (int) $this->input('lesson_package_id');
+
+            if ($packageId > 0) {
+                $package = \App\Models\LessonPackage::query()->find($packageId);
+                if ($package && $package->isPostpay()) {
+                    $validator->errors()->add(
+                        'lesson_package_id',
+                        'Абонемент «Постоплата» назначается только в разделе «Установка цен», без записи в назначениях.'
+                    );
+                }
+            }
 
             if ($teamId <= 0 || $userId <= 0 || $partnerId <= 0) {
                 return;

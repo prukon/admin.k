@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\TeamPrice;
+use App\Support\LessonPackagePostpayPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 final class SetTeamPriceRequest extends FormRequest
 {
@@ -41,6 +44,32 @@ final class SetTeamPriceRequest extends FormRequest
                 ),
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            if ($v->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $teamId = (int) $this->input('teamId');
+            $packageId = (int) $this->input('lesson_package_id');
+            $monthDate = LessonPackagePostpayPermission::monthStringToDate((string) $this->input('selectedDate', ''));
+
+            $previousId = TeamPrice::query()
+                ->where('team_id', $teamId)
+                ->whereDate('new_month', $monthDate)
+                ->value('lesson_package_id');
+
+            LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+                $v,
+                $this->user(),
+                $packageId,
+                'lesson_package_id',
+                $previousId !== null ? (int) $previousId : null,
+            );
+        });
     }
 
     public function attributes(): array

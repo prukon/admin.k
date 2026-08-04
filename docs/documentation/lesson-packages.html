@@ -37,6 +37,18 @@
     и календаря <code>schedule</code>). Подробно — <a href="#assignments-history">§assignments-history</a>.
   </div>
 
+  <h2 id="postpay">Тип шаблона <code>postpay</code> (постоплата)</h2>
+  <div class="note">
+    Отдельный <code>schedule_type</code> для оплаты по факту посещений за календарный месяц.
+    Биллинг — только через <code>users_prices</code> (без строки в <code>user_lesson_packages</code>).
+    Option/фильтр «Постоплата» в UI шаблонов — только при праве
+    <code>lessonPackages.type.postpay</code>
+    (<a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>).
+    В select назначений ULP тип <b>не</b> предлагается без этого права; store назначения с postpay-пакетом
+    всегда → <b>422</b> (доменный запрет).
+    Полное описание — <a href="/docs/documentation/postpay">postpay</a>.
+  </div>
+
   <h2 id="ulp-billing-month">Поле <code>billing_month</code> (зарезервировано под месячные назначения)</h2>
   <div class="note">
     Миграция <code>2026_08_01_030000_add_billing_month_to_user_lesson_packages_table.php</code>.
@@ -45,6 +57,8 @@
     Неуникальный индекс <code>(user_id, team_id, billing_month)</code>.
     Для текущих fixed / flexible / no_schedule назначений значение остаётся <code>NULL</code>
     (backfill не делается). UI и валидация назначений поле пока не используют.
+    <b>Не путать с постоплатой:</b> тип <code>postpay</code> не пишет в ULP и не использует
+    <code>billing_month</code> — см. <a href="/docs/documentation/postpay">postpay</a>.
     См. также <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
   </div>
 
@@ -243,7 +257,11 @@
   <h3>Фильтры</h3>
   <ul>
     <li>Поиск по названию (query <code>name</code>; также совпадение по id, если строка из цифр).</li>
-    <li>Тип: все / <code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> (query <code>schedule_type</code>).</li>
+    <li>Тип: все / <code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> /
+      <code>postpay</code> (query <code>schedule_type</code>; option postpay и фильтр data — только при
+      <code>lessonPackages.type.postpay</code>). Про постоплату —
+      <a href="/docs/documentation/postpay">postpay</a>,
+      <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
   </ul>
 
   <h3>Модалки create / edit</h3>
@@ -420,7 +438,7 @@
       <tr>
         <td><code>filter_schedule_type</code></td>
         <td><code>ulp-filter-schedule-type</code></td>
-        <td><code>fixed</code> / <code>flexible</code> / <code>no_schedule</code></td>
+        <td><code>fixed</code> / <code>flexible</code> / <code>no_schedule</code> (фильтр назначений ULP; <code>postpay</code> в назначения не попадает)</td>
         <td><code>lesson_packages.schedule_type</code></td>
       </tr>
       <tr>

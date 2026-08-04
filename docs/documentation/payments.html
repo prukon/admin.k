@@ -79,6 +79,8 @@
     при постепенном отказе от <code>users_prices</code> как источника истины. Сейчас для обычных абонементов —
     <code>NULL</code>; оплата <code>lesson_package_fee</code> и витрина <code>monthly_fee</code> поведение не меняют.
     Подробнее — <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>.
+    <br><b>Постоплата (<code>schedule_type=postpay</code>)</b> — отдельный контур: сумма и оплата месяца идут через
+    <code>users_prices</code> <b>без</b> ULP и без <code>billing_month</code>. См. <a href="/docs/documentation/postpay">postpay</a>.
   </div>
 
   <h3 id="users-prices"><code>users_prices</code> (начисления и оплаты по месяцам и группам)</h3>
@@ -112,7 +114,8 @@
         <li>если передан <code>team_id</code> — проверка членства и чтение <code>users_prices</code> по <code>(user_id, team_id, month)</code>;</li>
         <li>если не передан и за месяц ровно одна строка с <code>price &gt; 0</code> — берётся её <code>team_id</code>;</li>
         <li>если несколько строк — <b>422</b> «Укажите группу для оплаты за этот месяц.»;</li>
-        <li>если строк нет — fallback на <code>UserPriceTeamMembership::primaryTeamIdForStudent</code> (первая группа в pivot по <code>order_by</code>, <code>title</code>).</li>
+        <li>если строк нет — fallback на <code>UserPriceTeamMembership::primaryTeamIdForStudent</code> (первая группа в pivot по <code>order_by</code>, <code>title</code>);</li>
+        <li>для строки с шаблоном <code>postpay</code>: sync суммы, оплата разрешена только с 1-го числа следующего месяца (МСК), иначе <b>422</b>; подробнее — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>.</li>
       </ul>
     </li>
     <li><b>Старт оплаты</b> (Robokassa / T‑Bank): в <code>payables.meta.team_id</code> сохраняется группа платежа для <b>всех</b> типов оплат (<code>PayableTeamResolver</code>, §<a href="#payments-payable-team">2.3</a>).</li>

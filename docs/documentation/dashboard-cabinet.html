@@ -222,6 +222,9 @@
     <li>Ячейки месяцев генерируются в JS (<code>createSeasons</code>), цены подставляются из массива <code>userPrice</code> (или отфильтрованного под группу).</li>
     <li>Каждая оплачиваемая ячейка содержит <code>paymentDate</code>, <code>formatedPaymentDate</code> (<code>YYYY-MM-01</code>), hidden <code>team_id</code>, <code>outSum</code> (на сервере для monthly_fee не источник истины).</li>
     <li>Resolver оплаты: <code>UserPriceMonthlyFeePaymentResolver</code> — при нескольких начислениях за месяц без <code>team_id</code> в POST → <b>422</b> «Укажите группу…»; селект на консоли как раз передаёт нужный <code>team_id</code>.</li>
+    <li><b>Постоплата:</b> в payload сезонов — <code>is_postpay</code>, <code>postpay_pay_available*</code>.
+      Сумма видна сразу; кнопка оплаты enabled с 1-го числа следующего месяца (МСК), до этого disabled + tooltip.
+      Сервер дублирует правило в resolver. Подробно — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>.</li>
   </ul>
 
   <h2>7) Связанные файлы</h2>

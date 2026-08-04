@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\UserPrice;
+use App\Support\LessonPackagePostpayPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class SaveUserYearPricesRequest extends FormRequest
 {
@@ -62,6 +65,66 @@ class SaveUserYearPricesRequest extends FormRequest
                 ),
             ],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v) {
+            if (LessonPackagePostpayPermission::userCanSelect($this->user())) {
+                return;
+            }
+
+            $rows = $this->input('prices', []);
+            if (! is_array($rows) || $rows === []) {
+                return;
+            }
+
+            $userId = (int) $this->input('user_id');
+            $teamId = (int) $this->input('team_id');
+            $months = [];
+            foreach ($rows as $row) {
+                if (is_array($row) && ! empty($row['new_month'])) {
+                    $months[] = (string) $row['new_month'];
+                }
+            }
+            $months = array_values(array_unique($months));
+
+            $existingByMonth = [];
+            if ($userId > 0 && $teamId > 0 && $months !== []) {
+                $existingByMonth = UserPrice::query()
+                    ->where('user_id', $userId)
+                    ->where('team_id', $teamId)
+                    ->whereIn('new_month', $months)
+                    ->get(['new_month', 'lesson_package_id'])
+                    ->mapWithKeys(static function (UserPrice $row) {
+                        $key = $row->new_month instanceof \DateTimeInterface
+                            ? $row->new_month->format('Y-m-d')
+                            : substr((string) $row->new_month, 0, 10);
+
+                        return [$key => $row->lesson_package_id !== null ? (int) $row->lesson_package_id : null];
+                    })
+                    ->all();
+            }
+
+            foreach ($rows as $index => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $packageId = isset($row['lesson_package_id']) ? (int) $row['lesson_package_id'] : 0;
+                $monthKey = substr((string) ($row['new_month'] ?? ''), 0, 10);
+                $previous = array_key_exists($monthKey, $existingByMonth)
+                    ? $existingByMonth[$monthKey]
+                    : null;
+
+                LessonPackagePostpayPermission::rejectUnauthorizedPackageId(
+                    $v,
+                    $this->user(),
+                    $packageId > 0 ? $packageId : null,
+                    "prices.{$index}.lesson_package_id",
+                    $previous,
+                );
+            }
+        });
     }
 
     public function attributes(): array

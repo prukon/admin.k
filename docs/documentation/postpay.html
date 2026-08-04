@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Постоплата (postpay)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Постоплата (<code>schedule_type = postpay</code>)</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/postpay.html</code> ·
+    см. также
+    <a href="/docs/documentation/lesson-packages">Абонементы</a>,
+    <a href="/docs/documentation/lesson-packages-type-postpay">право type.postpay</a>,
+    <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a>,
+    <a href="/docs/documentation/schedule-journal">Журнал</a>,
+    <a href="/docs/documentation/dashboard-cabinet">Консоль</a>,
+    <a href="/docs/documentation/payments">Оплаты</a>
+  </div>
+
+  <div class="ok">
+    <b>Суть.</b> Месячная оплата по факту посещений (календарный месяц, Europe/Moscow).
+    Источник истины — шаблон <code>lesson_packages</code> с типом <code>postpay</code>
+    + строка <code>users_prices</code> на тройку <code>(user_id, team_id, new_month)</code>.
+    Таблица назначений <code>user_lesson_packages</code> <b>не используется</b> и для postpay
+    <b>намеренно запрещена</b> (валидация store назначения).
+  </div>
+
+  <div class="warn">
+    <b>Не путать</b> с зарезервированным полем <code>user_lesson_packages.billing_month</code>
+    (<a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>,
+    <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>).
+    Постоплата <b>не пишет</b> в ULP и не опирается на <code>billing_month</code>: биллинг только через
+    <code>users_prices</code>. Обычные типы (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>)
+    по-прежнему живут через назначения ULP + календарь/журнал.
+  </div>
+
+  <h2 id="template">1) Шаблон абонемента</h2>
+  <ul>
+    <li>Константа: <code>LessonPackage::SCHEDULE_TYPE_POSTPAY = 'postpay'</code>; входит в <code>SCHEDULE_TYPES</code>.</li>
+    <li><b>Не</b> входит в <code>ASSIGNMENT_SCHEDULE_TYPES</code> — для postpay не создают ULP.</li>
+    <li><code>price_cents</code> — стоимость <b>одного</b> занятия (в UI: «Стоимость за одно занятие»).</li>
+    <li>При store/update: <code>duration_days = 31</code>, <code>lessons_count = 1</code> (служебные);
+      заморозка и автосписание недоступны (<code>freeze_enabled=false</code>, <code>auto_attendance_enabled=false</code>).</li>
+    <li>UI: вкладка «Абонементы» / дубль в «Справочниках» — option «Постоплата» в create/edit и в фильтре типа
+      только при <code>lessonPackages.type.postpay</code>.</li>
+    <li>Права: <code>lessonPackages.view</code> (раздел) + скрытое <code>lessonPackages.type.postpay</code>
+      (описание: Абонементы, тип «Постоплата»; группа <code>lessonPackages</code>; <code>is_visible=0</code>;
+      не в базовых ролях). Без права: option скрыт; store/update с <code>schedule_type=postpay</code> →
+      <b>422</b> на <code>schedule_type</code> (кроме правки уже существующего postpay-шаблона);
+      фильтр DataTables postpay → пусто; в select назначений ULP postpay не показывается.
+      Карточка права — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</li>
+  </ul>
+
+  <h2 id="assign">2) Назначение на месяц (только «Установка цен»)</h2>
+  <ul>
+    <li>Ручной выбор шаблона postpay в select абонемента на вкладке «по месяцам» (и при массовом apply группы)
+      → в <code>users_prices.lesson_package_id</code>. Нужно <code>lessonPackages.type.postpay</code>
+      (без права: пакет скрыт в каталоге, кроме уже назначенных; новый выбор → <b>422</b> на поле пакета;
+      повторная отправка того же назначенного id — разрешена).</li>
+    <li><b>Без автопродления</b>: назначение действует на выбранный месяц; следующий месяц нужно выставить отдельно.</li>
+    <li>Уникальность уже есть: UNIQUE <code>(user_id, team_id, new_month)</code> — конфликт «ученик + группа + месяц».</li>
+    <li>Вкладка «Назначение абонементов»: store с postpay-шаблоном → <b>422</b> на <code>lesson_package_id</code>
+      («назначается только в „Установка цен“…»).</li>
+  </ul>
+
+  <h3 id="prices-ui">2.1) UI «по месяцам»</h3>
+  <ul>
+    <li>Каталог пакетов в JSON (<code>lessonPackages</code>) содержит <code>schedule_type</code> и <code>is_postpay</code>.</li>
+    <li>При выборе postpay:
+      <ul>
+        <li>справа от select — readonly поле числа посещений (<code>postpay_visits</code>), tooltip KidsCrmTooltip
+          «Кол-во занятий за «{месяц}»»;</li>
+        <li>сумма пересчитывается на клиенте и на сервере; ручная правка цены для postpay игнорируется
+          (сервер: <code>PostpayUsersPriceSync</code>).</li>
+      </ul>
+    </li>
+    <li>Стили: <code>resources/css/style.css</code> (<code>.setting-prices-monthly-postpay-visits</code>, <code>.is-postpay-calc</code>);
+      логика — <code>resources/js/settings-prices.js</code> (Vite).</li>
+  </ul>
+
+  <h3 id="amount">2.2) Формула суммы</h3>
+  <div class="note">
+    <code>price</code> = число актуальных статусов с <code>consumes_lesson = true</code>
+    за месяц в этой группе × <b>текущая</b> цена шаблона (<code>price_cents / 100</code>).
+    <br>Актуальный статус = последний event по ключу занятия (как в отчётах журнала).
+    <br>При 0 посещений — <b>0 ₽</b> (кнопка оплаты недоступна, т.к. сумма ≤ 0).
+    <br>Смена цены шаблона пересчитывает <b>неоплаченные</b> postpay-строки; оплаченные (<code>effective_is_paid</code>) не трогаются.
+  </div>
+
+  <h2 id="journal">3) Журнал <code>/schedule</code></h2>
+  <ul>
+    <li>Право: <code>schedule.view</code>.</li>
+    <li>Если у ученика на месяц есть postpay в <code>users_prices</code> (и месяц не оплачен) —
+      пустые ячейки кликабельны (<code>data-postpay="1"</code>).</li>
+    <li>Создание: <code>POST /schedule/update</code> с <code>create_postpay=1</code>, <code>team_id</code>,
+      <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>
+      → UTSS без ULP (<code>user_lesson_package_id = null</code>, <code>is_trial_lesson = false</code>)
+      + статус + пересчёт <code>users_prices.price</code>.</li>
+    <li>Списание остатка ULP для таких записей <b>не выполняется</b>
+      (<code>UserLessonOccurrenceStatusService</code>: null-ULP non-trial).</li>
+    <li>Несколько групп с postpay на месяц: в модалке блок «Группа для отметки»
+      (readonly при одной / select при нескольких); <code>cell-context</code> отдаёт
+      <code>postpay_teams</code>, <code>postpay_team_id</code>.</li>
+    <li>Повторное открытие ячейки: у postpay-занятия показываются название пакета и группа;
+      <b>техническое время слота скрыто</b> (<code>time_start</code>/<code>time_end</code> = null, <code>is_postpay=true</code>).</li>
+  </ul>
+
+  <h3 id="lock">3.1) Лок после оплаты</h3>
+  <ul>
+    <li>Условие: <code>users_prices.effective_is_paid</code> (онлайн <code>is_paid</code> или ручная <code>is_manual_paid</code>).</li>
+    <li>Ячейки: <code>data-postpay-locked="1"</code>, hover KidsCrmTooltip:
+      «Изменить данные нельзя, поскольку уже была произведена оплата».</li>
+    <li>Backend: <code>PostpayJournalService::assertOccurrenceEditable</code> → create/смена статуса → <b>422</b>.</li>
+  </ul>
+
+  <h2 id="cabinet">4) Кабинет / консоль (<code>/cabinet</code>)</h2>
+  <ul>
+    <li>Блок сезонов: <code>setPrices.cabinetSeasons.view</code> (см. <a href="/docs/documentation/dashboard-cabinet">dashboard-cabinet</a>).</li>
+    <li>Payload сезонов дополняется meta: <code>is_postpay</code>, <code>postpay_pay_available</code>,
+      <code>postpay_pay_available_from</code>, <code>postpay_pay_available_label</code>
+      (<code>DashboardController::cabinetUserPricesPayload</code> + sync суммы).</li>
+    <li>Сумма видна в течение месяца.</li>
+    <li>Кнопка «Оплатить» enabled с <b>1-го числа следующего месяца</b> (Europe/Moscow);
+      до этого — disabled + tooltip «Оплата будет доступна с …».</li>
+    <li>Серверный guard (тот же порог): <code>UserPriceMonthlyFeePaymentResolver</code> —
+      до даты → <b>422</b> с тем же текстом; уже оплачено → <b>422</b>; сумма ≤ 0 → <b>422</b>.</li>
+  </ul>
+
+  <h2 id="services">5) Сервисы</h2>
+  <table>
+    <thead><tr><th>Класс</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td><code>App\Services\Postpay\PostpayMonth</code></td><td>Границы месяца (МСК), <code>payAvailableFrom</code> / label / <code>isPayAvailableNow</code></td></tr>
+      <tr><td><code>App\Services\Postpay\PostpayAmountCalculator</code></td><td>Подсчёт visits × цена шаблона</td></tr>
+      <tr><td><code>App\Services\Postpay\PostpayUsersPriceSync</code></td><td>Sync <code>users_prices.price</code>, meta <code>is_postpay</code>/<code>postpay_visits</code>, resync после журнала/смены шаблона</td></tr>
+      <tr><td><code>App\Services\Postpay\PostpayJournalService</code></td><td>ensure UTSS, resolve team, lock, флаги ячеек</td></tr>
+      <tr><td><code>UserPriceMonthlyFeePaymentResolver</code></td><td>Оплата monthly_fee: sync + pay-available + effective_is_paid</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="endpoints">6) Ключевые endpoint'ы</h2>
+  <table>
+    <thead><tr><th>Метод</th><th>Route</th><th>Право</th><th>Контракт</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>POST JSON / form</td>
+        <td><code>admin.lesson-packages.store</code> / <code>update</code> (<code>schedule_type=postpay</code>)</td>
+        <td><code>lessonPackages.view</code> + <code>lessonPackages.type.postpay</code>
+          (update уже postpay без смены типа — достаточно <code>lessonPackages.view</code>)</td>
+        <td>AJAX → 200 JSON; non-AJAX → 302 на index; без type.postpay → 422 на <code>schedule_type</code></td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>setPriceAllUsers</code>, <code>setTeamPrice</code>, <code>setPriceAllTeams</code>, <code>saveUserYearPrices</code></td>
+        <td><code>setPrices.view</code> + <code>lessonPackages.type.postpay</code> при <b>новом</b> выборе postpay-пакета</td>
+        <td>AJAX → 200 JSON (+ <code>is_postpay</code> / <code>postpay_visits</code>); non-AJAX → 302;
+          без type.postpay на новый postpay → 422 на поле пакета; тот же уже назначенный id — ок</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>getTeamPrice</code></td>
+        <td><code>setPrices.view</code></td>
+        <td>Каталог <code>lessonPackages</code> фильтруется по type.postpay (неназначенные postpay скрыты)</td>
+      </tr>
+      <tr>
+        <td>GET / POST</td>
+        <td><code>schedule.cell-context</code>, <code>schedule.update</code> (<code>create_postpay</code>)</td>
+        <td><code>schedule.view</code></td>
+        <td>AJAX update → 200/422; non-AJAX update → 302 на schedule.index</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>admin.lesson-packages.assignments.store</code> с postpay-пакетом</td>
+        <td>packageAssignments + lessonPackages</td>
+        <td>всегда <b>422</b> на <code>lesson_package_id</code> (запрет)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Гость — 302/401. Без <code>lessonPackages.view</code> / <code>setPrices.view</code> / <code>schedule.view</code> — 403.
+    Без <code>lessonPackages.type.postpay</code> при выборе postpay — <b>422</b> на поле (не 403). Не 500 и не пустой 200.
+    Подробно о праве — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.</p>
+
+  <h2 id="tests">7) Feature-тесты</h2>
+  <div class="note">
+    <ul class="small">
+      <li><code>tests/Feature/Crm/Postpay/PostpayBillingFeatureTest.php</code> — шаблон, assign/recalc, journal, lock, pay-available, resync цены</li>
+      <li><code>PostpayAccessFeatureTest</code> — guest / 403 / happy-path endpoint'ов</li>
+      <li><code>PostpayJournalMutationContractsFeatureTest</code> — AJAX/non-AJAX <code>create_postpay</code></li>
+      <li><code>PostpaySettingPricesContractsFeatureTest</code> — AJAX/non-AJAX цен + meta</li>
+      <li><code>PostpayLessonPackageContractsFeatureTest</code> — store/update шаблона + reject ULP</li>
+      <li><code>PostpayTypePermissionAccessFeatureTest</code> — право <code>lessonPackages.type.postpay</code>: UI option, 422/200 store/update, каталог цен, filter data</li>
+      <li><code>PostpayWorkflowFeatureTest</code> — consumes_lesson, manual paid, UI ячеек, resolver, 2 визита</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>schedule.js</code>, <code>settings-prices.js</code>, packages/dashboard postpay scripts</li>
+    </ul>
+    <pre style="background:#0b1020;color:#e6e6e6;padding:12px;border-radius:8px;overflow:auto;font-size:13px;"><code>php artisan test --env=testing --filter=Postpay</code></pre>
+  </div>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/lesson-packages-type-postpay">право type.postpay</a> ·
+    <a href="/docs/documentation/lesson-packages">Абонементы</a> ·
+    <a href="/docs/documentation/schedule-journal">Журнал</a> ·
+    <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a> ·
+    <a href="/docs/documentation/dashboard-cabinet">Консоль</a> ·
+    <a href="/docs/documentation/payments">Оплаты</a>
+  </p>
+</div>
+</body>
+</html>

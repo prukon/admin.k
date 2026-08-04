@@ -186,6 +186,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('lessonPackages.export', function (User $user) {
             return $user->hasPermission('lessonPackages.export');
         });
+        Gate::define('lessonPackages.type.postpay', function (User $user) {
+            return $user->hasPermission('lessonPackages.type.postpay');
+        });
 
         // Единый справочник статусов занятий (CRUD): журнал /schedule или раздел абонементов
         Gate::define('lessonOccurrenceStatuses.manage', function (User $user) {

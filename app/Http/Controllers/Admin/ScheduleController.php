@@ -26,9 +26,12 @@ use App\Services\PartnerContext;
 use App\Services\Schedule\JournalFixedAbonementPlacementService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
+use App\Services\Postpay\PostpayJournalService;
+use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\BuildsLogTable;
 use Carbon\Carbon;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,6 +50,8 @@ class ScheduleController extends AdminBaseController
         private readonly ScheduleJournalMonthService $journalMonthService,
         private readonly JournalFixedAbonementPlacementService $fixedPlacementService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
+        private readonly PostpayJournalService $postpayJournal,
+        private readonly PostpayUsersPriceSync $postpaySync,
     ) {
         parent::__construct($partnerContext);
     }
@@ -83,9 +88,11 @@ class ScheduleController extends AdminBaseController
             ->orderBy('lastname')
             ->get();
 
+        $userIds = $users->pluck('id')->map(fn ($id) => (int) $id)->all();
+
         $journalOccurrences = $this->journalMonthService->occurrencesByUserDate(
             $partnerId,
-            $users->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            $userIds,
             $startOfMonth,
             $endOfMonth,
             $team_id,
@@ -99,8 +106,12 @@ class ScheduleController extends AdminBaseController
             );
         }
 
+        $monthFirst = $startOfMonth->format('Y-m-d');
+        $postpayUsers = $this->postpayJournal->postpayUserFlags($userIds, $monthFirst, (string) $team_id);
+        $postpayLockedUsers = $this->postpayJournal->postpayLockedUserFlags($userIds, $monthFirst, (string) $team_id);
+
         $userPrices = DB::table('users_prices')
-            ->select('user_id', 'is_paid')
+            ->select('user_id', 'is_paid', 'is_manual_paid')
             ->whereIn('user_id', $users->pluck('id'))
             ->whereYear('new_month', $year)
             ->whereMonth('new_month', $month)
@@ -130,6 +141,8 @@ class ScheduleController extends AdminBaseController
             'journalOccurrences',
             'journalAssignments',
             'userPrices',
+            'postpayUsers',
+            'postpayLockedUsers',
             'teams',
             'startOfMonth',
             'endOfMonth',
@@ -193,6 +206,14 @@ class ScheduleController extends AdminBaseController
             $trainerForSelect = (string) $selected['trainer_profile_id'];
         }
 
+        $preferredTeamId = isset($data['context_team_id']) ? (int) $data['context_team_id'] : null;
+        $postpayTeams = $this->postpayJournal->postpayTeamsForDate((int) $user->id, $date);
+        $resolvedPostpayTeamId = $this->postpayJournal->resolvePostpayTeamId(
+            (int) $user->id,
+            $date,
+            $preferredTeamId
+        );
+
         return response()->json([
             'visited_status_id' => $visitedStatusId,
             'occurrences' => $dayOccurrences,
@@ -202,6 +223,8 @@ class ScheduleController extends AdminBaseController
             'team_id' => $contextTeamId,
             'team_ids' => $this->teamUserSync->teamIdsForStudent($user),
             'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
+            'postpay_teams' => $postpayTeams,
+            'postpay_team_id' => $resolvedPostpayTeamId,
             'team_default_trainer_profile_id' => $teamDefault?->id,
             'trainer_profile_id_for_select' => $isVisitedEntry ? $trainerForSelect : null,
             'trainers' => $trainers->map(fn (TrainerProfile $profile) => [
@@ -220,22 +243,53 @@ class ScheduleController extends AdminBaseController
         try {
             DB::transaction(function () use ($authorId, $partnerId, $data) {
                 $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
+                $occurrenceDate = (string) $data['occurrence_date'];
+                $createPostpay = ! empty($data['create_postpay']);
 
                 /** @var UserTeamScheduleSlot|null $utss */
-                $utss = UserTeamScheduleSlot::query()
-                    ->with(['slot.team'])
-                    ->where('partner_id', $partnerId)
-                    ->where('user_id', (int) $user->id)
-                    ->whereKey((int) $data['utss_id'])
-                    ->first();
+                $utss = null;
 
-                if (! $utss) {
+                if (! empty($data['utss_id'])) {
+                    $utss = UserTeamScheduleSlot::query()
+                        ->with(['slot.team'])
+                        ->where('partner_id', $partnerId)
+                        ->where('user_id', (int) $user->id)
+                        ->whereKey((int) $data['utss_id'])
+                        ->first();
+
+                    if (! $utss) {
+                        throw new InvalidArgumentException('Запись занятия не найдена.');
+                    }
+
+                    $utssDate = Carbon::parse($utss->starts_at)->format('Y-m-d');
+                    if ($utssDate !== $occurrenceDate) {
+                        throw new InvalidArgumentException('Дата не совпадает с записью занятия.');
+                    }
+                } elseif ($createPostpay) {
+                    $preferredTeamId = (int) ($data['team_id'] ?? 0);
+                    $teamId = $this->postpayJournal->resolvePostpayTeamId(
+                        (int) $user->id,
+                        $occurrenceDate,
+                        $preferredTeamId > 0 ? $preferredTeamId : null
+                    );
+                    if ($teamId === null || $teamId <= 0) {
+                        throw new InvalidArgumentException('Для ученика не назначена постоплата на этот месяц.');
+                    }
+                    $utss = $this->postpayJournal->ensureOccurrence(
+                        $partnerId,
+                        $user,
+                        $teamId,
+                        $occurrenceDate,
+                        $authorId !== null ? (int) $authorId : null
+                    );
+                    $utss->load(['slot.team']);
+                } else {
                     throw new InvalidArgumentException('Запись занятия не найдена.');
                 }
 
-                $occurrenceDate = Carbon::parse($utss->starts_at)->format('Y-m-d');
-                if ($occurrenceDate !== (string) $data['occurrence_date']) {
-                    throw new InvalidArgumentException('Дата не совпадает с записью занятия.');
+                $teamIdForLock = (int) ($utss->slot?->team_id ?? ($data['team_id'] ?? 0));
+                if ($teamIdForLock > 0) {
+                    $this->postpayJournal->assertOccurrenceEditable((int) $user->id, $teamIdForLock, $occurrenceDate);
                 }
 
                 $status = LessonOccurrenceStatus::findActiveForPartner(
@@ -290,6 +344,15 @@ class ScheduleController extends AdminBaseController
                     $comment,
                 );
 
+                if ($teamIdForLock > 0) {
+                    $this->postpaySync->syncAfterOccurrenceChange(
+                        $partnerId,
+                        (int) $user->id,
+                        $occurrenceDate,
+                        $teamIdForLock
+                    );
+                }
+
                 $formattedDate = Carbon::parse($occurrenceDate)->format('d.m.Y');
                 $this->auditLogger->record(
                     AuditEvent::ScheduleDayUpdated,
@@ -316,6 +379,12 @@ class ScheduleController extends AdminBaseController
                         ->withCreatedAt(now())
                 );
             });
+        } catch (DomainException $e) {
+            return $this->journalMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['lesson_occurrence_status_id' => [$e->getMessage()]],
+            );
         } catch (InvalidArgumentException $e) {
             return $this->journalMutationResponse(
                 $request,

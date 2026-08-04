@@ -470,4 +470,165 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             ->assertViewIs('admin.SettingPrices.index')
             ->assertViewHas('activeTab', 'monthly');
     }
+
+    /**
+     * Регрессия: decorateUsersPricesForMonthlyUi делает refresh() (postpay sync),
+     * который не должен стирать динамический is_former_member в usersPrice.
+     */
+    public function test_get_team_price_preserves_former_flag_after_postpay_decorate(): void
+    {
+        $postpay = LessonPackage::factory()
+            ->forPartner((int) $this->partner->id)
+            ->postpay()
+            ->create([
+                'name' => 'Постоплата бывший',
+                'price_cents' => 50000,
+                'is_active' => true,
+            ]);
+
+        UserPrice::forceCreate([
+            'user_id' => $this->formerStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 1500,
+            'is_paid' => 0,
+            'lesson_package_id' => $postpay->id,
+        ]);
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
+        UserPrice::forceCreate([
+            'user_id' => $this->currentStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 100,
+            'is_paid' => 0,
+        ]);
+
+        $json = $this->postJson(route('getTeamPrice'), [
+            'teamId' => $this->team->id,
+            'selectedDate' => 'Февраль 2026',
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->json();
+
+        $formerPrice = collect($json['usersPrice'])->firstWhere('user_id', $this->formerStudent->id);
+        $currentPrice = collect($json['usersPrice'])->firstWhere('user_id', $this->currentStudent->id);
+
+        $this->assertNotNull($formerPrice);
+        $this->assertTrue((bool) ($formerPrice['is_former_member'] ?? false));
+        $this->assertArrayHasKey('is_former_member', $formerPrice);
+
+        $this->assertNotNull($currentPrice);
+        $this->assertFalse((bool) ($currentPrice['is_former_member'] ?? false));
+        $this->assertArrayHasKey('is_former_member', $currentPrice);
+    }
+
+    public function test_set_price_all_users_response_marks_former_when_sent_in_payload(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->formerStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 3267,
+            'is_paid' => 0,
+        ]);
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
+        UserPrice::forceCreate([
+            'user_id' => $this->currentStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 100,
+            'is_paid' => 0,
+        ]);
+
+        $response = $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ])->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Февраль 2026',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                [
+                    'user_id' => $this->currentStudent->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $this->currentStudent->name],
+                ],
+                [
+                    'user_id' => $this->formerStudent->id,
+                    'price' => 9999,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $this->formerStudent->name],
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $usersPrice = collect($response->json('usersPrice'));
+        $formerPrice = $usersPrice->firstWhere('user_id', $this->formerStudent->id);
+        $currentPrice = $usersPrice->firstWhere('user_id', $this->currentStudent->id);
+
+        $this->assertNotNull($formerPrice);
+        $this->assertTrue((bool) ($formerPrice['is_former_member'] ?? false));
+        $this->assertEquals(3267, (float) $formerPrice['price']);
+
+        $this->assertNotNull($currentPrice);
+        $this->assertFalse((bool) ($currentPrice['is_former_member'] ?? false));
+        $this->assertEquals(4500, (float) $currentPrice['price']);
+    }
+
+    public function test_after_apply_get_team_price_still_flags_former_on_users_price(): void
+    {
+        UserPrice::forceCreate([
+            'user_id' => $this->formerStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 3267,
+            'is_paid' => 1,
+        ]);
+        $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
+
+        UserPrice::forceCreate([
+            'user_id' => $this->currentStudent->id,
+            'team_id' => $this->team->id,
+            'new_month' => '2026-02-01',
+            'price' => 100,
+            'is_paid' => 0,
+        ]);
+
+        $this->withHeaders([
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ])->postJson(route('setPriceAllUsers'), [
+            'selectedDate' => 'Февраль 2026',
+            'teamId' => $this->team->id,
+            'usersPrice' => [
+                [
+                    'user_id' => $this->currentStudent->id,
+                    'price' => 4500,
+                    'lesson_package_id' => $this->package->id,
+                    'user' => ['name' => $this->currentStudent->name],
+                ],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('success', true);
+
+        $json = $this->postJson(route('getTeamPrice'), [
+            'teamId' => $this->team->id,
+            'selectedDate' => 'Февраль 2026',
+        ])->assertOk()
+            ->assertJsonPath('success', true)
+            ->json();
+
+        $formerInTeam = collect($json['usersTeam'])->firstWhere('id', $this->formerStudent->id);
+        $formerInPrice = collect($json['usersPrice'])->firstWhere('user_id', $this->formerStudent->id);
+
+        $this->assertNotNull($formerInTeam);
+        $this->assertTrue((bool) ($formerInTeam['is_former_member'] ?? false));
+        $this->assertNotNull($formerInPrice);
+        $this->assertTrue((bool) ($formerInPrice['is_former_member'] ?? false));
+        $this->assertEquals(3267, (float) $formerInPrice['price']);
+        $this->assertTrue((bool) $formerInPrice['is_paid']);
+    }
 }

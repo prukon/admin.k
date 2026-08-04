@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Право lessonPackages.type.postpay — тип «Постоплата»</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="type-postpay-permission">Право <code>lessonPackages.type.postpay</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/lesson-packages-type-postpay.html</code>.
+    Бизнес-логика постоплаты — <a href="/docs/documentation/postpay">postpay</a>;
+    матрица групп — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>;
+    базовые роли — <a href="/docs/documentation/partners-permissions">partners-permissions</a>.</div>
+
+  <div class="ok">
+    <b>С 2026‑08</b> выбор типа абонемента <code>schedule_type = postpay</code> («Постоплата»)
+    отделён от общего <code>lessonPackages.view</code> / <code>setPrices.view</code>.
+    Без этого права нельзя создать шаблон postpay, сменить тип на postpay и назначить postpay-пакет
+    в «Установка цен». Уже созданные шаблоны и уже назначенные месяцы продолжают работать.
+  </div>
+
+  <h2 id="permission">1) Право</h2>
+  <table>
+    <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Имя</td><td><code>lessonPackages.type.postpay</code></td></tr>
+      <tr><td>Описание (сидер)</td><td>Абонементы, тип «Постоплата»</td></tr>
+      <tr><td>Группа матрицы</td><td><code>lessonPackages</code> («Абонементы»)</td></tr>
+      <tr><td><code>is_visible</code></td><td><b>0</b> (скрытое): у admin партнёра в матрице может не отображаться; у superadmin — видно</td></tr>
+      <tr><td>Gate</td><td><code>AuthServiceProvider</code> → <code>lessonPackages.type.postpay</code></td></tr>
+      <tr><td>Хелпер</td><td><code>App\Support\LessonPackagePostpayPermission</code></td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order: 38</code>)</td></tr>
+      <tr><td>Миграция</td><td><code>2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code> — только создаёт право, <b>никому не выдаёт</b></td></tr>
+      <tr><td>Базовые роли</td><td>В <code>config/role_base_permissions.php</code> для <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входит (строка закомментирована)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    После выката право нужно выдать вручную (superadmin / SQL в <code>permission_role</code>),
+    иначе option «Постоплата» скрыт и новый выбор postpay недоступен.
+    Существующие postpay-шаблоны и уже назначенные <code>users_prices.lesson_package_id</code> не удаляются.
+  </div>
+
+  <h2 id="what-it-controls">2) Что закрывает</h2>
+  <table>
+    <thead><tr><th>Поверхность</th><th>Без права</th><th>С правом (+ родительские права раздела)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Шаблоны: option «Постоплата» в create / edit / фильтре типа
+          (<code>packages.blade.php</code>, дубль в «Справочниках»)</td>
+        <td>Option скрыт (<code>@can</code>). При открытии уже postpay-шаблона в edit option добавляется JS-ом, чтобы значение не «терялось»</td>
+        <td>Option виден</td>
+      </tr>
+      <tr>
+        <td><code>POST/PUT …/lesson-packages</code> с <code>schedule_type=postpay</code></td>
+        <td><b>422</b> на <code>schedule_type</code> («Недостаточно прав для выбора типа «Постоплата»»).
+          Исключение: update уже существующего postpay-шаблона <b>без смены типа</b> — разрешён</td>
+        <td>AJAX → <b>200</b> JSON; non-AJAX → <b>302</b> на index</td>
+      </tr>
+      <tr>
+        <td>DataTables фильтр <code>schedule_type=postpay</code></td>
+        <td>Пустой результат (даже при crafted query)</td>
+        <td>Строки postpay</td>
+      </tr>
+      <tr>
+        <td>Select абонемента на вкладке «Назначение абонементов» (ULP)</td>
+        <td>Postpay-пакеты не попадают в список (backend и так всегда 422 на store ULP)</td>
+        <td>В списке могут быть, store всё равно <b>422</b> (доменный запрет ULP)</td>
+      </tr>
+      <tr>
+        <td>«Установка цен»: каталог <code>lessonPackages</code> (monthly / getTeamPrice / year)</td>
+        <td>Postpay скрыты, <b>кроме</b> уже назначенных в <code>team_prices</code> / <code>users_prices</code> (чтобы текущие select не пустели)</td>
+        <td>Все postpay-шаблоны партнёра</td>
+      </tr>
+      <tr>
+        <td><code>setTeamPrice</code>, <code>setPriceAllUsers</code>, <code>setPriceAllTeams</code>, <code>saveUserYearPrices</code>
+          с postpay <code>lesson_package_id</code></td>
+        <td><b>422</b> на поле пакета при <b>новом</b> выборе.
+          Повторная отправка того же уже назначенного id — <b>разрешена</b></td>
+        <td>Ожидаемые <b>200</b> / <b>302</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>Не закрывает этим правом</b> (нужны другие права + уже назначенный postpay-месяц):
+    журнал <code>create_postpay</code> (<code>schedule.view</code>), лок ячеек после оплаты,
+    оплата с консоли (<code>postpay_pay_available</code>). Это сценарии работы с уже выставленной постоплатой,
+    а не выбор типа шаблона.
+  </div>
+
+  <h2 id="related">3) Связанные права</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td><code>lessonPackages.view</code></td><td>Раздел шаблонов / middleware CRUD (базовый у <code>admin</code>)</td></tr>
+      <tr><td><code>lessonPackages.type.postpay</code></td><td>Выбор типа «Постоплата»</td></tr>
+      <tr><td><code>setPrices.view</code></td><td>Раздел «Установка цен» (назначение postpay на месяц)</td></tr>
+      <tr><td><code>setPrices.packageAssignments.view</code></td><td>Вкладка ULP-назначений (postpay туда не назначают)</td></tr>
+      <tr><td><code>schedule.view</code></td><td>Журнал: отметки по уже назначенному postpay</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="files">4) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Support/LessonPackagePostpayPermission.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreLessonPackageRequest.php</code></li>
+    <li><code>app/Http/Requests/Admin/SetTeamPriceRequest.php</code>, <code>SetPriceAllUsersRequest</code>,
+      <code>SetPriceAllTeamsRequest</code>, <code>SaveUserYearPricesRequest</code></li>
+    <li><code>SettingPricesController::lessonPackagesForPartnerSelect</code></li>
+    <li><code>LessonPackageController::packagesData</code>, <code>assignments</code> (фильтр списка пакетов)</li>
+    <li><code>resources/views/admin/lessonPackages/tabs/packages.blade.php</code> — <code>@can</code> на option</li>
+  </ul>
+
+  <h2 id="tests">5) Feature-тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/Postpay/PostpayTypePermissionAccessFeatureTest.php</code> — guest / 403 /
+      UI option / AJAX 422 / non-AJAX 302 / каталог цен / keep existing</li>
+    <li><code>tests/Feature/Crm/Permissions/LessonPackagesTypePostpayPermissionCatalogFeatureTest.php</code> —
+      каталог, скрытость, не в базовых ролях</li>
+    <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_lesson_packages_type_postpay_to_base_roles</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_lesson_packages_postpay_inline_script_is_valid_javascript</code></li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter 'PostpayTypePermissionAccessFeatureTest|LessonPackagesTypePostpayPermissionCatalogFeatureTest'</code></pre>
+
+  <p class="small">
+    <a href="/doc">← К оглавлению</a> ·
+    <a href="/docs/documentation/postpay">postpay</a> ·
+    <a href="/docs/documentation/lesson-packages">Абонементы</a> ·
+    <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a> ·
+    <a href="/docs/documentation/settings-permission-groups">группы прав</a>
+  </p>
+</div>
+</body>
+</html>
