@@ -36,7 +36,27 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonStructure(['success', 'message']);
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'result' => [
+                    'utss_id',
+                    'occurrence_date',
+                    'comment',
+                    'created',
+                    'status' => ['id', 'title', 'icon', 'color'],
+                ],
+            ])
+            ->assertJsonPath('result.created', true)
+            ->assertJsonPath('result.occurrence_date', '2026-08-11')
+            ->assertJsonPath('result.status.id', $this->attendedStatusId);
+
+        $utss = UserTeamScheduleSlot::query()
+            ->where('user_id', $this->student->id)
+            ->whereDate('starts_at', '2026-08-11')
+            ->first();
+        $this->assertNotNull($utss);
+        $response->assertJsonPath('result.utss_id', $utss->id);
 
         $this->assertSame(1, $this->countPostpayUtssForStudent());
         $this->assertSame(0, UserLessonPackage::query()->count());

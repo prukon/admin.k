@@ -73,6 +73,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('updateFlexibleHintAfterPlace', $content);
         $this->assertStringContainsString('flexible_lesson_occurrence_status_id', $content);
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace($cell, result)', $content);
+        $this->assertStringContainsString('renderScheduleCellFromResult', $content);
+        $this->assertStringContainsString('renderScheduleCellAfterStatusSave', $content);
         $this->assertStringContainsString('syncFlexibleTrainerBlock', $content);
         $this->assertStringContainsString('populateFlexibleTrainerSelect', $content);
         $this->assertStringContainsString('showFlexibleErrors', $content);
@@ -83,6 +85,12 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $flexibleSubmitChunk);
         $this->assertStringContainsString('updateFlexibleHintAfterPlace', $flexibleSubmitChunk);
         $this->assertStringNotContainsString('window.location.reload()', $flexibleSubmitChunk);
+        // Успех schedule.update (модалка «Статус занятия») — точечный DOM без reload.
+        $updateSubmitPos = strpos($content, "url: '/schedule/update'");
+        $this->assertNotFalse($updateSubmitPos);
+        $updateSubmitChunk = substr($content, (int) $updateSubmitPos, 1200);
+        $this->assertStringContainsString('renderScheduleCellAfterStatusSave', $updateSubmitChunk);
+        $this->assertStringNotContainsString('window.location.reload()', $updateSubmitChunk);
         $this->assertStringContainsString('/schedule/update', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);

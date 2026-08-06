@@ -262,7 +262,15 @@ class ScheduleController extends AdminBaseController
         $data = $request->validated();
 
         try {
-            DB::transaction(function () use ($authorId, $partnerId, $data) {
+            /** @var array{
+             *     utss_id: int,
+             *     occurrence_date: string,
+             *     comment: string|null,
+             *     created: bool,
+             *     status: array{id: int, title: string, icon: string|null, color: string|null}
+             * } $result
+             */
+            $result = DB::transaction(function () use ($authorId, $partnerId, $data) {
                 $user = $this->findScheduleStudentForPartner($partnerId, (int) $data['user_id']);
                 $occurrenceDate = (string) $data['occurrence_date'];
                 $createPostpay = ! empty($data['create_postpay']);
@@ -399,6 +407,19 @@ class ScheduleController extends AdminBaseController
                         ->withPartnerId($partnerId)
                         ->withCreatedAt(now())
                 );
+
+                return [
+                    'utss_id' => (int) $utss->id,
+                    'occurrence_date' => $occurrenceDate,
+                    'comment' => $comment,
+                    'created' => $createPostpay,
+                    'status' => [
+                        'id' => (int) $status->id,
+                        'title' => (string) $status->title,
+                        'icon' => $status->icon !== null && $status->icon !== '' ? (string) $status->icon : null,
+                        'color' => $status->color !== null && $status->color !== '' ? (string) $status->color : null,
+                    ],
+                ];
             });
         } catch (DomainException $e) {
             return $this->journalMutationResponse(
@@ -414,7 +435,17 @@ class ScheduleController extends AdminBaseController
             );
         }
 
-        return $this->journalMutationResponse($request, 'Статус занятия сохранён.');
+        $message = 'Статус занятия сохранён.';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'result' => $result,
+            ]);
+        }
+
+        return $this->journalMutationResponse($request, $message);
     }
 
     public function abonementContext(GetScheduleJournalAbonementContextRequest $request, User $user): JsonResponse

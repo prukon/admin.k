@@ -201,7 +201,21 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Статус занятия сохранён.');
+            ->assertJsonPath('message', 'Статус занятия сохранён.')
+            ->assertJsonPath('result.utss_id', $utss->id)
+            ->assertJsonPath('result.created', false)
+            ->assertJsonPath('result.occurrence_date', CarbonImmutable::parse($utss->starts_at)->toDateString())
+            ->assertJsonPath('result.comment', 'AJAX посетил')
+            ->assertJsonPath('result.status.id', $this->visitedStatusId)
+            ->assertJsonStructure([
+                'result' => [
+                    'utss_id',
+                    'occurrence_date',
+                    'comment',
+                    'created',
+                    'status' => ['id', 'title', 'icon', 'color'],
+                ],
+            ]);
 
         $ulp->refresh();
         $this->assertSame(1, (int) $ulp->lessons_remaining);

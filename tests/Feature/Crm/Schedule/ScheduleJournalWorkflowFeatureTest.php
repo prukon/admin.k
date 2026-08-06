@@ -140,7 +140,11 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             ]);
         $submit->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('message', 'Статус занятия сохранён.');
+            ->assertJsonPath('message', 'Статус занятия сохранён.')
+            ->assertJsonPath('result.utss_id', $utss->id)
+            ->assertJsonPath('result.created', false)
+            ->assertJsonPath('result.status.id', $this->visitedStatusId)
+            ->assertJsonPath('result.comment', $comment);
         $this->assertNotSame('', trim((string) $submit->getContent()));
 
         $cellAfter = $this->withHeaders($this->ajaxHeaders())
@@ -154,7 +158,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             ->assertJsonPath('comment', $comment)
             ->assertJsonPath('trainer_profile_id_for_select', (string) $trainer->id);
 
-        // Повторная загрузка страницы (как reload в schedule.js) — не белый экран, статус на ячейке.
+        // Повторная загрузка страницы — smoke, что index не пустой после мутации (UI больше не делает F5).
         $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
         $pageAfter->assertOk();
         $this->assertNotSame('', trim((string) $pageAfter->getContent()));

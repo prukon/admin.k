@@ -562,12 +562,22 @@ document.addEventListener('DOMContentLoaded', function () {
         rebuildFlexibleHintTooltip($hint, items);
     }
 
-    function renderScheduleCellAfterFlexiblePlace($cell, result) {
+    /**
+     * Точечный DOM-апдейт ячейки журнала после create/update статуса.
+     * options.increment = true — новое занятие в ячейке (flexible place / create_postpay);
+     * иначе — правка существующего (при count > 1 визуал ×N не меняется).
+     */
+    function renderScheduleCellFromResult($cell, result, options) {
         if (!$cell || !$cell.length || !result) {
             return;
         }
+        options = options || {};
+        var increment = options.increment === true;
         var prevCount = parseInt($cell.attr('data-occurrence-count') || '0', 10);
-        var count = prevCount + 1;
+        if (!increment && prevCount > 1) {
+            return;
+        }
+        var count = increment ? prevCount + 1 : Math.max(prevCount, 1);
         var status = result.status || {};
         var color = status.color || '#e9ecef';
         var icon = status.icon || '';
@@ -610,6 +620,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 '</span>'
             );
         }
+    }
+
+    function renderScheduleCellAfterFlexiblePlace($cell, result) {
+        renderScheduleCellFromResult($cell, result, {increment: true});
+    }
+
+    function renderScheduleCellAfterStatusSave($cell, result) {
+        var created = !!(result && result.created);
+        renderScheduleCellFromResult($cell, result, {increment: created});
     }
 
     function openFlexiblePlaceModal(userId, date, userName, options) {
@@ -991,9 +1010,18 @@ document.addEventListener('DOMContentLoaded', function () {
             data: $.param(formData),
             headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
             success: function (response) {
-                if (response.success) {
-                    window.location.reload();
+                if (!response.success) {
+                    return;
                 }
+                var result = response.result || {};
+                var userId = $('#edit-user-id').val();
+                var date = $('#edit-date').val();
+                var $cell = currentCell && currentCell.length
+                    ? currentCell
+                    : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                cellEditModal.hide();
+                renderScheduleCellAfterStatusSave($cell, result);
+                currentCell = $cell;
             },
             error: function (xhr) {
                 if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {

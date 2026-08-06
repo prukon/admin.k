@@ -319,17 +319,20 @@
   </ul>
 
   <h3>6.3) API <code>POST /schedule/update</code></h3>
-  <p>Валидация: <code>UpdateScheduleJournalOccurrenceRequest</code> — поля <code>user_id</code>, <code>utss_id</code>, <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>, опционально <code>trainer_profile_id</code>, <code>comment</code>.</p>
+  <p>Валидация: <code>UpdateScheduleJournalOccurrenceRequest</code> — поля <code>user_id</code>, <code>utss_id</code>, <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>, опционально <code>trainer_profile_id</code>, <code>comment</code>; для постоплаты — <code>create_postpay</code> + <code>team_id</code>.</p>
   <ul>
     <li>Пишет событие статуса через <code>UserLessonOccurrenceStatusService</code> (списание/возврат остатка по <code>consumes_lesson</code>)</li>
     <li><code>trainer_profile_id</code> / <code>comment</code> сохраняются на событии</li>
-    <li>AJAX / JSON → <code>{ success, message }</code> <b>200</b>; валидация → <b>422</b> + <code>errors</code></li>
+    <li>AJAX / JSON → <code>{ success, message, result }</code> <b>200</b>; валидация → <b>422</b> + <code>errors</code></li>
+    <li><code>result</code>: <code>{ utss_id, occurrence_date, comment, created, status: { id, title, icon, color } }</code> —
+      <code>created: true</code> при <code>create_postpay</code> (новая отметка), иначе правка существующего UTSS</li>
     <li>Non-AJAX (нет XHR / не expectsJson) → <b>302</b> на <code>schedule.index</code> + flash <code>status</code> / session errors (не пустой 200)</li>
   </ul>
   <p>Аудит: событие категории <code>schedule</code> (смена статуса дня / занятия).</p>
-  <p class="small">После успешного AJAX <code>POST /schedule/update</code> (модалка статуса ячейки) UI делает
-    <code>window.location.reload()</code>. Постановка гибкого (<code>place-flexible-abonement</code>) —
-    <b>без</b> reload: точечный DOM-апдейт ячейки и hint <code>N/M</code> (см. <a href="#place-flexible">§7.3</a>).</p>
+  <p class="small">После успешного AJAX <code>POST /schedule/update</code> UI <b>без</b> reload: закрытие
+    <code>#cellEditModal</code> + точечный DOM-апдейт ячейки (<code>renderScheduleCellAfterStatusSave</code> /
+    <code>renderScheduleCellFromResult</code> в <code>schedule.js</code>), по тому же принципу что и
+    постановка гибкого (<a href="#place-flexible">§7.3</a>). Очистка статуса — отдельно, позже.</p>
 
   <h3>6.4) Связь с тренерами и группами</h3>
   <p>
@@ -470,7 +473,12 @@
         <td><b>422</b> с <code>errors</code> под полями</td>
       </tr>
       <tr>
-        <td>Non-AJAX POST (оба)</td>
+        <td>AJAX <code>schedule.update</code></td>
+        <td><b>200</b> <code>{ success, message, result: { utss_id, occurrence_date, comment, created, status: { id, title, icon, color } } }</code></td>
+        <td><b>422</b> с <code>errors</code> под полями</td>
+      </tr>
+      <tr>
+        <td>Non-AJAX POST (place-fixed / place-flexible / update)</td>
         <td><b>302</b> → <code>schedule.index</code> + flash <code>status</code>; запись в БД создана</td>
         <td><b>302</b> → index / back + session errors (не пустой 200)</td>
       </tr>
