@@ -492,7 +492,25 @@
   </p>
 
   <h2>Гибкие абонементы в модалке слота</h2>
-  <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>. Назначение ученику должно существовать на <a href="/docs/documentation/lesson-packages#assignments-tab">странице «Назначение абонементов»</a>; привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота. Период <code>starts_at</code>/<code>ends_at</code> при первой привязке задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>). <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
+  <p>Гибкий абонемент — шаблон с <code>schedule_type = flexible</code>.
+    Назначение ученику может появиться на
+    <a href="/docs/documentation/lesson-packages#assignments-tab">странице «Назначение абонементов»</a>
+    (классика, период часто NULL до первой привязки) или через
+    <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">установку цен</a>
+    (месячный ULP с полным периодом на <code>billing_month</code>).
+    Привязка из календаря добавляет одну строку <code>user_team_schedule_slots</code> на выбранную дату слота.
+    Период при первой привязке (если ещё NULL) задаётся через
+    <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>
+    (см. <a href="/docs/documentation/lesson-packages">«Абонементы»</a>);
+    у месячного flexible из цен период уже задан при sync.
+    <code>lessons_remaining</code> при привязке не уменьшается — только через статус занятия.</p>
+  <div class="note">
+    <b>Журнал <code>/schedule</code>:</b> для месячного flexible из установки цен есть отдельный поток
+    «на лету» по клику на ячейку (<code>place-flexible-abonement</code>): статус выбирается в модалке
+    (не только «Запись»), после AJAX страница не перезагружается —
+    <a href="/docs/documentation/schedule-journal#place-flexible">schedule-journal §7.3</a>.
+    Оба пути пишут в один контур UTSS + статусы.
+  </div>
 
   <h3>Доступность (<code>GET …/slot-user-bind-actions</code>)</h3>
   <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code> (<code>Y-m-d</code>). В ответе объект <code>flexible</code>:</p>

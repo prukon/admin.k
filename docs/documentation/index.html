@@ -26,6 +26,88 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Журнал: занятия из гибкого абонемента «на лету» (2026‑08)</h2>
+  <div class="note">
+    Месячный <b>гибкий</b> абонемент из «Установки цен» ставится в журнал <code>/schedule</code> по клику на ячейку
+    (не цепочкой, как fixed).
+    <br><br>
+    <b>Sync при установке цен</b> (<code>UsersPriceLessonPackageSync</code>): для <code>flexible</code> сразу
+    <code>starts_at</code> = 1-е число <code>new_month</code>, <code>ends_at</code> = последний день месяца.
+    Для <code>fixed</code> / <code>no_schedule</code> — по-прежнему <code>starts_at = NULL</code> до раскладки.
+    «Разложенность» месячного flexible = наличие UTSS (полный период сам по себе пакет не блокирует).
+    Оплата месяца <b>не</b> блокирует привязку занятий.
+    <br><br>
+    <b>UI журнала</b> (<code>schedule.view</code>):
+    <br>
+    1) Колонка абонементов при остатке слотов: <code>осталось/всего</code> (напр. <code>10/12</code>),
+    если фильтр группы или один гибкий; при нескольких группах (без фильтра) — иконка <code>(i)</code>
+    с многострочным tooltip
+    (<code>10/12 остаток … по абонементу "A"</code> / перевод строки /
+    <code>4/8 остаток … по абонементу "B"</code>).
+    Hover при одном: «Остаток занятий в текущем месяце по абонементу "…"». При остатке <b>0</b> — скрыто.
+    <br>
+    2) Пустая ячейка (<code>data-flexible</code>) → <code>#flexiblePlaceModal</code>
+    (<code>#flexiblePlaceForm</code>, <code>novalidate</code>): группа, <b>статус</b>
+    (радио <code>flexible_lesson_occurrence_status_id</code>, по умолчанию «Запись»),
+    при «Посетил» — тренер, комментарий. Ошибки Laravel под полями.
+    После успешного AJAX <b>без</b> <code>location.reload</code>: обновляются ячейка дня
+    (иконка/цвет статуса) и счётчик <code>N/M</code>
+    (<code>renderScheduleCellAfterFlexiblePlace</code> / <code>updateFlexibleHintAfterPlace</code> в
+    <code>schedule.js</code>).
+    <br>
+    3) Занятая ячейка / ×N → кнопка «Добавить занятие из гибкого абонемента»
+    (второе занятие в тот же день — другой служебный <code>team_schedule_slot</code>).
+    <br>
+    4) Фильтр группы → автовыбор; без фильтра и несколько групп — select.
+    Только ULP с <code>billing_month</code> = месяц экрана (классика с вкладки «Назначения» — через календарь школы).
+    Если есть гибкий с остатком, пустая ячейка открывает гибкий, а не постоплату.
+    <br><br>
+    <b>API:</b> <code>GET …/flexible-context</code>
+    (assignments, teams, trainers, <code>scheduled_status_id</code> / <code>visited_status_id</code>);
+    <code>POST …/place-flexible-abonement</code>
+    (<code>user_lesson_package_id</code>, <code>team_id</code>, <code>occurrence_date</code>,
+    <code>lesson_occurrence_status_id</code>, опц. <code>trainer_profile_id</code>, <code>comment</code>).
+    AJAX → JSON 200
+    <code>result: { utss_id, slots_remaining, lessons_total, status: { id, title, icon, color }, … }</code>
+    / 422 с <code>errors</code>; non-AJAX → 302, не пустой 200.
+    Сервис <code>JournalFlexibleAbonementPlacementService</code> +
+    <code>UserLessonOccurrenceStatusService</code> (списание при <code>consumes_lesson</code>).
+    <br><br>
+    Документы:
+    <a href="/docs/documentation/schedule-journal#place-flexible">schedule-journal §7.3</a>,
+    <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users § ULP sync</a>,
+    <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>,
+    <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
+    Календарь школы (inline <code>assign-flexible</code>) —
+    <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a> (оба пути пишут в один контур UTSS).
+  </div>
+
+  <h2>Установка цен → ULP + журнал: месячные абонементы (2026‑08)</h2>
+  <div class="note">
+    1) <b>Sync</b> <code>UsersPriceLessonPackageSync</code>: при назначении assignable-пакета
+    (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>) в «Установке цен» создаётся ULP с
+    <code>billing_month</code>, <code>ends_at</code> = конец месяца, FK
+    <code>users_prices.user_lesson_package_id</code>. Postpay — без ULP.
+    <b>Flexible:</b> сразу полный период (<code>starts_at</code> = 1-е число).
+    <b>Fixed / no_schedule:</b> <code>starts_at = NULL</code> до раскладки.
+    Идемпотентный повторный Apply догоняет отсутствующий ULP / чинит <code>ends_at</code>
+    (и <code>starts_at</code> у неразложенного flexible).
+    <br>
+    2) <b>Журнал</b> <code>/schedule</code>:
+    fixed — кнопка «+» / <code>place-fixed-abonement</code> (дата начала только внутри месяца;
+    placeable при <code>ends_at</code> без <code>starts_at</code>);
+    flexible — клик по ячейке / <code>place-flexible-abonement</code>
+    (статус в модалке, AJAX без reload; см. <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>).
+    Ошибки Laravel под полями (<code>novalidate</code>). Служебные слоты с открытым периодом,
+    если школьный слот не покрывает даты (модель «только цены+журнал»).
+    <br><br>
+    Документы:
+    <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users § ULP sync</a>,
+    <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>,
+    <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>,
+    <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
+  </div>
+
   <h2>Право lessonPackages.type.postpay — тип «Постоплата» (2026‑08)</h2>
   <div class="note">
     Скрытое право <code>lessonPackages.type.postpay</code> (группа <code>lessonPackages</code>,
@@ -77,15 +159,20 @@
     Журнал <code>/schedule</code> и календарь школы используют один контур:
     <code>user_team_schedule_slots</code> + <code>user_lesson_occurrence_status_events</code>.
     Таблица <code>schedule_users</code> удалена; «Личное расписание» снято.
-    Из журнала можно разложить <b>fixed</b>-абонемент
-    (<code>POST …/place-fixed-abonement</code>: дата начала + дни недели + группа → цепочка UTSS + статус «Запись»);
-    служебные слоты при отсутствии создаются с 09:00 (час).
-    Смена статуса в журнале списывает/возвращает <code>lessons_remaining</code> тем же
-    <code>UserLessonOccurrenceStatusService</code>, что и календарь.
+    Из журнала:
+    <b>fixed</b> — <code>POST …/place-fixed-abonement</code> (дата начала + дни недели + группа → цепочка UTSS);
+    <b>flexible</b> из установки цен — <code>POST …/place-flexible-abonement</code>
+    (одно занятие по клику; статус/тренер/комментарий в модалке; AJAX без reload ячейки —
+    см. блок выше и <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>).
+    Служебные слоты создаются с 09:00, если школьный слот не покрывает даты
+    (см. <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>).
+    Смена статуса в журнале (<code>POST /schedule/update</code>) списывает/возвращает <code>lessons_remaining</code> тем же
+    <code>UserLessonOccurrenceStatusService</code>, что и календарь (после update UI делает
+    <code>location.reload</code>; place-flexible — нет).
     Несколько занятий в один день — бейдж ×N и список по клику.
     AJAX-мутации → JSON 200/422; non-AJAX → 302 на <code>/schedule</code> (не пустой 200).
     Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>
-    (§7 place-fixed, §6 статусы, §11 тесты).
+    (§7 place-fixed / place-flexible, §6 статусы, §11 тесты).
     Нагрузка тренеров считает «Посетил» с <code>trainer_profile_id</code> на событии статуса.
   </div>
 
@@ -482,7 +569,7 @@
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code>, лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>, раскладка fixed (<code>place-fixed-abonement</code>), статусы со списанием, ×N занятий в день, справочник <code>lesson_occurrence_statuses</code> (toolbar/DataTable), тренер при «Посетил»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed</b> (<code>place-fixed-abonement</code>); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code> / иконка, статус в модалке, AJAX без reload — §7.3); постоплата <code>create_postpay</code>; статусы со списанием; ×N занятий в день; справочник статусов; тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

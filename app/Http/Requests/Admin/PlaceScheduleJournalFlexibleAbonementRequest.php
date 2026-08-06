@@ -8,7 +8,7 @@ use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
+class PlaceScheduleJournalFlexibleAbonementRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -32,11 +32,38 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
                     fn ($q) => $q->where('partner_id', $partnerId)->whereNull('deleted_at')
                 ),
             ],
-            'start_date' => ['required', 'date_format:Y-m-d'],
-            'weekdays' => ['required', 'array', 'min:1'],
-            'weekdays.*' => ['integer', 'in:1,2,3,4,5,6,7'],
-            'preview' => ['sometimes', 'boolean'],
+            'occurrence_date' => ['required', 'date_format:Y-m-d'],
+            'lesson_occurrence_status_id' => [
+                'required',
+                'integer',
+                Rule::exists('lesson_occurrence_statuses', 'id')->where(
+                    fn ($query) => $query
+                        ->where('partner_id', $partnerId)
+                        ->where('is_active', true)
+                ),
+            ],
+            'comment' => ['nullable', 'string', 'max:2000'],
+            'trainer_profile_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('trainer_profiles', 'id')->where(
+                    fn ($query) => $query->where('partner_id', $partnerId)
+                ),
+            ],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $raw = $this->input('trainer_profile_id');
+
+        if ($raw === '' || $raw === 'none' || $raw === '0') {
+            $this->merge(['trainer_profile_id' => null]);
+        }
+
+        if ($this->filled('description') && ! $this->filled('comment')) {
+            $this->merge(['comment' => $this->input('description')]);
+        }
     }
 
     public function withValidator($validator): void
@@ -47,8 +74,8 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
             }
 
             $ulpId = (int) $this->input('user_lesson_package_id');
-            $startDate = (string) $this->input('start_date');
-            if ($ulpId <= 0 || $startDate === '') {
+            $date = (string) $this->input('occurrence_date');
+            if ($ulpId <= 0 || $date === '') {
                 return;
             }
 
@@ -62,21 +89,12 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
                 app(\App\Services\UserLessonPackageCalendarPeriodService::class)
                     ->assertAnchorInsideBillingMonth(
                         $ulp,
-                        \Carbon\CarbonImmutable::createFromFormat('Y-m-d', $startDate)->startOfDay()
+                        \Carbon\CarbonImmutable::createFromFormat('Y-m-d', $date)->startOfDay()
                     );
             } catch (\InvalidArgumentException $e) {
-                $validator->errors()->add('start_date', $e->getMessage());
+                $validator->errors()->add('occurrence_date', $e->getMessage());
             }
         });
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('preview')) {
-            $this->merge([
-                'preview' => filter_var($this->input('preview'), FILTER_VALIDATE_BOOLEAN),
-            ]);
-        }
     }
 
     public function attributes(): array
@@ -84,10 +102,10 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
         return [
             'user_lesson_package_id' => 'абонемент',
             'team_id' => 'группа',
-            'start_date' => 'дата начала',
-            'weekdays' => 'дни недели',
-            'weekdays.*' => 'день недели',
-            'preview' => 'превью',
+            'occurrence_date' => 'дата занятия',
+            'lesson_occurrence_status_id' => 'статус',
+            'comment' => 'комментарий',
+            'trainer_profile_id' => 'тренер',
         ];
     }
 
@@ -98,11 +116,11 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
             'user_lesson_package_id.exists' => 'Абонемент не найден.',
             'team_id.required' => 'Выберите группу.',
             'team_id.exists' => 'Группа не найдена.',
-            'start_date.required' => 'Укажите дату начала.',
-            'start_date.date_format' => 'Некорректный формат даты начала.',
-            'weekdays.required' => 'Выберите хотя бы один день недели.',
-            'weekdays.min' => 'Выберите хотя бы один день недели.',
-            'weekdays.*.in' => 'Некорректный день недели.',
+            'occurrence_date.required' => 'Укажите дату занятия.',
+            'occurrence_date.date_format' => 'Некорректный формат даты занятия.',
+            'lesson_occurrence_status_id.required' => 'Выберите статус.',
+            'lesson_occurrence_status_id.exists' => 'Выбранный статус не найден или неактивен.',
+            'trainer_profile_id.exists' => 'Выбранный тренер не найден.',
         ];
     }
 }

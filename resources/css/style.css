@@ -519,6 +519,24 @@ footer .social-networks {
     max-width: 7rem;
 }
 
+/*
+ * Без постоплаты блок посещений скрыт — расширяем select на его ширину + gap-1 (0.25rem),
+ * чтобы цена/статус не сдвигались при смене postpay ↔ обычный абонемент.
+ */
+#right_bar .wrap-users .setting-prices-user-card:not([data-is-postpay="1"]) .setting-prices-monthly-package {
+    flex: 0 0 calc(7rem + 3.25rem + 0.25rem);
+    width: calc(7rem + 3.25rem + 0.25rem);
+    min-width: calc(6.5rem + 3.25rem + 0.25rem);
+    max-width: calc(7rem + 3.25rem + 0.25rem);
+}
+
+#right_bar .wrap-users .setting-prices-user-card[data-is-postpay="1"] .setting-prices-monthly-package {
+    flex: 0 0 7rem;
+    width: 7rem;
+    min-width: 6.5rem;
+    max-width: 7rem;
+}
+
 #right_bar .wrap-users .setting-prices-monthly-package-select {
     width: 100%;
     min-width: 0;
@@ -1633,6 +1651,9 @@ a.disabled {
 #left_bar .setting-prices-team-price-display {
     flex: 0 0 3.25rem;
     min-width: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
     text-align: right;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
@@ -1641,6 +1662,18 @@ a.disabled {
 #left_bar .setting-prices-team-price-value {
     display: inline-block;
     min-width: 2.5rem;
+}
+
+/* Постоплата слева: вместо общей цены — иконка i (KidsCrmTooltip / manualPaid) */
+#left_bar .setting-prices-team-postpay-hint.user-manual-info-icon {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    line-height: 1;
+    color: #6c757d;
+    cursor: help;
 }
 
 #left_bar .setting-prices-team-price-col {

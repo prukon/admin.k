@@ -20,6 +20,39 @@ body.no-scroll {
     text-overflow: ellipsis;
 }
 
+/* Остаток гибкого: «10/12» в колонке абонементов (один ULP / фильтр группы) */
+.journal-flexible-hint--ratio {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.schedule-col-abonements,
+.schedule-table td.schedule-col-setup {
+    vertical-align: middle !important;
+}
+
+.journal-abonement-cell {
+    min-height: 1.75rem;
+    vertical-align: middle;
+}
+
+.journal-abonement-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    padding: 0.15rem 0.35rem;
+}
+
+.journal-abonement-btn .fa-plus,
+.journal-flexible-hint--multi {
+    line-height: 1;
+}
+
 
 #schedule-table {
     border-collapse: collapse;

@@ -61,13 +61,18 @@ final class JournalFixedAbonementPlacementService
             throw new InvalidArgumentException('Не удалось найти дату начала по выбранным дням недели.');
         }
 
+        // Слот группы должен покрывать весь период раскладки; иначе — служебный открытый (школьный не трогаем).
+        $periodEndForSlots = $this->calendarPeriodService->resolvePlacementPeriodEnd($ulp, $anchorDate);
+
         /** @var array<int, TeamScheduleSlot> $slotsByWeekday */
         $slotsByWeekday = [];
         foreach ($weekdays as $weekday) {
             $slotsByWeekday[$weekday] = $this->slotEnsure->resolveOrCreateEarliestForWeekday(
                 $partnerId,
                 (int) $team->id,
-                $weekday
+                $weekday,
+                $anchorDate,
+                $periodEndForSlots,
             );
         }
 
@@ -202,13 +207,7 @@ final class JournalFixedAbonementPlacementService
         TeamScheduleSlot $anchorSlot,
         Collection $patterns,
     ): array {
-        $ulp->loadMissing('lessonPackage:id,duration_days');
-        $days = (int) ($ulp->lessonPackage?->duration_days ?? 0);
-        if ($days < 1) {
-            throw new InvalidArgumentException('У шаблона абонемента не задан срок действия (duration_days).');
-        }
-
-        $periodEnd = $anchorDate->addDays($days)->startOfDay();
+        $periodEnd = $this->calendarPeriodService->resolvePlacementPeriodEnd($ulp, $anchorDate);
         $lessonsNeeded = (int) $ulp->lessons_total;
         if ($lessonsNeeded < 1) {
             throw new InvalidArgumentException('У абонемента не задан объём занятий.');
@@ -276,12 +275,8 @@ final class JournalFixedAbonementPlacementService
             throw new InvalidArgumentException('Доступна раскладка только для фиксированного абонемента.');
         }
 
-        if ($ulp->starts_at !== null || $ulp->ends_at !== null) {
-            throw new InvalidArgumentException('У этого назначения уже задан период действия.');
-        }
-
-        if (UserTeamScheduleSlot::query()->where('user_lesson_package_id', (int) $ulp->id)->exists()) {
-            throw new InvalidArgumentException('У назначения уже есть записи в расписании.');
+        if ($ulp->isLaidOutInSchedule()) {
+            throw new InvalidArgumentException('У этого назначения уже задан период действия или есть записи в расписании.');
         }
 
         if ((int) $ulp->lessons_total < 1) {

@@ -49,27 +49,77 @@
     Полное описание — <a href="/docs/documentation/postpay">postpay</a>.
   </div>
 
-  <h2 id="ulp-billing-month">Поле <code>billing_month</code> (зарезервировано под месячные назначения)</h2>
+  <h2 id="ulp-billing-month">Поле <code>billing_month</code> (месячные назначения из установки цен)</h2>
   <div class="note">
     Миграция <code>2026_08_01_030000_add_billing_month_to_user_lesson_packages_table.php</code>.
     Колонка <code>user_lesson_packages.billing_month</code> — <code>date</code>, <b>nullable</b>, смысл как у
     <code>users_prices.new_month</code>: хранить 1-е число месяца (<code>YYYY-MM-01</code>).
     Неуникальный индекс <code>(user_id, team_id, billing_month)</code>.
-    Для текущих fixed / flexible / no_schedule назначений значение остаётся <code>NULL</code>
-    (backfill не делается). UI и валидация назначений поле пока не используют.
+    С 2026‑08 при сохранении assignable-пакета в установке цен
+    (<code>UsersPriceLessonPackageSync</code>) создаётся ULP с заполненным <code>billing_month</code>,
+    <code>ends_at</code> = последний день месяца;
+    для <code>flexible</code> сразу <code>starts_at</code> = 1-е число месяца
+    (занятия ставят по клику в журнале — <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>);
+    для <code>fixed</code> / <code>no_schedule</code> — <code>starts_at = NULL</code>
+    (в журнале «+» у fixed доступен, пока нет старта/UTSS),
+    и FK <code>users_prices.user_lesson_package_id</code> (миграция
+    <code>2026_08_05_190000_add_user_lesson_package_id_to_users_prices_table.php</code>).
+    Модалка раскладки журнала (fixed): для месячных ULP дата начала обязательна и пустая по умолчанию
+    (только внутри <code>billing_month</code>), окончание — readonly; HTML5 <code>min</code>/<code>max</code>/<code>required</code>
+    не используются — ошибки Laravel под полями.
+    <b>Классика</b> без <code>billing_month</code>: при первой привязке к календарю
+    <code>ends_at = start + duration_days</code> шаблона.
+    Ручные назначения без месяца по-прежнему могут иметь <code>billing_month = NULL</code>.
+    Backfill старых <code>users_prices</code> не делается.
     <b>Не путать с постоплатой:</b> тип <code>postpay</code> не пишет в ULP и не использует
     <code>billing_month</code> — см. <a href="/docs/documentation/postpay">postpay</a>.
-    См. также <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>.
+    См. также <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>,
+    <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users § ULP sync</a>,
+    <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>.
   </div>
 
-  <h2>Правило периода</h2>
-  <p>При <strong>первой привязке</strong> назначения к календарю (одна и та же точка для гибкого и фиксированного типа расписания шаблона):</p>
+  <h3 id="ulp-laid-out-placeable">«Разложено» vs «placeable» в журнале</h3>
   <ul>
-    <li><code>starts_at</code> — дата якоря привязки (дата выбранного занятия в календаре).</li>
-    <li><code>ends_at</code> — <code>starts_at</code> плюс <code>duration_days</code> из шаблона абонемента (<code>lesson_packages.duration_days</code>), по той же логике, что использовалась раньше при ручном вводе даты начала на форме назначения.</li>
+    <li><code>UserLessonPackage::isLaidOutInSchedule()</code> — уже разложено, если есть
+      <code>starts_at</code>, или есть UTSS, или (для <b>не</b>-месячных) заполнен один <code>ends_at</code>.</li>
+    <li><b>Исключение — месячный flexible</b> (<code>billing_month</code> + тип <code>flexible</code>):
+      полный период при sync <b>не</b> означает раскладку; laid out только при наличии UTSS.</li>
+    <li>Для месячных fixed (<code>billing_month</code>): один заранее выставленный <code>ends_at</code>
+      <b>без</b> <code>starts_at</code> и без UTSS — <b>ещё не</b> раскладка; кнопка «+» в журнале доступна.</li>
+    <li><code>isJournalPlaceable()</code> = не laid out и <code>lessons_total &gt; 0</code>
+      (раскладка «+» из журнала — только <code>schedule_type = fixed</code>;
+      гибкий — отдельная модалка по клику на ячейку).</li>
   </ul>
-  <p>Если период уже задан (обе даты не NULL), повторно через этот механизм он не перезаписывается. Для фиксированного абонемента повторная привязка того же назначения к календарю блокируется, если у записи уже есть даты периода или уже есть строки в <code>user_team_schedule_slots</code>.</p>
-  <p>После первой привязки дату окончания можно скорректировать вручную — см. <a href="#assignment-ends-at">§ ручная смена <code>ends_at</code></a>.</p>
+
+  <h2 id="period-rule">Правило периода</h2>
+  <p>При <strong>первой привязке</strong> назначения к календарю / журналу
+    (<code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>):</p>
+  <table>
+    <thead><tr><th>Тип назначения</th><th><code>starts_at</code></th><th><code>ends_at</code></th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Месячный flexible</b> из установки цен</td>
+        <td>Сразу при sync = 1-е число <code>billing_month</code></td>
+        <td>Сразу при sync = последний день месяца; <code>duration_days</code> не используется</td>
+      </tr>
+      <tr>
+        <td><b>Месячный fixed</b> / no_schedule из установки цен</td>
+        <td>Дата якоря раскладки (обязательна, внутри месяца начисления)</td>
+        <td>Уже задан при sync = последний день <code>billing_month</code>;
+          <code>duration_days</code> шаблона <b>не</b> используется</td>
+      </tr>
+      <tr>
+        <td><b>Классика</b> (<code>billing_month = NULL</code>)</td>
+        <td>Дата якоря привязки</td>
+        <td><code>starts_at + duration_days</code> шаблона (<code>lesson_packages.duration_days</code>)</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Если период уже полностью задан (обе даты не NULL), повторно через этот механизм он не перезаписывается.
+    Для фиксированного абонемента повторная привязка того же назначения блокируется, если назначение уже
+    «разложено» (<code>isLaidOutInSchedule</code>) или есть строки в <code>user_team_schedule_slots</code>.</p>
+  <p>После первой привязки дату окончания можно скорректировать вручную — см. <a href="#assignment-ends-at">§ ручная смена <code>ends_at</code></a>
+    (редактирование в UI назначений доступно, когда заполнены <b>обе</b> даты периода).</p>
 
   <h2 id="assignment-ends-at">Ручная смена даты окончания (<code>ends_at</code>)</h2>
   <div class="note">
@@ -121,6 +171,11 @@
   <h2>Гибкое расписание</h2>
   <p>Эндпоинт привязки одного занятия (<code>assign-flexible</code>) выставляет период при первом успешном сохранении привязки, если даты ещё были NULL. Одна успешная операция добавляет одну строку в <code>user_team_schedule_slots</code>; при достижении лимита по числу строк (равному <code>lessons_total</code>) следующая привязка возвращает ошибку валидации.</p>
   <p><strong>UI календаря школы:</strong> привязка выполняется inline в модалке слота (без отдельной модалки «Гибкий абонемент»). Список подходящих назначений на дату — в <code>GET …/slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>; подпись назначения — <code>"название" (остаток N)</code> (см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-assignment-labels">school-schedule-calendar § подписи</a>); одно назначение — две строки на кнопке и один клик, несколько — select в <code>#schoolCalSlotFlexFormWrap</code>. Подробности — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a> (§ «Гибкие абонементы в модалке слота»).</p>
+  <p><strong>UI журнала <code>/schedule</code>:</strong> месячный flexible из установки цен
+    (<code>billing_month</code>) ставится по клику на ячейку —
+    <a href="/docs/documentation/schedule-journal#place-flexible">schedule-journal §7.3</a>
+    (<code>place-flexible-abonement</code>: статус в модалке, без reload страницы).
+    Классика без <code>billing_month</code> из журнала не предлагается.</p>
 
   <h2>Фиксированное расписание</h2>
   <p>В модалке календаря выбирается уже существующее назначение (<code>user_lesson_package_id</code>) без периода; затем по якорной дате и шаблону (<code>patterns[]</code>: день недели и интервал времени) строится цепочка занятий и создаются строки <code>user_team_schedule_slots</code>. Период назначения задаётся в той же транзакции перед построением цепочки (<code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code>).</p>

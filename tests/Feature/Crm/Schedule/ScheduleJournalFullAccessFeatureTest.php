@@ -29,6 +29,9 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertSee('id="filter-month"', false)
             ->assertSee('id="filter-team"', false)
             ->assertSee('id="cellEditModal"', false)
+            ->assertSee('id="flexiblePlaceModal"', false)
+            ->assertSee('id="flexiblePlaceForm"', false)
+            ->assertSee('id="btn-add-flexible-lesson"', false)
             ->assertSee('id="cell-trainer-wrap"', false)
             ->assertSee('id="cell-trainer-profile-id"', false)
             ->assertSee('SCHEDULE_VISITED_STATUS_ID', false)
@@ -164,6 +167,47 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertJsonStructure(['success', 'message', 'preview', 'result']);
     }
 
+    public function test_flexible_context_returns_ok_for_student(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
+
+        $this->getJson(route('schedule.abonement.flexible-context', $student).'?'.http_build_query([
+            'occurrence_date' => '2026-09-10',
+            'context_team_id' => $team->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('can_place', true)
+            ->assertJsonPath('assignment.id', (int) $ulp->id)
+            ->assertJsonStructure([
+                'success',
+                'user',
+                'occurrence_date',
+                'assignments',
+                'teams',
+                'team_id',
+                'assignment',
+                'can_place',
+            ]);
+    }
+
+    public function test_place_flexible_abonement_returns_ok_for_student(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
+
+        $this->postJson(route('schedule.abonement.place-flexible', $student), [
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $team->id,
+            'occurrence_date' => '2026-09-10',
+            'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+        ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonStructure(['success', 'message', 'result']);
+    }
+
     public function test_occurrence_statuses_tab_returns_ok(): void
     {
         $this->get(route('schedule.occurrence-statuses'))
@@ -261,6 +305,17 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
                 'weekdays' => [1],
             ])->assertOk();
 
+            [$flexUser, $flexTeam] = $this->makeStudentWithTeam();
+            $flexUlp = $this->makeMonthlyFlexibleAssignment($flexUser, (int) $flexTeam->id, '2026-09-01', lessons: 1);
+            $this->getJson(route('schedule.abonement.flexible-context', $flexUser).'?occurrence_date=2026-09-10')
+                ->assertOk();
+            $this->postJson(route('schedule.abonement.place-flexible', $flexUser), [
+                'user_lesson_package_id' => $flexUlp->id,
+                'team_id' => $flexTeam->id,
+                'occurrence_date' => '2026-09-10',
+                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+            ])->assertOk();
+
             $this->postJson(route('user.sync.teams', $student), [
                 'team_ids' => [$team->id],
             ])->assertOk();
@@ -303,11 +358,20 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertUnauthorized();
         $this->postJson(route('schedule.update'), [])->assertUnauthorized();
         $this->getJson(route('schedule.abonement.context', $student))->assertUnauthorized();
+        $this->getJson(route('schedule.abonement.flexible-context', $student).'?occurrence_date=2026-09-10')
+            ->assertUnauthorized();
         $this->postJson(route('schedule.abonement.place-fixed', $student), [
             'user_lesson_package_id' => $ulp->id,
             'team_id' => $team->id,
             'start_date' => '2026-08-03',
             'weekdays' => [1],
+        ])->assertUnauthorized();
+        $flexUlp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 1);
+        $this->postJson(route('schedule.abonement.place-flexible', $student), [
+            'user_lesson_package_id' => $flexUlp->id,
+            'team_id' => $team->id,
+            'occurrence_date' => '2026-09-10',
+            'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
         ])->assertUnauthorized();
         $this->postJson(route('user.sync.teams', $student), ['team_ids' => []])->assertUnauthorized();
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertUnauthorized();

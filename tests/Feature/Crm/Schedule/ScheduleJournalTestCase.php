@@ -342,6 +342,64 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
     }
 
     /**
+     * Месячный гибкий ULP из установки цен (полный период на billing_month).
+     */
+    protected function makeMonthlyFlexibleAssignment(
+        User $student,
+        int $teamId,
+        string $billingMonth,
+        int $lessons = 4,
+    ): UserLessonPackage {
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, array_values(array_unique(array_filter([
+            $teamId,
+            ...$student->teams()->pluck('teams.id')->map(fn ($id) => (int) $id)->all(),
+        ]))));
+
+        $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->flexible($lessons, 60)->create([
+            'name' => 'Месячный гибкий '.uniqid(),
+            'is_active' => true,
+        ]);
+
+        $monthStart = \Carbon\Carbon::parse($billingMonth)->startOfMonth()->format('Y-m-d');
+        $monthEnd = \Carbon\Carbon::parse($billingMonth)->endOfMonth()->format('Y-m-d');
+
+        return UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'team_id' => $teamId,
+            'billing_month' => $monthStart,
+            'starts_at' => $monthStart,
+            'ends_at' => $monthEnd,
+            'lessons_total' => $lessons,
+            'lessons_remaining' => $lessons,
+            'fee_amount' => '5000.00',
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function placeFlexiblePayload(
+        UserLessonPackage $ulp,
+        int $teamId,
+        string $occurrenceDate,
+        array $extra = [],
+    ): array {
+        $statusId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($statusId);
+
+        return array_merge([
+            'user_lesson_package_id' => $ulp->id,
+            'team_id' => $teamId,
+            'occurrence_date' => $occurrenceDate,
+            'lesson_occurrence_status_id' => $statusId,
+        ], $extra);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function ajaxHeaders(): array

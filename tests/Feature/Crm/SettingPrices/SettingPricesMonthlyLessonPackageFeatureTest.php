@@ -108,7 +108,13 @@ final class SettingPricesMonthlyLessonPackageFeatureTest extends CrmTestCase
             'lesson_package_id' => $this->package->id,
         ]);
 
-        $this->assertSame(0, UserLessonPackage::query()->count());
+        $row = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->where('new_month', '2024-09-01')
+            ->first();
+        $this->assertNotNull($row?->user_lesson_package_id);
+        $this->assertSame(1, UserLessonPackage::query()->whereKey($row->user_lesson_package_id)->count());
     }
 
     public function test_manual_price_override_keeps_lesson_package_id(): void

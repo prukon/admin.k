@@ -94,6 +94,7 @@
                                     @foreach($packages as $pkg)
                                         <option value="{{ (int) $pkg['id'] }}"
                                                 data-price="{{ e($pkg['price']) }}"
+                                                data-is-postpay="{{ !empty($pkg['is_postpay']) ? '1' : '0' }}"
                                                 @selected((int) $selectedPackageId === (int) $pkg['id'])>
                                             {{ $pkg['name'] }}
                                         </option>

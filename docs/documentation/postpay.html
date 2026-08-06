@@ -47,12 +47,13 @@
   </div>
 
   <div class="warn">
-    <b>Не путать</b> с зарезервированным полем <code>user_lesson_packages.billing_month</code>
+    <b>Не путать</b> с полем <code>user_lesson_packages.billing_month</code>
     (<a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>,
     <a href="/docs/documentation/payments#ulp-billing-month">payments § billing_month</a>).
     Постоплата <b>не пишет</b> в ULP и не опирается на <code>billing_month</code>: биллинг только через
-    <code>users_prices</code>. Обычные типы (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>)
-    по-прежнему живут через назначения ULP + календарь/журнал.
+    <code>users_prices</code>. Обычные типы при установке цен получают месячный ULP
+    (<code>UsersPriceLessonPackageSync</code> + FK <code>users_prices.user_lesson_package_id</code>)
+    для журнала/календаря; postpay при смене с assignable снимает только неразложенный ULP.
   </div>
 
   <h2 id="template">1) Шаблон абонемента</h2>
@@ -89,13 +90,18 @@
     <li>Каталог пакетов в JSON (<code>lessonPackages</code>) содержит <code>schedule_type</code> и <code>is_postpay</code>.</li>
     <li>При выборе postpay:
       <ul>
-        <li>справа от select — readonly поле числа посещений (<code>postpay_visits</code>), tooltip KidsCrmTooltip
-          «Кол-во занятий за «{месяц}»»;</li>
-        <li>сумма пересчитывается на клиенте и на сервере; ручная правка цены для postpay игнорируется
-          (сервер: <code>PostpayUsersPriceSync</code>).</li>
+        <li><b>Слева (группа):</b> span общей цены скрыт — у группы нет единой суммы (у учеников разные посещения).
+          Вместо цены — иконка <code>i</code> (KidsCrmTooltip) «Сумма считается по посещениям у каждого ученика».
+          Кнопка «Применить» остаётся: назначает шаблон postpay ученикам, не «проставляет» общую цену.</li>
+        <li><b>Справа (ученик):</b> readonly поле числа посещений (<code>postpay_visits</code>), tooltip
+          «Кол-во занятий за «{месяц}»»; в инпуте суммы — только
+          <code>посещения × ставка</code> (при 0 посещений — <b>0</b>), без подстановки ставки за занятие как месячного тарифа.</li>
+        <li>Ручная правка цены для postpay игнорируется (сервер: <code>PostpayUsersPriceSync</code>).</li>
       </ul>
     </li>
-    <li>Стили: <code>resources/css/style.css</code> (<code>.setting-prices-monthly-postpay-visits</code>, <code>.is-postpay-calc</code>);
+    <li>Стили: <code>resources/css/style.css</code> (<code>.setting-prices-monthly-postpay-visits</code>,
+      <code>.is-postpay-calc</code>, <code>.setting-prices-team-postpay-hint</code>);
+      без postpay select абонемента справа шире на ширину блока посещений (+ gap), чтобы строка не дёргалась;
       логика — <code>resources/js/settings-prices.js</code> (Vite).</li>
   </ul>
 

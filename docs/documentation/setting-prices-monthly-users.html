@@ -42,11 +42,58 @@
     <b>Постоплата:</b> в select абонемента тип <code>postpay</code> доступен при праве
     <code>lessonPackages.type.postpay</code> — сумма = посещения × цена занятия,
     без записи в <code>user_lesson_packages</code>.
+    Для остальных типов (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>) при сохранении
+    <code>users_prices.lesson_package_id</code> сервис <code>UsersPriceLessonPackageSync</code> создаёт/обновляет
+    связанный ULP — подробно в <a href="#ulp-sync">§ ULP sync</a>.
+    На вкладке «по месяцам»: слева при postpay цена группы скрыта (иконка <code>i</code> с подсказкой),
+    справа сумма только расчётная (0 при 0 посещений). Кнопка «Применить» слева назначает шаблон.
     Без права новые postpay в каталоге скрыты (уже назначенные остаются для отображения);
     новый выбор → <b>422</b> на поле пакета.
     Подробно — <a href="/docs/documentation/postpay">postpay</a>,
     <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.
   </div>
+
+  <h2 id="ulp-sync">0) Sync <code>users_prices</code> ↔ ULP (assignable-пакеты)</h2>
+  <div class="ok">
+    <b>Зачем.</b> Партнёры, работающие только в «Установке цен» + журнале (без UI «Расписание школы»),
+    должны получать кнопку «+» в журнале после назначения fixed-пакета. До sync в
+    <code>users_prices</code> стоял только <code>lesson_package_id</code>, без строки ULP — «+» не появлялся.
+  </div>
+  <h3>0.1) Когда создаётся / обновляется ULP</h3>
+  <ul>
+    <li>Триггеры: <code>setPriceAllUsers</code>, <code>setTeamPrice</code> / снимок ученикам группы,
+      <code>user-year-prices/save</code> (и аналогичные пути apply в контроллере).</li>
+    <li>Типы шаблона: <code>fixed</code>, <code>flexible</code>, <code>no_schedule</code>
+      (<code>LessonPackage::ASSIGNMENT_SCHEDULE_TYPES</code>). <b>Postpay → ULP не создаётся.</b></li>
+    <li>При создании assignable-пакета:
+      <code>billing_month = users_prices.new_month</code>,
+      <code>ends_at</code> = последний день месяца;
+      для <code>flexible</code> сразу <code>starts_at</code> = 1-е число месяца
+      (занятия ставят «на лету» в журнале);
+      для <code>fixed</code> / <code>no_schedule</code> — <code>starts_at = NULL</code> до раскладки,
+      <code>fee_amount</code> = цена месяца, объём = <code>lessons_count</code> шаблона,
+      FK <code>users_prices.user_lesson_package_id</code>.</li>
+    <li><code>duration_days</code> шаблона для месячного ULP <b>не</b> задаёт период.</li>
+  </ul>
+  <h3>0.2) Правила изменений</h3>
+  <ul>
+    <li>Смена суммы при неразложенном / даже разложенном ULP (если месяц и ULP не оплачены) →
+      синхронизация <code>fee_amount</code>.</li>
+    <li>Смена шаблона при <b>уже разложенном</b> ULP (<code>isLaidOutInSchedule</code>) → <b>422</b>
+      на поле пакета (текст про раскладку в расписание).</li>
+    <li>Смена шаблона при неразложенном → обновление ULP (объём/пакет).</li>
+    <li>Снятие пакета / уход на postpay → физическое удаление <b>неразложенного</b> ULP;
+      если разложен → <b>422</b>.</li>
+    <li>Оплаченный месяц (<code>effective_is_paid</code>) — sync не создаёт и не меняет ULP.</li>
+    <li><b>Идемпотентный догон:</b> повторный Apply с теми же значениями снова вызывает sync —
+      создаёт отсутствующий ULP и/или чинит <code>ends_at</code> у неразложенного месячного назначения
+      (для flexible также <code>starts_at</code> = 1-е число месяца, если ещё нет UTSS).
+      Исторический backfill всех старых месяцев <b>не</b> делается.</li>
+  </ul>
+  <p class="small">Сервис: <code>App\Services\SettingPrices\UsersPriceLessonPackageSync</code>.
+    Раскладка fixed в журнале — <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>;
+    занятия из гибкого — <a href="/docs/documentation/schedule-journal#place-flexible">§7.3</a>.
+    Модель периода — <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a>.</p>
 
   <h2 id="permissions">1) Права</h2>
   <table>
@@ -147,19 +194,21 @@
         <td>POST</td>
         <td><code>/admin/setting-prices/set-team-price</code></td>
         <td><code>setTeamPrice</code></td>
-        <td>AJAX JSON / non-AJAX <b>302</b> → monthly. Снимок тарифа только текущим ученикам</td>
+        <td>AJAX JSON / non-AJAX <b>302</b> → monthly. Снимок тарифа только текущим ученикам;
+          assignable-пакет → sync ULP (§ <a href="#ulp-sync">0</a>)</td>
       </tr>
       <tr>
         <td>POST</td>
         <td><code>/admin/setting-prices/set-price-all-teams</code></td>
         <td><code>setPriceAllTeams</code></td>
-        <td>То же: массовый снимок по текущему составу групп</td>
+        <td>То же: массовый снимок по текущему составу групп (+ sync ULP при assignable)</td>
       </tr>
       <tr>
         <td>POST</td>
         <td><code>/admin/setting-prices/set-price-all-users</code></td>
         <td><code>setPriceAllUsers</code></td>
-        <td>AJAX JSON / non-AJAX <b>302</b>. Skip без <code>studentBelongsToTeam</code></td>
+        <td>AJAX JSON / non-AJAX <b>302</b>. Skip без <code>studentBelongsToTeam</code>;
+          sync ULP; смена пакета при разложенном ULP → <b>422</b> на поле пакета</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -171,7 +220,8 @@
         <td>POST</td>
         <td><code>/admin/setting-prices/user-year-prices/save</code></td>
         <td><code>setting-prices.user-year-prices.save</code></td>
-        <td>AJAX JSON / non-AJAX <b>302</b> на users при успехе. Без членства → <b>422</b> JSON (в т.ч. non-AJAX)</td>
+        <td>AJAX JSON / non-AJAX <b>302</b> на users при успехе. Без членства → <b>422</b> JSON (в т.ч. non-AJAX);
+          assignable → sync ULP (в т.ч. идемпотентный догон)</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -185,6 +235,7 @@
   <h2 id="code">5) Ключевые файлы</h2>
   <ul>
     <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual</li>
+    <li><code>app/Services/SettingPrices/UsersPriceLessonPackageSync.php</code> — create/update/delete ULP из начисления</li>
     <li><code>app/Support/UserPriceTeamMembership.php</code> — <code>studentBelongsToTeam</code>, <code>studentHasPositivePriceHistoryForTeam</code></li>
     <li><code>resources/js/settings-prices.js</code> — UI monthly (Vite)</li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
@@ -192,6 +243,8 @@
 
   <h2 id="tests">6) Feature-тесты</h2>
   <ul>
+    <li><code>SettingPricesUsersPriceUlpSyncFeatureTest</code> — create/update/clear ULP, postpay без ULP, block при laid out, reapply/ends_at</li>
+    <li><code>SettingPricesUsersPriceUlpSyncContractsFeatureTest</code> — AJAX/non-AJAX, guest/403, year-prices sync</li>
     <li><code>SettingPricesMonthlyFormerMembersFeatureTest</code> — список, флаги, apply не трогает бывших, нет auto-create нулей</li>
     <li><code>SettingPricesMonthlyFormerMembersAccessFeatureTest</code> — guest / 403 / 200, AJAX-контракт, non-AJAX 302, foreign 404, manual-paid</li>
     <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
@@ -199,6 +252,8 @@
     <li><code>BladeInlineJsSyntaxTest</code> — <code>settings-prices.js</code> + inline JS users (former markers, <code>node --check</code>)</li>
   </ul>
   <pre><code>php artisan test --env=testing \
+  tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncContractsFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
@@ -207,7 +262,10 @@
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
     <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a> ·
+    <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a> ·
+    <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a> ·
     <a href="/docs/documentation/student-team-membership">student-team-membership</a> ·
+    <a href="/docs/documentation/postpay">postpay</a> ·
     <a href="/docs/documentation/setting-prices-custom-payments">доп. платежи</a> ·
     <a href="/docs/documentation/dashboard-cabinet">консоль /cabinet</a> ·
     <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>

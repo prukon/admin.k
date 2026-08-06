@@ -38,6 +38,7 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         $this->assertNotSame('', trim((string) $page->getContent()));
         $page->assertSee('abonementPlaceModal', false)
             ->assertSee('abonementPlaceForm', false)
+            ->assertSee('novalidate', false)
             ->assertSee('journal-abonement-btn', false)
             ->assertSee('btnAbonementPlace', false)
             ->assertSee('cellEditModal', false)

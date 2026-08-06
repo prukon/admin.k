@@ -392,6 +392,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('schedule.abonement.context');
         Route::post('/schedule/user/{user}/place-fixed-abonement', [ScheduleController::class, 'placeFixedAbonement'])
             ->name('schedule.abonement.place-fixed');
+        Route::get('/schedule/user/{user}/flexible-context', [ScheduleController::class, 'flexibleContext'])
+            ->name('schedule.abonement.flexible-context');
+        Route::post('/schedule/user/{user}/place-flexible-abonement', [ScheduleController::class, 'placeFlexibleAbonement'])
+            ->name('schedule.abonement.place-flexible');
         Route::post('/schedule/user/{user}/sync-teams', [ScheduleController::class, 'syncUserTeams'])->name('user.sync.teams');
     });
 

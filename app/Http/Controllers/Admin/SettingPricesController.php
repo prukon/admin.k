@@ -37,7 +37,10 @@ use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
 use App\Http\Requests\Admin\UserCustomPaymentUpdateRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use App\Services\Postpay\PostpayUsersPriceSync;
+use App\Services\SettingPrices\UsersPriceLessonPackageSync;
+use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
 use Illuminate\Support\Carbon as SupportCarbon;
+use Illuminate\Validation\ValidationException;
 
 class SettingPricesController extends AdminBaseController
 {
@@ -47,6 +50,7 @@ class SettingPricesController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
         private readonly PostpayUsersPriceSync $postpaySync,
+        private readonly UsersPriceLessonPackageSync $usersPriceLessonPackageSync,
     ) {
         parent::__construct($partnerContext);
     }
@@ -1107,9 +1111,31 @@ class SettingPricesController extends AdminBaseController
     }
 
     /**
+     * Sync users_prices ↔ ULP; бизнес-ошибки → ValidationException с полем для фронта.
+     *
+     * @throws ValidationException
+     */
+    protected function syncUserPriceLessonPackage(UserPrice $row, ?string $errorField = null): void
+    {
+        try {
+            $this->usersPriceLessonPackageSync->syncForUserPrice(
+                $row,
+                auth()->id() !== null ? (int) auth()->id() : null
+            );
+        } catch (UsersPriceLessonPackageSyncException $e) {
+            $field = $errorField ?? $e->field();
+            throw ValidationException::withMessages([
+                $field => [$e->getMessage()],
+            ]);
+        }
+    }
+
+    /**
      * Применить снимок тарифа ко всем активным ученикам группы за месяц.
      * Не трогает записи с effective_is_paid = true.
      * Для postpay цена = посещения × цена занятия (не цена шаблона как фиксированный месяц).
+     *
+     * @throws ValidationException
      */
     protected function applyPackageSnapshotToTeamStudents(
         Team $team,
@@ -1142,11 +1168,19 @@ class SettingPricesController extends AdminBaseController
 
                 if ($isPostpay && $package) {
                     $this->postpaySync->applyPackageToRow($userPrice, $package);
+                    $this->syncUserPriceLessonPackage(
+                        $userPrice,
+                        'lesson_package_id'
+                    );
                 } else {
                     $userPrice->update([
                         'price' => $price,
                         'lesson_package_id' => $lessonPackageId,
                     ]);
+                    if ($package) {
+                        $userPrice->setRelation('lessonPackage', $package);
+                    }
+                    $this->syncUserPriceLessonPackage($userPrice, 'lesson_package_id');
                 }
 
                 continue;
@@ -1163,8 +1197,9 @@ class SettingPricesController extends AdminBaseController
                 ]);
                 $created->setRelation('lessonPackage', $package);
                 $this->postpaySync->syncRow($created);
+                $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
             } else {
-                UserPrice::create([
+                $created = UserPrice::create([
                     'user_id' => $userId,
                     'team_id' => $team->id,
                     'new_month' => $monthDate,
@@ -1172,6 +1207,10 @@ class SettingPricesController extends AdminBaseController
                     'lesson_package_id' => $lessonPackageId,
                     'is_paid' => false,
                 ]);
+                if ($package) {
+                    $created->setRelation('lessonPackage', $package);
+                }
+                $this->syncUserPriceLessonPackage($created, 'lesson_package_id');
             }
         }
     }
@@ -1416,7 +1455,7 @@ class SettingPricesController extends AdminBaseController
         $selectedDate = $this->formatedDate($selectedDateString);
 
         DB::transaction(function () use ($selectedDate, $selectedDateString, $usersPrice, $teamId, $team, $partnerId) {
-            foreach ($usersPrice as $priceData) {
+            foreach ($usersPrice as $index => $priceData) {
                 $userId = (int) ($priceData['user_id'] ?? 0);
                 if ($userId <= 0) {
                     continue;
@@ -1458,6 +1497,8 @@ class SettingPricesController extends AdminBaseController
                     }
                 }
 
+                $ulpErrorField = 'usersPrice.'.$index.'.lesson_package_id';
+
                 // Postpay: сумма только из журнала, ручной price из UI игнорируем.
                 if ($resolvedPackage && $resolvedPackage->isPostpay()) {
                     $packageChanged = $packageKeyPresent
@@ -1468,6 +1509,7 @@ class SettingPricesController extends AdminBaseController
                     }
                     $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
                     $this->postpaySync->syncRow($userPriceRecord);
+                    $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
                     $userPriceRecord->refresh();
 
                     $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
@@ -1491,6 +1533,14 @@ class SettingPricesController extends AdminBaseController
                     && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) ($newPackageId ?? 0);
 
                 if (! $priceChanged && ! $packageChanged) {
+                    // Идемпотентный догон: создать ULP / выставить ends_at конца billing_month.
+                    if ($resolvedPackage
+                        && ! $resolvedPackage->isPostpay()
+                        && in_array((string) $resolvedPackage->schedule_type, LessonPackage::ASSIGNMENT_SCHEDULE_TYPES, true)
+                    ) {
+                        $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+                        $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
+                    }
                     continue;
                 }
 
@@ -1507,6 +1557,10 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 $userPriceRecord->update($payload);
+                if ($resolvedPackage) {
+                    $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
+                }
+                $this->syncUserPriceLessonPackage($userPriceRecord, $ulpErrorField);
 
                 $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
                 $packageNote = $newPackageId
@@ -1725,7 +1779,20 @@ class SettingPricesController extends AdminBaseController
                     $packageChanged = $packageKeyPresent
                         && (int) ($userPrice->lesson_package_id ?? 0) !== (int) ($resolvedPackageId ?? 0);
 
+                    $resolvedPackage = null;
+                    if ($resolvedPackageId) {
+                        $resolvedPackage = LessonPackage::query()->find($resolvedPackageId);
+                    }
+
                     if (! $priceChanged && ! $packageChanged) {
+                        // Идемпотентный догон: создать ULP / выставить ends_at конца billing_month.
+                        if ($resolvedPackage
+                            && ! $resolvedPackage->isPostpay()
+                            && in_array((string) $resolvedPackage->schedule_type, LessonPackage::ASSIGNMENT_SCHEDULE_TYPES, true)
+                        ) {
+                            $userPrice->setRelation('lessonPackage', $resolvedPackage);
+                            $this->syncUserPriceLessonPackage($userPrice, 'prices.lesson_package_id');
+                        }
                         continue;
                     }
 
@@ -1742,6 +1809,13 @@ class SettingPricesController extends AdminBaseController
                     }
 
                     $userPrice->update($payload);
+                    if ($resolvedPackage) {
+                        $userPrice->setRelation('lessonPackage', $resolvedPackage);
+                    }
+                    $this->syncUserPriceLessonPackage(
+                        $userPrice,
+                        'prices.lesson_package_id'
+                    );
 
                     $packageNote = $resolvedPackageId
                         ? " Абонемент #{$resolvedPackageId}."
@@ -1763,6 +1837,10 @@ class SettingPricesController extends AdminBaseController
                         'lesson_package_id' => $packageKeyPresent ? $newPackageId : null,
                         'is_paid' => false,
                     ]);
+                    $this->syncUserPriceLessonPackage(
+                        $created,
+                        'prices.lesson_package_id'
+                    );
 
                     $packageNote = ($packageKeyPresent && $newPackageId)
                         ? " Абонемент #{$newPackageId}."

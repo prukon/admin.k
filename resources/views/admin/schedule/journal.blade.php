@@ -92,6 +92,31 @@
                         }
                         $userAssignments = $journalAssignments[(int) $user->id] ?? [];
                         $hasPlaceable = collect($userAssignments)->contains(fn ($a) => !empty($a['placeable']));
+                        $userFlexibleAssignments = $flexibleByUser[(int) $user->id] ?? [];
+                        $hasFlexibleAssignable = !empty($flexibleUsers[(int) $user->id]) && $userFlexibleAssignments !== [];
+                        $flexibleHintCount = count($userFlexibleAssignments);
+                        // Фильтр группы сужает список до одного; без фильтра при нескольких — иконка.
+                        $flexibleHintShowRatio = $flexibleHintCount === 1;
+                        $flexibleHintText = '';
+                        $flexibleHintRatio = '';
+                        if ($hasFlexibleAssignable && $flexibleHintCount === 1) {
+                            $fa = $userFlexibleAssignments[0];
+                            $flexName = (string) ($fa['name'] ?? 'Гибкий абонемент');
+                            $flexRem = (int) ($fa['slots_remaining'] ?? 0);
+                            $flexTotal = (int) ($fa['lessons_total'] ?? 0);
+                            $flexibleHintRatio = $flexRem.'/'.$flexTotal;
+                            $flexibleHintText = 'Остаток занятий в текущем месяце по абонементу "'.$flexName.'"';
+                        } elseif ($hasFlexibleAssignable && $flexibleHintCount > 1) {
+                            $flexLines = [];
+                            foreach ($userFlexibleAssignments as $fa) {
+                                $flexName = (string) ($fa['name'] ?? 'Гибкий абонемент');
+                                $flexRem = (int) ($fa['slots_remaining'] ?? 0);
+                                $flexTotal = (int) ($fa['lessons_total'] ?? 0);
+                                $flexLines[] = $flexRem.'/'.$flexTotal
+                                    .' остаток занятий в текущем месяце по абонементу "'.$flexName.'"';
+                            }
+                            $flexibleHintText = implode("\n", $flexLines);
+                        }
                     @endphp
                     <tr data-user-id="{{ $user->id }}">
                         <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
@@ -106,15 +131,51 @@
                                 <i class="fas fa-circle-check text-success"></i>
                             @endif
                         </td>
-                        <td class="text-center">
-                            @if($hasPlaceable)
-                                <button type="button"
-                                        class="btn btn-sm btn-outline-primary journal-abonement-btn"
-                                        data-user-id="{{ $user->id }}"
-                                        title="Разложить абонемент">
-                                    <i class="fa-solid fa-plus"></i>
-                                </button>
-                            @endif
+                        <td class="text-center align-middle schedule-col-setup schedule-col-abonements">
+                            <div class="journal-abonement-cell d-inline-flex align-items-center gap-1 justify-content-center">
+                                @if($hasPlaceable)
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary journal-abonement-btn"
+                                            data-user-id="{{ $user->id }}"
+                                            title="Разложить абонемент">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                @endif
+                                @if($hasFlexibleAssignable && $flexibleHintText !== '')
+                                    @if($flexibleHintShowRatio)
+                                        @php $fa = $userFlexibleAssignments[0]; @endphp
+                                        <span class="kids-tooltip-hint text-muted journal-flexible-hint journal-flexible-hint--ratio"
+                                              tabindex="0"
+                                              role="img"
+                                              aria-label="{{ $flexibleHintText }}"
+                                              data-kids-tooltip-hint="1"
+                                              data-bs-toggle="tooltip"
+                                              data-bs-placement="top"
+                                              data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                              data-flexible-ulp-id="{{ (int) ($fa['id'] ?? 0) }}"
+                                              data-slots-remaining="{{ (int) ($fa['slots_remaining'] ?? 0) }}"
+                                              data-lessons-total="{{ (int) ($fa['lessons_total'] ?? 0) }}"
+                                              data-package-name="{{ $fa['name'] ?? 'Гибкий абонемент' }}"
+                                              title="{{ $flexibleHintText }}">{{ $flexibleHintRatio }}</span>
+                                    @else
+                                        <i class="fa-solid fa-circle-info text-muted journal-flexible-hint journal-flexible-hint--multi"
+                                           tabindex="0"
+                                           role="img"
+                                           aria-label="{{ $flexibleHintText }}"
+                                           data-kids-tooltip-hint="1"
+                                           data-bs-toggle="tooltip"
+                                           data-bs-placement="top"
+                                           data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                           data-flexible-items="{{ e(json_encode(array_map(static fn ($fa) => [
+                                               'id' => (int) ($fa['id'] ?? 0),
+                                               'name' => (string) ($fa['name'] ?? 'Гибкий абонемент'),
+                                               'slots_remaining' => (int) ($fa['slots_remaining'] ?? 0),
+                                               'lessons_total' => (int) ($fa['lessons_total'] ?? 0),
+                                           ], $userFlexibleAssignments), JSON_UNESCAPED_UNICODE)) }}"
+                                           title="{{ $flexibleHintText }}"></i>
+                                    @endif
+                                @endif
+                            </div>
                         </td>
 
                         @foreach($days as $day)
@@ -130,8 +191,10 @@
                                 $hasStatusVisual = ($cellIcon !== '' && $cellIcon !== null) || ($cellTitle !== '' && $cellTitle !== null);
                                 $isPostpayUser = !empty($postpayUsers[(int) $user->id]);
                                 $isPostpayLocked = !empty($postpayLockedUsers[(int) $user->id]);
-                                $canOpenEmptyPostpay = $isPostpayUser && $count === 0 && !$isPostpayLocked;
-                                $cellClickable = $count > 0 || $canOpenEmptyPostpay;
+                                $isFlexibleUser = !empty($flexibleUsers[(int) $user->id]);
+                                $canOpenEmptyFlexible = $isFlexibleUser && $count === 0;
+                                $canOpenEmptyPostpay = $isPostpayUser && $count === 0 && !$isPostpayLocked && !$canOpenEmptyFlexible;
+                                $cellClickable = $count > 0 || $canOpenEmptyPostpay || $canOpenEmptyFlexible;
                             @endphp
                             <td class="schedule-cell text-center position-relative
                                 @if(isset($teamWeekdays) && count($teamWeekdays) && in_array($day->format('N'), $teamWeekdays)) highlight-column @endif"
@@ -143,6 +206,7 @@
                                 data-occurrence-count="{{ $count }}"
                                 data-postpay="{{ $isPostpayUser ? '1' : '0' }}"
                                 data-postpay-locked="{{ $isPostpayLocked ? '1' : '0' }}"
+                                data-flexible="{{ $isFlexibleUser ? '1' : '0' }}"
                                 @if($isPostpayLocked)
                                     data-kids-tooltip-hint="1"
                                     data-bs-toggle="tooltip"
@@ -176,6 +240,8 @@
                                         <div class="cell-comment-indicator"
                                              style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>
                                     @endif
+                                @elseif($canOpenEmptyFlexible)
+                                    <i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" title="Гибкий абонемент: поставить занятие"></i>
                                 @elseif($canOpenEmptyPostpay)
                                     <i class="fa-regular fa-circle text-muted schedule-cell-empty-dot" style="opacity: 0.45;" title="Постоплата: отметить посещение"></i>
                                 @endif
@@ -215,6 +281,12 @@
                         <div><small class="text-muted" id="edit-user-teams-display"></small></div>
                         <div><span id="edit-date-display"></span></div>
                         <div><small class="text-muted" id="edit-occurrence-meta"></small></div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="edit-add-flexible-wrap">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-flexible-lesson">
+                            <i class="fa-solid fa-plus me-1"></i>Добавить занятие из гибкого абонемента
+                        </button>
                     </div>
 
                     <div class="mb-3 d-none" id="edit-postpay-team-wrap">
@@ -298,7 +370,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-2"><strong id="abonement-user-name"></strong></div>
-                    <form id="abonementPlaceForm">
+                    <form id="abonementPlaceForm" novalidate>
                         <div class="mb-3">
                             <label for="abonement-ulp-id" class="form-label">Абонемент</label>
                             <select class="form-select" id="abonement-ulp-id" name="user_lesson_package_id"></select>
@@ -313,6 +385,12 @@
                             <label for="abonement-start-date" class="form-label">Дата начала</label>
                             <input type="date" class="form-control" id="abonement-start-date" name="start_date">
                             <div class="invalid-feedback" id="abonement-start-date-error"></div>
+                            <div class="form-text" id="abonement-start-date-hint" style="display:none;"></div>
+                        </div>
+                        <div class="mb-3" id="abonement-ends-at-wrap" style="display:none;">
+                            <label for="abonement-ends-at" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="abonement-ends-at" name="ends_at_display" readonly disabled>
+                            <div class="form-text">Для абонемента из установки цен — последний день месяца начисления.</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label d-block">Дни недели</label>
@@ -327,6 +405,78 @@
                             <button type="button" class="btn btn-outline-secondary" id="btnAbonementPreview">Превью</button>
                             <button type="submit" class="btn btn-primary" id="btnAbonementPlace">Разложить</button>
                         </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Занятие из гибкого абонемента (установка цен) --}}
+    <div class="modal fade" id="flexiblePlaceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content schedule-modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Занятие из гибкого абонемента</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2"><strong id="flexible-user-name"></strong></div>
+                    <div class="mb-3 text-muted" id="flexible-date-display"></div>
+                    <div class="mb-3" id="flexible-package-summary"></div>
+                    <form id="flexiblePlaceForm" novalidate>
+                        <input type="hidden" id="flexible-user-id" name="user_id" value="">
+                        <input type="hidden" id="flexible-ulp-id" name="user_lesson_package_id" value="">
+                        <input type="hidden" id="flexible-occurrence-date" name="occurrence_date" value="">
+                        <div class="mb-3" id="flexible-team-wrap">
+                            <label for="flexible-team-id" class="form-label">Группа</label>
+                            <select class="form-select" id="flexible-team-id" name="team_id"></select>
+                            <div class="form-control-plaintext d-none" id="flexible-team-readonly"></div>
+                            <div class="invalid-feedback" id="flexible-team-error"></div>
+                        </div>
+                        <div class="invalid-feedback d-block mb-2" id="flexible-ulp-error" style="display:none;"></div>
+                        <div class="invalid-feedback d-block mb-2" id="flexible-date-error" style="display:none;"></div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-block">Статус</label>
+                            <div class="invalid-feedback d-block" id="flexible-status-error" style="display:none;"></div>
+                            @foreach($availableStatuses as $st)
+                                <div class="form-check mb-2 d-flex align-items-center">
+                                    <input class="form-check-input"
+                                           type="radio"
+                                           name="flexible_lesson_occurrence_status_id"
+                                           id="flexible-status-{{ $st->id }}"
+                                           value="{{ $st->id }}"
+                                           data-icon="{{ $st->icon }}"
+                                           data-color="{{ $st->color }}"
+                                           data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
+                                           @if(!empty($scheduledStatusId) && (int) $st->id === (int) $scheduledStatusId) checked @endif
+                                           @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
+                                    <label class="form-check-label ms-2" for="flexible-status-{{ $st->id }}">
+                                        <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
+                                            <i class="{{ $st->icon }}" aria-hidden="true"></i>
+                                        </span>
+                                        <span class="ms-1">{{ $st->title }}</span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="mb-3 d-none" id="flexible-trainer-wrap">
+                            <label for="flexible-trainer-profile-id" class="form-label">Тренер</label>
+                            <select class="form-select" id="flexible-trainer-profile-id" name="trainer_profile_id">
+                                <option value="">Без тренера</option>
+                            </select>
+                            <div class="form-text text-muted" id="flexible-trainer-hint"></div>
+                            <div class="invalid-feedback" id="flexible-trainer-error"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="flexible-comment" class="form-label">Комментарий</label>
+                            <textarea class="form-control" id="flexible-comment" name="comment" rows="2"></textarea>
+                            <div class="invalid-feedback" id="flexible-comment-error"></div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="btnFlexiblePlace">Поставить занятие</button>
                     </form>
                 </div>
             </div>

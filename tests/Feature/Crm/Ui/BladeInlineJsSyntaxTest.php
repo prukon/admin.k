@@ -65,10 +65,38 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
         $content = (string) file_get_contents($path);
         $this->assertStringContainsString('place-fixed-abonement', $content);
+        $this->assertStringContainsString('place-flexible-abonement', $content);
+        $this->assertStringContainsString('flexible-context', $content);
+        $this->assertStringContainsString('openFlexiblePlaceModal', $content);
+        $this->assertStringContainsString('btn-add-flexible-lesson', $content);
+        $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $content);
+        $this->assertStringContainsString('updateFlexibleHintAfterPlace', $content);
+        $this->assertStringContainsString('flexible_lesson_occurrence_status_id', $content);
+        $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace($cell, result)', $content);
+        $this->assertStringContainsString('syncFlexibleTrainerBlock', $content);
+        $this->assertStringContainsString('populateFlexibleTrainerSelect', $content);
+        $this->assertStringContainsString('showFlexibleErrors', $content);
+        // Успех place-flexible обновляет DOM без reload (reload остаётся у других потоков журнала).
+        $flexibleSubmitPos = strpos($content, "url: '/schedule/user/' + userId + '/place-flexible-abonement'");
+        $this->assertNotFalse($flexibleSubmitPos);
+        $flexibleSubmitChunk = substr($content, (int) $flexibleSubmitPos, 1200);
+        $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $flexibleSubmitChunk);
+        $this->assertStringContainsString('updateFlexibleHintAfterPlace', $flexibleSubmitChunk);
+        $this->assertStringNotContainsString('window.location.reload()', $flexibleSubmitChunk);
         $this->assertStringContainsString('/schedule/update', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
+        $this->assertStringContainsString('applySelectedUlpPeriodUi', $content);
+        $this->assertStringContainsString('from_setting_prices', $content);
+        $this->assertStringContainsString('abonement-ends-at', $content);
+        // Валидация даты начала — Laravel (novalidate на форме), без HTML5 min/max.
+        $this->assertStringNotContainsString("attr('min'", $content);
+        $this->assertStringNotContainsString('attr("min"', $content);
+        $this->assertStringNotContainsString("attr('max'", $content);
+        $this->assertStringContainsString("prop('required', false)", $content);
+        $this->assertStringContainsString('showAbonementErrors', $content);
+        $this->assertStringContainsString('abonement-start-date-error', $content);
         // Постоплата: createPostpay + выбор группы в модалке (имя поля create_postpay в blade)
         $this->assertStringContainsString('createPostpay', $content);
         $this->assertStringContainsString('edit-create-postpay', $content);
@@ -89,6 +117,45 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: модалка «Разложить абонемент» — novalidate + Laravel-ошибки под полями (без HTML5 required/min/max).
+     * Гибкий: #flexiblePlaceForm novalidate + хуки ошибок / кнопка добавления.
+     */
+    public function test_schedule_journal_abonement_place_form_has_novalidate_and_field_error_hooks(): void
+    {
+        $path = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="abonementPlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="abonement-start-date"', $content);
+        $this->assertStringContainsString('id="abonement-start-date-error"', $content);
+        $this->assertStringContainsString('id="abonement-ends-at"', $content);
+        $this->assertStringNotContainsString(
+            'id="abonement-start-date" name="start_date" required',
+            $content
+        );
+
+        $this->assertStringContainsString('id="flexiblePlaceModal"', $content);
+        $this->assertStringContainsString('id="flexiblePlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="flexible-team-error"', $content);
+        $this->assertStringContainsString('id="flexible-ulp-error"', $content);
+        $this->assertStringContainsString('id="flexible-date-error"', $content);
+        $this->assertStringContainsString('id="flexible-status-error"', $content);
+        $this->assertStringContainsString('name="flexible_lesson_occurrence_status_id"', $content);
+        $this->assertStringContainsString('id="flexible-trainer-wrap"', $content);
+        $this->assertStringContainsString('id="flexible-comment"', $content);
+        $this->assertStringContainsString('id="btn-add-flexible-lesson"', $content);
+        $this->assertStringContainsString('journal-flexible-hint', $content);
+        $this->assertStringContainsString('journal-flexible-hint--ratio', $content);
+        $this->assertStringContainsString('journal-flexible-hint--multi', $content);
+        $this->assertStringContainsString('data-flexible=', $content);
+        $this->assertStringContainsString('data-flexible-ulp-id', $content);
+        $this->assertStringContainsString('data-slots-remaining', $content);
+        $this->assertStringContainsString('data-lessons-total', $content);
+        $this->assertStringContainsString('data-flexible-items', $content);
+    }
+
+    /**
      * P1: Vite-модуль вкладки «по месяцам» — бывшие участники (read-only) + AJAX apply.
      */
     public function test_setting_prices_monthly_vite_module_former_members_ajax_handlers_have_valid_javascript_syntax(): void
@@ -105,13 +172,26 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
-        $this->assertStringContainsString('formerSnapshot', $content);
+        $this->assertStringContainsString('pendingFormerSnapshot', $content);
+        $this->assertStringContainsString('buildRightApplyPayloadFromDom', $content);
+        $this->assertStringContainsString('pendingApplyPayload', $content);
+        // После Apply справа: группа слева остаётся выбранной (без reload)
+        $this->assertStringContainsString('wrap-team--active', $content);
+        $this->assertStringContainsString('loadTeamUsersRightColumn(lastTeamId)', $content);
+        $this->assertStringContainsString('clearTeamRowHighlight', $content);
+        $this->assertStringNotContainsString(
+            'showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.", 1)',
+            $content
+        );
         // Постоплата: пересчёт цены, поле визитов, is_postpay в каталоге
         $this->assertStringContainsString('is_postpay', $content);
         $this->assertStringContainsString('postpay_visits', $content);
         $this->assertStringContainsString('setting-prices-monthly-postpay-visits', $content);
         $this->assertStringContainsString('is-postpay-calc', $content);
         $this->assertStringContainsString('packageIsPostpay', $content);
+        $this->assertStringContainsString('calcPostpayAmount', $content);
+        $this->assertStringContainsString('setting-prices-team-postpay-hint', $content);
+        $this->assertStringContainsString('Сумма считается по посещениям у каждого ученика', $content);
 
         $output = [];
         $exitCode = 0;

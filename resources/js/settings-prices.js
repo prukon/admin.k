@@ -82,9 +82,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!leftBar || !window.KidsCrmTooltip) {
             return;
         }
-        // dispose только по селектору hint; инстансы без attrs уже сняты в syncTeamOkDisabledHint
-        window.KidsCrmTooltip.dispose(leftBar, { scopes: ['hint'] });
-        window.KidsCrmTooltip.init(leftBar, { scopes: ['hint'] });
+        // hint — disabled OK; manualPaid — иконка i у постоплаты слева
+        window.KidsCrmTooltip.dispose(leftBar, { scopes: ['hint', 'manualPaid'] });
+        window.KidsCrmTooltip.init(leftBar, { scopes: ['hint', 'manualPaid'] });
     }
 
     function isTeamOkDisabled(okBtn) {
@@ -94,12 +94,59 @@ document.addEventListener('DOMContentLoaded', function () {
         return okBtn.getAttribute('aria-disabled') === 'true' || !!okBtn.disabled;
     }
 
+    const POSTPAY_TEAM_PRICE_HINT = 'Сумма считается по посещениям у каждого ученика';
+
+    function selectedTeamOptionIsPostpay(select) {
+        if (!select || !select.value) {
+            return false;
+        }
+        const selectedOpt = select.options[select.selectedIndex];
+        return !!(selectedOpt && selectedOpt.getAttribute('data-is-postpay') === '1');
+    }
+
+    function disposeTeamPostpayHint(hintEl) {
+        if (!hintEl) {
+            return;
+        }
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            const existing = bootstrap.Tooltip.getInstance(hintEl);
+            if (existing) {
+                existing.dispose();
+            }
+        }
+        hintEl.removeAttribute('aria-describedby');
+        if (hintEl.parentNode) {
+            hintEl.parentNode.removeChild(hintEl);
+        }
+    }
+
+    function ensureTeamPostpayHint(displayEl) {
+        if (!displayEl) {
+            return null;
+        }
+        let hint = displayEl.querySelector('.setting-prices-team-postpay-hint');
+        if (hint) {
+            return hint;
+        }
+        hint = document.createElement('i');
+        hint.className = 'fa fa-info-circle user-manual-info-icon setting-prices-team-postpay-hint';
+        hint.setAttribute('tabindex', '0');
+        hint.setAttribute('data-bs-toggle', 'tooltip');
+        hint.setAttribute('data-bs-placement', 'top');
+        hint.setAttribute('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
+        hint.setAttribute('title', POSTPAY_TEAM_PRICE_HINT);
+        hint.setAttribute('aria-label', POSTPAY_TEAM_PRICE_HINT);
+        displayEl.appendChild(hint);
+        return hint;
+    }
+
     function syncTeamRowPackageUi(rowEl) {
         if (!rowEl) {
             return;
         }
         const select = rowEl.querySelector('.setting-prices-team-package-select');
         const priceEl = rowEl.querySelector('.setting-prices-team-price-value');
+        const displayEl = rowEl.querySelector('.setting-prices-team-price-display');
         const okBtn = rowEl.querySelector('.ok');
         if (!select || !priceEl) {
             return;
@@ -108,15 +155,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const pkgVal = select.value;
         const selectedOpt = select.options[select.selectedIndex];
         const legacyPrice = rowEl.getAttribute('data-legacy-price');
+        const isPostpay = selectedTeamOptionIsPostpay(select);
+        const existingHint = displayEl
+            ? displayEl.querySelector('.setting-prices-team-postpay-hint')
+            : null;
 
         if (pkgVal && selectedOpt) {
             const pkgPrice = selectedOpt.getAttribute('data-price');
-            priceEl.textContent = formatPriceValue(pkgPrice);
+            // data-price оставляем для переключения обратно на обычный абон; в UI для postpay не показываем.
             priceEl.setAttribute('data-price', String(pkgPrice != null ? pkgPrice : ''));
+            if (isPostpay) {
+                priceEl.textContent = '';
+                priceEl.classList.add('d-none');
+                ensureTeamPostpayHint(displayEl);
+            } else {
+                priceEl.classList.remove('d-none');
+                priceEl.textContent = formatPriceValue(pkgPrice);
+                disposeTeamPostpayHint(existingHint);
+            }
             syncTeamOkDisabledHint(okBtn, false);
         } else {
+            priceEl.classList.remove('d-none');
             priceEl.textContent = formatPriceValue(legacyPrice);
             priceEl.setAttribute('data-price', String(legacyPrice != null ? legacyPrice : '0'));
+            disposeTeamPostpayHint(existingHint);
             syncTeamOkDisabledHint(okBtn, true);
         }
     }
@@ -252,6 +314,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return !!(pkg && pkg.is_postpay);
     }
 
+    /**
+     * Сумма постоплаты: посещения × ставка за занятие. При 0 посещений — 0.
+     * Никогда не возвращает «голую» ставку шаблона как месячный тариф.
+     */
+    function calcPostpayAmount(visits, rate) {
+        const v = Number(visits);
+        const r = Number(rate);
+        if (!Number.isFinite(v) || !Number.isFinite(r) || v <= 0 || r < 0) {
+            return 0;
+        }
+        return Math.round(v * r * 100) / 100;
+    }
+
     function postpayVisitsTooltipTitle() {
         const month = getSelectedMonthLabel();
         if (month) {
@@ -359,14 +434,79 @@ document.addEventListener('DOMContentLoaded', function () {
             if (idx < 0) {
                 continue;
             }
-            if (priceInput) {
-                usersPrice[idx].price = priceInput.value;
-            }
             if (packageSelect) {
                 const pkgVal = packageSelect.value;
                 usersPrice[idx].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
             }
+            if (priceInput) {
+                // type=number при невалидном значении даёт "" — не затираем числом-дырой.
+                const raw = priceInput.value;
+                if (raw !== '' && raw != null) {
+                    const num = Number(raw);
+                    usersPrice[idx].price = Number.isFinite(num) ? num : raw;
+                } else if (usersPrice[idx].price === '' || usersPrice[idx].price == null) {
+                    usersPrice[idx].price = 0;
+                }
+            }
         }
+    }
+
+    /**
+     * Payload для «Применить» справа — только из DOM-карточек (select абонемента + цена).
+     * Не опираемся на устаревший usersPrice в памяти: иначе смена select «теряется».
+     *
+     * @returns {Array<{user_id:number,price:number,lesson_package_id:number|null,user:{name:string}}>}
+     */
+    function buildRightApplyPayloadFromDom() {
+        const payload = [];
+        const userRows = document.querySelectorAll('#right_bar .wrap-users .setting-prices-user-card');
+        for (let j = 0; j < userRows.length; j++) {
+            const card = userRows[j];
+            if (card.getAttribute('data-is-former-member') === '1') {
+                continue;
+            }
+            const userIdRaw = card.getAttribute('data-user-id');
+            const userId = userIdRaw ? parseInt(userIdRaw, 10) : NaN;
+            if (!Number.isFinite(userId) || userId <= 0) {
+                continue;
+            }
+
+            const priceInput = card.querySelector('.setting-prices-monthly-price-input');
+            const packageSelect = card.querySelector('.setting-prices-monthly-package-select');
+
+            // disabled select/input всё равно отдаёт .value в JS — читаем напрямую.
+            const pkgVal = packageSelect ? String(packageSelect.value || '') : '';
+            let lessonPackageId = null;
+            if (pkgVal !== '') {
+                const parsedPkg = parseInt(pkgVal, 10);
+                lessonPackageId = Number.isFinite(parsedPkg) && parsedPkg > 0 ? parsedPkg : null;
+            }
+
+            let price = 0;
+            if (priceInput) {
+                const raw = priceInput.value;
+                if (raw !== '' && raw != null) {
+                    const num = Number(raw);
+                    price = Number.isFinite(num) ? num : 0;
+                }
+            }
+
+            // Подпись для аудита — из локального состояния, если есть.
+            const known = usersPrice.find(function (u) {
+                return String(u.user_id) === String(userId);
+            });
+            const userName = (known && known.user && known.user.name)
+                ? known.user.name
+                : '';
+
+            payload.push({
+                user_id: userId,
+                price: price,
+                lesson_package_id: lessonPackageId,
+                user: { name: userName },
+            });
+        }
+        return payload;
     }
 
     function postManualPaid(userId, teamId, selectedDate, mode, comment, errorEl) {
@@ -450,7 +590,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (let i = 0; i < usersPriceList.length; i++) {
             const up = usersPriceList[i];
-            const userTeam = usersTeam.find(team => team.id === up.user_id);
+            const userTeam = usersTeam.find(function (team) {
+                return String(team.id) === String(up.user_id);
+            });
             const isFormer = isFormerMemberRow(up, userTeam);
 
             const eff = effectivePaidFromUserPrice(up);
@@ -459,7 +601,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const first = (userTeam && userTeam.name) ? String(userTeam.name).trim() : '';
             const userNameFormatted = (i + 1) + '. ' + ((last || first) ? `${last} ${first}`.trim() : 'Имя не найдено');
 
-            const uid = userTeam ? String(userTeam.id) : '';
+            // user_id строки — источник истины; usersTeam только для ФИО.
+            const uid = up.user_id != null && up.user_id !== ''
+                ? String(up.user_id)
+                : (userTeam ? String(userTeam.id) : '');
             const hasManual = up.is_manual_paid !== null && up.is_manual_paid !== undefined;
             const noteRaw = (up.manual_paid_note != null && String(up.manual_paid_note).trim() !== '')
                 ? String(up.manual_paid_note)
@@ -525,6 +670,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const isPostpay = !!(up.is_postpay || packageIsPostpay(packageId));
             const postpayVisits = (up.postpay_visits != null) ? up.postpay_visits : 0;
+            const postpayPkg = isPostpay ? findLessonPackage(packageId) : null;
+            // Postpay: только visits × ставка (0 посещений → 0). Без пакета в каталоге — сумма с сервера.
+            const priceForInput = isPostpay
+                ? (postpayPkg
+                    ? calcPostpayAmount(postpayVisits, postpayPkg.price)
+                    : (up.price != null ? up.price : 0))
+                : up.price;
             // Бывшие: всегда disabled. Текущие: абонемент всегда (если не оплачено);
             // сумма открыта при первичной установке (нет абона), иначе — через карандаш.
             // Postpay: цена только расчётная — инпут всегда readonly.
@@ -580,7 +732,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <div class="setting-prices-monthly-price flex-shrink-0">
                                     <input type="number" step="0.01" min="0"
                                         class="form-control form-control-sm setting-prices-monthly-price-input${postpayPriceClass}"
-                                        value="${escapeAttr(formatPriceValue(up.price))}"
+                                        value="${escapeAttr(formatPriceValue(priceForInput))}"
                                         ${priceInputDisabled}
                                         aria-label="Цена"
                                         ${isFormer || isPostpay ? 'readonly' : ''}
@@ -635,7 +787,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 .val(String(knownVisits))
                 .attr('title', postpayVisitsTooltipTitle());
             applyKidsHintAttrs($visits.find('input'), postpayVisitsTooltipTitle());
-            const amount = Math.round(knownVisits * Number(pkg.price) * 100) / 100;
+            // Только visits × ставка; при 0 посещений — 0 (не ставка за занятие).
+            const amount = calcPostpayAmount(knownVisits, pkg.price);
             $priceInput.val(formatPriceValue(amount));
             $priceInput.prop('disabled', true).prop('readonly', true);
             $priceInput.addClass('is-postpay-calc');
@@ -925,7 +1078,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('#left_bar .wrap-team').forEach(function (rowEl) {
         rowEl.addEventListener('click', function (e) {
-            if (e.target.closest('select, input, button, .ok, label, a')) {
+            if (e.target.closest('select, input, button, .ok, label, a, .setting-prices-team-postpay-hint')) {
                 return;
             }
             openTeamDetail(rowEl);
@@ -978,11 +1131,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (response.success) {
                                 if (typeof response.teamPrice !== 'undefined') {
                                     parentDiv.setAttribute('data-legacy-price', String(response.teamPrice));
-                                    if (priceEl) {
-                                        priceEl.textContent = formatPriceValue(response.teamPrice);
-                                        priceEl.setAttribute('data-price', String(response.teamPrice));
-                                        priceEl.classList.add('animated-input');
-                                    }
+                                }
+                                // Postpay: не показывать ставку шаблона как «цену группы» — sync скрывает span.
+                                syncTeamRowPackageUi(parentDiv);
+                                refreshTeamOkTooltips();
+                                if (!selectedTeamOptionIsPostpay(packageSelect) && priceEl) {
+                                    priceEl.classList.add('animated-input');
                                 }
                                 if (String(lastTeamId) === String(parentDiv.id)) {
                                     loadTeamUsersRightColumn(parentDiv.id);
@@ -1092,46 +1246,37 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     $('#set-price-all-users').on('click', function () {
+        if (!lastTeamId) {
+            if (typeof showErrorModal === 'function') {
+                showErrorModal('Ошибка', 'Сначала выберите группу слева.');
+            } else {
+                alert('Сначала выберите группу слева.');
+            }
+            return;
+        }
+
+        // Снимок ДО модалки подтверждения: пока модалка открыта, DOM могут перерисовать
+        // (клик по группе / get-team-price) и «потерять» выбранные абонементы.
+        syncUsersPriceFromDom();
+        const pendingApplyPayload = buildRightApplyPayloadFromDom();
+        const pendingFormerSnapshot = usersPrice.filter(function (row) {
+            return isFormerMemberFlag(row.is_former_member);
+        });
+        const pendingTeamId = lastTeamId;
+        const pendingSelectedDate = getSelectedMonthLabel();
+
+        if (pendingApplyPayload.length === 0) {
+            if (typeof showErrorModal === 'function') {
+                showErrorModal('Ошибка', 'Нет учеников для применения цен.');
+            } else {
+                alert('Нет учеников для применения цен.');
+            }
+            return;
+        }
+
         showConfirmDeleteModal(
             "Установка цен в одной группе",
             "Вы уверены, что хотите применить изменения?", function () {
-
-                const selectedDate = getSelectedMonthLabel();
-
-                let updateUsersPrice = function (usersPriceLocal) {
-                    const userRows = document.querySelectorAll('.wrap-users .setting-prices-user-card');
-                    for (let i = 0; i < usersPriceLocal.length; i++) {
-                        if (isFormerMemberFlag(usersPriceLocal[i].is_former_member)) {
-                            continue;
-                        }
-                        for (let j = 0; j < userRows.length; j++) {
-                            if (userRows[j].getAttribute('data-is-former-member') === '1') {
-                                continue;
-                            }
-                            let userId = userRows[j].getAttribute('data-user-id');
-                            let priceInput = userRows[j].querySelector('.setting-prices-monthly-price-input');
-                            let packageSelect = userRows[j].querySelector('.setting-prices-monthly-package-select');
-                            let price = priceInput ? priceInput.value : null;
-                            if (price !== null && String(usersPriceLocal[i].user_id) === String(userId)) {
-                                usersPriceLocal[i].price = price;
-                                const pkgVal = packageSelect ? packageSelect.value : '';
-                                usersPriceLocal[i].lesson_package_id = pkgVal !== '' ? parseInt(pkgVal, 10) : null;
-                            }
-                        }
-                    }
-                    return usersPriceLocal;
-                };
-
-                usersPrice = updateUsersPrice(usersPrice);
-
-                // В payload только текущие участники; бывшие остаются в локальном usersPrice
-                // и после success снова вливаются в список для UI.
-                const applyPayload = usersPrice.filter(function (row) {
-                    return !isFormerMemberFlag(row.is_former_member);
-                });
-                const formerSnapshot = usersPrice.filter(function (row) {
-                    return isFormerMemberFlag(row.is_former_member);
-                });
 
                 const csrf = $('meta[name="csrf-token"]').attr('content');
                 $.ajax({
@@ -1144,33 +1289,39 @@ document.addEventListener('DOMContentLoaded', function () {
                         'Accept': 'application/json',
                     },
                     data: JSON.stringify({
-                        selectedDate: selectedDate,
-                        teamId: lastTeamId,
-                        usersPrice: applyPayload,
+                        selectedDate: pendingSelectedDate,
+                        teamId: pendingTeamId,
+                        usersPrice: pendingApplyPayload,
                     }),
                     success: function (response) {
-                        const responsePrices = Array.isArray(response.usersPrice) ? response.usersPrice : [];
-                        // Ответ сервера без бывших — восстанавливаем их из снимка до apply.
-                        usersPrice = responsePrices.concat(formerSnapshot);
                         if (Array.isArray(response.lessonPackages)) {
                             lastLessonPackages = response.lessonPackages;
                         }
 
-                        document.querySelector('#set-price-all-users').removeAttribute('disabled');
-
-                        showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
+                        // Сохраняем выбранную группу слева — без reload и без сброса подсветки.
+                        lastTeamId = pendingTeamId != null ? String(pendingTeamId) : lastTeamId;
+                        const activeTeamRow = lastTeamId
+                            ? document.getElementById(String(lastTeamId))
+                            : null;
+                        if (activeTeamRow) {
+                            clearTeamRowHighlight();
+                            activeTeamRow.classList.add('wrap-team--active');
+                        }
 
                         editingMonthlyUserId = null;
                         editingMonthlySnapshot = null;
-                        const wrap = document.querySelector('#right_bar .wrap-users');
-                        let usersTeam = [];
-                        try {
-                            const json = wrap && wrap.getAttribute('data-users-team-json');
-                            usersTeam = json ? JSON.parse(json) : [];
-                        } catch (e) {
-                            usersTeam = [];
+
+                        showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
+
+                        // Актуализируем правую колонку для той же группы (бывшие подтянутся с get-team-price).
+                        if (lastTeamId) {
+                            loadTeamUsersRightColumn(lastTeamId);
+                        } else {
+                            const responsePrices = Array.isArray(response.usersPrice) ? response.usersPrice : [];
+                            usersPrice = responsePrices.concat(pendingFormerSnapshot);
+                            document.querySelector('#set-price-all-users').removeAttribute('disabled');
+                            renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
                         }
-                        renderUsersRightColumn(usersTeam, usersPrice, lastCanManageManualPaid);
                     },
                     error: function (xhr, status, error) {
                         console.log('Error:', error);

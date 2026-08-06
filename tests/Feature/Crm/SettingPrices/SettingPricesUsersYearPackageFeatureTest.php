@@ -50,6 +50,8 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
         $this->package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
             'name' => 'Год тариф',
             'price_cents' => 450000,
+            // fixed: starts_at = null до раскладки (flexible сразу ставит 1-е число месяца)
+            'schedule_type' => 'fixed',
         ]);
     }
 
@@ -127,7 +129,7 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_save_snapshots_package_and_does_not_create_user_lesson_packages(): void
+    public function test_save_snapshots_package_and_creates_user_lesson_package(): void
     {
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
@@ -158,7 +160,17 @@ final class SettingPricesUsersYearPackageFeatureTest extends CrmTestCase
             'price' => 4500,
             'lesson_package_id' => $this->package->id,
         ]);
-        $this->assertSame(0, UserLessonPackage::query()->count());
+        $row = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->where('new_month', '2024-05-01')
+            ->first();
+        $this->assertNotNull($row?->user_lesson_package_id);
+        $this->assertSame(1, UserLessonPackage::query()->whereKey($row->user_lesson_package_id)->count());
+        $ulp = UserLessonPackage::query()->findOrFail($row->user_lesson_package_id);
+        $this->assertSame('2024-05-01', $ulp->billing_month?->format('Y-m-d'));
+        $this->assertNull($ulp->starts_at);
+        $this->assertSame('2024-05-31', $ulp->ends_at?->format('Y-m-d'));
     }
 
     public function test_save_skips_effective_paid_month(): void

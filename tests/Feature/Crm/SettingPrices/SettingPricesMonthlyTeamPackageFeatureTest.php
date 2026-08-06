@@ -88,7 +88,8 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->get(route('admin.settingPrices.indexMenu'))
             ->assertOk()
             ->assertSee('setting-prices-team-package-select', false)
-            ->assertSee('Групповой тариф', false);
+            ->assertSee('Групповой тариф', false)
+            ->assertSee('data-is-postpay', false);
     }
 
     public function test_set_team_price_applies_package_snapshot_and_skips_effective_paid(): void

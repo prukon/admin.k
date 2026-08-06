@@ -11,6 +11,7 @@ use App\Models\UserTeamScheduleSlot;
 use App\Services\Schedule\JournalTeamScheduleSlotEnsureService;
 use App\Support\UserPriceTeamMembership;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use DomainException;
 use InvalidArgumentException;
 
@@ -236,7 +237,14 @@ final class PostpayJournalService
         }
 
         $weekday = (int) Carbon::parse($occurrenceDateYmd, PostpayMonth::TIMEZONE)->dayOfWeekIso;
-        $slot = $this->slotEnsure->resolveOrCreateEarliestForWeekday($partnerId, $teamId, $weekday);
+        $coverDay = CarbonImmutable::parse($occurrenceDateYmd, PostpayMonth::TIMEZONE)->startOfDay();
+        $slot = $this->slotEnsure->resolveOrCreateEarliestForWeekday(
+            $partnerId,
+            $teamId,
+            $weekday,
+            $coverDay,
+            $coverDay,
+        );
 
         /** @var UserTeamScheduleSlot|null $existing */
         $existing = UserTeamScheduleSlot::query()

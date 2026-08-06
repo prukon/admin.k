@@ -93,5 +93,89 @@ class UserLessonPackage extends Model
     {
         return $this->hasOne(UserLessonPackagePublicPayLink::class, 'user_lesson_package_id');
     }
+
+    /**
+     * Назначение из установки цен (месячное): есть billing_month.
+     */
+    public function isFromSettingPrices(): bool
+    {
+        return $this->billing_month !== null;
+    }
+
+    /**
+     * Месячный гибкий из установки цен: период (starts_at/ends_at) задаётся сразу на весь billing_month.
+     */
+    public function isMonthlyFlexibleFromSettingPrices(): bool
+    {
+        if (! $this->isFromSettingPrices()) {
+            return false;
+        }
+
+        $this->loadMissing('lessonPackage:id,schedule_type');
+
+        return $this->lessonPackage !== null
+            && (string) $this->lessonPackage->schedule_type === LessonPackage::SCHEDULE_TYPE_FLEXIBLE;
+    }
+
+    /**
+     * Уже разложено в расписание / задан старт периода.
+     * Для месячных (billing_month): один ends_at без starts_at — ещё не раскладка.
+     * Для месячного flexible: полный период при sync не означает раскладку — смотрим UTSS.
+     */
+    public function isLaidOutInSchedule(): bool
+    {
+        if ($this->isMonthlyFlexibleFromSettingPrices()) {
+            return $this->userTeamScheduleSlots()->exists();
+        }
+
+        if ($this->starts_at !== null) {
+            return true;
+        }
+
+        if (! $this->isFromSettingPrices() && $this->ends_at !== null) {
+            return true;
+        }
+
+        return $this->userTeamScheduleSlots()->exists();
+    }
+
+    /**
+     * Можно показать «+» в журнале (fixed placeable).
+     */
+    public function isJournalPlaceable(): bool
+    {
+        return ! $this->isLaidOutInSchedule() && (int) $this->lessons_total > 0;
+    }
+
+    /**
+     * Сколько ещё занятий можно привязать к календарю/журналу (лимит по числу UTSS).
+     */
+    public function calendarSlotsRemaining(): int
+    {
+        $total = max(0, (int) $this->lessons_total);
+        if ($total < 1) {
+            return 0;
+        }
+
+        $used = $this->relationLoaded('userTeamScheduleSlots')
+            ? $this->userTeamScheduleSlots->count()
+            : $this->userTeamScheduleSlots()->count();
+
+        return max(0, $total - $used);
+    }
+
+    /**
+     * Последний день месяца начисления (Y-m-d) или null.
+     */
+    public function billingMonthEndDate(): ?string
+    {
+        if ($this->billing_month === null) {
+            return null;
+        }
+
+        return \Carbon\Carbon::parse($this->billing_month->format('Y-m-d'))
+            ->endOfMonth()
+            ->format('Y-m-d');
+    }
 }
 

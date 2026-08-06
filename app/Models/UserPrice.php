@@ -20,6 +20,7 @@ class UserPrice extends Model
         'manual_paid_by'     => 'integer',
         'team_id'            => 'integer',
         'lesson_package_id'  => 'integer',
+        'user_lesson_package_id' => 'integer',
     ];
 
     protected $appends = [
@@ -39,6 +40,11 @@ class UserPrice extends Model
     public function lessonPackage()
     {
         return $this->belongsTo(LessonPackage::class, 'lesson_package_id');
+    }
+
+    public function userLessonPackage()
+    {
+        return $this->belongsTo(UserLessonPackage::class, 'user_lesson_package_id');
     }
 
     public function manualPaidBy()

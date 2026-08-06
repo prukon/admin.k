@@ -8,6 +8,7 @@ use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
+use App\Models\LessonPackage;
 use App\Services\Postpay\PostpayMonth;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -155,18 +156,18 @@ final class ScheduleJournalMonthService
 
         $result = [];
         foreach ($assignments as $ulp) {
-            $hasPeriod = $ulp->starts_at !== null || $ulp->ends_at !== null;
-            $hasSlots = UserTeamScheduleSlot::query()
-                ->where('user_lesson_package_id', (int) $ulp->id)
-                ->exists();
-            $placeable = ! $hasPeriod && ! $hasSlots && (int) $ulp->lessons_total > 0;
+            $placeable = $ulp->isJournalPlaceable();
 
             $disabledReason = null;
-            if ($hasPeriod || $hasSlots) {
+            if ($ulp->isLaidOutInSchedule()) {
                 $disabledReason = 'Абонемент уже разложен в расписание';
             } elseif ((int) $ulp->lessons_total < 1) {
                 $disabledReason = 'Не задан объём занятий';
             }
+
+            $billingMonth = $ulp->billing_month !== null
+                ? $ulp->billing_month->format('Y-m-d')
+                : null;
 
             $result[] = [
                 'id' => (int) $ulp->id,
@@ -175,6 +176,92 @@ final class ScheduleJournalMonthService
                 'lessons_remaining' => (int) $ulp->lessons_remaining,
                 'placeable' => $placeable,
                 'disabled_reason' => $disabledReason,
+                'from_setting_prices' => $ulp->isFromSettingPrices(),
+                'billing_month' => $billingMonth,
+                'starts_at' => $ulp->starts_at !== null ? $ulp->starts_at->format('Y-m-d') : null,
+                'ends_at' => $ulp->ends_at !== null ? $ulp->ends_at->format('Y-m-d') : null,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Месячные гибкие назначения учеников для журнала (billing_month = месяц экрана, есть остаток слотов).
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, list<array{
+     *     id: int,
+     *     name: string,
+     *     team_id: int,
+     *     team_title: string,
+     *     lessons_total: int,
+     *     slots_used: int,
+     *     slots_remaining: int,
+     *     billing_month: string,
+     *     starts_at: string|null,
+     *     ends_at: string|null
+     * }>>
+     */
+    public function flexibleAssignableByUserForBillingMonth(
+        int $partnerId,
+        array $userIds,
+        string $billingMonthYmd,
+        string|int|null $teamFilter = 'all',
+    ): array {
+        if ($userIds === []) {
+            return [];
+        }
+
+        $billingMonth = Carbon::parse($billingMonthYmd)->startOfMonth()->format('Y-m-d');
+
+        $query = UserLessonPackage::query()
+            ->with([
+                'lessonPackage:id,name,schedule_type,partner_id',
+                'team:id,title',
+                'userTeamScheduleSlots:id,user_lesson_package_id',
+            ])
+            ->whereIn('user_id', $userIds)
+            ->whereDate('billing_month', $billingMonth)
+            ->whereHas('lessonPackage', function ($q) use ($partnerId) {
+                $q->where('partner_id', $partnerId)
+                    ->where('schedule_type', LessonPackage::SCHEDULE_TYPE_FLEXIBLE);
+            })
+            ->where('lessons_total', '>', 0)
+            ->orderBy('id');
+
+        if (is_numeric($teamFilter)) {
+            $query->where('team_id', (int) $teamFilter);
+        }
+
+        $rows = $query->get();
+        $result = [];
+
+        foreach ($rows as $ulp) {
+            $remaining = $ulp->calendarSlotsRemaining();
+            if ($remaining < 1) {
+                continue;
+            }
+
+            $teamId = (int) ($ulp->team_id ?? 0);
+            if ($teamId < 1) {
+                continue;
+            }
+
+            $userId = (int) $ulp->user_id;
+            $used = (int) $ulp->lessons_total - $remaining;
+
+            $result[$userId][] = [
+                'id' => (int) $ulp->id,
+                'name' => (string) ($ulp->lessonPackage?->name ?? 'Гибкий абонемент'),
+                'team_id' => $teamId,
+                'team_title' => (string) ($ulp->team?->title ?? ''),
+                'lessons_total' => (int) $ulp->lessons_total,
+                'slots_used' => $used,
+                'slots_remaining' => $remaining,
+                'billing_month' => $billingMonth,
+                'starts_at' => $ulp->starts_at !== null ? $ulp->starts_at->format('Y-m-d') : null,
+                'ends_at' => $ulp->ends_at !== null ? $ulp->ends_at->format('Y-m-d') : null,
             ];
         }
 

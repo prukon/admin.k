@@ -8,7 +8,9 @@ use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalAbonementContextRequest;
+use App\Http\Requests\Admin\GetScheduleJournalFlexibleContextRequest;
 use App\Http\Requests\Admin\PlaceScheduleJournalFixedAbonementRequest;
+use App\Http\Requests\Admin\PlaceScheduleJournalFlexibleAbonementRequest;
 use App\Http\Requests\Admin\SyncScheduleUserTeamsRequest;
 use App\Http\Requests\Admin\UpdateScheduleJournalOccurrenceRequest;
 use App\Http\Requests\Team\FilterRequest;
@@ -24,6 +26,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\PartnerContext;
 use App\Services\Schedule\JournalFixedAbonementPlacementService;
+use App\Services\Schedule\JournalFlexibleAbonementPlacementService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
 use App\Services\Postpay\PostpayJournalService;
@@ -49,6 +52,7 @@ class ScheduleController extends AdminBaseController
         private readonly TeamUserSyncService $teamUserSync,
         private readonly ScheduleJournalMonthService $journalMonthService,
         private readonly JournalFixedAbonementPlacementService $fixedPlacementService,
+        private readonly JournalFlexibleAbonementPlacementService $flexiblePlacementService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
         private readonly PostpayJournalService $postpayJournal,
         private readonly PostpayUsersPriceSync $postpaySync,
@@ -110,6 +114,19 @@ class ScheduleController extends AdminBaseController
         $postpayUsers = $this->postpayJournal->postpayUserFlags($userIds, $monthFirst, (string) $team_id);
         $postpayLockedUsers = $this->postpayJournal->postpayLockedUserFlags($userIds, $monthFirst, (string) $team_id);
 
+        $flexibleByUser = $this->journalMonthService->flexibleAssignableByUserForBillingMonth(
+            $partnerId,
+            $userIds,
+            $monthFirst,
+            $team_id,
+        );
+        $flexibleUsers = [];
+        foreach ($flexibleByUser as $uid => $assignments) {
+            if ($assignments !== []) {
+                $flexibleUsers[(int) $uid] = true;
+            }
+        }
+
         $userPrices = DB::table('users_prices')
             ->select('user_id', 'is_paid', 'is_manual_paid')
             ->whereIn('user_id', $users->pluck('id'))
@@ -132,6 +149,7 @@ class ScheduleController extends AdminBaseController
         }
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+        $scheduledStatusId = LessonOccurrenceStatus::scheduledIdForPartner($partnerId);
 
         return view('admin.schedule.index', array_merge(compact(
             'year',
@@ -143,6 +161,8 @@ class ScheduleController extends AdminBaseController
             'userPrices',
             'postpayUsers',
             'postpayLockedUsers',
+            'flexibleUsers',
+            'flexibleByUser',
             'teams',
             'startOfMonth',
             'endOfMonth',
@@ -150,6 +170,7 @@ class ScheduleController extends AdminBaseController
             'availableStatuses',
             'statusesForDisplay',
             'visitedStatusId',
+            'scheduledStatusId',
         ), [
             'activeTab' => 'journal',
         ]));
@@ -528,6 +549,256 @@ class ScheduleController extends AdminBaseController
                 'preview' => $previewOnly,
                 'result' => $result,
                 'message' => $message,
+            ]);
+        }
+
+        return $this->journalMutationResponse($request, $message);
+    }
+
+    /**
+     * Контекст для модалки «поставить занятие из гибкого» на дату.
+     */
+    public function flexibleContext(GetScheduleJournalFlexibleContextRequest $request, User $user): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $this->assertScheduleStudent($user, $partnerId);
+
+        $data = $request->validated();
+        $occurrenceDate = (string) $data['occurrence_date'];
+        $billingMonth = Carbon::parse($occurrenceDate)->startOfMonth()->format('Y-m-d');
+        $preferredTeamId = isset($data['context_team_id']) ? (int) $data['context_team_id'] : null;
+
+        $assignments = $this->journalMonthService->flexibleAssignableByUserForBillingMonth(
+            $partnerId,
+            [(int) $user->id],
+            $billingMonth,
+            'all',
+        );
+        $list = $assignments[(int) $user->id] ?? [];
+
+        // Дата должна попадать в период назначения.
+        $day = Carbon::parse($occurrenceDate)->startOfDay();
+        $list = array_values(array_filter($list, static function (array $row) use ($day): bool {
+            $start = $row['starts_at'] ?? null;
+            $end = $row['ends_at'] ?? null;
+            if ($start === null || $end === null) {
+                return false;
+            }
+            $d = $day->format('Y-m-d');
+
+            return $d >= $start && $d <= $end;
+        }));
+
+        $teamsPayload = [];
+        $seenTeams = [];
+        foreach ($list as $row) {
+            $tid = (int) $row['team_id'];
+            if (isset($seenTeams[$tid])) {
+                continue;
+            }
+            $seenTeams[$tid] = true;
+            $teamsPayload[] = [
+                'id' => $tid,
+                'title' => (string) ($row['team_title'] !== '' ? $row['team_title'] : 'Группа #'.$tid),
+            ];
+        }
+
+        $resolvedTeamId = null;
+        if ($preferredTeamId && isset($seenTeams[$preferredTeamId])) {
+            $resolvedTeamId = $preferredTeamId;
+        } elseif (count($teamsPayload) === 1) {
+            $resolvedTeamId = (int) $teamsPayload[0]['id'];
+        }
+
+        $selectedAssignment = null;
+        if ($resolvedTeamId !== null) {
+            foreach ($list as $row) {
+                if ((int) $row['team_id'] === $resolvedTeamId) {
+                    $selectedAssignment = $row;
+                    break;
+                }
+            }
+        } elseif (count($list) === 1) {
+            $selectedAssignment = $list[0];
+            $resolvedTeamId = (int) $list[0]['team_id'];
+        }
+
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+        $scheduledStatusId = LessonOccurrenceStatus::scheduledIdForPartner($partnerId);
+        $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $resolvedTeamId);
+        $trainers = $this->trainerOptionsForPartner($partnerId);
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => (int) $user->id,
+                'name' => $user->full_name ?: $user->name,
+            ],
+            'occurrence_date' => $occurrenceDate,
+            'assignments' => $list,
+            'teams' => $teamsPayload,
+            'team_id' => $resolvedTeamId,
+            'assignment' => $selectedAssignment,
+            'can_place' => $list !== [],
+            'visited_status_id' => $visitedStatusId,
+            'scheduled_status_id' => $scheduledStatusId,
+            'team_default_trainer_profile_id' => $teamDefault?->id,
+            'trainers' => $trainers->map(fn (TrainerProfile $profile) => [
+                'id' => $profile->id,
+                'name' => $this->trainerDisplayName($profile),
+            ])->values(),
+        ]);
+    }
+
+    public function placeFlexibleAbonement(
+        PlaceScheduleJournalFlexibleAbonementRequest $request,
+        User $user,
+    ): JsonResponse|RedirectResponse {
+        $partnerId = $this->requirePartnerId();
+        $this->assertScheduleStudent($user, $partnerId);
+        $data = $request->validated();
+
+        /** @var UserLessonPackage|null $ulp */
+        $ulp = UserLessonPackage::query()
+            ->with('lessonPackage')
+            ->whereKey((int) $data['user_lesson_package_id'])
+            ->first();
+
+        /** @var Team|null $team */
+        $team = Team::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey((int) $data['team_id'])
+            ->first();
+
+        if (! $ulp || ! $team) {
+            $errors = array_filter([
+                'user_lesson_package_id' => ! $ulp ? ['Назначение не найдено.'] : null,
+                'team_id' => ! $team ? ['Группа не найдена.'] : null,
+            ]);
+
+            return $this->journalMutationResponse(
+                $request,
+                'Назначение или группа не найдены.',
+                $errors,
+            );
+        }
+
+        $occurrenceDate = \Carbon\CarbonImmutable::createFromFormat(
+            'Y-m-d',
+            (string) $data['occurrence_date']
+        )->startOfDay();
+
+        try {
+            $status = LessonOccurrenceStatus::findActiveForPartner(
+                (int) $data['lesson_occurrence_status_id'],
+                $partnerId
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->journalMutationResponse(
+                $request,
+                'Выбранный статус не найден или неактивен.',
+                ['lesson_occurrence_status_id' => ['Выбранный статус не найден или неактивен.']],
+            );
+        }
+
+        $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
+        $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId)
+            ? ($data['trainer_profile_id'] ?? null)
+            : null;
+
+        if ($trainerProfileId !== null) {
+            $validTrainer = TrainerProfile::query()
+                ->where('partner_id', $partnerId)
+                ->whereKey($trainerProfileId)
+                ->exists();
+            if (! $validTrainer) {
+                return $this->journalMutationResponse(
+                    $request,
+                    'Тренер не найден.',
+                    ['trainer_profile_id' => ['Тренер не найден.']],
+                );
+            }
+            $trainerProfileId = (int) $trainerProfileId;
+        }
+
+        $comment = isset($data['comment']) ? (string) $data['comment'] : null;
+
+        try {
+            $result = $this->flexiblePlacementService->place(
+                $partnerId,
+                $user,
+                $ulp,
+                $team,
+                $occurrenceDate,
+                $status,
+                auth()->id() !== null ? (int) auth()->id() : null,
+                $trainerProfileId,
+                $comment,
+            );
+        } catch (InvalidArgumentException $e) {
+            $msg = $e->getMessage();
+            $field = 'occurrence_date';
+            $msgLower = mb_strtolower($msg);
+            if (str_contains($msgLower, 'групп')) {
+                $field = 'team_id';
+            } elseif (
+                str_contains($msgLower, 'статус')
+            ) {
+                $field = 'lesson_occurrence_status_id';
+            } elseif (
+                str_contains($msgLower, 'назначен')
+                || str_contains($msgLower, 'абонемент')
+                || str_contains($msgLower, 'лимит')
+                || str_contains($msgLower, 'гибк')
+            ) {
+                $field = 'user_lesson_package_id';
+            }
+
+            return $this->journalMutationResponse(
+                $request,
+                $msg,
+                [$field => [$msg]],
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->journalMutationResponse(
+                $request,
+                'Не удалось поставить занятие.',
+                ['occurrence_date' => ['Не удалось поставить занятие.']],
+            );
+        }
+
+        $this->postpaySync->syncAfterOccurrenceChange(
+            $partnerId,
+            (int) $user->id,
+            $occurrenceDate->toDateString(),
+            (int) $team->id,
+        );
+
+        $this->auditLogger->record(
+            AuditEvent::ScheduleFlexibleLinked,
+            AuditContext::make(sprintf(
+                'Журнал: гибкий абонемент #%d — занятие на %s; ученик: %s; статус: %s; остаток слотов: %d',
+                (int) $ulp->id,
+                $occurrenceDate->format('d.m.Y'),
+                $user->full_name,
+                $status->title,
+                (int) $result['slots_remaining'],
+            ))
+                ->withUser($user)
+                ->withTargetReference('App\Models\UserLessonPackage', (int) $ulp->id, $user->full_name)
+                ->withPartnerId($partnerId)
+                ->withCreatedAt(now())
+        );
+
+        $message = 'Занятие из гибкого абонемента поставлено в журнал.';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'result' => $result,
             ]);
         }
 
