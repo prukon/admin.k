@@ -81,9 +81,16 @@ final class ScheduleJournalMonthService
             $teamId = $row->slot?->team_id !== null ? (int) $row->slot->team_id : null;
             $isPostpay = $row->user_lesson_package_id === null && ! (bool) $row->is_trial_lesson;
             $postpayName = null;
+            $postpayPricePerLesson = null;
             if ($isPostpay && $teamId !== null) {
                 $monthKey = (int) $row->user_id.'|'.$teamId.'|'.PostpayMonth::firstDayFromDate($date);
-                $postpayName = $postpayNames[$monthKey] ?? 'Постоплата';
+                $postpayInfo = $postpayNames[$monthKey] ?? null;
+                if (is_array($postpayInfo)) {
+                    $postpayName = $postpayInfo['name'] ?? 'Постоплата';
+                    $postpayPricePerLesson = $postpayInfo['price_per_lesson'] ?? null;
+                } else {
+                    $postpayName = is_string($postpayInfo) && $postpayInfo !== '' ? $postpayInfo : 'Постоплата';
+                }
             }
 
             $grouped[$key][] = [
@@ -104,6 +111,7 @@ final class ScheduleJournalMonthService
                     : ($isPostpay
                         ? (string) $postpayName
                         : (string) ($row->userLessonPackage?->lessonPackage?->name ?? 'Абонемент')),
+                'price_per_lesson' => $isPostpay ? $postpayPricePerLesson : null,
                 'lesson_occurrence_status_id' => $status?->id !== null ? (int) $status->id : null,
                 'status_title' => $status?->title,
                 'status_icon' => $status?->icon,
@@ -309,10 +317,10 @@ final class ScheduleJournalMonthService
     }
 
     /**
-     * Имена шаблонов постоплаты для UTSS без ULP: ключ "{userId}|{teamId}|{YYYY-MM-01}".
+     * Шаблоны постоплаты для UTSS без ULP: ключ "{userId}|{teamId}|{YYYY-MM-01}".
      *
      * @param  Collection<int, UserTeamScheduleSlot>  $rows
-     * @return array<string, string>
+     * @return array<string, array{name: string, price_per_lesson: float}>
      */
     private function postpayPackageNamesByUserTeamMonth(Collection $rows): array
     {
@@ -346,7 +354,7 @@ final class ScheduleJournalMonthService
             ->whereIn('team_id', $teamIds)
             ->whereIn('new_month', $months)
             ->whereNotNull('lesson_package_id')
-            ->with(['lessonPackage:id,name,schedule_type'])
+            ->with(['lessonPackage:id,name,schedule_type,price_cents'])
             ->get();
 
         $map = [];
@@ -358,7 +366,10 @@ final class ScheduleJournalMonthService
             $key = (int) $priceRow->user_id.'|'.(int) $priceRow->team_id.'|'
                 .PostpayMonth::firstDayFromDate((string) $priceRow->new_month);
             $name = trim((string) $package->name);
-            $map[$key] = $name !== '' ? $name : 'Постоплата';
+            $map[$key] = [
+                'name' => $name !== '' ? $name : 'Постоплата',
+                'price_per_lesson' => $package->priceRub(),
+            ];
         }
 
         return $map;

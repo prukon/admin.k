@@ -44,6 +44,9 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             'occurrence_date' => '2026-09-10',
             'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
         ])->assertStatus(401);
+        $this->deleteJson(route('schedule.occurrence.destroy', $utss), [
+            'occurrence_date' => '2026-05-01',
+        ])->assertStatus(401);
         $this->postJson(route('user.sync.teams', $student), ['team_ids' => []])->assertStatus(401);
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertStatus(401);
         $this->get(route('schedule.occurrence-statuses'))->assertStatus(302);
@@ -58,6 +61,9 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             'team_id' => $team->id,
             'occurrence_date' => '2026-09-10',
             'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+        ])->assertRedirect();
+        $this->delete(route('schedule.occurrence.destroy', $utss), [
+            'occurrence_date' => '2026-05-01',
         ])->assertRedirect();
     }
 
@@ -86,6 +92,19 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
                 'utss_id' => $utss->id,
                 'occurrence_date' => $date,
                 'lesson_occurrence_status_id' => $this->visitedStatusId,
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($actor)->withSession($session)
+            ->deleteJson(route('schedule.occurrence.destroy', $utss), [
+                'occurrence_date' => $date,
+            ])
+            ->assertStatus(403);
+
+        $this->actingAs($actor)->withSession($session)
+            ->delete(route('schedule.occurrence.destroy', $utss), [
+                '_token' => csrf_token(),
+                'occurrence_date' => $date,
             ])
             ->assertStatus(403);
 
@@ -192,5 +211,19 @@ final class ScheduleJournalAccessFeatureTest extends ScheduleJournalTestCase
             ->assertJsonPath('success', true)
             ->assertJsonStructure(['message', 'result' => ['utss_id', 'status']]);
         $this->assertNotSame('', (string) $place->getContent());
+
+        $utssId = (int) $place->json('result.utss_id');
+        $this->assertGreaterThan(0, $utssId);
+
+        $destroy = $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
+                'occurrence_date' => '2026-09-10',
+            ]);
+        $destroy->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.deleted', true)
+            ->assertJsonPath('result.utss_id', $utssId);
+        $this->assertNotSame('', (string) $destroy->getContent());
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utssId]);
     }
 }

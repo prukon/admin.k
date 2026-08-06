@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\DestroyScheduleJournalOccurrenceRequest;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalAbonementContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalFlexibleContextRequest;
@@ -27,6 +28,7 @@ use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\PartnerContext;
 use App\Services\Schedule\JournalFixedAbonementPlacementService;
 use App\Services\Schedule\JournalFlexibleAbonementPlacementService;
+use App\Services\Schedule\JournalOccurrenceAnnulmentService;
 use App\Services\Schedule\ScheduleJournalMonthService;
 use App\Services\TeamUserSyncService;
 use App\Services\Postpay\PostpayJournalService;
@@ -53,6 +55,7 @@ class ScheduleController extends AdminBaseController
         private readonly ScheduleJournalMonthService $journalMonthService,
         private readonly JournalFixedAbonementPlacementService $fixedPlacementService,
         private readonly JournalFlexibleAbonementPlacementService $flexiblePlacementService,
+        private readonly JournalOccurrenceAnnulmentService $occurrenceAnnulmentService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
         private readonly PostpayJournalService $postpayJournal,
         private readonly PostpayUsersPriceSync $postpaySync,
@@ -436,6 +439,53 @@ class ScheduleController extends AdminBaseController
         }
 
         $message = 'Статус занятия сохранён.';
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'result' => $result,
+            ]);
+        }
+
+        return $this->journalMutationResponse($request, $message);
+    }
+
+    public function destroyOccurrence(
+        DestroyScheduleJournalOccurrenceRequest $request,
+        UserTeamScheduleSlot $utss,
+    ): JsonResponse|RedirectResponse {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+
+        try {
+            if (! empty($data['occurrence_date'])) {
+                $utssDate = Carbon::parse($utss->starts_at)->format('Y-m-d');
+                if ($utssDate !== (string) $data['occurrence_date']) {
+                    throw new InvalidArgumentException('Дата не совпадает с записью занятия.');
+                }
+            }
+
+            $result = $this->occurrenceAnnulmentService->annul(
+                $partnerId,
+                $utss,
+                auth()->id() !== null ? (int) auth()->id() : null,
+            );
+        } catch (DomainException $e) {
+            return $this->journalMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['utss_id' => [$e->getMessage()]],
+            );
+        } catch (InvalidArgumentException $e) {
+            return $this->journalMutationResponse(
+                $request,
+                $e->getMessage(),
+                ['utss_id' => [$e->getMessage()]],
+            );
+        }
+
+        $message = 'Занятие удалено.';
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([

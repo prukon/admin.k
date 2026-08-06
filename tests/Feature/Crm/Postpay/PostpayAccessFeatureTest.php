@@ -52,6 +52,20 @@ final class PostpayAccessFeatureTest extends PostpayTestCase
             ->assertOk()
             ->assertJsonPath('success', true);
 
+        $utssId = (int) \App\Models\UserTeamScheduleSlot::query()
+            ->where('user_id', $this->student->id)
+            ->whereDate('starts_at', '2026-08-10')
+            ->value('id');
+        $this->assertGreaterThan(0, $utssId);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
+                'occurrence_date' => '2026-08-10',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.deleted', true);
+
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('getTeamPrice'), [
                 'teamId' => $this->team->id,
@@ -109,6 +123,15 @@ final class PostpayAccessFeatureTest extends PostpayTestCase
             'team_id' => $this->team->id,
             'occurrence_date' => '2026-08-10',
             'lesson_occurrence_status_id' => $this->attendedStatusId,
+        ])->assertRedirect();
+
+        $this->deleteJson(route('schedule.occurrence.destroy', 1), [
+            'occurrence_date' => '2026-08-10',
+        ])->assertUnauthorized();
+
+        $this->delete(route('schedule.occurrence.destroy', 1), [
+            '_token' => csrf_token(),
+            'occurrence_date' => '2026-08-10',
         ])->assertRedirect();
 
         $this->postJson(route('getTeamPrice'), [
@@ -181,6 +204,32 @@ final class PostpayAccessFeatureTest extends PostpayTestCase
                 'team_id' => $this->team->id,
                 'occurrence_date' => '2026-08-10',
                 'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ])
+            ->assertForbidden();
+
+        // UTSS создаём под админом с правом, затем проверяем 403 на destroy без schedule.view.
+        $this->actingAs($this->user)->withSession($session);
+        $created = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $this->student->id,
+                'create_postpay' => 1,
+                'team_id' => $this->team->id,
+                'occurrence_date' => '2026-08-20',
+                'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ]);
+        $created->assertOk();
+        $utssId = (int) $created->json('result.utss_id');
+
+        $this->actingAs($actor)->withSession($session)
+            ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
+                'occurrence_date' => '2026-08-20',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($actor)->withSession($session)
+            ->delete(route('schedule.occurrence.destroy', $utssId), [
+                '_token' => csrf_token(),
+                'occurrence_date' => '2026-08-20',
             ])
             ->assertForbidden();
     }

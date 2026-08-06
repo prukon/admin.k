@@ -69,14 +69,36 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     var cellEditModal = new bootstrap.Modal(document.getElementById('cellEditModal'), {});
+    var cellDeleteConfirmModalEl = document.getElementById('cellDeleteConfirmModal');
+    var cellDeleteConfirmModal = cellDeleteConfirmModalEl
+        ? new bootstrap.Modal(cellDeleteConfirmModalEl, {})
+        : null;
     var cellEditPostpayBilling = false;
     var cellEditModalEl = document.getElementById('cellEditModal');
+    var DELETE_HINT_ABONEMENT = 'Удаляет занятие ученика в выбранную дату. Счетчик занятия вернется в абонемент';
+    var DELETE_HINT_POSTPAY = 'Удаляет занятие ученика в выбранную дату. Стоимость абонемента будет перерасчитана.';
+    var DELETE_HINT_GENERIC = 'Удаляет занятие ученика в выбранную дату.';
+    var DELETE_HINT_LOCKED = 'Нельзя удалить: абонемент за этот месяц уже оплачен.';
+
+    if (cellDeleteConfirmModalEl) {
+        cellDeleteConfirmModalEl.addEventListener('shown.bs.modal', function () {
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length) {
+                backdrops[backdrops.length - 1].style.zIndex = '1060';
+            }
+        });
+    }
+
     cellEditModalEl.addEventListener('shown.bs.modal', function () {
         applyPostpayBillingHints(cellEditPostpayBilling);
+        if (window.KidsCrmTooltip) {
+            KidsCrmTooltip.init(cellEditModalEl, {scopes: ['hint']});
+        }
     });
     cellEditModalEl.addEventListener('hidden.bs.modal', function () {
         cellEditPostpayBilling = false;
         applyPostpayBillingHints(false);
+        hideCellDeleteButton();
     });
     var dayOccurrencesModal = new bootstrap.Modal(document.getElementById('dayOccurrencesModal'), {});
     var abonementPlaceModal = new bootstrap.Modal(document.getElementById('abonementPlaceModal'), {});
@@ -206,6 +228,78 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#edit-postpay-team-error').text('').hide();
     }
 
+    function hideCellDeleteButton() {
+        var $wrap = $('#btn-cell-delete-wrap');
+        var $btn = $('#btn-cell-delete');
+        if (window.KidsCrmTooltip && cellEditModalEl) {
+            KidsCrmTooltip.dispose(cellEditModalEl, {scopes: ['hint']});
+        }
+        $btn.prop('disabled', false).removeAttr('aria-disabled');
+        $btn.removeAttr('title data-kids-tooltip-hint data-bs-toggle data-bs-placement data-bs-custom-class');
+        $wrap.removeAttr('title data-kids-tooltip-hint data-bs-toggle data-bs-placement data-bs-custom-class tabindex');
+        $wrap.addClass('d-none');
+        $('#cell-delete-error').text('').hide();
+    }
+
+    function syncCellDeleteButton(selected, options) {
+        options = options || {};
+        var $wrap = $('#btn-cell-delete-wrap');
+        var $btn = $('#btn-cell-delete');
+        var utssId = selected && selected.utss_id ? selected.utss_id : $('#edit-utss-id').val();
+        if (!utssId || options.createPostpay) {
+            hideCellDeleteButton();
+            return;
+        }
+
+        var isPostpay = occurrenceIsPostpayBilling(selected);
+        var hasUlp = !!(selected && selected.user_lesson_package_id);
+        var hint = DELETE_HINT_GENERIC;
+        if (isPostpay) {
+            hint = DELETE_HINT_POSTPAY;
+        } else if (hasUlp) {
+            hint = DELETE_HINT_ABONEMENT;
+        }
+
+        var locked = !!(currentCell && currentCell.attr('data-postpay-locked') === '1' && isPostpay);
+        if (locked) {
+            hint = DELETE_HINT_LOCKED;
+        }
+
+        if (window.KidsCrmTooltip && cellEditModalEl) {
+            KidsCrmTooltip.dispose(cellEditModalEl, {scopes: ['hint']});
+        }
+
+        // Disabled button не получает hover — tooltip на обёртке.
+        $wrap.removeAttr('data-kids-tooltip-hint data-bs-toggle data-bs-placement data-bs-custom-class title');
+        $btn.removeAttr('data-kids-tooltip-hint data-bs-toggle data-bs-placement data-bs-custom-class');
+
+        if (locked) {
+            $btn.prop('disabled', true).attr('aria-disabled', 'true').attr('title', '');
+            $wrap
+                .attr('data-kids-tooltip-hint', '1')
+                .attr('data-bs-toggle', 'tooltip')
+                .attr('data-bs-placement', 'top')
+                .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+                .attr('title', hint)
+                .attr('tabindex', '0');
+        } else {
+            $btn.prop('disabled', false).removeAttr('aria-disabled');
+            $btn
+                .attr('data-kids-tooltip-hint', '1')
+                .attr('data-bs-toggle', 'tooltip')
+                .attr('data-bs-placement', 'top')
+                .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+                .attr('title', hint);
+            $wrap.removeAttr('tabindex');
+        }
+        $wrap.removeClass('d-none');
+        $('#cell-delete-error').text('').hide();
+
+        if (window.KidsCrmTooltip && cellEditModalEl) {
+            KidsCrmTooltip.init(cellEditModalEl, {scopes: ['hint']});
+        }
+    }
+
     var POSTPAY_BILLING_HINT_SELECTOR = '.cell-status-postpay-billing-hint';
 
     function occurrenceIsPostpayBilling(selected) {
@@ -261,6 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!teams.length) {
             hidePostpayTeamUi();
+            syncPostpayCreateMeta();
             return;
         }
 
@@ -275,6 +370,7 @@ document.addEventListener('DOMContentLoaded', function () {
             $select.addClass('d-none').empty();
             $readonly.removeClass('d-none').text(teams[0].title || ('Группа #' + teams[0].id));
             $('#edit-team-id').val(String(teams[0].id));
+            syncPostpayCreateMeta();
             return;
         }
 
@@ -290,12 +386,67 @@ document.addEventListener('DOMContentLoaded', function () {
             $select.val(selectedId);
         }
         $('#edit-team-id').val($select.val() || '');
+        syncPostpayCreateMeta();
     }
 
     $(document).on('change', '#edit-postpay-team-select', function () {
         $('#edit-team-id').val($(this).val() || '');
         $('#edit-postpay-team-error').text('').hide();
+        syncPostpayCreateMeta();
     });
+
+    function formatPostpayLessonPrice(price) {
+        var n = Number(price);
+        if (!Number.isFinite(n) || n < 0) {
+            return '';
+        }
+        var label = Math.abs(n - Math.round(n)) < 0.001
+            ? String(Math.round(n))
+            : n.toFixed(2);
+        return label + ' ₽ / занятие';
+    }
+
+    /** Если в названии шаблона уже есть ставка («Постоплата — 800 ₽/занятие») — не дублируем. */
+    function packageNameHasLessonPrice(name) {
+        return /₽/.test(String(name || ''));
+    }
+
+    function appendPostpayPricePart(parts, packageName, price) {
+        var priceLabel = formatPostpayLessonPrice(price);
+        if (!priceLabel || packageNameHasLessonPrice(packageName)) {
+            return;
+        }
+        parts.push(priceLabel);
+    }
+
+    function findPostpayTeamById(teamId) {
+        var teams = (cellContextCache && cellContextCache.postpay_teams) || [];
+        var id = teamId != null ? String(teamId) : '';
+        if (!id) {
+            return null;
+        }
+        for (var i = 0; i < teams.length; i++) {
+            if (String(teams[i].id) === id) {
+                return teams[i];
+            }
+        }
+        return null;
+    }
+
+    function syncPostpayCreateMeta() {
+        if ($('#edit-create-postpay').val() !== '1') {
+            return;
+        }
+        var team = findPostpayTeamById($('#edit-team-id').val());
+        var parts = [];
+        if (team && team.title) {
+            parts.push(team.title);
+        }
+        var packageName = (team && team.package_name) ? team.package_name : 'Постоплата';
+        parts.push(packageName);
+        appendPostpayPricePart(parts, packageName, team ? team.price_per_lesson : null);
+        $('#edit-occurrence-meta').text(parts.join(' · '));
+    }
 
     function hideAddFlexibleButton() {
         $('#edit-add-flexible-wrap').addClass('d-none');
@@ -563,8 +714,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Точечный DOM-апдейт ячейки журнала после create/update статуса.
-     * options.increment = true — новое занятие в ячейке (flexible place / create_postpay);
+     * Точечный DOM-апдейт ячейки журнала после create/update/delete статуса.
+     * options.increment = true — новое занятие (flexible place / create_postpay);
+     * options.deleted = true — аннуляция;
      * иначе — правка существующего (при count > 1 визуал ×N не меняется).
      */
     function renderScheduleCellFromResult($cell, result, options) {
@@ -572,26 +724,81 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         options = options || {};
+        if (options.deleted === true || result.deleted === true) {
+            renderScheduleCellAfterDelete($cell, result);
+            return;
+        }
         var increment = options.increment === true;
         var prevCount = parseInt($cell.attr('data-occurrence-count') || '0', 10);
         if (!increment && prevCount > 1) {
             return;
         }
         var count = increment ? prevCount + 1 : Math.max(prevCount, 1);
-        var status = result.status || {};
-        var color = status.color || '#e9ecef';
-        var icon = status.icon || '';
-        var title = status.title || '';
-        var comment = result.comment || '';
+        paintScheduleCellOccurrence($cell, count, {
+            utss_id: result.utss_id,
+            comment: result.comment || '',
+            status: result.status || {}
+        });
+    }
 
+    function renderScheduleCellAfterDelete($cell, result) {
+        var count = parseInt(result.occurrence_count, 10);
+        if (isNaN(count)) {
+            count = Math.max(0, parseInt($cell.attr('data-occurrence-count') || '0', 10) - 1);
+        }
+        $cell.find('.schedule-cell-empty-dot').remove();
+        $cell.find('.schedule-cell__swatch').remove();
+        $cell.find('.cell-comment-indicator').remove();
+
+        if (count <= 0) {
+            $cell.attr('data-occurrence-count', '0');
+            $cell.removeAttr('data-utss-id');
+            $cell.removeAttr('data-status-id');
+            $cell.removeAttr('data-comment');
+            if ($cell.attr('data-flexible') === '1' || result.is_flexible) {
+                $cell.attr('data-flexible', '1');
+                $cell.css('cursor', 'pointer');
+                $cell.append(
+                    '<i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" ' +
+                    'title="Гибкий абонемент: поставить занятие"></i>'
+                );
+            } else if ($cell.attr('data-postpay') === '1' || result.is_postpay) {
+                $cell.attr('data-postpay', '1');
+                $cell.css('cursor', 'pointer');
+                $cell.append(
+                    '<i class="fa-regular fa-circle text-muted schedule-cell-empty-dot" style="opacity: 0.45;" ' +
+                    'title="Постоплата: отметить посещение"></i>'
+                );
+            }
+            return;
+        }
+
+        if (count === 1 && result.remaining) {
+            paintScheduleCellOccurrence($cell, 1, {
+                utss_id: result.remaining.utss_id,
+                comment: result.remaining.comment || '',
+                status: result.remaining.status || {}
+            });
+            return;
+        }
+
+        paintScheduleCellOccurrence($cell, count, null);
+    }
+
+    function paintScheduleCellOccurrence($cell, count, payload) {
         $cell.attr('data-occurrence-count', String(count));
         $cell.css('cursor', 'pointer');
         $cell.find('.schedule-cell-empty-dot').remove();
         $cell.find('.schedule-cell__swatch').remove();
         $cell.find('.cell-comment-indicator').remove();
 
-        if (count === 1) {
-            $cell.attr('data-utss-id', result.utss_id);
+        if (count === 1 && payload) {
+            var status = payload.status || {};
+            var color = status.color || '#e9ecef';
+            var icon = status.icon || '';
+            var title = status.title || '';
+            var comment = payload.comment || '';
+            $cell.attr('data-utss-id', payload.utss_id);
             $cell.attr('data-status-id', status.id || '');
             $cell.attr('data-comment', comment);
             var inner = '';
@@ -610,16 +817,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<div class="cell-comment-indicator" style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 5px solid red; border-left: 5px solid transparent;"></div>'
                 );
             }
-        } else {
-            $cell.removeAttr('data-utss-id');
-            $cell.removeAttr('data-status-id');
-            $cell.removeAttr('data-comment');
-            $cell.append(
-                '<span class="schedule-cell__swatch" style="background-color: #e9ecef;">' +
-                '<span class="badge bg-primary">×' + count + '</span>' +
-                '</span>'
-            );
+            return;
         }
+
+        $cell.removeAttr('data-utss-id');
+        $cell.removeAttr('data-status-id');
+        $cell.removeAttr('data-comment');
+        $cell.append(
+            '<span class="schedule-cell__swatch" style="background-color: #e9ecef;">' +
+            '<span class="badge bg-primary">×' + count + '</span>' +
+            '</span>'
+        );
     }
 
     function renderScheduleCellAfterFlexiblePlace($cell, result) {
@@ -629,6 +837,74 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderScheduleCellAfterStatusSave($cell, result) {
         var created = !!(result && result.created);
         renderScheduleCellFromResult($cell, result, {increment: created});
+    }
+
+    function syncFlexibleHintAfterAnnul(userId, result) {
+        if (!result || !result.is_flexible || !result.user_lesson_package_id) {
+            return;
+        }
+
+        var remaining = Number(result.slots_remaining);
+        if (isNaN(remaining)) {
+            return;
+        }
+
+        var $row = $('#schedule-table tbody tr[data-user-id="' + userId + '"]');
+        if (!$row.length) {
+            return;
+        }
+
+        if (remaining > 0) {
+            $row.find('.schedule-cell').each(function () {
+                var $c = $(this);
+                var occ = parseInt($c.attr('data-occurrence-count') || '0', 10);
+                if (occ === 0) {
+                    $c.attr('data-flexible', '1');
+                    if (!$c.find('.schedule-cell__swatch').length && !$c.find('.schedule-cell-empty-dot.text-primary').length) {
+                        $c.find('.schedule-cell-empty-dot').remove();
+                        $c.append(
+                            '<i class="fa-regular fa-circle text-primary schedule-cell-empty-dot" style="opacity: 0.4;" ' +
+                            'title="Гибкий абонемент: поставить занятие"></i>'
+                        );
+                    }
+                }
+            });
+        }
+
+        var $hint = $row.find('.journal-flexible-hint').first();
+        if ($hint.length || remaining < 1) {
+            updateFlexibleHintAfterPlace(userId, result);
+            return;
+        }
+
+        var $host = $row.find('.journal-abonement-cell');
+        if (!$host.length) {
+            return;
+        }
+        var total = Number(result.lessons_total || 0);
+        var name = result.package_name || 'Гибкий абонемент';
+        var ratio = remaining + '/' + (total || remaining);
+        var title = 'Остаток занятий в текущем месяце по абонементу "' + name + '"';
+        var $span = $(
+            '<span class="kids-tooltip-hint text-muted journal-flexible-hint journal-flexible-hint--ratio" ' +
+            'tabindex="0" role="img"></span>'
+        );
+        $span
+            .attr('aria-label', title)
+            .attr('title', title)
+            .attr('data-kids-tooltip-hint', '1')
+            .attr('data-bs-toggle', 'tooltip')
+            .attr('data-bs-placement', 'top')
+            .attr('data-bs-custom-class', 'ulp-assignment-paid-tooltip')
+            .attr('data-flexible-ulp-id', String(result.user_lesson_package_id))
+            .attr('data-slots-remaining', String(remaining))
+            .attr('data-lessons-total', String(total))
+            .attr('data-package-name', name)
+            .text(ratio);
+        $host.append($span);
+        if (window.KidsCrmTooltip && document.getElementById('schedule-table')) {
+            KidsCrmTooltip.init(document.getElementById('schedule-table'), {scopes: ['hint']});
+        }
     }
 
     function openFlexiblePlaceModal(userId, date, userName, options) {
@@ -780,6 +1056,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearCellFieldErrors();
         hidePostpayTeamUi();
         hideAddFlexibleButton();
+        hideCellDeleteButton();
         syncPostpayBillingHints(false);
         $('#edit-user-id').val(userId);
         $('#edit-date').val(date);
@@ -814,10 +1091,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     populateTrainerSelect(ctx.trainers || [], trainerSelectValueForVisited(ctx));
                     syncTrainerBlock();
                     syncPostpayBillingHints(true);
+                    hideCellDeleteButton();
                     cellEditModal.show();
                 },
                 error: function () {
                     syncPostpayBillingHints(true);
+                    hideCellDeleteButton();
                     cellEditModal.show();
                 }
             });
@@ -851,25 +1130,34 @@ document.addEventListener('DOMContentLoaded', function () {
                     $('input[name="lesson_occurrence_status_id"][value="' + selected.lesson_occurrence_status_id + '"]').prop('checked', true);
                 }
                 var isPostpayOcc = occurrenceIsPostpayBilling(selected);
+                // В журнале время слота техническое — не показываем (только дата / группа / абонемент).
                 var metaParts = [];
                 if (selected.team_title) {
                     metaParts.push(selected.team_title);
-                }
-                // Время слота для постоплаты техническое — не показываем.
-                if (!isPostpayOcc && selected.time_start && selected.time_end) {
-                    metaParts.push(selected.time_start + '–' + selected.time_end);
                 }
                 if (selected.package_name) {
                     metaParts.push(selected.package_name);
                 } else if (isPostpayOcc) {
                     metaParts.push('Постоплата');
                 }
-                $('#edit-occurrence-meta').text(metaParts.join(' · '));
-                if (selected.team_title) {
-                    $('#edit-user-teams-display').text('Группа: ' + selected.team_title);
-                } else {
-                    $('#edit-user-teams-display').text('');
+                if (isPostpayOcc) {
+                    var packageNameForPrice = selected.package_name || '';
+                    var priceSource = selected.price_per_lesson;
+                    if (priceSource == null || priceSource === '') {
+                        var postpayTeam = findPostpayTeamById(
+                            selected.team_id || $('#edit-team-id').val()
+                        );
+                        if (postpayTeam) {
+                            priceSource = postpayTeam.price_per_lesson;
+                            if (!packageNameForPrice && postpayTeam.package_name) {
+                                packageNameForPrice = postpayTeam.package_name;
+                            }
+                        }
+                    }
+                    appendPostpayPricePart(metaParts, packageNameForPrice, priceSource);
                 }
+                $('#edit-occurrence-meta').text(metaParts.join(' · '));
+                $('#edit-user-teams-display').text('');
                 if (selected.team_id) {
                     $('#edit-team-id').val(selected.team_id);
                 }
@@ -877,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 syncTrainerBlock();
                 syncPostpayBillingHints(isPostpayOcc);
                 showAddFlexibleButtonIfNeeded(currentCell);
+                syncCellDeleteButton(selected, {createPostpay: false});
                 cellEditModal.show();
             }
         });
@@ -894,9 +1183,6 @@ document.addEventListener('DOMContentLoaded', function () {
             var parts = [];
             if (item.team_title) {
                 parts.push(item.team_title);
-            }
-            if (!item.is_postpay && item.time_start && item.time_end) {
-                parts.push((item.time_start || '?') + '–' + (item.time_end || '?'));
             }
             parts.push(item.package_name || (item.is_postpay ? 'Постоплата' : ''));
             if (item.status_title) {
@@ -1030,6 +1316,124 @@ document.addEventListener('DOMContentLoaded', function () {
                         $('#edit-postpay-team-error').text(xhr.responseJSON.errors.team_id[0]).show();
                     }
                 }
+            }
+        });
+    });
+
+    $('#btn-cell-delete').on('click', function () {
+        if ($(this).prop('disabled')) {
+            return;
+        }
+        var utssId = $('#edit-utss-id').val();
+        if (!utssId || !cellDeleteConfirmModal) {
+            return;
+        }
+        var userName = $('#edit-user-name-display').text() || '';
+        var dateHuman = $('#edit-date-display').text() || '';
+        var statusTitle = $('input[name="lesson_occurrence_status_id"]:checked')
+            .closest('.cell-status-option, .form-check')
+            .find('.cell-status-option__title, .form-check-label .ms-1')
+            .first()
+            .text() || '';
+        var selected = cellContextCache && cellContextCache.selected ? cellContextCache.selected : null;
+        var contextParts = [];
+        if (selected && selected.team_title) {
+            contextParts.push(selected.team_title);
+        }
+        if (selected && selected.package_name) {
+            contextParts.push(selected.package_name);
+        } else if (occurrenceIsPostpayBilling(selected)) {
+            contextParts.push('Постоплата');
+        }
+        var contextText = contextParts.join(' · ');
+
+        $('#cell-delete-confirm-name').text(userName);
+        $('#cell-delete-confirm-date').text(dateHuman);
+
+        var $statusChip = $('#cell-delete-confirm-status');
+        var $contextChip = $('#cell-delete-confirm-context');
+        var $chips = $('#cell-delete-confirm-chips');
+        var hasChips = false;
+        if (statusTitle) {
+            $statusChip.text(statusTitle).removeClass('d-none');
+            hasChips = true;
+        } else {
+            $statusChip.text('').addClass('d-none');
+        }
+        if (contextText) {
+            $contextChip.text(contextText).removeClass('d-none');
+            hasChips = true;
+        } else {
+            $contextChip.text('').addClass('d-none');
+        }
+        $chips.toggleClass('d-none', !hasChips);
+
+        var hint = DELETE_HINT_GENERIC;
+        if (occurrenceIsPostpayBilling(selected)) {
+            hint = DELETE_HINT_POSTPAY;
+        } else if (selected && selected.user_lesson_package_id) {
+            hint = DELETE_HINT_ABONEMENT;
+        }
+        $('#cell-delete-confirm-hint').text(hint);
+        cellDeleteConfirmModal.show();
+    });
+
+    $('#btn-cell-delete-confirm').on('click', function () {
+        var utssId = $('#edit-utss-id').val();
+        var date = $('#edit-date').val();
+        var userId = $('#edit-user-id').val();
+        if (!utssId) {
+            return;
+        }
+        var $confirmBtn = $(this);
+        $confirmBtn.prop('disabled', true);
+        $('#cell-delete-error').text('').hide();
+
+        $.ajax({
+            url: '/schedule/occurrence/' + utssId,
+            method: 'DELETE',
+            data: {
+                occurrence_date: date
+            },
+            headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
+            success: function (response) {
+                $confirmBtn.prop('disabled', false);
+                if (!response.success) {
+                    return;
+                }
+                var result = response.result || {};
+                var $cell = currentCell && currentCell.length
+                    ? currentCell
+                    : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');
+                if (cellDeleteConfirmModal) {
+                    cellDeleteConfirmModal.hide();
+                }
+                cellEditModal.hide();
+                if (typeof dayOccurrencesModal !== 'undefined' && dayOccurrencesModal) {
+                    try {
+                        dayOccurrencesModal.hide();
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+                renderScheduleCellFromResult($cell, result, {deleted: true});
+                syncFlexibleHintAfterAnnul(userId, result);
+                currentCell = $cell;
+            },
+            error: function (xhr) {
+                $confirmBtn.prop('disabled', false);
+                var msg = 'Не удалось удалить занятие.';
+                if (xhr.status === 422 && xhr.responseJSON) {
+                    if (xhr.responseJSON.errors && xhr.responseJSON.errors.utss_id) {
+                        msg = xhr.responseJSON.errors.utss_id[0];
+                    } else if (xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                }
+                if (cellDeleteConfirmModal) {
+                    cellDeleteConfirmModal.hide();
+                }
+                $('#cell-delete-error').text(msg).show();
             }
         });
     });

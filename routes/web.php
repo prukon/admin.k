@@ -387,6 +387,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::middleware('can:schedule.view')->group(function () {
         Route::get('/schedule/cell-context', [ScheduleController::class, 'cellContext'])->name('schedule.cell-context');
         Route::post('/schedule/update', [ScheduleController::class, 'update'])->name('schedule.update');
+        Route::delete('/schedule/occurrence/{utss}', [ScheduleController::class, 'destroyOccurrence'])
+            ->name('schedule.occurrence.destroy');
         Route::get('/schedule/logs-data', [ScheduleController::class, 'getLogsData'])->name('logs.data.schedule');
         Route::get('/schedule/user/{user}/abonement-context', [ScheduleController::class, 'abonementContext'])
             ->name('schedule.abonement.context');

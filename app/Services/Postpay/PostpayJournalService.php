@@ -74,14 +74,9 @@ final class PostpayJournalService
     }
 
     /**
-     * Есть ли у ученика postpay на месяц даты хотя бы в одной из групп (или в конкретной).
-     *
-     * @param  list<int>|null  $teamIds
-     */
-    /**
      * Группы ученика с активной постоплатой на месяц даты.
      *
-     * @return list<array{id: int, title: string}>
+     * @return list<array{id: int, title: string, package_name: string, price_per_lesson: float}>
      */
     public function postpayTeamsForDate(int $userId, string $dateYmd): array
     {
@@ -94,7 +89,7 @@ final class PostpayJournalService
             ->whereHas('lessonPackage', static function ($q) {
                 $q->where('schedule_type', LessonPackage::SCHEDULE_TYPE_POSTPAY);
             })
-            ->with(['team:id,title'])
+            ->with(['team:id,title', 'lessonPackage:id,name,schedule_type,price_cents'])
             ->orderBy('id')
             ->get();
 
@@ -106,9 +101,13 @@ final class PostpayJournalService
                 continue;
             }
             $seen[$teamId] = true;
+            $package = $row->lessonPackage;
+            $packageName = trim((string) ($package?->name ?? ''));
             $out[] = [
                 'id' => $teamId,
                 'title' => (string) ($row->team?->title ?: ('Группа #'.$teamId)),
+                'package_name' => $packageName !== '' ? $packageName : 'Постоплата',
+                'price_per_lesson' => $package ? $package->priceRub() : 0.0,
             ];
         }
 

@@ -210,18 +210,23 @@ table.dataTable tbody th, table.dataTable tbody td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.35rem 0.45rem;
-    border-radius: 0.35rem;
+    flex-shrink: 0;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border-radius: 0.4rem;
     color: #fff;
     line-height: 1;
 }
 
 .schedule-status-option-chip i {
     color: #fff !important;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
 }
 
 .cell-status-postpay-billing-hint {
+    flex-shrink: 0;
+    margin-right: 0.65rem;
     font-size: 0.85rem;
     cursor: help;
     opacity: 0.75;
@@ -230,6 +235,163 @@ table.dataTable tbody th, table.dataTable tbody td {
 .cell-status-postpay-billing-hint:hover,
 .cell-status-postpay-billing-hint:focus {
     opacity: 1;
+}
+
+/* Модалки «Статус занятия» / «Гибкий абонемент» */
+.cell-edit-modal .modal-body {
+    padding-top: 1rem;
+    padding-bottom: 0.75rem;
+}
+
+.cell-edit-context {
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.65rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+}
+
+.cell-edit-context__name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #212529;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.cell-edit-context__date {
+    margin-top: 0.25rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.cell-edit-context__teams:empty,
+.cell-edit-context__meta:empty,
+.cell-edit-context__summary:empty,
+.cell-edit-context__date:empty {
+    display: none;
+}
+
+.cell-edit-context__teams {
+    margin-top: 0.35rem;
+    color: #6c757d;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+}
+
+.cell-edit-context__meta {
+    display: inline-block;
+    margin-top: 0.65rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    color: #495057;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    max-width: 100%;
+    word-break: break-word;
+}
+
+.cell-edit-context__summary {
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.45rem;
+    border: 1px solid #e9ecef;
+    background: #fff;
+    color: #495057;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.cell-edit-section {
+    margin-bottom: 1rem;
+}
+
+.cell-edit-section--last {
+    margin-bottom: 0;
+}
+
+.cell-edit-section__label {
+    display: block;
+    margin-bottom: 0.45rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #495057;
+    letter-spacing: 0.01em;
+}
+
+.cell-status-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.cell-status-option.form-check {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    min-height: 2.6rem;
+    padding: 0;
+    padding-left: 0;
+    border: 1px solid #e9ecef;
+    border-radius: 0.55rem;
+    background: #fff;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cell-status-option__main {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0.55rem 0.85rem;
+    cursor: pointer;
+}
+
+/* Перебиваем Bootstrap .form-check (.form-check-input { margin-left: -1.5em }) */
+.cell-status-option.form-check .form-check-input.cell-status-option__input {
+    float: none;
+    position: static;
+    flex-shrink: 0;
+    margin: 0;
+    margin-top: 0;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.cell-status-option__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #212529;
+    line-height: 1.3;
+}
+
+.cell-status-option:hover {
+    border-color: #ced4da;
+    background: #fcfcfd;
+}
+
+.cell-status-option:has(.cell-status-option__input:checked) {
+    border-color: #86b7fe;
+    background: rgba(13, 110, 253, 0.06);
+    box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.18);
+}
+
+.cell-status-option:has(.cell-status-option__input:checked) .cell-status-option__title {
+    color: #0a58ca;
+}
+
+.cell-edit-modal__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* Подсветка столбцов расписания выбранной группы */
@@ -539,6 +701,83 @@ table.dataTable tbody th, table.dataTable tbody td {
 
 #editStatusModal {
     z-index: 2100 !important;
+}
+
+/* Confirm удаления поверх #cellEditModal (вложенные Bootstrap-модалки) */
+#cellEditModal {
+    z-index: 1055;
+}
+
+#cellDeleteConfirmModal {
+    z-index: 1065;
+}
+
+.cell-delete-confirm {
+    text-align: center;
+    padding: 0.25rem 0.25rem 0.5rem;
+}
+
+.cell-delete-confirm__icon {
+    margin-bottom: 1rem;
+}
+
+.cell-delete-confirm__icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    font-size: 1.25rem;
+}
+
+.cell-delete-confirm__name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #212529;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.cell-delete-confirm__date {
+    margin-top: 0.35rem;
+    color: #6c757d;
+    font-size: 0.95rem;
+}
+
+.cell-delete-confirm__chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.85rem;
+}
+
+.cell-delete-confirm__chip {
+    display: inline-block;
+    padding: 0.28rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+    color: #495057;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    max-width: 100%;
+    word-break: break-word;
+}
+
+.cell-delete-confirm__hint {
+    margin-top: 1.1rem;
+    padding: 0.75rem 0.9rem;
+    text-align: left;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #495057;
+    font-size: 0.875rem;
+    line-height: 1.45;
 }
 
 #statuses-table .status-sort-order {

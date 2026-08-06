@@ -112,6 +112,7 @@ enum AuditEvent: string
     case ScheduleStatusUpdated = 'schedule.status_updated';
     case ScheduleStatusDeleted = 'schedule.status_deleted';
     case ScheduleDayUpdated = 'schedule.day_updated';
+    case ScheduleJournalOccurrenceDeleted = 'schedule.journal_occurrence_deleted';
     case ScheduleUserTeamAssigned = 'schedule.user_team_assigned';
     case ScheduleUserRangeUpdated = 'schedule.user_range_updated';
 
@@ -237,6 +238,7 @@ enum AuditEvent: string
             self::ScheduleStatusUpdated => 'Изменение статуса расписания',
             self::ScheduleStatusDeleted => 'Удаление статуса расписания',
             self::ScheduleDayUpdated => 'Изменение дня расписания ученика',
+            self::ScheduleJournalOccurrenceDeleted => 'Удаление занятия в журнале расписания',
             self::ScheduleUserTeamAssigned => 'Назначение группы через расписание',
             self::ScheduleUserRangeUpdated => 'Обновление индивидуального расписания',
 
@@ -401,6 +403,7 @@ enum AuditEvent: string
             self::ScheduleStatusUpdated,
             self::ScheduleStatusDeleted,
             self::ScheduleDayUpdated,
+            self::ScheduleJournalOccurrenceDeleted,
             self::ScheduleUserTeamAssigned,
             self::ScheduleUserRangeUpdated,
             self::ScheduleSlotOccurrenceSkipped,
@@ -516,6 +519,7 @@ enum AuditEvent: string
             self::ScheduleStatusUpdated,
             self::ScheduleStatusDeleted,
             self::ScheduleDayUpdated,
+            self::ScheduleJournalOccurrenceDeleted,
             self::ScheduleUserTeamAssigned => 9,
 
             self::ScheduleSlotOccurrenceSkipped,
@@ -638,6 +642,7 @@ enum AuditEvent: string
             self::ScheduleStatusUpdated => 91,
             self::ScheduleStatusDeleted => 92,
             self::ScheduleDayUpdated => 93,
+            self::ScheduleJournalOccurrenceDeleted => 96,
             self::ScheduleUserTeamAssigned => 94,
             self::ScheduleUserRangeUpdated => 60,
 
@@ -896,6 +901,7 @@ enum AuditEvent: string
             94 => self::ScheduleUserTeamAssigned,
             60 => self::ScheduleUserRangeUpdated,
             95 => self::ScheduleUserRangeUpdated,
+            96 => self::ScheduleJournalOccurrenceDeleted,
 
             461 => self::ScheduleSlotOccurrenceSkipped,
             462 => self::ScheduleSlotTruncated,

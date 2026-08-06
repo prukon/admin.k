@@ -26,6 +26,46 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Журнал: статус занятия и удаление без reload (2026‑08)</h2>
+  <div class="note">
+    Модалка <b>«Статус занятия»</b> (<code>#cellEditModal</code> / <code>#cellEditForm</code>) в
+    <code>/schedule</code> сохраняет и удаляет занятие через AJAX <b>без</b> <code>location.reload</code>.
+    <br><br>
+    <b>Сохранение статуса</b> — <code>POST /schedule/update</code>:
+    ответ <code>{ success, message, result: { utss_id, occurrence_date, comment, created, status } }</code>;
+    UI закрывает модалку и точечно обновляет ячейку
+    (<code>renderScheduleCellAfterStatusSave</code> / <code>renderScheduleCellFromResult</code> в
+    <code>schedule.js</code>). <code>created: true</code> при новой отметке постоплаты
+    (<code>create_postpay</code>. Non-AJAX → 302 + flash (не пустой 200).
+    <br><br>
+    <b>Удаление (аннуляция)</b> — кнопка «Удалить» (только при существующем <code>utss_id</code>) →
+    confirm <code>#cellDeleteConfirmModal</code> (ФИО, дата, статус/контекст без времени) →
+    <code>DELETE /schedule/occurrence/{utss}</code>
+    (<code>schedule.occurrence.destroy</code>).
+    Сервис <code>JournalOccurrenceAnnulmentService</code>: откат <code>consumes_lesson</code> в ULP →
+    удаление status events → удаление UTSS → sync постоплаты → аудит
+    <code>schedule.journal_occurrence_deleted</code>.
+    Ответ <code>result: { deleted: true, occurrence_count, remaining?, is_postpay, is_flexible,
+    slots_remaining?, … }</code>; DOM — decrement ячейки + hint гибкого
+    (<code>syncFlexibleHintAfterAnnul</code>).
+    <br><br>
+    <b>Ховеры</b> (kids-tooltip): fixed/flexible — «…Счетчик занятия вернется в абонемент»;
+    постоплата — «…Стоимость абонемента будет перерасчитана.»; прочие (trial и т.п.) —
+    короткий текст без абонемента; после оплаты постоплаты кнопка <b>disabled</b> +
+    «Нельзя удалить: абонемент за этот месяц уже оплачен.» (бэкенд —
+    <code>assertOccurrenceEditable</code> → 422).
+    <br><br>
+    Документы:
+    <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>
+    (<a href="/docs/documentation/schedule-journal#occurrence-destroy">§6.3.1 удаление</a>),
+    <a href="/docs/documentation/postpay#journal">postpay § журнал</a>.
+    Тесты: <code>ScheduleJournalOccurrenceAnnulmentFeatureTest</code>,
+    <code>ScheduleJournalMutationContractsFeatureTest</code>,
+    <code>PostpayJournalMutationContractsFeatureTest</code>,
+    <code>ScheduleJournalWorkflowFeatureTest</code> (P2),
+    <code>BladeInlineJsSyntaxTest</code> (<code>schedule.js</code>).
+  </div>
+
   <h2>Журнал: занятия из гибкого абонемента «на лету» (2026‑08)</h2>
   <div class="note">
     Месячный <b>гибкий</b> абонемент из «Установки цен» ставится в журнал <code>/schedule</code> по клику на ячейку
@@ -167,12 +207,16 @@
     Служебные слоты создаются с 09:00, если школьный слот не покрывает даты
     (см. <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>).
     Смена статуса в журнале (<code>POST /schedule/update</code>) списывает/возвращает <code>lessons_remaining</code> тем же
-    <code>UserLessonOccurrenceStatusService</code>, что и календарь (после update UI делает
-    <code>location.reload</code>; place-flexible — нет).
+    <code>UserLessonOccurrenceStatusService</code>, что и календарь; UI после AJAX update/delete
+    <b>без</b> <code>location.reload</code> — точечный DOM ячейки (как place-flexible);
+    см. блок «Статус занятия и удаление без reload» выше и
+    <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>.
+    Удаление занятия — <code>DELETE /schedule/occurrence/{utss}</code>
+    (<a href="/docs/documentation/schedule-journal#occurrence-destroy">§6.3.1</a>).
     Несколько занятий в один день — бейдж ×N и список по клику.
     AJAX-мутации → JSON 200/422; non-AJAX → 302 на <code>/schedule</code> (не пустой 200).
     Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>
-    (§7 place-fixed / place-flexible, §6 статусы, §11 тесты).
+    (§7 place-fixed / place-flexible, §6 статусы/удаление, §11 тесты).
     Нагрузка тренеров считает «Посетил» с <code>trainer_profile_id</code> на событии статуса.
   </div>
 
@@ -566,10 +610,10 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
-    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code>, лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
+    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed</b> (<code>place-fixed-abonement</code>); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code> / иконка, статус в модалке, AJAX без reload — §7.3); постоплата <code>create_postpay</code>; статусы со списанием; ×N занятий в день; справочник статусов; тренер при «Посетил»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed</b> (<code>place-fixed-abonement</code>); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code> / иконка, статус в модалке, AJAX без reload — §7.3); <b>статус занятия</b> (<code>POST /schedule/update</code>) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload, confirm «Удалить» (§6 / §6.3.1); постоплата <code>create_postpay</code> + лок удаления после оплаты; статусы со списанием; ×N занятий в день; справочник статусов; тренер при «Посетил»</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

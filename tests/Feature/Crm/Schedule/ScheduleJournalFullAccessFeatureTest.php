@@ -375,6 +375,10 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
         ])->assertUnauthorized();
         $this->postJson(route('user.sync.teams', $student), ['team_ids' => []])->assertUnauthorized();
         $this->getJson(route('logs.data.schedule', ['draw' => 1]))->assertUnauthorized();
+        $utss = $this->createTrialUtss($student, $team, '2026-05-01');
+        $this->deleteJson(route('schedule.occurrence.destroy', $utss), [
+            'occurrence_date' => '2026-05-01',
+        ])->assertUnauthorized();
         $this->get(route('schedule.occurrence-statuses'))->assertRedirect();
     }
 }

@@ -75,6 +75,22 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace($cell, result)', $content);
         $this->assertStringContainsString('renderScheduleCellFromResult', $content);
         $this->assertStringContainsString('renderScheduleCellAfterStatusSave', $content);
+        $this->assertStringContainsString('syncFlexibleHintAfterAnnul', $content);
+        $this->assertStringContainsString('cell-delete-confirm-name', $content);
+        $this->assertStringContainsString('btn-cell-delete', $content);
+        $this->assertStringContainsString('/schedule/occurrence/', $content);
+        $this->assertStringContainsString('cellDeleteConfirmModal', $content);
+        $this->assertStringContainsString('btn-cell-delete-confirm', $content);
+        $this->assertStringContainsString('renderScheduleCellAfterDelete', $content);
+        $this->assertStringContainsString('syncCellDeleteButton', $content);
+        // Успех DELETE occurrence — точечный DOM без reload.
+        $destroyPos = strpos($content, "url: '/schedule/occurrence/'");
+        $this->assertNotFalse($destroyPos);
+        $destroyChunk = substr($content, (int) $destroyPos, 1400);
+        $this->assertStringContainsString('method: \'DELETE\'', $destroyChunk);
+        $this->assertStringContainsString('renderScheduleCellFromResult', $destroyChunk);
+        $this->assertStringContainsString('syncFlexibleHintAfterAnnul', $destroyChunk);
+        $this->assertStringNotContainsString('window.location.reload()', $destroyChunk);
         $this->assertStringContainsString('syncFlexibleTrainerBlock', $content);
         $this->assertStringContainsString('populateFlexibleTrainerSelect', $content);
         $this->assertStringContainsString('showFlexibleErrors', $content);
@@ -145,6 +161,12 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
         $this->assertStringContainsString('id="flexiblePlaceModal"', $content);
         $this->assertStringContainsString('id="flexiblePlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="btn-cell-delete"', $content);
+        $this->assertStringContainsString('id="cellDeleteConfirmModal"', $content);
+        $this->assertStringContainsString('id="btn-cell-delete-confirm"', $content);
+        $this->assertStringContainsString('id="cell-delete-confirm-name"', $content);
+        $this->assertStringContainsString('id="cell-delete-confirm-date"', $content);
+        $this->assertStringContainsString('id="cell-delete-confirm-hint"', $content);
         $this->assertStringContainsString('id="flexible-team-error"', $content);
         $this->assertStringContainsString('id="flexible-ulp-error"', $content);
         $this->assertStringContainsString('id="flexible-date-error"', $content);

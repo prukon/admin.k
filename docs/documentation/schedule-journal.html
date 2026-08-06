@@ -57,8 +57,8 @@
       <tr><th>Ситуация</th><th>Результат</th></tr>
     </thead>
     <tbody>
-      <tr><td>Гость</td><td><code>GET /schedule</code> → редирект на логин; JSON-эндпоинты → <b>401</b></td></tr>
-      <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница журнала / нагрузка / ячейки / place-fixed → <b>403</b></td></tr>
+      <tr><td>Гость</td><td><code>GET /schedule</code> → редирект на логин; JSON-эндпоинты (в т.ч. update / destroy) → <b>401</b></td></tr>
+      <tr><td>Авторизован, нет <code>schedule.view</code></td><td>Страница журнала / нагрузка / ячейки / place-fixed / place-flexible / update / destroy → <b>403</b></td></tr>
       <tr><td>Есть <code>schedule.view</code></td><td>Страница и API журнала / нагрузки → <b>200</b> при валидных данных; мутации — 200 (AJAX) / 302 (non-AJAX)</td></tr>
     </tbody>
   </table>
@@ -82,6 +82,7 @@
       <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: ученики × дни месяца; ячейки из <code>user_team_schedule_slots</code> (+ актуальный статус)</td></tr>
       <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON: занятия ученика на дату (список), выбранное <code>utss_id</code>, тренеры</td></tr>
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Статус конкретного занятия (<code>utss_id</code> + дата) через <code>UserLessonOccurrenceStatusService</code>; тренер/комментарий на событии статуса</td></tr>
+      <tr><td>DELETE</td><td><code>/schedule/occurrence/{utss}</code></td><td><code>schedule.occurrence.destroy</code></td><td>Аннуляция занятия в журнале (events + UTSS); AJAX без reload</td></tr>
       <tr><td>GET</td><td><code>/schedule/user/{user}/abonement-context</code></td><td><code>schedule.abonement.context</code></td><td>Fixed-назначения ученика + группы/дни недели для модалки раскладки</td></tr>
       <tr><td>POST</td><td><code>/schedule/user/{user}/place-fixed-abonement</code></td><td><code>schedule.abonement.place-fixed</code></td><td>Раскладка fixed: дата начала + дни недели + группа → цепочка UTSS + статус «Запись»; <code>preview=1</code> без записи</td></tr>
       <tr><td>GET</td><td><code>/schedule/user/{user}/flexible-context</code></td><td><code>schedule.abonement.flexible-context</code></td><td>Месячные гибкие ULP на дату (<code>billing_month</code> = месяц даты) + группы для модалки</td></tr>
@@ -270,8 +271,12 @@
   <ul>
     <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id) — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
     <li>Ячейка дня: цвет/иконка актуального статуса; без статуса — серая <code>fa-circle</code> (занятие всё равно видно).</li>
-    <li>Несколько занятий в один день — бейдж <code>×N</code> (<code>data-occurrence-count</code>) → модалка списка → редактирование одного <code>utss_id</code>.</li>
-    <li>Клик по ячейке / занятию → <code>#cellEditModal</code> (<code>#cellEditForm</code>): радио <code>lesson_occurrence_status_id</code>, комментарий, тренер при «Посетил».</li>
+    <li>Несколько занятий в один день — бейдж <code>×N</code> (<code>data-occurrence-count</code>) → модалка списка → редактирование одного <code>utss_id</code>.
+      В UI журнала время слота <b>не показывается</b> (техническое назначение; работаем с датой): ни в списке дня, ни в <code>#cellEditModal</code> / confirm удаления.</li>
+    <li>Клик по ячейке / занятию → <code>#cellEditModal</code> (<code>#cellEditForm</code>): радио <code>lesson_occurrence_status_id</code>, комментарий, тренер при «Посетил»;
+      кнопка <b>Удалить</b> (только при существующем <code>utss_id</code>) → confirm <code>#cellDeleteConfirmModal</code>
+      (ФИО, дата, чипы статуса/контекста, подсказка последствий) →
+      <code>DELETE /schedule/occurrence/{utss}</code> без reload.</li>
     <li>Кнопка «Абонемент» в строке ученика → <code>#abonementPlaceModal</code> — раскладка fixed (см. <a href="#place-fixed">§7</a>).</li>
     <li><b>Гибкий (из установки цен):</b> в колонке абонементов при остатке слотов —
       <code>осталось/всего</code> (один ULP / фильтр группы) или иконка <code>(i)</code> при нескольких;
@@ -312,8 +317,10 @@
   <p>Валидация: <code>GetScheduleCellContextRequest</code>. Ученик — круг §2.1, иначе <b>404</b>.</p>
   <ul>
     <li><code>visited_status_id</code> — id <code>attended</code> текущего партнёра</li>
-    <li><code>occurrences[]</code> — занятия дня (UTSS + актуальный статус; у postpay — <code>is_postpay</code>, без времени слота)</li>
-    <li><code>postpay_teams</code>, <code>postpay_team_id</code> — группы с постоплатой на дату (для модалки create)</li>
+    <li><code>occurrences[]</code> — занятия дня (UTSS + актуальный статус; у postpay — <code>is_postpay</code>,
+      <code>price_per_lesson</code>, без времени слота)</li>
+    <li><code>postpay_teams</code>, <code>postpay_team_id</code> — группы с постоплатой на дату
+      (для модалки create; в команде — <code>package_name</code>, <code>price_per_lesson</code>)</li>
     <li><code>selected</code> / <code>current_status_id</code> / <code>comment</code> — выбранное занятие</li>
     <li><code>team_ids</code>, <code>teams_label</code>, <code>team_default_trainer_profile_id</code>, <code>trainer_profile_id_for_select</code>, <code>trainers</code></li>
   </ul>
@@ -328,11 +335,30 @@
       <code>created: true</code> при <code>create_postpay</code> (новая отметка), иначе правка существующего UTSS</li>
     <li>Non-AJAX (нет XHR / не expectsJson) → <b>302</b> на <code>schedule.index</code> + flash <code>status</code> / session errors (не пустой 200)</li>
   </ul>
-  <p>Аудит: событие категории <code>schedule</code> (смена статуса дня / занятия).</p>
+  <p>Аудит: <code>schedule.day_updated</code> (категория <code>schedule</code>).</p>
   <p class="small">После успешного AJAX <code>POST /schedule/update</code> UI <b>без</b> reload: закрытие
     <code>#cellEditModal</code> + точечный DOM-апдейт ячейки (<code>renderScheduleCellAfterStatusSave</code> /
     <code>renderScheduleCellFromResult</code> в <code>schedule.js</code>), по тому же принципу что и
-    постановка гибкого (<a href="#place-flexible">§7.3</a>). Очистка статуса — отдельно, позже.</p>
+    постановка гибкого (<a href="#place-flexible">§7.3</a>).</p>
+
+  <h3 id="occurrence-destroy">6.3.1) API <code>DELETE /schedule/occurrence/{utss}</code></h3>
+  <p>Аннуляция занятия «как будто не было»: откат <code>consumes_lesson</code> в ULP (если был) → удаление
+    status events → удаление UTSS → <code>PostpayUsersPriceSync</code> → аудит
+    <code>schedule.journal_occurrence_deleted</code>. Сервис: <code>JournalOccurrenceAnnulmentService</code>.</p>
+  <ul>
+    <li>Для постоплаты при оплаченном месяце — <b>422</b> (<code>assertOccurrenceEditable</code> /
+      «уже была произведена оплата»); в UI кнопка disabled + hint.</li>
+    <li>AJAX → <code>{ success, message, result }</code>:
+      <code>{ utss_id, user_id, occurrence_date, deleted: true, occurrence_count, is_postpay, is_flexible,
+      remaining?, user_lesson_package_id?, slots_remaining?, lessons_total?, package_name? }</code></li>
+    <li>UI: <code>renderScheduleCellFromResult(..., { deleted: true })</code> +
+      <code>syncFlexibleHintAfterAnnul</code> для гибкого.</li>
+    <li>Non-AJAX → <b>302</b> + flash <code>status</code>.</li>
+  </ul>
+  <p class="small">Ховеры кнопки «Удалить» (kids-tooltip): абонемент (fixed/flexible) —
+    «…Счетчик занятия вернется в абонемент»; постоплата — «…Стоимость абонемента будет перерасчитана.»;
+    прочие (trial и т.п.) — короткий текст без абонемента; после оплаты постоплаты —
+    «Нельзя удалить: абонемент за этот месяц уже оплачен.»</p>
 
   <h3>6.4) Связь с тренерами и группами</h3>
   <p>
@@ -478,8 +504,13 @@
         <td><b>422</b> с <code>errors</code> под полями</td>
       </tr>
       <tr>
-        <td>Non-AJAX POST (place-fixed / place-flexible / update)</td>
-        <td><b>302</b> → <code>schedule.index</code> + flash <code>status</code>; запись в БД создана</td>
+        <td>AJAX <code>schedule.occurrence.destroy</code></td>
+        <td><b>200</b> <code>{ success, message, result: { utss_id, deleted: true, occurrence_count, remaining?, … } }</code></td>
+        <td><b>422</b> (в т.ч. postpay lock) с <code>errors</code></td>
+      </tr>
+      <tr>
+        <td>Non-AJAX POST (place-fixed / place-flexible / update / destroy)</td>
+        <td><b>302</b> → <code>schedule.index</code> + flash <code>status</code>; запись в БД создана/удалена</td>
         <td><b>302</b> → index / back + session errors (не пустой 200)</td>
       </tr>
     </tbody>
@@ -646,6 +677,7 @@
       <code>LessonOccurrenceStatusController.php</code>,
       <code>LessonOccurrenceStatusColumnsSettingsController.php</code></li>
     <li><code>app/Http/Requests/Admin/UpdateScheduleJournalOccurrenceRequest.php</code>,
+      <code>DestroyScheduleJournalOccurrenceRequest.php</code>,
       <code>PlaceScheduleJournalFixedAbonementRequest.php</code>,
       <code>GetScheduleJournalAbonementContextRequest.php</code>,
       <code>GetScheduleCellContextRequest.php</code>,
@@ -653,11 +685,15 @@
     <li><code>app/Services/Schedule/ScheduleJournalMonthService.php</code>,
       <code>JournalFixedAbonementPlacementService.php</code>,
       <code>JournalFlexibleAbonementPlacementService.php</code>,
+      <code>JournalOccurrenceAnnulmentService.php</code>,
       <code>JournalTeamScheduleSlotEnsureService.php</code>,
       <code>TrainerWorkloadReportService.php</code></li>
     <li><code>app/Services/LessonPackages/UserLessonOccurrenceStatusService.php</code></li>
-    <li><code>resources/views/admin/schedule/journal.blade.php</code>, <code>index.blade.php</code>, <code>_schedule_section_tabs.blade.php</code></li>
-    <li><code>resources/js/schedule.js</code> — AJAX ячеек, place-fixed, place-flexible; CRUD статусов — inline JS в partial</li>
+    <li><code>resources/views/admin/schedule/journal.blade.php</code> —
+      <code>#cellEditModal</code>, <code>#cellDeleteConfirmModal</code>, <code>#flexiblePlaceModal</code>, <code>#abonementPlaceModal</code>;
+      <code>index.blade.php</code>, <code>_schedule_section_tabs.blade.php</code></li>
+    <li><code>resources/js/schedule.js</code> — AJAX ячеек (update/delete без reload), place-fixed, place-flexible;
+      CRUD статусов — inline JS в partial</li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — тот же контур + время</li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — назначения, автосписание</li>
     <li><a href="/docs/documentation/postpay">Постоплата</a> — журнал без ULP, лок после оплаты</li>
@@ -668,21 +704,29 @@
   <div class="note">
     <ul>
       <li><code>ScheduleJournalAccessFeatureTest</code> / <code>ScheduleJournalFullAccessFeatureTest</code> —
-        доступ (guest / без права / с <code>schedule.view</code>) + smoke endpoint'ов (в т.ч. place-fixed / place-flexible)</li>
+        доступ (guest / без права / с <code>schedule.view</code>) + smoke endpoint'ов
+        (place-fixed / place-flexible / update / <b>destroy</b>)</li>
       <li><code>ScheduleJournalFlexiblePlacementFeatureTest</code> / <code>ScheduleJournalFlexibleContractsFeatureTest</code> —
         домен + AJAX/non-AJAX контракты гибкого (статус/тренер/комментарий, DOM-поля result, P2 workflow без reload)</li>
       <li><code>ScheduleJournalUnifiedFeatureTest</code> — UTSS + раскладка + списание остатка</li>
-      <li><code>ScheduleJournalMutationContractsFeatureTest</code> — AJAX 200/422 + non-AJAX 302 safety-net</li>
-      <li><code>tests/Feature/Crm/Postpay/*</code> — create_postpay, access, lock (см. <a href="/docs/documentation/postpay#tests">postpay § тесты</a>)</li>
-      <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка → submit → данные видны</li>
+      <li><code>ScheduleJournalMutationContractsFeatureTest</code> — AJAX 200/422 + non-AJAX 302 safety-net
+        (place-fixed, update, destroy, sync-teams)</li>
+      <li><code>ScheduleJournalOccurrenceAnnulmentFeatureTest</code> — удаление занятия: result/audit,
+        откат remaining, flexible slots, remaining при ×N, date mismatch, foreign partner, guest/403</li>
+      <li><code>tests/Feature/Crm/Postpay/*</code> — create_postpay / destroy / access / lock
+        (см. <a href="/docs/documentation/postpay#tests">postpay § тесты</a>)</li>
+      <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка →
+        update / destroy → данные видны без F5</li>
       <li><code>ScheduleJournalStudentFilterFeatureTest</code> / <code>ScheduleJournalTeamPivotFeatureTest</code></li>
-      <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> — <code>node --check</code> на <code>resources/js/schedule.js</code></li>
+      <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> —
+        <code>node --check</code> на <code>resources/js/schedule.js</code>
+        (update/delete/place-flexible без <code>reload</code>)</li>
       <li><code>ScheduleStatuses*FeatureTest</code> / <code>LessonOccurrenceStatuses*FeatureTest</code> — вкладка статусов</li>
       <li><code>ScheduleOccurrenceStatusesNonAjaxSafetyNetFeatureTest</code></li>
       <li><code>ScheduleTrainerWorkload*FeatureTest</code></li>
     </ul>
   </div>
-  <pre><code>php artisan test --env=testing --filter='ScheduleJournal|ScheduleStatuses|LessonOccurrenceStatuses|BladeInlineJsSyntaxTest::test_schedule_journal'</code></pre>
+  <pre><code>php artisan test --env=testing --filter='ScheduleJournal|ScheduleStatuses|LessonOccurrenceStatuses|PostpayJournal|BladeInlineJsSyntaxTest::test_schedule_journal'</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

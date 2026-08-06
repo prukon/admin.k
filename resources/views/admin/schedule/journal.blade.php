@@ -270,27 +270,27 @@
     {{-- Редактирование статуса одного занятия --}}
     <div class="modal fade" id="cellEditModal" tabindex="-1" aria-labelledby="cellEditModalLabel" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content schedule-modal-content">
+            <div class="modal-content schedule-modal-content cell-edit-modal">
                 <div class="modal-header">
                     <h5 class="modal-title" id="cellEditModalLabel">Статус занятия</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <div><span id="edit-user-name-display"></span></div>
-                        <div><small class="text-muted" id="edit-user-teams-display"></small></div>
-                        <div><span id="edit-date-display"></span></div>
-                        <div><small class="text-muted" id="edit-occurrence-meta"></small></div>
+                    <div class="cell-edit-context">
+                        <div class="cell-edit-context__name" id="edit-user-name-display"></div>
+                        <div class="cell-edit-context__date" id="edit-date-display"></div>
+                        <div class="cell-edit-context__teams" id="edit-user-teams-display"></div>
+                        <div class="cell-edit-context__meta" id="edit-occurrence-meta"></div>
                     </div>
 
-                    <div class="mb-3 d-none" id="edit-add-flexible-wrap">
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-flexible-lesson">
+                    <div class="cell-edit-section d-none" id="edit-add-flexible-wrap">
+                        <button type="button" class="btn btn-outline-primary btn-sm w-100" id="btn-add-flexible-lesson">
                             <i class="fa-solid fa-plus me-1"></i>Добавить занятие из гибкого абонемента
                         </button>
                     </div>
 
-                    <div class="mb-3 d-none" id="edit-postpay-team-wrap">
-                        <label class="form-label" for="edit-postpay-team-select">Группа для отметки</label>
+                    <div class="cell-edit-section d-none" id="edit-postpay-team-wrap">
+                        <label class="cell-edit-section__label" for="edit-postpay-team-select">Группа для отметки</label>
                         <select class="form-select" id="edit-postpay-team-select" aria-label="Группа для отметки постоплаты"></select>
                         <div class="form-control-plaintext d-none" id="edit-postpay-team-readonly"></div>
                         <div class="invalid-feedback d-block" id="edit-postpay-team-error" style="display:none;"></div>
@@ -303,44 +303,45 @@
                         <input type="hidden" name="create_postpay" id="edit-create-postpay" value="0">
                         <input type="hidden" name="team_id" id="edit-team-id" value="">
 
-                        <div class="mb-3">
-                            <label class="form-label d-block">Статус</label>
+                        <div class="cell-edit-section">
+                            <div class="cell-edit-section__label">Статус</div>
                             <div class="invalid-feedback d-block" id="cell-status-error" style="display:none;"></div>
-
-                            @foreach($availableStatuses as $st)
-                                <div class="form-check mb-2 d-flex align-items-center">
-                                    <input class="form-check-input"
-                                           type="radio"
-                                           name="lesson_occurrence_status_id"
-                                           id="status-{{ $st->id }}"
-                                           value="{{ $st->id }}"
-                                           data-icon="{{ $st->icon }}"
-                                           data-color="{{ $st->color }}"
-                                           data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
-                                           @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
-                                    <label class="form-check-label ms-2" for="status-{{ $st->id }}">
-                                        <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
-                                            <i class="{{ $st->icon }}" aria-hidden="true"></i>
-                                        </span>
-                                        <span class="ms-1">{{ $st->title }}</span>
-                                    </label>
-                                    @if(!empty($st->consumes_lesson))
-                                        <i class="fa-solid fa-circle-info text-muted ms-2 cell-status-postpay-billing-hint d-none"
-                                           tabindex="0"
-                                           role="img"
-                                           aria-label="Идёт в расчёт постоплаты. Влияет на сумму за месяц."
-                                           data-kids-tooltip-hint="1"
-                                           data-bs-toggle="tooltip"
-                                           data-bs-placement="top"
-                                           data-bs-custom-class="ulp-assignment-paid-tooltip"
-                                           title="Идёт в расчёт постоплаты. Влияет на сумму за месяц."></i>
-                                    @endif
-                                </div>
-                            @endforeach
+                            <div class="cell-status-options">
+                                @foreach($availableStatuses as $st)
+                                    <div class="cell-status-option form-check">
+                                        <label class="cell-status-option__main" for="status-{{ $st->id }}">
+                                            <input class="form-check-input cell-status-option__input"
+                                                   type="radio"
+                                                   name="lesson_occurrence_status_id"
+                                                   id="status-{{ $st->id }}"
+                                                   value="{{ $st->id }}"
+                                                   data-icon="{{ $st->icon }}"
+                                                   data-color="{{ $st->color }}"
+                                                   data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
+                                                   @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
+                                            <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
+                                                <i class="{{ $st->icon }}" aria-hidden="true"></i>
+                                            </span>
+                                            <span class="cell-status-option__title">{{ $st->title }}</span>
+                                        </label>
+                                        @if(!empty($st->consumes_lesson))
+                                            <i class="fa-solid fa-circle-info text-muted cell-status-postpay-billing-hint d-none"
+                                               tabindex="0"
+                                               role="img"
+                                               aria-label="Идёт в расчёт постоплаты. Влияет на сумму за месяц."
+                                               data-kids-tooltip-hint="1"
+                                               data-bs-toggle="tooltip"
+                                               data-bs-placement="top"
+                                               data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                               title="Идёт в расчёт постоплаты. Влияет на сумму за месяц."></i>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
 
-                        <div class="mb-3 d-none" id="cell-trainer-wrap">
-                            <label for="cell-trainer-profile-id" class="form-label">Тренер</label>
+                        <div class="cell-edit-section d-none" id="cell-trainer-wrap">
+                            <label for="cell-trainer-profile-id" class="cell-edit-section__label">Тренер</label>
                             <select class="form-select" id="cell-trainer-profile-id" name="trainer_profile_id">
                                 <option value="">Без тренера</option>
                             </select>
@@ -348,13 +349,60 @@
                             <div class="invalid-feedback" id="cell-trainer-error"></div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Комментарий</label>
-                            <textarea class="form-control" id="description" name="comment" rows="3"></textarea>
+                        <div class="cell-edit-section cell-edit-section--last">
+                            <label for="description" class="cell-edit-section__label">Комментарий</label>
+                            <textarea class="form-control" id="description" name="comment" rows="2"></textarea>
                             <div class="invalid-feedback" id="cell-comment-error"></div>
                         </div>
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <div class="invalid-feedback d-block" id="cell-delete-error" style="display:none;"></div>
                     </form>
+                </div>
+                <div class="modal-footer cell-edit-modal__footer">
+                    <span id="btn-cell-delete-wrap" class="d-none me-auto">
+                        <button type="button"
+                                class="btn btn-outline-danger"
+                                id="btn-cell-delete"
+                                data-kids-tooltip-hint="1"
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                data-bs-custom-class="ulp-assignment-paid-tooltip"
+                                title="">
+                            Удалить
+                        </button>
+                    </span>
+                    <button type="submit" form="cellEditForm" class="btn btn-primary">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Подтверждение удаления занятия --}}
+    <div class="modal fade" id="cellDeleteConfirmModal" tabindex="-1" aria-labelledby="cellDeleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cellDeleteConfirmModalLabel">Удалить занятие?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cell-delete-confirm">
+                        <div class="cell-delete-confirm__icon" aria-hidden="true">
+                            <span class="cell-delete-confirm__icon-circle">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </span>
+                        </div>
+                        <div class="cell-delete-confirm__name" id="cell-delete-confirm-name"></div>
+                        <div class="cell-delete-confirm__date" id="cell-delete-confirm-date"></div>
+                        <div class="cell-delete-confirm__chips d-none" id="cell-delete-confirm-chips">
+                            <span class="cell-delete-confirm__chip d-none" id="cell-delete-confirm-status"></span>
+                            <span class="cell-delete-confirm__chip d-none" id="cell-delete-confirm-context"></span>
+                        </div>
+                        <div class="cell-delete-confirm__hint" id="cell-delete-confirm-hint"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" id="btn-cell-delete-confirm">Удалить</button>
                 </div>
             </div>
         </div>
@@ -414,21 +462,25 @@
     {{-- Занятие из гибкого абонемента (установка цен) --}}
     <div class="modal fade" id="flexiblePlaceModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <div class="modal-content schedule-modal-content">
+            <div class="modal-content schedule-modal-content cell-edit-modal">
                 <div class="modal-header">
                     <h5 class="modal-title">Занятие из гибкого абонемента</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-2"><strong id="flexible-user-name"></strong></div>
-                    <div class="mb-3 text-muted" id="flexible-date-display"></div>
-                    <div class="mb-3" id="flexible-package-summary"></div>
+                    <div class="cell-edit-context">
+                        <div class="cell-edit-context__name" id="flexible-user-name"></div>
+                        <div class="cell-edit-context__date" id="flexible-date-display"></div>
+                        <div class="cell-edit-context__summary" id="flexible-package-summary"></div>
+                    </div>
+
                     <form id="flexiblePlaceForm" novalidate>
                         <input type="hidden" id="flexible-user-id" name="user_id" value="">
                         <input type="hidden" id="flexible-ulp-id" name="user_lesson_package_id" value="">
                         <input type="hidden" id="flexible-occurrence-date" name="occurrence_date" value="">
-                        <div class="mb-3" id="flexible-team-wrap">
-                            <label for="flexible-team-id" class="form-label">Группа</label>
+
+                        <div class="cell-edit-section" id="flexible-team-wrap">
+                            <label for="flexible-team-id" class="cell-edit-section__label">Группа</label>
                             <select class="form-select" id="flexible-team-id" name="team_id"></select>
                             <div class="form-control-plaintext d-none" id="flexible-team-readonly"></div>
                             <div class="invalid-feedback" id="flexible-team-error"></div>
@@ -436,33 +488,35 @@
                         <div class="invalid-feedback d-block mb-2" id="flexible-ulp-error" style="display:none;"></div>
                         <div class="invalid-feedback d-block mb-2" id="flexible-date-error" style="display:none;"></div>
 
-                        <div class="mb-3">
-                            <label class="form-label d-block">Статус</label>
+                        <div class="cell-edit-section">
+                            <div class="cell-edit-section__label">Статус</div>
                             <div class="invalid-feedback d-block" id="flexible-status-error" style="display:none;"></div>
-                            @foreach($availableStatuses as $st)
-                                <div class="form-check mb-2 d-flex align-items-center">
-                                    <input class="form-check-input"
-                                           type="radio"
-                                           name="flexible_lesson_occurrence_status_id"
-                                           id="flexible-status-{{ $st->id }}"
-                                           value="{{ $st->id }}"
-                                           data-icon="{{ $st->icon }}"
-                                           data-color="{{ $st->color }}"
-                                           data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
-                                           @if(!empty($scheduledStatusId) && (int) $st->id === (int) $scheduledStatusId) checked @endif
-                                           @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
-                                    <label class="form-check-label ms-2" for="flexible-status-{{ $st->id }}">
-                                        <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
-                                            <i class="{{ $st->icon }}" aria-hidden="true"></i>
-                                        </span>
-                                        <span class="ms-1">{{ $st->title }}</span>
-                                    </label>
-                                </div>
-                            @endforeach
+                            <div class="cell-status-options">
+                                @foreach($availableStatuses as $st)
+                                    <div class="cell-status-option form-check">
+                                        <label class="cell-status-option__main" for="flexible-status-{{ $st->id }}">
+                                            <input class="form-check-input cell-status-option__input"
+                                                   type="radio"
+                                                   name="flexible_lesson_occurrence_status_id"
+                                                   id="flexible-status-{{ $st->id }}"
+                                                   value="{{ $st->id }}"
+                                                   data-icon="{{ $st->icon }}"
+                                                   data-color="{{ $st->color }}"
+                                                   data-consumes-lesson="{{ !empty($st->consumes_lesson) ? '1' : '0' }}"
+                                                   @if(!empty($scheduledStatusId) && (int) $st->id === (int) $scheduledStatusId) checked @endif
+                                                   @if(!empty($visitedStatusId) && (int) $st->id === (int) $visitedStatusId) data-is-visited="1" @endif>
+                                            <span class="schedule-status-option-chip" style="background-color: {{ $st->color }};">
+                                                <i class="{{ $st->icon }}" aria-hidden="true"></i>
+                                            </span>
+                                            <span class="cell-status-option__title">{{ $st->title }}</span>
+                                        </label>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
 
-                        <div class="mb-3 d-none" id="flexible-trainer-wrap">
-                            <label for="flexible-trainer-profile-id" class="form-label">Тренер</label>
+                        <div class="cell-edit-section d-none" id="flexible-trainer-wrap">
+                            <label for="flexible-trainer-profile-id" class="cell-edit-section__label">Тренер</label>
                             <select class="form-select" id="flexible-trainer-profile-id" name="trainer_profile_id">
                                 <option value="">Без тренера</option>
                             </select>
@@ -470,14 +524,16 @@
                             <div class="invalid-feedback" id="flexible-trainer-error"></div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="flexible-comment" class="form-label">Комментарий</label>
+                        <div class="cell-edit-section cell-edit-section--last">
+                            <label for="flexible-comment" class="cell-edit-section__label">Комментарий</label>
                             <textarea class="form-control" id="flexible-comment" name="comment" rows="2"></textarea>
                             <div class="invalid-feedback" id="flexible-comment-error"></div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary" id="btnFlexiblePlace">Поставить занятие</button>
                     </form>
+                </div>
+                <div class="modal-footer cell-edit-modal__footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" form="flexiblePlaceForm" class="btn btn-primary" id="btnFlexiblePlace">Поставить занятие</button>
                 </div>
             </div>
         </div>

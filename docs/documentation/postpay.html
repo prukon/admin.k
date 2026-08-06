@@ -122,16 +122,27 @@
     <li>Создание: <code>POST /schedule/update</code> с <code>create_postpay=1</code>, <code>team_id</code>,
       <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>
       → UTSS без ULP (<code>user_lesson_package_id = null</code>, <code>is_trial_lesson = false</code>)
-      + статус + пересчёт <code>users_prices.price</code>.</li>
+      + статус + пересчёт <code>users_prices.price</code>.
+      AJAX → <code>result.created = true</code> + точечный DOM без reload
+      (см. <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6.3</a>).</li>
     <li>Списание остатка ULP для таких записей <b>не выполняется</b>
       (<code>UserLessonOccurrenceStatusService</code>: null-ULP non-trial).</li>
     <li>Несколько групп с postpay на месяц: в модалке блок «Группа для отметки»
       (readonly при одной / select при нескольких); <code>cell-context</code> отдаёт
       <code>postpay_teams</code>, <code>postpay_team_id</code>.</li>
-    <li>Повторное открытие ячейки: у postpay-занятия показываются название пакета и группа;
-      <b>техническое время слота скрыто</b> (<code>time_start</code>/<code>time_end</code> = null, <code>is_postpay=true</code>).</li>
+    <li>Повторное открытие ячейки: у postpay-занятия показываются название пакета, группа и
+      <b>стоимость одного занятия</b> (<code>price_per_lesson</code> из шаблона);
+      время слота в UI журнала не показывается (для postpay API отдаёт
+      <code>time_start</code>/<code>time_end</code> = null, <code>is_postpay=true</code>;
+      для остальных типов слот остаётся техническим и тоже скрыт в модалках журнала).</li>
+    <li>Создание отметки (<code>create_postpay</code>): в meta модалки — группа · пакет ·
+      <code>N ₽ / занятие</code> (из <code>postpay_teams[].price_per_lesson</code>).</li>
     <li>В модалке «Статус занятия» у статусов с <code>consumes_lesson</code> (в postpay-контексте) —
       иконка <code>i</code> с подсказкой «Идёт в расчёт постоплаты. Влияет на сумму за месяц.»</li>
+    <li>Удаление: <code>DELETE /schedule/occurrence/{utss}</code> → пересчёт суммы;
+      ховер «…Стоимость абонемента будет перерасчитана.»; после оплаты кнопка disabled
+      (см. <a href="#lock">§3.1</a> и
+      <a href="/docs/documentation/schedule-journal#occurrence-destroy">schedule-journal §6.3.1</a>).</li>
   </ul>
 
   <h3 id="lock">3.1) Лок после оплаты</h3>
@@ -139,7 +150,10 @@
     <li>Условие: <code>users_prices.effective_is_paid</code> (онлайн <code>is_paid</code> или ручная <code>is_manual_paid</code>).</li>
     <li>Ячейки: <code>data-postpay-locked="1"</code>, hover KidsCrmTooltip:
       «Изменить данные нельзя, поскольку уже была произведена оплата».</li>
-    <li>Backend: <code>PostpayJournalService::assertOccurrenceEditable</code> → create/смена статуса → <b>422</b>.</li>
+    <li>Кнопка «Удалить» в модалке статуса: disabled +
+      «Нельзя удалить: абонемент за этот месяц уже оплачен.»</li>
+    <li>Backend: <code>PostpayJournalService::assertOccurrenceEditable</code> →
+      create / смена статуса / удаление → <b>422</b>.</li>
   </ul>
 
   <h2 id="cabinet">4) Кабинет / консоль (<code>/cabinet</code>)</h2>
@@ -192,10 +206,12 @@
         <td>Каталог <code>lessonPackages</code> фильтруется по type.postpay (неназначенные postpay скрыты)</td>
       </tr>
       <tr>
-        <td>GET / POST</td>
-        <td><code>schedule.cell-context</code>, <code>schedule.update</code> (<code>create_postpay</code>)</td>
+        <td>GET / POST / DELETE</td>
+        <td><code>schedule.cell-context</code>, <code>schedule.update</code> (<code>create_postpay</code>),
+          <code>schedule.occurrence.destroy</code></td>
         <td><code>schedule.view</code></td>
-        <td>AJAX update → 200/422; non-AJAX update → 302 на schedule.index</td>
+        <td>AJAX → 200/422 (+ <code>result</code>); non-AJAX → 302 на schedule.index;
+          после оплаты — 422 на create/update/destroy</td>
       </tr>
       <tr>
         <td>POST</td>
@@ -213,8 +229,9 @@
   <div class="note">
     <ul class="small">
       <li><code>tests/Feature/Crm/Postpay/PostpayBillingFeatureTest.php</code> — шаблон, assign/recalc, journal, lock, pay-available, resync цены</li>
-      <li><code>PostpayAccessFeatureTest</code> — guest / 403 / happy-path endpoint'ов</li>
-      <li><code>PostpayJournalMutationContractsFeatureTest</code> — AJAX/non-AJAX <code>create_postpay</code></li>
+      <li><code>PostpayAccessFeatureTest</code> — guest / 403 / happy-path endpoint'ов (в т.ч. destroy)</li>
+      <li><code>PostpayJournalMutationContractsFeatureTest</code> — AJAX/non-AJAX
+        <code>create_postpay</code> + destroy + lock 422</li>
       <li><code>PostpaySettingPricesContractsFeatureTest</code> — AJAX/non-AJAX цен + meta</li>
       <li><code>PostpayLessonPackageContractsFeatureTest</code> — store/update шаблона + reject ULP</li>
       <li><code>PostpayTypePermissionAccessFeatureTest</code> — право <code>lessonPackages.type.postpay</code>: UI option, 422/200 store/update, каталог цен, filter data</li>

@@ -176,6 +176,63 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         ]);
     }
 
+    public function test_occurrence_destroy_workflow_page_modal_submit_visible_without_reload(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $student->update(['name' => 'Workflow', 'lastname' => 'Удаление']);
+        $date = '2026-08-04';
+        $utss = $this->createTrialUtss($student, $team, $date);
+
+        $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $page->assertOk();
+        $this->assertNotSame('', trim((string) $page->getContent()));
+        $page->assertSee('cellEditModal', false)
+            ->assertSee('btn-cell-delete', false)
+            ->assertSee('cellDeleteConfirmModal', false)
+            ->assertSee('btn-cell-delete-confirm', false)
+            ->assertSee($student->full_name, false)
+            ->assertSee('data-occurrence-count="1"', false);
+
+        $openCell = $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.cell-context', [
+                'user_id' => $student->id,
+                'date' => $date,
+                'utss_id' => $utss->id,
+            ]));
+        $openCell->assertOk()
+            ->assertJsonPath('selected.utss_id', $utss->id);
+        $this->assertNotSame('', trim((string) $openCell->getContent()));
+
+        $destroy = $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utss), [
+                'occurrence_date' => $date,
+            ]);
+        $destroy->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Занятие удалено.')
+            ->assertJsonPath('result.deleted', true)
+            ->assertJsonPath('result.occurrence_count', 0);
+        $this->assertNotSame('', trim((string) $destroy->getContent()));
+
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utss->id]);
+
+        $cellAfter = $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.cell-context', [
+                'user_id' => $student->id,
+                'date' => $date,
+            ]));
+        $cellAfter->assertOk();
+        $this->assertSame([], $cellAfter->json('occurrences') ?? []);
+        $this->assertNull($cellAfter->json('selected'));
+
+        $pageAfter = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
+        $pageAfter->assertOk();
+        $this->assertNotSame('', trim((string) $pageAfter->getContent()));
+        $pageAfter->assertSee($student->full_name, false)
+            ->assertSee('cellDeleteConfirmModal', false)
+            ->assertSee('data-occurrence-count="0"', false);
+    }
+
     public function test_place_fixed_ajax_validation_keeps_page_usable_not_white_screen(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();

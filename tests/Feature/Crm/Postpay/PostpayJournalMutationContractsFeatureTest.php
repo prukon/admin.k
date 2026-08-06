@@ -163,6 +163,122 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
         ]))
             ->assertOk()
             ->assertJsonPath('postpay_team_id', $this->team->id)
-            ->assertJsonFragment(['id' => $this->team->id]);
+            ->assertJsonFragment([
+                'id' => $this->team->id,
+                'price_per_lesson' => 500.0,
+            ]);
+    }
+
+    public function test_destroy_postpay_ajax_returns_result_and_recalculates_price(): void
+    {
+        $create = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $this->student->id,
+                'create_postpay' => 1,
+                'team_id' => $this->team->id,
+                'occurrence_date' => '2026-08-18',
+                'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ]);
+        $create->assertOk();
+        $utssId = (int) $create->json('result.utss_id');
+        $this->assertGreaterThan(0, $utssId);
+
+        $rowBefore = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->whereDate('new_month', '2026-08-01')
+            ->first();
+        $this->assertNotNull($rowBefore);
+        $this->assertSame(500.0, (float) $rowBefore->price);
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
+                'occurrence_date' => '2026-08-18',
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Занятие удалено.')
+            ->assertJsonPath('result.deleted', true)
+            ->assertJsonPath('result.utss_id', $utssId)
+            ->assertJsonPath('result.occurrence_count', 0)
+            ->assertJsonPath('result.is_postpay', true)
+            ->assertJsonStructure([
+                'result' => [
+                    'utss_id',
+                    'occurrence_date',
+                    'deleted',
+                    'occurrence_count',
+                    'is_postpay',
+                    'is_flexible',
+                ],
+            ]);
+
+        $this->assertSame(0, $this->countPostpayUtssForStudent());
+        $rowBefore->refresh();
+        $this->assertSame(0.0, (float) $rowBefore->price);
+    }
+
+    public function test_destroy_postpay_ajax_locked_when_paid_returns_422(): void
+    {
+        $create = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $this->student->id,
+                'create_postpay' => 1,
+                'team_id' => $this->team->id,
+                'occurrence_date' => '2026-08-19',
+                'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ]);
+        $create->assertOk();
+        $utssId = (int) $create->json('result.utss_id');
+
+        $row = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->whereDate('new_month', '2026-08-01')
+            ->firstOrFail();
+        $row->is_paid = 1;
+        $row->save();
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
+                'occurrence_date' => '2026-08-19',
+            ])
+            ->assertStatus(422)
+            ->assertJsonStructure(['message', 'errors']);
+
+        $this->assertDatabaseHas('user_team_schedule_slots', ['id' => $utssId]);
+    }
+
+    public function test_destroy_postpay_non_ajax_redirects_and_recalculates_price(): void
+    {
+        $create = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $this->student->id,
+                'create_postpay' => 1,
+                'team_id' => $this->team->id,
+                'occurrence_date' => '2026-08-21',
+                'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ]);
+        $create->assertOk();
+        $utssId = (int) $create->json('result.utss_id');
+
+        $response = $this->flushHeaders()->delete(route('schedule.occurrence.destroy', $utssId), [
+            '_token' => csrf_token(),
+            'occurrence_date' => '2026-08-21',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('schedule.index'));
+        $response->assertSessionHas('status', 'Занятие удалено.');
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utssId]);
+
+        $row = UserPrice::query()
+            ->where('user_id', $this->student->id)
+            ->where('team_id', $this->team->id)
+            ->whereDate('new_month', '2026-08-01')
+            ->first();
+        $this->assertNotNull($row);
+        $this->assertSame(0.0, (float) $row->price);
     }
 }

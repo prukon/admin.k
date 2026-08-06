@@ -221,6 +221,80 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
         $this->assertSame(1, (int) $ulp->lessons_remaining);
     }
 
+    public function test_destroy_occurrence_ajax_returns_result_and_restores_lessons_remaining(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->attachWeekdays($team, [1]);
+        $ulp = $this->makeFixedAssignment($student, lessons: 2, durationDays: 14);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.abonement.place-fixed', $student), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'start_date' => '2026-08-03',
+                'weekdays' => [1],
+            ])->assertOk();
+
+        $utss = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->orderBy('starts_at')
+            ->firstOrFail();
+        $date = CarbonImmutable::parse($utss->starts_at)->toDateString();
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $student->id,
+                'utss_id' => $utss->id,
+                'occurrence_date' => $date,
+                'lesson_occurrence_status_id' => $this->visitedStatusId,
+            ])->assertOk();
+
+        $ulp->refresh();
+        $remainingAfterVisit = (int) $ulp->lessons_remaining;
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->deleteJson(route('schedule.occurrence.destroy', $utss), [
+                'occurrence_date' => $date,
+            ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('message', 'Занятие удалено.')
+            ->assertJsonPath('result.deleted', true)
+            ->assertJsonPath('result.utss_id', $utss->id)
+            ->assertJsonPath('result.is_flexible', false)
+            ->assertJsonStructure([
+                'result' => [
+                    'utss_id',
+                    'occurrence_date',
+                    'deleted',
+                    'occurrence_count',
+                    'user_lesson_package_id',
+                    'slots_remaining',
+                ],
+            ]);
+
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utss->id]);
+        $ulp->refresh();
+        $this->assertSame($remainingAfterVisit + 1, (int) $ulp->lessons_remaining);
+    }
+
+    public function test_destroy_occurrence_non_ajax_redirects(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $utss = $this->createTrialUtss($student, $team, '2026-08-04');
+
+        $response = $this->delete(route('schedule.occurrence.destroy', $utss), [
+            '_token' => csrf_token(),
+            'occurrence_date' => '2026-08-04',
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('schedule.index'));
+        $response->assertSessionHas('status', 'Занятие удалено.');
+        $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utss->id]);
+    }
+
     public function test_update_ajax_validation_returns_422_with_errors(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
@@ -344,6 +418,14 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
             'occurrence_date' => '2026-08-03',
             'lesson_occurrence_status_id' => $this->visitedStatusId,
         ])->assertUnauthorized();
+
+        $this->delete(route('schedule.occurrence.destroy', $utss), [
+            'occurrence_date' => '2026-08-03',
+        ])->assertRedirect();
+
+        $this->deleteJson(route('schedule.occurrence.destroy', $utss), [
+            'occurrence_date' => '2026-08-03',
+        ])->assertUnauthorized();
     }
 
     public function test_without_permission_mutations_return_403(): void
@@ -370,6 +452,12 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
                 'utss_id' => $utss->id,
                 'occurrence_date' => '2026-08-03',
                 'lesson_occurrence_status_id' => $this->visitedStatusId,
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($actor)->withSession($session)
+            ->deleteJson(route('schedule.occurrence.destroy', $utss), [
+                'occurrence_date' => '2026-08-03',
             ])
             ->assertForbidden();
     }
