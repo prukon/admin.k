@@ -73,7 +73,7 @@ final class LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest extends Crm
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);
@@ -185,7 +185,7 @@ final class LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest extends Crm
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ctx['assignment']->id,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'ends_at' => '2026-05-01',
         ]);
     }

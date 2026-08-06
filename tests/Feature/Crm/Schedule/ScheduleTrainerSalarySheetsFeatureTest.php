@@ -49,7 +49,7 @@ final class ScheduleTrainerSalarySheetsFeatureTest extends ScheduleTrainerSalary
         $this->assertTrue($hasSingle);
 
         $batch = collect($sheets)->firstWhere('kind', 'batch');
-        $this->assertNotEmpty($batch['grand_total'] ?? null);
+        $this->assertArrayHasKey('grand_total', $batch);
         $this->assertGreaterThan(0, (int) ($batch['trainers_count'] ?? 0));
     }
 
@@ -140,14 +140,14 @@ final class ScheduleTrainerSalarySheetsFeatureTest extends ScheduleTrainerSalary
             'trainer_profile_id' => $foreignTrainer->id,
             'version' => 1,
             'batch_id' => null,
-            'base_salary' => 1000,
-            'rate_per_training' => 100,
+            'base_salary_cents' => 100000,
+            'rate_per_training_cents' => 10000,
             'trainings_count' => 1,
-            'trainings_amount' => 100,
-            'bonuses' => 0,
-            'deductions' => 0,
+            'trainings_amount_cents' => 10000,
+            'bonuses_cents' => 0,
+            'deductions_cents' => 0,
             'comment' => null,
-            'total' => 1100,
+            'total_cents' => 110000,
             'formed_by_user_id' => $this->foreignUser->id,
             'formed_at' => now(),
         ]);

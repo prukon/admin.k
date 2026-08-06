@@ -16,6 +16,7 @@ class TeamPrice extends Model
     protected $casts = [
         'team_id' => 'integer',
         'lesson_package_id' => 'integer',
+        'price_cents' => 'integer',
     ];
 
     public function team()

@@ -69,7 +69,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
 
@@ -120,7 +120,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
         ]);
 
@@ -144,7 +144,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 0,
+            'price_cents' => 0,
         ]);
         $this->assertSame(
             1,
@@ -162,7 +162,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 2000,
+            'price_cents' => 200000,
             'is_paid' => 0,
         ]);
 
@@ -187,7 +187,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 1500,
+            'price_cents' => 150000,
             'is_paid' => 1,
         ]);
 
@@ -212,7 +212,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -223,7 +223,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 
@@ -238,7 +238,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -247,7 +247,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -258,7 +258,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
 
@@ -268,7 +268,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 
@@ -296,14 +296,14 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
 
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 4500,
+            'price_cents' => 450000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -323,7 +323,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
 
@@ -346,7 +346,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
@@ -377,7 +377,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -387,7 +387,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 
@@ -406,14 +406,14 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'lesson_package_id' => null,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -424,7 +424,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-03-01',
-            'price' => 1500,
+            'price_cents' => 150000,
             'is_paid' => 1,
         ]);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
@@ -490,7 +490,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 1500,
+            'price_cents' => 150000,
             'is_paid' => 0,
             'lesson_package_id' => $postpay->id,
         ]);
@@ -500,7 +500,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 
@@ -529,7 +529,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
@@ -538,7 +538,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 
@@ -584,7 +584,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
         $this->teamSync->syncTeamsForStudent($this->formerStudent, []);
@@ -593,7 +593,7 @@ final class SettingPricesMonthlyFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => 0,
         ]);
 

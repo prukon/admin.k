@@ -95,7 +95,7 @@ final class PaymentIntentsPageFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'status' => 'paid',
             'provider' => 'tbank',
-            'out_sum' => 1500,
+            'out_sum_cents' => 150000,
             'paid_at' => now()->subDay(),
         ]);
 

@@ -30,6 +30,7 @@ use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Support\LessonPackagePostpayPermission;
+use App\Support\Money;
 use App\Support\PartnerLegalEntityMode;
 use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
@@ -734,7 +735,7 @@ final class LessonPackageController extends AdminBaseController
                     ->orderBy('user_lesson_packages.id', 'desc');
                 break;
             case 'fee':
-                $orderedQuery->orderBy('user_lesson_packages.fee_amount', $orderDir)
+                $orderedQuery->orderBy('user_lesson_packages.fee_amount_cents', $orderDir)
                     ->orderBy('user_lesson_packages.id', 'desc');
                 break;
             case 'paid':
@@ -812,12 +813,12 @@ final class LessonPackageController extends AdminBaseController
 
         $manualNote = trim((string) ($a->manual_paid_note ?? ''));
         $id = (int) $a->id;
+        $feeAmountCents = (int) ($a->fee_amount_cents ?? 0);
         $payLinkAvailable = $ulpPublicPayTbankReady
             && ! $a->effective_is_paid
-            && (float) ($a->fee_amount ?? 0) >= 10.0;
+            && $feeAmountCents >= 1000;
 
-        $feeInt = (int) round((float) ($a->fee_amount ?? 0));
-        $feeDisplay = number_format($feeInt, 0, '.', ',').' руб';
+        $feeDisplay = Money::formatRub($feeAmountCents).' руб';
 
         $teamTitle = trim((string) ($a->team?->title ?? ''));
 
@@ -905,11 +906,11 @@ final class LessonPackageController extends AdminBaseController
         $beforePaid = (bool) $assignment->effective_is_paid;
 
         $validated = $request->validated();
-        $fee = round((float) $validated['fee_amount'], 2);
-        $feeWas = round((float) $assignment->fee_amount, 2);
-        $feeChanging = abs($feeWas - $fee) > 0.00001;
+        $feeCents = Money::toCentsOrFail($validated['fee_amount']);
+        $feeWasCents = (int) ($assignment->fee_amount_cents ?? 0);
+        $feeChanging = $feeWasCents !== $feeCents;
 
-        DB::transaction(function () use ($request, $assignment, $fee, $validated, $calendarPeriodService) {
+        DB::transaction(function () use ($request, $assignment, $feeCents, $validated, $calendarPeriodService) {
             $assignment->refresh();
 
             $canManual = $request->user()->can('lessonPackages.manualPaid.manage');
@@ -920,7 +921,7 @@ final class LessonPackageController extends AdminBaseController
             }
 
             $oldEffectivePaid = $assignment->effective_is_paid;
-            $feeChangingInside = abs(round((float) $assignment->fee_amount, 2) - $fee) > 0.00001;
+            $feeChangingInside = (int) ($assignment->fee_amount_cents ?? 0) !== $feeCents;
 
             $willChangePayment = $desiredPaid !== null && $desiredPaid !== $oldEffectivePaid;
 
@@ -937,7 +938,7 @@ final class LessonPackageController extends AdminBaseController
                     $assignment->save();
                     $assignment->refresh();
 
-                    $assignment->fee_amount = $fee;
+                    $assignment->fee_amount_cents = $feeCents;
                     $assignment->save();
 
                     $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
@@ -946,7 +947,7 @@ final class LessonPackageController extends AdminBaseController
                 }
 
                 if (! $oldEffectivePaid && $desiredPaid) {
-                    $assignment->fee_amount = $fee;
+                    $assignment->fee_amount_cents = $feeCents;
                     $assignment->save();
                     $assignment->refresh();
 
@@ -968,7 +969,7 @@ final class LessonPackageController extends AdminBaseController
                 abort(422, 'Нельзя менять сумму у оплаченного абонемента.');
             }
 
-            $assignment->fee_amount = $fee;
+            $assignment->fee_amount_cents = $feeCents;
             $assignment->save();
 
             $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
@@ -1184,7 +1185,7 @@ final class LessonPackageController extends AdminBaseController
             'lessons_remaining' => (int) $ulp->lessons_remaining,
             'lessons_total' => (int) $ulp->lessons_total,
             'schedule_type_label' => $schedLabel,
-            'fee_amount' => (string) $ulp->fee_amount,
+            'fee_amount' => (float) Money::fromCents((int) ($ulp->fee_amount_cents ?? 0)),
             'fee_editable' => ! $ulp->effective_is_paid,
             'is_paid' => (bool) $ulp->is_paid,
             'is_manual_paid' => $ulp->is_manual_paid,
@@ -1315,7 +1316,7 @@ final class LessonPackageController extends AdminBaseController
                     'ends_at' => null,
                     'lessons_total' => (int) $package->lessons_count,
                     'lessons_remaining' => (int) $package->lessons_count,
-                    'fee_amount' => round(((float) $data['fee_amount']), 2),
+                    'fee_amount_cents' => Money::toCentsOrFail($data['fee_amount']),
                     'is_paid' => false,
                     'created_by' => auth()->id(),
                 ]);
@@ -1739,7 +1740,7 @@ final class LessonPackageController extends AdminBaseController
     {
         $assignment->loadMissing(['lessonPackage:id,name', 'team:id,title']);
 
-        $feeInt = (int) round((float) ($assignment->fee_amount ?? 0));
+        $feeCents = (int) ($assignment->fee_amount_cents ?? 0);
         $endsAt = $assignment->ends_at
             ? $assignment->ends_at->format('d.m.Y')
             : 'не задана';
@@ -1747,7 +1748,7 @@ final class LessonPackageController extends AdminBaseController
 
         return [
             'package_name' => (string) ($assignment->lessonPackage->name ?? '—'),
-            'fee' => number_format($feeInt, 0, '.', ' ').' ₽',
+            'fee' => Money::formatRub($feeCents, ' ₽'),
             'ends_at' => $endsAt,
             'team' => $teamTitle !== '' ? $teamTitle : '—',
             'balance' => ((int) $assignment->lessons_remaining).' / '.((int) $assignment->lessons_total),

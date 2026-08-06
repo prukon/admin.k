@@ -527,7 +527,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'lesson_package_id' => $fixedPackage->id,
             'lessons_total' => 8,
             'lessons_remaining' => 3,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
             'created_at' => now(),
@@ -538,7 +538,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'lesson_package_id' => $flexPackage->id,
             'lessons_total' => 8,
             'lessons_remaining' => 0,
-            'fee_amount' => '200.00',
+            'fee_amount_cents' => 20000,
             'is_paid' => 1,
             'created_by' => $this->user->id,
             'created_at' => now(),
@@ -607,7 +607,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
         ]);
     }
@@ -923,7 +923,7 @@ final class LessonPackagesFeatureTest extends CrmTestCase
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

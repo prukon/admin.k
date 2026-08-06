@@ -78,7 +78,7 @@ final class LessonPackageAssignmentEndsAtWorkflowFeatureTest extends CrmTestCase
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);

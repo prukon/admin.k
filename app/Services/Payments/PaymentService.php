@@ -98,12 +98,6 @@ class PaymentService
             return null;
         }
 
-        $norm = str_replace(',', '.', trim($outSum));
-
-        if ($norm === '' || ! is_numeric($norm)) {
-            return null;
-        }
-
-        return (int) round(((float) $norm) * 100);
+        return \App\Support\Money::toCents($outSum);
     }
 }

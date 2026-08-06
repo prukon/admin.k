@@ -18,6 +18,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Support\Payments\PaymentOutSumNormalizer;
+use App\Support\Money;
 use App\Services\Payments\PaymentLedgerRecorder;
 use App\Services\Payments\PaymentLedgerTeamResolver;
 
@@ -77,7 +78,7 @@ class RobokassaController extends Controller
             $q = Payable::query()
                 ->where('partner_id', (int) $intent->partner_id)
                 ->where('user_id', (int) $intent->user_id)
-                ->where('amount', (string) $intent->out_sum)
+                ->where('amount_cents', (int) $intent->out_sum_cents)
                 ->where('status', 'pending')
                 ->where('type', $typeGuess);
 
@@ -158,12 +159,18 @@ class RobokassaController extends Controller
             return response("bad request\n", 400);
         }
 
-        $expectedSumNorm = PaymentOutSumNormalizer::normalize((string) $intent->out_sum);
-        if ($expectedSumNorm === null || $expectedSumNorm !== $outSumNorm) {
+        $outSumCents = Money::toCents($outSumNorm);
+        if ($outSumCents === null) {
+            Log::warning('Robokassa result: invalid OutSum', ['OutSum' => $outSumRaw, 'InvId' => $invId]);
+            return response("bad request\n", 400);
+        }
+
+        $expectedSumCents = (int) $intent->out_sum_cents;
+        if ($expectedSumCents !== $outSumCents) {
             Log::warning('Robokassa result: sum mismatch', [
                 'InvId'         => $invId,
-                'expected_sum'  => $expectedSumNorm,
-                'received_sum'  => $outSumNorm,
+                'expected_sum_cents'  => $expectedSumCents,
+                'received_sum_cents'  => $outSumCents,
                 'partner_id'    => $partnerId,
             ]);
             return response("bad sum\n", 400);
@@ -206,7 +213,7 @@ class RobokassaController extends Controller
 
         $intentIdForLock = (int) $intent->id;
 
-        DB::transaction(function () use ($invId, $intentIdForLock, $partnerId, $shpPaymentDate, $shpUserId, $outSumNorm, $payable) {
+        DB::transaction(function () use ($invId, $intentIdForLock, $partnerId, $shpPaymentDate, $shpUserId, $outSumCents, $payable) {
             $lockedIntent = PaymentIntent::whereKey($intentIdForLock)->lockForUpdate()->first();
             if (!$lockedIntent) {
                 throw new \RuntimeException("Intent disappeared: $invId");
@@ -284,7 +291,7 @@ class RobokassaController extends Controller
                     'team_title' => $teamSnapshot['team_title'],
                     'operation_date' => $currentDateTime,
                     'payment_month' => $shpPaymentDate,
-                    'summ' => $outSumNorm,
+                    'summ_cents' => $outSumCents,
                 ]
             );
 
@@ -292,7 +299,7 @@ class RobokassaController extends Controller
 
             $this->auditLogger->record(
                 AuditEvent::PaymentReceived,
-                AuditContext::make("Платеж на сумму: " . (int) ((float) $outSumNorm) . " руб от "
+                AuditContext::make("Платеж на сумму: " . intdiv($outSumCents, 100) . " руб от "
                     . ( ($user?->full_name ?? trim( ($user?->lastname ?? '') . ' ' . ($user?->name ?? '') )) ?: 'Неизвестно' )
                     . ". ID: $shpUserId. Группа: $teamName. Период: $shpPaymentDate. InvId: $invId.")
                     ->withAuthorId($shpUserId)

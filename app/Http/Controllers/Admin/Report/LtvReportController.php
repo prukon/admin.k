@@ -35,12 +35,12 @@ class LtvReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('payments.summ', '>', 0)
+            ->where('payments.summ_cents', '>', 0)
             ->where('users.partner_id', $partnerId);
         $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
 
-        $totalRaw = $totalQuery->sum('payments.summ');
-        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
+        $totalRawCents = (int) $totalQuery->sum('payments.summ_cents');
+        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
 
         $paymentsFilterUser = $this->resolveLtvFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveLtvFilterTeamLabel($partnerId, $filters);
@@ -82,16 +82,17 @@ class LtvReportController extends AdminBaseController
 
         $totalQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('payments.summ', '>', 0)
+            ->where('payments.summ_cents', '>', 0)
             ->where('users.partner_id', $partnerId);
 
         $this->applyLtvReportFilters($totalQuery, $request, $partnerId, false);
 
-        $raw = $totalQuery->sum('payments.summ');
+        $rawCents = (int) $totalQuery->sum('payments.summ_cents');
+        $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format((float) $raw, 0, '', ' '),
-            'total_raw'       => (float) $raw,
+            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_raw'       => $raw,
         ]);
     }
 
@@ -121,7 +122,7 @@ class LtvReportController extends AdminBaseController
         // Агрегация по таблице payments
         $baseQuery = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.user_id')
-            ->where('payments.summ', '>', 0)
+            ->where('payments.summ_cents', '>', 0)
             ->where('users.partner_id', $partnerId);
 
         $this->applyLtvReportFilters($baseQuery, $request, $partnerId, false);
@@ -130,7 +131,7 @@ class LtvReportController extends AdminBaseController
                 users.id as user_id,
                 TRIM(CONCAT(COALESCE(users.lastname,''), ' ', COALESCE(users.name,''))) as user_name,
                 {$teamTitlesSub} as team_title,
-                SUM(payments.summ) as total_price,
+                SUM(payments.summ_cents) as total_price_cents,
                 COUNT(payments.id) as payment_count,
                 MIN(payments.operation_date) as first_payment_date,
                 MAX(payments.operation_date) as last_payment_date,
@@ -152,12 +153,12 @@ class LtvReportController extends AdminBaseController
                 return $row->team_title ?: 'Без команды';
             })
             ->addColumn('total_price', function ($row) {
-                return (float) $row->total_price;
+                return round(((int) $row->total_price_cents) / 100, 2);
             })
             // на всякий случай явно укажем сортировки по числовым полям
             ->orderColumn('total_price', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
-                $query->orderBy('total_price', $dir);
+                $query->orderBy('total_price_cents', $dir);
             })
             ->orderColumn('payment_count', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
@@ -183,14 +184,14 @@ class LtvReportController extends AdminBaseController
         if ($request->has('draw')) {
             $stats = DB::query()
                 ->fromSub(clone $payments, 'ltv_user_payments')
-                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ), 0) as sum_total')
+                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ_cents), 0) as sum_total_cents')
                 ->first();
 
             return DataTables::of($payments)
                 ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
-                ->editColumn('summ', fn ($row) => (float) $row->summ)
+                ->editColumn('summ', fn ($row) => round(((int) $row->summ_cents) / 100, 2))
                 ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
-                ->with('meta_sum_total', (float) ($stats->sum_total ?? 0))
+                ->with('meta_sum_total', round(((int) ($stats->sum_total_cents ?? 0)) / 100, 2))
                 ->make(true);
         }
 
@@ -201,7 +202,7 @@ class LtvReportController extends AdminBaseController
                 'id'               => (int) $row->id,
                 'user_name'        => $row->user_name ?: 'Без имени',
                 'team_title'       => $row->team_title ?: 'Без команды',
-                'summ'             => (float) $row->summ,
+                'summ'             => round(((int) $row->summ_cents) / 100, 2),
                 'payment_month'    => $row->payment_month,
                 'operation_date'   => $row->operation_date,
                 'payment_provider' => $this->resolvePaymentProvider($row),
@@ -272,14 +273,14 @@ class LtvReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'payments.user_id')
             ->where('users.partner_id', $partnerId)
             ->where('users.id', $userId)
-            ->where('payments.summ', '>', 0);
+            ->where('payments.summ_cents', '>', 0);
 
         $this->applyLtvReportFilters($payments, $request, $partnerId, true);
 
         return $payments
             ->selectRaw("
                 payments.id,
-                payments.summ,
+                payments.summ_cents,
                 payments.payment_month,
                 payments.operation_date,
                 payments.payment_number,

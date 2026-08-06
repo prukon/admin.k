@@ -28,6 +28,7 @@ use App\Models\UserTableSetting;
 use Illuminate\Support\Facades\Auth;
 use App\Services\PartnerContext;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
+use App\Support\Money;
 use App\Support\PartnerAdminUserOptions;
 
 class TeamController extends AdminBaseController
@@ -289,7 +290,7 @@ class TeamController extends AdminBaseController
                     break;
 
                 case 'month_price':
-                    $baseQuery->orderBy('teams.month_price', $orderDir)
+                    $baseQuery->orderBy('teams.month_price_cents', $orderDir)
                         ->orderBy('teams.title', 'asc');
                     break;
 
@@ -399,7 +400,9 @@ class TeamController extends AdminBaseController
                 'address'        => $address,
                 'weekdays_label'  => $weekdaysLabel,
                 'weekdays_items'  => $weekdaysItems,
-                'month_price'     => $team->month_price,
+                'month_price'     => $team->month_price_cents !== null
+                    ? round(((int) $team->month_price_cents) / 100, 2)
+                    : null,
                 'status_label'   => $team->is_enabled ? 'Активна' : 'Неактивна',
                 'is_enabled'     => (int) $team->is_enabled,
             ];
@@ -417,6 +420,13 @@ class TeamController extends AdminBaseController
     {
         $authorId = auth()->id();
         $data     = $request->validated();
+
+        if (array_key_exists('month_price', $data)) {
+            $data['month_price_cents'] = $data['month_price'] !== null
+                ? Money::toCentsOrFail($data['month_price'])
+                : null;
+            unset($data['month_price']);
+        }
 
         if (! $request->user()->can('trainers.view')) {
             unset($data['trainer_profile_id']);
@@ -477,7 +487,9 @@ class TeamController extends AdminBaseController
             'id'            => $team->id,
             'title'         => $team->title,
             'default_duration_minutes' => $team->default_duration_minutes,
-            'month_price'     => $team->month_price,
+            'month_price'     => $team->month_price_cents !== null
+                ? round(((int) $team->month_price_cents) / 100, 2)
+                : null,
             'order_by'      => $team->order_by,
             'is_enabled'    => $team->is_enabled,
             'trainer_profile_id' => $trainerProfile?->id,
@@ -513,6 +525,13 @@ class TeamController extends AdminBaseController
         $authorId = auth()->id();
         $data     = $request->validated();
         $canEditSchedule = $request->user()->can('schedule.view');
+
+        if (array_key_exists('month_price', $data)) {
+            $data['month_price_cents'] = $data['month_price'] !== null
+                ? Money::toCentsOrFail($data['month_price'])
+                : null;
+            unset($data['month_price']);
+        }
 
         if (! $canEditSchedule) {
             unset($data['weekdays']);
@@ -584,10 +603,12 @@ class TeamController extends AdminBaseController
             }
 
             // Стоимость в месяц
-            if (array_key_exists('month_price', $data)) {
-                $oldPrice = $oldData->month_price ?? 'не указана';
-                $newPrice = $data['month_price'] ?? 'не указана';
-                if ((string) $oldPrice !== (string) $newPrice) {
+            if (array_key_exists('month_price_cents', $data)) {
+                $oldPriceCents = $oldData->month_price_cents;
+                $newPriceCents = $data['month_price_cents'];
+                if ((string) $oldPriceCents !== (string) $newPriceCents) {
+                    $oldPrice = $oldPriceCents !== null ? round(((int) $oldPriceCents) / 100, 2) : 'не указана';
+                    $newPrice = $newPriceCents !== null ? round(((int) $newPriceCents) / 100, 2) : 'не указана';
                     $changes[] = "Стоимость в месяц: {$oldPrice} → {$newPrice}";
                 }
             }

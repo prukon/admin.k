@@ -39,8 +39,8 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->where('users.partner_id', $partnerId);
         $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
-        $totalRaw = $totalQuery->sum('payments.summ');
-        $totalPaidPrice = number_format((float) $totalRaw, 0, '', ' ');
+        $totalRawCents = (int) $totalQuery->sum('payments.summ_cents');
+        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
 
         $partner = \App\Models\Partner::query()->find($partnerId);
         $tbankEnabled = $partner !== null
@@ -91,11 +91,12 @@ class PaymentMonthlyReportController extends AdminBaseController
 
         $this->applyMonthlyReportFilters($totalQuery, $request, $partnerId);
 
-        $raw = $totalQuery->sum('payments.summ');
+        $rawCents = (int) $totalQuery->sum('payments.summ_cents');
+        $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format((float) $raw, 0, '', ' '),
-            'total_raw'       => (float) $raw,
+            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_raw'       => $raw,
         ]);
     }
 
@@ -135,7 +136,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 ->selectRaw("CONCAT(LEFT(payments.payment_month, 7), '-01') as month_start")
                 ->selectRaw("LEFT(payments.payment_month, 7)                as month_key") // YYYY-MM
                 ->selectRaw('COUNT(*)                                       as payments_count')
-                ->selectRaw('SUM(payments.summ)                             as total_sum')
+                ->selectRaw('SUM(payments.summ_cents)                       as total_sum_cents')
                 ->groupBy('month_start', 'month_key');
         } else {
             // Группировка по дате платежа (operation_date)
@@ -144,7 +145,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m-01") as month_start')
                 ->selectRaw('DATE_FORMAT(payments.operation_date, "%Y-%m")    as month_key')
                 ->selectRaw('COUNT(*)                                         as payments_count')
-                ->selectRaw('SUM(payments.summ)                               as total_sum')
+                ->selectRaw('SUM(payments.summ_cents)                         as total_sum_cents')
                 ->groupBy('month_start', 'month_key');
         }
 
@@ -176,8 +177,8 @@ class PaymentMonthlyReportController extends AdminBaseController
 
                 return $monthName . ' ' . $date->year;
             })
-            ->editColumn('total_sum', function ($row) {
-                return (float) $row->total_sum;
+            ->addColumn('total_sum', function ($row) {
+                return round(((int) $row->total_sum_cents) / 100, 2);
             })
             ->orderColumn('month_title', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
@@ -189,8 +190,9 @@ class PaymentMonthlyReportController extends AdminBaseController
             })
             ->orderColumn('total_sum', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
-                $query->orderBy('total_sum', $dir);
+                $query->orderBy('total_sum_cents', $dir);
             })
+            ->removeColumn('total_sum_cents')
             ->make(true);
     }
 
@@ -223,7 +225,7 @@ class PaymentMonthlyReportController extends AdminBaseController
         if ($request->has('draw')) {
             $stats = DB::query()
                 ->fromSub(clone $paymentsQuery, 'monthly_payments')
-                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ), 0) as sum_total')
+                ->selectRaw('COUNT(*) as payments_count, COALESCE(SUM(summ_cents), 0) as sum_total_cents')
                 ->first();
 
             return DataTables::of($paymentsQuery)
@@ -237,9 +239,9 @@ class PaymentMonthlyReportController extends AdminBaseController
                 })
                 ->addColumn('team_title', fn ($row) => $row->team_title ?: 'Без команды')
                 ->addColumn('payment_provider', fn ($row) => $this->resolvePaymentProvider($row))
-                ->editColumn('summ', fn ($row) => (float) $row->summ)
+                ->editColumn('summ', fn ($row) => round(((int) $row->summ_cents) / 100, 2))
                 ->with('meta_payments_count', (int) ($stats->payments_count ?? 0))
-                ->with('meta_sum_total', (float) ($stats->sum_total ?? 0))
+                ->with('meta_sum_total', round(((int) ($stats->sum_total_cents ?? 0)) / 100, 2))
                 ->make(true);
         }
 
@@ -258,7 +260,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'id'               => (int) $row->id,
                 'user_name'        => $userName,
                 'team_title'       => $row->team_title ?: 'Без команды',
-                'summ'             => (float) $row->summ,
+                'summ'             => round(((int) $row->summ_cents) / 100, 2),
                 'payment_month'    => $row->payment_month,
                 'operation_date'   => $row->operation_date,
                 'payment_provider' => $this->resolvePaymentProvider($row),
@@ -334,7 +336,7 @@ class PaymentMonthlyReportController extends AdminBaseController
             ->where('users.partner_id', $partnerId)
             ->select(
                 'payments.id',
-                'payments.summ',
+                'payments.summ_cents',
                 'payments.payment_month',
                 'payments.operation_date',
                 'payments.deal_id',

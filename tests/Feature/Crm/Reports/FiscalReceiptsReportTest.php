@@ -41,17 +41,17 @@ class FiscalReceiptsReportTest extends CrmTestCase
 
         FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount' => 1000,
+            'amount_cents' => 100000,
             'type' => 'income',
         ]);
         FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount' => 2000,
+            'amount_cents' => 200000,
             'type' => 'income',
         ]);
         FiscalReceipt::query()->create([
             'partner_id' => $this->foreignPartner->id,
-            'amount' => 9999,
+            'amount_cents' => 999900,
             'type' => 'income',
         ]);
 
@@ -149,7 +149,7 @@ class FiscalReceiptsReportTest extends CrmTestCase
 
         $receipt = FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount' => 1500,
+            'amount_cents' => 150000,
             'type' => 'income',
             'status' => 'processed',
             'error_code' => '42',

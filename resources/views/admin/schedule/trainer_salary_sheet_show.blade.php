@@ -1,10 +1,6 @@
 @extends('layouts.admin2')
 
-@php
-    $formatMoney = static function ($value): string {
-        return number_format((float) $value, 2, '.', ' ');
-    };
-@endphp
+{{-- Значения приходят уже отформатированными сервисом (App\Support\Money::formatRub). --}}
 
 @section('content')
     <div class="main-content schedule-section mt-3">
@@ -34,7 +30,7 @@
                             <li>Сформирован: {{ $sheet['formed_at_display'] ?? '—' }}</li>
                             <li>Кем: {{ $sheet['formed_by_name'] ?? '—' }}</li>
                             <li>Тренеров в листе: {{ (int) ($sheet['trainers_count'] ?? 0) }}</li>
-                            <li class="fw-semibold text-body">Сумма итого: {{ $formatMoney($sheet['grand_total'] ?? 0) }}</li>
+                            <li class="fw-semibold text-body">Сумма итого: {{ $sheet['grand_total'] ?? '0' }}</li>
                         </ul>
                     </div>
 

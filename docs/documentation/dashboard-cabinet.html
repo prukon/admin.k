@@ -75,7 +75,7 @@
       <tr>
         <td>Назначенные абонементы</td>
         <td><code>setPrices.packageAssignments.view</code></td>
-        <td><code>user_lesson_packages.fee_amount &gt; 0</code>, ученик партнёра</td>
+        <td><code>user_lesson_packages.fee_amount_cents &gt; 0</code>, ученик партнёра</td>
         <td><code>payment_kind=lesson_package</code> · <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4</a>, назначение — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments</a></td>
       </tr>
       <tr>
@@ -125,9 +125,9 @@
     <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
   </div>
   <ul>
-    <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount &gt; 0</code>, eager <code>lessonPackage</code>.</li>
+    <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount_cents &gt; 0</code>, eager <code>lessonPackage</code>; для view выставляется атрибут <code>fee_amount</code> в рублях (<code>Money::fromCents</code>).</li>
     <li>Кнопка «Оплатить» / «Оплачено» — по <code>effective_is_paid</code> (как в админке назначений).</li>
-    <li>Сумма на экране — из <code>fee_amount</code>; при переходе на <code>POST /payment</code> источник истины тот же (<code>UserLessonPackageFeePaymentResolver</code>), POST <code>outSum</code> не используется.</li>
+    <li>Сумма на экране — из атрибута <code>fee_amount</code> (рубли); источник истины в БД — <code>fee_amount_cents</code>. При переходе на <code>POST /payment</code> resolver читает копейки (<code>UserLessonPackageFeePaymentResolver</code>), POST <code>outSum</code> не используется.</li>
     <li>Блок <b>не</b> скрывается при отсутствии <code>setPrices.cabinetSeasons.view</code> и <b>не</b> фильтруется селектом «Выбор группы».</li>
     <li>При смене ученика админом через AJAX (<code>getUserDetails</code>) блок <b>не</b> перерисовывается — остаётся HTML первой загрузки (известное ограничение; сезоны и профиль обновляются через JS).</li>
   </ul>

@@ -141,7 +141,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
             'team_id'           => $foreignTeam->id,
             'lessons_total'     => (int) $package->lessons_count,
             'lessons_remaining' => (int) $package->lessons_count,
-            'fee_amount'        => '9999.00',
+            'fee_amount_cents'        => 999900,
             'is_paid'           => false,
         ]);
 
@@ -266,7 +266,7 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
             'ends_at'           => null,
             'lessons_total'     => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount'        => number_format($feeAmount, 2, '.', ''),
+            'fee_amount_cents'  => (int) round($feeAmount * 100),
             'is_paid'           => false,
         ], $overrides));
     }

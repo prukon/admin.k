@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Partner;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -69,7 +70,7 @@ class PartnerFactory extends Factory
                 ]
                 : null,
 
-            'wallet_balance' => $this->faker->randomFloat(2, 1000, 2000),
+            'wallet_balance_cents' => Money::toCentsOrFail($this->faker->randomFloat(2, 1000, 2000)),
 
             'website' => $this->faker->boolean(40)
                 ? $this->faker->url()

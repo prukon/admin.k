@@ -691,7 +691,7 @@ SQL;
             CASE
                 WHEN {$isTbank} AND NOT ({$blocking}) THEN (
                     SELECT GREATEST(
-                        ROUND(ROUND(payments.summ * 100) * COALESCE(r.acquiring_percent, 2.49) / 100),
+                        ROUND(payments.summ_cents * COALESCE(r.acquiring_percent, 2.49) / 100),
                         ROUND(COALESCE(r.acquiring_min_fixed, 3.49) * 100)
                     )
                     FROM tinkoff_commission_rules r
@@ -731,7 +731,7 @@ SQL;
             CASE
                 WHEN {$isTbank} AND NOT ({$blocking}) AND ({$hasPayout}) THEN (
                     SELECT GREATEST(
-                        ROUND(ROUND(payments.summ * 100) * COALESCE(r.payout_percent, 0.10) / 100),
+                        ROUND(payments.summ_cents * COALESCE(r.payout_percent, 0.10) / 100),
                         ROUND(COALESCE(r.payout_min_fixed, 0.00) * 100)
                     )
                     FROM tinkoff_commission_rules r
@@ -852,7 +852,7 @@ SQL;
                 return $name !== '' ? $name : 'Без объекта';
             })
             ->addColumn('summ', function (Payment $row) {
-                return (float) $row->summ;
+                return round(((int) $row->summ_cents) / 100, 2);
             })
             ->addColumn('operation_date', function (Payment $row) {
                 return $row->operation_date;
@@ -905,7 +905,7 @@ SQL;
             })
             ->orderColumn('summ', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
-                $query->orderBy('payments.summ', $dir);
+                $query->orderBy('payments.summ_cents', $dir);
             })
             ->orderColumn('operation_date', function ($query, $order) {
                 $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
@@ -991,7 +991,7 @@ SQL;
                     return null;
                 }
 
-                $grossCents = (int) round(((float) $row->summ) * 100);
+                $grossCents = (int) $row->summ_cents;
 
                 $method = null;
                 if (! empty($row->deal_id)) {
@@ -1031,7 +1031,7 @@ SQL;
                     return null;
                 }
 
-                $grossCents = (int) round(((float) $row->summ) * 100);
+                $grossCents = (int) $row->summ_cents;
 
                 $method = null;
                 if (! empty($row->deal_id)) {
@@ -1067,7 +1067,7 @@ SQL;
                     return null;
                 }
 
-                $grossCents = (int) round(((float) $row->summ) * 100);
+                $grossCents = (int) $row->summ_cents;
 
                 $method = null;
                 if (! empty($row->deal_id)) {
@@ -1109,7 +1109,7 @@ SQL;
                     return null;
                 }
 
-                $grossCents = (int) round(((float) $row->summ) * 100);
+                $grossCents = (int) $row->summ_cents;
 
                 $method = null;
                 if (! empty($row->deal_id)) {
@@ -1161,7 +1161,7 @@ SQL;
                     return null;
                 }
 
-                $grossCents = (int) round(((float) $row->summ) * 100);
+                $grossCents = (int) $row->summ_cents;
 
                 $method = null;
                 if (! empty($row->deal_id)) {
@@ -1428,7 +1428,8 @@ SQL;
         $q = $this->basePaymentsReportQuery($partnerId);
         $this->applyPaymentsReportFilters($q, $request, $partnerId);
 
-        $sumPayments = (float) (clone $q)->sum('payments.summ');
+        $sumPaymentsCents = (int) (clone $q)->sum('payments.summ_cents');
+        $sumPayments = $sumPaymentsCents / 100;
 
         $commissionRules = $this->tinkoffCommissionRulesForPaymentsReport();
 
@@ -1556,7 +1557,7 @@ SQL;
             return null;
         }
 
-        $grossCents = (int) round(((float) $row->summ) * 100);
+        $grossCents = (int) $row->summ_cents;
         $method = $this->paymentRowTbankMethod($row, $partnerId);
         $rule = $this->pickCommissionRuleForToolbar($commissionRules, (int) $partnerId, $method);
 
@@ -1594,7 +1595,7 @@ SQL;
             return null;
         }
 
-        $grossCents = (int) round(((float) $row->summ) * 100);
+        $grossCents = (int) $row->summ_cents;
         $method = $this->paymentRowTbankMethod($row, $partnerId);
         $rule = $this->pickCommissionRuleForToolbar($commissionRules, (int) $partnerId, $method);
 
@@ -1764,7 +1765,7 @@ SQL;
         return response()->json([
             'payment' => [
                 'id' => (int) $payment->id,
-                'summ' => (float) ($payment->summ ?? 0),
+                'summ' => round(((int) ($payment->summ_cents ?? 0)) / 100, 2),
                 'operation_date' => $payment->operation_date,
                 'deal_id' => $payment->deal_id,
                 'bank_payment_id' => $bankPaymentIdStr,

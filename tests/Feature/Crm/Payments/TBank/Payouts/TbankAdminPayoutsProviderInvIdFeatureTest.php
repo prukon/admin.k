@@ -68,7 +68,7 @@ class TbankAdminPayoutsProviderInvIdFeatureTest extends CrmTestCase
             'provider_inv_id' => $providerInvId,
             'tbank_order_id' => $orderId,
             'status' => 'paid',
-            'out_sum' => '100.00',
+            'out_sum_cents' => 10000,
         ]);
 
         $payout = TinkoffPayout::query()->create([
@@ -153,7 +153,7 @@ class TbankAdminPayoutsProviderInvIdFeatureTest extends CrmTestCase
             'provider_inv_id' => $foreignInvId,
             'tbank_order_id' => $orderId,
             'status' => 'paid',
-            'out_sum' => '30.00',
+            'out_sum_cents' => 3000,
         ]);
 
         $payout = TinkoffPayout::query()->create([

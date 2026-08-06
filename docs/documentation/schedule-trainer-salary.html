@@ -90,10 +90,13 @@
 
   <h2>3) Справочник: оклад и ставка по умолчанию</h2>
   <p>
-    В карточке тренера (<a href="/docs/documentation/admin-trainers">/admin/trainers</a>) поля
-    <code>default_base_salary</code>, <code>default_rate_per_training</code> (<code>trainer_profiles</code>, миграция <code>2026_05_22_100000_add_salary_defaults_to_trainer_profiles_table.php</code>).
+    В карточке тренера (<a href="/docs/documentation/admin-trainers">/admin/trainers</a>) в БД:
+    <code>default_base_salary_cents</code>, <code>default_rate_per_training_cents</code>
+    (<code>trainer_profiles</code>; канон — <a href="/docs/documentation/money">money</a>).
+    В HTTP/JSON формах — <code>default_base_salary</code> / <code>default_rate_per_training</code> в рублях
+    (<code>Money::toCents</code> / <code>fromCents</code> / <code>formatRub</code>).
   </p>
-  <p>При первом появлении тренера в черновике за месяц значения копируются в строку <code>trainer_salary_draft_lines</code>. Дальнейшее изменение в черновике <strong>не меняет</strong> справочник в карточке тренера.</p>
+  <p>При первом появлении тренера в черновике за месяц значения копируются в строку <code>trainer_salary_draft_lines</code> как <code>*_cents</code>. Дальнейшее изменение в черновике <strong>не меняет</strong> справочник в карточке тренера.</p>
 
   <h2>4) Таблицы и модели</h2>
   <table>
@@ -107,16 +110,17 @@
   <p class="small">Миграция: <code>2026_05_22_100100_create_trainer_salary_tables.php</code>. Модели: <code>TrainerSalaryPeriod</code>, <code>TrainerSalaryDraftLine</code>, <code>TrainerSalarySnapshot</code>.</p>
 
   <h3>4.1) Поля строки (черновик и слепок)</h3>
+  <p class="small">В БД — <code>*_cents</code> (BIGINT). В HTTP/JSON UI ключи без суффикса — рубли.</p>
   <table>
-    <thead><tr><th>Поле</th><th>Редактируется в UI</th><th>Источник / расчёт</th></tr></thead>
+    <thead><tr><th>БД</th><th>HTTP/JSON</th><th>Редактируется в UI</th><th>Источник / расчёт</th></tr></thead>
     <tbody>
-      <tr><td><code>base_salary</code></td><td>да (при manage)</td><td>Из черновика; при создании — из <code>default_base_salary</code></td></tr>
-      <tr><td><code>rate_per_training</code></td><td>да</td><td>Из черновика; при создании — из <code>default_rate_per_training</code></td></tr>
-      <tr><td><code>trainings_count</code></td><td>нет (readonly)</td><td>Пересчёт при каждой загрузке отчёта / перед слепком</td></tr>
-      <tr><td><code>trainings_amount</code></td><td>нет</td><td><code>кол-во × ставка</code> (<code>TrainerSalaryCalculator</code>, <code>bcmul</code>)</td></tr>
-      <tr><td><code>bonuses</code>, <code>deductions</code></td><td>да</td><td>Ввод пользователя, ≥ 0</td></tr>
-      <tr><td><code>comment</code></td><td>да</td><td>До 5000 символов</td></tr>
-      <tr><td><code>total</code></td><td>нет</td><td>См. формулу ниже</td></tr>
+      <tr><td><code>base_salary_cents</code></td><td><code>base_salary</code></td><td>да (при manage)</td><td>Из черновика; при создании — из <code>default_base_salary_cents</code></td></tr>
+      <tr><td><code>rate_per_training_cents</code></td><td><code>rate_per_training</code></td><td>да</td><td>Из черновика; при создании — из <code>default_rate_per_training_cents</code></td></tr>
+      <tr><td><code>trainings_count</code></td><td><code>trainings_count</code></td><td>нет (readonly)</td><td>Пересчёт при каждой загрузке отчёта / перед слепком</td></tr>
+      <tr><td><code>trainings_amount_cents</code></td><td><code>trainings_amount</code></td><td>нет</td><td><code>кол-во × ставка_cents</code> (<code>TrainerSalaryCalculator</code>, целочисленно)</td></tr>
+      <tr><td><code>bonuses_cents</code>, <code>deductions_cents</code></td><td><code>bonuses</code>, <code>deductions</code></td><td>да</td><td>Ввод пользователя (≥ 0), запись через <code>Money::toCentsOrFail</code></td></tr>
+      <tr><td><code>comment</code></td><td><code>comment</code></td><td>да</td><td>До 5000 символов</td></tr>
+      <tr><td><code>total_cents</code></td><td><code>total</code></td><td>нет</td><td>См. формулу ниже</td></tr>
     </tbody>
   </table>
 
@@ -137,9 +141,9 @@
   <p>Сервис: <code>TrainerWorkloadReportService::trainerRowTrainingsTotals($partnerId, $dateFrom, $dateTo)</code> — вызывается при <code>buildReport</code> и перед формированием слепка.</p>
 
   <h2>7) Формула итого</h2>
-  <pre><code>итого = оклад + (кол-во_тренировок × ставка) + бонусы − вычеты</code></pre>
-  <p>Расчёт только на сервере: <code>App\Services\Schedule\TrainerSalaryCalculator</code> (денежные поля — 2 знака, <code>bc*</code>).</p>
-  <p>Пример: оклад 10000, 3 тренировки × 300, бонусы 0, вычеты 0 → сумма за тренировки 900, итого 10900.</p>
+  <pre><code>total_cents = base_salary_cents + (trainings_count × rate_per_training_cents) + bonuses_cents − deductions_cents</code></pre>
+  <p>Расчёт только на сервере: <code>App\Services\Schedule\TrainerSalaryCalculator</code> — целочисленная арифметика в копейках (без <code>float</code>/<code>bc*</code>).</p>
+  <p>Пример: оклад 10000,00 ₽ (1 000 000 коп.), 3 тренировки × 300,00 ₽ → сумма за тренировки 900,00 ₽, итого 10900,00 ₽.</p>
 
   <h2>8) UI и фронтенд</h2>
   <ul>

@@ -27,7 +27,7 @@ final class FiscalReceiptsPageFullAccessFeatureTest extends CrmTestCase
 
         FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount'     => 1500,
+            'amount_cents'     => 150000,
             'type'       => 'income',
             'status'     => 'processed',
         ]);

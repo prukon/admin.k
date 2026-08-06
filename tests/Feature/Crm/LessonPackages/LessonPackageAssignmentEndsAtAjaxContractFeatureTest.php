@@ -88,7 +88,7 @@ final class LessonPackageAssignmentEndsAtAjaxContractFeatureTest extends CrmTest
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);
@@ -271,7 +271,7 @@ final class LessonPackageAssignmentEndsAtAjaxContractFeatureTest extends CrmTest
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);
@@ -308,7 +308,7 @@ final class LessonPackageAssignmentEndsAtAjaxContractFeatureTest extends CrmTest
             $this->ajaxHeaders()
         )
             ->assertOk()
-            ->assertJsonPath('assignment.fee_amount', '120.00')
+            ->assertJsonPath('assignment.fee_amount', 120)
             ->assertJsonPath('assignment.period_end', '2026-05-01');
 
         $this->assertDatabaseHas('user_team_schedule_slots', [

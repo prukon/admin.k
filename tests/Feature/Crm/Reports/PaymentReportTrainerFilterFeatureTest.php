@@ -86,8 +86,8 @@ final class PaymentReportTrainerFilterFeatureTest extends CrmTestCase
             'team_id' => $teamB->id,
         ]);
 
-        $paymentA = Payment::factory()->forUser($studentA)->create(['summ' => 1000]);
-        Payment::factory()->forUser($studentB)->create(['summ' => 2000]);
+        $paymentA = Payment::factory()->forUser($studentA)->create(['summ_cents' => 100000]);
+        Payment::factory()->forUser($studentB)->create(['summ_cents' => 200000]);
 
         $json = $this->ajaxGetPayments([
             'draw' => 1,
@@ -135,11 +135,11 @@ final class PaymentReportTrainerFilterFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($studentA)->create([
-            'summ' => 1500,
+            'summ_cents' => 150000,
             'payment_month' => '2025-03-01',
         ]);
         Payment::factory()->forUser($studentB)->create([
-            'summ' => 2500,
+            'summ_cents' => 250000,
             'payment_month' => '2025-03-01',
         ]);
 
@@ -199,8 +199,8 @@ final class PaymentReportTrainerFilterFeatureTest extends CrmTestCase
             'team_id' => $teamB->id,
         ]);
 
-        Payment::factory()->forUser($studentA)->create(['summ' => 3000]);
-        Payment::factory()->forUser($studentB)->create(['summ' => 5000]);
+        Payment::factory()->forUser($studentA)->create(['summ_cents' => 300000]);
+        Payment::factory()->forUser($studentB)->create(['summ_cents' => 500000]);
 
         $this->getJson(route('reports.ltv.total', [
             'filter_trainer_profile_id' => $trainer->id,

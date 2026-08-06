@@ -30,8 +30,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
         $withVisits = $this->makeTrainerProfile('С визитами');
         $zero = $this->makeTrainerProfile('Без визитов');
         $zero->update([
-            'default_base_salary' => 15000,
-            'default_rate_per_training' => 500,
+            'default_base_salary_cents' => 1500000,
+            'default_rate_per_training_cents' => 50000,
         ]);
 
         [$student, , $trainerWithVisits] = $this->makeStudentTeamAndTrainer('С визитами');
@@ -79,8 +79,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
     {
         $trainer = $this->makeTrainerProfile('Тренер черновик');
         $trainer->update([
-            'default_base_salary' => 10000,
-            'default_rate_per_training' => 200,
+            'default_base_salary_cents' => 1000000,
+            'default_rate_per_training_cents' => 20000,
         ]);
 
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
@@ -102,8 +102,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
             ->first();
 
         $this->assertNotNull($draft);
-        $this->assertSame('1500.00', (string) $draft->bonuses);
-        $this->assertSame('11300.00', (string) $draft->total);
+        $this->assertSame(150000, (int) $draft->bonuses_cents);
+        $this->assertSame(1130000, (int) $draft->total_cents);
     }
 
     public function test_form_one_creates_versioned_snapshots(): void
@@ -189,8 +189,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
     {
         [$student, , $trainer] = $this->makeStudentTeamAndTrainer('Тренер формула');
         $trainer->update([
-            'default_base_salary' => 10000,
-            'default_rate_per_training' => 300,
+            'default_base_salary_cents' => 1000000,
+            'default_rate_per_training_cents' => 30000,
         ]);
 
         foreach (['2026-05-03', '2026-05-10', '2026-05-17'] as $date) {
@@ -232,8 +232,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
             ->first();
 
         $this->assertNotNull($draft);
-        $this->assertSame('25000.00', (string) $draft->base_salary);
-        $this->assertSame('750.00', (string) $draft->rate_per_training);
+        $this->assertSame(2500000, (int) $draft->base_salary_cents);
+        $this->assertSame(75000, (int) $draft->rate_per_training_cents);
         $this->assertSame('Премия за соревнования', $draft->comment);
     }
 
@@ -255,8 +255,8 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
     {
         $trainer = $this->makeTrainerProfile('Тренер копия');
         $trainer->update([
-            'default_base_salary' => 12000,
-            'default_rate_per_training' => 400,
+            'default_base_salary_cents' => 1200000,
+            'default_rate_per_training_cents' => 40000,
         ]);
 
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
@@ -277,11 +277,11 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
             ->first();
 
         $this->assertNotNull($snapshot);
-        $this->assertSame('12000.00', (string) $snapshot->base_salary);
-        $this->assertSame('400.00', (string) $snapshot->rate_per_training);
-        $this->assertSame('2000.00', (string) $snapshot->bonuses);
-        $this->assertSame('500.00', (string) $snapshot->deductions);
-        $this->assertSame('13500.00', (string) $snapshot->total);
+        $this->assertSame(1200000, (int) $snapshot->base_salary_cents);
+        $this->assertSame(40000, (int) $snapshot->rate_per_training_cents);
+        $this->assertSame(200000, (int) $snapshot->bonuses_cents);
+        $this->assertSame(50000, (int) $snapshot->deductions_cents);
+        $this->assertSame(1350000, (int) $snapshot->total_cents);
     }
 
     public function test_data_returns_latest_snapshot_after_form_one(): void

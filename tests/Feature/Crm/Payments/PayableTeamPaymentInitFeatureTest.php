@@ -233,7 +233,7 @@ final class PayableTeamPaymentInitFeatureTest extends CrmTestCase
             'lesson_package_id' => $package->id,
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => '890.00',
+            'fee_amount_cents' => 89000,
             'is_paid' => false,
         ]);
 

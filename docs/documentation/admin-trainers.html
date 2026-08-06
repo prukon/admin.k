@@ -47,7 +47,7 @@
       </tr>
       <tr>
         <td><code>trainer_profiles</code></td>
-        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, <code>default_base_salary</code>, <code>default_rate_per_training</code>, soft delete.</td>
+        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, <code>default_base_salary_cents</code>, <code>default_rate_per_training_cents</code> (в HTTP/JSON — <code>default_base_salary</code> / <code>default_rate_per_training</code> в рублях; см. <a href="/docs/documentation/money">money</a>), soft delete.</td>
       </tr>
       <tr>
         <td><code>team_trainer</code></td>
@@ -141,7 +141,7 @@
   <h2>6) UI страницы <code>/admin/trainers</code></h2>
   <ul>
     <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку», статус, действия.</li>
-    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>); поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (число ≥ 0).</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>); поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>).</li>
     <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>

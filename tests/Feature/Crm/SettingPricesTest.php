@@ -330,7 +330,7 @@ class SettingPricesTest extends CrmTestCase
                 'user_id'   => $user->id,
                 'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-                'price'     => 0,
+                'price_cents'     => 0,
             ]);
         }
 
@@ -397,7 +397,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $unpaidUser->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -412,7 +412,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $paidUser->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 800,
+            'price_cents'     => 80000,
             'is_paid'   => 1,
         ]);
 
@@ -437,7 +437,7 @@ class SettingPricesTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id'           => $team->id,
             'new_month'         => '2024-09-01',
-            'price'             => 1500,
+            'price_cents'             => 150000,
             'lesson_package_id' => $package->id,
         ]);
 
@@ -446,7 +446,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'           => $unpaidUser->id,
             'team_id'           => $team->id,
             'new_month'         => '2024-09-01',
-            'price'             => 1500,
+            'price_cents'             => 150000,
             'is_paid'           => 0,
             'lesson_package_id' => $package->id,
         ]);
@@ -456,7 +456,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $paidUser->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 800,
+            'price_cents'     => 80000,
             'is_paid'   => 1,
         ]);
 
@@ -494,17 +494,17 @@ class SettingPricesTest extends CrmTestCase
         TeamPrice::forceCreate([
             'team_id'   => $teamX->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
         ]);
         TeamPrice::forceCreate([
             'team_id'   => $teamX->id,
             'new_month' => '2024-10-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
         ]);
         TeamPrice::forceCreate([
             'team_id'   => $teamY->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
 
         $package = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
@@ -521,19 +521,19 @@ class SettingPricesTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamX->id,
             'new_month' => '2024-09-01',
-            'price'     => 1500,
+            'price_cents'     => 150000,
         ]);
         // October для teamX не изменился
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamX->id,
             'new_month' => '2024-10-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
         ]);
         // TeamY за September не тронут
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamY->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
     }
 
@@ -596,14 +596,14 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $userA1->id,
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $userB1->id,
             'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 2500,
+            'price_cents'     => 250000,
             'is_paid'   => 1,
         ]);
 
@@ -629,12 +629,12 @@ class SettingPricesTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
         ]);
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
 
         // userA1: был не оплачен — обновился
@@ -642,7 +642,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $userA1->id,
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
 
@@ -651,7 +651,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $userA2->id,
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
 
@@ -660,7 +660,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $userB1->id,
             'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 2500,
+            'price_cents'     => 250000,
             'is_paid'   => 1,
         ]);
 
@@ -702,17 +702,17 @@ class SettingPricesTest extends CrmTestCase
         TeamPrice::forceCreate([
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
         ]);
         TeamPrice::forceCreate([
             'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
         ]);
         TeamPrice::forceCreate([
             'team_id'   => $teamC->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
 
         $pkgA = LessonPackage::factory()->forPartner((int) $this->partner->id)->create([
@@ -734,19 +734,19 @@ class SettingPricesTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 4000,
+            'price_cents'     => 400000,
         ]);
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 5000,
+            'price_cents'     => 500000,
         ]);
 
         // C — не тронута
         $this->assertDatabaseHas('team_prices', [
             'team_id'   => $teamC->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
     }
 
@@ -800,21 +800,21 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user1->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user2->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user3->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
             'is_paid'   => 1,
         ]);
 
@@ -848,7 +848,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user1->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1500,
+            'price_cents'     => 150000,
             'is_paid'   => 0,
         ]);
 
@@ -857,7 +857,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user2->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
 
@@ -866,7 +866,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user3->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
             'is_paid'   => 1,
         ]);
 
@@ -927,21 +927,21 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user1->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user2->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
         UserPrice::forceCreate([
             'user_id'   => $user3->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
             'is_paid'   => 0,
         ]);
 
@@ -969,13 +969,13 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user1->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1500,
+            'price_cents'     => 150000,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $user2->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 2500,
+            'price_cents'     => 250000,
         ]);
 
         // user3 — не изменён
@@ -983,7 +983,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user3->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 3000,
+            'price_cents'     => 300000,
         ]);
 
         // user4 — записи так и нет
@@ -1059,7 +1059,7 @@ class SettingPricesTest extends CrmTestCase
             ->where('user_id', $user->id)
             ->where('team_id', $team->id)
             ->where('new_month', '2024-09-01')
-            ->update(['price' => 1000, 'is_paid' => 0]);
+            ->update(['price_cents' => 100000, 'is_paid' => 0]);
 
         $this->postJson(route('setPriceAllUsers'), [
             'selectedDate' => 'Сентябрь 2024',
@@ -1154,7 +1154,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -1216,7 +1216,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -1249,7 +1249,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user->id,
             'team_id'   => $team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -1295,7 +1295,7 @@ class SettingPricesTest extends CrmTestCase
             'user_id'   => $user->id,
             'team_id'   => $team->id,
             'new_month' => '2024-03-01',
-            'price'     => 500,
+            'price_cents'     => 50000,
             'is_paid'   => 0,
         ]);
 

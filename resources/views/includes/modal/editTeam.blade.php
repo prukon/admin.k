@@ -91,7 +91,7 @@
                                 'placement' => 'top',
                             ])
                         </label>
-                        <input type="number" min="0" step="1" name="month_price" class="form-control" id="edit-month_price">
+                        <input type="number" min="0" step="0.01" name="month_price" class="form-control" id="edit-month_price">
                         <div class="invalid-feedback" id="edit-month_price-error"></div>
                     </div>
 

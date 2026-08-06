@@ -80,7 +80,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => $lessonsRemaining,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => $isPaid,
             'created_by' => $this->user->id,
         ]);
@@ -399,7 +399,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'lesson_package_id' => $fixedPackage->id,
             'lessons_total' => 8,
             'lessons_remaining' => 3,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
             'created_at' => now(),
@@ -410,7 +410,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'lesson_package_id' => $flexPackage->id,
             'lessons_total' => 8,
             'lessons_remaining' => 0,
-            'fee_amount' => '200.00',
+            'fee_amount_cents' => 20000,
             'is_paid' => 1,
             'created_by' => $this->user->id,
             'created_at' => now(),
@@ -506,7 +506,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         ])
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('assignment.fee_amount', '110.00');
+            ->assertJsonPath('assignment.fee_amount', 110);
 
         $this->postJson(route('admin.lesson-packages.assignments.manual-paid', ['assignment' => $assignment->id]), [
             'mode' => 'paid',
@@ -528,7 +528,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'lesson_package_id' => $package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '50.00',
+            'fee_amount_cents' => 5000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);
@@ -627,7 +627,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('user_lesson_packages', [
             'user_id' => $student->id,
             'lesson_package_id' => $ctx['package']->id,
-            'fee_amount' => '333.00',
+            'fee_amount_cents' => 33300,
         ]);
     }
 
@@ -685,14 +685,14 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         )
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('assignment.fee_amount', '175.25');
+            ->assertJsonPath('assignment.fee_amount', 175.25);
 
         $paid = UserLessonPackage::query()->create([
             'user_id' => $ctx['student']->id,
             'lesson_package_id' => $ctx['package']->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 1,
             'created_by' => $this->user->id,
         ]);
@@ -896,7 +896,7 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             'lesson_package_id' => $ctx['package']->id,
             'lessons_total' => 8,
             'lessons_remaining' => 5,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);

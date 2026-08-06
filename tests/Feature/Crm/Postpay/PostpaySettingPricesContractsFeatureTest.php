@@ -25,7 +25,7 @@ final class PostpaySettingPricesContractsFeatureTest extends PostpayTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => false,
             'lesson_package_id' => null,
         ]);
@@ -57,7 +57,7 @@ final class PostpaySettingPricesContractsFeatureTest extends PostpayTestCase
 
         $this->assertNotNull($row);
         $this->assertSame((int) $this->postpayPackage->id, (int) $row->lesson_package_id);
-        $this->assertSame(0.0, (float) $row->price);
+        $this->assertSame(0, (int) $row->price_cents);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }
 
@@ -83,7 +83,7 @@ final class PostpaySettingPricesContractsFeatureTest extends PostpayTestCase
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
             'lesson_package_id' => $this->postpayPackage->id,
-            'price' => 0,
+            'price_cents' => 0,
         ]);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }

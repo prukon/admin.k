@@ -244,14 +244,14 @@
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-default-base-salary">Оклад по умолчанию</label>
-                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-create-default-base-salary" value="0" min="0" step="1" />
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-create-default-base-salary" value="0" min="0" step="0.01" />
                                     <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
                                 </div>
                             </div>
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-default-rate">Ставка за тренировку</label>
-                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-create-default-rate" value="0" min="0" step="1" />
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-create-default-rate" value="0" min="0" step="0.01" />
                                     <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>
@@ -377,14 +377,14 @@
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-edit-default-base-salary">Оклад по умолчанию</label>
-                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-edit-default-base-salary" min="0" step="1" />
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-edit-default-base-salary" min="0" step="0.01" />
                                     <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
                                 </div>
                             </div>
                             <div class="col-12 col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-edit-default-rate">Ставка за тренировку</label>
-                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-edit-default-rate" min="0" step="1" />
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-edit-default-rate" min="0" step="0.01" />
                                     <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>

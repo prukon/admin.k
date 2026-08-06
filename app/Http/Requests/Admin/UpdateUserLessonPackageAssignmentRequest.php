@@ -6,6 +6,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -126,9 +127,9 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
                 $v->errors()->add('payment_status', 'Недостаточно прав для изменения статуса оплаты.');
             }
 
-            $feeIncoming = round((float) $this->input('fee_amount'), 2);
-            $feeCurrent = round((float) $assignment->fee_amount, 2);
-            $feeChanging = abs($feeIncoming - $feeCurrent) > 0.00001;
+            $feeIncomingCents = Money::toCents($this->input('fee_amount'));
+            $feeCurrentCents = (int) ($assignment->fee_amount_cents ?? 0);
+            $feeChanging = $feeIncomingCents !== $feeCurrentCents;
 
             if ($assignment->effective_is_paid && $feeChanging) {
                 $allowsViaUnpaidTransition = $this->user()?->can('lessonPackages.manualPaid.manage')

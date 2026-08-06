@@ -279,7 +279,7 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
             'is_paid' => 0,
-            'amount' => 300,
+            'amount_cents' => 30000,
             'date_start' => '2025-12-01',
             'date_end' => '2025-12-31',
             'created_at' => now(),

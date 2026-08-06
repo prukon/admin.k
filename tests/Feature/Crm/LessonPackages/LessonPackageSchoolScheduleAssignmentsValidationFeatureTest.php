@@ -258,7 +258,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -305,7 +305,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => '2026-06-03',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -340,7 +340,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -390,7 +390,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => '2026-06-03',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -423,7 +423,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -511,7 +511,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => null,
             'lessons_total' => 2,
             'lessons_remaining' => 2,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -593,7 +593,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -751,7 +751,7 @@ final class LessonPackageSchoolScheduleAssignmentsValidationFeatureTest extends 
             // поэтому делаем total=0, чтобы контроллер отклонил привязку.
             'lessons_total' => 0,
             'lessons_remaining' => 0,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

@@ -19,7 +19,7 @@ final class PaymentAssignmentTeamBackfillTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'team_id' => null,
-            'amount' => '150.00',
+            'amount_cents' => 15000,
             'is_paid' => false,
         ]);
 
@@ -35,7 +35,7 @@ final class PaymentAssignmentTeamBackfillTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'team_id' => null,
-            'amount' => '99.00',
+            'amount_cents' => 9900,
             'is_paid' => false,
         ]);
 
@@ -60,7 +60,7 @@ final class PaymentAssignmentTeamBackfillTest extends CrmTestCase
             'lesson_package_id' => $package->id,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '500.00',
+            'fee_amount_cents' => 50000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

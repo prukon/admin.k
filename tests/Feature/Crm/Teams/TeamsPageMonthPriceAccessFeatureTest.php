@@ -57,7 +57,7 @@ final class TeamsPageMonthPriceAccessFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Month price access team',
-            'month_price' => 5500,
+            'month_price_cents' => 550000,
             'order_by'    => 3,
         ]);
 
@@ -139,7 +139,7 @@ final class TeamsPageMonthPriceAccessFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Groups view month price',
-            'month_price' => 1500,
+            'month_price_cents' => 150000,
         ]);
 
         $this->get(route('admin.team.index'))->assertOk();
@@ -182,7 +182,7 @@ final class TeamsPageMonthPriceAccessFeatureTest extends CrmTestCase
 
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
-            'month_price' => 1000,
+            'month_price_cents' => 100000,
         ]);
 
         $this->get('/admin/teams')->assertStatus(403);
@@ -216,7 +216,7 @@ final class TeamsPageMonthPriceAccessFeatureTest extends CrmTestCase
 
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
-            'month_price' => 1000,
+            'month_price_cents' => 100000,
         ]);
 
         $calls = [

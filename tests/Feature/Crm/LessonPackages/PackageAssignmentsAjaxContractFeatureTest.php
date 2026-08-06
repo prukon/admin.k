@@ -71,7 +71,7 @@ final class PackageAssignmentsAjaxContractFeatureTest extends CrmTestCase
             'lesson_package_id' => $this->package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '150.00',
+            'fee_amount_cents' => 15000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -106,7 +106,7 @@ final class PackageAssignmentsAjaxContractFeatureTest extends CrmTestCase
             ],
         ]);
         $response->assertJsonPath('assignment.id', $this->assignment->id);
-        $response->assertJsonPath('assignment.fee_amount', '150.00');
+        $response->assertJsonPath('assignment.fee_amount', 150);
     }
 
     public function test_update_ajax_returns_success_assignment_and_persists_fee(): void
@@ -121,12 +121,12 @@ final class PackageAssignmentsAjaxContractFeatureTest extends CrmTestCase
         $response->assertOk();
         $this->assertNotSame('', trim((string) $response->getContent()));
         $response->assertJsonPath('success', true)
-            ->assertJsonPath('assignment.fee_amount', '199.99')
+            ->assertJsonPath('assignment.fee_amount', 199.99)
             ->assertJsonStructure(['assignment' => ['id', 'fee_amount']]);
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $this->assignment->id,
-            'fee_amount' => '199.99',
+            'fee_amount_cents' => 19999,
         ]);
     }
 
@@ -145,7 +145,7 @@ final class PackageAssignmentsAjaxContractFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $this->assignment->id,
-            'fee_amount' => '150.00',
+            'fee_amount_cents' => 15000,
         ]);
     }
 

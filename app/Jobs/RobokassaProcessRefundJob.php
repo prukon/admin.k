@@ -10,6 +10,7 @@ use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Services\Robokassa\RobokassaRefundService;
+use App\Support\Money;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -72,7 +73,13 @@ class RobokassaProcessRefundJob implements ShouldQueue
                 return;
             }
 
-            $amount = (float) $refund->amount;
+            $amountCents = (int) $refund->amount_cents;
+            if ($amountCents <= 0) {
+                $this->fail($refund, 'invalid_amount', ['amount_cents' => $amountCents]);
+                return;
+            }
+            // Robokassa Refund API (createFullRefund) ожидает сумму в рублях, не в копейках.
+            $amount = (float) Money::fromCents($amountCents);
             try {
                 $create = $svc->createFullRefund($ps, $opKey, $amount);
             } catch (\Throwable $e) {

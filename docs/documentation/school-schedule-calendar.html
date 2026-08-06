@@ -447,7 +447,7 @@
       <tr><td>Группа</td><td>команда слота (<code>slot.team.title</code>), иначе группа назначения</td></tr>
       <tr><td>Тип записи</td><td>«Пробное» / «Фиксированный» / «Гибкий» / «Разовое» (<code>schedule_type</code>)</td></tr>
       <tr><td>Абонемент, № назначения</td><td>название шаблона; id <code>user_lesson_packages</code> (для пробного — пусто / «Пробное занятие»)</td></tr>
-      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code>; «Оплачен» / «Не оплачен» по <code>effective_is_paid</code>; при ручной отметке — суффикс «(ручная отметка)». Для пробного оплата — «—»</td></tr>
+      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code> (рубли из <code>fee_amount_cents</code>); «Оплачен» / «Не оплачен» по <code>effective_is_paid</code>; при ручной отметке — суффикс «(ручная отметка)». Для пробного оплата — «—»</td></tr>
       <tr><td>Статус</td><td>текущий <code>lesson_occurrence_statuses.title</code> или пусто</td></tr>
       <tr><td>Списано</td><td>«да» / «нет» по <code>consumes_lesson</code> текущего статуса; без статуса — пусто</td></tr>
       <tr><td>Источник статуса</td><td>«вручную» (<code>created_by</code> задан) / «авто» (<code>created_by</code> null) / пусто</td></tr>
@@ -473,7 +473,7 @@
       <tr><td>Абонемент, тип</td><td>название шаблона; «Фиксированный» / «Гибкий» / «Разовое» по <code>schedule_type</code></td></tr>
       <tr><td>№ назначения</td><td><code>user_lesson_packages.id</code></td></tr>
       <tr><td>Период с / по</td><td><code>starts_at</code> / <code>ends_at</code>; если NULL — «не задан»</td></tr>
-      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code>; «Оплачен» / «Не оплачен» (+ «(ручная отметка)» при <code>is_manual_paid</code>)</td></tr>
+      <tr><td>Стоимость, оплата</td><td><code>fee_amount</code> (рубли из <code>fee_amount_cents</code>); «Оплачен» / «Не оплачен» (+ «(ручная отметка)» при <code>is_manual_paid</code>)</td></tr>
       <tr><td>Всего</td><td><code>lessons_total</code></td></tr>
       <tr><td>Остаток</td><td><b>текущий</b> <code>lessons_remaining</code> (не исторический)</td></tr>
       <tr><td>Списано</td><td><code>lessons_total − lessons_remaining</code></td></tr>
@@ -646,7 +646,7 @@
     <li><code>allowed</code>, <code>reason</code> — можно ли записать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
     <li><code>mode</code> — <code>bind_existing</code> (есть «свободное» назначение: число строк в <code>user_team_schedule_slots</code> по этому <code>user_lesson_package_id</code> &lt; <code>lessons_total</code>) или <code>create_new</code>;</li>
     <li><code>existing_assignments[]</code> — <code>{ id, label }</code> для select (если несколько) и для второй строки кнопки (если одно); <code>label</code> — <code>formatSingleLessonAssignmentLabel</code>, формат <strong>«"Название" (остаток {lessons_remaining})»</strong> (как у гибкого/фиксированного);</li>
-    <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с <code>{ id, label, fee_amount_default }</code> (<code>price_cents / 100</code>). При <code>bind_existing</code> массив пустой.</li>
+    <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с <code>{ id, label, fee_amount_default }</code> (<code>fee_amount_default</code> в рублях из <code>lesson_packages.price_cents</code> через <code>Money::fromCents</code>). При <code>bind_existing</code> массив пустой.</li>
   </ul>
   <p>Если свободных назначений нет и активных шаблонов разового занятия тоже нет — <code>allowed=false</code>, <code>reason</code> про отсутствие шаблонов.</p>
   <p>Два разовых занятия у одного ученика <strong>в один день в разных слотах</strong> разрешены (проверка только пересечения слот+дата, не «одно разовое в день»).</p>
@@ -666,7 +666,7 @@
   <p>Взаимоисключающие варианты (ровно один):</p>
   <ul>
     <li><strong>Привязка существующего:</strong> <code>user_lesson_package_id</code> — назначение из <code>singleLessonAssignmentsQuery</code> для этого ученика;</li>
-    <li><strong>Создание нового:</strong> <code>lesson_package_id</code> + <code>fee_amount</code> (число ≥ 0) — шаблон из <code>singleLessonTemplatesQuery</code>; создаётся <code>user_lesson_packages</code> (<code>is_paid=false</code>, <code>lessons_total</code>/<code>lessons_remaining</code> из шаблона) и строка календаря в одной транзакции.</li>
+    <li><strong>Создание нового:</strong> <code>lesson_package_id</code> + <code>fee_amount</code> (рубли, число ≥ 0) — шаблон из <code>singleLessonTemplatesQuery</code>; в БД пишется <code>fee_amount_cents</code> через <code>Money::toCentsOrFail</code>; создаётся <code>user_lesson_packages</code> (<code>is_paid=false</code>, <code>lessons_total</code>/<code>lessons_remaining</code> из шаблона) и строка календаря в одной транзакции.</li>
   </ul>
   <p>При привязке: период назначения задаётся через <code>UserLessonPackageCalendarPeriodService::applyFirstCalendarAnchor</code> (если даты ещё NULL); <code>lessons_remaining</code> не уменьшается. Успех — <code>200</code> с <code>{ "message": "…" }</code>; фронт перезагружает неделю календаря.</p>
   <p>В JSON недели у регистрации разового: <code>is_single_lesson=true</code>, <code>schedule_type=no_schedule</code>, <code>registration_kind=package</code>.</p>

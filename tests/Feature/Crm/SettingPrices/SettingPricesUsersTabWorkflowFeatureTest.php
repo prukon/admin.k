@@ -82,7 +82,7 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
             'user_id'   => $student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-03-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -135,7 +135,7 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
             'user_id'   => $student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-03-01',
-            'price'     => 2750,
+            'price_cents'     => 275000,
         ]);
 
         $otherTeamMarch = collect(
@@ -167,7 +167,7 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
             'user_id'   => $student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-08-01',
-            'price'     => 1500,
+            'price_cents'     => 150000,
             'is_paid'   => 0,
         ]);
 
@@ -226,7 +226,7 @@ final class SettingPricesUsersTabWorkflowFeatureTest extends StudentTeamPivotTes
             'user_id'   => $student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-04-01',
-            'price'     => 800,
+            'price_cents'     => 80000,
             'is_paid'   => 0,
         ]);
 

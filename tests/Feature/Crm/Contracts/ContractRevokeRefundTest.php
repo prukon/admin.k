@@ -11,7 +11,7 @@ class ContractRevokeRefundTest extends ContractsFeatureTestCase
     public function revoke_awaiting_client_fill_refunds_partner_balance(): void
     {
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 30;
+        $this->partner->wallet_balance_cents = 3000;
         $this->partner->save();
 
         $student = User::factory()->create([
@@ -40,6 +40,6 @@ class ContractRevokeRefundTest extends ContractsFeatureTestCase
         $this->assertSame(Contract::STATUS_REVOKED, $contract->status);
 
         $this->partner->refresh();
-        $this->assertSame(100.0, (float) $this->partner->wallet_balance);
+        $this->assertSame(100.0, (float) ($this->partner->wallet_balance_cents / 100));
     }
 }

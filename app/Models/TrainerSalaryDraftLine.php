@@ -16,13 +16,13 @@ class TrainerSalaryDraftLine extends Model
     protected $casts = [
         'trainer_salary_period_id' => 'int',
         'trainer_profile_id' => 'int',
-        'base_salary' => 'decimal:2',
-        'rate_per_training' => 'decimal:2',
+        'base_salary_cents' => 'integer',
+        'rate_per_training_cents' => 'integer',
         'trainings_count' => 'int',
-        'trainings_amount' => 'decimal:2',
-        'bonuses' => 'decimal:2',
-        'deductions' => 'decimal:2',
-        'total' => 'decimal:2',
+        'trainings_amount_cents' => 'integer',
+        'bonuses_cents' => 'integer',
+        'deductions_cents' => 'integer',
+        'total_cents' => 'integer',
     ];
 
     public function period(): BelongsTo

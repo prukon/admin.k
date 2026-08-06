@@ -22,7 +22,7 @@ class ContractShowFullAccessFeatureTest extends ContractsFeatureTestCase
         parent::setUp();
 
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 500;
+        $this->partner->wallet_balance_cents = 50000;
         $this->partner->save();
     }
 
@@ -165,7 +165,7 @@ class ContractShowFullAccessFeatureTest extends ContractsFeatureTestCase
         Storage::put($signedPath, '%PDF-signed');
 
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 500;
+        $this->partner->wallet_balance_cents = 50000;
         $this->partner->save();
 
         $awaitingRevoke = Contract::create([

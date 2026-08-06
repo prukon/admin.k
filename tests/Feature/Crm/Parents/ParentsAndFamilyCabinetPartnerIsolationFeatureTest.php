@@ -340,13 +340,13 @@ final class ParentsAndFamilyCabinetPartnerIsolationFeatureTest extends CrmTestCa
         Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id'    => $brother1->id,
-            'summ'       => 100,
+            'summ_cents'       => 10000,
         ]);
 
         Payment::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'user_id'    => $foreignSibling->id,
-            'summ'       => 999,
+            'summ_cents'       => 99900,
         ]);
 
         $this->actingAs($brother1);

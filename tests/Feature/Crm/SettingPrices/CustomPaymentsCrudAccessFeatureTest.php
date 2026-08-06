@@ -95,16 +95,24 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
 
     private function createPayment(array $overrides = []): UserCustomPayment
     {
+        $fields = array_merge([
+            'amount' => '500.00',
+        ], $overrides);
+
+        if (array_key_exists('amount', $fields)) {
+            $fields['amount_cents'] = (int) round((float) $fields['amount'] * 100);
+            unset($fields['amount']);
+        }
+
         return UserCustomPayment::query()->create(array_merge([
             'partner_id' => $this->partner->id,
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
-            'amount' => '500.00',
             'note' => 'Исходное описание',
             'is_paid' => false,
             'is_manual_paid' => null,
             'manual_paid_note' => null,
-        ], $overrides));
+        ], $fields));
     }
 
     /**
@@ -277,7 +285,7 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('custom_payment.id', (int) $payment->id);
 
         $payment->refresh();
-        $this->assertSame('750.00', (string) $payment->amount);
+        $this->assertSame(75000, (int) $payment->amount_cents);
         $this->assertSame('Стало', $payment->note);
         $this->assertFalse($payment->effective_is_paid);
         $this->assertNull($payment->is_manual_paid);
@@ -349,7 +357,7 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['amount']);
 
-        $this->assertSame('500.00', (string) $payment->fresh()->amount);
+        $this->assertSame(50000, (int) $payment->fresh()->amount_cents);
     }
 
     public function test_update_ajax_allows_note_when_paid_without_sending_amount(): void
@@ -375,7 +383,7 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
             ->assertJsonPath('success', true);
 
         $payment->refresh();
-        $this->assertSame('500.00', (string) $payment->amount);
+        $this->assertSame(50000, (int) $payment->amount_cents);
         $this->assertSame('Новое описание', $payment->note);
     }
 
@@ -399,7 +407,7 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_custom_payment', [
             'id' => $payment->id,
-            'amount' => '222.00',
+            'amount_cents' => 22200,
             'note' => 'Non-AJAX after',
         ]);
     }
@@ -467,7 +475,7 @@ final class CustomPaymentsCrudAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->foreignPartner->id,
             'user_id' => $this->foreignUser->id,
             'team_id' => null,
-            'amount' => '10.00',
+            'amount_cents' => 1000,
             'is_paid' => false,
         ]);
 

@@ -8,16 +8,12 @@ use App\Models\TrainerProfile;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
 use App\Models\User;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 final class TrainerSalarySheetService
 {
-    public function __construct(
-        private readonly TrainerSalaryCalculator $calculator,
-    ) {
-    }
-
     /**
      * @return array{
      *     year: int,
@@ -84,7 +80,7 @@ final class TrainerSalarySheetService
                 'trainer_name' => null,
                 'version_label' => 'Пакет',
                 'trainers_count' => $batchSnapshots->count(),
-                'grand_total' => $this->formatMoney($this->sumTotals($batchSnapshots)),
+                'grand_total' => $this->formatMoney($this->sumTotalsCents($batchSnapshots)),
                 'is_latest_for_trainer' => false,
                 'is_latest_full_batch' => $isLatestFullBatch,
                 'show_url' => route('schedule.trainer-salary-sheets.batch.show', ['batchId' => $batchId]),
@@ -111,7 +107,7 @@ final class TrainerSalarySheetService
                 'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
                 'version_label' => 'v' . (int) $snapshot->version,
                 'trainers_count' => 1,
-                'grand_total' => $this->formatMoney($snapshot->total),
+                'grand_total' => $this->formatMoney((int) $snapshot->total_cents),
                 'is_latest_for_trainer' => $isLatest,
                 'is_latest_full_batch' => false,
                 'show_url' => route('schedule.trainer-salary-sheets.snapshot.show', ['snapshot' => $snapshot->id]),
@@ -180,7 +176,7 @@ final class TrainerSalarySheetService
             'type_label' => 'Полный лист',
             'version_label' => 'Пакет',
             'trainers_count' => count($rows),
-            'grand_total' => $this->formatMoney($this->sumTotals($snapshots)),
+            'grand_total' => $this->formatMoney($this->sumTotalsCents($snapshots)),
             'rows' => $rows,
         ];
     }
@@ -215,7 +211,7 @@ final class TrainerSalarySheetService
             'version_label' => 'v' . (int) $snapshot->version,
             'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
             'trainers_count' => 1,
-            'grand_total' => $this->formatMoney($snapshot->total),
+            'grand_total' => $this->formatMoney((int) $snapshot->total_cents),
             'rows' => [$this->snapshotToRow($snapshot)],
         ];
     }
@@ -286,7 +282,7 @@ final class TrainerSalarySheetService
                 'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
                 'version' => (int) $version,
                 'formed_at_display' => $this->formatDateTime($snapshot->formed_at),
-                'grand_total' => $this->formatMoney($snapshot->total),
+                'grand_total' => $this->formatMoney((int) $snapshot->total_cents),
                 'show_url' => $snapshot->batch_id !== null
                     ? route('schedule.trainer-salary-sheets.batch.show', ['batchId' => $snapshot->batch_id])
                     : route('schedule.trainer-salary-sheets.snapshot.show', ['snapshot' => $snapshot->id]),
@@ -306,14 +302,14 @@ final class TrainerSalarySheetService
         return [
             'trainer_profile_id' => (int) $snapshot->trainer_profile_id,
             'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
-            'base_salary' => $this->formatMoney($snapshot->base_salary),
-            'rate_per_training' => $this->formatMoney($snapshot->rate_per_training),
+            'base_salary' => $this->formatMoney((int) $snapshot->base_salary_cents),
+            'rate_per_training' => $this->formatMoney((int) $snapshot->rate_per_training_cents),
             'trainings_count' => (int) $snapshot->trainings_count,
-            'trainings_amount' => $this->formatMoney($snapshot->trainings_amount),
-            'bonuses' => $this->formatMoney($snapshot->bonuses),
-            'deductions' => $this->formatMoney($snapshot->deductions),
+            'trainings_amount' => $this->formatMoney((int) $snapshot->trainings_amount_cents),
+            'bonuses' => $this->formatMoney((int) $snapshot->bonuses_cents),
+            'deductions' => $this->formatMoney((int) $snapshot->deductions_cents),
             'comment' => $snapshot->comment,
-            'total' => $this->formatMoney($snapshot->total),
+            'total' => $this->formatMoney((int) $snapshot->total_cents),
             'version' => (int) $snapshot->version,
         ];
     }
@@ -321,11 +317,11 @@ final class TrainerSalarySheetService
     /**
      * @param Collection<int, TrainerSalarySnapshot> $snapshots
      */
-    private function sumTotals(Collection $snapshots): string
+    private function sumTotalsCents(Collection $snapshots): int
     {
-        $sum = '0.00';
+        $sum = 0;
         foreach ($snapshots as $snapshot) {
-            $sum = bcadd($sum, $this->calculator->normalizeMoney($snapshot->total), 2);
+            $sum += (int) $snapshot->total_cents;
         }
 
         return $sum;
@@ -355,9 +351,13 @@ final class TrainerSalarySheetService
         return $name !== '' ? $name : '—';
     }
 
-    private function formatMoney(string|float|int|null $value): string
+    /**
+     * Копейки → строка для read-only отображения (канон Money::formatRub).
+     * Листы ЗП полностью read-only, поэтому здесь без компромиссов на JS-парсинг.
+     */
+    private function formatMoney(int $cents): string
     {
-        return $this->calculator->normalizeMoney($value);
+        return $cents < 0 ? '-' . Money::formatRub(-$cents) : Money::formatRub($cents);
     }
 
     private function formatDateTime(?Carbon $value): string

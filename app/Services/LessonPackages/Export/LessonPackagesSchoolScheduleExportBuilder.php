@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -88,7 +89,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
                 'user.parentProfile:id,lastname,firstname,middlename,phone',
                 'slot:id,team_id,time_start,time_end',
                 'slot.team:id,title',
-                'userLessonPackage:id,fee_amount,is_paid,is_manual_paid,lessons_remaining,lessons_total,lesson_package_id,team_id',
+                'userLessonPackage:id,fee_amount_cents,is_paid,is_manual_paid,lessons_remaining,lessons_total,lesson_package_id,team_id',
                 'userLessonPackage.lessonPackage:id,name,schedule_type',
                 'userLessonPackage.team:id,title',
             ])
@@ -140,7 +141,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
                 }
             } elseif ($ulp !== null) {
                 $assignmentNo = (string) (int) $ulp->id;
-                $fee = $ulp->fee_amount;
+                $fee = $ulp->fee_amount_cents !== null ? Money::fromCents((int) $ulp->fee_amount_cents) : null;
                 $paymentLabel = $this->paymentLabel($ulp);
                 $total = (int) $ulp->lessons_total;
                 if ($remaining === null) {
@@ -255,7 +256,7 @@ final class LessonPackagesSchoolScheduleExportBuilder
                 (string) (int) $ulp->id,
                 $starts !== '' ? $starts : 'не задан',
                 $ends !== '' ? $ends : 'не задан',
-                $this->formatMoney($ulp->fee_amount),
+                Money::fromCents((int) ($ulp->fee_amount_cents ?? 0)),
                 $this->paymentLabel($ulp),
                 (string) $total,
                 (string) $remaining,

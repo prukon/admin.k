@@ -184,7 +184,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => 100.00,
+            'amount_cents' => 10000,
             'receipt_url' => 'https://receipts.ru/payment-show-income',
         ]);
 
@@ -212,7 +212,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_QUEUED,
-            'amount' => 100.00,
+            'amount_cents' => 10000,
         ]);
 
         $this->get('/admin/tinkoff/payments/' . $this->payment->id)
@@ -239,7 +239,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => 100.00,
+            'amount_cents' => 10000,
             'receipt_url' => 'https://receipts.ru/timeline-show-income',
             'receipt_datetime' => Carbon::parse('2026-06-20 15:00:00'),
         ]);
@@ -251,12 +251,12 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
                 'partner_id' => $this->partner->id,
                 'user_id' => $this->user->id,
                 'type' => 'club_fee',
-                'amount' => '100.00',
+                'amount_cents' => 10000,
                 'currency' => 'RUB',
                 'status' => 'paid',
             ])->id,
             'payment_id' => $ledgerPayment->id,
-            'amount' => 100.00,
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'succeeded',
             'provider' => 'tbank',
@@ -268,7 +268,7 @@ final class TbankPaymentShowEnhancementsFeatureTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME_RETURN,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => 100.00,
+            'amount_cents' => 10000,
             'receipt_url' => 'https://receipts.ru/timeline-show-return',
             'receipt_datetime' => Carbon::parse('2026-06-21 09:05:00'),
         ]);

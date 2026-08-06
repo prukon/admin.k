@@ -13,6 +13,7 @@ class DocumentationController extends Controller
      * @var array<string, string>
      */
     private const PAGE_TITLES = [
+        'money'                       => 'Деньги: канон копеек (BIGINT *_cents), App\\Support\\Money, округление, скидки % вариант А',
         'payments'                    => 'Оплаты: payables/intents/payments/users_prices, снимок payments.team_id, multi-team витрина',
         'partner-scope-guide'         => 'Как работать с partner_id: обычный админ и страницы superadmin',
         'partner-context'             => 'Партнёр‑контекст и SetPartner (current_partner/anti‑leak/блокировки)',
@@ -40,10 +41,10 @@ class DocumentationController extends Controller
         'admin-districts'             => 'Районы (админка): /admin/districts — districts.view, CRUD, hard delete, вкладка в «Справочники»',
         'admin-locations'             => 'Объекты (админка): /admin/locations — view/manage, district_id, team_ids, вкладка в «Справочники»',
         'admin-sport-types'           => 'Виды спорта (админка): /admin/sport-types — sport_types.view/manage, вкладка в «Справочники», teams.sport_type_id, лендинг',
-        'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, вкладка в «Справочники», month_price, объекты, тренер, расписание',
+        'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, вкладка в «Справочники», month_price_cents, объекты, тренер, расписание',
         'schedule-journal'            => 'Журнал /schedule: раскладка fixed (месячный ULP + служебные слоты), статусы, тренер при «Посетил»',
         'schedule-trainer-workload'   => 'Нагрузка тренеров: вкладка /schedule/trainer-workload, матрица, быстрый выбор месяца, AJAX data',
-        'schedule-trainer-salary'     => 'ЗП тренеров: черновик, формула, autosave, слепки vN/batch, schedule.trainerSalary.*',
+        'schedule-trainer-salary'     => 'ЗП тренеров: *_cents, формула в копейках, autosave, слепки vN/batch, schedule.trainerSalary.*',
         'schedule-trainer-salary-sheets' => 'Листы ЗП: архив слепков (readonly), batch/snapshot, latest_only',
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, вкладка в разделе «Пользователи», trainer_profiles, team_trainer, send_welcome_email при create, фильтр в отчётах',
         'admin-users-section'         => 'Раздел «Пользователи» (вкладки): ученики, тренеры, администраторы, /admin/roles/{name}, UsersSectionTabsResolver',

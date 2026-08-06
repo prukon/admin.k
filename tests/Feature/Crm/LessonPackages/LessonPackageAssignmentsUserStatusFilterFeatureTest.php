@@ -351,7 +351,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
             'lesson_package_id' => $package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 5,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);
@@ -360,7 +360,7 @@ final class LessonPackageAssignmentsUserStatusFilterFeatureTest extends CrmTestC
             'lesson_package_id' => $package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 2,
-            'fee_amount' => '150.00',
+            'fee_amount_cents' => 15000,
             'is_paid' => 0,
             'created_by' => $this->user->id,
         ]);

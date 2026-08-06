@@ -68,15 +68,15 @@ class ReportController extends Controller
 //        dd($this->curUser->id); // Отладка текущего пользователя
 
 
-        $totalPaidPrice = DB::table('payments')
+        $totalPaidPriceCents = (int) DB::table('payments')
             ->where('user_id', $this->curUser->id) // Сначала фильтрация по user_id
-            ->sum('payments.summ');      // Затем вычисление суммы
+            ->sum('payments.summ_cents');      // Затем вычисление суммы в копейках
 
 
 
             
-//        dd($totalPaidPrice);
-        $totalPaidPrice = number_format($totalPaidPrice, 0, '', ' ');
+//        dd($totalPaidPriceCents);
+        $totalPaidPrice = number_format($totalPaidPriceCents / 100, 0, '', ' ');
 
 
         return view('user.report.payment', ['activeTab' => 'payments'],
@@ -155,7 +155,7 @@ class ReportController extends Controller
                     return PaymentTeamTitleDisplay::forRow($row, $teamUserSync);
                 })
                 ->addColumn('summ', function ($row) {
-                    return number_format($row->summ, 0) . ' руб'; // Формат суммы
+                    return number_format(((int) $row->summ_cents) / 100, 0) . ' руб'; // Формат суммы
                 })
                 ->addColumn('operation_date', function ($row) {
                     return $row->operation_date; // Дата операции

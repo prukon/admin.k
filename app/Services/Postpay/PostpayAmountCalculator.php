@@ -9,17 +9,17 @@ use App\Models\UserPrice;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Расчёт суммы постоплаты: актуальные статусы с consumes_lesson за месяц × цена шаблона.
+ * Расчёт суммы постоплаты: визиты × price_cents шаблона (результат в копейках).
  */
 final class PostpayAmountCalculator
 {
     /**
-     * @return array{visits: int, amount: float, price_per_lesson: float}
+     * @return array{visits: int, amount_cents: int, price_per_lesson_cents: int}
      */
     public function forUserPrice(UserPrice $row, ?LessonPackage $package = null): array
     {
         $package = $package ?? $row->lessonPackage;
-        $pricePerLesson = $package ? $package->priceRub() : 0.0;
+        $pricePerLessonCents = $package ? (int) $package->price_cents : 0;
         $partnerId = (int) ($package?->partner_id ?? 0);
 
         if ($partnerId <= 0 && $row->relationLoaded('user') && $row->user) {
@@ -42,8 +42,8 @@ final class PostpayAmountCalculator
 
         return [
             'visits' => $visits,
-            'amount' => round($visits * $pricePerLesson, 2),
-            'price_per_lesson' => $pricePerLesson,
+            'amount_cents' => $visits * $pricePerLessonCents,
+            'price_per_lesson_cents' => $pricePerLessonCents,
         ];
     }
 
@@ -56,7 +56,6 @@ final class PostpayAmountCalculator
         $from = $start->format('Y-m-d');
         $to = $end->format('Y-m-d');
 
-        // Актуальный статус = MAX(id) по ключу занятия (как в отчётах журнала).
         $latestIds = DB::table('user_lesson_occurrence_status_events as e')
             ->join('team_schedule_slots as tss', 'tss.id', '=', 'e.team_schedule_slot_id')
             ->where('e.partner_id', $partnerId)

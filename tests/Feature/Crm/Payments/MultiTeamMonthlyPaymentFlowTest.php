@@ -50,8 +50,8 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
         app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $teamA->id);
         app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $teamB->id);
 
-        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 3000, false, (int) $teamA->id)->create();
-        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 4500, false, (int) $teamB->id)->create();
+        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 300000, false, (int) $teamA->id)->create();
+        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 450000, false, (int) $teamB->id)->create();
 
         return [$teamA, $teamB];
     }
@@ -187,7 +187,7 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '4500.00',
+            'amount_cents' => 450000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2026-12-01',
@@ -203,7 +203,7 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '4500.00',
+            'out_sum_cents' => 450000,
             'payment_date' => '2026-12-01',
             'tbank_order_id' => 'order-multi-team',
             'tbank_payment_id' => 880012,
@@ -259,7 +259,7 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
             'team_title' => 'Группа Альфа',
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2027-01-01',
-            'summ' => '1000',
+            'summ_cents' => 100000,
         ]);
 
         $this->assertSame((int) $teamA->id, (int) $payment->team_id);
@@ -271,7 +271,7 @@ final class MultiTeamMonthlyPaymentFlowTest extends CrmTestCase
             'team_title' => 'Группа Бета',
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2027-01-01',
-            'summ' => '1000',
+            'summ_cents' => 100000,
         ]);
 
         $this->assertSame((int) $teamA->id, (int) $paymentAgain->fresh()->team_id);

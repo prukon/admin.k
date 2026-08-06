@@ -70,7 +70,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
             'lesson_package_id' => $this->package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -91,7 +91,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('user_lesson_packages', [
             'user_id' => $this->student->id,
             'lesson_package_id' => $this->package->id,
-            'fee_amount' => '444.00',
+            'fee_amount_cents' => 44400,
         ]);
     }
 
@@ -146,7 +146,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $assignment->id,
-            'fee_amount' => '275.50',
+            'fee_amount_cents' => 27550,
         ]);
     }
 
@@ -164,7 +164,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $assignment->id,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
         ]);
     }
 
@@ -191,7 +191,7 @@ final class PackageAssignmentsNonAjaxSafetyNetFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $assignment->id,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
         ]);
     }
 }

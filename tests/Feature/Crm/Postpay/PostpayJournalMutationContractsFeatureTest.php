@@ -67,7 +67,7 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
             ->whereDate('new_month', '2026-08-01')
             ->first();
         $this->assertNotNull($row);
-        $this->assertSame(500.0, (float) $row->price);
+        $this->assertSame(50000, (int) $row->price_cents);
     }
 
     public function test_create_postpay_ajax_validation_returns_422_with_errors(): void
@@ -113,7 +113,7 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
             ->whereDate('new_month', '2026-08-01')
             ->first();
         $this->assertNotNull($row);
-        $this->assertSame(500.0, (float) $row->price);
+        $this->assertSame(50000, (int) $row->price_cents);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }
 
@@ -189,7 +189,7 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
             ->whereDate('new_month', '2026-08-01')
             ->first();
         $this->assertNotNull($rowBefore);
-        $this->assertSame(500.0, (float) $rowBefore->price);
+        $this->assertSame(50000, (int) $rowBefore->price_cents);
 
         $response = $this->withHeaders($this->ajaxHeaders())
             ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
@@ -216,7 +216,7 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
 
         $this->assertSame(0, $this->countPostpayUtssForStudent());
         $rowBefore->refresh();
-        $this->assertSame(0.0, (float) $rowBefore->price);
+        $this->assertSame(0, (int) $rowBefore->price_cents);
     }
 
     public function test_destroy_postpay_ajax_locked_when_paid_returns_422(): void
@@ -279,6 +279,6 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
             ->whereDate('new_month', '2026-08-01')
             ->first();
         $this->assertNotNull($row);
-        $this->assertSame(0.0, (float) $row->price);
+        $this->assertSame(0, (int) $row->price_cents);
     }
 }

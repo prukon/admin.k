@@ -129,7 +129,7 @@ final class PaymentCheckoutServiceProviderFeatureTest extends CrmTestCase
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($feeAmount, 2, '.', ''),
+            'fee_amount_cents' => (int) round($feeAmount * 100),
             'is_paid' => false,
         ]);
     }
@@ -448,7 +448,7 @@ final class PaymentCheckoutServiceProviderFeatureTest extends CrmTestCase
             'team_id' => $team->id,
             'date_start' => '2026-09-01',
             'date_end' => '2026-09-30',
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'is_paid' => 0,
         ]);
 

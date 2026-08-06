@@ -14,7 +14,7 @@ class FiscalReceipt extends Model
     protected $guarded = []; 
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount_cents' => 'integer',
         'queued_at' => 'datetime',
         'processed_at' => 'datetime',
         'failed_at' => 'datetime',

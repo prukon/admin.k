@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,7 +60,7 @@ class LessonPackage extends Model
 
     public function priceRub(): float
     {
-        return round(((int) $this->price_cents) / 100, 2);
+        return (float) Money::fromCents((int) $this->price_cents);
     }
 
     public function partner(): BelongsTo

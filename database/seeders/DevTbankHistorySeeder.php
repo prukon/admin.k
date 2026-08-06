@@ -76,7 +76,7 @@ class DevTbankHistorySeeder extends Seeder
             $payable = $intent->payable;
             $legalEntityId = $this->resolveLegalEntityId($resolver, $payable, $user, $partnerId);
 
-            $amountCents = $this->amountToCents($intent->out_sum ?? $payable?->amount ?? 0);
+            $amountCents = (int) ($intent->out_sum_cents ?? $payable?->amount_cents ?? 50_000);
             $method = $this->mapPaymentMethod((string) ($intent->payment_method ?? ''));
 
             $payment = TinkoffPayment::query()->create([
@@ -254,7 +254,7 @@ class DevTbankHistorySeeder extends Seeder
             ->processed()
             ->create([
                 'legal_entity_id' => (int) $entity->id,
-                'amount' => number_format($payment->amount / 100, 2, '.', ''),
+                'amount_cents' => (int) $payment->amount,
                 'invoice_id' => 'tp_' . $payment->id,
                 'idempotency_key' => $idempotencyKey,
             ]);
@@ -289,15 +289,6 @@ class DevTbankHistorySeeder extends Seeder
             'tpay' => 'tpay',
             default => null,
         };
-    }
-
-    private function amountToCents(mixed $amount): int
-    {
-        if (is_numeric($amount)) {
-            return (int) round(((float) $amount) * 100);
-        }
-
-        return 50_000;
     }
 
     private function devTbankPaymentId(PaymentIntent $intent): string

@@ -32,7 +32,7 @@ class TinkoffCreatesFiscalReceiptTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '3500.00',
+            'amount_cents' => 350000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2026-03-01',
@@ -45,7 +45,7 @@ class TinkoffCreatesFiscalReceiptTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '3500.00',
+            'out_sum_cents' => 350000,
             'payment_date' => '2026-03-01',
             'meta' => json_encode(['user_name' => $this->user->name], JSON_UNESCAPED_UNICODE),
         ]);
@@ -87,7 +87,7 @@ class TinkoffCreatesFiscalReceiptTest extends CrmTestCase
             'payable_id' => $payable->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PENDING,
-            'amount' => '3500.00',
+            'amount_cents' => 350000,
         ]);
 
         Queue::assertPushed(SendCloudKassirReceiptJob::class, 1);

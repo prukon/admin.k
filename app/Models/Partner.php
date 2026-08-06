@@ -25,7 +25,7 @@ class Partner extends Model
 
     protected $casts = [
         'business_type' => 'string',
-        'wallet_balance' => 'decimal:2',
+        'wallet_balance_cents' => 'integer',
         'ceo' => 'array',
         'is_enabled' => 'boolean',
 

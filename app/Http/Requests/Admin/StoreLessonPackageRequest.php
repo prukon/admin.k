@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\LessonPackage;
 use App\Support\LessonPackagePostpayPermission;
+use App\Support\Money;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -45,8 +46,7 @@ final class StoreLessonPackageRequest extends FormRequest
 
     protected function passedValidation(): void
     {
-        $price = (float) $this->validated('price');
-        $priceCents = (int) round($price * 100);
+        $priceCents = Money::toCentsOrFail($this->validated('price'));
 
         $freezeEnabled = (bool) $this->validated('freeze_enabled');
         $freezeDays = (int) ($this->validated('freeze_days') ?? 0);

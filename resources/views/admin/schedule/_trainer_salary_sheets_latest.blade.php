@@ -1,9 +1,4 @@
-@php
-    $formatMoney = static function ($value): string {
-        return number_format((float) $value, 2, '.', ' ');
-    };
-@endphp
-
+{{-- Значения приходят уже отформатированными сервисом (App\Support\Money::formatRub). --}}
 @if(count($latestByTrainer ?? []) > 0)
     <div class="trainer-salary-sheets-latest mt-4">
         <h2 class="h6 fw-semibold mb-2">Актуальная версия по каждому тренеру</h2>
@@ -25,7 +20,7 @@
                         <td>{{ $row['trainer_name'] }}</td>
                         <td>v{{ (int) $row['version'] }}</td>
                         <td class="text-nowrap">{{ $row['formed_at_display'] }}</td>
-                        <td class="text-end text-nowrap">{{ $formatMoney($row['grand_total']) }}</td>
+                        <td class="text-end text-nowrap">{{ $row['grand_total'] }}</td>
                         <td class="text-end">
                             <a href="{{ $row['show_url'] }}" class="btn btn-sm btn-link">Открыть</a>
                         </td>

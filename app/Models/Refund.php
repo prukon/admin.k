@@ -16,7 +16,7 @@ class Refund extends Model
         'user_id',
         'payable_id',
         'payment_id',
-        'amount',
+        'amount_cents',
         'currency',
         'status',
         'provider',
@@ -26,7 +26,7 @@ class Refund extends Model
     ];
 
     protected $casts = [
-        'amount'       => 'decimal:2',
+        'amount_cents' => 'integer',
         'processed_at' => 'datetime',
     ];
 

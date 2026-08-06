@@ -58,7 +58,7 @@ final class PaymentReportTeamPivotFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'team_id' => $teamA->id,
             'team_title' => 'Альфа',
-            'summ' => 1500,
+            'summ_cents' => 150000,
         ]);
 
         $rows = collect($this->paymentRows(['filter_user_id' => $student->id]));
@@ -91,7 +91,7 @@ final class PaymentReportTeamPivotFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'team_id' => null,
             'team_title' => null,
-            'summ' => 1500,
+            'summ_cents' => 150000,
         ]);
 
         $rows = collect($this->paymentRows(['filter_user_id' => $student->id]));
@@ -127,7 +127,7 @@ final class PaymentReportTeamPivotFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'team_id' => $teamA->id,
             'team_title' => 'Группа A',
-            'summ' => 900,
+            'summ_cents' => 90000,
         ]);
 
         $onlyA = collect($this->paymentRows(['filter_team_id' => $teamA->id]));
@@ -160,7 +160,7 @@ final class PaymentReportTeamPivotFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'team_id' => null,
             'team_title' => null,
-            'summ' => 900,
+            'summ_cents' => 90000,
         ]);
 
         $onlyA = collect($this->paymentRows(['filter_team_id' => $teamA->id]));

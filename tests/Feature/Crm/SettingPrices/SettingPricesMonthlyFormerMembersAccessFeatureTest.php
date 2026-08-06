@@ -72,7 +72,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -82,7 +82,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 1000,
+            'price_cents' => 100000,
             'is_paid' => 0,
         ]);
 
@@ -275,7 +275,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
 
         $this->withHeaders($this->ajaxHeaders())
@@ -305,13 +305,13 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3200,
+            'price_cents' => 320000,
         ]);
     }
 
@@ -332,14 +332,14 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'lesson_package_id' => null,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 4500,
+            'price_cents' => 450000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -374,13 +374,13 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->currentStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 2100,
+            'price_cents' => 210000,
         ]);
     }
 
@@ -405,7 +405,7 @@ final class SettingPricesMonthlyFormerMembersAccessFeatureTest extends CrmTestCa
             'user_id' => $this->formerStudent->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
     }
 

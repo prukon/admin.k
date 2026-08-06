@@ -54,7 +54,7 @@ class UpdateTrainerRequest extends FormRequest
             ]);
         }
 
-        $this->mergeSalaryRubles(['default_base_salary', 'default_rate_per_training']);
+        $this->nullifyEmptySalaryFields(['default_base_salary', 'default_rate_per_training']);
     }
 
     public function rules(): array
@@ -81,8 +81,8 @@ class UpdateTrainerRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:10000'],
             'is_enabled' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999999'],
-            'default_base_salary' => ['nullable', 'integer', 'min:0', 'max:99999999'],
-            'default_rate_per_training' => ['nullable', 'integer', 'min:0', 'max:99999999'],
+            'default_base_salary' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
+            'default_rate_per_training' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'avatar' => ['nullable', 'file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp'],
             'remove_avatar' => ['nullable', 'boolean'],
             'team_ids' => ['nullable', 'array'],
@@ -129,7 +129,9 @@ class UpdateTrainerRequest extends FormRequest
             'avatar.max' => 'Аватар не должен превышать :max КБ',
             'avatar.mimetypes' => 'Аватар должен быть в формате JPEG, PNG или WebP',
             'team_ids.*.exists' => 'Выберите группы из списка',
+            'default_base_salary.numeric' => 'Оклад должен быть числом (рубли, можно с копейками).',
             'default_base_salary.min' => 'Оклад не может быть отрицательным.',
+            'default_rate_per_training.numeric' => 'Ставка должна быть числом (рубли, можно с копейками).',
             'default_rate_per_training.min' => 'Ставка не может быть отрицательной.',
         ];
     }
@@ -154,20 +156,12 @@ class UpdateTrainerRequest extends FormRequest
     /**
      * @param  list<string>  $fields
      */
-    private function mergeSalaryRubles(array $fields): void
+    private function nullifyEmptySalaryFields(array $fields): void
     {
         foreach ($fields as $field) {
-            if (!$this->has($field)) {
-                continue;
-            }
-
-            $value = $this->input($field);
-            if ($value === null || $value === '') {
+            if ($this->has($field) && $this->input($field) === '') {
                 $this->merge([$field => null]);
-                continue;
             }
-
-            $this->merge([$field => (int) round((float) $value)]);
         }
     }
 }

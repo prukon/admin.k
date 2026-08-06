@@ -11,4 +11,8 @@ class UsersPrice extends Model
 
     protected $table = 'users_prices'; //явное указание к какой таблице в БД привязана модель
     protected $guarded = []; //разрешение на изменение данных в таблице}
+
+    protected $casts = [
+        'price_cents' => 'integer',
+    ];
 }

@@ -89,8 +89,8 @@
 
   <p>Выпадающий список <strong>«Поля списка»</strong> (иконка колонок) сохраняет видимость в <code>user_table_settings.columns</code> для <code>table_key = teams_index</code>. Ключи: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>sport_type_label</code>, <code>weekdays_label</code>, <code>month_price</code>, <code>status_label</code>, <code>actions</code> (опциональные ключи появляются в UI только при соответствующем праве или наличии справочника).</p>
 
-  <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price</code>)</h3>
-  <p>Необязательная месячная стоимость группы в <strong>целых рублях</strong> (без копеек). Доступна всем пользователям с правом <code>groups.view</code>; отдельного permission не требуется.</p>
+  <h3 id="month-price">2.1) Поле «Стоимость» (<code>teams.month_price_cents</code>)</h3>
+  <p>Необязательная месячная стоимость группы в рублях на границе UI (копейки разрешены, <code>step=0.01</code>); в БД — копейки. Доступна всем пользователям с правом <code>groups.view</code>; отдельного permission не требуется. Канон денег — <a href="/docs/documentation/money">money</a>.</p>
 
   <table>
     <thead>
@@ -102,23 +102,23 @@
     <tbody>
       <tr>
         <td>БД</td>
-        <td>Колонка <code>teams.month_price</code> — <code>unsignedInteger</code>, <code>nullable</code>. Пустое значение в форме → <code>NULL</code>. Допустимо <code>0</code> (бесплатная группа).</td>
+        <td>Колонка <code>teams.month_price_cents</code> — <code>BIGINT</code>, <code>nullable</code> (копейки). Пустое значение в форме → <code>NULL</code>. Допустимо <code>0</code> (бесплатная группа).</td>
       </tr>
       <tr>
         <td>Таблица</td>
-        <td>Колонка «Стоимость»: тип пресета <code>money</code> (<code>KidsCrmDataTable</code>, ключ <code>month_price</code>). Число — <code>1&nbsp;046 руб</code> (<code>toLocaleString('ru-RU')</code> + « руб»), выравнивание вправо через <code>.dt-col-money-value</code>. Пусто → «—» слева (как в колонках <code>text</code>). Сортировка по <code>columns[*].name = month_price</code>.</td>
+        <td>Колонка «Стоимость»: тип пресета <code>money</code> (<code>KidsCrmDataTable</code>, ключ <code>month_price</code> — рубли). Формат как у <code>Money::formatRub</code>: целые без копеек; <code>,xx</code> только если копейки ≠ 0 (например <code>1&nbsp;046 руб</code> / <code>1&nbsp;046,50 руб</code>), выравнивание вправо через <code>.dt-col-money-value</code>. Пусто → «—» слева (как в колонках <code>text</code>). Сортировка по <code>columns[*].name = month_price</code> → SQL <code>teams.month_price_cents</code>.</td>
       </tr>
       <tr>
         <td>Модалки create / edit</td>
-        <td>Поле «Стоимость в месяц» (<code>month_price</code>): <code>type="number"</code>, <code>step="1"</code>, <code>min="0"</code>. Необязательное.</td>
+        <td>Поле «Стоимость в месяц» (<code>month_price</code>): <code>type="number"</code>, <code>step="0.01"</code>, <code>min="0"</code>. Необязательное.</td>
       </tr>
       <tr>
         <td>JSON <code>GET /admin/teams/data</code></td>
-        <td>В каждой строке ключ <code>month_price</code> — целое число или <code>null</code> (без форматирования).</td>
+        <td>В каждой строке ключ <code>month_price</code> — число в рублях (float из копеек) или <code>null</code> (без форматирования).</td>
       </tr>
       <tr>
         <td>JSON <code>GET /admin/team/{id}/edit</code></td>
-        <td>Ключ <code>month_price</code> — целое или <code>null</code>.</td>
+        <td>Ключ <code>month_price</code> — рубли (float) или <code>null</code>.</td>
       </tr>
       <tr>
         <td>«Поля списка»</td>
@@ -135,10 +135,10 @@
     </tbody>
   </table>
 
-  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>month_price</code>: <code>nullable|integer|min:0</code>; пустая строка в <code>prepareForValidation</code> → <code>null</code>. Ошибки возвращаются на фронт под полем.</p>
+  <p class="small">Валидация: <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>month_price</code>: <code>nullable|numeric|min:0</code>; пустая строка в <code>prepareForValidation</code> → <code>null</code>; запись в БД — <code>Money::toCentsOrFail</code> → <code>month_price_cents</code>. Ошибки возвращаются на фронт под полем.</p>
 
   <div class="warn">
-    Не путать с устаревшей таблицей <code>team_prices</code> (исторические цены по месяцам) — поле <code>month_price</code> хранится непосредственно в <code>teams</code> и не связано с <code>team_prices</code>.
+    Не путать с устаревшей таблицей <code>team_prices</code> (исторические цены по месяцам) — поле <code>month_price_cents</code> хранится непосредственно в <code>teams</code> и не связано с <code>team_prices</code>.
   </div>
 
   <h2 id="schedule-view">3) Право <code>schedule.view</code></h2>
@@ -366,7 +366,7 @@
     <li><code>app/Http/Controllers/Admin/TeamColumnsSettingsController.php</code> — <code>teams_index</code>.</li>
     <li><code>app/Http/Requests/Team/StoreRequest.php</code>, <code>UpdateRequest.php</code> — валидация всех полей группы по правам.</li>
     <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>groups.view</code>.</li>
-    <li><code>app/Models/Team.php</code> — cast <code>month_price</code> → int; связь <code>location()</code> (BelongsTo).</li>
+    <li><code>app/Models/Team.php</code> — cast <code>month_price_cents</code> → int; связь <code>location()</code> (BelongsTo).</li>
     <li><code>database/migrations/2026_06_13_140000_refactor_team_location_and_drop_address.php</code> — <code>teams.location_id</code>, удаление pivot и <code>teams.address</code>;</li>
     <li><code>database/migrations/2026_06_13_150000_drop_training_base_from_teams.php</code> — удаление <code>teams.training_base</code> и <code>groups.training_base.view</code>;</li>
     <li><code>app/Services/TeamService.php</code>, <code>TeamTrainerSyncService.php</code>, <code>TeamLocationSyncService.php</code>.</li>

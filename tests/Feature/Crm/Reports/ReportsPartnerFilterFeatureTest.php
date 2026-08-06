@@ -277,13 +277,13 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
 
         FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount'     => 100,
+            'amount_cents'     => 10000,
             'type'       => 'income',
             'status'     => 'processed',
         ]);
         FiscalReceipt::query()->create([
             'partner_id' => $this->foreignPartner->id,
-            'amount'     => 500,
+            'amount_cents'     => 50000,
             'type'       => 'income',
             'status'     => 'processed',
         ]);
@@ -318,13 +318,13 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
 
         FiscalReceipt::query()->create([
             'partner_id' => $this->partner->id,
-            'amount'     => 50,
+            'amount_cents'     => 5000,
             'type'       => 'income',
             'status'     => 'processed',
         ]);
         FiscalReceipt::query()->create([
             'partner_id' => $this->foreignPartner->id,
-            'amount'     => 999,
+            'amount_cents'     => 99900,
             'type'       => 'income',
             'status'     => 'processed',
         ]);
@@ -362,11 +362,11 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
 
         $own = PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
-            'out_sum'    => 111,
+            'out_sum_cents'    => 11100,
         ]);
         $foreign = PaymentIntent::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'out_sum'    => 222,
+            'out_sum_cents'    => 22200,
         ]);
 
         $this->get(route('reports.payment-intents.total'))
@@ -400,11 +400,11 @@ final class ReportsPartnerFilterFeatureTest extends CrmTestCase
 
         PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
-            'out_sum'    => 40,
+            'out_sum_cents'    => 4000,
         ]);
         PaymentIntent::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'out_sum'    => 800,
+            'out_sum_cents'    => 80000,
         ]);
 
         $this->get(route('reports.payment-intents.total', [

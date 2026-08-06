@@ -6,6 +6,7 @@ use App\Models\FiscalReceipt;
 use App\Models\Partner;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,7 @@ class FiscalReceiptFactory extends Factory
 
     public function definition(): array
     {
-        $amount = $this->faker->numberBetween(500, 10_000);
+        $amountCents = Money::toCentsOrFail($this->faker->numberBetween(500, 10_000));
 
         return [
             'partner_id' => Partner::factory(),
@@ -28,7 +29,7 @@ class FiscalReceiptFactory extends Factory
             'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PENDING,
-            'amount' => (string) $amount,
+            'amount_cents' => $amountCents,
             'invoice_id' => 'dev-invoice-' . $this->faker->unique()->numerify('######'),
             'account_id' => null,
             'external_id' => null,
@@ -67,7 +68,7 @@ class FiscalReceiptFactory extends Factory
             'partner_id' => (int) $intent->partner_id,
             'payment_intent_id' => (int) $intent->id,
             'payable_id' => $payable?->id ?? $intent->payable_id,
-            'amount' => (string) ($intent->out_sum ?? $payable?->amount ?? '0'),
+            'amount_cents' => (int) ($intent->out_sum_cents ?? $payable?->amount_cents ?? 0),
             'invoice_id' => 'pi_' . $intent->id,
             'account_id' => $intent->user_id ? (string) $intent->user_id : null,
             'idempotency_key' => 'income:pi:' . $intent->id,

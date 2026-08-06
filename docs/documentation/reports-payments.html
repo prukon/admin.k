@@ -104,6 +104,11 @@
     Для других провайдеров значения будут пустыми.
   </div>
   <div class="note">
+    <b>База суммы:</b> комиссии и нетто считаются от <code>payments.summ_cents</code> (копейки)
+    <b>без</b> дополнительного <code>× 100</code>. Канон — <a href="/docs/documentation/money">money</a>.
+    В JSON DataTables ключ колонки остаётся <code>summ</code> (рубли для UI).
+  </div>
+  <div class="note">
     <b>Источник расчёта комиссий:</b> правила из таблицы <code>tinkoff_commission_rules</code>.
     Комиссии удерживаются с партнёра. Округление: математическое (<code>round</code>) до копейки.
     Формула:

@@ -9,6 +9,7 @@ use App\Models\TrainerSalaryDraftLine;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
 use App\Models\User;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -90,7 +91,7 @@ final class TrainerSalaryService
      *     bonuses?: string|float|int|null,
      *     deductions?: string|float|int|null,
      *     comment?: string|null
-     * } $data
+     * } $data рубли (допускаются копейки), конвертируются в копейки перед сохранением
      * @return array<string, mixed>
      */
     public function updateDraftLine(
@@ -111,16 +112,16 @@ final class TrainerSalaryService
         }
 
         if (array_key_exists('base_salary', $data)) {
-            $draft->base_salary = $this->calculator->normalizeMoney($data['base_salary']);
+            $draft->base_salary_cents = Money::toCentsOrFail($data['base_salary']);
         }
         if (array_key_exists('rate_per_training', $data)) {
-            $draft->rate_per_training = $this->calculator->normalizeMoney($data['rate_per_training']);
+            $draft->rate_per_training_cents = Money::toCentsOrFail($data['rate_per_training']);
         }
         if (array_key_exists('bonuses', $data)) {
-            $draft->bonuses = $this->calculator->normalizeMoney($data['bonuses']);
+            $draft->bonuses_cents = Money::toCentsOrFail($data['bonuses']);
         }
         if (array_key_exists('deductions', $data)) {
-            $draft->deductions = $this->calculator->normalizeMoney($data['deductions']);
+            $draft->deductions_cents = Money::toCentsOrFail($data['deductions']);
         }
         if (array_key_exists('comment', $data)) {
             $draft->comment = $data['comment'] !== null && trim($data['comment']) !== ''
@@ -308,34 +309,32 @@ final class TrainerSalaryService
         TrainerSalaryPeriod $period,
         TrainerProfile $profile,
     ): TrainerSalaryDraftLine {
-        $draft = new TrainerSalaryDraftLine([
+        return new TrainerSalaryDraftLine([
             'trainer_salary_period_id' => $period->id,
             'trainer_profile_id' => $profile->id,
-            'base_salary' => $this->calculator->normalizeMoney($profile->default_base_salary),
-            'rate_per_training' => $this->calculator->normalizeMoney($profile->default_rate_per_training),
+            'base_salary_cents' => (int) ($profile->default_base_salary_cents ?? 0),
+            'rate_per_training_cents' => (int) ($profile->default_rate_per_training_cents ?? 0),
             'trainings_count' => 0,
-            'trainings_amount' => '0.00',
-            'bonuses' => '0.00',
-            'deductions' => '0.00',
+            'trainings_amount_cents' => 0,
+            'bonuses_cents' => 0,
+            'deductions_cents' => 0,
             'comment' => null,
-            'total' => '0.00',
+            'total_cents' => 0,
         ]);
-
-        return $draft;
     }
 
     private function applyComputedAmounts(TrainerSalaryDraftLine $draft): void
     {
         $computed = $this->calculator->compute(
             (int) $draft->trainings_count,
-            (string) $draft->base_salary,
-            (string) $draft->rate_per_training,
-            (string) $draft->bonuses,
-            (string) $draft->deductions,
+            (int) $draft->base_salary_cents,
+            (int) $draft->rate_per_training_cents,
+            (int) $draft->bonuses_cents,
+            (int) $draft->deductions_cents,
         );
 
-        $draft->trainings_amount = $computed['trainings_amount'];
-        $draft->total = $computed['total'];
+        $draft->trainings_amount_cents = $computed['trainings_amount_cents'];
+        $draft->total_cents = $computed['total_cents'];
     }
 
     private function insertSnapshot(
@@ -356,14 +355,14 @@ final class TrainerSalaryService
             'trainer_profile_id' => $draft->trainer_profile_id,
             'version' => $nextVersion,
             'batch_id' => $batchId,
-            'base_salary' => $draft->base_salary,
-            'rate_per_training' => $draft->rate_per_training,
+            'base_salary_cents' => $draft->base_salary_cents,
+            'rate_per_training_cents' => $draft->rate_per_training_cents,
             'trainings_count' => $draft->trainings_count,
-            'trainings_amount' => $draft->trainings_amount,
-            'bonuses' => $draft->bonuses,
-            'deductions' => $draft->deductions,
+            'trainings_amount_cents' => $draft->trainings_amount_cents,
+            'bonuses_cents' => $draft->bonuses_cents,
+            'deductions_cents' => $draft->deductions_cents,
             'comment' => $draft->comment,
-            'total' => $draft->total,
+            'total_cents' => $draft->total_cents,
             'formed_by_user_id' => $actor->id,
             'formed_at' => $formedAt,
         ]);
@@ -431,14 +430,14 @@ final class TrainerSalaryService
         return [
             'trainer_profile_id' => (int) $draft->trainer_profile_id,
             'trainer_name' => $trainerName,
-            'base_salary' => $this->formatMoney($draft->base_salary),
-            'rate_per_training' => $this->formatMoney($draft->rate_per_training),
+            'base_salary' => $this->formatMoney((int) $draft->base_salary_cents),
+            'rate_per_training' => $this->formatMoney((int) $draft->rate_per_training_cents),
             'trainings_count' => (int) $draft->trainings_count,
-            'trainings_amount' => $this->formatMoney($draft->trainings_amount),
-            'bonuses' => $this->formatMoney($draft->bonuses),
-            'deductions' => $this->formatMoney($draft->deductions),
+            'trainings_amount' => $this->formatMoney((int) $draft->trainings_amount_cents),
+            'bonuses' => $this->formatMoney((int) $draft->bonuses_cents),
+            'deductions' => $this->formatMoney((int) $draft->deductions_cents),
             'comment' => $draft->comment,
-            'total' => $this->formatMoney($draft->total),
+            'total' => $this->formatMoney((int) $draft->total_cents),
             'latest_snapshot' => $latestSnapshot !== null
                 ? $this->snapshotPayload($latestSnapshot)
                 : null,
@@ -459,13 +458,18 @@ final class TrainerSalaryService
             'batch_id' => $snapshot->batch_id,
             'formed_at' => $snapshot->formed_at?->toIso8601String(),
             'formed_by_name' => $formedBy ? trim($formedBy->full_name ?? '') : '',
-            'total' => $this->formatMoney($snapshot->total),
+            'total' => $this->formatMoney((int) $snapshot->total_cents),
         ];
     }
 
-    private function formatMoney(string|float|int|null $value): string
+    /**
+     * Копейки → рублёвая строка "0.00" (dot, всегда 2 знака).
+     * Используется как для полей, редактируемых через <input type="number">,
+     * так и для расчётных read-only полей (совместимый формат для JS live-update).
+     */
+    private function formatMoney(int $cents): string
     {
-        return $this->calculator->normalizeMoney($value);
+        return $cents < 0 ? '-' . Money::fromCents(-$cents) : Money::fromCents($cents);
     }
 
     private function trainerDisplayName(TrainerProfile $profile): string

@@ -15,7 +15,7 @@ class Payable extends Model
 
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount_cents' => 'integer',
         'month'  => 'date',
         'paid_at'=> 'datetime',
     ];

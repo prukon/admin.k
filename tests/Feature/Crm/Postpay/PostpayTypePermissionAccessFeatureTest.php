@@ -272,7 +272,7 @@ final class PostpayTypePermissionAccessFeatureTest extends PostpayTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => false,
             'lesson_package_id' => null,
         ]);
@@ -308,7 +308,7 @@ final class PostpayTypePermissionAccessFeatureTest extends PostpayTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => false,
             'lesson_package_id' => null,
         ]);

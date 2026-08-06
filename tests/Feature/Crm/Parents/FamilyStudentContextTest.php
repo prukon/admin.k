@@ -104,7 +104,7 @@ final class FamilyStudentContextTest extends CrmTestCase
         Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id'    => $brother2->id,
-            'summ'       => 500,
+            'summ_cents'       => 50000,
         ]);
 
         DB::table('permission_role')->insertOrIgnore([
@@ -132,7 +132,7 @@ final class FamilyStudentContextTest extends CrmTestCase
 
         $this->assertDatabaseHas('payments', [
             'user_id' => $brother2->id,
-            'summ'    => 500,
+            'summ_cents'    => 50000,
         ]);
     }
 

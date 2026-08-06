@@ -74,7 +74,7 @@ final class LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest extends C
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -105,7 +105,7 @@ final class LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest extends C
         $this->assertDatabaseHas('user_lesson_packages', [
             'user_id' => $student->id,
             'lesson_package_id' => $ctx['package']->id,
-            'fee_amount' => '333.00',
+            'fee_amount_cents' => 33300,
         ]);
 
         $log = MyLog::query()
@@ -152,7 +152,7 @@ final class LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest extends C
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ctx['assignment']->id,
-            'fee_amount' => '222.00',
+            'fee_amount_cents' => 22200,
         ]);
 
         $log = MyLog::query()
@@ -179,7 +179,7 @@ final class LessonPackageAssignmentsHistoryNonAjaxSafetyNetFeatureTest extends C
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ctx['assignment']->id,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
         ]);
 
         $this->assertSame(

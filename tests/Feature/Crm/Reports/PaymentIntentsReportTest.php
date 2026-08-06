@@ -68,15 +68,15 @@ class PaymentIntentsReportTest extends CrmTestCase
 
         PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
-            'out_sum' => 1000,
+            'out_sum_cents' => 100000,
         ]);
         PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
-            'out_sum' => 2000,
+            'out_sum_cents' => 200000,
         ]);
         PaymentIntent::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'out_sum' => 9999,
+            'out_sum_cents' => 999900,
         ]);
 
         $this->get(route('reports.payment-intents.total'))
@@ -467,13 +467,13 @@ class PaymentIntentsReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'status' => 'paid',
             'provider' => 'tbank',
-            'out_sum' => 1000,
+            'out_sum_cents' => 100000,
         ]);
         PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
             'status' => 'pending',
             'provider' => 'robokassa',
-            'out_sum' => 5000,
+            'out_sum_cents' => 500000,
         ]);
 
         $params = [
@@ -548,11 +548,11 @@ class PaymentIntentsReportTest extends CrmTestCase
 
         $own = PaymentIntent::factory()->create([
             'partner_id' => $this->partner->id,
-            'out_sum' => 700,
+            'out_sum_cents' => 70000,
         ]);
         $foreign = PaymentIntent::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'out_sum' => 9000,
+            'out_sum_cents' => 900000,
         ]);
 
         $allIds = collect(

@@ -124,7 +124,7 @@ abstract class PostpayTestCase extends CrmTestCase
                 'new_month' => $month,
             ],
             [
-                'price' => $price,
+                'price_cents' => (int) round($price * 100),
                 'lesson_package_id' => $packageId ?? $this->postpayPackage->id,
                 'is_paid' => $paid,
                 'is_manual_paid' => $manualPaid,

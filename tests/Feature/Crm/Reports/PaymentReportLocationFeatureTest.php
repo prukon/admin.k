@@ -57,7 +57,7 @@ final class PaymentReportLocationFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $location->id,
-            'summ' => 1500,
+            'summ_cents' => 150000,
         ]);
 
         $this->get(route('payments'))
@@ -120,7 +120,7 @@ final class PaymentReportLocationFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 2000,
+            'summ_cents' => 200000,
         ]);
 
         $json = $this->ajaxGetPayments([

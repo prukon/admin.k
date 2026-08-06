@@ -100,7 +100,7 @@ final class LessonPackageAssignmentsHistoryWorkflowFeatureTest extends CrmTestCa
         $assignmentId = (int) UserLessonPackage::query()
             ->where('user_id', $student->id)
             ->where('lesson_package_id', $package->id)
-            ->where('fee_amount', '140.00')
+            ->where('fee_amount_cents', 14000)
             ->value('id');
         $this->assertGreaterThan(0, $assignmentId);
 

@@ -46,7 +46,7 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
             ->first();
 
         $this->assertNotNull($row);
-        $this->assertSame(500.0, (float) $row->price);
+        $this->assertSame(50000, (int) $row->price_cents);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }
 
@@ -81,7 +81,7 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
             ->first();
 
         $this->assertNotNull($row);
-        $this->assertSame(0.0, (float) $row->price);
+        $this->assertSame(0, (int) $row->price_cents);
     }
 
     public function test_manual_paid_locks_journal_create_postpay(): void
@@ -210,7 +210,7 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
             ->first();
 
         $this->assertNotNull($row);
-        $this->assertSame(1000.0, (float) $row->price);
+        $this->assertSame(100000, (int) $row->price_cents);
         $this->assertSame(2, $this->countPostpayUtssForStudent());
     }
 }

@@ -86,7 +86,7 @@ class DevLessonPackageAssignmentsSeeder extends Seeder
                 'ends_at' => null,
                 'lessons_total' => (int) $package->lessons_count,
                 'lessons_remaining' => (int) $package->lessons_count,
-                'fee_amount' => round($package->price_cents / 100, 2),
+                'fee_amount_cents' => (int) $package->price_cents,
                 'is_paid' => (bool) random_int(0, 1),
                 'created_by' => $createdBy,
             ]);

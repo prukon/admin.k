@@ -26,6 +26,24 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Деньги: канон копеек (2026‑08)</h2>
+  <div class="note">
+    Все бизнес-суммы в БД — <code>BIGINT *_cents</code>. Helper <code>App\Support\Money</code>.
+    Округление математическое; скидки % — вариант А (округлить скидку, затем вычесть).
+    UI: целые рубли; <code>,xx</code> только при ненулевых копейках (<code>Money::formatRub</code> / DataTables preset <code>money</code>).
+    Документ: <a href="/docs/documentation/money">money</a>.
+    Миграция: <code>2026_08_06_180000_convert_money_columns_to_cents.php</code>.
+    Связанные разделы: <a href="/docs/documentation/payments">payments</a>,
+    <a href="/docs/documentation/reports-payments">reports-payments</a>,
+    <a href="/docs/documentation/admin-teams">admin-teams</a> (<code>month_price_cents</code>),
+    <a href="/docs/documentation/lesson-packages">lesson-packages</a>,
+    <a href="/docs/documentation/postpay">postpay</a>,
+    <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>,
+    <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>,
+    <a href="/docs/documentation/schedule-trainer-salary">schedule-trainer-salary</a>,
+    <a href="/docs/documentation/admin-trainers">admin-trainers</a>.
+  </div>
+
   <h2>Журнал: статус занятия и удаление без reload (2026‑08)</h2>
   <div class="note">
     Модалка <b>«Статус занятия»</b> (<code>#cellEditModal</code> / <code>#cellEditForm</code>) в

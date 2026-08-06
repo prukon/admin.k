@@ -9,6 +9,7 @@ use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
 use App\Models\PartnerWalletTransaction;
+use App\Support\Money;
 
 class YooKassaWebhookController extends Controller
 {
@@ -88,11 +89,12 @@ private array $allowedIps = [
         }
 
         // Необязательная сверка суммы
-        if ($amountVal !== null && abs((float)$tx->amount - (float)$amountVal) > 0.009) {
+        $amountValCents = $amountVal !== null ? Money::toCents($amountVal) : null;
+        if ($amountValCents !== null && abs((int)$tx->amount_cents - $amountValCents) > 0) {
             Log::warning('Wallet webhook: amount mismatch', [
                 'wallet_transaction_id' => $tx->id,
-                'tx_amount'  => (float)$tx->amount,
-                'hook_amount'=> (float)$amountVal,
+                'tx_amount'  => (int)$tx->amount_cents,
+                'hook_amount'=> $amountValCents,
             ]);
             return response()->json(['ok' => false, 'message' => 'Amount mismatch'], 422);
         }
@@ -114,14 +116,14 @@ private array $allowedIps = [
                 $tx->save();
 
                 // Зачисление
-                $partner->wallet_balance = (float)$partner->wallet_balance + (float)$tx->amount;
+                $partner->wallet_balance_cents = (int)$partner->wallet_balance_cents + (int)$tx->amount_cents;
                 $partner->save();
             });
 
             Log::info('Wallet webhook: credited', [
                 'wallet_transaction_id' => $tx->id,
                 'partner_id' => $tx->partner_id,
-                'amount' => (float)$tx->amount,
+                'amount' => ((int)$tx->amount_cents) / 100,
             ]);
 
             return response()->json(['ok' => true]);

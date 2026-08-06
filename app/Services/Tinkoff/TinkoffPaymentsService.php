@@ -441,7 +441,7 @@ class TinkoffPaymentsService
                             (string) $payable->type === 'lesson_package_fee' => 'Абонемент',
                             default => 'Клубный взнос',
                         },
-                        'summ' => (string) $locked->out_sum,
+                        'summ_cents' => (int) $locked->out_sum_cents,
                         'deal_id' => $payment->deal_id ?: null,
                         'payment_id' => (string) ($webhook['PaymentId'] ?? null),
                         'payment_status' => (string) ($webhook['Status'] ?? null),
@@ -508,7 +508,7 @@ class TinkoffPaymentsService
                 'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
                 'type' => FiscalReceipt::TYPE_INCOME,
                 'status' => FiscalReceipt::STATUS_PENDING,
-                'amount' => (string) $intent->out_sum,
+                'amount_cents' => (int) $intent->out_sum_cents,
                 'invoice_id' => 'pi_' . $intent->id,
                 'account_id' => (string) $intent->user_id,
             ]

@@ -68,7 +68,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 500,
+            'summ_cents' => 50000,
             'payment_month' => '2025-01-01',
             'operation_date' => '2025-01-15 10:00:00',
         ]);
@@ -135,7 +135,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 1111,
+            'summ_cents' => 111100,
             'payment_month' => '2025-02-01',
             'operation_date' => '2025-02-10 12:00:00',
         ]);
@@ -175,13 +175,13 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($withLoc)->create([
             'location_id' => $loc->id,
-            'summ' => 900,
+            'summ_cents' => 90000,
             'payment_month' => '2025-03-01',
             'operation_date' => '2025-03-05 12:00:00',
         ]);
         Payment::factory()->forUser($withoutLoc)->create([
             'location_id' => null,
-            'summ' => 400,
+            'summ_cents' => 40000,
             'payment_month' => '2025-03-01',
             'operation_date' => '2025-03-06 12:00:00',
         ]);
@@ -211,13 +211,13 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 777,
+            'summ_cents' => 77700,
             'payment_month' => '2025-04-01',
             'operation_date' => '2025-04-12 12:00:00',
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => null,
-            'summ' => 111,
+            'summ_cents' => 11100,
             'payment_month' => '2025-04-01',
             'operation_date' => '2025-04-13 12:00:00',
         ]);
@@ -253,13 +253,13 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($this->user)->create([
             'location_id' => $locA->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'payment_month' => '2025-05-01',
             'operation_date' => '2025-05-01 12:00:00',
         ]);
         Payment::factory()->forUser($this->user)->create([
             'location_id' => $locB->id,
-            'summ' => 200,
+            'summ_cents' => 20000,
             'payment_month' => '2025-05-01',
             'operation_date' => '2025-05-02 12:00:00',
         ]);
@@ -290,7 +290,7 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 300,
+            'summ_cents' => 30000,
             'operation_date' => now()->subDay()->format('Y-m-d H:i:s'),
         ]);
 
@@ -354,12 +354,12 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 1500,
+            'summ_cents' => 150000,
             'operation_date' => '2025-06-01 10:00:00',
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => $locB->id,
-            'summ' => 500,
+            'summ_cents' => 50000,
             'operation_date' => '2025-06-02 10:00:00',
         ]);
 
@@ -391,12 +391,12 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($u1)->create([
             'location_id' => $loc->id,
-            'summ' => 800,
+            'summ_cents' => 80000,
             'operation_date' => '2025-07-01 10:00:00',
         ]);
         Payment::factory()->forUser($u2)->create([
             'location_id' => null,
-            'summ' => 200,
+            'summ_cents' => 20000,
             'operation_date' => '2025-07-02 10:00:00',
         ]);
 
@@ -428,12 +428,12 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 600,
+            'summ_cents' => 60000,
             'operation_date' => '2025-08-01 10:00:00',
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => null,
-            'summ' => 50,
+            'summ_cents' => 5000,
             'operation_date' => '2025-08-02 10:00:00',
         ]);
 
@@ -463,12 +463,12 @@ final class ReportsLocationFilterFeatureTest extends CrmTestCase
 
         Payment::factory()->forUser($this->user)->create([
             'location_id' => $locA->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => '2025-09-01 10:00:00',
         ]);
         Payment::factory()->forUser($this->user)->create([
             'location_id' => null,
-            'summ' => 50,
+            'summ_cents' => 5000,
             'operation_date' => '2025-09-02 10:00:00',
         ]);
 

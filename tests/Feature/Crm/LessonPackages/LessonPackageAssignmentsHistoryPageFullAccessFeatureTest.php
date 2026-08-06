@@ -63,7 +63,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -94,7 +94,7 @@ final class LessonPackageAssignmentsHistoryPageFullAccessFeatureTest extends Crm
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '50.00',
+            'fee_amount_cents' => 5000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

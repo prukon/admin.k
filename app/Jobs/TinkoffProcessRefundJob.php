@@ -84,10 +84,9 @@ class TinkoffProcessRefundJob implements ShouldQueue
                 return;
             }
 
-            $amountRub = (float) $refund->amount;
-            $amountCents = (int) round($amountRub * 100);
+            $amountCents = (int) $refund->amount_cents;
             if ($amountCents <= 0) {
-                $this->failRefund($refund, 'invalid_amount', ['amount' => $amountRub]);
+                $this->failRefund($refund, 'invalid_amount', ['amount_cents' => $amountCents]);
                 return;
             }
 
@@ -225,7 +224,7 @@ class TinkoffProcessRefundJob implements ShouldQueue
                     'provider' => FiscalReceipt::PROVIDER_CLOUDKASSIR,
                     'type' => FiscalReceipt::TYPE_INCOME_RETURN,
                     'status' => FiscalReceipt::STATUS_PENDING,
-                    'amount' => (float) $refund->amount,
+                    'amount_cents' => (int) $refund->amount_cents,
                 ]
             );
 

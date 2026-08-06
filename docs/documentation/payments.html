@@ -25,6 +25,18 @@
   <h1>Оплаты: как работают таблицы <code>payment_intents</code>, <code>payables</code>, <code>payments</code>, <code>users_prices</code></h1>
   <div class="small">Файл: <code>/docs/documentation/payments.html</code></div>
 
+  <div class="note">
+    <b>Канон денег (2026‑08):</b> суммы в БД — <code>BIGINT</code> копейки (<code>*_cents</code>).
+    См. <a href="/docs/documentation/money">money</a> и <code>App\Support\Money</code>.
+    Примеры: <code>users_prices.price_cents</code>, <code>payables.amount_cents</code>,
+    <code>payment_intents.out_sum_cents</code>, <code>payments.summ_cents</code>,
+    <code>user_lesson_packages.fee_amount_cents</code>.
+    T‑Bank <code>tinkoff_payments.amount</code> — уже копейки (имя без rename).
+    Рубли на границе UI/Robokassa/ЮKassa. Исторические суммы после backfill
+    <code>ROUND(rub × 100)</code> — те же копейки; в отчёте «Платежи» комиссии считают от
+    <code>summ_cents</code> без лишнего <code>× 100</code>.
+  </div>
+
   <h2>1) Зачем нужны эти таблицы</h2>
   <ul>
     <li><code>payables</code> — <b>что именно оплачивается</b> (покупка/обязательство: месяц, клубный взнос, форма, лагерь).</li>
@@ -44,7 +56,7 @@
   <h3><code>payables</code> (доменная покупка)</h3>
   <ul>
     <li><b>type</b>: <code>monthly_fee</code>, <code>club_fee</code>, <code>custom_payment_fee</code>, <code>lesson_package_fee</code>, <code>uniform</code>, <code>camp</code></li>
-    <li><b>amount/currency</b>: сумма и валюта</li>
+    <li><b>amount_cents/currency</b>: сумма в копейках (<code>BIGINT</code>) и валюта; в UI/JSON обычно рубли</li>
     <li><b>status</b>: <code>pending</code> → <code>paid</code> (дальше возможны refund-статусы)</li>
     <li><b>month</b> (только для <code>monthly_fee</code>): дата <code>YYYY-MM-01</code></li>
     <li><b>meta</b>: доп. параметры (например <code>{month: "2025-09-01"}</code>, <code>{team_id: …}</code> для месячного абонемента, <code>{user_period_price_id: …}</code> для доп. платежа, <code>{user_lesson_package_id: …}</code> для назначенного абонемента, размер формы, смена лагеря…)</li>
@@ -57,7 +69,7 @@
     <li><b>tbank_payment_id / tbank_order_id</b> (для <code>provider=tbank</code>): идентификаторы T‑Bank (<code>PaymentId</code>/<code>OrderId</code>) для связывания с уведомлениями</li>
     <li><b>payable_id</b>: ссылка на <code>payables</code> (что именно оплачивается)</li>
     <li><b>status</b>: <code>pending</code> / <code>paid</code> / <code>failed</code></li>
-    <li><b>out_sum</b>: ожидаемая сумма</li>
+    <li><b>out_sum_cents</b>: ожидаемая сумма в копейках (<code>BIGINT</code>). В отчётах/UI ключ колонки часто <code>out_sum</code> = рубли</li>
     <li id="payment-date-field"><b>payment_date</b>: строковая метка платежа для провайдера (<code>Shp_paymentDate</code> у Robokassa), <b>не</b> тип <code>datetime</code> в БД. Примеры: <code>2026-06-01</code> (месячный абонемент), <code>Клубный взнос</code>, <code>Дополнительный платеж</code>, подпись абонемента lesson package. В отчёте «Платежные запросы» для UI форматируется в «месяц год» при распознавании даты (<code>PaymentIntentReportController::formatPaymentDateForReport</code>); факт оплаты — поле <code>paid_at</code>.</li>
     <li><b>paid_at</b>: timestamp успешной оплаты (nullable)</li>
     <li><b>meta</b>: диагностика интеграции</li>
@@ -66,7 +78,7 @@
   <h3><code>payments</code> (финансовый журнал)</h3>
   <ul>
     <li><b>Смысл</b>: фиксирует факт поступления денег.</li>
-    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>team_id</code> / <code>team_title</code> (снимок оплаченной группы при Init с <code>payables.meta.team_id</code>, §<a href="#payments-team-snapshot">2.2</a>), <code>summ</code>, <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
+    <li><b>Типично храним</b>: <code>partner_id</code>, <code>user_id</code>, <code>location_id</code> (опциональный снимок при первом create, только если передан явно), <code>team_id</code> / <code>team_title</code> (снимок оплаченной группы при Init с <code>payables.meta.team_id</code>, §<a href="#payments-team-snapshot">2.2</a>), <code>summ_cents</code> (копейки; в отчётах ключ <code>summ</code> = рубли), <code>operation_date</code>, <code>payment_number</code> (обычно = <code>provider_inv_id</code> / InvId).</li>
     <li><b>Важно</b>: запись в <code>payments</code> появляется <b>только после успешного webhook</b>.</li>
     <li><b>Локация в отчётах</b>: <code>payments.location_id</code> — опциональный снимок при первом создании строки (только если <code>location_id</code> передан в атрибутах записи); дальше не перезаписывается. Используется в отчётах «Платежи», «Платежи по месяцам», LTV — см. <a href="/docs/documentation/reports-admin#location-filter">reports-admin.html</a> (§2.1). Отчёт «Задолженности»: фильтр локации — по группам ученика в pivot; фильтр группы для месячных долгов — по <code>users_prices.team_id</code> (§<a href="#users-prices-by-team">2.1</a>).</li>
   </ul>
@@ -96,7 +108,7 @@
     <li><b>user_id</b> — ученик</li>
     <li><b>team_id</b> — группа начисления (<b>NOT NULL</b>); UNIQUE <code>(user_id, team_id, new_month)</code> (миграция <code>2026_06_21_120000_add_team_id_to_users_prices_table.php</code>)</li>
     <li><b>new_month</b>: дата <code>YYYY-MM-01</code></li>
-    <li><b>price</b>: начисленная сумма к оплате за месяц в этой группе (строка/число в рублях; для витрины оплаты и Init — источник истины после нормализации)</li>
+    <li><b>price_cents</b>: начисленная сумма к оплате за месяц в этой группе (<b>BIGINT копейки</b>; источник истины для витрины и Init). В JSON UI по-прежнему отдаётся <code>price</code> в рублях через <code>Money</code>.</li>
     <li><b>is_paid</b>: автоматическая отметка из webhook (<code>monthly_fee</code>)</li>
     <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического)</li>
   </ul>
@@ -107,12 +119,12 @@
     Legacy-колонка <code>users.team_id</code> в расчётах <b>не участвует</b>.
   </div>
   <ul>
-    <li><b>Админка «Цены»</b> — вкладки «по месяцам» / «по ученикам»: текущий состав группы + <b>read-only история бывших</b> с <code>users_prices.price &gt; 0</code>. Подробно (критерии, UI, endpoint'ы, тесты) —
+    <li><b>Админка «Цены»</b> — вкладки «по месяцам» / «по ученикам»: текущий состав группы + <b>read-only история бывших</b> с <code>users_prices.price_cents &gt; 0</code>. Подробно (критерии, UI, endpoint'ы, тесты) —
       <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>.
       Кратко:
       <ul>
-        <li>«по месяцам» (<code>getTeamPrice</code>): текущие → <code>firstOrCreate</code>; бывшие за <b>этот месяц</b> с <code>price &gt; 0</code> → <code>is_former_member</code>, без создания строк; apply/manual — только pivot;</li>
-        <li>«по ученикам»: список + <code>data-former-team-ids</code> (история <code>price &gt; 0</code> за <b>любой</b> месяц); <code>userYearPrices</code> для бывшей группы — read-only; save/manual — только членство.</li>
+        <li>«по месяцам» (<code>getTeamPrice</code>): текущие → <code>firstOrCreate</code>; бывшие за <b>этот месяц</b> с <code>price_cents &gt; 0</code> → <code>is_former_member</code>, без создания строк; apply/manual — только pivot;</li>
+        <li>«по ученикам»: список + <code>data-former-team-ids</code> (история <code>price_cents &gt; 0</code> за <b>любой</b> месяц); <code>userYearPrices</code> для бывшей группы — read-only; save/manual — только членство.</li>
       </ul>
     </li>
     <li><b>Ручная оплата</b> (<code>setManualPaid</code>): обязательны <code>user_id</code>, <code>team_id</code>, месяц; ученик должен состоять в группе (<code>UserPriceTeamMembership::studentBelongsToTeam</code>). Бывшие участники — <b>422</b>.</li>
@@ -120,7 +132,7 @@
     <li><b>Resolver суммы</b> — <code>App\Services\Payments\UserPriceMonthlyFeePaymentResolver</code>:
       <ul>
         <li>если передан <code>team_id</code> — проверка членства и чтение <code>users_prices</code> по <code>(user_id, team_id, month)</code>;</li>
-        <li>если не передан и за месяц ровно одна строка с <code>price &gt; 0</code> — берётся её <code>team_id</code>;</li>
+        <li>если не передан и за месяц ровно одна строка с <code>price_cents &gt; 0</code> — берётся её <code>team_id</code>;</li>
         <li>если несколько строк — <b>422</b> «Укажите группу для оплаты за этот месяц.»;</li>
         <li>если строк нет — fallback на <code>UserPriceTeamMembership::primaryTeamIdForStudent</code> (первая группа в pivot по <code>order_by</code>, <code>title</code>);</li>
         <li>для строки с шаблоном <code>postpay</code>: sync суммы, оплата разрешена только с 1-го числа следующего месяца (МСК), иначе <b>422</b>; подробнее — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>.</li>
@@ -275,7 +287,7 @@
     <li><code>PartnerLegacyLegalFieldsResolverFeatureTest</code> — resolver без fallback на <code>partners</code></li>
     <li><code>MultiEntityTbankGuardAccessFeatureTest</code> — multi-entity guard: доступы, Init, клубный взнос, non-AJAX групп</li>
     <li><code>PaymentCheckoutServiceProviderFeatureTest</code> — блок «Поставщик услуг» на витрине: presenter, доступы <code>POST /payment</code> / <code>clubFee</code>, multi-entity, custom/lesson package, §<a href="#payment-checkout-service-provider">3.1.2</a></li>
-    <li><code>LessonPackagePublicPayCheckoutFeatureTest</code> — публичная СБП-страница абонемента: группа, «Поставщик услуг», сумма без копеек, контракты <code>/pay/ulp/*</code>, доступ к <code>public-pay-link</code>, §<a href="#ulp-public-pay">3.4.1</a></li>
+    <li><code>LessonPackagePublicPayCheckoutFeatureTest</code> — публичная СБП-страница абонемента: группа, «Поставщик услуг», сумма через <code>Money::formatRub</code> (копейки только если ≠ 0), контракты <code>/pay/ulp/*</code>, доступ к <code>public-pay-link</code>, §<a href="#ulp-public-pay">3.4.1</a></li>
     <li><code>LessonPackagePublicPayFeatureTest</code> — выдача ссылки, Init при открытии страницы, QR state</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code>, <code>LessonPackageAssignmentsTabFeatureTest</code> — матрицы доступа разделов</li>
   </ul>
@@ -438,7 +450,7 @@
     <li><code>showTbankLegalEntityBlock</code> — показывать ли секцию (T‑Bank как инструмент доступен пользователю; на <code>/pay/ulp/{token}</code> при QR — всегда <code>true</code>);</li>
     <li><code>serviceProviderLabel</code> — готовая строка или <code>null</code> (тогда в partial — «Обратитесь в школу.» / на ULP — «Обратитесь в школу/клуб.»);</li>
     <li><code>serviceProviderTeamTitle</code> — название группы (partial; на ULP и при необходимости в других экранах);</li>
-    <li><code>amountRubFormatted</code> — сумма на ULP в целых рублях (без копеек в UI);</li>
+    <li><code>amountRubFormatted</code> — сумма на ULP через <code>Money::formatRub</code>: целые без копеек, <code>,xx</code> только если копейки ≠ 0;</li>
     <li><code>tbankAvailable</code> / <code>tbankSbpAvailable</code> — из <code>PaymentCheckoutContext</code> на витрине (учитывают и права, и ShopCode).</li>
   </ul>
 
@@ -502,7 +514,7 @@
 
   <h3 id="custom-payment-fee">3.3 Дополнительный платеж (<code>type=custom_payment_fee</code>)</h3>
   <div class="note">
-    <b>Источник истины для суммы:</b> <code>user_custom_payment.amount</code>. Сумма из POST (<code>outSum</code>) не используется как источник истины.
+    <b>Источник истины для суммы:</b> <code>user_custom_payment.amount_cents</code> (копейки). В HTTP/JSON UI — <code>amount</code> в рублях. Сумма из POST (<code>outSum</code>) не используется как источник истины.
     <br><b>Группа:</b> <code>user_custom_payment.team_id</code> — обязательна при создании в админке (<code>POST /admin/setting-prices/custom-payments</code>). См. <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>.
     <br><b>Даты:</b> <code>date_start</code>/<code>date_end</code> в БД nullable; в UI создания полей дат нет. На консоли период не показывается — подпись берётся из <code>note</code> («Описание»).
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_period_price_id</code> и <code>team_id</code>.
@@ -530,14 +542,14 @@
 
   <h3>3.4 Назначенный абонемент (<code>type=lesson_package_fee</code>)</h3>
   <div class="note">
-    <b>Источник истины для суммы:</b> поле <code>user_lesson_packages.fee_amount</code> (рубли). Сумма из POST (<code>outSum</code>) не используется как источник истины.
+    <b>Источник истины для суммы:</b> поле <code>user_lesson_packages.fee_amount_cents</code> (копейки в БД). В HTTP/JSON UI — <code>fee_amount</code> в рублях. Сумма из POST (<code>outSum</code>) не используется как источник истины.
     <br><b>Группа:</b> при ≥2 активных юр. лицах партнёра — обязательный <code>team_id</code> при назначении абонемента; иначе определяется из календаря или primary group.
     <br><b>Связка:</b> в <code>payables.meta</code> хранится <code>user_lesson_package_id</code> и <code>team_id</code>.
     <br><b>Состояние оплаты:</b> при успешном webhook выставляем <code>user_lesson_packages.is_paid = true</code>. В <code>users_prices</code> ничего не пишем.
     <br><b>Чеки CloudKassir:</b> позиция с наименованием «Абонемент». В журнале <code>payments</code> для T‑Bank в поле <code>payment_month</code> для этого типа записывается строка «Абонемент».
   </div>
   <ol>
-    <li>Админ при назначении абонемента задаёт <code>fee_amount</code> и (при multi legal entity) группу.</li>
+    <li>Админ при назначении абонемента задаёт <code>fee_amount</code> (рубли в запросе → <code>fee_amount_cents</code> в БД) и (при multi legal entity) группу.</li>
     <li>С кабинета в <code>POST /payment</code> передаются <code>payment_kind=lesson_package</code> и <code>user_lesson_package_id</code>. На шаблоне оплаты те же поля уходят в формы Робокассы и T‑Bank (включая СБП).</li>
     <li>На витрине (<code>TransactionController@index</code>) запись проверяется через <code>App\Services\Payments\UserLessonPackageFeePaymentResolver</code>: пользователь и партнёр, не оплачено, сумма &gt; 0. Если уже оплачено или сумма некорректна — <b>422</b> / <b>404</b>.</li>
     <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
@@ -602,7 +614,7 @@
   <ul>
     <li><b>Группа</b> — <code>serviceProviderTeamTitle</code> (<code>teams.title</code> группы платежа);</li>
     <li><b>Поставщик услуг</b> — та же строка, что на витрине (§<a href="#payment-checkout-service-provider">3.1.2</a>), через <code>PaymentCheckoutLegalEntityPresenter</code>;</li>
-    <li><b>Сумма</b> — целые рубли с разбивкой тысяч (<code>amountRubFormatted</code>, без копеек в UI); внутри Init — копейки из <code>fee_amount</code>;</li>
+    <li><b>Сумма</b> — <code>amountRubFormatted</code> = <code>Money::formatRub</code> (целые без копеек; <code>,xx</code> только если копейки ≠ 0); внутри Init — копейки из <code>fee_amount_cents</code>;</li>
     <li>при <code>serviceProviderLabel=null</code> — <b>«Обратитесь в школу/клуб.»</b> (<code>text-danger</code>).</li>
   </ul>
   <p>Резолв группы и юр. лица — <code>UserLessonPackagePublicPayService::resolvePublicPayCheckoutDisplay()</code>: сначала <code>team_id</code> из уже созданного <code>payables</code> (после Init), иначе <code>PayableTeamResolver</code> для <code>lesson_package_fee</code> — тот же алгоритм, что при Init.</p>
@@ -613,7 +625,7 @@
     <li>В <code>DATA</code> Init: <code>user_lesson_package_id</code>, <code>team_id</code>, <code>ulp_public_pay=1</code> — как у оплаты из кабинета.</li>
     <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого <code>GET /pay/ulp/{token}</code>).</li>
     <li>Webhook и пометка <code>user_lesson_packages.is_paid</code> — общий pipeline T‑Bank (§3.3 «Оплата через T‑Bank»).</li>
-    <li><b>Смена суммы:</b> источник истины — <code>user_lesson_packages.fee_amount</code>. При изменении цены в админке (<code>PUT …/assignments/{id}</code>) активный T‑Bank-платёж по ссылке отменяется (<code>/v2/Cancel</code>), связанные <code>payables</code>/<code>payment_intents</code> переводятся в <code>cancelled</code>, привязка на ссылке сбрасывается. При следующем открытии <code>/pay/ulp/{token}</code> создаётся новый Init на актуальную сумму; если страница уже была открыта и сумма в БД не совпадает с суммой в payable — переиспользование платежа также блокируется (тот же сброс и новый Init). Токен ссылки при этом не меняется.</li>
+    <li><b>Смена суммы:</b> источник истины — <code>user_lesson_packages.fee_amount_cents</code> (в запросе админки — <code>fee_amount</code> рубли). При изменении цены в админке (<code>PUT …/assignments/{id}</code>) активный T‑Bank-платёж по ссылке отменяется (<code>/v2/Cancel</code>), связанные <code>payables</code>/<code>payment_intents</code> переводятся в <code>cancelled</code>, привязка на ссылке сбрасывается. При следующем открытии <code>/pay/ulp/{token}</code> создаётся новый Init на актуальную сумму; если страница уже была открыта и сумма в БД не совпадает с суммой в payable — переиспользование платежа также блокируется (тот же сброс и новый Init). Токен ссылки при этом не меняется.</li>
   </ol>
 
   <h5>Доступ: admin endpoint выдачи ссылки</h5>
@@ -641,7 +653,7 @@
 
   <h5>Feature-тесты</h5>
   <ul class="small">
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI (группа, поставщик, сумма без копеек), публичные endpoint'ы (guest OK), JSON-контракты QR, доступы <code>public-pay-link</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI (группа, поставщик, сумма через <code>Money::formatRub</code>), публичные endpoint'ы (guest OK), JSON-контракты QR, доступы <code>public-pay-link</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача ссылки, Init при открытии, expired/404</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>payment/ulp-public-pay.blade.php</code></li>
   </ul>

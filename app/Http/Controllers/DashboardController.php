@@ -20,6 +20,7 @@ use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use App\Services\Postpay\PostpayMonth;
 use App\Services\Postpay\PostpayUsersPriceSync;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -74,15 +75,23 @@ class DashboardController extends Controller
             ->orderByDesc('date_start')
             ->orderByDesc('id')
             ->get();
+        // Blade считает суммы в рублях ($a->amount) — граница HTTP/шаблонов.
+        $userAbonements->each(function (UserCustomPayment $abonement) {
+            $abonement->setAttribute('amount', (float) Money::fromCents((int) $abonement->amount_cents));
+        });
 
         $userLessonPackages = UserLessonPackage::query()
             ->with(['lessonPackage:id,name'])
             ->where('user_id', (int) $curUser->id)
             ->whereHas('user', fn ($q) => $q->where('partner_id', $partnerId))
-            ->where('fee_amount', '>', 0)
+            ->where('fee_amount_cents', '>', 0)
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
             ->get();
+        // Blade считает суммы в рублях ($ulp->fee_amount) — граница HTTP/шаблонов.
+        $userLessonPackages->each(function (UserLessonPackage $ulp) {
+            $ulp->setAttribute('fee_amount', (float) Money::fromCents((int) $ulp->fee_amount_cents));
+        });
 
         $textForUsers = Setting::where('name', 'textForUsers')
             ->where('partner_id', $partnerId)
@@ -376,6 +385,8 @@ class DashboardController extends Controller
             $this->postpaySync->appendVisitMeta($row);
 
             $item = $row->toArray();
+            // Кабинет (JS/blade) работает с ценой в рублях — граница HTTP/JSON.
+            $item['price'] = (float) Money::fromCents((int) $row->price_cents);
             $isPostpay = (bool) ($item['is_postpay'] ?? false);
             $month = PostpayMonth::firstDayFromDate((string) $row->new_month);
             $item['effective_is_paid'] = (bool) $row->effective_is_paid;

@@ -83,7 +83,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '15.00',
+            'amount_cents' => 1500,
             'currency' => 'RUB',
             'status' => 'pending',
         ]);
@@ -94,7 +94,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '15.00',
+            'out_sum_cents' => 1500,
             'payment_date' => 'Клубный взнос',
             'tbank_order_id' => 'order-1',
         ]);
@@ -142,7 +142,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '20.00',
+            'amount_cents' => 2000,
             'currency' => 'RUB',
             'status' => 'pending',
         ]);
@@ -154,7 +154,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'provider' => 'tbank',
             'payment_method' => 'card',
             'status' => 'pending',
-            'out_sum' => '20.00',
+            'out_sum_cents' => 2000,
             'payment_date' => 'Клубный взнос',
             'tbank_order_id' => 'order-tpay-1',
         ]);
@@ -192,7 +192,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '15.00',
+            'amount_cents' => 1500,
             'currency' => 'RUB',
             'status' => 'pending',
         ]);
@@ -203,7 +203,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '15.00',
+            'out_sum_cents' => 1500,
             'payment_date' => 'Клубный взнос',
             'tbank_order_id' => 'order-1',
         ]);
@@ -263,7 +263,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '15.00',
+            'amount_cents' => 1500,
             'currency' => 'RUB',
             'status' => 'pending',
         ]);
@@ -274,7 +274,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '15.00',
+            'out_sum_cents' => 1500,
             'payment_date' => 'Клубный взнос',
             'tbank_order_id' => 'order-1',
         ]);
@@ -313,7 +313,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '15.00',
+            'amount_cents' => 1500,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2024-09-01',
@@ -326,7 +326,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '15.00',
+            'out_sum_cents' => 1500,
             'payment_date' => '2024-09-01',
         ]);
 
@@ -386,7 +386,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'team_id' => $team->id,
             'date_start' => '2026-11-01',
             'date_end' => '2026-11-30',
-            'amount' => '321.00',
+            'amount_cents' => 32100,
             'is_paid' => 0,
         ]);
 
@@ -394,7 +394,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'custom_payment_fee',
-            'amount' => '321.00',
+            'amount_cents' => 32100,
             'currency' => 'RUB',
             'status' => 'pending',
             'meta' => [
@@ -409,7 +409,7 @@ class TbankWebhookPaymentsTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '321.00',
+            'out_sum_cents' => 32100,
             'payment_date' => 'Дополнительный платеж',
             'tbank_order_id' => 'order-a1',
         ]);

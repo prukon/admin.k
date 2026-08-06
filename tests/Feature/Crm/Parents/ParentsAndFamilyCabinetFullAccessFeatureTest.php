@@ -302,13 +302,13 @@ final class ParentsAndFamilyCabinetFullAccessFeatureTest extends CrmTestCase
         Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id'    => $this->brother1->id,
-            'summ'       => 100,
+            'summ_cents'       => 10000,
         ]);
 
         Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id'    => $this->brother2->id,
-            'summ'       => 900,
+            'summ_cents'       => 90000,
         ]);
 
         $this->actingAs($this->brother1);

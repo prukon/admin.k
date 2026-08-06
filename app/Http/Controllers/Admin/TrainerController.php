@@ -12,6 +12,7 @@ use App\Models\Team;
 use App\Services\PartnerContext;
 use App\Services\TeamTrainerSyncService;
 use App\Services\Users\ClientWelcomeCredentialsService;
+use App\Support\Money;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -130,11 +131,11 @@ class TrainerController extends AdminBaseController
                     break;
 
                 case 'default_base_salary':
-                    $baseQuery->orderBy('trainer_profiles.default_base_salary', $orderDir);
+                    $baseQuery->orderBy('trainer_profiles.default_base_salary_cents', $orderDir);
                     break;
 
                 case 'default_rate_per_training':
-                    $baseQuery->orderBy('trainer_profiles.default_rate_per_training', $orderDir);
+                    $baseQuery->orderBy('trainer_profiles.default_rate_per_training_cents', $orderDir);
                     break;
 
                 case 'sort_order':
@@ -182,8 +183,8 @@ class TrainerController extends AdminBaseController
                 'teams_label'                 => $teamsLabels['teams_label'],
                 'teams_titles'                => $teamsLabels['teams_titles'],
                 'email'                       => $user?->email ?? '',
-                'default_base_salary'         => $this->formatSalaryRubles($profile->default_base_salary),
-                'default_rate_per_training'   => $this->formatSalaryRubles($profile->default_rate_per_training),
+                'default_base_salary'         => Money::formatRub((int) ($profile->default_base_salary_cents ?? 0), ' руб'),
+                'default_rate_per_training'   => Money::formatRub((int) ($profile->default_rate_per_training_cents ?? 0), ' руб'),
                 'sort_order'                  => (int) $profile->sort_order,
                 'is_enabled'                  => (int) $profile->is_enabled,
                 'status_label'                => $profile->is_enabled ? 'Да' : 'Нет',
@@ -218,8 +219,8 @@ class TrainerController extends AdminBaseController
             'description' => $data['description'] ?? null,
             'is_enabled' => (bool) ($data['is_enabled'] ?? true),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
-            'default_base_salary' => $this->normalizeSalaryDefault($data['default_base_salary'] ?? null),
-            'default_rate_per_training' => $this->normalizeSalaryDefault($data['default_rate_per_training'] ?? null),
+            'default_base_salary_cents' => $this->salaryCentsFromRubles($data['default_base_salary'] ?? null),
+            'default_rate_per_training_cents' => $this->salaryCentsFromRubles($data['default_rate_per_training'] ?? null),
         ];
 
         $enabled = (bool) ($data['is_enabled'] ?? true);
@@ -345,8 +346,8 @@ class TrainerController extends AdminBaseController
             'description' => $data['description'] ?? null,
             'is_enabled' => $enabled,
             'sort_order' => (int) ($data['sort_order'] ?? 0),
-            'default_base_salary' => $this->normalizeSalaryDefault($data['default_base_salary'] ?? null),
-            'default_rate_per_training' => $this->normalizeSalaryDefault($data['default_rate_per_training'] ?? null),
+            'default_base_salary_cents' => $this->salaryCentsFromRubles($data['default_base_salary'] ?? null),
+            'default_rate_per_training_cents' => $this->salaryCentsFromRubles($data['default_rate_per_training'] ?? null),
         ];
 
         $teamIds = $data['team_ids'] ?? [];
@@ -446,8 +447,8 @@ class TrainerController extends AdminBaseController
             'description' => $profile->description,
             'is_enabled' => (int) $profile->is_enabled,
             'sort_order' => (int) $profile->sort_order,
-            'default_base_salary' => $this->salaryRublesForForm($profile->default_base_salary),
-            'default_rate_per_training' => $this->salaryRublesForForm($profile->default_rate_per_training),
+            'default_base_salary' => Money::fromCents((int) ($profile->default_base_salary_cents ?? 0)),
+            'default_rate_per_training' => Money::fromCents((int) ($profile->default_rate_per_training_cents ?? 0)),
             'avatar_url' => $this->avatarUrl($user),
             'image' => $user?->image,
             'image_crop' => $user?->image_crop,
@@ -519,23 +520,12 @@ class TrainerController extends AdminBaseController
         ];
     }
 
-    private function formatSalaryRubles(mixed $value): string
+    /**
+     * Рубли (допускаются копейки) → копейки для хранения в *_cents. Невалидное/пустое значение → 0.
+     */
+    private function salaryCentsFromRubles(mixed $value): int
     {
-        return number_format((int) round((float) ($value ?? 0)), 0, '.', ' ') . ' руб';
-    }
-
-    private function salaryRublesForForm(mixed $value): string
-    {
-        return (string) (int) round((float) ($value ?? 0));
-    }
-
-    private function normalizeSalaryDefault(mixed $value): string
-    {
-        if ($value === null || $value === '') {
-            return '0.00';
-        }
-
-        return number_format(round((float) $value), 2, '.', '');
+        return Money::toCents($value) ?? 0;
     }
 
     private function deleteUserAvatarFiles(User $user): void

@@ -34,7 +34,7 @@ class TinkoffProcessRefundJobCloudKassirReturnReceiptTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'monthly_fee',
-            'amount' => 1500,
+            'amount_cents' => 150000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => now()->startOfMonth()->format('Y-m-01'),
@@ -45,7 +45,7 @@ class TinkoffProcessRefundJobCloudKassirReturnReceiptTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $intent = PaymentIntent::factory()->create([
@@ -56,14 +56,14 @@ class TinkoffProcessRefundJobCloudKassirReturnReceiptTest extends JobsTestCase
             'tbank_payment_id' => 777001,
             'provider_inv_id' => 777001,
             'status' => 'paid',
-            'out_sum' => $payable->amount,
+            'out_sum_cents' => $payable->amount_cents,
         ]);
 
         UserPrice::factory()->paid()->create([
             'user_id'   => $userId,
             'team_id'   => (int) $user->team_id,
             'new_month' => $payable->month->format('Y-m-d'),
-            'price'     => (string) (int) $payable->amount,
+            'price_cents' => (int) $payable->amount_cents,
         ]);
 
         $refund = Refund::create([
@@ -71,7 +71,7 @@ class TinkoffProcessRefundJobCloudKassirReturnReceiptTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 1500,
+            'amount_cents' => 150000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'tbank',

@@ -107,7 +107,7 @@ class AppServiceProvider extends ServiceProvider
                 $partnerId = auth()->user()->partner_id ?? session('partner_id'); // замени на свою логику
                 if ($partnerId) {
                     $balance = Cache::remember("partner_balance_{$partnerId}", 60, function () use ($partnerId) {
-                        return (float) (Partner::where('id', $partnerId)->value('wallet_balance') ?? 0);
+                        return ((int) (Partner::where('id', $partnerId)->value('wallet_balance_cents') ?? 0)) / 100;
                     });
                 }
             }

@@ -7,13 +7,13 @@ use App\Models\UserPrice;
 use App\Services\Postpay\PostpayMonth;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\UserPriceTeamMembership;
-use App\Support\Payments\PaymentOutSumNormalizer;
+use App\Support\Money;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
- * Сумма месячного абонемента для оплаты берётся из users_prices (не из POST).
+ * Сумма месячного абонемента для оплаты берётся из users_prices.price_cents (не из POST).
  */
 final class UserPriceMonthlyFeePaymentResolver
 {
@@ -23,7 +23,7 @@ final class UserPriceMonthlyFeePaymentResolver
     }
 
     /**
-     * @return array{out_sum: string, month_first_day: string, team_id: int}
+     * @return array{amount_cents: int, out_sum: string, month_first_day: string, team_id: int}
      */
     public function resolveOrAbort(int $userId, int $partnerId, string $formatedPaymentDate, ?int $teamId = null): array
     {
@@ -73,22 +73,14 @@ final class UserPriceMonthlyFeePaymentResolver
             throw new UnprocessableEntityHttpException('Этот период уже оплачен.');
         }
 
-        $raw = $row->price;
-        if ($raw === null || $raw === '') {
-            throw new UnprocessableEntityHttpException('Неверная цена: сумма не задана.');
-        }
-
-        $normalized = PaymentOutSumNormalizer::normalize(trim(str_replace(',', '.', (string) $raw)));
-        if ($normalized === null) {
-            throw new UnprocessableEntityHttpException('Неверная цена: не удаётся определить сумму к оплате.');
-        }
-
-        if ((float) $normalized <= 0) {
+        $amountCents = (int) ($row->price_cents ?? 0);
+        if ($amountCents <= 0) {
             throw new UnprocessableEntityHttpException('Неверная цена: к оплате должна быть сумма больше нуля.');
         }
 
         return [
-            'out_sum' => $normalized,
+            'amount_cents' => $amountCents,
+            'out_sum' => Money::fromCents($amountCents),
             'month_first_day' => $monthFirst,
             'team_id' => $resolvedTeamId,
         ];
@@ -107,7 +99,7 @@ final class UserPriceMonthlyFeePaymentResolver
         $rows = UserPrice::query()
             ->where('user_id', $user->id)
             ->whereDate('new_month', $monthFirst)
-            ->where('price', '>', 0)
+            ->where('price_cents', '>', 0)
             ->get(['team_id']);
 
         if ($rows->count() === 1) {

@@ -1,9 +1,4 @@
-@php
-    $formatMoney = static function ($value): string {
-        return number_format((float) $value, 2, '.', ' ');
-    };
-@endphp
-
+{{-- Значения приходят уже отформатированными сервисом (App\Support\Money::formatRub). --}}
 <table class="trainer-salary-table trainer-salary-table--readonly">
     <thead>
     <tr>
@@ -46,28 +41,28 @@
                 @endif
             </th>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                <span class="trainer-salary-value">{{ $formatMoney($row['base_salary']) }}</span>
+                <span class="trainer-salary-value">{{ $row['base_salary'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-center">
                 <span class="trainer-salary-count">{{ (int) $row['trainings_count'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                <span class="trainer-salary-value">{{ $formatMoney($row['rate_per_training']) }}</span>
+                <span class="trainer-salary-value">{{ $row['rate_per_training'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                <span class="trainer-salary-value">{{ $formatMoney($row['trainings_amount']) }}</span>
+                <span class="trainer-salary-value">{{ $row['trainings_amount'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                <span class="trainer-salary-value">{{ $formatMoney($row['bonuses']) }}</span>
+                <span class="trainer-salary-value">{{ $row['bonuses'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                <span class="trainer-salary-value">{{ $formatMoney($row['deductions']) }}</span>
+                <span class="trainer-salary-value">{{ $row['deductions'] }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body trainer-salary-cell--comment">
                 <span class="trainer-salary-readonly">{{ $row['comment'] ?? '—' }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--total text-end">
-                <span class="trainer-salary-value trainer-salary-value--total">{{ $formatMoney($row['total']) }}</span>
+                <span class="trainer-salary-value trainer-salary-value--total">{{ $row['total'] }}</span>
             </td>
         </tr>
     @endforeach

@@ -56,7 +56,7 @@ class UserPriceFactory extends Factory
             'sort'       => null,
             'user_id'    => null,
             'team_id'    => null,
-            'price'      => '0',
+            'price_cents' => 0,
             'is_paid'    => 0,
             'created_at' => now(),
             'updated_at' => now(),
@@ -79,22 +79,23 @@ class UserPriceFactory extends Factory
     }
 
     /**
-     * Привязка к юзеру + месяцу + сумме.
+     * Привязка к юзеру + месяцу + сумме в копейках.
      *
      * $monthYmd — строка 'YYYY-MM-01'
+     * $priceCents — сумма в копейках
      */
     public function forUserAndMonth(
         int $userId,
         string $monthYmd,
-        int|float $amount,
+        int $priceCents,
         bool $isPaid = true,
         ?int $teamId = null
     ): static {
-        return $this->state(function (array $attributes) use ($userId, $monthYmd, $amount, $isPaid, $teamId) {
+        return $this->state(function (array $attributes) use ($userId, $monthYmd, $priceCents, $isPaid, $teamId) {
             $state = [
                 'user_id'   => $userId,
                 'new_month' => $monthYmd,
-                'price'     => (string) (int) $amount,
+                'price_cents' => $priceCents,
                 'is_paid'   => $isPaid ? 1 : 0,
             ];
 

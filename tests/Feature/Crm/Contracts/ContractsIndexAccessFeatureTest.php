@@ -19,7 +19,7 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
         parent::setUp();
 
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 500;
+        $this->partner->wallet_balance_cents = 50000;
         $this->partner->save();
     }
 

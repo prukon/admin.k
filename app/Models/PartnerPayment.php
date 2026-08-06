@@ -17,7 +17,7 @@ class PartnerPayment extends Model
         'payment_id',
         'partner_id',
         'user_id',
-        'amount',
+        'amount_cents',
         'payment_date',
         'payment_method',
         'payment_status',
@@ -28,6 +28,7 @@ class PartnerPayment extends Model
 
 
     protected $casts = [
+        'amount_cents' => 'integer',
         'payment_date' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

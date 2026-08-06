@@ -5,6 +5,7 @@ namespace App\Services\Contracts;
 use App\Models\Contract;
 use App\Models\ContractEvent;
 use App\Models\Partner;
+use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
@@ -16,22 +17,27 @@ class ContractBillingService
         return (float) (config('billing.contract_create_fee') ?? 70.00);
     }
 
+    public function createFeeCents(): int
+    {
+        return Money::toCentsOrFail($this->createFee());
+    }
+
     /**
-     * Списание за создание договора (PDF или шаблон). Возвращает баланс после списания.
+     * Списание за создание договора (PDF или шаблон). Возвращает баланс после списания (в рублях).
      *
      * @throws ValidationException
      */
     public function chargeCreationFee(Partner $partner, Contract $contract): float
     {
-        $fee = $this->createFee();
+        $feeCents = $this->createFeeCents();
 
-        if ((float) $partner->wallet_balance < $fee) {
+        if ((int) $partner->wallet_balance_cents < $feeCents) {
             throw ValidationException::withMessages([
                 'wallet' => 'Недостаточно средств для создания договора.',
             ]);
         }
 
-        $partner->wallet_balance = (float) $partner->wallet_balance - $fee;
+        $partner->wallet_balance_cents = (int) $partner->wallet_balance_cents - $feeCents;
         $partner->save();
         Cache::forget("partner_balance_{$partner->id}");
 
@@ -40,14 +46,14 @@ class ContractBillingService
             'author_id'    => Auth::id(),
             'type'         => 'balance_charged',
             'payload_json' => json_encode([
-                'amount'        => number_format($fee, 2, '.', ''),
+                'amount'        => Money::fromCents($feeCents),
                 'currency'      => 'RUB',
                 'partner_id'    => $partner->id,
-                'balance_after' => number_format($partner->wallet_balance, 2, '.', ''),
+                'balance_after' => Money::fromCents((int) $partner->wallet_balance_cents),
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
-        return (float) $partner->wallet_balance;
+        return ((int) $partner->wallet_balance_cents) / 100;
     }
 
     /**
@@ -55,9 +61,9 @@ class ContractBillingService
      */
     public function refundCreationFee(Partner $partner, Contract $contract, ?int $authorId = null): float
     {
-        $fee = $this->createFee();
+        $feeCents = $this->createFeeCents();
 
-        $partner->wallet_balance = (float) $partner->wallet_balance + $fee;
+        $partner->wallet_balance_cents = (int) $partner->wallet_balance_cents + $feeCents;
         $partner->save();
         Cache::forget("partner_balance_{$partner->id}");
 
@@ -66,14 +72,14 @@ class ContractBillingService
             'author_id'    => $authorId ?? Auth::id(),
             'type'         => 'balance_refunded',
             'payload_json' => json_encode([
-                'amount'        => number_format($fee, 2, '.', ''),
+                'amount'        => Money::fromCents($feeCents),
                 'currency'      => 'RUB',
                 'partner_id'    => $partner->id,
-                'balance_after' => number_format($partner->wallet_balance, 2, '.', ''),
+                'balance_after' => Money::fromCents((int) $partner->wallet_balance_cents),
                 'reason'        => 'revoke_awaiting_client_fill',
             ], JSON_UNESCAPED_UNICODE),
         ]);
 
-        return (float) $partner->wallet_balance;
+        return ((int) $partner->wallet_balance_cents) / 100;
     }
 }

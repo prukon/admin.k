@@ -72,7 +72,8 @@
                     @foreach($allTeams as $idx => $team)
                         @php
                             $teamPriceRow = $teamPrices->get($team->id);
-                            $price = optional($teamPriceRow)->price ?? 0;
+                            $priceCents = (int) (optional($teamPriceRow)->price_cents ?? 0);
+                            $price = $priceCents > 0 ? $priceCents / 100 : 0;
                             $selectedPackageId = optional($teamPriceRow)->lesson_package_id;
                             $teamLabel = ($idx + 1) . '. ' . $team->title;
                             $packages = $lessonPackages ?? [];

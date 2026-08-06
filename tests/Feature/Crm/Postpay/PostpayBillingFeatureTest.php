@@ -113,7 +113,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 100,
+            'price_cents' => 10000,
             'is_paid' => false,
         ]);
 
@@ -138,7 +138,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertSame((int) $this->postpayPackage->id, (int) $row->lesson_package_id);
-        $this->assertSame(0.0, (float) $row->price);
+        $this->assertSame(0, (int) $row->price_cents);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }
 
@@ -148,7 +148,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 0,
+            'price_cents' => 0,
             'lesson_package_id' => $this->postpayPackage->id,
             'is_paid' => false,
         ]);
@@ -172,7 +172,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             ->first();
 
         $this->assertNotNull($row);
-        $this->assertSame(500.0, (float) $row->price);
+        $this->assertSame(50000, (int) $row->price_cents);
         $this->assertSame(0, UserLessonPackage::query()->count());
     }
 
@@ -182,7 +182,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 500,
+            'price_cents' => 50000,
             'lesson_package_id' => $this->postpayPackage->id,
             'is_paid' => true,
         ]);
@@ -231,7 +231,7 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2026-08-01',
-            'price' => 500,
+            'price_cents' => 50000,
             'lesson_package_id' => $this->postpayPackage->id,
             'is_paid' => false,
         ]);
@@ -258,6 +258,6 @@ final class PostpayBillingFeatureTest extends CrmTestCase
             ->first();
 
         $this->assertNotNull($row);
-        $this->assertSame(700.0, (float) $row->price);
+        $this->assertSame(70000, (int) $row->price_cents);
     }
 }

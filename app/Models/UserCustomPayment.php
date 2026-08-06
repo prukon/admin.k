@@ -19,7 +19,7 @@ final class UserCustomPayment extends Model
         'team_id'         => 'integer',
         'date_start'      => 'date:Y-m-d',
         'date_end'        => 'date:Y-m-d',
-        'amount'          => 'decimal:2',
+        'amount_cents'    => 'integer',
         'is_paid'         => 'boolean',
         'is_manual_paid'  => 'boolean',
         'manual_paid_at'  => 'datetime',

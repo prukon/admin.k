@@ -133,7 +133,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 1500,
+            'fee_amount_cents' => 150000,
             'created_by' => $this->user->id,
         ]);
 
@@ -172,7 +172,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             ->first();
 
         $this->assertNotNull($ulp);
-        $this->assertSame('1750.50', number_format((float) $ulp->fee_amount, 2, '.', ''));
+        $this->assertSame(175050, (int) $ulp->fee_amount_cents);
 
         $this->assertDatabaseHas('user_team_schedule_slots', [
             'partner_id' => $this->partner->id,
@@ -198,7 +198,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 900,
+            'fee_amount_cents' => 90000,
             'created_by' => $this->user->id,
         ]);
 
@@ -261,7 +261,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
 
@@ -308,7 +308,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
 
@@ -366,7 +366,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
 
@@ -408,7 +408,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 700,
+            'fee_amount_cents' => 70000,
             'created_by' => $this->user->id,
         ]);
 
@@ -494,7 +494,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
                 'ends_at' => null,
                 'lessons_total' => 1,
                 'lessons_remaining' => 1,
-                'fee_amount' => 500 + $i,
+                'fee_amount_cents' => 50000 + $i,
                 'created_by' => $this->user->id,
             ]);
         }
@@ -580,7 +580,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
 
@@ -744,7 +744,7 @@ final class LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
 

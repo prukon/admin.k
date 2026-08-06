@@ -60,7 +60,7 @@ final class LessonPackageAssignmentsTeamColumnFeatureTest extends CrmTestCase
             'lesson_package_id' => $package->id,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '1000.00',
+            'fee_amount_cents' => 100000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

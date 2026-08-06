@@ -87,7 +87,7 @@ final class LessonPackageAssignmentsAuditLogsFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => $lessonsRemaining,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => $isPaid,
             'created_by' => $this->user->id,
         ]);

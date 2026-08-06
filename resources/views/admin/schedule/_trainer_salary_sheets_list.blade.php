@@ -1,9 +1,4 @@
-@php
-    $formatMoney = static function ($value): string {
-        return number_format((float) $value, 2, '.', ' ');
-    };
-@endphp
-
+{{-- Значения приходят уже отформатированными сервисом (App\Support\Money::formatRub). --}}
 <table class="trainer-salary-sheets-table">
     <thead>
     <tr>
@@ -32,7 +27,7 @@
                 @endif
             </td>
             <td class="text-center">{{ (int) ($sheet['trainers_count'] ?? 0) }}</td>
-            <td class="text-end text-nowrap fw-semibold">{{ $formatMoney($sheet['grand_total'] ?? 0) }}</td>
+            <td class="text-end text-nowrap fw-semibold">{{ $sheet['grand_total'] ?? '0' }}</td>
             <td>{{ $sheet['formed_by_name'] ?? '—' }}</td>
             <td>
                 {{ $sheet['version_label'] ?? '' }}

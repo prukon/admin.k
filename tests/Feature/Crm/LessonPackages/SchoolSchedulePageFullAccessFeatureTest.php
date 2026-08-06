@@ -308,7 +308,7 @@ final class SchoolSchedulePageFullAccessFeatureTest extends CrmTestCase
             'ends_at'           => null,
             'lessons_total'     => 1,
             'lessons_remaining' => 1,
-            'fee_amount'        => '80.00',
+            'fee_amount_cents'        => 8000,
             'is_paid'           => false,
             'created_by'        => $this->user->id,
         ]);

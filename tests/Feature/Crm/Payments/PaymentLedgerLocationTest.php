@@ -35,7 +35,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'team_title' => 'Группа',
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2026-05-01',
-            'summ' => '1000',
+            'summ_cents' => 100000,
             'location_id' => $location->id,
         ]);
 
@@ -47,7 +47,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'team_title' => 'Группа',
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2026-05-01',
-            'summ' => '1000',
+            'summ_cents' => 100000,
         ]);
 
         $this->assertSame($location->id, (int) $paymentAgain->location_id);
@@ -66,7 +66,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'team_title' => 'Группа',
             'operation_date' => now()->format('Y-m-d H:i:s'),
             'payment_month' => '2026-05-01',
-            'summ' => '500',
+            'summ_cents' => 50000,
         ]);
 
         $this->assertNull($payment->location_id);
@@ -87,7 +87,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '3500.00',
+            'amount_cents' => 350000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2026-03-01',
@@ -100,7 +100,7 @@ final class PaymentLedgerLocationTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '3500.00',
+            'out_sum_cents' => 350000,
             'payment_date' => '2026-03-01',
             'meta' => json_encode(['user_name' => $this->user->name], JSON_UNESCAPED_UNICODE),
         ]);

@@ -6,9 +6,10 @@ namespace App\Services\Postpay;
 
 use App\Models\LessonPackage;
 use App\Models\UserPrice;
+use App\Support\Money;
 
 /**
- * Синхронизация users_prices.price для строк с шаблоном postpay.
+ * Синхронизация users_prices.price_cents для строк с шаблоном postpay.
  */
 final class PostpayUsersPriceSync
 {
@@ -23,9 +24,9 @@ final class PostpayUsersPriceSync
     }
 
     /**
-     * Обновить price по журналу, если строка — postpay и не оплачена.
+     * Обновить price_cents по журналу, если строка — postpay и не оплачена.
      *
-     * @return array{synced: bool, locked: bool, visits: int, amount: float}|null null если не postpay
+     * @return array{synced: bool, locked: bool, visits: int, amount_cents: int}|null null если не postpay
      */
     public function syncRow(UserPrice $row): ?array
     {
@@ -44,13 +45,13 @@ final class PostpayUsersPriceSync
                 'synced' => false,
                 'locked' => true,
                 'visits' => $calc['visits'],
-                'amount' => (float) $row->price,
+                'amount_cents' => (int) ($row->price_cents ?? 0),
             ];
         }
 
-        $amount = $calc['amount'];
-        if (abs((float) $row->price - $amount) >= 0.005) {
-            $row->price = $amount;
+        $amountCents = $calc['amount_cents'];
+        if ((int) ($row->price_cents ?? 0) !== $amountCents) {
+            $row->price_cents = $amountCents;
             $row->save();
         }
 
@@ -58,12 +59,12 @@ final class PostpayUsersPriceSync
             'synced' => true,
             'locked' => false,
             'visits' => $calc['visits'],
-            'amount' => $amount,
+            'amount_cents' => $amountCents,
         ];
     }
 
     /**
-     * После смены статуса в журнале: найти postpay-строки ученика за месяц (по группам слота/всем) и пересчитать.
+     * После смены статуса в журнале: найти postpay-строки ученика за месяц и пересчитать.
      */
     public function syncAfterOccurrenceChange(
         int $partnerId,
@@ -93,8 +94,7 @@ final class PostpayUsersPriceSync
     }
 
     /**
-     * Применить postpay-пакет к строке: выставить lesson_package_id и пересчитать сумму (0, если визитов нет).
-     * Не трогает оплаченные строки.
+     * Применить postpay-пакет к строке: lesson_package_id + пересчёт суммы.
      */
     public function applyPackageToRow(UserPrice $row, LessonPackage $package): bool
     {
@@ -115,8 +115,6 @@ final class PostpayUsersPriceSync
     }
 
     /**
-     * Массовый sync postpay-строк группы за месяц (например при открытии «Установки цен»).
-     *
      * @param  list<UserPrice>  $rows
      * @return list<UserPrice>
      */
@@ -158,15 +156,12 @@ final class PostpayUsersPriceSync
         $calc = $this->calculator->forUserPrice($row, $package);
         $row->setAttribute('is_postpay', true);
         $row->setAttribute('postpay_visits', $calc['visits']);
-        $row->setAttribute('postpay_price_per_lesson', $calc['price_per_lesson']);
+        // UI по-прежнему в рублях
+        $row->setAttribute('postpay_price_per_lesson', (float) Money::fromCents($calc['price_per_lesson_cents']));
 
         return $row;
     }
 
-    /**
-     * Пересчитать все неоплаченные строки users_prices с данным шаблоном postpay
-     * (например после смены цены за занятие в шаблоне).
-     */
     public function resyncUnpaidForPackage(int $lessonPackageId): int
     {
         $package = LessonPackage::query()->find($lessonPackageId);

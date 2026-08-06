@@ -186,11 +186,15 @@ class TeamService
                 }, $data['weekdays']);
             }
 
+            $monthPriceLabel = isset($data['month_price_cents']) && $data['month_price_cents'] !== null
+                ? round(((int) $data['month_price_cents']) / 100, 2)
+                : '-';
+
             $description = sprintf(
                 "Название: %s\nДлительность по умолчанию (мин): %s\nСтоимость в месяц: %s\nДни недели: %s\nСортировка: %s\nАктивность: %s",
                 $team->title ?? '-',
                 $data['default_duration_minutes'] ?? '-',
-                $data['month_price'] ?? '-',
+                $monthPriceLabel,
                 implode(', ', $weekdaysFormatted) ?: '-',
                 $data['order_by'] ?? '-',
                 !empty($data['is_enabled']) ? 'Да' : 'Нет'

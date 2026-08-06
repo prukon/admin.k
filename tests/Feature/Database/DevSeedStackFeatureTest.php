@@ -185,7 +185,7 @@ final class DevSeedStackFeatureTest extends TestCase
             'provider' => 'tbank',
             'status' => 'paid',
             'tbank_order_id' => 'dev-seed-test-order-' . uniqid('', true),
-            'out_sum' => 1500.00,
+            'out_sum_cents' => 150000,
             'payment_method' => 'card',
         ]);
 
@@ -328,7 +328,7 @@ final class DevSeedStackFeatureTest extends TestCase
                 'partner_id' => $partner->id,
                 'user_id' => $user->id,
                 'month' => $month,
-                'amount' => 3100,
+                'amount_cents' => 310000,
                 'meta' => ['team_id' => (int) $teams[1]->id],
             ]);
 
@@ -337,7 +337,7 @@ final class DevSeedStackFeatureTest extends TestCase
             'team_id' => (int) $teams[1]->id,
             'new_month' => $month,
             'is_paid' => 1,
-            'price' => 3100,
+            'price_cents' => 310000,
         ]);
 
         $payable = Payable::query()->where('user_id', $user->id)->firstOrFail();

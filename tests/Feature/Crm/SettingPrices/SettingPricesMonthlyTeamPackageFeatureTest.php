@@ -61,7 +61,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->unpaid->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1000,
+            'price_cents' => 100000,
             'is_paid' => 0,
             'is_manual_paid' => null,
         ]);
@@ -69,7 +69,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->paidAuto->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 800,
+            'price_cents' => 80000,
             'is_paid' => 1,
             'is_manual_paid' => null,
         ]);
@@ -77,7 +77,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->paidManual->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 900,
+            'price_cents' => 90000,
             'is_paid' => 0,
             'is_manual_paid' => true,
         ]);
@@ -107,7 +107,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 5500,
+            'price_cents' => 550000,
             'lesson_package_id' => $this->package->id,
         ]);
 
@@ -115,7 +115,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->unpaid->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 5500,
+            'price_cents' => 550000,
             'lesson_package_id' => $this->package->id,
         ]);
 
@@ -123,7 +123,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->paidAuto->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 800,
+            'price_cents' => 80000,
             'is_paid' => 1,
         ]);
 
@@ -131,7 +131,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $this->paidManual->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 900,
+            'price_cents' => 90000,
             'is_manual_paid' => 1,
         ]);
     }
@@ -159,7 +159,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
             'user_id' => $withoutRow->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 5500,
+            'price_cents' => 550000,
             'lesson_package_id' => $this->package->id,
         ]);
         $this->assertDatabaseMissing('users_prices', [
@@ -184,7 +184,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 5500,
+            'price_cents' => 550000,
         ]);
     }
 
@@ -193,7 +193,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         TeamPrice::forceCreate([
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 777,
+            'price_cents' => 77700,
             'lesson_package_id' => $this->package->id,
         ]);
 
@@ -228,12 +228,12 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         TeamPrice::forceCreate([
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1000,
+            'price_cents' => 100000,
         ]);
         TeamPrice::forceCreate([
             'team_id' => $teamB->id,
             'new_month' => '2024-09-01',
-            'price' => 2000,
+            'price_cents' => 200000,
         ]);
 
         $this->postJson(route('setPriceAllTeams'), [
@@ -257,13 +257,13 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 5500,
+            'price_cents' => 550000,
             'lesson_package_id' => $this->package->id,
         ]);
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $teamB->id,
             'new_month' => '2024-09-01',
-            'price' => 2200,
+            'price_cents' => 220000,
             'lesson_package_id' => $pkgB->id,
         ]);
     }
@@ -273,7 +273,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         TeamPrice::forceCreate([
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1111,
+            'price_cents' => 111100,
         ]);
 
         $this->postJson(route('setPriceAllTeams'), [
@@ -286,7 +286,7 @@ final class SettingPricesMonthlyTeamPackageFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1111,
+            'price_cents' => 111100,
         ]);
     }
 

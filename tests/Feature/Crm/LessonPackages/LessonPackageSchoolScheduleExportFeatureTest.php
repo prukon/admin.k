@@ -91,7 +91,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => '2026-09-30',
             'lessons_total' => 8,
             'lessons_remaining' => 3, // текущий счётчик намеренно «бит» — в Excel должен быть исторический 7
-            'fee_amount' => 4500.00,
+            'fee_amount_cents' => 450000,
             'is_paid' => true,
             'is_manual_paid' => null,
             'created_by' => $this->user->id,
@@ -105,7 +105,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => 1000.00,
+            'fee_amount_cents' => 100000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -194,7 +194,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => 10,
+            'fee_amount_cents' => 1000,
             'created_by' => $this->foreignUser->id,
         ]);
 
@@ -315,7 +315,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => '2026-08-31',
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => 2000,
+            'fee_amount_cents' => 200000,
             'is_paid' => false,
             'is_manual_paid' => false,
             'created_by' => $this->user->id,
@@ -432,7 +432,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'lessons_total' => 8,
             // После двух списаний реально 6, но в выгрузке считаем по событиям.
             'lessons_remaining' => 1,
-            'fee_amount' => 1000,
+            'fee_amount_cents' => 100000,
             'created_by' => $this->user->id,
         ]);
 
@@ -623,7 +623,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => '2026-06-30',
             'lessons_total' => 2,
             'lessons_remaining' => 2,
-            'fee_amount' => 100,
+            'fee_amount_cents' => 10000,
             'created_by' => $this->user->id,
         ]);
         $slot = TeamScheduleSlot::query()->create([
@@ -893,7 +893,7 @@ final class LessonPackageSchoolScheduleExportFeatureTest extends CrmTestCase
             'ends_at' => '2026-07-31',
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => 1000,
+            'fee_amount_cents' => 100000,
             'created_by' => $this->user->id,
         ]);
         $slot = TeamScheduleSlot::query()->create([

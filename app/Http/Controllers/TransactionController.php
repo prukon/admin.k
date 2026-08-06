@@ -16,6 +16,7 @@ use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
+use App\Support\Money;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -116,7 +117,7 @@ class TransactionController extends Controller
                 abort(422, 'Дополнительный платеж уже оплачен');
             }
 
-            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $outSum = Money::fromCents((int) $upp->amount_cents);
             $paymentDate = $paymentDate !== '' ? $paymentDate : 'Дополнительный платеж';
             // Важно: не считаем это monthly_fee, чтобы не попасть в ветку users_prices.
             $formatedPaymentDate = null;
@@ -216,6 +217,7 @@ class TransactionController extends Controller
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
+        $amountCents = null;
 
         if ($paymentKind === 'custom_payment') {
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
@@ -232,7 +234,8 @@ class TransactionController extends Controller
                 abort(422, 'Дополнительный платеж уже оплачен');
             }
 
-            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $amountCents = (int) $upp->amount_cents;
+            $outSum = Money::fromCents($amountCents);
             $paymentDate = (string) $request->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
@@ -242,6 +245,7 @@ class TransactionController extends Controller
                 $userLessonPackageId ?? 0,
             );
             $lessonPackage = $resolvedLp['ulp'];
+            $amountCents = (int) $resolvedLp['amount_cents'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -253,6 +257,7 @@ class TransactionController extends Controller
                 $rawFmt,
                 $teamIdParam
             );
+            $amountCents = (int) $resolved['amount_cents'];
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
@@ -263,6 +268,7 @@ class TransactionController extends Controller
                 Log::warning('Robokassa pay: invalid OutSum', ['outSum' => $outSumRaw, 'user_id' => $userId]);
                 abort(422, 'Некорректная сумма');
             }
+            $amountCents = Money::toCentsOrFail($outSum);
             $paymentDate = 'Клубный взнос';
             if (! $request->has('formatedPaymentDate')) {
                 Log::warning('formatedPaymentDate отсутствует в запросе');
@@ -326,7 +332,7 @@ class TransactionController extends Controller
             'partner_id' => $partnerId,
             'user_id' => $userId,
             'type' => $type,
-            'amount' => $outSum,
+            'amount_cents' => $amountCents,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => $month,
@@ -340,7 +346,7 @@ class TransactionController extends Controller
             'payable_id' => $payable->id,
             'provider' => 'robokassa',
             'status' => 'pending',
-            'out_sum' => $outSum,
+            'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
             'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($request)));

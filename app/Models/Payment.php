@@ -16,6 +16,7 @@ class Payment extends Model
     protected $casts = [
         'location_id' => 'integer',
         'team_id' => 'integer',
+        'summ_cents' => 'integer',
     ];
 
     public function user()

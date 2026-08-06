@@ -507,7 +507,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             'ends_at' => null,
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => '1000.00',
+            'fee_amount_cents' => 100000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -569,7 +569,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             'user_id' => $student->id,
             'team_id' => $team->id,
             'new_month' => '2026-09-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 1,
             'is_manual_paid' => 1,
             'lesson_package_id' => $ulp->lesson_package_id,

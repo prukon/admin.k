@@ -63,16 +63,16 @@ class LtvReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1111,
+            'summ_cents' => 111100,
         ]);
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 2222,
+            'summ_cents' => 222200,
         ]);
 
         Payment::factory()->create([
             'user_id' => $this->foreignUser->id,
-            'summ' => 9999,
+            'summ_cents' => 999900,
         ]);
 
         $expectedRaw = 3333.0;
@@ -111,13 +111,13 @@ class LtvReportTest extends CrmTestCase
         // Платежи для обоих
         Payment::factory()->create([
             'user_id'        => $userA->id,
-            'summ'           => 100,
+            'summ_cents'           => 10000,
             'operation_date' => Carbon::now()->subDays(3),
         ]);
 
         Payment::factory()->create([
             'user_id'        => $userB->id,
-            'summ'           => 200,
+            'summ_cents'           => 20000,
             'operation_date' => Carbon::now()->subDays(2),
         ]);
 
@@ -162,19 +162,19 @@ class LtvReportTest extends CrmTestCase
         // Положительный, нулевой и отрицательный платеж
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 100,
+            'summ_cents'           => 10000,
             'operation_date' => Carbon::now()->subDays(3),
         ]);
 
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 0,
+            'summ_cents'           => 0,
             'operation_date' => Carbon::now()->subDays(2),
         ]);
 
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => -50,
+            'summ_cents'           => -5000,
             'operation_date' => Carbon::now()->subDay(),
         ]);
 
@@ -206,17 +206,17 @@ class LtvReportTest extends CrmTestCase
         // Три положительных платежа
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 100,
+            'summ_cents'           => 10000,
             'operation_date' => Carbon::parse('2025-01-01'),
         ]);
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 150,
+            'summ_cents'           => 15000,
             'operation_date' => Carbon::parse('2025-01-10'),
         ]);
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 50,
+            'summ_cents'           => 5000,
             'operation_date' => Carbon::parse('2025-01-20'),
         ]);
 
@@ -254,7 +254,7 @@ class LtvReportTest extends CrmTestCase
         foreach ($dates as $date) {
             Payment::factory()->create([
                 'user_id'        => $user->id,
-                'summ'           => 100,
+                'summ_cents'           => 10000,
                 'operation_date' => $date,
             ]);
         }
@@ -335,7 +335,7 @@ class LtvReportTest extends CrmTestCase
         foreach ([$userFull, $userOnlyName, $userNoName] as $u) {
             Payment::factory()->create([
                 'user_id'        => $u->id,
-                'summ'           => 100,
+                'summ_cents'           => 10000,
                 'operation_date' => Carbon::now()->subDay(),
             ]);
         }
@@ -370,7 +370,7 @@ class LtvReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id'        => $user->id,
-            'summ'           => 123.45,
+            'summ_cents'           => 12345,
             'operation_date' => Carbon::now()->subDay(),
         ]);
 
@@ -477,11 +477,11 @@ class LtvReportTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 1000,
+            'summ_cents' => 100000,
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => $locB->id,
-            'summ' => 2000,
+            'summ_cents' => 200000,
         ]);
 
         $this->get(route('reports.ltv.total', ['filter_location_id' => $locA->id]))
@@ -506,8 +506,8 @@ class LtvReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        Payment::factory()->forUser($activeStudent)->create(['summ' => 1000]);
-        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 2000]);
+        Payment::factory()->forUser($activeStudent)->create(['summ_cents' => 100000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ_cents' => 200000]);
 
         $this->get(route('reports.ltv.total'))
             ->assertOk()
@@ -536,8 +536,8 @@ class LtvReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        Payment::factory()->forUser($activeStudent)->create(['summ' => 500]);
-        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 700]);
+        Payment::factory()->forUser($activeStudent)->create(['summ_cents' => 50000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ_cents' => 70000]);
 
         $inactiveResponse = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->get(route('reports.ltv.data', [
@@ -600,11 +600,11 @@ class LtvReportTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 500,
+            'summ_cents' => 50000,
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => null,
-            'summ' => 300,
+            'summ_cents' => 30000,
         ]);
 
         $response = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])

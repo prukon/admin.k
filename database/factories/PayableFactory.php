@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Payable;
 use App\Models\User;
+use App\Support\Money;
 use App\Support\UserPriceTeamMembership;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -36,14 +37,13 @@ class PayableFactory extends Factory
             ->subMonths(rand(0, 6))
             ->format('Y-m-01');
 
-        // ✅ только целые суммы
-        $amount = $this->faker->numberBetween(500, 10000);
+        $amountCents = Money::toCentsOrFail($this->faker->numberBetween(500, 10000));
 
         return [
             'partner_id' => $partnerId,
             'user_id'    => $userId,
             'type'       => 'monthly_fee',
-            'amount'     => $amount,   // decimal(15,2) в БД, но значение будет вида 1500.00
+            'amount_cents' => $amountCents,
             'currency'   => 'RUB',
             'status'     => 'pending',
             'month'      => $month,
@@ -113,7 +113,7 @@ class PayableFactory extends Factory
                     ->create([
                         'partner_id'       => $payable->partner_id,
                         'user_id'          => $payable->user_id,
-                        'out_sum'          => $payable->amount,
+                        'out_sum_cents'    => (int) $payable->amount_cents,
                         'paid_at'          => $payable->paid_at,
                         'provider'         => 'tbank',
                         'provider_inv_id'  => $bankPaymentId,
@@ -140,7 +140,7 @@ class PayableFactory extends Factory
                     ->forUserAndMonth(
                         (int) $payable->user_id,
                         $month,
-                        (float) $payable->amount,
+                        (int) $payable->amount_cents,
                         true,
                         $teamId
                     )

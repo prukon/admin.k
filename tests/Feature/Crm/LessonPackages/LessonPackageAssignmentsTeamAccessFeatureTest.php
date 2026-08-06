@@ -153,7 +153,7 @@ final class LessonPackageAssignmentsTeamAccessFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'lesson_package_id' => $this->package->id,
-            'fee_amount' => '555.00',
+            'fee_amount_cents' => 55500,
         ]);
     }
 

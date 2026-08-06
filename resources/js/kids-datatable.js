@@ -456,16 +456,24 @@
                             return '<span class="dt-cell-empty text-muted">—</span>';
                         }
 
-                        const parsed = parseInt(value, 10);
-                        if (Number.isNaN(parsed)) {
+                        // Рубли (число или строка); копейки показываем только если ≠ 0.
+                        const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/\s/g, '').replace(',', '.'));
+                        if (Number.isNaN(num)) {
                             return type === 'display' ? '<span class="dt-cell-empty text-muted">—</span>' : '';
                         }
 
                         if (type === 'sort' || type === 'filter') {
-                            return parsed;
+                            return num;
                         }
 
-                        const formatted = parsed.toLocaleString('ru-RU') + (col.suffix || ' руб');
+                        const cents = Math.round(num * 100);
+                        const rub = Math.trunc(cents / 100);
+                        const kop = Math.abs(cents % 100);
+                        let body = rub.toLocaleString('ru-RU');
+                        if (kop !== 0) {
+                            body += ',' + String(kop).padStart(2, '0');
+                        }
+                        const formatted = body + (col.suffix || ' руб');
                         return '<span class="dt-col-money-value">' + formatted + '</span>';
                     },
                 };

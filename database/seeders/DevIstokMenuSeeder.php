@@ -36,7 +36,7 @@ class DevIstokMenuSeeder extends Seeder
                 'city' => null,
                 'zip' => null,
                 'ceo' => null,
-                'wallet_balance' => random_int(100000, 200000) / 100,
+                'wallet_balance_cents' => random_int(100000, 200000),
                 'website' => null,
                 'sms_name' => null,
                 'bank_name' => null,

@@ -60,7 +60,7 @@ final class PackageAssignmentsSectionAccessSmokeFeatureTest extends CrmTestCase
             'lesson_package_id' => $this->package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -188,7 +188,7 @@ final class PackageAssignmentsSectionAccessSmokeFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('user_lesson_packages', [
             'user_id' => $this->student->id,
             'lesson_package_id' => $this->package->id,
-            'fee_amount' => '222.00',
+            'fee_amount_cents' => 22200,
         ]);
 
         // manual-paid
@@ -205,7 +205,7 @@ final class PackageAssignmentsSectionAccessSmokeFeatureTest extends CrmTestCase
             'lesson_package_id' => $this->package->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '50.00',
+            'fee_amount_cents' => 5000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

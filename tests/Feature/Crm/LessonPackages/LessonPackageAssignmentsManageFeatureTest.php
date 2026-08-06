@@ -61,7 +61,7 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => (int) $package->lessons_count,
             'lessons_remaining' => (int) $remaining,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => $isPaid,
             'created_by' => $this->user->id,
         ]);
@@ -117,9 +117,9 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
             'fee_amount' => '250.50',
         ])
             ->assertOk()
-            ->assertJsonPath('assignment.fee_amount', '250.50');
+            ->assertJsonPath('assignment.fee_amount', 250.5);
 
-        $this->assertSame('250.50', (string) UserLessonPackage::query()->whereKey($ulp->id)->value('fee_amount'));
+        $this->assertSame(25050, (int) UserLessonPackage::query()->whereKey($ulp->id)->value('fee_amount_cents'));
     }
 
     public function test_update_fee_forbidden_when_gateway_paid(): void
@@ -206,11 +206,11 @@ final class LessonPackageAssignmentsManageFeatureTest extends CrmTestCase
             'payment_comment' => 'Отмена оплаты, сумма пересчитана',
         ])
             ->assertOk()
-            ->assertJsonPath('assignment.fee_amount', '150.00')
+            ->assertJsonPath('assignment.fee_amount', 150)
             ->assertJsonPath('assignment.effective_is_paid', false);
 
         $ulp->refresh();
-        $this->assertSame('150.00', (string) $ulp->fee_amount);
+        $this->assertSame(15000, (int) $ulp->fee_amount_cents);
         $this->assertFalse($ulp->effective_is_paid);
     }
 

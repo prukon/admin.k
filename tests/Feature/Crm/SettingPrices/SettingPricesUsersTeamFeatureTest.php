@@ -49,14 +49,14 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-03-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
         UserPrice::query()->create([
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-03-01',
-            'price'     => 2000,
+            'price_cents'     => 200000,
             'is_paid'   => 0,
         ]);
 
@@ -96,14 +96,14 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-05-01',
-            'price'     => 1100,
+            'price_cents'     => 110000,
             'is_paid'   => 0,
         ]);
         UserPrice::query()->create([
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-05-01',
-            'price'     => 2200,
+            'price_cents'     => 220000,
             'is_paid'   => 0,
         ]);
 
@@ -123,13 +123,13 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-05-01',
-            'price'     => 1500,
+            'price_cents'     => 150000,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-05-01',
-            'price'     => 2200,
+            'price_cents'     => 220000,
         ]);
     }
 
@@ -207,7 +207,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-04-01',
-            'price'     => 4500,
+            'price_cents'     => 450000,
         ]);
     }
 
@@ -219,14 +219,14 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
         $rowB = UserPrice::query()->create([
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -260,7 +260,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-10-01',
-            'price'     => 1200,
+            'price_cents'     => 120000,
             'is_paid'   => 0,
         ]);
 
@@ -301,7 +301,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamA->id,
             'new_month' => '2024-11-01',
-            'price'     => 1800,
+            'price_cents'     => 180000,
         ]);
         $this->assertDatabaseMissing('users_prices', [
             'user_id'   => $this->student->id,
@@ -318,7 +318,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-12-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -340,7 +340,7 @@ final class SettingPricesUsersTeamFeatureTest extends StudentTeamPivotTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->teamB->id,
             'new_month' => '2024-12-01',
-            'price'     => 3300,
+            'price_cents'     => 330000,
         ]);
         $this->assertDatabaseMissing('users_prices', [
             'user_id'   => $this->student->id,

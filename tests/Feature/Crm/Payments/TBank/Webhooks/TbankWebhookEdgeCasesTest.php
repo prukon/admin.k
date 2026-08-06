@@ -52,7 +52,7 @@ class TbankWebhookEdgeCasesTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '10.00',
+            'amount_cents' => 1000,
             'currency' => 'RUB',
             'status' => 'pending',
         ]);
@@ -63,7 +63,7 @@ class TbankWebhookEdgeCasesTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '10.00',
+            'out_sum_cents' => 1000,
             'payment_date' => 'Клубный взнос',
             'tbank_order_id' => 'order-nonfinal',
         ]);

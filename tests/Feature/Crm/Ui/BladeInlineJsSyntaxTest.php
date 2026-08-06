@@ -234,6 +234,36 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: Vite-модуль KidsCrmDataTable — preset money с копейками (formatRub-логика).
+     */
+    public function test_kids_datatable_money_preset_formats_kopecks_and_has_valid_javascript_syntax(): void
+    {
+        $path = resource_path('js/kids-datatable.js');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString("case 'money':", $content);
+        $this->assertStringContainsString('dt-col-money-value', $content);
+        $this->assertStringContainsString('Math.round(num * 100)', $content);
+        $this->assertStringContainsString("padStart(2, '0')", $content);
+        $this->assertStringContainsString('toLocaleString(\'ru-RU\')', $content);
+        // Не truncate через parseInt — копейки должны сохраняться в display.
+        $moneyCasePos = strpos($content, "case 'money':");
+        $this->assertNotFalse($moneyCasePos);
+        $moneyChunk = substr($content, (int) $moneyCasePos, 1200);
+        $this->assertStringNotContainsString('parseInt(value, 10)', $moneyChunk);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/kids-datatable.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
      * P1: inline JS шаблонов абонементов — schedule_type=postpay (цена за занятие).
      */
     public function test_lesson_packages_postpay_inline_script_is_valid_javascript(): void

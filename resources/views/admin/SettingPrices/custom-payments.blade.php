@@ -90,7 +90,7 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="custom-payment-amount">Сумма</label>
-                        <input class="form-control" type="number" step="1" min="0" id="custom-payment-amount" name="amount" required>
+                        <input class="form-control" type="number" step="0.01" min="0" id="custom-payment-amount" name="amount" required>
                         <div class="invalid-feedback d-block custom-payment-field-error" data-field="amount" style="display:none;"></div>
                     </div>
 
@@ -127,7 +127,7 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="custom-payment-edit-amount">Сумма</label>
-                        <input class="form-control" type="number" step="1" min="0" id="custom-payment-edit-amount" name="amount">
+                        <input class="form-control" type="number" step="0.01" min="0" id="custom-payment-edit-amount" name="amount">
                         <div class="invalid-feedback d-block custom-payment-edit-field-error" data-field="amount" style="display:none;"></div>
                     </div>
 

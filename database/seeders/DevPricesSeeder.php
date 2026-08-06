@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Models\TeamPrice;
 use App\Models\UserPrice;
 use App\Services\Postpay\PostpayUsersPriceSync;
+use App\Support\Money;
 use Carbon\Carbon;
 use Database\Seeders\Concerns\GuardsDevSeedData;
 use Illuminate\Database\Seeder;
@@ -69,9 +70,9 @@ class DevPricesSeeder extends Seeder
 
         foreach ($paidSlots as $slot) {
             $package = $this->pickPackageForSlot($packagesByPartner, (int) $slot['partner_id'], preferPostpay: false);
-            $amount = $package !== null
-                ? $this->amountForPackage($package)
-                : (float) random_int(500, 10000);
+            $amountCents = $package !== null
+                ? $this->amountCentsForPackage($package)
+                : Money::toCentsOrFail(random_int(500, 10000));
 
             Payable::factory()
                 ->paidMonthlyWithAllRelations()
@@ -79,7 +80,7 @@ class DevPricesSeeder extends Seeder
                     'partner_id' => $slot['partner_id'],
                     'user_id' => $slot['user_id'],
                     'month' => $slot['month'],
-                    'amount' => $amount,
+                    'amount_cents' => $amountCents,
                     'meta' => ['team_id' => $slot['team_id']],
                 ]);
 
@@ -89,7 +90,7 @@ class DevPricesSeeder extends Seeder
                     (int) $slot['team_id'],
                     (string) $slot['month'],
                     $package,
-                    $amount,
+                    $amountCents,
                 );
             }
         }
@@ -106,9 +107,9 @@ class DevPricesSeeder extends Seeder
 
         foreach ($unpaidSlots as $slot) {
             $package = $this->pickPackageForSlot($packagesByPartner, (int) $slot['partner_id'], preferPostpay: false);
-            $amount = $package !== null
-                ? $this->amountForPackage($package)
-                : (float) random_int(500, 10000);
+            $amountCents = $package !== null
+                ? $this->amountCentsForPackage($package)
+                : Money::toCentsOrFail(random_int(500, 10000));
 
             $attrs = [];
             if ($package !== null) {
@@ -120,7 +121,7 @@ class DevPricesSeeder extends Seeder
                 ->forUserAndMonth(
                     $slot['user_id'],
                     $slot['month'],
-                    $amount,
+                    $amountCents,
                     false,
                     $slot['team_id']
                 )
@@ -206,7 +207,7 @@ class DevPricesSeeder extends Seeder
                 continue;
             }
 
-            $price = (int) round($package->price_cents / 100);
+            $priceCents = (int) $package->price_cents;
 
             for ($ago = 0; $ago <= 2; $ago++) {
                 if (random_int(1, 100) > 65) {
@@ -224,7 +225,7 @@ class DevPricesSeeder extends Seeder
                         'new_month' => $month,
                     ],
                     [
-                        'price' => $price,
+                        'price_cents' => $priceCents,
                         'lesson_package_id' => (int) $package->id,
                     ]
                 );
@@ -253,7 +254,7 @@ class DevPricesSeeder extends Seeder
         int $teamId,
         string $month,
         LessonPackage $package,
-        float $amount,
+        int $amountCents,
     ): void {
         UserPrice::query()
             ->where('user_id', $userId)
@@ -261,7 +262,7 @@ class DevPricesSeeder extends Seeder
             ->whereDate('new_month', $month)
             ->update([
                 'lesson_package_id' => (int) $package->id,
-                'price' => (string) (int) round($amount),
+                'price_cents' => $amountCents,
             ]);
     }
 
@@ -335,15 +336,15 @@ class DevPricesSeeder extends Seeder
         return $postpay->isNotEmpty() ? $postpay->random() : null;
     }
 
-    private function amountForPackage(LessonPackage $package): float
+    private function amountCentsForPackage(LessonPackage $package): int
     {
-        $perUnit = round($package->price_cents / 100, 2);
+        $perUnitCents = (int) $package->price_cents;
 
         if ($package->isPostpay()) {
-            return round($perUnit * random_int(2, 8), 2);
+            return $perUnitCents * random_int(2, 8);
         }
 
-        return $perUnit;
+        return $perUnitCents;
     }
 
     private function paidTarget(): int

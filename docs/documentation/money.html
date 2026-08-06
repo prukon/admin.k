@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Деньги: копейки (канон)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 22px; }
+    h3 { font-size: 16px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .small { color: #555; font-size: 13px; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/docs/documentation/">← К оглавлению</a> · в кабинете также <code>/doc</code></p>
+  <h1>Деньги: хранение в копейках</h1>
+  <div class="small">
+    Канон проекта (2026‑08). Класс: <code>App\Support\Money</code>.
+    Миграция: <code>2026_08_06_180000_convert_money_columns_to_cents.php</code>
+    (backfill <code>ROUND(rub × 100)</code> — исторические суммы сохраняют те же копейки).
+  </div>
+
+  <div class="ok" style="margin-top:12px">
+    <b>Кратко:</b> в БД и расчётах — <code>BIGINT</code> копейки (<code>*_cents</code>);
+    в формах/JSON UI — рубли (часто с <code>step=0.01</code>);
+    T‑Bank Init/выплаты — копейки без лишнего <code>× 100</code> на стыке с ledger.
+  </div>
+
+  <h2 id="canon">1) Канон</h2>
+  <ul>
+    <li>В БД и во внутренних расчётах суммы — <b>целые копейки</b> (<code>BIGINT</code> / <code>int</code> в PHP).</li>
+    <li>Имена колонок: суффикс <code>_cents</code> (например <code>price_cents</code>, <code>fee_amount_cents</code>, <code>summ_cents</code>).</li>
+    <li>Исключение по <b>имени</b> (не по единице): <code>tinkoff_payments.amount</code>, <code>tinkoff_payouts.*</code> — уже копейки, без rename.</li>
+    <li>Рубли с точкой/запятой — только на границе UI и внешних API (Robokassa, ЮKassa).</li>
+    <li>Не использовать <code>float</code>/<code>double</code> для хранения; не плодить локальные <code>* 100</code> / <code>/ 100</code> вне <code>Money</code>.</li>
+  </ul>
+
+  <h2 id="columns">2) Карта колонок БД</h2>
+  <table>
+    <thead>
+      <tr><th>Таблица</th><th>Колонка</th><th>Единица</th><th>HTTP/JSON (обычно)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>users_prices</code></td><td><code>price_cents</code></td><td>копейки</td><td><code>price</code> в рублях</td></tr>
+      <tr><td><code>team_prices</code></td><td><code>price_cents</code></td><td>копейки</td><td>через пакет / UI</td></tr>
+      <tr><td><code>teams</code></td><td><code>month_price_cents</code></td><td>копейки</td><td><code>month_price</code> в рублях</td></tr>
+      <tr><td><code>lesson_packages</code></td><td><code>price_cents</code></td><td>копейки</td><td><code>price</code> / <code>create[price]</code> в рублях</td></tr>
+      <tr><td><code>user_lesson_packages</code></td><td><code>fee_amount_cents</code></td><td>копейки</td><td><code>fee_amount</code> в рублях</td></tr>
+      <tr><td><code>user_custom_payment</code></td><td><code>amount_cents</code></td><td>копейки</td><td><code>amount</code> в рублях</td></tr>
+      <tr><td><code>payables</code></td><td><code>amount_cents</code></td><td>копейки</td><td>—</td></tr>
+      <tr><td><code>payment_intents</code></td><td><code>out_sum_cents</code></td><td>копейки</td><td>в отчёте колонка <code>out_sum</code> = рубли</td></tr>
+      <tr><td><code>payments</code></td><td><code>summ_cents</code></td><td>копейки</td><td>в отчёте <code>summ</code> = рубли</td></tr>
+      <tr><td><code>refunds</code> / <code>fiscal_receipts</code></td><td><code>amount_cents</code></td><td>копейки</td><td>—</td></tr>
+      <tr><td><code>partners</code></td><td><code>wallet_balance_cents</code></td><td>копейки</td><td>рубли на границе ЮKassa</td></tr>
+      <tr><td><code>partner_payments</code> / <code>partner_wallet_transactions</code></td><td><code>amount_cents</code></td><td>копейки</td><td>рубли ↔ ЮKassa</td></tr>
+      <tr><td>ЗП тренеров (profiles / draft / snapshots)</td><td><code>*_cents</code></td><td>копейки</td><td>рубли в формах</td></tr>
+      <tr><td><code>tinkoff_payments</code> / <code>tinkoff_payouts</code></td><td><code>amount</code> и fee-поля</td><td>копейки</td><td>как есть</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="boundary">3) Граница HTTP / UI</h2>
+  <ul>
+    <li>Формы и JSON админки принимают/отдают <b>рубли</b> (часто <code>step="0.01"</code>).</li>
+    <li>Контроллер/Request валидирует рубли; запись в БД — через <code>Money::toCents</code> / <code>toCentsOrFail</code>.</li>
+    <li>Чтение для UI — <code>Money::fromCents</code> / динамический атрибут <code>price</code>, <code>amount</code>, <code>fee_amount</code> в рублях.</li>
+    <li>Resolvers оплаты (<code>UserPriceMonthlyFeePaymentResolver</code>, <code>UserLessonPackageFeePaymentResolver</code>) возвращают
+      <code>amount_cents</code> + <code>out_sum</code> (строка рублей для Robokassa).</li>
+  </ul>
+
+  <h2 id="round">4) Округление</h2>
+  <div class="note">
+    Математическое до копейки: по 3-му знаку дробной части рубля (0–4 вниз, 5–9 вверх).
+    Реализация: <code>Money::toCents</code> / <code>Money::normalizeRubString</code>
+    (<code>PaymentOutSumNormalizer</code> — тонкая обёртка).
+  </div>
+  <ul>
+    <li><code>10,005</code> → <code>10,01</code> (1001 коп.)</li>
+    <li><code>10,004</code> → <code>10,00</code> (1000 коп.)</li>
+  </ul>
+
+  <h2 id="discount">5) Скидки %</h2>
+  <p>UI скидок пока может отсутствовать; контракт зафиксирован в <code>Money</code> и unit-тестах.</p>
+  <p><b>Вариант А</b>:</p>
+  <ol>
+    <li><code>скидка_cents = Money::discountCents(price_cents, percent)</code> — <code>round(price × % / 100)</code></li>
+    <li><code>к_оплате = price_cents − скидка_cents</code> (<code>Money::payableAfterDiscountCents</code>)</li>
+  </ol>
+  <table>
+    <thead><tr><th>Стоимость</th><th>%</th><th>Скидка</th><th>К оплате</th></tr></thead>
+    <tbody>
+      <tr><td>1000,00 ₽</td><td>10</td><td>100,00</td><td>900,00</td></tr>
+      <tr><td>999,00 ₽</td><td>10</td><td>99,90</td><td>899,10</td></tr>
+      <tr><td>33,33 ₽</td><td>5</td><td>1,67</td><td>31,66</td></tr>
+      <tr><td>1,05 ₽</td><td>50</td><td>0,53</td><td>0,52</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="display">6) Отображение</h2>
+  <ul>
+    <li><code>Money::formatRub</code> — целые без копеек; <code>,xx</code> только если копейки ≠ 0
+      (публичная оплата ULP, DataTables preset <code>money</code> в <code>kids-datatable.js</code>).</li>
+    <li><code>Money::formatRubFixed</code> — всегда два знака (сверки/выплаты; <code>TinkoffMoney::rub</code> делегирует сюда).</li>
+    <li><code>Money::fromCents</code> — <code>"1234.56"</code> для провайдеров.</li>
+  </ul>
+
+  <h2 id="payments-flow">7) Оплаты и отчёты</h2>
+  <ul>
+    <li>Источник суммы месяца: <code>users_prices.price_cents</code>.</li>
+    <li>Источник суммы абонемента: <code>user_lesson_packages.fee_amount_cents</code>.</li>
+    <li>Ledger: <code>payables.amount_cents</code> → <code>payment_intents.out_sum_cents</code> → webhook → <code>payments.summ_cents</code>.</li>
+    <li>T‑Bank Init получает копейки напрямую из <code>amount_cents</code> (без повторного <code>× 100</code> из рублей).</li>
+    <li>Отчёт «Платежи»: комиссии и нетто считаются от <code>payments.summ_cents</code>
+      (<b>не</b> <code>summ × 100</code> — иначе двойное умножение после миграции).</li>
+    <li>Отчёт «Задолженности»: суммы из <code>price_cents</code> / <code>amount_cents</code>, в UI — рубли.</li>
+  </ul>
+  <div class="warn">
+    В DataTables/JSON отчётов ключи колонок часто остаются <code>summ</code>, <code>out_sum</code>, <code>amount</code>, <code>price</code>
+    (рубли для UI). В SQL/моделях — только <code>*_cents</code>.
+  </div>
+
+  <h2 id="api">8) API helper</h2>
+  <ul>
+    <li><code>toCents</code> / <code>toCentsOrFail</code> — рубли → копейки</li>
+    <li><code>fromCents</code> — копейки → <code>"N.NN"</code></li>
+    <li><code>formatRub</code> / <code>formatRubFixed</code></li>
+    <li><code>discountCents</code> / <code>payableAfterDiscountCents</code></li>
+    <li><code>PaymentOutSumNormalizer::normalize</code> — legacy-вход форм → нормализованные рубли</li>
+  </ul>
+
+  <h2 id="related">9) Связанные разделы</h2>
+  <ul>
+    <li><a href="/docs/documentation/payments">payments</a> — payables / intents / users_prices / ULP pay</li>
+    <li><a href="/docs/documentation/lesson-packages">lesson-packages</a> — шаблоны <code>price_cents</code>, назначения <code>fee_amount</code> (HTTP) / <code>fee_amount_cents</code> (БД)</li>
+    <li><a href="/docs/documentation/postpay">postpay</a> — пересчёт <code>users_prices.price_cents</code></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a></li>
+    <li><a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></li>
+    <li><a href="/docs/documentation/admin-teams">admin-teams</a> — <code>month_price_cents</code></li>
+    <li><a href="/docs/documentation/reports-payments">reports-payments</a> — комиссии от <code>summ_cents</code></li>
+    <li><a href="/docs/documentation/tbank">tbank</a> — Amount в копейках</li>
+    <li><a href="/docs/documentation/schedule-trainer-salary">schedule-trainer-salary</a> — ЗП в <code>*_cents</code></li>
+  </ul>
+
+  <h2 id="tests">10) Тесты</h2>
+  <ul>
+    <li><code>tests/Unit/Support/MoneyTest.php</code> — helper, округление, скидки вариант А</li>
+    <li><code>tests/Feature/Crm/Money/MoneyCentsRoundTripFeatureTest.php</code> — round-trip руб↔коп, ledger, отчёты</li>
+    <li><code>tests/Feature/Crm/Money/MoneyCentsAccessContractsFeatureTest.php</code> — доступ, AJAX/non-AJAX, 422</li>
+    <li><code>tests/Feature/Crm/Money/MoneyCentsWorkflowFeatureTest.php</code> — [P2] HTTP-smoke: страница → submit → data/get</li>
+    <li><code>BladeInlineJsSyntaxTest::test_kids_datatable_money_preset_…</code> — preset <code>money</code> + <code>node --check</code></li>
+  </ul>
+</div>
+</body>
+</html>

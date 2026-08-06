@@ -54,7 +54,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'monthly_fee',
-            'amount' => 1200,
+            'amount_cents' => 120000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => $month,
@@ -65,7 +65,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $intent = PaymentIntent::factory()->create([
@@ -74,7 +74,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'payable_id' => $payable->id,
             'provider' => 'robokassa',
             'status' => 'paid',
-            'out_sum' => $payable->amount,
+            'out_sum_cents' => $payable->amount_cents,
             'payment_date' => $month,
         ]);
 
@@ -82,7 +82,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'user_id'   => $userId,
             'team_id'   => (int) $user->team_id,
             'new_month' => $month,
-            'price'     => (string) (int) $payable->amount,
+            'price_cents' => (int) $payable->amount_cents,
         ]);
 
         $refund = Refund::create([
@@ -90,7 +90,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 1200,
+            'amount_cents' => 120000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'robokassa',
@@ -154,7 +154,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'date_start' => '2026-11-01',
             'date_end' => '2026-11-30',
-            'amount' => '700.00',
+            'amount_cents' => 70000,
             'is_paid' => 1,
         ]);
 
@@ -162,7 +162,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'custom_payment_fee',
-            'amount' => 700,
+            'amount_cents' => 70000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => null,
@@ -175,7 +175,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $intent = PaymentIntent::factory()->create([
@@ -184,7 +184,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'payable_id' => $payable->id,
             'provider' => 'robokassa',
             'status' => 'paid',
-            'out_sum' => $payable->amount,
+            'out_sum_cents' => $payable->amount_cents,
             'payment_date' => 'Дополнительный платеж',
         ]);
 
@@ -193,7 +193,7 @@ class RobokassaProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 700,
+            'amount_cents' => 70000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'robokassa',

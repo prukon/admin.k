@@ -52,7 +52,7 @@ final class CustomPaymentsTeamColumnFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'team_id' => $team->id,
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'is_paid' => false,
         ]);
 

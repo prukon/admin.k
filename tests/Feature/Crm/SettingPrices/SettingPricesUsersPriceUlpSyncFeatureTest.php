@@ -97,7 +97,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $this->assertSame('2025-11-30', $ulp->ends_at?->format('Y-m-d'));
         $this->assertSame(4, (int) $ulp->lessons_total);
         $this->assertSame(4, (int) $ulp->lessons_remaining);
-        $this->assertSame(8000.0, (float) $ulp->fee_amount);
+        $this->assertSame(800000, (int) $ulp->fee_amount_cents);
 
         $assignments = app(ScheduleJournalMonthService::class)
             ->fixedAssignmentsForUser((int) $this->partner->id, (int) $this->student->id);
@@ -128,7 +128,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $ulp = UserLessonPackage::query()->find($row->user_lesson_package_id);
         $this->assertSame((int) $this->flexible->id, (int) $ulp->lesson_package_id);
         $this->assertSame(6, (int) $ulp->lessons_total);
-        $this->assertSame(9000.0, (float) $ulp->fee_amount);
+        $this->assertSame(900000, (int) $ulp->fee_amount_cents);
         $this->assertSame('2025-11-01', $ulp->billing_month?->format('Y-m-d'));
         $this->assertSame('2025-11-01', $ulp->starts_at?->format('Y-m-d'));
         $this->assertSame('2025-11-30', $ulp->ends_at?->format('Y-m-d'));
@@ -176,7 +176,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
 
         $ulp = UserLessonPackage::query()->find($ulpId);
         $this->assertNotNull($ulp);
-        $this->assertSame(8500.0, (float) $ulp->fee_amount);
+        $this->assertSame(850000, (int) $ulp->fee_amount_cents);
         $this->assertSame((int) $this->fixedA->id, (int) $ulp->lesson_package_id);
     }
 
@@ -196,7 +196,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $ulp->refresh();
-        $this->assertSame(8700.0, (float) $ulp->fee_amount);
+        $this->assertSame(870000, (int) $ulp->fee_amount_cents);
         $this->assertSame((int) $this->fixedA->id, (int) $ulp->lesson_package_id);
     }
 
@@ -222,7 +222,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
 
         $row->refresh();
         $this->assertSame((int) $this->fixedA->id, (int) $row->lesson_package_id);
-        $this->assertSame(8000.0, (float) $row->price);
+        $this->assertSame(800000, (int) $row->price_cents);
         $this->assertSame($ulpId, (int) $row->user_lesson_package_id);
         $this->assertSame((int) $this->fixedA->id, (int) UserLessonPackage::query()->find($ulpId)->lesson_package_id);
     }
@@ -246,7 +246,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $this->assertSame((int) $this->fixedB->id, (int) $ulp->lesson_package_id);
         $this->assertSame(8, (int) $ulp->lessons_total);
         $this->assertSame(8, (int) $ulp->lessons_remaining);
-        $this->assertSame(12000.0, (float) $ulp->fee_amount);
+        $this->assertSame(1200000, (int) $ulp->fee_amount_cents);
         $row->refresh();
         $this->assertSame($ulpId, (int) $row->user_lesson_package_id);
     }
@@ -291,7 +291,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $this->assertNotNull($row->user_lesson_package_id);
         $ulp = UserLessonPackage::query()->find($row->user_lesson_package_id);
         $this->assertSame(4, (int) $ulp->lessons_total);
-        $this->assertSame(8000.0, (float) $ulp->fee_amount);
+        $this->assertSame(800000, (int) $ulp->fee_amount_cents);
     }
 
     public function test_paid_month_does_not_create_or_change_ulp(): void
@@ -300,7 +300,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2025-11-01',
-            'price' => 8000,
+            'price_cents' => 800000,
             'is_paid' => 1,
             'lesson_package_id' => $this->fixedA->id,
         ]);
@@ -319,7 +319,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
             ->where('new_month', '2025-11-01')
             ->first();
         $this->assertSame((int) $this->fixedA->id, (int) $row->lesson_package_id);
-        $this->assertSame(8000.0, (float) $row->price);
+        $this->assertSame(800000, (int) $row->price_cents);
         $this->assertNull($row->user_lesson_package_id);
         $this->assertSame(0, UserLessonPackage::query()->where('user_id', $this->student->id)->count());
     }
@@ -342,7 +342,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
         $this->assertNotNull($row->user_lesson_package_id);
         $ulp = UserLessonPackage::query()->find($row->user_lesson_package_id);
         $this->assertSame((int) $this->fixedA->id, (int) $ulp->lesson_package_id);
-        $this->assertSame(8000.0, (float) $ulp->fee_amount);
+        $this->assertSame(800000, (int) $ulp->fee_amount_cents);
         $this->assertTrue(
             (bool) collect(app(ScheduleJournalMonthService::class)
                 ->fixedAssignmentsForUser((int) $this->partner->id, (int) $this->student->id))
@@ -426,7 +426,7 @@ final class SettingPricesUsersPriceUlpSyncFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2025-11-01',
-            'price' => $price,
+            'price_cents' => (int) round($price * 100),
             'is_paid' => 0,
             'lesson_package_id' => $packageId,
         ]);

@@ -48,17 +48,17 @@ class PaymentMonthlyReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1000,
+            'summ_cents' => 100000,
             'payment_month' => '2025-01-01',
         ]);
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 2000,
+            'summ_cents' => 200000,
             'payment_month' => '2025-02-01',
         ]);
         Payment::factory()->create([
             'user_id' => $this->foreignUser->id,
-            'summ' => 9999,
+            'summ_cents' => 999900,
             'payment_month' => '2025-01-01',
         ]);
 
@@ -112,12 +112,12 @@ class PaymentMonthlyReportTest extends CrmTestCase
 
         Payment::factory()->forUser($student)->create([
             'location_id' => $locA->id,
-            'summ' => 1500,
+            'summ_cents' => 150000,
             'payment_month' => '2025-03-01',
         ]);
         Payment::factory()->forUser($student)->create([
             'location_id' => $locB->id,
-            'summ' => 2500,
+            'summ_cents' => 250000,
             'payment_month' => '2025-03-01',
         ]);
 
@@ -148,11 +148,11 @@ class PaymentMonthlyReportTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($activeStudent)->create([
-            'summ' => 1000,
+            'summ_cents' => 100000,
             'payment_month' => '2025-04-01',
         ]);
         Payment::factory()->forUser($inactiveStudent)->create([
-            'summ' => 2000,
+            'summ_cents' => 200000,
             'payment_month' => '2025-04-01',
         ]);
 
@@ -183,11 +183,11 @@ class PaymentMonthlyReportTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($activeStudent)->create([
-            'summ' => 500,
+            'summ_cents' => 50000,
             'payment_month' => '2025-05-01',
         ]);
         Payment::factory()->forUser($inactiveStudent)->create([
-            'summ' => 700,
+            'summ_cents' => 70000,
             'payment_month' => '2025-05-01',
         ]);
 

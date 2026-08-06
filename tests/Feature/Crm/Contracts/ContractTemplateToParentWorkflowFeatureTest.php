@@ -28,7 +28,7 @@ class ContractTemplateToParentWorkflowFeatureTest extends ContractsFeatureTestCa
         config(['contracts.pdf_converter' => 'fake']);
         config(['queue.default' => 'sync']);
 
-        $this->partner->wallet_balance = 500;
+        $this->partner->wallet_balance_cents = 50000;
         $this->partner->save();
     }
 

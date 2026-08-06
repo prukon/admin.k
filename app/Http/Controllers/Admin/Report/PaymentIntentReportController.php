@@ -31,7 +31,8 @@ class PaymentIntentReportController extends AdminBaseController
         $this->applyPartnerScopeToQuery($totalQuery, $request);
         $this->applyFilters($totalQuery, $request);
 
-        $totalRaw = (float) $totalQuery->sum('out_sum');
+        $totalRawCents = (int) $totalQuery->sum('out_sum_cents');
+        $totalRaw = $totalRawCents / 100;
         $totalPaidPrice = number_format($totalRaw, 0, '', ' ');
 
         $filters = $request->query();
@@ -58,7 +59,8 @@ class PaymentIntentReportController extends AdminBaseController
         $this->applyPartnerScopeToQuery($totalQuery, $request);
         $this->applyFilters($totalQuery, $request);
 
-        $raw = (float) $totalQuery->sum('out_sum');
+        $rawCents = (int) $totalQuery->sum('out_sum_cents');
+        $raw = $rawCents / 100;
 
         return response()->json([
             'total_formatted' => number_format($raw, 0, '', ' '),
@@ -112,6 +114,10 @@ class PaymentIntentReportController extends AdminBaseController
             ->editColumn('payment_date', function (PaymentIntent $intent) {
                 return self::formatPaymentDateForReport($intent->payment_date);
             })
+            ->editColumn('out_sum', function (PaymentIntent $intent) {
+                return round(((int) ($intent->out_sum_cents ?? 0)) / 100, 2);
+            })
+            ->orderColumn('out_sum', 'payment_intents.out_sum_cents $1')
             ->rawColumns([
                 'partner_title',
                 'user_name',

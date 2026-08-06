@@ -15,7 +15,7 @@ class PaymentIntent extends Model
 
 
     protected $casts = [
-        'out_sum' => 'decimal:2',
+        'out_sum_cents' => 'integer',
         'paid_at' => 'datetime',
     ];
 

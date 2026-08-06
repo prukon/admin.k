@@ -250,19 +250,21 @@ class ContractsController extends Controller
         $partnerId = $this->partnerId();
         $fee = $this->billing->createFee();
 
-        $balance = Partner::whereKey($partnerId)->value('wallet_balance');
+        $balanceCents = Partner::whereKey($partnerId)->value('wallet_balance_cents');
 
-        if ($balance === null) {
+        if ($balanceCents === null) {
             return response()->json([
                 'ok'      => false,
                 'message' => 'Партнёр не найден.',
             ], 404);
         }
 
-        if ((float)$balance >= $fee) {
+        $balance = ((int) $balanceCents) / 100;
+
+        if ($balance >= $fee) {
             return response()->json([
                 'ok'      => true,
-                'balance' => (float)$balance,
+                'balance' => $balance,
                 'fee'     => $fee,
             ]);
         }
@@ -270,7 +272,7 @@ class ContractsController extends Controller
         return response()->json([
             'ok'      => false,
             'message' => 'Недостаточно средств для создания договора.',
-            'balance' => (float)$balance,
+            'balance' => $balance,
             'fee'     => $fee,
         ], 422);
     }

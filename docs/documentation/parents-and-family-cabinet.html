@@ -250,7 +250,7 @@ users (role=user) — ученик, вход в CRM
       <tr><th>Компонент</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount &gt; 0</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code>) — данные выбранного ребёнка; при 2+ группах и том же праве — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
+      <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code>) — данные выбранного ребёнка; при 2+ группах и том же праве — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
       <tr><td><code>AppServiceProvider</code> (view composer <code>admin2</code>)</td><td><code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code></td></tr>
     </tbody>

@@ -23,8 +23,8 @@ class TrainerProfile extends Model
         'user_id' => 'int',
         'is_enabled' => 'bool',
         'sort_order' => 'int',
-        'default_base_salary' => 'decimal:2',
-        'default_rate_per_training' => 'decimal:2',
+        'default_base_salary_cents' => 'integer',
+        'default_rate_per_training_cents' => 'integer',
     ];
 
     public function partner(): BelongsTo

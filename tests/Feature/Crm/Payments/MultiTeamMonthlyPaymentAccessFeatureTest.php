@@ -58,8 +58,8 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
         $sync->attachTeamForStudent($this->user, (int) $teamA->id);
         $sync->attachTeamForStudent($this->user, (int) $teamB->id);
 
-        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 3100, false, (int) $teamA->id)->create();
-        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 4200, false, (int) $teamB->id)->create();
+        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 310000, false, (int) $teamA->id)->create();
+        UserPrice::factory()->forUserAndMonth((int) $this->user->id, $month, 420000, false, (int) $teamB->id)->create();
 
         return [$teamA, $teamB];
     }
@@ -186,7 +186,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
 
         $sync = app(TeamUserSyncService::class);
         $sync->attachTeamForStudent($denied, (int) $this->teamA->id);
-        UserPrice::factory()->forUserAndMonth((int) $denied->id, '2027-03-01', 3100, false, (int) $this->teamA->id)->create();
+        UserPrice::factory()->forUserAndMonth((int) $denied->id, '2027-03-01', 310000, false, (int) $this->teamA->id)->create();
 
         $this->post(route('payment.pay'), [
             'formatedPaymentDate' => '2027-03-01',
@@ -289,7 +289,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
         $this->assertNotNull($payable);
         $this->assertSame('monthly_fee', (string) $payable->type);
         $this->assertSame((int) $this->teamB->id, (int) ($payable->meta['team_id'] ?? 0));
-        $this->assertSame('4200.00', (string) $payable->amount);
+        $this->assertSame(420000, (int) $payable->amount_cents);
 
         $intent = PaymentIntent::query()->latest('id')->first();
         $this->assertNotNull($intent);
@@ -391,7 +391,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => $outSum,
+            'amount_cents' => (int) round((float) $outSum * 100),
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => $month,
@@ -403,7 +403,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => $outSum,
+            'amount_cents' => (int) round((float) $outSum * 100),
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => $month,
@@ -417,7 +417,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'payable_id' => null,
             'provider' => 'robokassa',
             'status' => 'pending',
-            'out_sum' => $outSum,
+            'out_sum_cents' => (int) round((float) $outSum * 100),
             'payment_date' => $month,
             'meta' => json_encode([
                 'user_name' => (string) $this->user->name,
@@ -474,7 +474,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2027-03-01',
@@ -493,7 +493,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2027-03-01',
@@ -512,7 +512,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'pending',
             'meta' => [],
@@ -567,7 +567,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'user_id' => $student->id,
             'team_id' => $this->teamA->id,
             'team_title' => 'MT-Alpha',
-            'summ' => 3100,
+            'summ_cents' => 310000,
             'payment_month' => '2027-03-01',
         ]);
 
@@ -595,7 +595,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'user_id' => $student->id,
             'team_id' => $this->teamA->id,
             'team_title' => 'MT-Alpha',
-            'summ' => 3100,
+            'summ_cents' => 310000,
         ]);
 
         $rows = collect($this->adminPaymentReportRows([
@@ -658,7 +658,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'monthly_fee',
-            'amount' => '3100.00',
+            'amount_cents' => 310000,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => '2027-03-01',
@@ -671,7 +671,7 @@ final class MultiTeamMonthlyPaymentAccessFeatureTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'pending',
-            'out_sum' => '3100.00',
+            'out_sum_cents' => 310000,
             'payment_date' => '2027-03-01',
             'tbank_order_id' => 'order-http-multi',
             'tbank_payment_id' => 880099,

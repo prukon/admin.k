@@ -30,7 +30,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
     {
         config(['billing.contract_create_fee' => 70.00]);
 
-        $this->partner->wallet_balance = 0;
+        $this->partner->wallet_balance_cents = 0;
         $this->partner->save();
 
         $student = User::factory()->create([
@@ -58,7 +58,7 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
     {
         config(['billing.contract_create_fee' => 70.00]);
 
-        $this->partner->wallet_balance = 100;
+        $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
 
         $student = User::factory()->create([
@@ -90,14 +90,14 @@ class ContractsCrudAndFilesTest extends ContractsFeatureTestCase
         ]);
 
         $this->partner->refresh();
-        $this->assertSame(30.0, (float)$this->partner->wallet_balance);
+        $this->assertSame(30.0, (float) ($this->partner->wallet_balance_cents / 100));
     }
 
     /** @test */
     public function check_balance_returns_ok_true_when_enough(): void
     {
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 100;
+        $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
 
         $this->postJson('/client-contracts/check-balance')

@@ -85,7 +85,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -105,7 +105,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageA->id,
-            'price' => 5000,
+            'price_cents' => 500000,
         ]);
 
         $row = $this->findResponseUserPrice(
@@ -128,7 +128,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 0,
             'lesson_package_id' => $this->packageA->id,
         ]);
@@ -149,7 +149,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageB->id,
-            'price' => 7000,
+            'price_cents' => 700000,
         ]);
         $this->assertDatabaseMissing('users_prices', [
             'user_id' => $this->studentA->id,
@@ -168,7 +168,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -176,7 +176,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentB->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 0,
             'lesson_package_id' => $this->packageA->id,
         ]);
@@ -195,14 +195,14 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageB->id,
-            'price' => 7000,
+            'price_cents' => 700000,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->studentB->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageA->id,
-            'price' => 5000,
+            'price_cents' => 500000,
         ]);
     }
 
@@ -217,7 +217,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
             'lesson_package_id' => $this->postpayPackage->id,
         ]);
@@ -235,7 +235,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageA->id,
-            'price' => 5000,
+            'price_cents' => 500000,
         ]);
     }
 
@@ -250,7 +250,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 0,
             'lesson_package_id' => $this->packageA->id,
         ]);
@@ -271,7 +271,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             ->first();
         $this->assertNotNull($row);
         $this->assertSame((int) $this->postpayPackage->id, (int) $row->lesson_package_id);
-        $this->assertSame(0.0, (float) $row->price);
+        $this->assertSame(0, (int) $row->price_cents);
     }
 
     /**
@@ -283,7 +283,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'user_id' => $this->studentA->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 1,
             'lesson_package_id' => $this->packageA->id,
         ]);
@@ -301,7 +301,7 @@ final class SettingPricesMonthlyRightApplyPackageFeatureTest extends CrmTestCase
             'team_id' => $this->team->id,
             'new_month' => '2024-10-01',
             'lesson_package_id' => $this->packageA->id,
-            'price' => 5000,
+            'price_cents' => 500000,
             'is_paid' => 1,
         ]);
     }

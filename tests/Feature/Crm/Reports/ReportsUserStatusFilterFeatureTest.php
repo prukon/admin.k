@@ -553,12 +553,12 @@ final class ReportsUserStatusFilterFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($activeStudent)->create([
-            'summ' => 1000,
+            'summ_cents' => 100000,
             'payment_month' => $paymentMonth,
             'operation_date' => $operationDate,
         ]);
         Payment::factory()->forUser($inactiveStudent)->create([
-            'summ' => 2000,
+            'summ_cents' => 200000,
             'payment_month' => $paymentMonth,
             'operation_date' => $operationDate,
         ]);

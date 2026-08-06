@@ -90,7 +90,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => (int) $package->lessons_count,
             'lessons_remaining' => (int) $package->lessons_count,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

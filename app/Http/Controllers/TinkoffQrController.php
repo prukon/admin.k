@@ -50,7 +50,7 @@ class TinkoffQrController extends Controller
         $backPaymentDate = null;
         $backFormatedPaymentDate = null;
         if ($intent) {
-            $backOutSum = (string) $intent->out_sum;
+            $backOutSum = \App\Support\Money::fromCents((int) ($intent->out_sum_cents ?? 0));
             $pd = (string) $intent->payment_date;
             if ($pd !== '' && $pd !== 'Клубный взнос' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $pd)) {
                 $backFormatedPaymentDate = $pd;

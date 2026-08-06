@@ -44,7 +44,7 @@ class TbankRefundPayoutFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -52,7 +52,7 @@ class TbankRefundPayoutFeatureTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-ft-' . $suffix,
             'payment_id' => (string) $tbankPid,
             'payment_number' => (string) $tbankPid,
@@ -65,7 +65,7 @@ class TbankRefundPayoutFeatureTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'paid',
-            'out_sum' => '100.00',
+            'out_sum_cents' => 10000,
             'payment_date' => 'Клубный взнос',
             'provider_inv_id' => $tbankPid,
             'tbank_payment_id' => $tbankPid,

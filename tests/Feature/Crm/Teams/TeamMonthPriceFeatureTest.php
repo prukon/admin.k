@@ -48,7 +48,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('teams', [
             'partner_id'  => $this->partner->id,
             'title'       => 'Группа с ценой',
-            'month_price' => 3500,
+            'month_price_cents' => 350000,
         ]);
     }
 
@@ -64,7 +64,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
             ->assertOk();
 
         $team = Team::query()->where('title', 'Группа без цены')->firstOrFail();
-        $this->assertNull($team->month_price);
+        $this->assertNull($team->month_price_cents);
     }
 
     public function test_store_without_month_price_saves_null(): void
@@ -78,7 +78,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
             ->assertOk();
 
         $team = Team::query()->where('title', 'Группа без поля цены')->firstOrFail();
-        $this->assertNull($team->month_price);
+        $this->assertNull($team->month_price_cents);
     }
 
     public function test_store_with_zero_month_price_saves_zero(): void
@@ -95,7 +95,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('teams', [
             'partner_id'  => $this->partner->id,
             'title'       => 'Бесплатная группа',
-            'month_price' => 0,
+            'month_price_cents' => 0,
         ]);
     }
 
@@ -117,7 +117,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_store_rejects_decimal_month_price(): void
+    public function test_store_accepts_decimal_month_price_as_kopecks(): void
     {
         $this->postJson(route('admin.team.store'), [
             'title'                    => 'Дробная цена',
@@ -126,12 +126,12 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
             'order_by'                 => 10,
             'is_enabled'               => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['month_price']);
+            ->assertOk();
 
-        $this->assertDatabaseMissing('teams', [
+        $this->assertDatabaseHas('teams', [
             'partner_id' => $this->partner->id,
             'title'      => 'Дробная цена',
+            'month_price_cents' => 350050,
         ]);
     }
 
@@ -164,7 +164,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Группа edit price',
-            'month_price' => 5000,
+            'month_price_cents' => 500000,
         ]);
 
         $this->getJson(route('admin.team.edit', ['id' => $team->id]))
@@ -180,7 +180,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Группа без цены edit',
-            'month_price' => null,
+            'month_price_cents' => null,
         ]);
 
         $json = $this->getJson(route('admin.team.edit', ['id' => $team->id]))
@@ -196,7 +196,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Обновление цены',
-            'month_price' => 3000,
+            'month_price_cents' => 300000,
             'order_by'    => 5,
             'is_enabled'  => 1,
         ]);
@@ -210,7 +210,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $team->refresh();
-        $this->assertSame(4500, $team->month_price);
+        $this->assertSame(450000, $team->month_price_cents);
 
         $log = MyLog::query()
             ->where('target_type', Team::class)
@@ -230,7 +230,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Сброс цены',
-            'month_price' => 2500,
+            'month_price_cents' => 250000,
             'order_by'    => 5,
             'is_enabled'  => 1,
         ]);
@@ -244,7 +244,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         ])->assertOk();
 
         $team->refresh();
-        $this->assertNull($team->month_price);
+        $this->assertNull($team->month_price_cents);
 
         $log = MyLog::query()
             ->where('target_type', Team::class)
@@ -264,7 +264,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Валидация update price',
-            'month_price' => 1000,
+            'month_price_cents' => 100000,
             'order_by'    => 5,
             'is_enabled'  => 1,
         ]);
@@ -280,7 +280,7 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
             ->assertJsonValidationErrors(['month_price']);
 
         $team->refresh();
-        $this->assertSame(1000, $team->month_price);
+        $this->assertSame(100000, $team->month_price_cents);
     }
 
     public function test_data_includes_month_price_in_row(): void
@@ -288,13 +288,13 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $withPrice = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Data month price set',
-            'month_price' => 6000,
+            'month_price_cents' => 600000,
         ]);
 
         $withoutPrice = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Data month price null',
-            'month_price' => null,
+            'month_price_cents' => null,
         ]);
 
         $json = $this->getJson('/admin/teams/data?draw=1&start=0&length=100&title=Data month price')
@@ -318,14 +318,14 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $expensive = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Sort price expensive',
-            'month_price' => 9000,
+            'month_price_cents' => 900000,
             'order_by'    => 1,
         ]);
 
         $cheap = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Sort price cheap',
-            'month_price' => 1000,
+            'month_price_cents' => 100000,
             'order_by'    => 2,
         ]);
 
@@ -358,14 +358,14 @@ final class TeamMonthPriceFeatureTest extends CrmTestCase
         $expensive = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Sort desc expensive',
-            'month_price' => 8000,
+            'month_price_cents' => 800000,
             'order_by'    => 1,
         ]);
 
         $cheap = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'Sort desc cheap',
-            'month_price' => 2000,
+            'month_price_cents' => 200000,
             'order_by'    => 2,
         ]);
 

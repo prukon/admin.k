@@ -6,6 +6,7 @@ use App\Models\Partner;
 use App\Models\PartnerAccess;
 use App\Models\PartnerPayment;
 use App\Models\PartnerWalletTransaction;
+use App\Support\Money;
 
 
 use Illuminate\Http\Request;
@@ -53,8 +54,8 @@ class PartnerPaymentController extends Controller
                 return optional($payment->user)->name ?? 'N/A';
             })
             ->editColumn('amount', function ($payment) {
-//                return number_format($payment->amount, 2, ',', ' ') . ' ₽';
-                return (float) $payment->amount;
+//                return number_format($payment->amount_cents / 100, 2, ',', ' ') . ' ₽';
+                return round(((int) $payment->amount_cents) / 100, 2);
 
             })
 
@@ -189,7 +190,7 @@ class PartnerPaymentController extends Controller
                     'partner_id' => $partnerId,
                     'user_id' => $curUserId,
                     'payment_id' => $payment->id,
-                    'amount' => $amount,
+                    'amount_cents' => Money::toCentsOrFail($amount),
                     'payment_status' => 'pending',
                     'payment_date' => Carbon::now(),
                     'payment_method' => 'yookassa',
@@ -269,7 +270,7 @@ class PartnerPaymentController extends Controller
                 'partner_id' => $partnerId,
                 'user_id'    => $user->id,
                 'type'       => 'credit',
-                'amount'     => $amount,
+                'amount_cents' => Money::toCentsOrFail($amount),
                 'currency'   => 'RUB',
                 'provider'   => 'yookassa',
                 'status'     => 'pending',
@@ -403,11 +404,12 @@ class PartnerPaymentController extends Controller
 
             // Необязательная, но полезная проверка соответствия суммы
             // (чтобы не зачислить случайно неправильную)
-            if ($amountVal !== null && abs((float)$tx->amount - (float)$amountVal) > 0.009) {
+            $amountValCents = $amountVal !== null ? Money::toCents($amountVal) : null;
+            if ($amountValCents !== null && abs((int)$tx->amount_cents - $amountValCents) > 0) {
                 Log::warning('YooKassa wallet webhook: amount mismatch', [
                     'wallet_transaction_id' => $tx->id,
-                    'tx_amount'  => (float)$tx->amount,
-                    'hook_amount'=> (float)$amountVal,
+                    'tx_amount'  => (int)$tx->amount_cents,
+                    'hook_amount'=> $amountValCents,
                 ]);
                 // Можно вернуть 422, чтобы не зачислять спорную сумму
                 return response()->json(['ok' => false, 'message' => 'Amount mismatch'], 422);
@@ -432,14 +434,14 @@ class PartnerPaymentController extends Controller
                     $tx->save();
 
                     // Реальное зачисление средств
-                    $partner->wallet_balance = (float)$partner->wallet_balance + (float)$tx->amount;
+                    $partner->wallet_balance_cents = (int)$partner->wallet_balance_cents + (int)$tx->amount_cents;
                     $partner->save();
                 });
 
                 Log::info('YooKassa wallet webhook: credited', [
                     'wallet_transaction_id' => $tx->id,
                     'partner_id' => $tx->partner_id,
-                    'amount' => (float)$tx->amount,
+                    'amount' => ((int)$tx->amount_cents) / 100,
                 ]);
 
                 return response()->json(['ok' => true]);
@@ -501,7 +503,7 @@ class PartnerPaymentController extends Controller
         return DataTables::of($query)
             ->addColumn('partner_name', fn($t) => optional($t->partner)->title ?? '—')
             ->addColumn('user_name', fn($t) => optional($t->user)->name ?? '—')
-            ->editColumn('amount', fn($t) => (float) $t->amount)
+            ->editColumn('amount', fn($t) => round(((int) $t->amount_cents) / 100, 2))
             ->editColumn('type', fn($t) => $t->type === 'credit' ? 'Пополнение' : 'Списание')
             ->editColumn('status', function ($t) {
         $label = match ($t->status) {

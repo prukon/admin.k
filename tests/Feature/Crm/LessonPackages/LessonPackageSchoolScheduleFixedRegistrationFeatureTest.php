@@ -111,7 +111,7 @@ final class LessonPackageSchoolScheduleFixedRegistrationFeatureTest extends CrmT
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '50.00',
+            'fee_amount_cents' => 5000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

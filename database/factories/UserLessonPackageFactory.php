@@ -26,7 +26,7 @@ class UserLessonPackageFactory extends Factory
             'ends_at' => null,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => round($package->price_cents / 100, 2),
+            'fee_amount_cents' => (int) $package->price_cents,
             'is_paid' => false,
             'created_by' => null,
         ];
@@ -41,7 +41,7 @@ class UserLessonPackageFactory extends Factory
             'lesson_package_id' => $package->id,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => round($package->price_cents / 100, 2),
+            'fee_amount_cents' => (int) $package->price_cents,
         ]);
     }
 }

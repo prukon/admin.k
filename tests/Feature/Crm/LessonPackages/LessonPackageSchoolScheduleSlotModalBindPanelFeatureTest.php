@@ -142,7 +142,7 @@ final class LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest extends Crm
                 'ends_at' => null,
                 'lessons_total' => 1,
                 'lessons_remaining' => 1,
-                'fee_amount' => 500 + $i,
+                'fee_amount_cents' => 50000 + $i,
                 'created_by' => $this->user->id,
             ]);
         }

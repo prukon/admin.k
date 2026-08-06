@@ -150,8 +150,8 @@ class PaymentRefundController extends AdminBaseController
 
                 $dealId = trim((string) ($lockedPayment->deal_id ?? ''));
 
-                $amount = (float) $lockedPayment->summ;
-                if ($amount <= 0) {
+                $amountCents = (int) $lockedPayment->summ_cents;
+                if ($amountCents <= 0) {
                     return ['error' => true, 'message' => 'invalid_amount'];
                 }
 
@@ -160,7 +160,7 @@ class PaymentRefundController extends AdminBaseController
                     'user_id' => (int) ($intent->user_id ?? $lockedPayment->user_id),
                     'payable_id' => (int) $intent->payable_id,
                     'payment_id' => (int) $lockedPayment->id,
-                    'amount' => $amount,
+                    'amount_cents' => $amountCents,
                     'currency' => 'RUB',
                     'status' => 'pending',
                     'provider' => 'tbank',
@@ -217,8 +217,8 @@ class PaymentRefundController extends AdminBaseController
                 return ['error' => true, 'message' => 'refund_time_limit_exceeded'];
             }
 
-            $amount = (float) $lockedPayment->summ;
-            if ($amount <= 0) {
+            $amountCents = (int) $lockedPayment->summ_cents;
+            if ($amountCents <= 0) {
                 return ['error' => true, 'message' => 'invalid_amount'];
             }
 
@@ -227,7 +227,7 @@ class PaymentRefundController extends AdminBaseController
                 'user_id' => (int) ($intent->user_id ?? $lockedPayment->user_id),
                 'payable_id' => (int) $intent->payable_id,
                 'payment_id' => (int) $lockedPayment->id,
-                'amount' => $amount,
+                'amount_cents' => $amountCents,
                 'currency' => 'RUB',
                 'status' => 'pending',
                 'provider' => 'robokassa',

@@ -14,6 +14,7 @@ use App\Services\Payments\UserLessonPackageFeePaymentResolver;
 use App\Services\Payments\UserPriceMonthlyFeePaymentResolver;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffPaymentsService;
+use App\Support\Money;
 use App\Support\Payments\PaymentOutSumNormalizer;
 use App\Models\UserLessonPackage;
 use Illuminate\Http\Request;
@@ -63,6 +64,7 @@ class TinkoffPaymentController extends Controller
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
+        $amountCents = null;
 
         if ($paymentKind === 'custom_payment') {
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
@@ -79,7 +81,8 @@ class TinkoffPaymentController extends Controller
                 return back()->withErrors(['tinkoff' => 'Дополнительный платеж уже оплачен']);
             }
 
-            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $amountCents = (int) $upp->amount_cents;
+            $outSum = Money::fromCents($amountCents);
             $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
@@ -89,6 +92,7 @@ class TinkoffPaymentController extends Controller
                 $userLessonPackageId ?? 0,
             );
             $lessonPackage = $resolvedLp['ulp'];
+            $amountCents = (int) $resolvedLp['amount_cents'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -100,6 +104,7 @@ class TinkoffPaymentController extends Controller
                 $rawFmt,
                 $teamIdParam
             );
+            $amountCents = (int) $resolved['amount_cents'];
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
@@ -109,6 +114,7 @@ class TinkoffPaymentController extends Controller
             if ($outSum === null) {
                 return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
             }
+            $amountCents = Money::toCentsOrFail($outSum);
             $paymentDate = 'Клубный взнос';
         }
 
@@ -139,8 +145,6 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => $tbankError]);
         }
 
-        $amountCents = (int) round(((float) $outSum) * 100);
-
         $month = null;
         $payableMeta = [];
         if ($type === 'monthly_fee') {
@@ -157,7 +161,7 @@ class TinkoffPaymentController extends Controller
             'partner_id' => $partnerId,
             'user_id' => $userId,
             'type' => $type,
-            'amount' => $outSum,
+            'amount_cents' => $amountCents,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => $month,
@@ -178,7 +182,7 @@ class TinkoffPaymentController extends Controller
             'provider' => 'tbank',
             'payment_method' => $intentPaymentMethod,
             'status' => 'pending',
-            'out_sum' => $outSum,
+            'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
             'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
@@ -237,6 +241,7 @@ class TinkoffPaymentController extends Controller
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
+        $amountCents = null;
 
         if ($paymentKind === 'custom_payment') {
             if ($userPeriodPriceId !== null && $userPeriodPriceId > 0) {
@@ -253,7 +258,8 @@ class TinkoffPaymentController extends Controller
                 return back()->withErrors(['tinkoff' => 'Дополнительный платеж уже оплачен']);
             }
 
-            $outSum = number_format((float) $upp->amount, 2, '.', '');
+            $amountCents = (int) $upp->amount_cents;
+            $outSum = Money::fromCents($amountCents);
             $paymentDate = (string) $r->input('paymentDate', 'Дополнительный платеж');
             $hasMonthly = false;
         } elseif ($paymentKind === 'lesson_package') {
@@ -263,6 +269,7 @@ class TinkoffPaymentController extends Controller
                 $userLessonPackageId ?? 0,
             );
             $lessonPackage = $resolvedLp['ulp'];
+            $amountCents = (int) $resolvedLp['amount_cents'];
             $outSum = $resolvedLp['out_sum'];
             $paymentDate = $resolvedLp['payment_label'];
             $hasMonthly = false;
@@ -274,6 +281,7 @@ class TinkoffPaymentController extends Controller
                 $rawFmt,
                 $teamIdParam
             );
+            $amountCents = (int) $resolved['amount_cents'];
             $outSum = $resolved['out_sum'];
             $paymentDate = $resolved['month_first_day'];
             $monthlyTeamId = $resolved['team_id'];
@@ -283,6 +291,7 @@ class TinkoffPaymentController extends Controller
             if ($outSum === null) {
                 return back()->withErrors(['tinkoff' => 'Некорректная сумма']);
             }
+            $amountCents = Money::toCentsOrFail($outSum);
             $paymentDate = 'Клубный взнос';
         }
 
@@ -313,7 +322,6 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => $tbankError]);
         }
 
-        $amountCents = (int) round(((float) $outSum) * 100);
         // Ограничение банка для QR (СБП): сумма от 1 000 коп. (10 ₽) до 100 000 000 коп.
         if ($amountCents < 1000 || $amountCents > 100000000) {
             return back()->withErrors(['tinkoff' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']);
@@ -335,7 +343,7 @@ class TinkoffPaymentController extends Controller
             'partner_id' => $partnerId,
             'user_id' => $userId,
             'type' => $type,
-            'amount' => $outSum,
+            'amount_cents' => $amountCents,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => $month,
@@ -349,7 +357,7 @@ class TinkoffPaymentController extends Controller
             'provider' => 'tbank',
             'payment_method' => 'sbp_qr',
             'status' => 'pending',
-            'out_sum' => $outSum,
+            'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
             'meta' => json_encode(array_merge(
                 $this->paymentIntentMetaWithTeam($userName, $paymentTeamId),

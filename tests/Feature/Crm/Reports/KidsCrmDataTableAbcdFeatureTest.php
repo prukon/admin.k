@@ -144,7 +144,7 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id'     => $this->partner->id,
             'user_id'        => $this->user->id,
-            'summ'           => 150.00,
+            'summ_cents'           => 15000,
             'deal_id'        => 'deal-abcd-meta',
             'payment_id'     => 'abcd-refund-meta',
             'payment_status' => 'CONFIRMED',
@@ -214,12 +214,12 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $withPrice = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'ABCD price set',
-            'month_price' => 4200,
+            'month_price_cents' => 420000,
         ]);
         $withoutPrice = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'ABCD price null',
-            'month_price' => null,
+            'month_price_cents' => null,
         ]);
 
         $json = $this
@@ -435,7 +435,7 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
         $team = Team::factory()->create([
             'partner_id'  => $this->partner->id,
             'title'       => 'ABCD teams access',
-            'month_price' => 2500,
+            'month_price_cents' => 250000,
         ]);
 
         $routes = [

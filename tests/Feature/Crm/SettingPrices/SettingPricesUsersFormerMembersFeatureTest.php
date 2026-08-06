@@ -58,7 +58,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
 
@@ -83,7 +83,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
 
@@ -122,7 +122,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
 
@@ -145,7 +145,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
     }
 
@@ -155,7 +155,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-04-01',
-            'price' => 500,
+            'price_cents' => 50000,
             'is_paid' => 1,
         ]);
 
@@ -178,7 +178,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
         ]);
 
@@ -206,7 +206,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 1,
         ]);
         $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
@@ -255,7 +255,7 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-04-01',
-            'price' => 800,
+            'price_cents' => 80000,
             'is_paid' => 1,
         ]);
         $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
@@ -282,14 +282,14 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
         UserPrice::forceCreate([
             'user_id' => $this->student->id,
             'team_id' => $this->dubl->id,
             'new_month' => '2026-02-01',
-            'price' => 500,
+            'price_cents' => 50000,
             'is_paid' => 0,
         ]);
         $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
@@ -312,13 +312,13 @@ final class SettingPricesUsersFormerMembersFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->dubl->id,
             'new_month' => '2026-02-01',
-            'price' => 1500,
+            'price_cents' => 150000,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
     }
 }

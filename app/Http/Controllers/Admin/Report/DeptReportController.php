@@ -42,7 +42,7 @@ class DeptReportController extends AdminBaseController
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->where('users_prices.is_paid', 0)
-            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.price_cents', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
@@ -54,13 +54,13 @@ class DeptReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
-            ->where('user_custom_payment.amount', '>', 0)
+            ->where('user_custom_payment.amount_cents', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
         $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request, $partnerId);
 
-        $totalRaw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
-        $totalUnpaidPrice = number_format($totalRaw, 0, '', ' ');
+        $totalRawCents = (int) $totalMonthly->sum('users_prices.price_cents') + (int) $totalPeriods->sum('user_custom_payment.amount_cents');
+        $totalUnpaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
 
         $paymentsFilterUser = $this->resolveDebtFilterUserLabel($partnerId, $filters);
         $paymentsFilterTeam = $this->resolveDebtFilterTeamLabel($partnerId, $filters);
@@ -106,7 +106,7 @@ class DeptReportController extends AdminBaseController
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
             ->where('users_prices.is_paid', 0)
-            ->where('users_prices.price', '>', 0)
+            ->where('users_prices.price_cents', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
 
@@ -117,16 +117,17 @@ class DeptReportController extends AdminBaseController
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
             ->where('user_custom_payment.is_paid', 0)
-            ->where('user_custom_payment.amount', '>', 0)
+            ->where('user_custom_payment.amount_cents', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
         $this->applyDebtReportFiltersForPeriodPrices($totalPeriods, $request, $partnerId);
 
-        $raw = (float) $totalMonthly->sum('users_prices.price') + (float) $totalPeriods->sum('user_custom_payment.amount');
+        $rawCents = (int) $totalMonthly->sum('users_prices.price_cents') + (int) $totalPeriods->sum('user_custom_payment.amount_cents');
+        $raw = $rawCents / 100;
 
         return response()->json([
-            'total_formatted' => number_format((float) $raw, 0, '', ' '),
-            'total_raw'       => (float) $raw,
+            'total_formatted' => number_format($raw, 0, '', ' '),
+            'total_raw'       => $raw,
         ]);
     }
 
@@ -147,11 +148,11 @@ class DeptReportController extends AdminBaseController
                     'users.id as user_id',
                     DB::raw('users_prices.id as row_id'),
                     DB::raw('users_prices.new_month as month'),
-                    DB::raw('users_prices.price as price'),
+                    DB::raw('users_prices.price_cents as price'),
                     DB::raw('0 as is_period')
                 )
                 ->where('users_prices.is_paid', 0)
-                ->where('users_prices.price', '>', 0)
+                ->where('users_prices.price_cents', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->where('users.partner_id', $partnerId);
 
@@ -164,12 +165,12 @@ class DeptReportController extends AdminBaseController
                     'users.id as user_id',
                     DB::raw('user_custom_payment.id as row_id'),
                     DB::raw("CONCAT(user_custom_payment.date_start, ' — ', user_custom_payment.date_end) as month"),
-                    DB::raw('user_custom_payment.amount as price'),
+                    DB::raw('user_custom_payment.amount_cents as price'),
                     DB::raw('1 as is_period')
                 )
                 ->where('user_custom_payment.partner_id', $partnerId)
                 ->where('user_custom_payment.is_paid', 0)
-                ->where('user_custom_payment.amount', '>', 0)
+                ->where('user_custom_payment.amount_cents', '>', 0)
                 ->where('user_custom_payment.date_end', '<', $today);
 
             $this->applyDebtReportFiltersForPeriodPrices($periods, $request, $partnerId);
@@ -186,7 +187,7 @@ class DeptReportController extends AdminBaseController
             return DataTables::of($base)
                 ->addIndexColumn()
                 ->editColumn('month', fn ($row) => self::formatMonthForDebtReport($row->month))
-                ->addColumn('price', fn ($row) => (float) $row->price)
+                ->addColumn('price', fn ($row) => round(((int) $row->price) / 100, 2))
                 ->orderColumn('user_name', function ($query, $order) use ($appendStableOrder) {
                     $dir = strtolower((string) $order) === 'desc' ? 'desc' : 'asc';
                     $query->orderBy('user_name', $dir);

@@ -84,7 +84,7 @@ final class LessonPackageAssignmentsHistoryAjaxContractFeatureTest extends CrmTe
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -137,7 +137,7 @@ final class LessonPackageAssignmentsHistoryAjaxContractFeatureTest extends CrmTe
         )
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('assignment.fee_amount', '175.00')
+            ->assertJsonPath('assignment.fee_amount', 175)
             ->assertJsonStructure(['assignment' => ['id', 'fee_amount', 'user_display']]);
 
         $this->assertNotNull(
@@ -255,7 +255,7 @@ final class LessonPackageAssignmentsHistoryAjaxContractFeatureTest extends CrmTe
             'lesson_package_id' => $ctx['package']->id,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '40.00',
+            'fee_amount_cents' => 4000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

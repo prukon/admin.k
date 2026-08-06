@@ -14,6 +14,7 @@ class UserPrice extends Model
     protected $guarded = []; //разрешение на изменение данных в таблице}
 
     protected $casts = [
+        'price_cents'        => 'integer',
         'is_paid'            => 'boolean',
         'is_manual_paid'     => 'boolean',
         'manual_paid_at'     => 'datetime',

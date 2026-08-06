@@ -228,7 +228,7 @@ final class SchoolLeadLandingFullFeatureTest extends TestCase
 
         $this->landingTeam->update([
             'sport_type_id'            => $sportType->id,
-            'month_price'              => 4500,
+            'month_price_cents'        => 450000,
             'default_duration_minutes' => 90,
         ]);
         $this->landingTeam->weekdays()->sync([1, 3, 5]);

@@ -95,8 +95,8 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
             [
                 'is_enabled' => true,
                 'sort_order' => 7,
-                'default_base_salary' => 12345.67,
-                'default_rate_per_training' => 890.12,
+                'default_base_salary_cents' => 1234567,
+                'default_rate_per_training_cents' => 89012,
             ],
         );
 
@@ -115,8 +115,8 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
         $this->assertSame(1, $row['is_enabled']);
         $this->assertSame('Да', $row['status_label']);
         $this->assertStringContainsString('default-avatar.png', $row['avatar_url']);
-        $this->assertSame('12 346 руб', $row['default_base_salary']);
-        $this->assertSame('890 руб', $row['default_rate_per_training']);
+        $this->assertSame('12 345,67 руб', $row['default_base_salary']);
+        $this->assertSame('890,12 руб', $row['default_rate_per_training']);
     }
 
     public function test_data_search_value_fallback_when_name_param_empty(): void
@@ -279,7 +279,7 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_store_and_update_normalize_salary_rubles(): void
+    public function test_store_and_update_preserve_salary_kopecks(): void
     {
         $this->grantTrainersView();
 
@@ -301,8 +301,8 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('trainer_profiles', [
             'id' => $profileId,
-            'default_base_salary' => '10001.00',
-            'default_rate_per_training' => '500.00',
+            'default_base_salary_cents' => 1000060,
+            'default_rate_per_training_cents' => 50040,
         ]);
 
         $this->putJson(route('admin.trainers.update', $profileId), [
@@ -316,27 +316,27 @@ final class TrainersDataTableFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('trainer_profiles', [
             'id' => $profileId,
-            'default_base_salary' => '20001.00',
-            'default_rate_per_training' => '750.00',
+            'default_base_salary_cents' => 2000090,
+            'default_rate_per_training_cents' => 75010,
         ]);
     }
 
-    public function test_show_returns_salary_as_integer_rubles_for_form(): void
+    public function test_show_returns_salary_rubles_with_kopecks_for_form(): void
     {
         $this->grantTrainersView();
 
         $profile = $this->createTrainerProfile(
             ['email' => 'show-salary-' . uniqid('', true) . '@example.test'],
             [
-                'default_base_salary' => 15000.75,
-                'default_rate_per_training' => 999.49,
+                'default_base_salary_cents' => 1500075,
+                'default_rate_per_training_cents' => 99949,
             ],
         );
 
         $this->getJson(route('admin.trainers.show', $profile->id))
             ->assertOk()
-            ->assertJsonPath('default_base_salary', '15001')
-            ->assertJsonPath('default_rate_per_training', '999');
+            ->assertJsonPath('default_base_salary', '15000.75')
+            ->assertJsonPath('default_rate_per_training', '999.49');
     }
 
     public function test_columns_settings_roundtrip_for_trainers_index(): void

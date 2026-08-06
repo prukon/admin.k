@@ -71,7 +71,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'team_id' => $team->id,
             'date_start' => '2026-09-01',
             'date_end' => '2026-09-30',
-            'amount' => '777.00',
+            'amount_cents' => 77700,
             'is_paid' => 0,
         ]);
 
@@ -128,7 +128,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
     public function test_payment_index_ok_and_out_sum_comes_from_users_prices_when_monthly(): void
     {
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2026-03-01', 4150, false)
+            ->forUserAndMonth((int) $this->user->id, '2026-03-01', 415000, false)
             ->create();
 
         $response = $this->post(route('payment'), [
@@ -149,7 +149,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
     public function test_payment_index_ignores_request_out_sum_for_monthly_fee(): void
     {
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2026-04-01', 99, false)
+            ->forUserAndMonth((int) $this->user->id, '2026-04-01', 9900, false)
             ->create();
 
         $response = $this->post(route('payment'), [
@@ -180,7 +180,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
     public function test_payment_index_resolves_russian_month_only_using_formated_date(): void
     {
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2026-02-01', 77, false)
+            ->forUserAndMonth((int) $this->user->id, '2026-02-01', 7700, false)
             ->create();
 
         $response = $this->post(route('payment'), [
@@ -212,7 +212,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             ->create(['partner_id' => $this->partner->id]);
 
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2026-07-01', 2500, false)
+            ->forUserAndMonth((int) $this->user->id, '2026-07-01', 250000, false)
             ->create();
 
         $this->post(route('payment.pay'), [
@@ -233,7 +233,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             ->create(['partner_id' => $this->partner->id]);
 
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2026-07-01', 2500, false)
+            ->forUserAndMonth((int) $this->user->id, '2026-07-01', 250000, false)
             ->create();
 
         $response = $this->post(route('payment.pay'), [
@@ -245,7 +245,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertStringContainsString('OutSum=2500.00', $response->headers->get('Location') ?? '');
         $intent = PaymentIntent::query()->latest('id')->first();
         $this->assertNotNull($intent);
-        $this->assertSame('2500.00', (string) $intent->out_sum);
+        $this->assertSame(250000, (int) $intent->out_sum_cents);
     }
 
     /**
@@ -265,7 +265,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->seedTbankTeamChainForStudent(shopCode: 'SHOP-TEST');
 
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2025-06-01', 123, false)
+            ->forUserAndMonth((int) $this->user->id, '2025-06-01', 12300, false)
             ->create();
 
         $capturedAmount = null;
@@ -309,7 +309,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'team_id' => $team->id,
             'date_start' => '2026-10-01',
             'date_end' => '2026-10-31',
-            'amount' => '321.00',
+            'amount_cents' => 32100,
             'is_paid' => 0,
         ]);
 
@@ -371,7 +371,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
             'ends_at' => '2026-05-01',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($feeAmount, 2, '.', ''),
+            'fee_amount_cents' => (int) round($feeAmount * 100),
             'is_paid' => false,
         ]);
     }
@@ -439,7 +439,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertNotNull($payable);
         $this->assertSame('lesson_package_fee', (string) $payable->type);
         $this->assertSame((int) $ulp->id, (int) ($payable->meta['user_lesson_package_id'] ?? 0));
-        $this->assertSame('612.50', (string) $payable->amount);
+        $this->assertSame(61250, (int) $payable->amount_cents);
     }
 
     /**
@@ -466,7 +466,7 @@ class UserClassPaymentFlowTest extends CrmTestCase
         $this->assertStringContainsString('OutSum=888.00', $response->headers->get('Location') ?? '');
         $intent = PaymentIntent::query()->latest('id')->first();
         $this->assertNotNull($intent);
-        $this->assertSame('888.00', (string) $intent->out_sum);
+        $this->assertSame(88800, (int) $intent->out_sum_cents);
     }
 
     /**

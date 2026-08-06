@@ -52,7 +52,7 @@ final class PayableTeamPaymentFlowTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'team_id' => $team->id,
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'is_paid' => false,
         ]);
 
@@ -92,7 +92,7 @@ final class PayableTeamPaymentFlowTest extends CrmTestCase
             'team_id' => null,
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => '100.00',
+            'fee_amount_cents' => 10000,
             'is_paid' => false,
         ]);
 

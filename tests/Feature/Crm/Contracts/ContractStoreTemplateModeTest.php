@@ -15,7 +15,7 @@ class ContractStoreTemplateModeTest extends ContractsFeatureTestCase
     {
         Mail::fake();
         config(['billing.contract_create_fee' => 70.00]);
-        $this->partner->wallet_balance = 100;
+        $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
 
         $student = User::factory()->create([
@@ -41,7 +41,7 @@ class ContractStoreTemplateModeTest extends ContractsFeatureTestCase
         $this->assertNotNull($contract->fill_expires_at);
 
         $this->partner->refresh();
-        $this->assertSame(30.0, (float) $this->partner->wallet_balance);
+        $this->assertSame(30.0, (float) ($this->partner->wallet_balance_cents / 100));
 
         Mail::assertSent(\App\Mail\ContractClientFillInvitationMail::class);
     }

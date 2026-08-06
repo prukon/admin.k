@@ -142,7 +142,14 @@
         if (isNaN(num)) {
             num = 0;
         }
-        return String(Math.round(num)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        var cents = Math.round(num * 100);
+        var neg = cents < 0;
+        cents = Math.abs(cents);
+        var rub = Math.floor(cents / 100);
+        var kop = cents % 100;
+        var rubStr = String(rub).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        var body = kop === 0 ? rubStr : rubStr + ',' + (kop < 10 ? '0' + kop : String(kop));
+        return neg ? '-' + body : body;
     }
 
     function formatDateTime(iso) {

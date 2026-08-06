@@ -8,6 +8,7 @@ use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\User;
 use App\Services\PartnerLegalEntities\LegalEntityResolver;
+use App\Support\Money;
 use RuntimeException;
 
 class CloudKassirReceiptBuilder
@@ -65,7 +66,8 @@ class CloudKassirReceiptBuilder
         }
 
         $label = $this->makeLabel($payable);
-        $amount = $this->normalizeMoney($fiscalReceipt->amount ?: $payable->amount);
+        $amountCents = (int) ($fiscalReceipt->amount_cents ?: $payable->amount_cents);
+        $amount = Money::fromCents($amountCents);
 
         $item = [
             'Label' => $label,

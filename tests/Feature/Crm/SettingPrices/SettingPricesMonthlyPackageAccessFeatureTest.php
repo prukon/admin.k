@@ -51,7 +51,7 @@ final class SettingPricesMonthlyPackageAccessFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1000,
+            'price_cents' => 100000,
             'is_paid' => 0,
         ]);
 

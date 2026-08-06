@@ -1,9 +1,11 @@
 @php
+    // Значения приходят из сервиса уже в виде рублёвой строки "0.00" (App\Support\Money::fromCents),
+    // копейки сохраняются как есть — не округляем.
     $formatMoneyRubles = static function ($value): string {
-        return number_format((float) round((float) $value), 0, '.', ' ');
+        return \App\Support\Money::formatRub(\App\Support\Money::toCentsOrFail($value));
     };
     $inputRubles = static function ($value): string {
-        return (string) (int) round((float) $value);
+        return (string) $value;
     };
 @endphp
 
@@ -71,7 +73,7 @@
                            class="form-control form-control-sm trainer-salary-input text-end"
                            data-field="base_salary"
                            min="0"
-                           step="1"
+                           step="0.01"
                            value="{{ $inputRubles($row['base_salary']) }}">
                     <div class="invalid-feedback d-none" data-error-for="base_salary"></div>
                 @else
@@ -87,7 +89,7 @@
                            class="form-control form-control-sm trainer-salary-input text-end"
                            data-field="rate_per_training"
                            min="0"
-                           step="1"
+                           step="0.01"
                            value="{{ $inputRubles($row['rate_per_training']) }}">
                     <div class="invalid-feedback d-none" data-error-for="rate_per_training"></div>
                 @else
@@ -103,7 +105,7 @@
                            class="form-control form-control-sm trainer-salary-input text-end"
                            data-field="bonuses"
                            min="0"
-                           step="1"
+                           step="0.01"
                            value="{{ $inputRubles($row['bonuses']) }}">
                     <div class="invalid-feedback d-none" data-error-for="bonuses"></div>
                 @else
@@ -116,7 +118,7 @@
                            class="form-control form-control-sm trainer-salary-input text-end"
                            data-field="deductions"
                            min="0"
-                           step="1"
+                           step="0.01"
                            value="{{ $inputRubles($row['deductions']) }}">
                     <div class="invalid-feedback d-none" data-error-for="deductions"></div>
                 @else

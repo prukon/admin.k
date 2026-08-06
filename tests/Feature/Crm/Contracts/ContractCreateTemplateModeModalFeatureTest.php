@@ -18,7 +18,7 @@ class ContractCreateTemplateModeModalFeatureTest extends ContractsFeatureTestCas
 
         config(['billing.contract_create_fee' => 70.00]);
         config(['queue.default' => 'sync']);
-        $this->partner->wallet_balance = 500;
+        $this->partner->wallet_balance_cents = 50000;
         $this->partner->save();
     }
 
@@ -83,7 +83,7 @@ class ContractCreateTemplateModeModalFeatureTest extends ContractsFeatureTestCas
     public function store_template_mode_fails_when_insufficient_balance(): void
     {
         Mail::fake();
-        $this->partner->wallet_balance = 0;
+        $this->partner->wallet_balance_cents = 0;
         $this->partner->save();
 
         $student = User::factory()->create([

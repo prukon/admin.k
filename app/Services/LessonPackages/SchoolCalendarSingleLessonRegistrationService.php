@@ -16,6 +16,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Services\UserLessonPackageConsumptionAdjuster;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -70,10 +71,10 @@ final class SchoolCalendarSingleLessonRegistrationService
         }
 
         $template = $this->resolveSingleLessonTemplate($partnerId, (int) $data['lesson_package_id']);
-        $feeAmount = round((float) ($data['fee_amount'] ?? 0), 2);
+        $feeAmountCents = Money::toCentsOrFail($data['fee_amount'] ?? 0);
         $createdUlpId = null;
 
-        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmount, $slot, $occurrence, $createdBy, &$createdUlpId): void {
+        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmountCents, $slot, $occurrence, $createdBy, &$createdUlpId): void {
             /** @var UserLessonPackage $ulp */
             $ulp = UserLessonPackage::query()->create([
                 'user_id' => $userId,
@@ -82,7 +83,7 @@ final class SchoolCalendarSingleLessonRegistrationService
                 'ends_at' => null,
                 'lessons_total' => (int) $template->lessons_count,
                 'lessons_remaining' => (int) $template->lessons_count,
-                'fee_amount' => $feeAmount,
+                'fee_amount_cents' => $feeAmountCents,
                 'is_paid' => false,
                 'created_by' => $createdBy,
             ]);

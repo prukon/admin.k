@@ -62,7 +62,7 @@ final class SettingPricesUsersPriceUlpSyncContractsFeatureTest extends CrmTestCa
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2025-10-01',
-            'price' => 0,
+            'price_cents' => 0,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -117,7 +117,7 @@ final class SettingPricesUsersPriceUlpSyncContractsFeatureTest extends CrmTestCa
         $this->assertSame('2025-10-01', $ulp->billing_month?->format('Y-m-d'));
         $this->assertNull($ulp->starts_at);
         $this->assertSame('2025-10-31', $ulp->ends_at?->format('Y-m-d'));
-        $this->assertSame(8000.0, (float) $ulp->fee_amount);
+        $this->assertSame(800000, (int) $ulp->fee_amount_cents);
     }
 
     public function test_set_price_all_users_non_ajax_redirects_and_creates_ulp_not_empty_200(): void
@@ -139,7 +139,7 @@ final class SettingPricesUsersPriceUlpSyncContractsFeatureTest extends CrmTestCa
             ->where('new_month', '2025-10-01')
             ->firstOrFail();
 
-        $this->assertSame(7500.0, (float) $row->price);
+        $this->assertSame(750000, (int) $row->price_cents);
         $this->assertNotNull($row->user_lesson_package_id);
         $ulp = UserLessonPackage::query()->findOrFail($row->user_lesson_package_id);
         $this->assertSame('2025-10-31', $ulp->ends_at?->format('Y-m-d'));
@@ -286,7 +286,7 @@ final class SettingPricesUsersPriceUlpSyncContractsFeatureTest extends CrmTestCa
         $ulp = UserLessonPackage::query()->findOrFail($row->user_lesson_package_id);
         $this->assertSame('2025-10-31', $ulp->ends_at?->format('Y-m-d'));
         $this->assertNull($ulp->starts_at);
-        $this->assertSame(8200.0, (float) $ulp->fee_amount);
+        $this->assertSame(820000, (int) $ulp->fee_amount_cents);
     }
 
     public function test_guest_ulp_sync_endpoints_denied_not_500(): void

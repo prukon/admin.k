@@ -15,7 +15,7 @@ use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Services\Tinkoff\TinkoffApiClient;
 use App\Services\Tinkoff\TinkoffPaymentsService;
 use App\Services\Tinkoff\TinkoffSignature;
-use App\Support\Payments\PaymentOutSumNormalizer;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +56,7 @@ final class UserLessonPackagePublicPayService
     public function assertAmountAllowedForSbp(int $partnerId, int $ulpId): void
     {
         $resolved = $this->feeResolver->resolvePublicPayForPartner($partnerId, $ulpId);
-        $amountCents = (int) round(((float) $resolved['out_sum']) * 100);
+        $amountCents = (int) $resolved['amount_cents'];
         if ($amountCents < 1000 || $amountCents > 100000000) {
             throw new HttpException(422, 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.');
         }
@@ -149,7 +149,7 @@ final class UserLessonPackagePublicPayService
             return;
         }
 
-        $expectedAmountCents = (int) round(((float) $resolved['out_sum']) * 100);
+        $expectedAmountCents = (int) $resolved['amount_cents'];
 
         if ($this->activePaymentAmountMatches($link, $expectedAmountCents)) {
             return;
@@ -192,7 +192,7 @@ final class UserLessonPackagePublicPayService
             return ['ok' => false, 'status' => 422, 'body' => ['Success' => false, 'Message' => $e->getMessage()]];
         }
 
-        $amountCents = (int) round(((float) $resolved['out_sum']) * 100);
+        $amountCents = (int) $resolved['amount_cents'];
         if ($amountCents < 1000 || $amountCents > 100000000) {
             return ['ok' => false, 'status' => 422, 'body' => ['Success' => false, 'Message' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.']];
         }
@@ -254,7 +254,7 @@ final class UserLessonPackagePublicPayService
             return ['kind' => 'error', 'message' => $e->getMessage()];
         }
 
-        $amountCents = (int) round(((float) $resolved['out_sum']) * 100);
+        $amountCents = (int) $resolved['amount_cents'];
         if ($amountCents < 1000 || $amountCents > 100000000) {
             return ['kind' => 'error', 'message' => 'Оплата по СБП доступна для суммы от 10 ₽ до 1 000 000 ₽.'];
         }
@@ -281,7 +281,7 @@ final class UserLessonPackagePublicPayService
         return [
             'kind' => 'qr',
             'paymentId' => (string) $paymentId,
-            'amountRubFormatted' => number_format((int) round($amountCents / 100), 0, ',', ' '),
+            'amountRubFormatted' => Money::formatRub($amountCents),
             'successUrl' => $orderId !== '' ? url('/payments/tinkoff/'.$orderId.'/success') : url('/payment/success'),
             'orderId' => $orderId,
             'isMobileClient' => $this->isLikelyMobileUserAgent($request->userAgent()),
@@ -425,7 +425,7 @@ final class UserLessonPackagePublicPayService
             'partner_id' => $partnerId,
             'user_id' => $studentUserId,
             'type' => 'lesson_package_fee',
-            'amount' => $resolved['out_sum'],
+            'amount_cents' => $amountCents,
             'currency' => 'RUB',
             'status' => 'pending',
             'month' => null,
@@ -442,7 +442,7 @@ final class UserLessonPackagePublicPayService
             'provider' => 'tbank',
             'payment_method' => 'sbp_qr',
             'status' => 'pending',
-            'out_sum' => $resolved['out_sum'],
+            'out_sum_cents' => $amountCents,
             'payment_date' => $resolved['payment_label'],
             'meta' => json_encode([
                 'method' => 'sbp',
@@ -496,8 +496,8 @@ final class UserLessonPackagePublicPayService
         if ($link->payable_id) {
             $payable = Payable::query()->find((int) $link->payable_id);
             if ($payable) {
-                $payableCents = $this->amountCentsFromOutSum((string) $payable->amount);
-                if ($payableCents === null || $payableCents !== $expectedAmountCents) {
+                $payableCents = (int) $payable->amount_cents;
+                if ($payableCents !== $expectedAmountCents) {
                     return false;
                 }
             }
@@ -506,8 +506,8 @@ final class UserLessonPackagePublicPayService
         if ($link->payment_intent_id) {
             $intent = PaymentIntent::query()->find((int) $link->payment_intent_id);
             if ($intent) {
-                $intentCents = $this->amountCentsFromOutSum((string) $intent->out_sum);
-                if ($intentCents === null || $intentCents !== $expectedAmountCents) {
+                $intentCents = (int) $intent->out_sum_cents;
+                if ($intentCents !== $expectedAmountCents) {
                     return false;
                 }
             }
@@ -533,28 +533,18 @@ final class UserLessonPackagePublicPayService
         if ($link->payable_id) {
             $payable = Payable::query()->find((int) $link->payable_id);
             if ($payable) {
-                return $this->amountCentsFromOutSum((string) $payable->amount);
+                return (int) $payable->amount_cents;
             }
         }
 
         if ($link->payment_intent_id) {
             $intent = PaymentIntent::query()->find((int) $link->payment_intent_id);
             if ($intent) {
-                return $this->amountCentsFromOutSum((string) $intent->out_sum);
+                return (int) $intent->out_sum_cents;
             }
         }
 
         return null;
-    }
-
-    private function amountCentsFromOutSum(string $outSum): ?int
-    {
-        $normalized = PaymentOutSumNormalizer::normalize($outSum);
-        if ($normalized === null) {
-            return null;
-        }
-
-        return (int) round(((float) $normalized) * 100);
     }
 
     private function invalidateActivePublicPayPayment(UserLessonPackagePublicPayLink $link): void

@@ -117,7 +117,7 @@ final class LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -197,7 +197,7 @@ final class LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest exten
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $denied->id,
         ]);
@@ -275,7 +275,7 @@ final class LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest exten
             'ends_at' => '2026-06-03',
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

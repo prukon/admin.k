@@ -63,7 +63,7 @@ final class UserPriceTeamMembership
         return UserPrice::query()
             ->where('user_id', $userId)
             ->where('team_id', $teamId)
-            ->where('price', '>', 0)
+            ->where('price_cents', '>', 0)
             ->exists();
     }
 }

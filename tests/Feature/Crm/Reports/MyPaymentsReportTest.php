@@ -46,11 +46,11 @@ class MyPaymentsReportTest extends CrmTestCase
         // Платежи текущего пользователя
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ'    => 1_000,
+            'summ_cents'    => 100_000,
         ]);
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ'    => 2_000,
+            'summ_cents'    => 200_000,
         ]);
 
         // Платежи другого пользователя (не должны попасть в сумму)
@@ -60,7 +60,7 @@ class MyPaymentsReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $otherUser->id,
-            'summ'    => 5_000,
+            'summ_cents'    => 500_000,
         ]);
 
         $response = $this->get(route('showUserPayments'));
@@ -133,7 +133,7 @@ class MyPaymentsReportTest extends CrmTestCase
     {
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ'    => 1_500,
+            'summ_cents'    => 100_500,
         ]);
 
         $response = $this
@@ -172,7 +172,7 @@ class MyPaymentsReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-m',
             'payment_id' => (string) $bankPid,
             'payment_number' => (string) $bankPid,
@@ -187,7 +187,7 @@ class MyPaymentsReportTest extends CrmTestCase
             'provider_inv_id' => $bankPid,
             'payment_method' => 'sbp_qr',
             'status' => 'paid',
-            'out_sum' => '100.00',
+            'out_sum_cents' => 10000,
         ]);
 
         $response = $this
@@ -367,7 +367,7 @@ class MyPaymentsReportTest extends CrmTestCase
             'payment_id' => $tbankWithValidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithValidReceipt->summ,
+            'amount_cents' => (int) $tbankWithValidReceipt->summ_cents,
             'receipt_url' => 'https://receipts.ru/user-valid-receipt',
         ]);
 
@@ -383,7 +383,7 @@ class MyPaymentsReportTest extends CrmTestCase
             'payment_id' => $tbankWithInvalidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithInvalidReceipt->summ,
+            'amount_cents' => (int) $tbankWithInvalidReceipt->summ_cents,
             'receipt_url' => 'https://bad.example.com/receipt',
         ]);
 

@@ -16,7 +16,7 @@ class ContractInvitationEmailFeatureTest extends ContractsFeatureTestCase
     {
         Mail::fake();
         config(['billing.contract_create_fee' => 0]);
-        $this->partner->wallet_balance = 100;
+        $this->partner->wallet_balance_cents = 10000;
         $this->partner->save();
 
         $student = User::factory()->create([

@@ -80,7 +80,7 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->landingLocation->update(['address' => 'ул. Тестовая, 1']);
         $this->landingTeam->update([
             'sport_type_id'            => $sportType->id,
-            'month_price'              => 3000,
+            'month_price_cents'        => 300000,
             'default_duration_minutes' => 60,
         ]);
         $this->landingTeam->weekdays()->sync([1, 3]);
@@ -141,7 +141,7 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->landingLocation->update(['address' => null]);
         $this->landingTeam->update([
             'sport_type_id'            => null,
-            'month_price'              => null,
+            'month_price_cents'        => null,
             'default_duration_minutes' => 0,
         ]);
         $this->landingTeam->weekdays()->sync([]);
@@ -170,7 +170,7 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->landingLocation->update(['address' => '   ']);
         $this->landingTeam->update([
             'sport_type_id'            => null,
-            'month_price'              => null,
+            'month_price_cents'        => null,
             'default_duration_minutes' => 0,
         ]);
         $this->landingTeam->weekdays()->sync([]);
@@ -200,7 +200,7 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
         $this->landingLocation->update(['address' => 'Адрес объекта']);
         $this->landingTeam->update([
             'sport_type_id'            => null,
-            'month_price'              => 1500,
+            'month_price_cents'        => 150000,
             'default_duration_minutes' => 0,
         ]);
         $this->landingTeam->weekdays()->sync([]);
@@ -239,7 +239,7 @@ final class SchoolLeadLandingTeamInfoFeatureTest extends TestCase
 
     public function test_team_info_omits_price_when_null(): void
     {
-        $this->landingTeam->update(['month_price' => null]);
+        $this->landingTeam->update(['month_price_cents' => null]);
 
         $labels = collect(
             $this->getJson($this->teamInfoUrl())->assertOk()->json('data.rows')

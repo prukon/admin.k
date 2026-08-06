@@ -51,8 +51,8 @@ final class LtvReportTeamPivotFeatureTest extends CrmTestCase
             'updated_at' => now(),
         ]);
 
-        Payment::factory()->create(['user_id' => $student->id, 'summ' => 1000]);
-        Payment::factory()->create(['user_id' => $student->id, 'summ' => 500]);
+        Payment::factory()->create(['user_id' => $student->id, 'summ_cents' => 100000]);
+        Payment::factory()->create(['user_id' => $student->id, 'summ_cents' => 50000]);
 
         $rows = collect($this->ltvRows(['filter_user_id' => $student->id]));
         $studentRows = $rows->filter(fn ($r) => (int) ($r['user_id'] ?? 0) === $student->id);

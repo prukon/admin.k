@@ -123,7 +123,7 @@
 
   <h3>3.2) Модалка создания</h3>
   <ul>
-    <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=1</code>, без копеек), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
+    <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=0.01</code>, копейки разрешены), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
     <li>Полей «Дата начала» / «Дата окончания» <b>нет</b>.</li>
     <li>Если у ученика ровно одна группа — она подставляется автоматически после <code>teams-for-user</code>.</li>
     <li>Успех: <code>showSuccessModal('Дополнительный платеж', '…успешно создан.')</code> (не toast).</li>
@@ -159,7 +159,7 @@
 
   <h2 id="db">5) База данных</h2>
   <ul>
-    <li>Таблица <code>user_custom_payment</code>: <code>partner_id</code>, <code>user_id</code>, <code>team_id</code>, <code>amount</code>, <code>note</code>, <code>date_start</code>/<code>date_end</code> (nullable), <code>is_paid</code>, <code>is_manual_paid</code>, <code>manual_paid_*</code>.</li>
+    <li>Таблица <code>user_custom_payment</code>: <code>partner_id</code>, <code>user_id</code>, <code>team_id</code>, <code>amount_cents</code> (копейки; в HTTP/JSON — <code>amount</code> в рублях), <code>note</code>, <code>date_start</code>/<code>date_end</code> (nullable), <code>is_paid</code>, <code>is_manual_paid</code>, <code>manual_paid_*</code>.</li>
     <li>Accessor <code>effective_is_paid</code>: если <code>is_manual_paid !== null</code> — он, иначе <code>is_paid</code>.</li>
     <li>Миграции team_id / backfill — как раньше (<code>2026_06_29_150000</code>, <code>2026_06_29_160000</code>).</li>
   </ul>
@@ -172,7 +172,7 @@
   </ul>
 
   <h2 id="payment">7) Связь с оплатой</h2>
-  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code>.</p>
+  <p>При Init (<code>custom_payment_fee</code>) <code>PayableTeamResolver</code> читает <code>user_custom_payment.team_id</code>. Без группы на записи — <b>422</b> при старте оплаты. Источник суммы — <code>user_custom_payment.amount_cents</code> (не POST <code>outSum</code>). Webhook выставляет <code>is_paid=1</code>.</p>
   <p class="small">Селект «Выбор группы» на консоли <b>не</b> фильтрует доп. платежи — группа зафиксирована при создании. См. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>.</p>
 
   <h2 id="code">8) Код</h2>

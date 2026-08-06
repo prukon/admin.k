@@ -19,7 +19,7 @@ class ContractTemplateWorkflowFeatureTest extends ContractsFeatureTestCase
         config(['contracts.pdf_converter' => 'fake']);
         config(['billing.contract_create_fee' => 70.00]);
         config(['queue.default' => 'sync']);
-        $this->partner->wallet_balance = 200;
+        $this->partner->wallet_balance_cents = 20000;
         $this->partner->save();
 
         $this->user->email = 'client-workflow@example.com';

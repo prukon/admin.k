@@ -54,7 +54,7 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1000,
+            'price_cents' => 100000,
             'is_paid' => 0,
             'lesson_package_id' => null,
         ]);
@@ -90,14 +90,14 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 4200,
+            'price_cents' => 420000,
             'lesson_package_id' => $this->package->id,
         ]);
         $this->assertDatabaseHas('users_prices', [
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 4200,
+            'price_cents' => 420000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -146,7 +146,7 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
         TeamPrice::forceCreate([
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1111,
+            'price_cents' => 111100,
             'lesson_package_id' => null,
         ]);
 
@@ -166,7 +166,7 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
         $this->assertDatabaseHas('team_prices', [
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 4200,
+            'price_cents' => 420000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -222,7 +222,7 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 3990,
+            'price_cents' => 399000,
             'lesson_package_id' => $this->package->id,
         ]);
     }
@@ -248,7 +248,7 @@ final class SettingPricesMonthlyPackageNonAjaxSafetyNetFeatureTest extends CrmTe
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
             'new_month' => '2024-09-01',
-            'price' => 1000,
+            'price_cents' => 100000,
         ]);
     }
 

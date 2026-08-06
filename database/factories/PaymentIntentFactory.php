@@ -4,8 +4,7 @@ namespace Database\Factories;
 
 use App\Models\PaymentIntent;
 use App\Models\Payable;
-use App\Models\Partner;
-use App\Models\User;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PaymentIntentFactory extends Factory
@@ -14,8 +13,7 @@ class PaymentIntentFactory extends Factory
 
     public function definition(): array
     {
-        // ✅ целая сумма
-        $sum = $this->faker->numberBetween(500, 10000);
+        $sumCents = Money::toCentsOrFail($this->faker->numberBetween(500, 10000));
 
         return [
             'partner_id'       => null,
@@ -26,7 +24,7 @@ class PaymentIntentFactory extends Factory
             'tbank_payment_id' => null,
             'tbank_order_id'   => null,
             'status'           => 'pending',
-            'out_sum'          => $sum,
+            'out_sum_cents'    => $sumCents,
             'payment_date'     => null,
             'meta'             => null,
             'paid_at'          => null,
@@ -46,7 +44,7 @@ class PaymentIntentFactory extends Factory
                 'payable_id' => $payable->id,
                 'partner_id' => $payable->partner_id,
                 'user_id'    => $payable->user_id,
-                'out_sum'    => $payable->amount,
+                'out_sum_cents' => (int) $payable->amount_cents,
             ];
         });
     }

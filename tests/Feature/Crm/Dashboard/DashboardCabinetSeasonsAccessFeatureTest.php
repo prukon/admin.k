@@ -200,7 +200,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
             'team_id'           => $this->team->id,
             'lessons_total'     => (int) $package->lessons_count,
             'lessons_remaining' => (int) $package->lessons_count,
-            'fee_amount'        => '4200.00',
+            'fee_amount_cents'        => 420000,
             'is_paid'           => false,
         ]);
 

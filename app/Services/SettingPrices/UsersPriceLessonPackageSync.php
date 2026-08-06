@@ -69,7 +69,7 @@ final class UsersPriceLessonPackageSync
         $billingMonth = $this->normalizeBillingMonth($row->new_month);
         $billingMonthStart = Carbon::parse($billingMonth)->startOfMonth()->format('Y-m-d');
         $billingMonthEnd = Carbon::parse($billingMonth)->endOfMonth()->format('Y-m-d');
-        $fee = round((float) $row->price, 2);
+        $feeAmountCents = (int) $row->price_cents;
         $lessons = max(0, (int) $package->lessons_count);
         $isFlexible = (string) $package->schedule_type === LessonPackage::SCHEDULE_TYPE_FLEXIBLE;
         // Гибкий из установки цен: период сразу на весь месяц (занятия ставят «на лету»).
@@ -87,7 +87,7 @@ final class UsersPriceLessonPackageSync
                 'ends_at' => $billingMonthEnd,
                 'lessons_total' => $lessons,
                 'lessons_remaining' => $lessons,
-                'fee_amount' => $fee,
+                'fee_amount_cents' => $feeAmountCents,
                 'is_paid' => false,
                 'created_by' => $actorId,
             ]);
@@ -142,8 +142,8 @@ final class UsersPriceLessonPackageSync
 
         // Сумма: синхронизируем, если начисление и ULP не оплачены.
         if (! $row->effective_is_paid && ! $linked->effective_is_paid) {
-            if (abs((float) $linked->fee_amount - $fee) >= 0.005) {
-                $payload['fee_amount'] = $fee;
+            if ((int) $linked->fee_amount_cents !== $feeAmountCents) {
+                $payload['fee_amount_cents'] = $feeAmountCents;
             }
         }
 

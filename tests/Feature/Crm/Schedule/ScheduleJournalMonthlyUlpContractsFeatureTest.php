@@ -286,7 +286,7 @@ final class ScheduleJournalMonthlyUlpContractsFeatureTest extends ScheduleJourna
             'ends_at' => $monthEnd,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => '8000.00',
+            'fee_amount_cents' => 800000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

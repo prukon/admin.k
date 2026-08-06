@@ -46,7 +46,7 @@ final class TinkoffPaymentFiscalReceiptResolverTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => 500.00,
+            'amount_cents' => 50000,
             'receipt_url' => 'https://receipts.ru/show-card-receipt',
         ]);
 
@@ -79,7 +79,7 @@ final class TinkoffPaymentFiscalReceiptResolverTest extends CrmTestCase
             'payment_id' => $ledgerPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => 500.00,
+            'amount_cents' => 50000,
             'receipt_url' => 'https://example.com/not-a-receipt',
         ]);
 

@@ -295,7 +295,7 @@ final class LessonPackagesSectionAccessSmokeFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => 500,
+            'fee_amount_cents' => 50000,
             'created_by' => $this->user->id,
         ]);
         $bind = UserTeamScheduleSlot::query()->create([

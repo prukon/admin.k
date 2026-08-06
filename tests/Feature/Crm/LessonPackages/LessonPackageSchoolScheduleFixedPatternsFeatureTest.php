@@ -172,7 +172,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -222,7 +222,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 2,
             'lessons_remaining' => 2,
-            'fee_amount' => '80.00',
+            'fee_amount_cents' => 8000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -279,7 +279,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -328,7 +328,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -370,7 +370,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -413,7 +413,7 @@ final class LessonPackageSchoolScheduleFixedPatternsFeatureTest extends CrmTestC
             'ends_at' => null,
             'lessons_total' => 1,
             'lessons_remaining' => 1,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

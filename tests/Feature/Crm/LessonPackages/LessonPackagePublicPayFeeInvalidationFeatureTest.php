@@ -106,7 +106,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => (int) $package->lessons_count,
             'lessons_remaining' => (int) $package->lessons_count,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -363,7 +363,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
         $token = $this->issuePublicPayToken($ulp);
         $this->get(route('ulp.public.pay', ['token' => $token]))->assertOk();
 
-        UserLessonPackage::query()->whereKey($ulp->id)->update(['fee_amount' => '6000.00']);
+        UserLessonPackage::query()->whereKey($ulp->id)->update(['fee_amount_cents' => 600000]);
 
         $this->get(route('ulp.public.pay', ['token' => $token]))
             ->assertOk()
@@ -950,7 +950,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ulp->id,
-            'fee_amount' => '6000.00',
+            'fee_amount_cents' => 600000,
         ]);
 
         $link = UserLessonPackagePublicPayLink::query()->where('user_lesson_package_id', $ulp->id)->firstOrFail();
@@ -975,7 +975,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ulp->id,
-            'fee_amount' => '500.00',
+            'fee_amount_cents' => 50000,
         ]);
     }
 

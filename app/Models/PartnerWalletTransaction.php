@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class PartnerWalletTransaction extends Model
 {
     protected $fillable = [
-        'partner_id','user_id','type','amount','currency',
+        'partner_id','user_id','type','amount_cents','currency',
         'provider','payment_id','status','description','meta',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount_cents' => 'integer',
         'meta' => 'array',
     ];
 

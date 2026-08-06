@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Carbon\Carbon;
 
@@ -27,8 +28,7 @@ class PaymentFactory extends Factory
             'deal_id'        => $this->faker->unique()->uuid(),
             'payment_id'     => $this->faker->uuid(),
             'payment_status' => 'paid',
-            // ✅ целая сумма
-            'summ'           => $this->faker->numberBetween(500, 10000),
+            'summ_cents'     => Money::toCentsOrFail($this->faker->numberBetween(500, 10000)),
             'payment_number' => $this->faker->numerify('########'),
             'partner_id'     => null,
             'created_at'     => now(),
@@ -72,7 +72,7 @@ class PaymentFactory extends Factory
                 'payment_month'  => $payable->month
                     ? Carbon::parse($payable->month)->format('Y-m-01')
                     : $operationCarbon->copy()->startOfMonth()->format('Y-m-01'),
-                'summ'           => $payable->amount,
+                'summ_cents'     => (int) $payable->amount_cents,
                 'deal_id'        => $intent?->provider_inv_id
                     ? (string) $intent->provider_inv_id
                     : ($attributes['deal_id'] ?? $this->faker->unique()->uuid()),

@@ -335,7 +335,7 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => '10.00',
+            'fee_amount_cents' => 1000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -372,7 +372,7 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'ends_at' => $monthEnd,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => '5000.00',
+            'fee_amount_cents' => 500000,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);

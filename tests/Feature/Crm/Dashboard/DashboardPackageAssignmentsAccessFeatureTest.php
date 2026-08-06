@@ -48,7 +48,7 @@ final class DashboardPackageAssignmentsAccessFeatureTest extends StudentTeamPivo
             'team_id' => $this->team->id,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount' => number_format($feeAmount, 2, '.', ''),
+            'fee_amount_cents' => (int) round($feeAmount * 100),
             'is_paid' => false,
         ]);
     }

@@ -401,6 +401,7 @@ abstract class CrmTestCase extends TestCase
      * Вставка строки users_prices с обязательным team_id (схема после pivot).
      *
      * @param  Team|int|null  $team  Явная группа; иначе team_id пользователя или новая группа партнёра.
+     * @param  array  $fields  'price' (рубли, будет сконвертирован в price_cents) или готовый 'price_cents'.
      */
     protected function insertUserPrice(User $user, array $fields, Team|int|null $team = null): void
     {
@@ -417,6 +418,11 @@ abstract class CrmTestCase extends TestCase
         }
 
         app(TeamUserSyncService::class)->attachTeamForStudent($user, $teamId);
+
+        if (array_key_exists('price', $fields)) {
+            $fields['price_cents'] = \App\Support\Money::toCentsOrFail($fields['price']);
+            unset($fields['price']);
+        }
 
         DB::table('users_prices')->insert(array_merge([
             'user_id'    => $user->id,

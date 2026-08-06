@@ -7,6 +7,7 @@ namespace App\Services\LessonPackages;
 use App\Models\TeamScheduleSlot;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\TeamScheduleCalendarService;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 
 /**
@@ -238,7 +239,7 @@ final class SchoolCalendarSlotUserBindActionsService
         $templates = $templateRows->map(fn ($pkg) => [
             'id' => (int) $pkg->id,
             'label' => (string) $pkg->name,
-            'fee_amount_default' => round(((int) $pkg->price_cents) / 100, 2),
+            'fee_amount_default' => (float) Money::fromCents((int) $pkg->price_cents),
         ])->values()->all();
 
         return [

@@ -102,7 +102,7 @@
                         </label>
                         <input type="number"
                                min="0"
-                               step="1"
+                               step="0.01"
                                name="month_price"
                                class="form-control"
                                id="month_price"

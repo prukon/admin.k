@@ -49,7 +49,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             'user_id'   => $this->student->id,
             'team_id'   => $this->team->id,
             'new_month' => '2024-09-01',
-            'price'     => 1000,
+            'price_cents'     => 100000,
             'is_paid'   => 0,
         ]);
 
@@ -226,7 +226,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
-            'amount' => '150.00',
+            'amount_cents' => 15000,
             'is_paid' => false,
         ]);
 
@@ -260,7 +260,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
-            'amount' => '180.00',
+            'amount_cents' => 18000,
             'note' => 'До update',
             'is_paid' => false,
         ]);
@@ -276,7 +276,7 @@ final class SettingPricesSectionFullAccessFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_custom_payment', [
             'id' => $payment->id,
-            'amount' => '190.00',
+            'amount_cents' => 19000,
             'note' => 'После update',
         ]);
 

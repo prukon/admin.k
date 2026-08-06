@@ -234,7 +234,7 @@ final class StudentTeamPivotFeatureTest extends StudentTeamPivotTestCase
             'partner_id' => $this->partner->id,
             'team_id' => $teamA->id,
             'team_title' => 'Pay-A',
-            'summ'    => 2000,
+            'summ_cents'    => 200000,
         ]);
 
         $json = $this->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])

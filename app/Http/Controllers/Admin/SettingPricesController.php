@@ -39,6 +39,7 @@ use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
+use App\Support\Money;
 use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Validation\ValidationException;
 
@@ -160,7 +161,7 @@ class SettingPricesController extends AdminBaseController
         foreach ($teams as $team) {
             TeamPrice::firstOrCreate(
                 ['team_id' => $team->id, 'new_month' => $monthDate],
-                ['price'   => 0]
+                ['price_cents' => 0]
             );
         }
     }
@@ -265,7 +266,7 @@ class SettingPricesController extends AdminBaseController
         $historicalUserIds = [];
         if ($teamIds !== []) {
             $historicalUserIds = UserPrice::query()
-                ->where('price', '>', 0)
+                ->where('price_cents', '>', 0)
                 ->whereIn('team_id', $teamIds)
                 ->distinct()
                 ->pluck('user_id')
@@ -295,7 +296,7 @@ class SettingPricesController extends AdminBaseController
         if ($userIds !== [] && $teamIds !== []) {
             $priceTeamsByUser = UserPrice::query()
                 ->select('user_id', 'team_id')
-                ->where('price', '>', 0)
+                ->where('price_cents', '>', 0)
                 ->whereIn('user_id', $userIds)
                 ->whereIn('team_id', $teamIds)
                 ->distinct()
@@ -381,7 +382,7 @@ class SettingPricesController extends AdminBaseController
                 'user_custom_payment.team_id',
                 'user_custom_payment.date_start',
                 'user_custom_payment.date_end',
-                DB::raw('ROUND(user_custom_payment.amount) as amount'),
+                DB::raw('ROUND(user_custom_payment.amount_cents / 100, 2) as amount'),
                 'user_custom_payment.note',
                 'user_custom_payment.is_paid',
                 'user_custom_payment.is_manual_paid',
@@ -512,12 +513,13 @@ class SettingPricesController extends AdminBaseController
             'team_id' => (int) $data['team_id'],
             'date_start' => $data['date_start'] ?? null,
             'date_end' => $data['date_end'] ?? null,
-            'amount' => (string) $data['amount'],
+            'amount_cents' => Money::toCentsOrFail($data['amount']),
             'note' => $data['note'] ?? null,
             'is_paid' => false,
         ]);
 
         $row->refresh();
+        $row->setAttribute('amount', (float) Money::fromCents((int) ($row->amount_cents ?? 0)));
 
         return response()->json([
             'success' => true,
@@ -551,7 +553,7 @@ class SettingPricesController extends AdminBaseController
             ];
 
             if (! $wasPaid && array_key_exists('amount', $data)) {
-                $fill['amount'] = (string) $data['amount'];
+                $fill['amount_cents'] = Money::toCentsOrFail($data['amount']);
             }
 
             if ($wantPaid !== $wasPaid) {
@@ -566,6 +568,7 @@ class SettingPricesController extends AdminBaseController
         });
 
         $row->refresh();
+        $row->setAttribute('amount', (float) Money::fromCents((int) ($row->amount_cents ?? 0)));
 
         return response()->json([
             'success' => true,
@@ -646,6 +649,7 @@ class SettingPricesController extends AdminBaseController
         });
 
         $row->refresh();
+        $row->setAttribute('amount', (float) Money::fromCents((int) ($row->amount_cents ?? 0)));
 
         return response()->json([
             'success' => true,
@@ -700,7 +704,7 @@ class SettingPricesController extends AdminBaseController
                     'team_id'   => $team->id,
                 ],
                 [
-                    'price' => 0,
+                    'price_cents' => 0,
                 ]
             );
 
@@ -764,7 +768,7 @@ class SettingPricesController extends AdminBaseController
         $query = UserPrice::query()
             ->where('team_id', $team->id)
             ->where('new_month', $monthDate)
-            ->where('price', '>', 0)
+            ->where('price_cents', '>', 0)
             ->with(['user' => static function ($q) use ($partnerId) {
                 $q->where('partner_id', $partnerId);
             }]);
@@ -902,6 +906,9 @@ class SettingPricesController extends AdminBaseController
                 $row->setAttribute('name', $displayName);
             }
 
+            // JS (settings-prices.js) работает с ценой в рублях — граница HTTP/JSON.
+            $row->setAttribute('price', (float) Money::fromCents((int) $row->price_cents));
+
             $out[] = $row;
         }
 
@@ -1029,6 +1036,7 @@ class SettingPricesController extends AdminBaseController
 
         $row->refresh();
         $row->load('user');
+        $row->setAttribute('price', (float) Money::fromCents((int) $row->price_cents));
 
         return $this->settingPricesUsersJsonOrRedirect($request, [
             'success'    => true,
@@ -1088,9 +1096,9 @@ class SettingPricesController extends AdminBaseController
 
 
     /**
-     * Цена шаблона абонемента партнёра (руб.) или null, если недоступен.
+     * Цена шаблона абонемента партнёра (копейки — канон, рубли — для UI/аудита) или null, если недоступен.
      *
-     * @return array{package: LessonPackage, price: float}|null
+     * @return array{package: LessonPackage, price_cents: int, price: float}|null
      */
     protected function resolvePartnerLessonPackage(int $partnerId, int $lessonPackageId): ?array
     {
@@ -1106,7 +1114,8 @@ class SettingPricesController extends AdminBaseController
 
         return [
             'package' => $package,
-            'price' => round(((int) $package->price_cents) / 100, 2),
+            'price_cents' => (int) $package->price_cents,
+            'price' => $package->priceRub(),
         ];
     }
 
@@ -1140,7 +1149,7 @@ class SettingPricesController extends AdminBaseController
     protected function applyPackageSnapshotToTeamStudents(
         Team $team,
         string $monthDate,
-        float $price,
+        int $priceCents,
         int $lessonPackageId,
         ?LessonPackage $package = null
     ): void {
@@ -1174,7 +1183,7 @@ class SettingPricesController extends AdminBaseController
                     );
                 } else {
                     $userPrice->update([
-                        'price' => $price,
+                        'price_cents' => $priceCents,
                         'lesson_package_id' => $lessonPackageId,
                     ]);
                     if ($package) {
@@ -1191,7 +1200,7 @@ class SettingPricesController extends AdminBaseController
                     'user_id' => $userId,
                     'team_id' => $team->id,
                     'new_month' => $monthDate,
-                    'price' => 0,
+                    'price_cents' => 0,
                     'lesson_package_id' => $lessonPackageId,
                     'is_paid' => false,
                 ]);
@@ -1203,7 +1212,7 @@ class SettingPricesController extends AdminBaseController
                     'user_id' => $userId,
                     'team_id' => $team->id,
                     'new_month' => $monthDate,
-                    'price' => $price,
+                    'price_cents' => $priceCents,
                     'lesson_package_id' => $lessonPackageId,
                     'is_paid' => false,
                 ]);
@@ -1247,18 +1256,19 @@ class SettingPricesController extends AdminBaseController
             ], 422);
         }
 
+        $priceCents = $resolved['price_cents'];
         $price = $resolved['price'];
         $package = $resolved['package'];
         $selectedDate = $this->formatedDate($selectedDateString);
 
-        DB::transaction(function () use ($team, $selectedDate, $price, $lessonPackageId, $selectedDateString, $package) {
+        DB::transaction(function () use ($team, $selectedDate, $priceCents, $lessonPackageId, $selectedDateString, $package) {
             TeamPrice::updateOrCreate(
                 [
                     'team_id' => $team->id,
                     'new_month' => $selectedDate,
                 ],
                 [
-                    'price' => $price,
+                    'price_cents' => $priceCents,
                     'lesson_package_id' => $lessonPackageId,
                 ]
             );
@@ -1266,13 +1276,13 @@ class SettingPricesController extends AdminBaseController
             $this->auditLogger->record(
                 AuditEvent::PricingTeamApply,
                 AuditContext::make(
-                    "Обновлена цена: {$price} руб. Абонемент #{$lessonPackageId}. Период: {$selectedDateString}."
+                    'Обновлена цена: '.Money::formatRub($priceCents)." руб. Абонемент #{$lessonPackageId}. Период: {$selectedDateString}."
                 )
                     ->withTargetReference('App\Models\UserPrice', (int) $team->id, $team->title)
                     ->withCreatedAt(now())
             );
 
-            $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId, $package);
+            $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
         });
 
         return $this->settingPricesMonthlyJsonOrRedirect($request, [
@@ -1325,7 +1335,7 @@ class SettingPricesController extends AdminBaseController
                     continue;
                 }
 
-                $price = $resolved['price'];
+                $priceCents = $resolved['price_cents'];
                 $package = $resolved['package'];
 
                 TeamPrice::updateOrCreate(
@@ -1334,7 +1344,7 @@ class SettingPricesController extends AdminBaseController
                         'new_month' => $selectedDate,
                     ],
                     [
-                        'price' => $price,
+                        'price_cents' => $priceCents,
                         'lesson_package_id' => $lessonPackageId,
                     ]
                 );
@@ -1342,13 +1352,13 @@ class SettingPricesController extends AdminBaseController
                 $this->auditLogger->record(
                     AuditEvent::PricingBulkApply,
                     AuditContext::make(
-                        "Обновлена цена: {$price} руб. Абонемент #{$lessonPackageId}. Период: {$selectedDateString}."
+                        'Обновлена цена: '.Money::formatRub($priceCents)." руб. Абонемент #{$lessonPackageId}. Период: {$selectedDateString}."
                     )
                         ->withTargetReference('App\Models\UserPrice', (int) $team->id, $team->title)
                         ->withCreatedAt(now())
                 );
 
-                $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $price, $lessonPackageId, $package);
+                $this->applyPackageSnapshotToTeamStudents($team, $selectedDate, $priceCents, $lessonPackageId, $package);
             }
         });
 
@@ -1413,9 +1423,11 @@ class SettingPricesController extends AdminBaseController
                     ->where('is_paid', 0)
                     ->first();
 
-                if ($userPriceRecord && $userPriceRecord->price != $priceData['price']) {
+                $newPriceCents = Money::toCents($priceData['price'] ?? null);
+
+                if ($userPriceRecord && $newPriceCents !== null && $userPriceRecord->price_cents !== $newPriceCents) {
                     $userPriceRecord->update([
-                        'price' => $priceData['price'],
+                        'price_cents' => $newPriceCents,
                     ]);
 
                     $userName = $priceData['user']['name'] ?? $user->name ?? 'Неизвестный пользователь';
@@ -1516,7 +1528,7 @@ class SettingPricesController extends AdminBaseController
                     $this->auditLogger->record(
                         AuditEvent::PricingStudentApply,
                         AuditContext::make(
-                            "Обновлена постоплата: {$userPriceRecord->price} руб. Абонемент #{$newPackageId}. Период: {$selectedDateString}. Группа: {$team->title}."
+                            'Обновлена постоплата: '.Money::formatRub((int) $userPriceRecord->price_cents)." руб. Абонемент #{$newPackageId}. Период: {$selectedDateString}. Группа: {$team->title}."
                         )
                             ->withUserId($userId)
                             ->withTargetReference('App\Models\UserPrice', (int) $userId, $userName)
@@ -1527,8 +1539,9 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 $newPrice = round((float) ($priceData['price'] ?? 0), 2);
+                $newPriceCents = Money::toCentsOrFail($priceData['price'] ?? 0);
 
-                $priceChanged = abs((float) $userPriceRecord->price - $newPrice) >= 0.005;
+                $priceChanged = (int) $userPriceRecord->price_cents !== $newPriceCents;
                 $packageChanged = $packageKeyPresent
                     && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) ($newPackageId ?? 0);
 
@@ -1546,7 +1559,7 @@ class SettingPricesController extends AdminBaseController
 
                 $payload = [];
                 if ($priceChanged) {
-                    $payload['price'] = $newPrice;
+                    $payload['price_cents'] = $newPriceCents;
                 }
                 if ($packageKeyPresent) {
                     $payload['lesson_package_id'] = $newPackageId;
@@ -1677,7 +1690,7 @@ class SettingPricesController extends AdminBaseController
                 'month'             => $m,
                 'month_label'       => $monthLabel,
                 'new_month'         => $dateStr,
-                'price'             => $priceRow ? (float) $priceRow->price : 0,
+                'price'             => $priceRow ? (float) Money::fromCents((int) $priceRow->price_cents) : 0,
                 'lesson_package_id' => $priceRow && $priceRow->lesson_package_id
                     ? (int) $priceRow->lesson_package_id
                     : null,
@@ -1745,6 +1758,7 @@ class SettingPricesController extends AdminBaseController
             foreach ($items as $item) {
                 $newMonth = $item['new_month'];
                 $price = round((float) $item['price'], 2);
+                $priceCents = Money::toCentsOrFail($item['price'] ?? 0);
 
                 // защита от рассинхрона по году
                 $itemYear = (int) substr($newMonth, 0, 4);
@@ -1775,7 +1789,7 @@ class SettingPricesController extends AdminBaseController
                         ? $newPackageId
                         : ($userPrice->lesson_package_id !== null ? (int) $userPrice->lesson_package_id : null);
 
-                    $priceChanged = abs((float) $userPrice->price - $price) >= 0.005;
+                    $priceChanged = (int) $userPrice->price_cents !== $priceCents;
                     $packageChanged = $packageKeyPresent
                         && (int) ($userPrice->lesson_package_id ?? 0) !== (int) ($resolvedPackageId ?? 0);
 
@@ -1798,7 +1812,7 @@ class SettingPricesController extends AdminBaseController
 
                     $payload = [];
                     if ($priceChanged) {
-                        $payload['price'] = $price;
+                        $payload['price_cents'] = $priceCents;
                     }
                     if ($packageKeyPresent) {
                         $payload['lesson_package_id'] = $resolvedPackageId;
@@ -1833,7 +1847,7 @@ class SettingPricesController extends AdminBaseController
                         'user_id' => $userId,
                         'team_id' => $teamId,
                         'new_month' => $newMonth,
-                        'price' => $price,
+                        'price_cents' => $priceCents,
                         'lesson_package_id' => $packageKeyPresent ? $newPackageId : null,
                         'is_paid' => false,
                     ]);

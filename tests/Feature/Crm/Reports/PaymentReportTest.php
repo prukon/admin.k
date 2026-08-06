@@ -73,7 +73,7 @@ class PaymentReportTest extends CrmTestCase
         // Платежи текущего партнёра
         $payment1 = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1000,
+            'summ_cents' => 100000,
         ]);
 
         $userSamePartner = User::factory()->create([
@@ -82,7 +82,7 @@ class PaymentReportTest extends CrmTestCase
 
         $payment2 = Payment::factory()->create([
             'user_id' => $userSamePartner->id,
-            'summ' => 2000,
+            'summ_cents' => 200000,
         ]);
 
         // Платёж другого партнёра (не должен попасть в сумму)
@@ -93,10 +93,10 @@ class PaymentReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $otherUser->id,
-            'summ' => 5000,
+            'summ_cents' => 500000,
         ]);
 
-        $expectedTotal = $payment1->summ + $payment2->summ;
+        $expectedTotal = ($payment1->summ_cents + $payment2->summ_cents) / 100;
         $expectedFormatted = number_format($expectedTotal, 0, '', ' ');
 
         $response = $this->get(route('payments'));
@@ -113,7 +113,7 @@ class PaymentReportTest extends CrmTestCase
     {
         $paymentMine = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1111,
+            'summ_cents' => 111100,
         ]);
 
         $otherUser = User::factory()->create([
@@ -122,10 +122,10 @@ class PaymentReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $otherUser->id,
-            'summ' => 9999,
+            'summ_cents' => 999900,
         ]);
 
-        $expectedFormatted = number_format($paymentMine->summ, 0, '', ' ');
+        $expectedFormatted = number_format($paymentMine->summ_cents / 100, 0, '', ' ');
 
         $response = $this->get(route('payments', [
             'filter_user_id' => (string) $this->user->id,
@@ -143,7 +143,7 @@ class PaymentReportTest extends CrmTestCase
     {
         Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
         ]);
 
         $otherUser = User::factory()->create([
@@ -152,7 +152,7 @@ class PaymentReportTest extends CrmTestCase
 
         Payment::factory()->create([
             'user_id' => $otherUser->id,
-            'summ' => 400,
+            'summ_cents' => 40000,
         ]);
 
         $response = $this->getJson(route('reports.payments.total', [
@@ -177,8 +177,8 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        Payment::factory()->forUser($activeStudent)->create(['summ' => 1000]);
-        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 2000]);
+        Payment::factory()->forUser($activeStudent)->create(['summ_cents' => 100000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ_cents' => 200000]);
 
         $response = $this->getJson(route('reports.payments.total'));
         $response->assertOk();
@@ -206,8 +206,8 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
         ]);
 
-        Payment::factory()->forUser($activeStudent)->create(['summ' => 500]);
-        Payment::factory()->forUser($inactiveStudent)->create(['summ' => 700]);
+        Payment::factory()->forUser($activeStudent)->create(['summ_cents' => 50000]);
+        Payment::factory()->forUser($inactiveStudent)->create(['summ_cents' => 70000]);
 
         $inactiveTotal = $this->getJson(route('reports.payments.total', ['status' => 'inactive']));
         $inactiveTotal->assertOk();
@@ -311,7 +311,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentWithCustomName = Payment::factory()->create([
             'user_id'    => $this->user->id,
             'user_name'  => 'Custom Payment Name',
-            'summ'       => 1000,
+            'summ_cents'       => 100000,
             'team_id'    => null,
             'team_title' => null,
         ]);
@@ -332,7 +332,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentWithUser = Payment::factory()->create([
             'user_id'    => $teamUser->id,
             'user_name'  => null,
-            'summ'       => 2000,
+            'summ_cents'       => 200000,
             'team_id'    => null,
             'team_title' => null,
         ]);
@@ -348,7 +348,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentNoData = Payment::factory()->create([
             'user_id'    => $userNoData->id,
             'user_name'  => null,
-            'summ'       => 500,
+            'summ_cents'       => 50000,
             'team_id'    => null,
             'team_title' => null,
         ]);
@@ -399,7 +399,7 @@ class PaymentReportTest extends CrmTestCase
         // Robokassa-платёж (все T-Bank поля пустые)
         $robokassaPayment = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1500.50,
+            'summ_cents' => 150050,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => null,
             'payment_id' => null,
@@ -409,7 +409,7 @@ class PaymentReportTest extends CrmTestCase
         // T-Bank платёж (хотя бы одно из полей заполнено)
         $tbankPayment = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 2500.00,
+            'summ_cents' => 250000,
             'operation_date' => now()->subDay()->toDateTimeString(),
             'deal_id' => '12345',
             'payment_id' => null,
@@ -427,12 +427,12 @@ class PaymentReportTest extends CrmTestCase
         $tbankRow = $data->firstWhere('id', $tbankPayment->id);
 
         $this->assertNotNull($robokassaRow);
-        $this->assertEquals((float)$robokassaPayment->summ, (float)$robokassaRow['summ']);
+        $this->assertEquals((float) $robokassaPayment->summ_cents / 100, (float)$robokassaRow['summ']);
         $this->assertEquals($robokassaPayment->operation_date, $robokassaRow['operation_date']);
         $this->assertEquals('robokassa', $robokassaRow['payment_provider']);
 
         $this->assertNotNull($tbankRow);
-        $this->assertEquals((float)$tbankPayment->summ, (float)$tbankRow['summ']);
+        $this->assertEquals((float) $tbankPayment->summ_cents / 100, (float)$tbankRow['summ']);
         $this->assertEquals($tbankPayment->operation_date, $tbankRow['operation_date']);
         $this->assertEquals('tbank', $tbankRow['payment_provider']);
         $this->assertSame('', (string) ($robokassaRow['payment_method_label'] ?? ''));
@@ -450,7 +450,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentPlanned = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => 'deal-payout-planned-1',
         ]);
@@ -468,7 +468,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentCompleted = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 200,
+            'summ_cents' => 20000,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => 'deal-payout-completed-1',
         ]);
@@ -486,7 +486,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentCompletedNoStamp = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 300,
+            'summ_cents' => 30000,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => 'deal-payout-no-stamp-1',
         ]);
@@ -504,7 +504,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentRobokassa = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 400,
+            'summ_cents' => 40000,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => null,
             'payment_id' => null,
@@ -551,7 +551,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentQr = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 500.00,
+            'summ_cents' => 50000,
             'operation_date' => now()->toDateTimeString(),
             'deal_id' => 'deal-qr',
             'payment_id' => (string) $bankPaymentIdQr,
@@ -567,14 +567,14 @@ class PaymentReportTest extends CrmTestCase
             'provider_inv_id' => $bankPaymentIdQr,
             'payment_method' => 'sbp_qr',
             'status' => 'paid',
-            'out_sum' => '500.00',
+            'out_sum_cents' => 50000,
         ]);
 
         $bankPaymentIdCard = 556_677_882;
         $paymentCard = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 300.00,
+            'summ_cents' => 30000,
             'operation_date' => now()->subHour()->toDateTimeString(),
             'deal_id' => 'deal-card',
             'payment_id' => (string) $bankPaymentIdCard,
@@ -590,7 +590,7 @@ class PaymentReportTest extends CrmTestCase
             'provider_inv_id' => $bankPaymentIdCard,
             'payment_method' => 'card',
             'status' => 'paid',
-            'out_sum' => '300.00',
+            'out_sum_cents' => 30000,
         ]);
 
         $response = $this
@@ -629,7 +629,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $tbankWithValidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithValidReceipt->summ,
+            'amount_cents' => (int) $tbankWithValidReceipt->summ_cents,
             'receipt_url' => 'https://receipts.ru/first-old-receipt',
         ]);
         FiscalReceipt::query()->create([
@@ -637,7 +637,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $tbankWithValidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithValidReceipt->summ,
+            'amount_cents' => (int) $tbankWithValidReceipt->summ_cents,
             'receipt_url' => 'https://receipts.ru/latest-valid-receipt',
         ]);
 
@@ -647,7 +647,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $tbankWithValidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME_RETURN,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithValidReceipt->summ,
+            'amount_cents' => (int) $tbankWithValidReceipt->summ_cents,
             'receipt_url' => 'https://receipts.ru/latest-return-receipt',
         ]);
 
@@ -663,7 +663,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $tbankWithInvalidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithInvalidReceipt->summ,
+            'amount_cents' => (int) $tbankWithInvalidReceipt->summ_cents,
             'receipt_url' => 'https://example.com/not-allowed',
         ]);
 
@@ -673,7 +673,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $tbankWithInvalidReceipt->id,
             'type' => FiscalReceipt::TYPE_INCOME_RETURN,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $tbankWithInvalidReceipt->summ,
+            'amount_cents' => (int) $tbankWithInvalidReceipt->summ_cents,
             'receipt_url' => 'https://example.com/not-allowed-return',
         ]);
 
@@ -689,7 +689,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $robokassaPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $robokassaPayment->summ,
+            'amount_cents' => (int) $robokassaPayment->summ_cents,
             'receipt_url' => 'https://receipts.ru/robokassa-should-not-be-used-in-ui',
         ]);
 
@@ -698,7 +698,7 @@ class PaymentReportTest extends CrmTestCase
             'payment_id' => $robokassaPayment->id,
             'type' => FiscalReceipt::TYPE_INCOME_RETURN,
             'status' => FiscalReceipt::STATUS_PROCESSED,
-            'amount' => (float) $robokassaPayment->summ,
+            'amount_cents' => (int) $robokassaPayment->summ_cents,
             'receipt_url' => 'https://receipts.ru/robokassa-return-should-not-be-used-in-ui',
         ]);
 
@@ -743,17 +743,17 @@ class PaymentReportTest extends CrmTestCase
     {
         $p1 = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => '2026-01-03 10:00:00',
         ]);
         $p2 = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 200,
+            'summ_cents' => 20000,
             'operation_date' => '2026-01-01 10:00:00',
         ]);
         $p3 = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 300,
+            'summ_cents' => 30000,
             'operation_date' => '2026-01-02 10:00:00',
         ]);
 
@@ -780,12 +780,12 @@ class PaymentReportTest extends CrmTestCase
     {
         $low = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => '2026-01-01 10:00:00',
         ]);
         $high = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 999,
+            'summ_cents' => 99900,
             'operation_date' => '2026-01-01 10:00:01',
         ]);
 
@@ -829,13 +829,13 @@ class PaymentReportTest extends CrmTestCase
         $pA = Payment::factory()->create([
             'user_id' => $uA->id,
             'user_name' => 'ZZZ Payment Name',
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => '2026-01-01 10:00:00',
         ]);
         $pZ = Payment::factory()->create([
             'user_id' => $uZ->id,
             'user_name' => 'AAA Payment Name',
-            'summ' => 200,
+            'summ_cents' => 20000,
             'operation_date' => '2026-01-01 10:00:00',
         ]);
 
@@ -886,14 +886,14 @@ class PaymentReportTest extends CrmTestCase
         // T-Bank платёж
         $payment = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 1000.00, // руб
+            'summ_cents' => 100000, // руб
             'deal_id' => '999',
             'payment_id' => null,
             'payment_status' => null,
         ]);
 
         // Ожидаемые комиссии по формуле контроллера
-        $grossCents = (int)round($payment->summ * 100);
+        $grossCents = (int) $payment->summ_cents;
 
         $bankAcceptFee = max(
             (int)round($grossCents * ($rule->acquiring_percent / 100)),
@@ -939,7 +939,7 @@ class PaymentReportTest extends CrmTestCase
         // Для Robokassa комиссий быть не должно
         $robokassaPayment = Payment::factory()->create([
             'user_id' => $this->user->id,
-            'summ' => 500.0,
+            'summ_cents' => 50000,
             'deal_id' => null,
             'payment_id' => null,
             'payment_status' => null,
@@ -985,7 +985,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => $dealId,
             'payment_id' => null,
             'payment_status' => null,
@@ -1004,7 +1004,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1014,7 +1014,7 @@ class PaymentReportTest extends CrmTestCase
             'user_id' => $this->user->id,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'succeeded',
             'provider' => 'tbank',
@@ -1060,7 +1060,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 500.00,
+            'summ_cents' => 50000,
             'deal_id' => 'deal-pending-refund-'.uniqid(),
             'payment_id' => '77',
             'payment_status' => 'CONFIRMED',
@@ -1070,7 +1070,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1080,7 +1080,7 @@ class PaymentReportTest extends CrmTestCase
             'user_id' => $this->user->id,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'tbank',
@@ -1125,7 +1125,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => 'deal-failed-latest-'.uniqid(),
             'payment_id' => null,
             'payment_status' => null,
@@ -1135,7 +1135,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1145,7 +1145,7 @@ class PaymentReportTest extends CrmTestCase
             'user_id' => $this->user->id,
             'payable_id' => $payableA->id,
             'payment_id' => $payment->id,
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'succeeded',
             'provider' => 'tbank',
@@ -1155,7 +1155,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1165,13 +1165,13 @@ class PaymentReportTest extends CrmTestCase
             'user_id' => $this->user->id,
             'payable_id' => $payableB->id,
             'payment_id' => $payment->id,
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'failed',
             'provider' => 'tbank',
         ]);
 
-        $grossCents = (int) round($payment->summ * 100);
+        $grossCents = (int) $payment->summ_cents;
         $bankAcceptFee = max(
             (int) round($grossCents * ($rule->acquiring_percent / 100)),
             (int) round($rule->acquiring_min_fixed * 100)
@@ -1246,7 +1246,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentOk = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => $dealNoRefund,
             'payment_id' => null,
             'payment_status' => null,
@@ -1255,7 +1255,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentRefunded = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => $dealRefunded,
             'payment_id' => null,
             'payment_status' => null,
@@ -1283,7 +1283,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1293,13 +1293,13 @@ class PaymentReportTest extends CrmTestCase
             'user_id' => $this->user->id,
             'payable_id' => $payable->id,
             'payment_id' => $paymentRefunded->id,
-            'amount' => '1000.00',
+            'amount_cents' => 100000,
             'currency' => 'RUB',
             'status' => 'succeeded',
             'provider' => 'tbank',
         ]);
 
-        $grossCents = (int) round($paymentOk->summ * 100);
+        $grossCents = (int) $paymentOk->summ_cents;
         $bankAcceptFee = max(
             (int) round($grossCents * ($rule->acquiring_percent / 100)),
             (int) round($rule->acquiring_min_fixed * 100)
@@ -1376,7 +1376,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => 'deal-for-history',
             'payment_id' => '123456',
             'payment_status' => 'CONFIRMED',
@@ -1392,7 +1392,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1400,7 +1400,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentForRefund = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-for-refund',
             'payment_id' => '12346',
             'payment_status' => 'CONFIRMED',
@@ -1412,7 +1412,7 @@ class PaymentReportTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'paid',
-            'out_sum' => '100.00',
+            'out_sum_cents' => 10000,
             'payment_date' => 'Клубный взнос',
             'provider_inv_id' => 12346,
             'tbank_payment_id' => 12346,
@@ -1580,7 +1580,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $actor->id,
-            'summ' => 10.00,
+            'summ_cents' => 1000,
         ]);
 
         $this
@@ -1596,7 +1596,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-acl',
             'payment_id' => '111',
             'payment_status' => 'CONFIRMED',
@@ -1621,7 +1621,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-btn',
             'payment_id' => '222',
             'payment_status' => 'CONFIRMED',
@@ -1722,7 +1722,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => 'deal-no-commission-col-perm',
             'payment_id' => '111',
             'payment_status' => 'CONFIRMED',
@@ -1761,7 +1761,7 @@ class PaymentReportTest extends CrmTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => 'deal-no-payout-col-perm',
             'payment_id' => '222',
             'payment_status' => 'CONFIRMED',
@@ -1853,7 +1853,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentHistory = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 1000.00,
+            'summ_cents' => 100000,
             'deal_id' => 'deal-full-stack',
             'payment_id' => '333444',
             'payment_status' => 'CONFIRMED',
@@ -1870,7 +1870,7 @@ class PaymentReportTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
             'type' => 'club_fee',
-            'amount' => '100.00',
+            'amount_cents' => 10000,
             'currency' => 'RUB',
             'status' => 'paid',
         ]);
@@ -1878,7 +1878,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentRefund = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-full-refund',
             'payment_id' => '55566',
             'payment_status' => 'CONFIRMED',
@@ -1890,7 +1890,7 @@ class PaymentReportTest extends CrmTestCase
             'payable_id' => $payable->id,
             'provider' => 'tbank',
             'status' => 'paid',
-            'out_sum' => '100.00',
+            'out_sum_cents' => 10000,
             'payment_date' => 'Клубный взнос',
             'provider_inv_id' => 55566,
             'tbank_payment_id' => 55566,
@@ -1977,7 +1977,7 @@ class PaymentReportTest extends CrmTestCase
         $paymentHistory = Payment::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $this->user->id,
-            'summ' => 100.00,
+            'summ_cents' => 10000,
             'deal_id' => 'deal-http-surface-'.uniqid(),
             'payment_id' => '888001',
             'payment_status' => 'CONFIRMED',
@@ -2098,7 +2098,7 @@ class PaymentReportTest extends CrmTestCase
         $pEarly = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 100,
+            'summ_cents' => 10000,
             'operation_date' => '2026-01-01 10:00:00',
             'deal_id' => 'deal-sort-early',
         ]);
@@ -2106,7 +2106,7 @@ class PaymentReportTest extends CrmTestCase
         $pLate = Payment::factory()->create([
             'user_id' => $this->user->id,
             'partner_id' => $this->partner->id,
-            'summ' => 200,
+            'summ_cents' => 20000,
             'operation_date' => '2026-01-01 11:00:00',
             'deal_id' => 'deal-sort-late',
         ]);

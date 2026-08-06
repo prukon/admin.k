@@ -26,8 +26,8 @@ class FiscalReceiptReportController extends AdminBaseController
 
         $totalQuery = FiscalReceipt::query();
         $this->applyFiscalReceiptReportFilters($totalQuery, $request);
-        $totalRaw = (float) $totalQuery->sum('amount');
-        $totalPaidPrice = number_format($totalRaw, 0, '', ' ');
+        $totalRawCents = (int) $totalQuery->sum('amount_cents');
+        $totalPaidPrice = number_format($totalRawCents / 100, 0, '', ' ');
 
         $frFilterPartner = $canFilterPartner ? $this->resolvePartnerLabel($filters) : null;
 
@@ -48,7 +48,8 @@ class FiscalReceiptReportController extends AdminBaseController
     {
         $totalQuery = FiscalReceipt::query();
         $this->applyFiscalReceiptReportFilters($totalQuery, $request);
-        $raw = (float) $totalQuery->sum('amount');
+        $rawCents = (int) $totalQuery->sum('amount_cents');
+        $raw = $rawCents / 100;
 
         return response()->json([
             'total_formatted' => number_format($raw, 0, '', ' '),
@@ -71,6 +72,13 @@ class FiscalReceiptReportController extends AdminBaseController
         return DataTables::of($query)
             ->addColumn('partner_title', function (FiscalReceipt $receipt) {
                 return (string) ($receipt->partner->title ?? ($receipt->partner->name ?? ''));
+            })
+            ->addColumn('amount', function (FiscalReceipt $receipt) {
+                return round(((int) $receipt->amount_cents) / 100, 2);
+            })
+            ->orderColumn('amount', function ($query, $order) {
+                $dir = strtolower((string) $order) === 'asc' ? 'asc' : 'desc';
+                $query->orderBy('fiscal_receipts.amount_cents', $dir);
             })
             ->editColumn('created_at', function (FiscalReceipt $receipt) {
                 return self::formatReportDateTime($receipt->created_at);

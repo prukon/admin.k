@@ -66,7 +66,7 @@ class TbankQrSecurityTest extends CrmTestCase
         });
 
         UserPrice::factory()
-            ->forUserAndMonth((int) $this->user->id, '2024-01-01', 10, false)
+            ->forUserAndMonth((int) $this->user->id, '2024-01-01', 1000, false)
             ->create();
 
         // Пытаемся подложить чужой partner_id (должен игнорироваться — партнёр только из контекста)

@@ -68,7 +68,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
             'is_paid' => 0,
         ]);
         $this->teamSync->syncTeamsForStudent($this->student, [(int) $this->dubl->id]);
@@ -245,7 +245,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
     }
 
@@ -275,7 +275,7 @@ final class SettingPricesUsersFormerMembersAccessFeatureTest extends CrmTestCase
             'user_id' => $this->student->id,
             'team_id' => $this->almaz->id,
             'new_month' => '2026-02-01',
-            'price' => 3267,
+            'price_cents' => 326700,
         ]);
     }
 

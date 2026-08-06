@@ -193,7 +193,7 @@ final class CustomPaymentsTeamAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
-            'amount' => '350.00',
+            'amount_cents' => 35000,
         ]);
     }
 
@@ -216,7 +216,7 @@ final class CustomPaymentsTeamAccessFeatureTest extends CrmTestCase
         $this->assertDatabaseHas('user_custom_payment', [
             'user_id' => $this->student->id,
             'team_id' => $this->team->id,
-            'amount' => '400.00',
+            'amount_cents' => 40000,
         ]);
     }
 

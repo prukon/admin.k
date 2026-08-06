@@ -189,11 +189,11 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 700,
+            'summ_cents' => 70000,
             'operation_date' => '2025-03-10 12:00:00',
         ]);
         Payment::factory()->forUser($student)->create([
-            'summ' => 300,
+            'summ_cents' => 30000,
             'operation_date' => '2025-03-15 12:00:00',
         ]);
 
@@ -223,7 +223,7 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 500,
+            'summ_cents' => 50000,
             'operation_date' => '2025-04-01 10:00:00',
         ]);
 
@@ -246,12 +246,12 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 400,
+            'summ_cents' => 40000,
             'payment_month' => '2025-02-01',
             'operation_date' => '2025-02-05 10:00:00',
         ]);
         Payment::factory()->forUser($student)->create([
-            'summ' => 600,
+            'summ_cents' => 60000,
             'payment_month' => '2025-02-01',
             'operation_date' => '2025-02-20 10:00:00',
         ]);
@@ -282,7 +282,7 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 250,
+            'summ_cents' => 25000,
             'payment_month' => '2025-05-01',
             'operation_date' => '2025-05-12 10:00:00',
         ]);
@@ -342,7 +342,7 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 900,
+            'summ_cents' => 90000,
             'operation_date' => '2025-06-01 10:00:00',
         ]);
 
@@ -384,7 +384,7 @@ final class ReportsKidsCrmDataTableFeatureTest extends CrmTestCase
         ]);
 
         Payment::factory()->forUser($student)->create([
-            'summ' => 800,
+            'summ_cents' => 80000,
             'payment_month' => '2025-07-01',
             'operation_date' => '2025-07-10 10:00:00',
         ]);

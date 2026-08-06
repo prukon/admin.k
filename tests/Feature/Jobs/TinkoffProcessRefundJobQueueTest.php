@@ -52,7 +52,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'monthly_fee',
-            'amount' => 1500,
+            'amount_cents' => 150000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => now()->startOfMonth()->format('Y-m-01'),
@@ -63,7 +63,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $intent = PaymentIntent::factory()->create([
@@ -73,14 +73,14 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'provider' => 'tbank',
             'tbank_payment_id' => 777001,
             'status' => 'paid',
-            'out_sum' => $payable->amount,
+            'out_sum_cents' => $payable->amount_cents,
         ]);
 
         UserPrice::factory()->paid()->create([
             'user_id'   => $userId,
             'team_id'   => (int) $user->team_id,
             'new_month' => $payable->month->format('Y-m-d'),
-            'price'     => (string) (int) $payable->amount,
+            'price_cents' => (int) $payable->amount_cents,
         ]);
 
         $refund = Refund::create([
@@ -88,7 +88,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 1500,
+            'amount_cents' => 150000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'tbank',
@@ -137,7 +137,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'club_fee',
-            'amount' => 500,
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => null,
@@ -148,7 +148,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $refund = Refund::create([
@@ -156,7 +156,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 500,
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'tbank',
@@ -188,7 +188,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'date_start' => '2026-11-01',
             'date_end' => '2026-11-30',
-            'amount' => '500.00',
+            'amount_cents' => 50000,
             'is_paid' => 1,
         ]);
 
@@ -196,7 +196,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'partner_id' => $partner->id,
             'user_id' => $userId,
             'type' => 'custom_payment_fee',
-            'amount' => 500,
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'paid',
             'month' => null,
@@ -209,7 +209,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
         $payment = Payment::factory()->create([
             'partner_id' => $partner->id,
             'user_id' => $userId,
-            'summ' => $payable->amount,
+            'summ_cents' => $payable->amount_cents,
         ]);
 
         $intent = PaymentIntent::factory()->create([
@@ -220,7 +220,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'tbank_payment_id' => 777003,
             'provider_inv_id' => 777003,
             'status' => 'paid',
-            'out_sum' => $payable->amount,
+            'out_sum_cents' => $payable->amount_cents,
         ]);
 
         $refund = Refund::create([
@@ -228,7 +228,7 @@ class TinkoffProcessRefundJobQueueTest extends JobsTestCase
             'user_id' => $userId,
             'payable_id' => $payable->id,
             'payment_id' => $payment->id,
-            'amount' => 500,
+            'amount_cents' => 50000,
             'currency' => 'RUB',
             'status' => 'pending',
             'provider' => 'tbank',

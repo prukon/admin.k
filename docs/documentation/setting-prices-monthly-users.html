@@ -71,14 +71,14 @@
       для <code>flexible</code> сразу <code>starts_at</code> = 1-е число месяца
       (занятия ставят «на лету» в журнале);
       для <code>fixed</code> / <code>no_schedule</code> — <code>starts_at = NULL</code> до раскладки,
-      <code>fee_amount</code> = цена месяца, объём = <code>lessons_count</code> шаблона,
+      <code>fee_amount_cents</code> = цена месяца (копейки; в HTTP/JSON — <code>fee_amount</code> / <code>price</code> в рублях), объём = <code>lessons_count</code> шаблона,
       FK <code>users_prices.user_lesson_package_id</code>.</li>
     <li><code>duration_days</code> шаблона для месячного ULP <b>не</b> задаёт период.</li>
   </ul>
   <h3>0.2) Правила изменений</h3>
   <ul>
     <li>Смена суммы при неразложенном / даже разложенном ULP (если месяц и ULP не оплачены) →
-      синхронизация <code>fee_amount</code>.</li>
+      синхронизация <code>fee_amount_cents</code> (из рублей UI через <code>Money</code>).</li>
     <li>Смена шаблона при <b>уже разложенном</b> ULP (<code>isLaidOutInSchedule</code>) → <b>422</b>
       на поле пакета (текст про раскладку в расписание).</li>
     <li>Смена шаблона при неразложенном → обновление ULP (объём/пакет).</li>
@@ -136,7 +136,7 @@
   <h3 id="former-definition">3.1) Кто считается «бывшим»</h3>
   <ul>
     <li>Ученик <b>не</b> состоит в выбранной группе по <code>team_user</code> (в т.ч. после soft-delete группы ученики отвязываются от pivot — см. <a href="/docs/documentation/student-team-membership#team-delete">student-team-membership §1.2</a>).</li>
-    <li>Есть история начислений с <code>users_prices.price &gt; 0</code> по этой группе (критерий зависит от вкладки — ниже).</li>
+    <li>Есть история начислений с <code>users_prices.price_cents &gt; 0</code> по этой группе (критерий зависит от вкладки — ниже).</li>
     <li>Отключённый ученик (<code>is_enabled=0</code>), <b>ещё состоящий в pivot</b>, на вкладке «по месяцам» <b>не</b> показывается ни как текущий, ни как бывший (как и раньше: в список месяца попадают только <code>is_enabled=1</code> из pivot).</li>
   </ul>
   <p>Хелпер: <code>UserPriceTeamMembership::studentHasPositivePriceHistoryForTeam($userId, $teamId)</code>.</p>
@@ -145,10 +145,10 @@
   <ul>
     <li><b>Endpoint:</b> <code>POST /admin/setting-prices/get-team-price</code> (<code>getTeamPrice</code>) — JSON.</li>
     <li><b>Текущие:</b> активные ученики группы → <code>UserPrice::firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>, флаг <code>is_former_member=false</code>.</li>
-    <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
+    <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price_cents &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
     <li><b>Порядок:</b> сначала текущие (ФИО), затем бывшие (ФИО).</li>
     <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша; «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>).</li>
-    <li><b>Пустая группа:</b> если текущих нет, но есть бывшие с <code>price &gt; 0</code> за месяц → <code>success: true</code> (раньше было <code>false</code>).</li>
+    <li><b>Пустая группа:</b> если текущих нет, но есть бывшие с <code>price_cents &gt; 0</code> за месяц → <code>success: true</code> (раньше было <code>false</code>).</li>
   </ul>
   <div class="warn">
     <b>Не меняют строки бывших:</b>
@@ -160,10 +160,10 @@
 
   <h3 id="former-users">3.3) Вкладка «По ученикам»</h3>
   <ul>
-    <li><b>Список (server render):</b> активные ученики с группами в pivot <b>или</b> с любой историей <code>users_prices.price &gt; 0</code> по группам партнёра.</li>
-    <li>У строки: <code>data-team-ids</code> (текущие) + <code>data-former-team-ids</code> (группы с историей <code>price &gt; 0</code>, которых нет в pivot). Подпись «ранее: …».</li>
-    <li><b>Фильтр группы (JS):</b> ученик виден, если группа в текущих <b>или</b> в former-ids. Критерий попадания в former-ids — <b>любой</b> месяц с <code>price &gt; 0</code> по группе (не только выбранный год справа).</li>
-    <li><b>Подробно / год:</b> <code>POST …/user-year-prices</code>. Если нет членства, но есть история <code>price &gt; 0</code> → <b>200</b>, <code>is_former_member=true</code>, <code>can_manage_manual_paid=false</code>, все 12 месяцев read-only.</li>
+    <li><b>Список (server render):</b> активные ученики с группами в pivot <b>или</b> с любой историей <code>users_prices.price_cents &gt; 0</code> по группам партнёра.</li>
+    <li>У строки: <code>data-team-ids</code> (текущие) + <code>data-former-team-ids</code> (группы с историей <code>price_cents &gt; 0</code>, которых нет в pivot). Подпись «ранее: …».</li>
+    <li><b>Фильтр группы (JS):</b> ученик виден, если группа в текущих <b>или</b> в former-ids. Критерий попадания в former-ids — <b>любой</b> месяц с <code>price_cents &gt; 0</code> по группе (не только выбранный год справа).</li>
+    <li><b>Подробно / год:</b> <code>POST …/user-year-prices</code>. Если нет членства, но есть история <code>price_cents &gt; 0</code> → <b>200</b>, <code>is_former_member=true</code>, <code>can_manage_manual_paid=false</code>, все 12 месяцев read-only.</li>
     <li><b>Save:</b> <code>POST …/user-year-prices/save</code> — только при текущем членстве; для бывших <b>422</b> (и AJAX, и non-AJAX; не пустой 200). Ручная оплата — то же правило членства.</li>
     <li>Заголовок справа для бывшей группы: «{группа} · не в группе».</li>
   </ul>

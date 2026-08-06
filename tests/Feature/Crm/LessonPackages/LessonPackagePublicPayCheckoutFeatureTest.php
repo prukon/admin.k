@@ -111,7 +111,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
             'ends_at' => null,
             'lessons_total' => 8,
             'lessons_remaining' => 8,
-            'fee_amount' => number_format($fee, 2, '.', ''),
+            'fee_amount_cents' => (int) round($fee * 100),
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -211,15 +211,15 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
             ->assertSee($ctx['expectedLabel'], false);
     }
 
-    public function test_public_pay_amount_rounds_to_whole_rubles_without_kopecks(): void
+    public function test_public_pay_amount_shows_kopecks_with_comma_when_not_round(): void
     {
         $ctx = $this->seedCheckoutContext(110.50);
         $token = $this->issuePublicPayToken($ctx['assignment']);
 
         $this->get(route('ulp.public.pay', ['token' => $token]))
             ->assertOk()
-            ->assertViewHas('amountRubFormatted', '111')
-            ->assertSee('111&nbsp;₽', false)
+            ->assertViewHas('amountRubFormatted', '110,50')
+            ->assertSee('110,50&nbsp;₽', false)
             ->assertDontSee('110.50', false);
     }
 
@@ -460,7 +460,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
 
         $this->assertDatabaseHas('user_lesson_packages', [
             'id' => $ctx['assignment']->id,
-            'fee_amount' => '550.00',
+            'fee_amount_cents' => 55000,
         ]);
     }
 
@@ -514,7 +514,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
             'lesson_package_id' => $package->id,
             'lessons_total' => 4,
             'lessons_remaining' => 4,
-            'fee_amount' => '300.00',
+            'fee_amount_cents' => 30000,
             'is_paid' => false,
             'created_by' => $foreignStudent->id,
         ]);

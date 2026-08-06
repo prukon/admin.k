@@ -40,8 +40,8 @@ final class TrainersPageFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'user_id' => $user->id,
             'sort_order' => 3,
-            'default_base_salary' => 15000,
-            'default_rate_per_training' => 2500,
+            'default_base_salary_cents' => 1500000,
+            'default_rate_per_training_cents' => 250000,
         ]);
     }
 

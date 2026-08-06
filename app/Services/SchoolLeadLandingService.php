@@ -12,6 +12,7 @@ use App\Models\Location;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
 use App\Models\Team;
+use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -164,7 +165,7 @@ final class SchoolLeadLandingService
         $rows = [
             ['label' => 'Адрес', 'value' => $this->displayValue($location?->address)],
             ['label' => 'Вид спорта', 'value' => $this->displayValue($team->sportType?->name)],
-            ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price)],
+            ['label' => 'Стоимость в месяц', 'value' => $this->formatMonthPrice($team->month_price_cents)],
             ['label' => 'Занятий в неделю', 'value' => $weekdaysCount > 0 ? (string) $weekdaysCount : ''],
             ['label' => 'Занятий в месяц', 'value' => $weekdaysCount > 0 ? (string) ($weekdaysCount * 4) : ''],
             ['label' => 'Продолжительность занятия', 'value' => $this->formatDuration($team->default_duration_minutes)],
@@ -186,18 +187,18 @@ final class SchoolLeadLandingService
         return trim((string) ($value ?? ''));
     }
 
-    private function formatMonthPrice(mixed $price): string
+    private function formatMonthPrice(mixed $cents): string
     {
-        if ($price === null || $price === '') {
+        if ($cents === null || $cents === '') {
             return '';
         }
 
-        $amount = (int) $price;
-        if ($amount < 0) {
+        $amountCents = (int) $cents;
+        if ($amountCents < 0) {
             return '';
         }
 
-        return number_format($amount, 0, ',', ' ') . ' ₽';
+        return Money::formatRub($amountCents, ' ₽');
     }
 
     private function formatDuration(mixed $minutes): string
