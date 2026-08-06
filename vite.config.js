@@ -4,8 +4,6 @@ import laravel from 'laravel-vite-plugin';
 export default defineConfig({
     plugins: [
         laravel({
-            // public/build часто от root без write для www-data; js/ — group-writable
-            buildDirectory: 'js/vite-build',
             input: [
                 // 1) Наш общий бандл — первым
                 'resources/js/vendor.js',

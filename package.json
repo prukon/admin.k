@@ -3,7 +3,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build --config storage/vite-build-config.mjs"
+        "build": "vite build"
     },
     "devDependencies": {
         "@fortawesome/fontawesome-free": "^7.0.0",

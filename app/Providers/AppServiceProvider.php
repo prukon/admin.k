@@ -90,11 +90,6 @@ class AppServiceProvider extends ServiceProvider
 
         Paginator::useBootstrap();
 
-        // Ассеты Vite: public/js/vite-build (group-writable). Старый public/build оставлен как fallback.
-        if (is_file(public_path('js/vite-build/manifest.json'))) {
-            \Illuminate\Support\Facades\Vite::useBuildDirectory('js/vite-build');
-        }
-
         BlogPost::observe(BlogPostObserver::class);
 
         // Получаем срок оплаты сервиса
