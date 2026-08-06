@@ -1,0 +1,28 @@
+/**
+ * Hotfix: квадратные статусы в журнале при highlight-column + DataTables.
+ * Дублирует правки из resources/css/schedule.css до следующей сборки Vite.
+ * После npm run build этот файл можно удалить вместе со ссылкой в index.blade.php.
+ */
+
+.schedule-cell {
+    box-sizing: border-box !important;
+}
+
+.schedule-table th,
+.schedule-table td {
+    box-sizing: border-box !important;
+}
+
+.schedule-cell__swatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.45rem;
+    height: 1.45rem;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    min-height: 0;
+    border-radius: 0.4rem;
+    box-sizing: border-box;
+    line-height: 1;
+}

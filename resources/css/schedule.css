@@ -175,6 +175,8 @@ table.dataTable tbody th, table.dataTable tbody td {
     position: relative;
     cursor: pointer;
     background-color: transparent !important;
+    /* DataTables задаёт content-box — без !important highlight-колонки сжимают swatch */
+    box-sizing: border-box !important;
 }
 
 /* Скруглённый цветной фон статуса (td + border-collapse не держат radius) */
@@ -182,8 +184,10 @@ table.dataTable tbody th, table.dataTable tbody td {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    min-height: 1.45rem;
+    width: 1.45rem;
+    height: 1.45rem;
+    aspect-ratio: 1;
+    margin: 0 auto;
     border-radius: 0.4rem;
     box-sizing: border-box;
     line-height: 1;
@@ -555,8 +559,6 @@ table.dataTable tbody th, table.dataTable tbody td {
 .schedule-table-container .schedule-table th.highlight-column {
     /*border: 1px solid RED !important;*/
     border: solid 1px #f3a12b !important;
-
-    box-sizing: border-box;
 }
 
 
@@ -570,12 +572,14 @@ table.dataTable tbody th, table.dataTable tbody td {
     border-spacing: 0 !important;
 }
 
-/* Общие границы */
+/* Общие границы.
+   !important: иначе DataTables (content-box) расходится с highlight-column (border-box)
+   и сжимает цветной swatch статуса по ширине. */
 .schedule-table th,
 .schedule-table td {
     border: 1px solid rgba(0, 0, 0, 0.2);
     background-color: #fff; /* Белый фон, чтобы за ней не было видно движения */
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
 /* ----------------------------------------------- */
@@ -618,7 +622,6 @@ table.dataTable tbody th, table.dataTable tbody td {
 .schedule-table td.highlight-column,
 .schedule-table th.highlight-column {
     border: 1px solid #f3a12b !important; /* или ваш цвет, можно #007bff */
-    box-sizing: border-box;
 }
 
 /* ----------------------------------------------- */

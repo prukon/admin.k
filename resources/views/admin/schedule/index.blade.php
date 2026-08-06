@@ -33,6 +33,8 @@
 
 @push('scripts')
     @vite(['resources/css/schedule.css'])
+    {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
+    <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}">
     @if(($activeTab ?? 'journal') === 'journal')
         <script>
             window.SCHEDULE_VISITED_STATUS_ID = @json($visitedStatusId ?? null);
