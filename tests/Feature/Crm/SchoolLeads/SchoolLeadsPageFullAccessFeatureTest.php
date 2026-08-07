@@ -127,7 +127,8 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('lead-status-col-header', false)
             ->assertSee('>Отображать</th>', false)
             ->assertSee('if (!row.user_id)', false)
-            ->assertSee('delete-lead', false);
+            ->assertDontSee('delete-lead', false)
+            ->assertDontSee("key: 'actions'", false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -158,7 +159,9 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('renderLeadStatusInlineSelect', false)
             ->assertSee('lead-status-inline-menu', false)
             ->assertSee('>Отображать</th>', false)
-            ->assertSee('if (!row.user_id)', false);
+            ->assertSee('if (!row.user_id)', false)
+            ->assertDontSee('delete-lead', false)
+            ->assertDontSee("key: 'actions'", false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -183,13 +186,6 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
      */
     private function routesPayload(): array
     {
-        $deleteLead = SchoolLead::create([
-            'partner_id'            => $this->partner->id,
-            'name'                  => 'Denied delete',
-            'phone'                 => '+7 900 444-44-44',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => true,
@@ -223,10 +219,6 @@ final class SchoolLeadsPageFullAccessFeatureTest extends CrmTestCase
                         'color' => '#20c997',
                     ])->id,
                 ],
-            ],
-            [
-                'method' => 'DELETE',
-                'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
         ], $this->schoolLeadStatusManagementRoutesPayload());
     }

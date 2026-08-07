@@ -574,6 +574,11 @@
     <li>Ошибки валидации (<code>422</code>, объект <code>errors</code>, в т.ч. <code>patterns.0.weekday</code>, <code>patterns</code>, <code>user_lesson_package_id</code>) выводятся под полями inline-блока (<code>data-err</code>); общий <code>message</code> — во flash/alert.</li>
   </ol>
   <p class="note"><strong>Отличие от гибкого:</strong> фиксированный абонемент <strong>всегда</strong> требует шаг с шаблоном привязки (даже при одном назначении). Гибкий при одном назначении привязывается одним кликом без формы.</p>
+  <p class="note"><strong>Журнал <code>/schedule</code>:</strong> месячный fixed из установки цен раскладывается отдельно —
+    кнопка «+» / <code>place-fixed-abonement</code> (группа → абонемент, без классики).
+    Классика без <code>billing_month</code> в журнале не предлагается — остаётся этот
+    <code>assign-fixed</code>. Подробно —
+    <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>.</p>
 
   <h3>API: привязка (<code>POST …/assign-fixed</code>)</h3>
   <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.assign-fixed</code>. Request: <code>AssignSchoolCalendarFixedRequest</code>. Контроллер: <code>LessonPackageSchoolCalendarAssignmentController::assignFixed</code>.</p>
@@ -639,6 +644,14 @@
 
   <h2>Разовые занятия в модалке слота</h2>
   <p>Разовое занятие — назначение абонемента с шаблоном <code>schedule_type = no_schedule</code> (<code>user_lesson_packages</code> + строка <code>user_team_schedule_slots</code>). В отличие от гибкого/фиксированного абонемента, запись доступна <strong>без предварительного назначения</strong> на странице «Назначения»: при отсутствии свободного назначения создаётся новое в той же операции.</p>
+  <div class="note">
+    Тот же тип занятия можно поставить из журнала <code>/schedule</code> на <b>полностью пустую</b> ячейку
+    (дневная модель, без timed-слота сетки):
+    <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>
+    (<code>place-single-lesson</code> / <code>place-trial-lesson</code>). Отличия журнала: права
+    <code>schedule.view</code>+<code>lessonPackages.view</code>; в выборе сразу и bind, и create;
+    статус (+ тренер при «Посетил») задаётся при установке.
+  </div>
 
   <h3>Доступность (<code>GET …/slot-user-bind-actions</code>)</h3>
   <p>Параметры: <code>user_id</code>, <code>team_schedule_slot_id</code>, <code>occurrence_date</code>. В ответе объект <code>single_lesson</code>:</p>
@@ -676,8 +689,15 @@
 
   <h2>Пробные занятия: добавление, баланс и ограничения</h2>
   <p>Пробное — запись без абонемента: <code>user_team_schedule_slots</code> с <code>is_trial_lesson = true</code>, <code>user_lesson_package_id = NULL</code>. Пробное действует <strong>только в выбранную дату</strong>: <code>ends_at</code> равно <code>starts_at</code>. При создании через API задаются <code>trial_lessons_remaining = 1</code>, <code>trial_lessons_total = 1</code>. Списание единицы пробного «урока» происходит при выборе статуса с <code>consumes_lesson = true</code> (аналогично абонементу, но поля другие).</p>
+  <p class="small">Из журнала <code>/schedule</code> пробное также ставится на полностью пустую ячейку
+    (<a href="/docs/documentation/schedule-journal#place-empty-cell">§7.4</a>): те же флаги
+    <code>has_used_school_schedule_trial</code> / «уже есть пробная запись»; статус задаётся сразу при установке.</p>
   <p>У пользователя в таблице <code>users</code> хранится флаг <code>has_used_school_schedule_trial</code>: после успешного создания пробной записи он выставляется в <code>true</code>. Пока существует строка пробного у ученика (<code>is_trial_lesson = true</code> и <code>user_lesson_package_id IS NULL</code>), вторую создать нельзя; те же условия проверяются в <code>SchoolCalendarTrialEligibilityService</code> и при создании (блокировка строки в транзакции). Ячейка слота/даты не должна быть занята абонементом или посторонней записью.</p>
-  <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> — заранее проверяет возможность добавления (ответ <code>allowed</code>, <code>reason</code>).</p>
+  <p><strong>GET</strong> <code>…/trial-registration-eligibility</code> — заранее проверяет возможность добавления (ответ <code>allowed</code>, <code>reason</code>).
+    Текст «уже есть пробное» формирует <code>SchoolCalendarTrialEligibilityService::alreadyScheduledReason</code>:
+    «Уже есть пробное занятие {д.м.г}.» (или без даты). Тот же текст в журнале
+    (<code>empty-cell-context.trial.reason</code>) —
+    <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>.</p>
 
   <h2>UI: «(Отменить)» в списке записей</h2>
   <p>В модалке слота в блоке <strong>«Записаны на занятие»</strong> ссылка <code>(Отменить)</code> выводится для:</p>

@@ -342,6 +342,50 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
     }
 
     /**
+     * Месячный fixed ULP из установки цен (billing_month + team_id, ends_at заранее).
+     */
+    protected function makeMonthlyFixedAssignment(
+        User $student,
+        int $teamId,
+        string $billingMonth,
+        int $lessons = 4,
+        int $feeAmountCents = 500000,
+    ): UserLessonPackage {
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, array_values(array_unique(array_filter([
+            $teamId,
+            ...$student->teams()->pluck('teams.id')->map(fn ($id) => (int) $id)->all(),
+        ]))));
+
+        $package = LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Месячный фикс '.uniqid(),
+            'schedule_type' => 'fixed',
+            'duration_days' => 45,
+            'lessons_count' => $lessons,
+            'price_cents' => $feeAmountCents,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+
+        $monthEnd = CarbonImmutable::parse($billingMonth)->endOfMonth()->toDateString();
+
+        return UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $package->id,
+            'team_id' => $teamId,
+            'billing_month' => $billingMonth,
+            'starts_at' => null,
+            'ends_at' => $monthEnd,
+            'lessons_total' => $lessons,
+            'lessons_remaining' => $lessons,
+            'fee_amount_cents' => $feeAmountCents,
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
+    /**
      * Месячный гибкий ULP из установки цен (полный период на billing_month).
      */
     protected function makeMonthlyFlexibleAssignment(
@@ -349,6 +393,7 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
         int $teamId,
         string $billingMonth,
         int $lessons = 4,
+        int $feeAmountCents = 500000,
     ): UserLessonPackage {
         app(TeamUserSyncService::class)->syncTeamsForStudent($student, array_values(array_unique(array_filter([
             $teamId,
@@ -372,7 +417,7 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'ends_at' => $monthEnd,
             'lessons_total' => $lessons,
             'lessons_remaining' => $lessons,
-            'fee_amount_cents' => 500000,
+            'fee_amount_cents' => $feeAmountCents,
             'is_paid' => false,
             'created_by' => $this->user->id,
         ]);
@@ -395,6 +440,104 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'user_lesson_package_id' => $ulp->id,
             'team_id' => $teamId,
             'occurrence_date' => $occurrenceDate,
+            'lesson_occurrence_status_id' => $statusId,
+        ], $extra);
+    }
+
+    protected function makeSingleLessonTemplate(
+        string $name = 'Разовое журнал',
+        int $priceCents = 150000,
+    ): LessonPackage {
+        return LessonPackage::query()->create([
+            'partner_id' => $this->partner->id,
+            'name' => $name.' '.uniqid(),
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE,
+            'duration_days' => 1,
+            'lessons_count' => 1,
+            'price_cents' => $priceCents,
+            'freeze_enabled' => 0,
+            'freeze_days' => 0,
+            'is_active' => 1,
+        ]);
+    }
+
+    protected function makeFreeSingleLessonAssignment(
+        User $student,
+        ?LessonPackage $template = null,
+        int $feeAmountCents = 150000,
+    ): UserLessonPackage {
+        $template ??= $this->makeSingleLessonTemplate();
+
+        return UserLessonPackage::query()->create([
+            'user_id' => $student->id,
+            'lesson_package_id' => $template->id,
+            'team_id' => null,
+            'starts_at' => null,
+            'ends_at' => null,
+            'lessons_total' => (int) $template->lessons_count,
+            'lessons_remaining' => (int) $template->lessons_count,
+            'fee_amount_cents' => $feeAmountCents,
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function placeTrialPayload(int $teamId, string $occurrenceDate, array $extra = []): array
+    {
+        $statusId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($statusId);
+
+        return array_merge([
+            'team_id' => $teamId,
+            'occurrence_date' => $occurrenceDate,
+            'lesson_occurrence_status_id' => $statusId,
+        ], $extra);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function placeSingleCreatePayload(
+        LessonPackage $template,
+        int $teamId,
+        string $occurrenceDate,
+        float|int|string $feeAmount = 1500,
+        array $extra = [],
+    ): array {
+        $statusId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($statusId);
+
+        return array_merge([
+            'team_id' => $teamId,
+            'occurrence_date' => $occurrenceDate,
+            'lesson_package_id' => $template->id,
+            'fee_amount' => $feeAmount,
+            'lesson_occurrence_status_id' => $statusId,
+        ], $extra);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    protected function placeSingleBindPayload(
+        UserLessonPackage $ulp,
+        int $teamId,
+        string $occurrenceDate,
+        array $extra = [],
+    ): array {
+        $statusId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($statusId);
+
+        return array_merge([
+            'team_id' => $teamId,
+            'occurrence_date' => $occurrenceDate,
+            'user_lesson_package_id' => $ulp->id,
             'lesson_occurrence_status_id' => $statusId,
         ], $extra);
     }

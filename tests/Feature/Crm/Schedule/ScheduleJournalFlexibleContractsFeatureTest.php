@@ -112,16 +112,20 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                     'occurrence_date',
                     'slots_remaining',
                     'lessons_total',
+                    'fee_amount_cents',
+                    'package_name',
                     'status' => ['id', 'title', 'icon', 'color'],
                 ],
             ])
-            ->assertJsonPath('result.slots_remaining', 1)
+            ->assertJsonPath('result.slots_remaining', 2)
             ->assertJsonPath('result.occurrence_date', '2026-09-10')
+            ->assertJsonPath('result.fee_amount_cents', (int) $ulp->fee_amount_cents)
             ->assertJsonPath('result.status.id', LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id));
 
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
         $ulp->refresh();
         $this->assertTrue($ulp->isLaidOutInSchedule());
+        $this->assertSame(2, (int) $ulp->lessons_remaining);
 
         $scheduledId = LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id);
         $this->assertSame(
@@ -261,25 +265,57 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
     {
         [$student, $team] = $this->makeStudentWithTeam();
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 1);
+        $attendedId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($attendedId);
+        $trainer = $this->makeTrainerProfile('Flex Limit Trainer');
 
+        // Статус без списания не исчерпывает лимит.
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('schedule.abonement.place-flexible', $student), [
                 'user_lesson_package_id' => $ulp->id,
                 'team_id' => $team->id,
                 'occurrence_date' => '2026-09-05',
-                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
-            ])->assertOk();
+                'lesson_occurrence_status_id' => LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+            ])
+            ->assertOk()
+            ->assertJsonPath('result.slots_remaining', 1);
 
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('schedule.abonement.place-flexible', $student), [
                 'user_lesson_package_id' => $ulp->id,
                 'team_id' => $team->id,
                 'occurrence_date' => '2026-09-06',
-                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+                'lesson_occurrence_status_id' => $attendedId,
+                'trainer_profile_id' => $trainer->id,
+            ])
+            ->assertOk()
+            ->assertJsonPath('result.slots_remaining', 0);
+
+        $ulp->refresh();
+        $this->assertSame(0, (int) $ulp->lessons_remaining);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.abonement.place-flexible', $student), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'occurrence_date' => '2026-09-07',
+                'lesson_occurrence_status_id' => $attendedId,
+                'trainer_profile_id' => $trainer->id,
             ])
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonStructure(['message', 'errors' => ['user_lesson_package_id']]);
+
+        // Без consumes_lesson — можно ставить и при нулевом остатке.
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.abonement.place-flexible', $student), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'occurrence_date' => '2026-09-08',
+                'lesson_occurrence_status_id' => LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+            ])
+            ->assertOk()
+            ->assertJsonPath('result.slots_remaining', 0);
     }
 
     public function test_place_flexible_non_ajax_redirects_and_creates_utss_not_empty_200(): void
@@ -373,15 +409,19 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
 
     public function test_place_flexible_non_ajax_business_error_redirects_with_session_errors(): void
     {
-        [$student, $team] = $this->makeStudentWithTeam();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 1);
+        $attendedId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($attendedId);
 
         $this->post(route('schedule.abonement.place-flexible', $student), [
             '_token' => csrf_token(),
             'user_lesson_package_id' => $ulp->id,
             'team_id' => $team->id,
             'occurrence_date' => '2026-09-05',
-            'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+            'lesson_occurrence_status_id' => $attendedId,
+            'trainer_profile_id' => $trainer->id,
         ])->assertRedirect(route('schedule.index'));
 
         $response = $this->from(route('schedule.index'))
@@ -390,7 +430,8 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 'user_lesson_package_id' => $ulp->id,
                 'team_id' => $team->id,
                 'occurrence_date' => '2026-09-06',
-                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+                'lesson_occurrence_status_id' => $attendedId,
+                'trainer_profile_id' => $trainer->id,
             ]);
 
         $response->assertStatus(302);
@@ -547,7 +588,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
             ])
             ->assertOk()
-            ->assertJsonPath('result.slots_remaining', 1);
+            ->assertJsonPath('result.slots_remaining', 3);
 
         $slotIds = UserTeamScheduleSlot::query()
             ->where('user_lesson_package_id', $ulp->id)
@@ -629,7 +670,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             ->assertSee('flexible-trainer-wrap', false)
             ->assertSee('flexible-comment', false)
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee('>2/2<', false)
+            ->assertSee(">2/2\nГибкий<", false)
             ->assertSee('data-flexible="1"', false)
             ->assertSee('btn-add-flexible-lesson', false)
             ->assertSee($student->full_name, false);
@@ -656,7 +697,7 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $place->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('result.status.id', $scheduledId)
-            ->assertJsonPath('result.slots_remaining', 1)
+            ->assertJsonPath('result.slots_remaining', 2)
             ->assertJsonPath('result.comment', 'Workflow без F5')
             ->assertJsonStructure([
                 'result' => [
@@ -673,27 +714,31 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
             ->assertSee('flexiblePlaceModal', false)
             ->assertSee('flexible_lesson_occurrence_status_id', false)
             ->assertSee('data-occurrence-count="1"', false)
-            ->assertSee('>1/2<', false);
+            ->assertSee(">2/2\nГибкий<", false);
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
     }
 
     public function test_index_with_remaining_flexible_shows_hint_after_partial_place_still_flexible(): void
     {
-        [$student, $team] = $this->makeStudentWithTeam();
+        [$student, $team, $trainer] = $this->makeStudentTeamAndTrainer();
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
         $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
+        $attendedId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($attendedId);
 
+        // «Запись» не списывает — каунтер остаётся 2/2.
         $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('schedule.abonement.place-flexible', $student), [
                 'user_lesson_package_id' => $ulp->id,
                 'team_id' => $team->id,
                 'occurrence_date' => '2026-09-03',
-                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+                'lesson_occurrence_status_id' => LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
             ])->assertOk();
 
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
             ->assertSee('journal-flexible-hint--ratio', false)
-            ->assertSee('>1/2<', false)
+            ->assertSee(">2/2\nГибкий<", false)
             ->assertSee('data-flexible="1"', false);
 
         $this->withHeaders($this->ajaxHeaders())
@@ -701,11 +746,30 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
                 'user_lesson_package_id' => $ulp->id,
                 'team_id' => $team->id,
                 'occurrence_date' => '2026-09-04',
-                'lesson_occurrence_status_id' => \App\Models\LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
+                'lesson_occurrence_status_id' => $attendedId,
+                'trainer_profile_id' => $trainer->id,
             ])->assertOk();
 
         $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
             ->assertOk()
-            ->assertDontSee('journal-flexible-hint', false);
+            ->assertSee('journal-flexible-hint--ratio', false)
+            ->assertSee(">1/2\nГибкий<", false)
+            ->assertSee('data-flexible="1"', false);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.abonement.place-flexible', $student), [
+                'user_lesson_package_id' => $ulp->id,
+                'team_id' => $team->id,
+                'occurrence_date' => '2026-09-05',
+                'lesson_occurrence_status_id' => $attendedId,
+                'trainer_profile_id' => $trainer->id,
+            ])->assertOk();
+
+        // При 0/2 hint и affordance остаются (статусы без списания без лимита).
+        $this->get(route('schedule.index', ['year' => 2026, 'month' => '09', 'team' => $team->id]))
+            ->assertOk()
+            ->assertSee('journal-flexible-hint--ratio', false)
+            ->assertSee(">0/2\nГибкий<", false)
+            ->assertSee('data-flexible="1"', false);
     }
 }

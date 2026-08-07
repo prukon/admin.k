@@ -12,6 +12,7 @@ use App\Models\Location;
 use App\Models\PartnerWidget;
 use App\Models\SchoolLead;
 use App\Models\Team;
+use App\Services\SchoolLeads\SchoolLeadParentMatcher;
 use App\Support\Money;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -20,6 +21,7 @@ final class SchoolLeadLandingService
 {
     public function __construct(
         private readonly TeamLocationAvailabilityService $teamLocationAvailability,
+        private readonly SchoolLeadParentMatcher $parentMatcher,
     ) {
     }
 
@@ -265,17 +267,22 @@ final class SchoolLeadLandingService
             }
         }
 
-        return SchoolLead::create([
+        $parentLastname = $request->string('parent_lastname')->toString();
+        $parentFirstname = $request->string('parent_firstname')->toString();
+        $parentPhone = $request->string('parent_phone')->toString();
+        $parentEmail = $request->string('parent_email')->toString();
+
+        $attributes = [
             'partner_id'             => $widget->partner_id,
             'partner_widget_id'      => $widget->id,
             'source'                 => SchoolLeadSource::Landing->value,
             'name'                   => $parentName,
-            'phone'                  => $request->string('parent_phone')->toString(),
-            'parent_lastname'        => $request->string('parent_lastname')->toString(),
-            'parent_firstname'       => $request->string('parent_firstname')->toString(),
+            'phone'                  => $parentPhone,
+            'parent_lastname'        => $parentLastname,
+            'parent_firstname'       => $parentFirstname,
             'parent_middlename'      => $request->string('parent_middlename')->toString(),
-            'parent_phone'           => $request->string('parent_phone')->toString(),
-            'parent_email'           => $request->string('parent_email')->toString(),
+            'parent_phone'           => $parentPhone,
+            'parent_email'           => $parentEmail,
             'child_lastname'         => $request->string('child_lastname')->toString(),
             'child_firstname'        => $request->string('child_firstname')->toString(),
             'child_middlename'       => $request->string('child_middlename')->toString(),
@@ -301,6 +308,20 @@ final class SchoolLeadLandingService
             'policy_url'             => null,
             'ip'                     => $request->ip(),
             'user_agent'             => $request->userAgent(),
-        ]);
+        ];
+
+        $match = $this->parentMatcher->match(
+            (int) $widget->partner_id,
+            $parentEmail,
+            $parentPhone,
+            $parentLastname,
+            $parentFirstname,
+        );
+
+        if ($match !== null) {
+            $attributes = array_merge($attributes, $match->toLeadAttributes());
+        }
+
+        return SchoolLead::create($attributes);
     }
 }

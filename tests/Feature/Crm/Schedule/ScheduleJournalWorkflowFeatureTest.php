@@ -30,8 +30,14 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
         [$student, $team] = $this->makeStudentWithTeam();
         $student->update(['name' => 'Workflow', 'lastname' => 'Раскладка']);
         $this->attachWeekdays($team, [1]);
-        $ulp = $this->makeFixedAssignment($student, lessons: 2, durationDays: 14);
+        $ulp = $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
         $startDate = '2026-08-03';
+        $placeHover = \App\Services\Schedule\ScheduleJournalMonthService::fixedAbonementPlaceButtonHoverLine(
+            (string) $ulp->lessonPackage?->name,
+            2,
+            2,
+            (int) $ulp->fee_amount_cents,
+        );
 
         $page = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']));
         $page->assertOk();
@@ -40,6 +46,11 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             ->assertSee('abonementPlaceForm', false)
             ->assertSee('novalidate', false)
             ->assertSee('journal-abonement-btn', false)
+            ->assertSee('abonement-team-readonly', false)
+            ->assertSee('abonement-team-display', false)
+            ->assertSee('data-kids-tooltip-hint="1"', false)
+            ->assertSee($placeHover, false)
+            ->assertDontSee('title="Разложить абонемент"', false)
             ->assertSee('btnAbonementPlace', false)
             ->assertSee('cellEditModal', false)
             ->assertSee('cellEditForm', false)
@@ -50,13 +61,17 @@ final class ScheduleJournalWorkflowFeatureTest extends ScheduleJournalTestCase
             ->getJson(route('schedule.abonement.context', $student));
         $openModal->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('user.id', $student->id);
+            ->assertJsonPath('user.id', $student->id)
+            ->assertJsonPath('team_locked', true)
+            ->assertJsonPath('team_id', (int) $team->id);
+        $this->assertCount(1, $openModal->json('teams') ?? []);
         $this->assertNotSame('', trim((string) $openModal->getContent()));
 
         $assignments = collect($openModal->json('assignments') ?? []);
         $row = $assignments->first(fn ($a) => (int) ($a['id'] ?? 0) === (int) $ulp->id);
         $this->assertIsArray($row, 'Назначение должно быть в контексте модалки');
         $this->assertTrue((bool) ($row['placeable'] ?? false));
+        $this->assertSame((int) $team->id, (int) ($row['team_id'] ?? 0));
 
         $submit = $this->withHeaders($this->ajaxHeaders())
             ->postJson(route('schedule.abonement.place-fixed', $student), [

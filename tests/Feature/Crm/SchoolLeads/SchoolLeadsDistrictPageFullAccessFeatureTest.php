@@ -161,15 +161,6 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
      */
     private function districtAwareRoutesPayload(): array
     {
-        $deleteLead = SchoolLead::query()->create([
-            'partner_id'  => $this->partner->id,
-            'district_id' => $this->district->id,
-            'location_id' => $this->location->id,
-            'name'        => 'На удаление FA',
-            'phone'       => '+7 900 700-00-99',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
         return [
             [
                 'method'  => 'GET',
@@ -219,7 +210,6 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
                         'district' => true,
                         'location' => true,
                         'status'   => true,
-                        'actions'  => true,
                     ],
                 ],
             ],
@@ -232,10 +222,6 @@ final class SchoolLeadsDistrictPageFullAccessFeatureTest extends CrmTestCase
                     'district_id' => $this->district->id,
                     'location_id' => $this->location->id,
                 ],
-            ],
-            [
-                'method' => 'DELETE',
-                'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
         ];
     }

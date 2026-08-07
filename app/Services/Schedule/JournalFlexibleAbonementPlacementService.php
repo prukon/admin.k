@@ -53,7 +53,7 @@ final class JournalFlexibleAbonementPlacementService
         ?string $comment = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
-        $this->assertFlexibleAssignable($partnerId, $user, $ulp, $team, $occurrenceDate);
+        $this->assertFlexibleAssignable($partnerId, $user, $ulp, $team, $occurrenceDate, $status);
 
         if ((int) $status->partner_id !== $partnerId || ! $status->is_active) {
             throw new InvalidArgumentException('Выбранный статус не найден или неактивен.');
@@ -132,15 +132,24 @@ final class JournalFlexibleAbonementPlacementService
         });
 
         $ulp->refresh();
-        $ulp->unsetRelation('userTeamScheduleSlots');
+        $ulp->loadMissing('lessonPackage:id,name');
+        $packageName = trim((string) ($ulp->lessonPackage?->name ?? ''));
 
         return [
             'utss_id' => $utssId,
             'user_lesson_package_id' => (int) $ulp->id,
             'occurrence_date' => $occurrenceYmd,
-            'slots_remaining' => $ulp->calendarSlotsRemaining(),
+            'is_flexible' => true,
+            // Остаток по consumes_lesson (не COUNT utss).
+            'slots_remaining' => max(0, (int) $ulp->lessons_remaining),
             'lessons_total' => (int) $ulp->lessons_total,
+            'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
             'comment' => $commentValue,
+            'package_name' => $packageName !== '' ? $packageName : 'Гибкий абонемент',
+            'package_hover' => ScheduleJournalMonthService::packageHoverLabel(
+                $packageName !== '' ? $packageName : 'Гибкий абонемент',
+                (int) ($ulp->fee_amount_cents ?? 0),
+            ),
             'status' => [
                 'id' => (int) $status->id,
                 'title' => (string) $status->title,
@@ -170,6 +179,7 @@ final class JournalFlexibleAbonementPlacementService
         UserLessonPackage $ulp,
         Team $team,
         CarbonImmutable $occurrenceDate,
+        LessonOccurrenceStatus $status,
     ): void {
         if ((int) $ulp->user_id !== (int) $user->id) {
             throw new InvalidArgumentException('Назначение не принадлежит ученику.');
@@ -207,7 +217,8 @@ final class JournalFlexibleAbonementPlacementService
             throw new InvalidArgumentException('У абонемента не задан объём занятий.');
         }
 
-        if ($ulp->calendarSlotsRemaining() < 1) {
+        // Лимит только для статусов со списанием; без consumes_lesson — без потолка по числу UTSS.
+        if ((bool) $status->consumes_lesson && (int) $ulp->lessons_remaining < 1) {
             throw new InvalidArgumentException('Достигнут лимит занятий для этого абонемента.');
         }
 

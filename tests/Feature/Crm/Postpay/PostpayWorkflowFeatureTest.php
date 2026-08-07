@@ -112,6 +112,9 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
         $this->assertStringContainsString('data-postpay="1"', $html);
         $this->assertStringContainsString('data-postpay-locked="1"', $html);
         $this->assertStringContainsString('Изменить данные нельзя, поскольку уже была произведена оплата', $html);
+        $this->assertStringContainsString('500₽', $html);
+        $this->assertStringContainsString('в день', $html);
+        $this->assertStringContainsString('journal-postpay-hint', $html);
     }
 
     public function test_cell_context_existing_postpay_occurrence_hides_slot_time_and_flags_is_postpay(): void
@@ -139,6 +142,9 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
         $this->assertNull($occ['time_start']);
         $this->assertNull($occ['time_end']);
         $this->assertSame('Постоплата тест', $occ['package_name'] ?? null);
+        $hover = (string) ($occ['package_hover'] ?? '');
+        $this->assertStringContainsString('Постоплата: 500₽ в день', $hover);
+        $this->assertStringContainsString('Тренер не выбран', $hover);
     }
 
     public function test_payment_resolver_blocks_until_next_month_then_allows(): void

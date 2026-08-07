@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Контроль доступа: вкладка «Заявки» и столбец «Действия» (скрытие редактирования после создания клиента).
+ * Контроль доступа: вкладка «Заявки» (редактирование по ФИО, user_id в data).
  * Страница и все endpoint'ы → 200 при schoolLeads.view; отказ для гостя и без права.
  */
 final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
@@ -140,17 +140,15 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
         $html = $this->get(route('admin.school-leads'))
             ->assertOk()
             ->assertViewIs('admin.school-leads.index')
-            ->assertSee("key: 'actions'", false)
-            ->assertSee('if (!row.user_id)', false)
-            ->assertSee('delete-lead', false)
+            ->assertDontSee("key: 'actions'", false)
+            ->assertDontSee('delete-lead', false)
+            ->assertDontSee('deleteLeadModal', false)
+            ->assertSee("linkClass: 'edit-lead'", false)
             ->getContent();
 
-        $actionsColumnPos = strpos($html, "key: 'actions'");
-        $this->assertNotFalse($actionsColumnPos);
-        $this->assertStringContainsString(
-            'if (!row.user_id)',
-            substr($html, $actionsColumnPos, 900)
-        );
+        $tablePos = strpos($html, 'id="leads-table"');
+        $this->assertNotFalse($tablePos);
+        $this->assertStringNotContainsString('<th>Действия</th>', substr($html, $tablePos, 1200));
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -197,10 +195,9 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
 
         $this->get(route('admin.school-leads'))
             ->assertOk()
-            ->assertSee("key: 'actions'", false)
-            ->assertSee('if (!row.user_id)', false)
-            ->assertSee('edit-lead', false)
-            ->assertSee('delete-lead', false);
+            ->assertDontSee("key: 'actions'", false)
+            ->assertDontSee('delete-lead', false)
+            ->assertSee("linkClass: 'edit-lead'", false);
 
         foreach ($this->routesPayload() as $item) {
             $response = $this->call(
@@ -267,13 +264,6 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
      */
     private function routesPayload(): array
     {
-        $deleteLead = SchoolLead::create([
-            'partner_id'            => $this->partner->id,
-            'name'                  => 'Access delete target',
-            'phone'                 => '+7 900 820-20-99',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => true,
@@ -294,7 +284,6 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
                         'phone'    => true,
                         'status'   => true,
                         'contract' => true,
-                        'actions'  => true,
                     ],
                 ],
             ],
@@ -305,10 +294,6 @@ final class SchoolLeadsActionsColumnFullAccessFeatureTest extends CrmTestCase
                     'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment'               => 'actions access smoke',
                 ],
-            ],
-            [
-                'method' => 'DELETE',
-                'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
         ], $this->schoolLeadStatusManagementRoutesPayload());
     }

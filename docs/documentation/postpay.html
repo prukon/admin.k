@@ -129,15 +129,25 @@
     <li>Списание остатка ULP для таких записей <b>не выполняется</b>
       (<code>UserLessonOccurrenceStatusService</code>: null-ULP non-trial).</li>
     <li>Несколько групп с postpay на месяц: в модалке блок «Группа для отметки»
-      (readonly при одной / select при нескольких); <code>cell-context</code> отдаёт
+      (readonly при одной / select при нескольких; при одной группе название ещё в шапке
+      <code>#edit-user-teams-display</code>); <code>cell-context</code> отдаёт
       <code>postpay_teams</code>, <code>postpay_team_id</code>.</li>
-    <li>Повторное открытие ячейки: у postpay-занятия показываются название пакета, группа и
-      <b>стоимость одного занятия</b> (<code>price_per_lesson</code> из шаблона);
+    <li>Повторное открытие ячейки: у postpay-занятия показываются название пакета и
+      <b>стоимость одного занятия</b> (<code>price_per_lesson</code> из шаблона) в
+      <code>#edit-occurrence-meta</code>; группа — в шапке контекста (не в meta);
       время слота в UI журнала не показывается (для postpay API отдаёт
       <code>time_start</code>/<code>time_end</code> = null, <code>is_postpay=true</code>;
       для остальных типов слот остаётся техническим и тоже скрыт в модалках журнала).</li>
-    <li>Создание отметки (<code>create_postpay</code>): в meta модалки — группа · пакет ·
-      <code>N ₽ / занятие</code> (из <code>postpay_teams[].price_per_lesson</code>).</li>
+    <li>Создание отметки (<code>create_postpay</code>): в meta модалки —
+      пакет · <code>N ₽ / занятие</code> (из <code>postpay_teams[].price_per_lesson</code>);
+      группа — только в шапке / select.</li>
+    <li>В колонке абонементов журнала при назначенной постоплате — ставка в две строки
+      <code>{цена}₽</code> / <code>в&nbsp;день</code>
+      (<code>PostpayJournalService::postpayAbonementColumnLabel</code>,
+      класс <code>journal-postpay-hint</code>; см.
+      <a href="/docs/documentation/schedule-journal#cell-hover-ui">schedule-journal §5.1</a>).</li>
+    <li>Ховер ячейки postpay: «Постоплата: {цена}₽ в день»; при «Посетил» —
+      доп. строка тренера (как у остальных занятий).</li>
     <li>В модалке «Статус занятия» у статусов с <code>consumes_lesson</code> (в postpay-контексте) —
       иконка <code>i</code> с подсказкой «Идёт в расчёт постоплаты. Влияет на сумму за месяц.»</li>
     <li>Удаление: <code>DELETE /schedule/occurrence/{utss}</code> → пересчёт суммы;
@@ -177,7 +187,7 @@
       <tr><td><code>App\Services\Postpay\PostpayMonth</code></td><td>Границы месяца (МСК), <code>payAvailableFrom</code> / label / <code>isPayAvailableNow</code></td></tr>
       <tr><td><code>App\Services\Postpay\PostpayAmountCalculator</code></td><td>Подсчёт visits × цена шаблона</td></tr>
       <tr><td><code>App\Services\Postpay\PostpayUsersPriceSync</code></td><td>Sync <code>users_prices.price_cents</code>, meta <code>is_postpay</code>/<code>postpay_visits</code>, resync после журнала/смены шаблона</td></tr>
-      <tr><td><code>App\Services\Postpay\PostpayJournalService</code></td><td>ensure UTSS, resolve team, lock, флаги ячеек</td></tr>
+      <tr><td><code>App\Services\Postpay\PostpayJournalService</code></td><td>ensure UTSS, resolve team, lock, флаги ячеек; hints колонки абонементов (<code>postpayAbonementHintsByUser</code> / <code>postpayAbonementColumnLabel</code>)</td></tr>
       <tr><td><code>UserPriceMonthlyFeePaymentResolver</code></td><td>Оплата monthly_fee: sync + pay-available + effective_is_paid</td></tr>
     </tbody>
   </table>

@@ -105,6 +105,12 @@
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="status" id="slColStatus" checked>
                                     <label class="form-check-label" for="slColStatus">Статус</label>
                                 </div>
+                                @if ($canShowLeadClientColumn)
+                                    <div class="form-check">
+                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="contract" id="slColContract" checked>
+                                        <label class="form-check-label" for="slColContract">Договор</label>
+                                    </div>
+                                @endif
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="phone" id="slColPhone" checked>
                                     <label class="form-check-label" for="slColPhone">Телефон родителя</label>
@@ -152,16 +158,6 @@
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="comment" id="slColComment" checked>
                                     <label class="form-check-label" for="slColComment">Комментарий</label>
-                                </div>
-                                @if ($canShowLeadClientColumn)
-                                    <div class="form-check">
-                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="contract" id="slColContract" checked>
-                                        <label class="form-check-label" for="slColContract">Договор</label>
-                                    </div>
-                                @endif
-                                <div class="form-check">
-                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="actions" id="slColActions" checked>
-                                    <label class="form-check-label" for="slColActions">Действия</label>
                                 </div>
                             </div>
                         </div>
@@ -245,6 +241,9 @@
                 <th>№</th>
                 <th>ФИО родителя</th>
                 <th class="lead-status-col-header" title="Статус можно изменить прямо в таблице — нажмите на бейдж в строке">Статус</th>
+                @if ($canShowLeadClientColumn)
+                    <th>Договор</th>
+                @endif
                 <th>Телефон родителя</th>
                 <th>Email родителя</th>
                 <th>ФИО ребенка</th>
@@ -260,10 +259,6 @@
                 <th>UTM / источник</th>
                 <th>Страница</th>
                 <th>Комментарий</th>
-                @if ($canShowLeadClientColumn)
-                    <th>Договор</th>
-                @endif
-                <th>Действия</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -284,23 +279,6 @@
     ])
 @endif
 
-<div class="modal fade" id="deleteLeadModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Удаление заявки</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-            </div>
-            <div class="modal-body">
-                Вы действительно хотите удалить эту заявку? Действие можно будет отменить только через БД.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteLeadBtn">Удалить</button>
-            </div>
-        </div>
-    </div>
-</div>
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="mainToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
@@ -337,7 +315,6 @@
             var $statTotal = $('.school-leads-stat-total');
             var $toolbarRoot = $('#schoolLeadsReportToolbar');
 
-            var deleteLeadModal = new bootstrap.Modal(document.getElementById('deleteLeadModal'));
             var schoolLeadStatusesModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusesModal'));
             var schoolLeadStatusFormModal = new bootstrap.Modal(document.getElementById('schoolLeadStatusFormModal'));
 
@@ -347,7 +324,6 @@
                     backdrops[backdrops.length - 1].style.zIndex = '1060';
                 }
             });
-            var leadIdToDelete = null;
 
             var toastEl = document.getElementById('mainToast');
             var toastBodyEl = document.getElementById('mainToastBody');
@@ -747,7 +723,6 @@
                         status: true,
                         comment: true,
                         contract: canShowLeadClientColumn,
-                        actions: true,
                     },
                     toggleSelector: '.school-leads-column-toggle',
                     urls: {
@@ -837,6 +812,39 @@
                             selectExtraClass: 'form-select form-select-sm d-none',
                             badgeStyleFn: getStatusBadgeStyle,
                             options: leadStatusInlineSelectOptions,
+                        },
+                    },
+                    {
+                        key: 'contract',
+                        type: 'actions',
+                        when: canShowLeadClientColumn,
+                        className: 'dt-col-text text-start text-nowrap',
+                        render: function (data, type, row) {
+                            if (type !== 'display') {
+                                return '';
+                            }
+
+                            if (!row.user_id) {
+                                return '—';
+                            }
+
+                            if (!canViewContracts) {
+                                return '—';
+                            }
+
+                            if (row.latest_contract && row.latest_contract.url) {
+                                var contractLabel = row.latest_contract.label || ('Договор №' + row.latest_contract.id);
+                                var contractLabelEscaped = $('<div/>').text(contractLabel).html();
+                                return '<a href="' + row.latest_contract.url + '" class="text-nowrap">' + contractLabelEscaped + '</a>';
+                            }
+
+                            if (row.create_contract_url) {
+                                return '<button type="button"'
+                                    + ' class="btn btn-sm btn-primary text-nowrap js-open-create-contract-from-lead"'
+                                    + ' data-user-id="' + row.user_id + '">Создать договор</button>';
+                            }
+
+                            return '—';
                         },
                     },
                     {
@@ -1000,57 +1008,6 @@
                             return window.KidsCrmTooltip.renderText(data);
                         },
                     },
-                    {
-                        key: 'contract',
-                        type: 'actions',
-                        when: canShowLeadClientColumn,
-                        className: 'dt-col-text text-start text-nowrap',
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return '';
-                            }
-
-                            if (!row.user_id) {
-                                return '—';
-                            }
-
-                            if (!canViewContracts) {
-                                return '—';
-                            }
-
-                            if (row.latest_contract && row.latest_contract.url) {
-                                var contractLabel = row.latest_contract.label || ('Договор №' + row.latest_contract.id);
-                                var contractLabelEscaped = $('<div/>').text(contractLabel).html();
-                                return '<a href="' + row.latest_contract.url + '" class="text-nowrap">' + contractLabelEscaped + '</a>';
-                            }
-
-                            if (row.create_contract_url) {
-                                return '<button type="button"'
-                                    + ' class="btn btn-sm btn-primary text-nowrap js-open-create-contract-from-lead"'
-                                    + ' data-user-id="' + row.user_id + '">Создать договор</button>';
-                            }
-
-                            return '—';
-                        },
-                    },
-                    {
-                        key: 'actions',
-                        type: 'actions',
-                        className: 'dt-col-actions',
-                        render: function (data, type, row) {
-                            if (type !== 'display') {
-                                return '';
-                            }
-
-                            var html = '';
-                            if (!row.user_id) {
-                                html += '<button type="button" class="btn btn-sm btn-primary me-1 edit-lead" data-id="' + row.id + '" title="Редактировать"><i class="fa fa-edit"></i></button>';
-                            }
-                            html += '<button type="button" class="btn btn-sm btn-danger delete-lead" data-id="' + row.id + '" title="Удалить"><i class="fa fa-trash"></i></button>';
-
-                            return html;
-                        },
-                    },
                 ],
             });
 
@@ -1074,6 +1031,15 @@
             var $editLeadModal = $('#editLeadModal');
             var leadModalReadOnly = false;
             var currentLeadModalRowData = null;
+            var leadParentMatchUi = {
+                hasMatch: false,
+                needsDecision: false,
+                confirmed: null,
+                reason: null,
+                banner: '',
+                snapshot: null,
+                matchedParent: null,
+            };
             var studentRoleId = @json($studentRoleId ?? 0);
             var userStoreUrl = @json(route('admin.user.store'));
             var canUpdateLeadHealth = @json(auth()->user()?->can('users.other.update') ?? false);
@@ -1087,6 +1053,150 @@
                 }
 
                 return '';
+            }
+
+            function displayOrDash(value) {
+                var text = String(value == null ? '' : value).trim();
+                return text !== '' ? text : '—';
+            }
+
+            function resetLeadParentMatchUi() {
+                leadParentMatchUi = {
+                    hasMatch: false,
+                    needsDecision: false,
+                    confirmed: null,
+                    reason: null,
+                    banner: '',
+                    snapshot: null,
+                    matchedParent: null,
+                };
+                $('#leadParentMatchConfirmed').val('');
+                $('#leadMatchedParentId').val('');
+                $('#leadParentMatchBanner').addClass('d-none').text('');
+                $('#leadParentMatchActions').addClass('d-none');
+                $('#leadParentSnapshotCol').addClass('d-none');
+                $('#leadParentFormHeading').addClass('d-none');
+                $('#leadParentFormCol').removeClass('col-lg-6').addClass('col-12');
+                $('#leadParentSnapshotLastname, #leadParentSnapshotFirstname, #leadParentSnapshotMiddlename, #leadParentSnapshotPhone, #leadParentSnapshotEmail')
+                    .text('—');
+                clearLeadParentSnapshotMatchHighlights();
+            }
+
+            function clearLeadParentSnapshotMatchHighlights() {
+                var $fields = $('#leadParentSnapshotCol .lead-parent-snapshot-field');
+                $fields.removeClass('is-match-hit');
+                $fields.filter('dt').each(function() {
+                    $(this).find('.lead-parent-match-hit-badge').remove();
+                });
+            }
+
+            function highlightLeadParentSnapshotMatches(reason) {
+                clearLeadParentSnapshotMatchHighlights();
+
+                var fieldsByReason = {
+                    email: ['email'],
+                    phone: ['phone'],
+                    name: ['lastname', 'firstname'],
+                };
+                var fields = fieldsByReason[reason] || [];
+                if (!fields.length) {
+                    return;
+                }
+
+                fields.forEach(function(field) {
+                    var $pair = $('#leadParentSnapshotCol .lead-parent-snapshot-field[data-match-field="' + field + '"]');
+                    $pair.addClass('is-match-hit');
+                    $pair.filter('dt').each(function() {
+                        var $dt = $(this);
+                        if (!$dt.find('.lead-parent-match-hit-badge').length) {
+                            $dt.append('<span class="lead-parent-match-hit-badge">совпало</span>');
+                        }
+                    });
+                });
+            }
+
+            function renderLeadParentSnapshot(snapshot) {
+                snapshot = snapshot || {};
+                $('#leadParentSnapshotLastname').text(displayOrDash(snapshot.lastname));
+                $('#leadParentSnapshotFirstname').text(displayOrDash(snapshot.firstname));
+                $('#leadParentSnapshotMiddlename').text(displayOrDash(snapshot.middlename));
+                $('#leadParentSnapshotPhone').text(displayOrDash(snapshot.phone));
+                $('#leadParentSnapshotEmail').text(displayOrDash(snapshot.email));
+                highlightLeadParentSnapshotMatches(leadParentMatchUi.reason);
+            }
+
+            function applyLeadParentMatchLayout() {
+                var $banner = $('#leadParentMatchBanner');
+                var showCompare = !!leadParentMatchUi.hasMatch;
+
+                if (leadParentMatchUi.banner) {
+                    $banner.removeClass('d-none').text(leadParentMatchUi.banner);
+                } else {
+                    $banner.addClass('d-none').text('');
+                }
+
+                if (showCompare) {
+                    renderLeadParentSnapshot(leadParentMatchUi.snapshot);
+                    $('#leadParentSnapshotCol').removeClass('d-none');
+                    $('#leadParentFormHeading').removeClass('d-none');
+                    $('#leadParentFormCol').removeClass('col-12').addClass('col-lg-6');
+                } else {
+                    clearLeadParentSnapshotMatchHighlights();
+                    $('#leadParentSnapshotCol').addClass('d-none');
+                    $('#leadParentFormHeading').addClass('d-none');
+                    $('#leadParentFormCol').removeClass('col-lg-6').addClass('col-12');
+                }
+
+                if (!leadModalReadOnly && leadParentMatchUi.needsDecision) {
+                    $('#leadParentMatchActions').removeClass('d-none');
+                } else {
+                    $('#leadParentMatchActions').addClass('d-none');
+                }
+            }
+
+            function setLeadParentMatchConfirmed(value) {
+                leadParentMatchUi.confirmed = value || null;
+                leadParentMatchUi.needsDecision = false;
+                $('#leadParentMatchConfirmed').val(value || '');
+                applyLeadParentMatchLayout();
+                syncCreateClientBtnState();
+            }
+
+            function acceptLeadParentMatch() {
+                var matched = leadParentMatchUi.matchedParent || {};
+                var snapshot = leadParentMatchUi.snapshot || {};
+                var matchedId = matched.id || $('#leadMatchedParentId').val() || null;
+
+                if (typeof window.setStudentParentForm === 'function') {
+                    window.setStudentParentForm('lead', {
+                        parent_id: matchedId,
+                        parent_lastname: matched.lastname || '',
+                        parent_firstname: matched.firstname || '',
+                        parent_middlename: matched.middlename || '',
+                        parent_phone: matched.phone || snapshot.phone || '',
+                        parent_email: matched.email || snapshot.email || '',
+                    });
+                }
+
+                setLeadParentMatchConfirmed('accepted');
+            }
+
+            function rejectLeadParentMatch() {
+                var snapshot = leadParentMatchUi.snapshot || {};
+
+                if (typeof window.setStudentParentForm === 'function') {
+                    window.setStudentParentForm('lead', {
+                        parent_id: null,
+                        parent_lastname: snapshot.lastname || '',
+                        parent_firstname: snapshot.firstname || '',
+                        parent_middlename: snapshot.middlename || '',
+                        parent_phone: snapshot.phone || '',
+                        parent_email: snapshot.email || '',
+                        forceNewParent: true,
+                    });
+                }
+
+                setLeadParentMatchConfirmed('rejected');
             }
 
             function clearLeadFormErrors() {
@@ -1147,7 +1257,7 @@
                 return 'Заполните ' + missing.slice(0, -1).join(', ') + ' и ' + missing[missing.length - 1];
             }
 
-            function updateCreateClientBtnTooltip(enabled, missing) {
+            function updateCreateClientBtnTooltip(enabled, missing, needsParentDecision) {
                 var $wrap = $('#createClientBtnWrap');
                 if (!$wrap.length) {
                     return;
@@ -1173,7 +1283,14 @@
                     return;
                 }
 
-                var title = buildCreateClientMissingHint(missing);
+                var title = '';
+                if (missing.length) {
+                    title = buildCreateClientMissingHint(missing);
+                }
+                if (needsParentDecision) {
+                    title = title ? (title + '. Выберите родителя') : 'Выберите родителя';
+                }
+
                 $wrap
                     .removeAttr('data-bs-original-title')
                     .attr('title', title)
@@ -1197,6 +1314,7 @@
                 var lastname = String($('#leadChildLastname').val() || '').trim();
                 var parentEmail = String($('#lead-parent-email').val() || '').trim();
                 var missing = [];
+                var needsParentDecision = !!leadParentMatchUi.needsDecision;
 
                 if (lastname === '') {
                     missing.push('фамилию ученика');
@@ -1208,9 +1326,9 @@
                     missing.push('email родителя');
                 }
 
-                var enabled = missing.length === 0;
+                var enabled = missing.length === 0 && !needsParentDecision;
                 $btn.prop('disabled', !enabled);
-                updateCreateClientBtnTooltip(enabled, missing);
+                updateCreateClientBtnTooltip(enabled, missing, needsParentDecision);
             }
 
             function setLeadHealthFields(values) {
@@ -1325,10 +1443,12 @@
                 $fields.prop('disabled', leadModalReadOnly);
                 $editLeadForm.find('.accordion-button').prop('disabled', false);
                 $('#leadCreateContractBtn').prop('disabled', false);
+                $('#leadParentMatchAcceptBtn, #leadParentMatchRejectBtn').prop('disabled', leadModalReadOnly);
                 // Статус можно менять и у лида с клиентом (сохраняется сразу).
                 $('#leadModalStatusPicker .lead-status-inline-trigger').attr('tabindex', '0');
 
                 window.syncStudentParentFieldsVisibility?.('lead');
+                applyLeadParentMatchLayout();
 
                 if (!leadModalReadOnly) {
                     syncCreateClientBtnState();
@@ -1409,6 +1529,7 @@
 
             function populateLeadForm(rowData) {
                 clearLeadFormErrors();
+                resetLeadParentMatchUi();
                 currentLeadModalRowData = rowData || null;
                 $('#editLeadId').val(rowData.id);
                 setLeadModalStatusPicker(
@@ -1444,32 +1565,89 @@
 
                 $editLeadForm.find('.js-lead-custom-field').val('');
 
+                var snapshot = {
+                    lastname: rowData.parent_lastname || '',
+                    firstname: rowData.parent_firstname || '',
+                    middlename: rowData.parent_middlename || '',
+                    phone: rowData.parent_phone || rowData.phone || '',
+                    email: rowData.parent_email || '',
+                };
+                var matchedParent = rowData.matched_parent || null;
+                var hasMatch = !!(rowData.parent_match_reason && matchedParent && matchedParent.id);
+                var confirmed = rowData.parent_match_confirmed || null;
+                var needsDecision = hasMatch && !confirmed && !!rowData.parent_match_needs_decision;
+
+                leadParentMatchUi = {
+                    hasMatch: hasMatch,
+                    needsDecision: needsDecision,
+                    confirmed: confirmed,
+                    reason: rowData.parent_match_reason || null,
+                    banner: rowData.parent_match_banner || '',
+                    snapshot: snapshot,
+                    matchedParent: matchedParent,
+                };
+
+                $('#leadParentMatchConfirmed').val(confirmed || '');
+                $('#leadMatchedParentId').val(matchedParent && matchedParent.id ? String(matchedParent.id) : '');
+                applyLeadParentMatchLayout();
+
                 if (typeof window.setStudentParentForm === 'function') {
-                    window.setStudentParentForm('lead', {
-                        parent_id: null,
-                        parent_lastname: rowData.parent_lastname || '',
-                        parent_firstname: rowData.parent_firstname || '',
-                        parent_middlename: rowData.parent_middlename || '',
-                        parent_phone: rowData.parent_phone || rowData.phone || '',
-                        parent_email: rowData.parent_email || '',
-                        forceNewParent: true,
-                    });
+                    if (hasMatch && confirmed !== 'rejected') {
+                        window.setStudentParentForm('lead', {
+                            parent_id: matchedParent.id,
+                            parent_lastname: matchedParent.lastname || '',
+                            parent_firstname: matchedParent.firstname || '',
+                            parent_middlename: matchedParent.middlename || '',
+                            parent_phone: matchedParent.phone || snapshot.phone || '',
+                            parent_email: matchedParent.email || snapshot.email || '',
+                        });
+                    } else {
+                        window.setStudentParentForm('lead', {
+                            parent_id: null,
+                            parent_lastname: snapshot.lastname,
+                            parent_firstname: snapshot.firstname,
+                            parent_middlename: snapshot.middlename,
+                            parent_phone: snapshot.phone,
+                            parent_email: snapshot.email,
+                            forceNewParent: true,
+                        });
+                    }
                 }
 
                 setLeadModalReadOnly(!!rowData.user_id);
                 setLeadModalClientInfo(rowData);
+
+                if (hasMatch) {
+                    showEditLeadAccordionPanel($('#editLeadAccordionParent'));
+                }
+
+                syncCreateClientBtnState();
             }
 
             function collectLeadPayload() {
+                var snapshot = leadParentMatchUi.snapshot;
+                var useSnapshotParentFields = !!(leadParentMatchUi.hasMatch && snapshot);
                 var payload = {
                     school_lead_status_id: $('#leadStatus').val(),
                     comment: $('#leadComment').val(),
                     team_id: $('#leadTeam').val(),
-                    parent_lastname: $('#lead-parent-lastname').val(),
-                    parent_firstname: $('#lead-parent-firstname').val(),
-                    parent_middlename: $('#lead-parent-middlename').val(),
-                    parent_phone: $('#lead-parent-phone').val(),
-                    parent_email: $('#lead-parent-email').val(),
+                    parent_id: $('#lead-parent-id').val() || null,
+                    parent_match_confirmed: $('#leadParentMatchConfirmed').val() || null,
+                    parent_lastname: useSnapshotParentFields
+                        ? (snapshot.lastname || '')
+                        : $('#lead-parent-lastname').val(),
+                    parent_firstname: useSnapshotParentFields
+                        ? (snapshot.firstname || '')
+                        : $('#lead-parent-firstname').val(),
+                    parent_middlename: useSnapshotParentFields
+                        ? (snapshot.middlename || '')
+                        : $('#lead-parent-middlename').val(),
+                    parent_phone: useSnapshotParentFields
+                        ? (snapshot.phone || '')
+                        : $('#lead-parent-phone').val(),
+                    parent_email: useSnapshotParentFields
+                        ? (snapshot.email || '')
+                        : $('#lead-parent-email').val(),
                     child_lastname: $('#leadChildLastname').val(),
                     child_firstname: $('#leadChildFirstname').val(),
                     child_middlename: $('#leadChildMiddlename').val(),
@@ -1545,6 +1723,20 @@
 
             $editLeadForm.on('input change', '.js-lead-child-name', syncCreateClientBtnState);
             $editLeadForm.on('input change', '.js-parent-email', syncCreateClientBtnState);
+
+            $('#leadParentMatchAcceptBtn').on('click', function() {
+                if (leadModalReadOnly || !leadParentMatchUi.needsDecision) {
+                    return;
+                }
+                acceptLeadParentMatch();
+            });
+
+            $('#leadParentMatchRejectBtn').on('click', function() {
+                if (leadModalReadOnly || !leadParentMatchUi.needsDecision) {
+                    return;
+                }
+                rejectLeadParentMatch();
+            });
 
             $('#saveLeadBtn').on('click', function() {
                 if (leadModalReadOnly) {
@@ -1662,6 +1854,7 @@
                 setLeadModalReadOnly(false);
                 setLeadModalClientInfo(null);
                 currentLeadModalRowData = null;
+                resetLeadParentMatchUi();
                 if (typeof window.resetStudentParentForm === 'function') {
                     window.resetStudentParentForm('lead');
                 }
@@ -1780,31 +1973,6 @@
                 if ($picker && $picker.length) {
                     positionLeadStatusMenu($picker, $leadStatusOpenMenu);
                 }
-            });
-
-            $('#leads-table').on('click', '.delete-lead', function() {
-                leadIdToDelete = table.row($(this).closest('tr')).data().id;
-                deleteLeadModal.show();
-            });
-
-            $('#confirmDeleteLeadBtn').on('click', function() {
-                if (!leadIdToDelete) return;
-                $.ajax({
-                    url: '/admin/school-leads/' + leadIdToDelete,
-                    type: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': csrfToken },
-                    success: function(response) {
-                        deleteLeadModal.hide();
-                        leadIdToDelete = null;
-                        dtApi.reload({ keepPage: true });
-                        showToast(response.message || 'Заявка удалена.', 'success');
-                    },
-                    error: function() {
-                        deleteLeadModal.hide();
-                        leadIdToDelete = null;
-                        showToast('Ошибка при удалении заявки.', 'error');
-                    }
-                });
             });
 
             function schoolLeadStatusUrl(template, id) {

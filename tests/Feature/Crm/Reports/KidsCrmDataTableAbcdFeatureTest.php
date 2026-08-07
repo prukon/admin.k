@@ -349,12 +349,6 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
             'phone'                 => '+7 900 400-00-04',
             'school_lead_status_id' => $systemStatusId,
         ]);
-        $deleteLead = SchoolLead::create([
-            'partner_id'            => $this->partner->id,
-            'name'                  => 'Delete ABCD',
-            'phone'                 => '+7 900 400-00-05',
-            'school_lead_status_id' => $systemStatusId,
-        ]);
 
         $routes = [
             ['GET', route('admin.school-leads'), ['HTTP_ACCEPT' => 'text/html']],
@@ -371,13 +365,12 @@ final class KidsCrmDataTableAbcdFeatureTest extends CrmTestCase
             ]],
             ['GET', route('admin.school-leads.columns-settings.get'), []],
             ['POST', route('admin.school-leads.columns-settings.save'), [], [
-                'columns' => ['name' => true, 'status' => true, 'contract' => true, 'actions' => true],
+                'columns' => ['name' => true, 'status' => true, 'contract' => true],
             ]],
             ['PUT', route('admin.school-leads.update', ['schoolLead' => $lead->id]), [], [
                 'school_lead_status_id' => $processingStatusId,
                 'comment'               => 'ABCD access',
             ]],
-            ['DELETE', route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]), []],
         ];
 
         foreach ($routes as $item) {

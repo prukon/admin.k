@@ -779,9 +779,18 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 ], 422);
             }
             if ($e->getMessage() === 'trial_already_scheduled') {
+                $existingTrial = UserTeamScheduleSlot::query()
+                    ->where('partner_id', $partnerId)
+                    ->where('user_id', (int) $user->id)
+                    ->where('is_trial_lesson', true)
+                    ->whereNull('user_lesson_package_id')
+                    ->orderByDesc('id')
+                    ->first();
+                $reason = $this->trialEligibilityService->alreadyScheduledReason($existingTrial?->starts_at);
+
                 return response()->json([
-                    'message' => 'У ученика уже есть запись на пробное занятие.',
-                    'errors' => ['user_id' => ['У ученика уже есть запись на пробное занятие.']],
+                    'message' => $reason,
+                    'errors' => ['user_id' => [$reason]],
                 ], 422);
             }
 

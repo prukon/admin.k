@@ -202,6 +202,7 @@ final class JournalOccurrenceAnnulmentService
             $remaining = [
                 'utss_id' => (int) $item['utss_id'],
                 'comment' => $item['comment'] ?? null,
+                'package_hover' => $item['package_hover'] ?? null,
                 'status' => [
                     'id' => isset($item['lesson_occurrence_status_id'])
                         ? (int) $item['lesson_occurrence_status_id']
@@ -216,6 +217,7 @@ final class JournalOccurrenceAnnulmentService
         $slotsRemaining = null;
         $lessonsTotal = null;
         $ulpPackageName = null;
+        $feeAmountCents = null;
         if ($ulpId !== null) {
             /** @var UserLessonPackage|null $ulpAfter */
             $ulpAfter = UserLessonPackage::query()
@@ -223,10 +225,26 @@ final class JournalOccurrenceAnnulmentService
                 ->whereKey($ulpId)
                 ->first();
             if ($ulpAfter) {
-                $slotsRemaining = $ulpAfter->calendarSlotsRemaining();
+                // Для гибкого в журнале — остаток по consumes_lesson, не COUNT(utss).
+                $slotsRemaining = max(0, (int) $ulpAfter->lessons_remaining);
                 $lessonsTotal = (int) $ulpAfter->lessons_total;
                 $ulpPackageName = trim((string) ($ulpAfter->lessonPackage?->name ?? ''));
+                $feeAmountCents = (int) ($ulpAfter->fee_amount_cents ?? 0);
             }
+        }
+
+        $packageHoverAfter = null;
+        if ($occurrenceCount > 1) {
+            $hoverLines = [];
+            foreach ($dayOccurrences as $dayItem) {
+                $line = trim((string) ($dayItem['package_hover'] ?? $dayItem['package_name'] ?? ''));
+                if ($line !== '') {
+                    $hoverLines[] = $line;
+                }
+            }
+            $packageHoverAfter = $hoverLines !== [] ? implode("\n", $hoverLines) : null;
+        } elseif ($occurrenceCount === 1 && is_array($remaining)) {
+            $packageHoverAfter = $remaining['package_hover'] ?? null;
         }
 
         return [
@@ -241,7 +259,9 @@ final class JournalOccurrenceAnnulmentService
             'user_lesson_package_id' => $ulpId,
             'slots_remaining' => $slotsRemaining,
             'lessons_total' => $lessonsTotal,
+            'fee_amount_cents' => $feeAmountCents,
             'package_name' => $ulpPackageName !== '' ? $ulpPackageName : $packageName,
+            'package_hover' => $packageHoverAfter,
         ];
     }
 

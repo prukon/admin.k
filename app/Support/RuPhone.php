@@ -38,6 +38,20 @@ final class RuPhone
     }
 
     /**
+     * 10 цифр национального номера без кода страны (7911… → 911…).
+     * null, если номер не нормализуется до 11 цифр с ведущей 7.
+     */
+    public static function nationalDigits10(?string $phone): ?string
+    {
+        $digits = self::normalizeDigits($phone);
+        if ($digits === null || strlen($digits) !== 11 || !str_starts_with($digits, '7')) {
+            return null;
+        }
+
+        return substr($digits, 1);
+    }
+
+    /**
      * Формат для input с маской Inputmask: +7 (999) 999-99-99
      */
     public static function formatForInput(?string $phone): string

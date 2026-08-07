@@ -20,14 +20,14 @@ body.no-scroll {
     text-overflow: ellipsis;
 }
 
-/* Остаток гибкого: «10/12» в колонке абонементов (один ULP / фильтр группы) */
+/* Остаток гибкого: две строки «10/12» + «Гибкий» (один ULP / фильтр группы) */
 .journal-flexible-hint--ratio {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.8125rem;
+    display: inline-block;
+    font-size: 0.6875rem;
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    line-height: 1;
+    line-height: 1.15;
+    white-space: pre;
+    text-align: center;
 }
 
 .schedule-col-abonements,
@@ -51,6 +51,38 @@ body.no-scroll {
 .journal-abonement-btn .fa-plus,
 .journal-flexible-hint--multi {
     line-height: 1;
+}
+
+/* Быстрый набор даты в «Разложить абонемент» — текстовые ссылки без рамки */
+.abonement-start-quick-link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.8125rem;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.abonement-start-quick-link:hover,
+.abonement-start-quick-link:focus-visible {
+    color: #0d6efd;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    outline: none;
+}
+
+/* Постоплата в колонке абонементов: «1200₽» + «в день» */
+.journal-postpay-hint {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    white-space: pre;
+    text-align: center;
 }
 
 
@@ -263,10 +295,19 @@ table.dataTable tbody th, table.dataTable tbody td {
     word-break: break-word;
 }
 
-.cell-edit-context__date {
-    margin-top: 0.25rem;
+.cell-edit-context__teams {
+    margin-top: 0.2rem;
     color: #6c757d;
-    font-size: 0.9rem;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.cell-edit-context__date {
+    margin-top: 0.35rem;
+    color: #868e96;
+    font-size: 0.8125rem;
+    line-height: 1.3;
 }
 
 .cell-edit-context__teams:empty,
@@ -274,13 +315,6 @@ table.dataTable tbody th, table.dataTable tbody td {
 .cell-edit-context__summary:empty,
 .cell-edit-context__date:empty {
     display: none;
-}
-
-.cell-edit-context__teams {
-    margin-top: 0.35rem;
-    color: #6c757d;
-    font-size: 0.8125rem;
-    line-height: 1.35;
 }
 
 .cell-edit-context__meta {
@@ -389,6 +423,31 @@ table.dataTable tbody th, table.dataTable tbody td {
 
 .cell-status-option:has(.cell-status-option__input:checked) .cell-status-option__title {
     color: #0a58ca;
+}
+
+/* Недоступные пункты выбора (пробное уже было / гибкий на лимите) */
+.cell-status-option.form-check.cell-status-option--disabled,
+.cell-status-option.form-check:has(.cell-status-option__input:disabled) {
+    background: #eef0f2;
+    border-color: #e2e5e8;
+    cursor: not-allowed;
+}
+
+.cell-status-option.form-check.cell-status-option--disabled:hover,
+.cell-status-option.form-check:has(.cell-status-option__input:disabled):hover {
+    background: #eef0f2;
+    border-color: #e2e5e8;
+    box-shadow: none;
+}
+
+.cell-status-option.form-check.cell-status-option--disabled .cell-status-option__main,
+.cell-status-option.form-check:has(.cell-status-option__input:disabled) .cell-status-option__main {
+    cursor: not-allowed;
+}
+
+.cell-status-option.form-check.cell-status-option--disabled .cell-status-option__title,
+.cell-status-option.form-check:has(.cell-status-option__input:disabled) .cell-status-option__title {
+    color: #6c757d;
 }
 
 .cell-edit-modal__footer {
@@ -843,24 +902,88 @@ table.dataTable tbody th, table.dataTable tbody td {
 }
 
 .day-checkbox {
-    display: inline-flex;         /* чтобы чекбокс и текст были в строку */
-    align-items: center;          /* по вертикали центрируем */
-    /*border: 2px dashed #ffa500;   !* пунктирная оранжевая рамка *!*/
-    /*border-radius: 5px;           !* скруглённые углы *!*/
-
-    padding-top: 5px;
-    padding-bottom: 5px;
-    padding-right: 5px;
-    padding-left: 23px;
-
-    /*margin-right: 0.5rem;         !* отступы между днями *!*/
-    cursor: pointer;              /* вся область кликабельна */
-    font-weight: 100!important;
-    margin-right: 0!important;         /* отступ между галочкой и текстом */
-
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 0.375rem; /* скругление рамки выделенных дней (border-primary) */
+    padding: 0.25rem 0.45rem 0.25rem 0.35rem;
+    cursor: pointer;
+    font-weight: 400;
+    line-height: 1.2;
+    margin-right: 0 !important;
 }
 
+/* Bootstrap .form-check-input даёт margin-top — сбрасываем, иначе текст «плывёт» относительно галочки */
+.day-checkbox .form-check-input,
 .day-checkbox input[type="checkbox"] {
+    margin: 0;
+    margin-top: 0;
+    float: none;
+    position: static;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+/* Подсказка (легенда) под днями недели в «Разложить абонемент» */
+.abonement-weekdays-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.65rem;
+    padding: 0.55rem 0.7rem 0.6rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.45rem;
+    background: #f8f9fa;
+}
+
+.abonement-weekdays-legend__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: #495057;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.1rem;
+}
+
+.abonement-weekdays-legend__row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.abonement-weekdays-legend__swatch {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.abonement-weekdays-legend__swatch--border {
+    width: 1.15rem;
+    height: 1.15rem;
+    border: 1px solid var(--bs-primary, #0d6efd);
+    border-radius: 0.375rem;
+    box-sizing: border-box;
+}
+
+.abonement-weekdays-legend__swatch--check .form-check-input {
+    margin: 0;
+    margin-top: 0;
+    float: none;
+    position: static;
+    pointer-events: none;
+}
+
+.abonement-weekdays-legend__text {
+    color: #6c757d;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+}
+
+.abonement-preview-text {
+    white-space: pre-line;
+    line-height: 1.45;
 }
 .highlight-group {
     /*border-color: #0d6efd; !* голубой цвет *!*/

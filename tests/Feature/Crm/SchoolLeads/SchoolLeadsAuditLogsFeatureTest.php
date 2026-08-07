@@ -170,28 +170,6 @@ final class SchoolLeadsAuditLogsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Объект: не указан → Объект А', (string) $log->description);
     }
 
-    public function test_destroy_writes_school_lead_deleted_log(): void
-    {
-        $this->grantPermission('schoolLeads.view');
-
-        $lead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name' => 'На удаление',
-            'phone' => '+7 900 000-00-04',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
-            ->assertOk();
-
-        $log = $this->latestLog(AuditEvent::SchoolLeadDeleted);
-
-        $this->assertNotNull($log);
-        $this->assertSame(AuditEvent::SchoolLeadDeleted->level(), $log->level);
-        $this->assertStringContainsString('Заявка удалена:', (string) $log->description);
-        $this->assertStringContainsString("Заявка #{$lead->id}: На удаление", (string) $log->target_label);
-    }
-
     public function test_logs_data_returns_written_school_lead_event_in_table(): void
     {
         $this->grantPermission('schoolLeads.view');

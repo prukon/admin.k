@@ -35,6 +35,8 @@
     Контакты для SMS и оплат — <code>users.phone</code> / <code>users.email</code> учётки ученика, под которой выполнен вход.
     Карточка <code>parents</code> (ФИО, паспорт, адрес, телефон, email родителя) общая для всех детей с тем же <code>parent_id</code>
     и редактируется из админки (§3) и из ЛК (§4) при наличии права.
+    При заявке с лендинга карточка может быть <b>автоматически подобрана</b> к лиду
+    (<code>school_leads.parent_id</code>) — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>.
   </div>
 
   <h2>0) Как это работает (сценарий)</h2>
@@ -333,8 +335,10 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentNonAjaxSafetyNetFeatureTest.php</code> — ЛК: JSON-контракт правки общей карточки</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code></li>
+      <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — автосопоставление <code>parents</code> к лиду с лендинга</li>
+      <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadParentMatcherFeatureTest.php</code> и смежные <code>SchoolLeadParentMatch*</code> — CRM UI/PUT матча</li>
     </ul>
-    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AccountParentNonAjax'</code>
+    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AccountParentNonAjax|SchoolLeadParentMatch'</code>
   </div>
 
   <h2>9) Что не поддерживается</h2>
@@ -361,6 +365,7 @@ users (role=user) — ученик, вход в CRM
     <a href="/docs/documentation/admin-users#user-parent">Пользователи (админка)</a> ·
     <a href="/docs/documentation/admin-users#user-comment-sex">Пол и комментарий (CRM)</a> ·
     <a href="#account-sex">Пол в кабинете</a> ·
+    <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">Автосопоставление в заявках</a> ·
     <a href="/docs/documentation/contracts#contract-create-modal">Договоры (модалка создания)</a> ·
     <a href="/docs/documentation/contracts#contract-parent">Договоры (карточка)</a> ·
     <a href="/docs/documentation/partner-scope-guide">Изоляция партнёра</a></p>

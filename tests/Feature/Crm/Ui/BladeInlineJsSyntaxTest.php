@@ -68,6 +68,30 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('place-flexible-abonement', $content);
         $this->assertStringContainsString('flexible-context', $content);
         $this->assertStringContainsString('openFlexiblePlaceModal', $content);
+        $this->assertStringContainsString('empty-cell-context', $content);
+        $this->assertStringContainsString('place-trial-lesson', $content);
+        $this->assertStringContainsString('place-single-lesson', $content);
+        $this->assertStringContainsString('openEmptyCellPlaceModal', $content);
+        $this->assertStringContainsString('flexible_options', $content);
+        $this->assertStringContainsString('data-flexible-remaining', $content);
+        $this->assertStringContainsString('syncFlexibleEmptyCellAffordance', $content);
+        $this->assertStringContainsString("data-mode', 'flexible'", $content);
+        $this->assertStringContainsString('cell-status-option--disabled', $content);
+        $this->assertStringContainsString('Достигнут лимит занятий по гибкому абонементу.', $content);
+        $this->assertStringContainsString('data-flexible-remaining', $content);
+        $this->assertStringContainsString('flexibleRemaining', $content);
+        $this->assertStringContainsString("attr('data-empty-lesson') === '1'", $content);
+        $this->assertStringContainsString('Пробное, разовое или занятие из гибкого абонемента', $content);
+        $this->assertStringContainsString('emptyCellPlaceForm', $content);
+
+        $cssPath = resource_path('css/schedule.css');
+        $this->assertFileExists($cssPath);
+        $css = (string) file_get_contents($cssPath);
+        $this->assertStringContainsString('cell-status-option--disabled', $css);
+        $this->assertStringContainsString('#eef0f2', $css);
+        $this->assertStringContainsString('empty_cell_lesson_occurrence_status_id', $content);
+        $this->assertStringContainsString('showEmptyCellErrors', $content);
+        $this->assertStringContainsString('data-empty-lesson', $content);
         $this->assertStringContainsString('btn-add-flexible-lesson', $content);
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $content);
         $this->assertStringContainsString('updateFlexibleHintAfterPlace', $content);
@@ -101,17 +125,55 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $flexibleSubmitChunk);
         $this->assertStringContainsString('updateFlexibleHintAfterPlace', $flexibleSubmitChunk);
         $this->assertStringNotContainsString('window.location.reload()', $flexibleSubmitChunk);
+        // Успех place-trial / place-single (пустая ячейка) — точечный DOM без reload.
+        $this->assertStringContainsString("'/schedule/user/' + userId + '/place-trial-lesson'", $content);
+        $this->assertStringContainsString("'/schedule/user/' + userId + '/place-single-lesson'", $content);
+        $emptyCellFormPos = strpos($content, "$('#emptyCellPlaceForm').on('submit'");
+        $this->assertNotFalse($emptyCellFormPos);
+        $emptyCellChunk = substr($content, (int) $emptyCellFormPos, 3500);
+        $this->assertStringContainsString('preventDefault', $emptyCellChunk);
+        $this->assertStringContainsString('place-single-lesson', $emptyCellChunk);
+        $this->assertStringContainsString('renderScheduleCellFromResult', $emptyCellChunk);
+        $this->assertStringNotContainsString('window.location.reload()', $emptyCellChunk);
         // Успех schedule.update (модалка «Статус занятия») — точечный DOM без reload.
         $updateSubmitPos = strpos($content, "url: '/schedule/update'");
         $this->assertNotFalse($updateSubmitPos);
         $updateSubmitChunk = substr($content, (int) $updateSubmitPos, 1200);
         $this->assertStringContainsString('renderScheduleCellAfterStatusSave', $updateSubmitChunk);
         $this->assertStringNotContainsString('window.location.reload()', $updateSubmitChunk);
+        $statusSaveFnPos = strpos($content, 'function renderScheduleCellAfterStatusSave');
+        $this->assertNotFalse($statusSaveFnPos);
+        $statusSaveFnChunk = substr($content, (int) $statusSaveFnPos, 500);
+        $this->assertStringContainsString('updateFlexibleHintAfterPlace', $statusSaveFnChunk);
         $this->assertStringContainsString('/schedule/update', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
+        $this->assertStringContainsString('fillAbonementForm', $content);
+        $this->assertStringContainsString('fillAbonementUlpOptions', $content);
+        $this->assertStringContainsString('renderAbonementTeamUi', $content);
         $this->assertStringContainsString('applySelectedUlpPeriodUi', $content);
+        $this->assertStringContainsString('abonement-team-readonly', $content);
+        $this->assertStringContainsString('abonement-team-display', $content);
+        $this->assertStringContainsString('flexible-team-display', $content);
+        $this->assertStringContainsString('context_team_id', $content);
+        $this->assertStringContainsString('team_locked', $content);
+        $this->assertStringContainsString('scheduleJournalFilterTeamId', $content);
+        $this->assertStringContainsString('syncAbonementStartDateQuickPicks', $content);
+        $this->assertStringContainsString('abonement-start-date-quick', $content);
+        $this->assertStringContainsString('formatAbonementPreviewText', $content);
+        $this->assertStringContainsString('formatDateHumanYmd', $content);
+        $this->assertStringContainsString("'Занятий: '", $content);
+        $this->assertStringContainsString("' занятие: '", $content);
+        $this->assertStringContainsString('flexibleAbonementColumnLabel', $content);
+        $this->assertStringContainsString('flexibleAbonementColumnHoverLine', $content);
+        $this->assertStringContainsString('formatFeeRubFromCents', $content);
+        $this->assertStringContainsString('fee_amount_cents', $content);
+        $this->assertStringContainsString('applyTrainerHoverToCellText', $content);
+        $this->assertStringContainsString('stripTrainerHoverLines', $content);
+        $this->assertStringContainsString('enrichResultTrainerNameFromSelect', $content);
+        $this->assertStringContainsString('setCellEditTeamDisplay', $content);
+        $this->assertStringContainsString('trainer_name', $content);
         $this->assertStringContainsString('from_setting_prices', $content);
         $this->assertStringContainsString('abonement-ends-at', $content);
         // Валидация даты начала — Laravel (novalidate на форме), без HTML5 min/max.
@@ -151,8 +213,23 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
         $content = (string) file_get_contents($path);
         $this->assertStringContainsString('id="abonementPlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="abonement-user-name"', $content);
+        $this->assertStringContainsString('id="abonement-team-display"', $content);
+        $this->assertStringContainsString('id="abonement-team-id"', $content);
+        $this->assertStringContainsString('id="abonement-team-readonly"', $content);
+        $this->assertStringContainsString('Выберите группу', $content);
+        $this->assertStringContainsString('id="abonement-ulp-id"', $content);
+        $this->assertStringContainsString('id="abonement-weekdays"', $content);
+        $this->assertStringContainsString('abonement-weekdays-legend', $content);
+        $this->assertStringContainsString('abonement-weekdays-legend__title', $content);
+        $this->assertStringContainsString('Подсказка', $content);
+        $this->assertStringContainsString('день недели согласно расписанию', $content);
+        $this->assertStringContainsString('на этот день недели вы установите расписание', $content);
         $this->assertStringContainsString('id="abonement-start-date"', $content);
         $this->assertStringContainsString('id="abonement-start-date-error"', $content);
+        $this->assertStringContainsString('id="abonement-start-date-quick"', $content);
+        $this->assertStringContainsString('id="abonement-start-quick-month-start"', $content);
+        $this->assertStringContainsString('id="abonement-start-quick-today"', $content);
         $this->assertStringContainsString('id="abonement-ends-at"', $content);
         $this->assertStringNotContainsString(
             'id="abonement-start-date" name="start_date" required',
@@ -161,6 +238,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
         $this->assertStringContainsString('id="flexiblePlaceModal"', $content);
         $this->assertStringContainsString('id="flexiblePlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="flexible-team-display"', $content);
+        $this->assertStringContainsString('id="flexible-user-name"', $content);
         $this->assertStringContainsString('id="btn-cell-delete"', $content);
         $this->assertStringContainsString('id="cellDeleteConfirmModal"', $content);
         $this->assertStringContainsString('id="btn-cell-delete-confirm"', $content);
@@ -179,10 +258,27 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('journal-flexible-hint--ratio', $content);
         $this->assertStringContainsString('journal-flexible-hint--multi', $content);
         $this->assertStringContainsString('data-flexible=', $content);
+        $this->assertStringContainsString('data-flexible-remaining', $content);
         $this->assertStringContainsString('data-flexible-ulp-id', $content);
         $this->assertStringContainsString('data-slots-remaining', $content);
         $this->assertStringContainsString('data-lessons-total', $content);
         $this->assertStringContainsString('data-flexible-items', $content);
+        $this->assertStringContainsString('id="emptyCellPlaceModal"', $content);
+        $this->assertStringContainsString('id="emptyCellPlaceForm" novalidate', $content);
+        $this->assertStringContainsString('id="empty-cell-choice-error"', $content);
+        $this->assertStringContainsString('id="empty-cell-team-error"', $content);
+        $this->assertStringContainsString('id="empty-cell-team-display"', $content);
+        $this->assertStringContainsString('id="empty-cell-fee-error"', $content);
+        $this->assertStringContainsString('id="empty-cell-status-error"', $content);
+        $this->assertStringContainsString('name="empty_cell_lesson_occurrence_status_id"', $content);
+        $this->assertStringContainsString('id="empty-cell-trainer-wrap"', $content);
+        $this->assertStringContainsString('id="empty-cell-fee-amount"', $content);
+        $this->assertStringContainsString('id="btnEmptyCellPlace"', $content);
+        $this->assertStringContainsString('data-empty-lesson=', $content);
+        $this->assertStringContainsString('id="edit-user-teams-display"', $content);
+        $this->assertStringContainsString('class="abonement-start-quick-link"', $content);
+        $this->assertStringContainsString('journal-postpay-hint', $content);
+        $this->assertStringNotContainsString('empty-cell-choice-summary', $content);
     }
 
     /**
@@ -795,6 +891,85 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В leads.blade.php не найден script с saveLeadStatusInline + buildCreateClientMissingHint');
+    }
+
+    /**
+     * P1: автосопоставление родителя в модалке лида — Accept JSON PUT + confirm UI gate.
+     */
+    public function test_school_leads_parent_match_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('leadParentMatchUi', $content);
+        $this->assertStringContainsString('acceptLeadParentMatch', $content);
+        $this->assertStringContainsString('rejectLeadParentMatch', $content);
+        $this->assertStringContainsString('needsParentDecision', $content);
+        $this->assertStringContainsString('Выберите родителя', $content);
+        $this->assertStringContainsString('parent_match_confirmed', $content);
+        $this->assertStringContainsString('parent_match_needs_decision', $content);
+        $this->assertStringContainsString('matched_parent', $content);
+        $this->assertStringContainsString('useSnapshotParentFields', $content);
+        $this->assertStringContainsString('leadParentMatchAcceptBtn', $content);
+        $this->assertStringContainsString('leadParentMatchRejectBtn', $content);
+        $this->assertStringContainsString('highlightLeadParentSnapshotMatches', $content);
+        $this->assertStringContainsString('is-match-hit', $content);
+        $this->assertStringContainsString('lead-parent-match-hit-badge', $content);
+        $this->assertStringContainsString("type: 'PUT'", $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('$.ajax', $content);
+        $this->assertStringContainsString('syncCreateClientBtnState', $content);
+
+        $modalPath = resource_path('views/admin/school-leads/partials/edit-lead-modal.blade.php');
+        $this->assertFileExists($modalPath);
+        $modal = (string) file_get_contents($modalPath);
+        $this->assertStringContainsString('modal-xl', $modal);
+        $this->assertStringContainsString('id="leadParentMatchBanner"', $modal);
+        $this->assertStringContainsString('id="leadParentMatchAcceptBtn"', $modal);
+        $this->assertStringContainsString('id="leadParentMatchRejectBtn"', $modal);
+        $this->assertStringContainsString('id="leadParentSnapshotCol"', $modal);
+        $this->assertStringContainsString('Данные из заявки', $modal);
+        $this->assertStringContainsString('data-match-field="email"', $modal);
+        $this->assertStringContainsString('data-match-field="phone"', $modal);
+        $this->assertStringContainsString('data-match-field="lastname"', $modal);
+        $this->assertStringContainsString('is-match-hit', $modal);
+        $this->assertStringContainsString('id="leadParentMatchConfirmed"', $modal);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'acceptLeadParentMatch') || ! str_contains($rawScript, 'needsParentDecision')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-school-leads-parent-match-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in school-leads parent-match script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В leads.blade.php не найден script с acceptLeadParentMatch + needsParentDecision');
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

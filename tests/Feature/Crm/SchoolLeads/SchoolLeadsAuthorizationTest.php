@@ -13,7 +13,6 @@ class SchoolLeadsAuthorizationTest extends CrmTestCase
             'admin.school-leads'                      => 'can:schoolLeads.view',
             'admin.school-leads.data'                   => 'can:schoolLeads.view',
             'admin.school-leads.update'                 => 'can:schoolLeads.view',
-            'admin.school-leads.destroy'                => 'can:schoolLeads.view',
             'admin.school-leads.columns-settings.get'   => 'can:schoolLeads.view',
             'admin.school-leads.columns-settings.save'  => 'can:schoolLeads.view',
         ];

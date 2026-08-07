@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\SchoolLeadParentMatchConfirmation;
+use App\Enums\SchoolLeadParentMatchReason;
 use App\Enums\SchoolLeadSource;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +21,9 @@ class SchoolLead extends Model
 
     protected $casts = [
         'source' => SchoolLeadSource::class,
+        'parent_match_reason' => SchoolLeadParentMatchReason::class,
+        'parent_match_confirmed' => SchoolLeadParentMatchConfirmation::class,
+        'parent_match_count' => 'integer',
         'consent_accepted_at' => 'datetime',
         'child_birthday' => 'date',
         'is_individual_traits' => 'boolean',
@@ -83,6 +88,61 @@ class SchoolLead extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function parentProfile(): BelongsTo
+    {
+        return $this->belongsTo(ParentProfile::class, 'parent_id');
+    }
+
+    /**
+     * Текст плашки автосопоставления родителя (null — матча нет).
+     */
+    public function parentMatchBannerText(): ?string
+    {
+        $reason = $this->parent_match_reason;
+        if (!$reason instanceof SchoolLeadParentMatchReason) {
+            return null;
+        }
+
+        $text = 'Родитель сопоставлен автоматически по ' . $reason->bannerLabel() . '.';
+
+        if (
+            $reason === SchoolLeadParentMatchReason::Name
+            && (int) ($this->parent_match_count ?? 0) > 1
+        ) {
+            $count = (int) $this->parent_match_count;
+            $text .= ' Найдено ' . $count . ' ' . self::matchesWord($count) . '.';
+        }
+
+        return $text;
+    }
+
+    public function needsParentMatchDecision(): bool
+    {
+        return $this->parent_id !== null
+            && $this->parent_match_reason !== null
+            && $this->parent_match_confirmed === null;
+    }
+
+    private static function matchesWord(int $count): string
+    {
+        $mod100 = $count % 100;
+        $mod10 = $count % 10;
+
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return 'совпадений';
+        }
+
+        if ($mod10 === 1) {
+            return 'совпадение';
+        }
+
+        if ($mod10 >= 2 && $mod10 <= 4) {
+            return 'совпадения';
+        }
+
+        return 'совпадений';
     }
 
     /**

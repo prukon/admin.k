@@ -181,7 +181,7 @@ final class ScheduleJournalOccurrenceAnnulmentFeatureTest extends ScheduleJourna
         $this->assertGreaterThan(0, $utssId);
 
         $ulp->refresh();
-        $slotsAfterPlace = $ulp->calendarSlotsRemaining();
+        $remainingAfterPlace = (int) $ulp->lessons_remaining;
 
         $response = $this->withHeaders($this->ajaxHeaders())
             ->deleteJson(route('schedule.occurrence.destroy', $utssId), [
@@ -193,11 +193,11 @@ final class ScheduleJournalOccurrenceAnnulmentFeatureTest extends ScheduleJourna
             ->assertJsonPath('result.is_flexible', true)
             ->assertJsonPath('result.user_lesson_package_id', $ulp->id)
             ->assertJsonPath('result.occurrence_count', 0)
-            ->assertJsonPath('result.slots_remaining', $slotsAfterPlace + 1);
+            ->assertJsonPath('result.slots_remaining', $remainingAfterPlace + 1);
 
         $this->assertDatabaseMissing('user_team_schedule_slots', ['id' => $utssId]);
         $ulp->refresh();
-        $this->assertSame($slotsAfterPlace + 1, $ulp->calendarSlotsRemaining());
+        $this->assertSame($remainingAfterPlace + 1, (int) $ulp->lessons_remaining);
     }
 
     public function test_destroy_ajax_when_two_occurrences_returns_remaining_payload(): void

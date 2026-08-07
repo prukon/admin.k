@@ -15,24 +15,6 @@ class SchoolLeadCrudFeatureTest extends CrmTestCase
         app(PartnerWidgetService::class)->ensureForPartner((int) $this->partner->id);
     }
 
-    public function test_destroy_soft_deletes_school_lead(): void
-    {
-        $lead = SchoolLead::create([
-            'partner_id'            => $this->partner->id,
-            'name'                  => 'Удаляемый',
-            'phone'                 => '+7 900 000-00-01',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
-            ->assertOk()
-            ->assertJson(['message' => 'Заявка удалена.']);
-
-        $lead->refresh();
-        $this->assertNotNull($lead->deleted_at);
-        $this->assertNull(SchoolLead::whereNull('deleted_at')->find($lead->id));
-    }
-
     public function test_datatable_filters_by_statuses(): void
     {
         $processingStatusId = $this->schoolLeadProcessingStatusId();
@@ -83,18 +65,5 @@ class SchoolLeadCrudFeatureTest extends CrmTestCase
 
         $lead->refresh();
         $this->assertSame($systemStatusId, (int) $lead->school_lead_status_id);
-    }
-
-    public function test_cannot_destroy_foreign_partner_lead(): void
-    {
-        $foreignLead = SchoolLead::create([
-            'partner_id'            => $this->foreignPartner->id,
-            'name'                  => 'Чужой',
-            'phone'                 => '+7 900 999-99-99',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $foreignLead->id]))
-            ->assertNotFound();
     }
 }

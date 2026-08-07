@@ -8,8 +8,10 @@ use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
+use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Services\Postpay\PostpayMonth;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -37,7 +39,7 @@ final class ScheduleJournalMonthService
             ->with([
                 'slot:id,team_id,weekday,time_start,time_end,location_id',
                 'slot.team:id,title',
-                'userLessonPackage:id,lesson_package_id,lessons_remaining,lessons_total',
+                'userLessonPackage:id,lesson_package_id,lessons_remaining,lessons_total,fee_amount_cents',
                 'userLessonPackage.lessonPackage:id,name,schedule_type',
             ])
             ->where('partner_id', $partnerId)
@@ -82,16 +84,42 @@ final class ScheduleJournalMonthService
             $isPostpay = $row->user_lesson_package_id === null && ! (bool) $row->is_trial_lesson;
             $postpayName = null;
             $postpayPricePerLesson = null;
+            $postpayPriceCents = null;
             if ($isPostpay && $teamId !== null) {
                 $monthKey = (int) $row->user_id.'|'.$teamId.'|'.PostpayMonth::firstDayFromDate($date);
                 $postpayInfo = $postpayNames[$monthKey] ?? null;
                 if (is_array($postpayInfo)) {
                     $postpayName = $postpayInfo['name'] ?? 'Постоплата';
                     $postpayPricePerLesson = $postpayInfo['price_per_lesson'] ?? null;
+                    $postpayPriceCents = isset($postpayInfo['price_cents']) ? (int) $postpayInfo['price_cents'] : null;
                 } else {
                     $postpayName = is_string($postpayInfo) && $postpayInfo !== '' ? $postpayInfo : 'Постоплата';
                 }
             }
+
+            if ($row->is_trial_lesson) {
+                $packageName = 'Пробное';
+                $packageHover = 'Пробное';
+            } elseif ($isPostpay) {
+                $packageName = (string) $postpayName;
+                $packageHover = self::postpayPackageHoverLabel($postpayPriceCents);
+            } else {
+                $packageName = (string) ($row->userLessonPackage?->lessonPackage?->name ?? 'Абонемент');
+                $packageHover = self::packageHoverLabel(
+                    $packageName,
+                    (int) ($row->userLessonPackage?->fee_amount_cents ?? 0),
+                );
+            }
+
+            $isAttended = (string) ($status?->code ?? '') === LessonOccurrenceStatus::CODE_ATTENDED;
+            $trainerName = null;
+            if ($isAttended && $statusEvent?->trainer_profile_id !== null) {
+                $trainerName = trim((string) ($statusEvent->trainerProfile?->user?->full_name ?? ''));
+                if ($trainerName === '') {
+                    $trainerName = null;
+                }
+            }
+            $packageHover = self::appendTrainerToHover($packageHover, $isAttended, $trainerName);
 
             $grouped[$key][] = [
                 'utss_id' => (int) $row->id,
@@ -106,11 +134,8 @@ final class ScheduleJournalMonthService
                 // Для постоплаты время слота техническое (служебный слот дня недели) — в UI не показываем.
                 'time_start' => $isPostpay ? null : ($timeStart ? substr((string) $timeStart, 0, 5) : null),
                 'time_end' => $isPostpay ? null : ($timeEnd ? substr((string) $timeEnd, 0, 5) : null),
-                'package_name' => $row->is_trial_lesson
-                    ? 'Пробное'
-                    : ($isPostpay
-                        ? (string) $postpayName
-                        : (string) ($row->userLessonPackage?->lessonPackage?->name ?? 'Абонемент')),
+                'package_name' => $packageName,
+                'package_hover' => $packageHover,
                 'price_per_lesson' => $isPostpay ? $postpayPricePerLesson : null,
                 'lesson_occurrence_status_id' => $status?->id !== null ? (int) $status->id : null,
                 'status_title' => $status?->title,
@@ -120,6 +145,7 @@ final class ScheduleJournalMonthService
                 'trainer_profile_id' => $statusEvent?->trainer_profile_id !== null
                     ? (int) $statusEvent->trainer_profile_id
                     : null,
+                'trainer_name' => $trainerName,
                 'comment' => $statusEvent?->comment,
             ];
         }
@@ -147,6 +173,8 @@ final class ScheduleJournalMonthService
      *     name: string,
      *     lessons_total: int,
      *     lessons_remaining: int,
+     *     fee_amount_cents: int,
+     *     team_id: int|null,
      *     placeable: bool,
      *     disabled_reason: string|null
      * }>
@@ -182,6 +210,8 @@ final class ScheduleJournalMonthService
                 'name' => (string) ($ulp->lessonPackage?->name ?? 'Абонемент'),
                 'lessons_total' => (int) $ulp->lessons_total,
                 'lessons_remaining' => (int) $ulp->lessons_remaining,
+                'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
+                'team_id' => $ulp->team_id !== null ? (int) $ulp->team_id : null,
                 'placeable' => $placeable,
                 'disabled_reason' => $disabledReason,
                 'from_setting_prices' => $ulp->isFromSettingPrices(),
@@ -198,6 +228,10 @@ final class ScheduleJournalMonthService
      * Месячные гибкие назначения учеников для журнала (billing_month = месяц экрана, есть остаток слотов).
      *
      * @param  list<int>  $userIds
+     * Каунтер колонки «Абонементы» / flexible-context: остаток по consumes_lesson
+     * ({@see UserLessonPackage::$lessons_remaining}), не по COUNT(utss).
+     * Affordance постановки есть и при remaining = 0 (статусы без списания не лимитируются).
+     *
      * @return array<int, list<array{
      *     id: int,
      *     name: string,
@@ -206,6 +240,7 @@ final class ScheduleJournalMonthService
      *     lessons_total: int,
      *     slots_used: int,
      *     slots_remaining: int,
+     *     fee_amount_cents: int,
      *     billing_month: string,
      *     starts_at: string|null,
      *     ends_at: string|null
@@ -227,7 +262,6 @@ final class ScheduleJournalMonthService
             ->with([
                 'lessonPackage:id,name,schedule_type,partner_id',
                 'team:id,title',
-                'userTeamScheduleSlots:id,user_lesson_package_id',
             ])
             ->whereIn('user_id', $userIds)
             ->whereDate('billing_month', $billingMonth)
@@ -246,27 +280,26 @@ final class ScheduleJournalMonthService
         $result = [];
 
         foreach ($rows as $ulp) {
-            $remaining = $ulp->calendarSlotsRemaining();
-            if ($remaining < 1) {
-                continue;
-            }
-
             $teamId = (int) ($ulp->team_id ?? 0);
             if ($teamId < 1) {
                 continue;
             }
 
+            $remaining = max(0, (int) $ulp->lessons_remaining);
+            $total = (int) $ulp->lessons_total;
             $userId = (int) $ulp->user_id;
-            $used = (int) $ulp->lessons_total - $remaining;
+            $used = max(0, $total - $remaining);
 
             $result[$userId][] = [
                 'id' => (int) $ulp->id,
                 'name' => (string) ($ulp->lessonPackage?->name ?? 'Гибкий абонемент'),
                 'team_id' => $teamId,
                 'team_title' => (string) ($ulp->team?->title ?? ''),
-                'lessons_total' => (int) $ulp->lessons_total,
+                'lessons_total' => $total,
                 'slots_used' => $used,
+                // Ключ исторический: значение = lessons_remaining (списание по consumes_lesson).
                 'slots_remaining' => $remaining,
+                'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
                 'billing_month' => $billingMonth,
                 'starts_at' => $ulp->starts_at !== null ? $ulp->starts_at->format('Y-m-d') : null,
                 'ends_at' => $ulp->ends_at !== null ? $ulp->ends_at->format('Y-m-d') : null,
@@ -293,7 +326,10 @@ final class ScheduleJournalMonthService
         }
 
         $events = UserLessonOccurrenceStatusEvent::query()
-            ->with(['lessonOccurrenceStatus'])
+            ->with([
+                'lessonOccurrenceStatus',
+                'trainerProfile.user',
+            ])
             ->where('partner_id', $partnerId)
             ->whereIn('user_id', $userIds)
             ->whereIn('occurrence_date', $dates)
@@ -369,10 +405,123 @@ final class ScheduleJournalMonthService
             $map[$key] = [
                 'name' => $name !== '' ? $name : 'Постоплата',
                 'price_per_lesson' => $package->priceRub(),
+                'price_cents' => (int) ($package->price_cents ?? 0),
             ];
         }
 
         return $map;
+    }
+
+    /**
+     * Видимая подпись в колонке абонементов журнала для одного гибкого (две строки):
+     * 10/12
+     * Гибкий
+     */
+    public static function flexibleAbonementColumnLabel(int $slotsRemaining, int $lessonsTotal): string
+    {
+        return $slotsRemaining.'/'.$lessonsTotal."\nГибкий";
+    }
+
+    /**
+     * Ховер колонки абонементов для гибкого:
+     * «Остаток занятий в текущем месяце по абонементу "X" за Y руб»
+     * или с префиксом остатка «10/12 остаток … по абонементу "X" за Y руб» (несколько ULP).
+     * Цена 0 → «за 0 руб».
+     */
+    public static function flexibleAbonementColumnHoverLine(
+        string $name,
+        int $feeAmountCents,
+        bool $withRatio = false,
+        int $slotsRemaining = 0,
+        int $lessonsTotal = 0,
+    ): string {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            $trimmed = 'Гибкий абонемент';
+        }
+
+        $tail = ' по абонементу "'.$trimmed.'" за '.Money::formatRub($feeAmountCents, ' руб');
+
+        if ($withRatio) {
+            return $slotsRemaining.'/'.$lessonsTotal
+                .' остаток занятий в текущем месяце'
+                .$tail;
+        }
+
+        return 'Остаток занятий в текущем месяце'.$tail;
+    }
+
+    /**
+     * Ховер кнопки «+» (разложить fixed): «Название абона (4/4) за 5 000 руб».
+     */
+    public static function fixedAbonementPlaceButtonHoverLine(
+        string $name,
+        int $lessonsRemaining,
+        int $lessonsTotal,
+        int $feeAmountCents,
+    ): string {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            $trimmed = 'Абонемент';
+        }
+
+        return $trimmed
+            .' ('.$lessonsRemaining.'/'.$lessonsTotal.')'
+            .' за '.Money::formatRub($feeAmountCents, ' руб');
+    }
+
+    /**
+     * Подпись для ховера ячейки журнала: «Название - цена».
+     */
+    public static function packageHoverLabel(string $name, ?int $feeAmountCents): string
+    {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            $trimmed = 'Абонемент';
+        }
+        if ($feeAmountCents === null) {
+            return $trimmed;
+        }
+
+        return $trimmed.' - '.Money::formatRub($feeAmountCents, ' руб');
+    }
+
+    /**
+     * Ховер постоплаты в журнале: «Постоплата: 1200₽ в день».
+     */
+    public static function postpayPackageHoverLabel(?int $pricePerLessonCents): string
+    {
+        if ($pricePerLessonCents === null) {
+            return 'Постоплата';
+        }
+
+        $amount = str_replace(' ', '', Money::formatRub($pricePerLessonCents));
+
+        return 'Постоплата: '.$amount.'₽ в день';
+    }
+
+    /**
+     * Строка тренера для ховера ячейки со статусом «Посетил».
+     */
+    public static function trainerHoverLine(?string $trainerName): string
+    {
+        $name = trim((string) $trainerName);
+
+        return $name !== '' ? 'Тренер: '.$name : 'Тренер не выбран';
+    }
+
+    /**
+     * Добавляет строку тренера к package_hover, если статус — «Посетил».
+     */
+    public static function appendTrainerToHover(string $packageHover, bool $isAttended, ?string $trainerName): string
+    {
+        if (! $isAttended) {
+            return $packageHover;
+        }
+
+        $line = self::trainerHoverLine($trainerName);
+
+        return $packageHover !== '' ? $packageHover."\n".$line : $line;
     }
 
     private function occurrenceKey(int $userId, int $slotId, string $date, ?int $ulpId): string

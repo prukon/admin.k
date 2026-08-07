@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Столбец «Действия» на вкладке «Заявки»: скрытие кнопки редактирования после создания клиента.
+ * Вкладка «Заявки»: редактирование по клику на ФИО, user_id в data для договора/модалки.
  */
 final class SchoolLeadsActionsColumnFeatureTest extends CrmTestCase
 {
@@ -30,39 +30,19 @@ final class SchoolLeadsActionsColumnFeatureTest extends CrmTestCase
         return (int) Role::query()->where('is_visible', 1)->orderBy('order_by')->value('id');
     }
 
-    /**
-     * @return non-empty-string
-     */
-    private function actionsColumnRenderSnippet(): string
+    public function test_page_has_no_actions_column_or_delete_controls(): void
     {
         $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
-        $actionsColumnPos = strpos($html, "key: 'actions'");
 
-        $this->assertNotFalse($actionsColumnPos);
+        $this->assertStringNotContainsString("key: 'actions'", $html);
+        $this->assertStringNotContainsString('delete-lead', $html);
+        $this->assertStringNotContainsString('deleteLeadModal', $html);
+        $this->assertStringNotContainsString('slColActions', $html);
 
-        return substr($html, $actionsColumnPos, 900);
-    }
-
-    public function test_page_actions_column_hides_edit_button_when_user_id_is_set(): void
-    {
-        $snippet = $this->actionsColumnRenderSnippet();
-
-        $this->assertStringContainsString('if (!row.user_id)', $snippet);
-        $this->assertStringContainsString('edit-lead', $snippet);
-        $this->assertStringContainsString('delete-lead', $snippet);
-        $this->assertStringContainsString("title=\"Редактировать\"", $snippet);
-    }
-
-    public function test_page_actions_column_always_renders_delete_button_outside_user_id_check(): void
-    {
-        $snippet = $this->actionsColumnRenderSnippet();
-
-        $userIdCheckPos = strpos($snippet, 'if (!row.user_id)');
-        $deleteButtonPos = strpos($snippet, 'delete-lead');
-
-        $this->assertNotFalse($userIdCheckPos);
-        $this->assertNotFalse($deleteButtonPos);
-        $this->assertGreaterThan($userIdCheckPos, $deleteButtonPos);
+        $tablePos = strpos($html, 'id="leads-table"');
+        $this->assertNotFalse($tablePos);
+        $tableSnippet = substr($html, $tablePos, 1200);
+        $this->assertStringNotContainsString('<th>Действия</th>', $tableSnippet);
     }
 
     public function test_page_name_column_still_uses_edit_lead_link_for_viewing_client_lead(): void
@@ -202,7 +182,7 @@ final class SchoolLeadsActionsColumnFeatureTest extends CrmTestCase
         $this->assertSame($user->id, (int) $withClient['user_id']);
     }
 
-    public function test_create_client_from_lead_sets_user_id_for_actions_column_logic(): void
+    public function test_create_client_from_lead_sets_user_id(): void
     {
         $lead = SchoolLead::create([
             'partner_id'            => $this->partner->id,

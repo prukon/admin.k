@@ -27,9 +27,9 @@ final class ScheduleJournalUnifiedFeatureTest extends ScheduleJournalTestCase
     public function test_journal_index_shows_abonement_markers_without_schedule_users(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
-        $this->makeFixedAssignment($student, lessons: 2, durationDays: 14);
+        $this->makeMonthlyFixedAssignment($student, (int) $team->id, '2026-08-01', lessons: 2);
 
-        $this->get(route('schedule.index'))
+        $this->get(route('schedule.index', ['year' => 2026, 'month' => '08']))
             ->assertOk()
             ->assertSee('journal-abonement-btn', false)
             ->assertSee('abonementPlaceModal', false)

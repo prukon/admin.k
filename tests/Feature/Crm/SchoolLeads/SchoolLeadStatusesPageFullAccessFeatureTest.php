@@ -164,13 +164,6 @@ final class SchoolLeadStatusesPageFullAccessFeatureTest extends CrmTestCase
      */
     private function allRoutesPayload(): array
     {
-        $deleteLead = SchoolLead::create([
-            'partner_id'            => $this->partner->id,
-            'name'                  => 'Delete status access',
-            'phone'                 => '+7 900 666-66-66',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
         return array_merge(
             [
                 [
@@ -203,10 +196,6 @@ final class SchoolLeadStatusesPageFullAccessFeatureTest extends CrmTestCase
                         'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                         'comment'               => 'Status access smoke',
                     ],
-                ],
-                [
-                    'method' => 'DELETE',
-                    'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
                 ],
             ],
             $this->schoolLeadStatusManagementRoutesPayload()

@@ -401,6 +401,15 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/schedule/user/{user}/sync-teams', [ScheduleController::class, 'syncUserTeams'])->name('user.sync.teams');
     });
 
+    Route::middleware(['can:schedule.view', 'can:lessonPackages.view'])->group(function () {
+        Route::get('/schedule/user/{user}/empty-cell-context', [ScheduleController::class, 'emptyCellContext'])
+            ->name('schedule.empty-cell.context');
+        Route::post('/schedule/user/{user}/place-trial-lesson', [ScheduleController::class, 'placeTrialLesson'])
+            ->name('schedule.empty-cell.place-trial');
+        Route::post('/schedule/user/{user}/place-single-lesson', [ScheduleController::class, 'placeSingleLesson'])
+            ->name('schedule.empty-cell.place-single');
+    });
+
     // Абонементы (lesson_packages)
     Route::middleware('can:lessonPackages.view')->group(function () {
         Route::get('/admin/lesson-packages', [LessonPackageController::class, 'index'])->name('admin.lesson-packages.index');
@@ -930,7 +939,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
-        Route::delete('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'destroy'])->name('admin.school-leads.destroy');
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {

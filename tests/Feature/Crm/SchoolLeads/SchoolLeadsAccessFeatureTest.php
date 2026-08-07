@@ -48,7 +48,6 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
             ['GET', route('admin.school-leads.columns-settings.get')],
             ['POST', route('admin.school-leads.columns-settings.save')],
             ['PUT', route('admin.school-leads.update', ['schoolLead' => $this->lead->id])],
-            ['DELETE', route('admin.school-leads.destroy', ['schoolLead' => $this->lead->id])],
         ];
     }
 
@@ -111,8 +110,6 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $this->lead->id]), [
             'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
         ])->assertForbidden();
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $this->lead->id]))
-            ->assertForbidden();
     }
 
     public function test_user_with_school_leads_view_only_all_endpoints_return_ok(): void
@@ -184,10 +181,6 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
                 'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                 'comment' => 'Проверка доступа',
             ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
-            ->assertOk()
-            ->assertJson(['message' => 'Заявка удалена.']);
     }
 
     public function test_admin_with_school_leads_view_all_endpoints_return_ok(): void
@@ -272,10 +265,6 @@ class SchoolLeadsAccessFeatureTest extends CrmTestCase
                 'location_id'   => $location->id,
                 'location_name' => 'Smoke-локация',
             ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $lead->id]))
-            ->assertOk()
-            ->assertJson(['message' => 'Заявка удалена.']);
     }
 
     public function test_datatable_with_location_sort_params_returns_ok(): void

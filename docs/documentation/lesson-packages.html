@@ -87,8 +87,12 @@
     <li>Для месячных fixed (<code>billing_month</code>): один заранее выставленный <code>ends_at</code>
       <b>без</b> <code>starts_at</code> и без UTSS — <b>ещё не</b> раскладка; кнопка «+» в журнале доступна.</li>
     <li><code>isJournalPlaceable()</code> = не laid out и <code>lessons_total &gt; 0</code>
-      (раскладка «+» из журнала — только <code>schedule_type = fixed</code>;
-      гибкий — отдельная модалка по клику на ячейку).</li>
+      (раскладка «+» из журнала — только <code>schedule_type = fixed</code>
+      <b>из установки цен</b> с <code>billing_month</code> + <code>team_id</code>;
+      классика fixed без месяца в журнале не предлагается — календарь школы
+      <code>assign-fixed</code>;
+      гибкий — отдельная модалка по клику на ячейку —
+      <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>).</li>
   </ul>
 
   <h2 id="period-rule">Правило периода</h2>

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\Schedule\JournalTeamScheduleSlotEnsureService;
+use App\Services\Schedule\ScheduleJournalMonthService;
+use App\Support\Money;
 use App\Support\UserPriceTeamMembership;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -144,6 +146,29 @@ final class PostpayJournalService
      */
     public function postpayUserFlags(array $userIds, string $monthFirstDayYmd, string $teamFilter): array
     {
+        $hints = $this->postpayAbonementHintsByUser($userIds, $monthFirstDayYmd, $teamFilter);
+        $flags = [];
+        foreach (array_keys($hints) as $uid) {
+            $flags[(int) $uid] = true;
+        }
+
+        return $flags;
+    }
+
+    /**
+     * Подсказки колонки «Абонемент» для postpay: ставка в две строки «{цена}₽» / «в день».
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, list<array{
+     *     team_id: int,
+     *     team_title: string,
+     *     price_cents: int,
+     *     label: string,
+     *     hover: string
+     * }>>
+     */
+    public function postpayAbonementHintsByUser(array $userIds, string $monthFirstDayYmd, string $teamFilter): array
+    {
         if ($userIds === []) {
             return [];
         }
@@ -156,18 +181,59 @@ final class PostpayJournalService
             ->whereNotNull('lesson_package_id')
             ->whereHas('lessonPackage', static function ($q) {
                 $q->where('schedule_type', LessonPackage::SCHEDULE_TYPE_POSTPAY);
-            });
+            })
+            ->with([
+                'team:id,title',
+                'lessonPackage:id,name,schedule_type,price_cents',
+            ])
+            ->orderBy('user_id')
+            ->orderBy('id');
 
         if ($teamFilter !== 'all' && $teamFilter !== 'none' && is_numeric($teamFilter)) {
             $query->where('team_id', (int) $teamFilter);
         }
 
-        $flags = [];
-        foreach ($query->pluck('user_id') as $uid) {
-            $flags[(int) $uid] = true;
+        $byUser = [];
+        foreach ($query->get() as $row) {
+            $package = $row->lessonPackage;
+            if (! $package || ! $package->isPostpay()) {
+                continue;
+            }
+
+            $uid = (int) $row->user_id;
+            $teamId = (int) $row->team_id;
+            $priceCents = (int) ($package->price_cents ?? 0);
+            $teamTitle = trim((string) ($row->team?->title ?? ''));
+            if ($teamTitle === '') {
+                $teamTitle = 'Группа #'.$teamId;
+            }
+
+            $label = self::postpayAbonementColumnLabel($priceCents);
+            $hover = ScheduleJournalMonthService::postpayPackageHoverLabel($priceCents)
+                .', '.$teamTitle;
+
+            $byUser[$uid][] = [
+                'team_id' => $teamId,
+                'team_title' => $teamTitle,
+                'price_cents' => $priceCents,
+                'label' => $label,
+                'hover' => $hover,
+            ];
         }
 
-        return $flags;
+        return $byUser;
+    }
+
+    /**
+     * Видимая подпись в колонке абонементов журнала (две строки):
+     * 1200₽
+     * в день
+     */
+    public static function postpayAbonementColumnLabel(int $priceCents): string
+    {
+        $amount = str_replace(' ', '', Money::formatRub($priceCents));
+
+        return $amount."₽\nв\u{00A0}день";
     }
 
     /**

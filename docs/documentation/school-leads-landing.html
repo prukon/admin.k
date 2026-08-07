@@ -31,7 +31,9 @@
 
   <div class="note">
     <b>Назначение:</b> отдельная публичная страница с полной формой записи для конкретного партнёра (школы).
-    Партнёр раздаёт ссылку в рекламе, соцсетях или QR-коде. Заявки сохраняются в ту же таблицу <code>school_leads</code>, что и заявки из iframe-виджета, с пометкой <code>source = landing</code>.<br>
+    Партнёр раздаёт ссылку в рекламе, соцсетях или QR-коде. Заявки сохраняются в ту же таблицу <code>school_leads</code>, что и заявки из iframe-виджета, с пометкой <code>source = landing</code>.
+    При submit выполняется <b>автосопоставление родителя</b> со справочником <code>parents</code>
+    (email → телефон → ФИ) — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>.<br>
     <b>Не путать</b> с iframe-виджетом (<code>/widget/{widgetKey}</code>) — это короткая форма для встраивания на сайт партнёра; см. <a href="/docs/documentation/school-leads-widget#4">school-leads-widget §4</a>.
   </div>
 
@@ -113,7 +115,7 @@
   <ul>
     <li>Middleware: только <code>throttle:60,1</code> (без <code>auth</code>, без CRM-прав).</li>
     <li>Контроллер: <code>App\Http\Controllers\SchoolLeadLandingController</code>.</li>
-    <li>Сервис: <code>App\Services\SchoolLeadLandingService</code>.</li>
+    <li>Сервис: <code>App\Services\SchoolLeadLandingService</code> (+ <code>App\Services\SchoolLeads\SchoolLeadParentMatcher</code> при create — §6 / <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">widget §5.5.5</a>).</li>
     <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — AJAX: ошибки по полям в JSON, 422; non-AJAX: redirect на страницу лендинга с <code>withErrors</code> / <code>withInput</code>.</li>
     <li>reCAPTCHA v3: <code>App\Services\RecaptchaVerificationService</code>.</li>
     <li>View: <code>resources/views/landing/partner-lead.blade.php</code>.</li>
@@ -200,7 +202,7 @@
   </ul>
 
   <h2>6) Сохранение в БД (<code>school_leads</code>)</h2>
-  <p>Миграции: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>.</p>
+  <p>Миграции: <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_08_07_010000_add_parent_match_to_school_leads_table.php</code>.</p>
   <table>
     <thead>
       <tr><th>Поле</th><th>Лендинг</th><th>Примечание</th></tr>
@@ -208,7 +210,8 @@
     <tbody>
       <tr><td><code>source</code></td><td><code>landing</code></td><td>Enum <code>App\Enums\SchoolLeadSource</code></td></tr>
       <tr><td><code>name</code>, <code>phone</code></td><td>ФИО и телефон представителя</td><td>Для совместимости со списком CRM и уведомлениями</td></tr>
-      <tr><td><code>parent_*</code>, <code>parent_email</code></td><td>Из формы</td><td>Отдельные колонки родителя</td></tr>
+      <tr><td><code>parent_*</code>, <code>parent_email</code></td><td>Из формы</td><td>Отдельные колонки родителя (снимок заявки; не затирается при автомат-матче)</td></tr>
+      <tr><td><code>parent_id</code>, <code>parent_match_reason</code>, <code>parent_match_count</code>, <code>parent_match_confirmed</code></td><td>Автомат при submit</td><td>Сопоставление со справочником <code>parents</code> — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a></td></tr>
       <tr><td><code>child_*</code>, <code>child_birthday</code></td><td>Из формы</td><td>Данные ребёнка</td></tr>
       <tr><td><code>is_individual_traits</code>, …</td><td>boolean</td><td>Как у ученика в <code>users</code></td></tr>
       <tr><td><code>location_id</code></td><td>Из формы</td><td>Объект (UI). У виджета обычно <code>null</code></td></tr>
@@ -270,9 +273,9 @@
   <ul>
     <li>Контроллеры: <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadLandingController</code></li>
     <li>Request: <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadLandingSlugRequest</code></li>
-    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>TeamLocationAvailabilityService</code>, <code>PartnerWidgetService</code></li>
-    <li>Support: <code>App\Support\PartnerLandingSlug</code> (нормализация, reserved, pattern маршрута)</li>
-    <li>Enum: <code>App\Enums\SchoolLeadSource</code></li>
+    <li>Сервисы: <code>SchoolLeadLandingService</code>, <code>SchoolLeadParentMatcher</code>, <code>TeamLocationAvailabilityService</code>, <code>PartnerWidgetService</code></li>
+    <li>Support: <code>App\Support\PartnerLandingSlug</code> (нормализация, reserved, pattern маршрута), <code>App\Support\RuPhone::nationalDigits10</code></li>
+    <li>Enum: <code>App\Enums\SchoolLeadSource</code>, <code>SchoolLeadParentMatchReason</code>, <code>SchoolLeadParentMatchConfirmation</code></li>
     <li>Модели: <code>SchoolLead</code>, <code>PartnerWidget</code>, <code>Partner</code> (<code>landingDisplayName()</code>), <code>SportType</code></li>
     <li>Маршруты: <code>routes/web.php</code> — группа <code>/lead/{landingSlug}</code> (pattern из <code>PartnerLandingSlug::ROUTE_PATTERN</code>)</li>
   </ul>
@@ -307,6 +310,10 @@
       <tr>
         <td><code>SchoolLeadLandingFullFeatureTest.php</code></td>
         <td>Форма, каскад район→объект→услуга, валидация, reCAPTCHA, <code>district_id</code>, source=landing</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingParentMatchFeatureTest.php</code></td>
+        <td>Автосопоставление родителя при submit: email / телефон (10 цифр) / ФИ с count; приоритет email над phone</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingSingleOptionFeatureTest.php</code></td>

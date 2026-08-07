@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateSchoolLeadRequest;
 use App\Models\ContractTemplate;
 use App\Models\District;
 use App\Models\Location;
+use App\Models\ParentProfile;
 use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\SchoolLeadStatus;
@@ -290,6 +291,22 @@ class SchoolLeadController extends AdminBaseController
 
         $data = $query->skip($start)->take($length)->get();
 
+        $matchedParentIds = $data->pluck('parent_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $matchedParentsById = collect();
+        if ($matchedParentIds !== []) {
+            $matchedParentsById = ParentProfile::query()
+                ->where('partner_id', $partnerId)
+                ->whereIn('id', $matchedParentIds)
+                ->get()
+                ->keyBy('id');
+        }
+
         $latestContractsByUser = collect();
         if ($canViewContracts) {
             $userIds = $data->pluck('user_id')
@@ -313,7 +330,8 @@ class SchoolLeadController extends AdminBaseController
                 $canViewDistricts,
                 $canViewContracts,
                 $latestContractsByUser,
-                $contractLookup
+                $contractLookup,
+                $matchedParentsById
             ) {
                 $utmParts = array_filter([
                     $item->utm_source ? 'source: ' . $item->utm_source : null,
@@ -331,6 +349,9 @@ class SchoolLeadController extends AdminBaseController
                 $parentNameParts = $item->resolvedParentNameParts();
                 $childNameParts = $item->resolvedChildNameParts();
                 $statusPayload = $this->schoolLeadStatusPayload($item);
+                $matchedParent = $item->parent_id
+                    ? $matchedParentsById->get((int) $item->parent_id)
+                    : null;
 
                 $row = [
                     'id'                     => $item->id,
@@ -360,7 +381,7 @@ class SchoolLeadController extends AdminBaseController
                     'page_url'               => $item->page_url,
                     'referrer'               => $item->referrer,
                     'created_at'             => $item->created_at?->format('d.m.Y H:i'),
-                ] + $statusPayload;
+                ] + $statusPayload + $this->schoolLeadParentMatchPayload($item, $matchedParent);
 
                 if ($canViewDistricts) {
                     $row['district_id']   = $item->district_id;
@@ -425,6 +446,8 @@ class SchoolLeadController extends AdminBaseController
             'parent_middlename',
             'parent_phone',
             'parent_email',
+            'parent_id',
+            'parent_match_confirmed',
             'child_lastname',
             'child_firstname',
             'child_middlename',
@@ -443,7 +466,7 @@ class SchoolLeadController extends AdminBaseController
         }
 
         $schoolLead->save();
-        $schoolLead->load('district', 'location', 'schoolLeadStatus', 'team');
+        $schoolLead->load('district', 'location', 'schoolLeadStatus', 'team', 'parentProfile');
 
         $changes = $this->diffSchoolLeadAuditSnapshots(
             $beforeSnapshot,
@@ -477,7 +500,9 @@ class SchoolLeadController extends AdminBaseController
         $response['team_id']    = $schoolLead->team_id;
         $response['team_title'] = $schoolLead->team?->title;
 
-        $payload = $response + $this->schoolLeadExtendedFieldsPayload($schoolLead);
+        $payload = $response
+            + $this->schoolLeadExtendedFieldsPayload($schoolLead)
+            + $this->schoolLeadParentMatchPayload($schoolLead, $schoolLead->parentProfile);
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json($payload);
@@ -486,25 +511,6 @@ class SchoolLeadController extends AdminBaseController
         return redirect()
             ->route('admin.school-leads')
             ->with('success', (string) ($payload['message'] ?? 'Изменения сохранены.'));
-    }
-
-    public function destroy(SchoolLead $schoolLead): JsonResponse
-    {
-        $partnerId = $this->requirePartnerContext();
-        $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
-
-        $this->auditLogger->record(
-            AuditEvent::SchoolLeadDeleted,
-            AuditContext::make("Заявка удалена: {$this->schoolLeadAuditLabel($schoolLead)}.")
-                ->withTarget($schoolLead, $this->schoolLeadAuditLabel($schoolLead))
-                ->withCreatedAt(now())
-        );
-
-        $schoolLead->delete();
-
-        return response()->json([
-            'message' => 'Заявка удалена.',
-        ]);
     }
 
     public function log(FilterRequest $request)
@@ -632,6 +638,43 @@ class SchoolLeadController extends AdminBaseController
             'is_with_disability'     => (bool) $schoolLead->is_with_disability,
             'needs_contact_help'     => (bool) $schoolLead->needs_contact_help,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function schoolLeadParentMatchPayload(
+        SchoolLead $schoolLead,
+        ?ParentProfile $matchedParent = null,
+    ): array {
+        $reason = $schoolLead->parent_match_reason;
+        $confirmed = $schoolLead->parent_match_confirmed;
+
+        $payload = [
+            'parent_id'                      => $schoolLead->parent_id ? (int) $schoolLead->parent_id : null,
+            'parent_match_reason'            => $reason?->value,
+            'parent_match_count'             => $schoolLead->parent_match_count !== null
+                ? (int) $schoolLead->parent_match_count
+                : null,
+            'parent_match_confirmed'         => $confirmed?->value,
+            'parent_match_banner'            => $schoolLead->parentMatchBannerText(),
+            'parent_match_needs_decision'    => $schoolLead->needsParentMatchDecision() && $matchedParent !== null,
+            'matched_parent'                 => null,
+        ];
+
+        if ($matchedParent) {
+            $payload['matched_parent'] = [
+                'id'         => (int) $matchedParent->id,
+                'lastname'   => $matchedParent->lastname,
+                'firstname'  => $matchedParent->firstname,
+                'middlename' => $matchedParent->middlename,
+                'phone'      => $matchedParent->phone,
+                'email'      => $matchedParent->email,
+                'full_name'  => $matchedParent->full_name,
+            ];
+        }
+
+        return $payload;
     }
 
     private function requirePartnerContext(): int

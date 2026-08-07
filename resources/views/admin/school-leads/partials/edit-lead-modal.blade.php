@@ -8,7 +8,7 @@
 @endphp
 
 <div class="modal fade" id="editLeadModal" tabindex="-1" aria-labelledby="editLeadModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="me-2 min-w-0">
@@ -22,12 +22,18 @@
             <div class="modal-body">
                 <form id="editLeadForm" class="text-start" novalidate>
                     <input type="hidden" id="editLeadId" name="lead_id" value="">
+                    <input type="hidden" id="leadParentMatchConfirmed" name="parent_match_confirmed" value="" class="js-lead-field">
+                    <input type="hidden" id="leadMatchedParentId" value="">
                     @if ($canCreateUserFromLead && $studentRoleId)
                         <input type="hidden" name="role_id" id="leadRoleId" value="{{ (int) $studentRoleId }}">
                         <input type="hidden" name="is_enabled" value="1">
                     @endif
 
                     <div class="edit-lead-top-fields mb-3">
+                        <div id="leadParentMatchBanner"
+                             class="alert alert-warning py-2 px-3 mb-3 d-none small"
+                             role="status"></div>
+
                         <div class="mb-3">
                             <div class="d-flex align-items-center flex-wrap gap-2">
                                 <label class="form-label mb-0" for="leadModalStatusTrigger">Статус</label>
@@ -214,14 +220,52 @@
                                  class="accordion-collapse collapse"
                                  aria-labelledby="editLeadAccordionParentHeading">
                                 <div class="accordion-body">
-                                    <div class="row g-3">
-                                        @include('admin.users._parent_form', [
-                                            'prefix' => 'lead',
-                                            'hideSectionTitle' => true,
-                                            'parentLastname' => '',
-                                            'parentFirstname' => '',
-                                            'parentMiddlename' => '',
-                                        ])
+                                    <div id="leadParentMatchActions"
+                                         class="d-none mb-3 d-flex flex-wrap gap-2">
+                                        <button type="button"
+                                                class="btn btn-sm btn-success"
+                                                id="leadParentMatchAcceptBtn">
+                                            Сопоставлен верно
+                                        </button>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-danger"
+                                                id="leadParentMatchRejectBtn">
+                                            Сопоставление неверно
+                                        </button>
+                                    </div>
+
+                                    <div id="leadParentCompareWrap" class="row g-3">
+                                        <div id="leadParentSnapshotCol" class="col-12 col-lg-6 d-none">
+                                            <div class="border rounded p-3 h-100 bg-light">
+                                                <div class="fw-semibold mb-2">Данные из заявки</div>
+                                                <dl class="row mb-0 small lead-parent-snapshot-list">
+                                                    <dt class="col-sm-4 lead-parent-snapshot-field" data-match-field="lastname">Фамилия</dt>
+                                                    <dd class="col-sm-8 lead-parent-snapshot-field" data-match-field="lastname" id="leadParentSnapshotLastname">—</dd>
+                                                    <dt class="col-sm-4 lead-parent-snapshot-field" data-match-field="firstname">Имя</dt>
+                                                    <dd class="col-sm-8 lead-parent-snapshot-field" data-match-field="firstname" id="leadParentSnapshotFirstname">—</dd>
+                                                    <dt class="col-sm-4 lead-parent-snapshot-field" data-match-field="middlename">Отчество</dt>
+                                                    <dd class="col-sm-8 lead-parent-snapshot-field" data-match-field="middlename" id="leadParentSnapshotMiddlename">—</dd>
+                                                    <dt class="col-sm-4 lead-parent-snapshot-field" data-match-field="phone">Телефон</dt>
+                                                    <dd class="col-sm-8 lead-parent-snapshot-field" data-match-field="phone" id="leadParentSnapshotPhone">—</dd>
+                                                    <dt class="col-sm-4 lead-parent-snapshot-field" data-match-field="email">Email</dt>
+                                                    <dd class="col-sm-8 lead-parent-snapshot-field" data-match-field="email" id="leadParentSnapshotEmail">—</dd>
+                                                </dl>
+                                            </div>
+                                        </div>
+                                        <div id="leadParentFormCol" class="col-12">
+                                            <div id="leadParentFormHeading" class="fw-semibold mb-2 d-none">
+                                                Родитель для создания клиента
+                                            </div>
+                                            <div class="row g-3">
+                                                @include('admin.users._parent_form', [
+                                                    'prefix' => 'lead',
+                                                    'hideSectionTitle' => true,
+                                                    'parentLastname' => '',
+                                                    'parentFirstname' => '',
+                                                    'parentMiddlename' => '',
+                                                ])
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -343,6 +387,48 @@
             color: #6c757d !important;
             background-color: #e9ecef !important;
             border-color: #ced4da !important;
+        }
+
+        #editLeadModal #leadParentSnapshotCol dd {
+            margin-bottom: 0.35rem;
+            word-break: break-word;
+        }
+
+        #editLeadModal #leadParentSnapshotCol .lead-parent-snapshot-field.is-match-hit {
+            background-color: #fff3cd;
+            border-radius: 0.25rem;
+        }
+
+        #editLeadModal #leadParentSnapshotCol dt.lead-parent-snapshot-field.is-match-hit {
+            font-weight: 700;
+            padding: 0.15rem 0.35rem;
+        }
+
+        #editLeadModal #leadParentSnapshotCol dd.lead-parent-snapshot-field.is-match-hit {
+            padding: 0.15rem 0.35rem;
+            font-weight: 600;
+        }
+
+        #editLeadModal #leadParentSnapshotCol .lead-parent-match-hit-badge {
+            display: inline-block;
+            margin-left: 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #664d03;
+            background: #ffe69c;
+            border-radius: 0.25rem;
+            padding: 0.05rem 0.35rem;
+            vertical-align: middle;
+        }
+
+        #editLeadModal #leadParentMatchActions.d-none {
+            display: none !important;
+        }
+
+        #editLeadModal.lead-modal-readonly #leadParentMatchAcceptBtn,
+        #editLeadModal.lead-modal-readonly #leadParentMatchRejectBtn {
+            pointer-events: none;
+            opacity: 0.65;
         }
 
         #editLeadModal .invalid-feedback:not(:empty) {

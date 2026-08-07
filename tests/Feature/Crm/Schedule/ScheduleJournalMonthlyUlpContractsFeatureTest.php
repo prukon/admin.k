@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Schedule;
 
-use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
-use App\Services\TeamUserSyncService;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -253,42 +251,5 @@ final class ScheduleJournalMonthlyUlpContractsFeatureTest extends ScheduleJourna
         $pageAfter->assertSee($student->full_name, false)
             ->assertSee('abonementPlaceModal', false);
         $this->assertSame(2, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulp->id)->count());
-    }
-
-    private function makeMonthlyFixedAssignment(
-        \App\Models\User $student,
-        int $teamId,
-        string $billingMonth,
-        int $lessons = 4
-    ): UserLessonPackage {
-        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [$teamId]);
-
-        $package = \App\Models\LessonPackage::query()->create([
-            'partner_id' => $this->partner->id,
-            'name' => 'Месячный контракт '.uniqid(),
-            'schedule_type' => 'fixed',
-            'duration_days' => 45,
-            'lessons_count' => $lessons,
-            'price_cents' => 800000,
-            'freeze_enabled' => 0,
-            'freeze_days' => 0,
-            'is_active' => 1,
-        ]);
-
-        $monthEnd = \Carbon\Carbon::parse($billingMonth)->endOfMonth()->format('Y-m-d');
-
-        return UserLessonPackage::query()->create([
-            'user_id' => $student->id,
-            'lesson_package_id' => $package->id,
-            'team_id' => $teamId,
-            'billing_month' => $billingMonth,
-            'starts_at' => null,
-            'ends_at' => $monthEnd,
-            'lessons_total' => $lessons,
-            'lessons_remaining' => $lessons,
-            'fee_amount_cents' => 800000,
-            'is_paid' => false,
-            'created_by' => $this->user->id,
-        ]);
     }
 }

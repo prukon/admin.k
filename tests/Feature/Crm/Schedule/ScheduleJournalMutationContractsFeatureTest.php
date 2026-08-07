@@ -207,12 +207,14 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.occurrence_date', CarbonImmutable::parse($utss->starts_at)->toDateString())
             ->assertJsonPath('result.comment', 'AJAX посетил')
             ->assertJsonPath('result.status.id', $this->visitedStatusId)
+            ->assertJsonPath('result.trainer_name', null)
             ->assertJsonStructure([
                 'result' => [
                     'utss_id',
                     'occurrence_date',
                     'comment',
                     'created',
+                    'trainer_name',
                     'status' => ['id', 'title', 'icon', 'color'],
                 ],
             ]);

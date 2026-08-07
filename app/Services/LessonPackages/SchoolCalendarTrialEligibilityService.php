@@ -23,9 +23,12 @@ final class SchoolCalendarTrialEligibilityService
     }
 
     /**
+     * Пользовательский уровень (без слота): можно ли вообще записать пробное.
+     * Используется журналом /schedule и как первая ступень полной проверки слота.
+     *
      * @return TrialEligibilityPayload
      */
-    public function evaluate(int $partnerId, int $userId, int $slotId, CarbonImmutable $occurrence): array
+    public function evaluateUserLevel(int $partnerId, int $userId): array
     {
         $userOk = User::query()
             ->where('partner_id', $partnerId)
@@ -38,6 +41,43 @@ final class SchoolCalendarTrialEligibilityService
                 'allowed' => false,
                 'reason' => 'Ученик не найден или недоступен.',
             ];
+        }
+
+        /** @var UserTeamScheduleSlot|null $existingTrial */
+        $existingTrial = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_id', $userId)
+            ->where('is_trial_lesson', true)
+            ->whereNull('user_lesson_package_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($existingTrial !== null) {
+            return [
+                'allowed' => false,
+                'reason' => $this->alreadyScheduledReason($existingTrial->starts_at),
+            ];
+        }
+
+        $trialUsedFlag = (bool) User::query()->whereKey($userId)->value('has_used_school_schedule_trial');
+        if ($trialUsedFlag) {
+            return [
+                'allowed' => false,
+                'reason' => 'Пробное занятие для этого ученика уже было использовано.',
+            ];
+        }
+
+        return ['allowed' => true, 'reason' => null];
+    }
+
+    /**
+     * @return TrialEligibilityPayload
+     */
+    public function evaluate(int $partnerId, int $userId, int $slotId, CarbonImmutable $occurrence): array
+    {
+        $userLevel = $this->evaluateUserLevel($partnerId, $userId);
+        if (! $userLevel['allowed']) {
+            return $userLevel;
         }
 
         /** @var TeamScheduleSlot|null $slot */
@@ -71,28 +111,6 @@ final class SchoolCalendarTrialEligibilityService
             ];
         }
 
-        $trialAlreadyScheduled = UserTeamScheduleSlot::query()
-            ->where('partner_id', $partnerId)
-            ->where('user_id', $userId)
-            ->where('is_trial_lesson', true)
-            ->whereNull('user_lesson_package_id')
-            ->exists();
-
-        if ($trialAlreadyScheduled) {
-            return [
-                'allowed' => false,
-                'reason' => 'У ученика уже есть запись на пробное занятие.',
-            ];
-        }
-
-        $trialUsedFlag = (bool) User::query()->whereKey($userId)->value('has_used_school_schedule_trial');
-        if ($trialUsedFlag) {
-            return [
-                'allowed' => false,
-                'reason' => 'Пробное занятие для этого ученика уже было использовано.',
-            ];
-        }
-
         /** @var UserTeamScheduleSlot|null $existing */
         $existing = UserTeamScheduleSlot::query()
             ->where('user_id', $userId)
@@ -122,5 +140,19 @@ final class SchoolCalendarTrialEligibilityService
             'allowed' => false,
             'reason' => 'На это занятие уже есть запись в календаре.',
         ];
+    }
+
+    /**
+     * Текст причины «уже есть пробное» с датой записи (d.m.Y).
+     */
+    public function alreadyScheduledReason(mixed $startsAt): string
+    {
+        if ($startsAt === null || $startsAt === '') {
+            return 'Уже есть пробное занятие.';
+        }
+
+        $date = CarbonImmutable::parse($startsAt)->format('d.m.Y');
+
+        return 'Уже есть пробное занятие '.$date.'.';
     }
 }

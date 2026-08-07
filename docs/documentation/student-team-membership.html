@@ -148,7 +148,11 @@
   <ul>
     <li>Консоль <code>/cabinet</code> — селект «Выбор группы» (client-side, <code>sessionStorage</code>) при <code>setPrices.cabinetSeasons.view</code>; см. <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>;</li>
     <li>Журнал — фильтр «Группа» на странице или <code>data-context-team-id</code> на ячейке;</li>
-    <li><code>cell-context</code>, <code>user-schedule/info</code> — query <code>context_team_id</code>;</li>
+    <li><code>cell-context</code>, <code>user-schedule/info</code>,
+      <code>abonement-context</code>, <code>flexible-context</code>,
+      <code>empty-cell-context</code> — query <code>context_team_id</code>;</li>
+    <li>Модалка «Разложить абонемент»: при фильтре журнала и placeable в этой группе —
+      <code>team_locked</code> (см. <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>);</li>
     <li>Дефолтный тренер «Посетил» — тренер группы из контекста (<code>team_trainer</code>), не первой попавшей группы без контекста.</li>
   </ul>
 

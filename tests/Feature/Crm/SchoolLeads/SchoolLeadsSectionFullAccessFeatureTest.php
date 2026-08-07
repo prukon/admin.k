@@ -381,13 +381,6 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
             'is_enabled' => true,
         ])->id;
 
-        $deleteLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Удалить секция',
-            'phone'      => '+7 900 100-00-99',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
         return array_merge([
             [
                 'method'  => 'GET',
@@ -416,7 +409,6 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                         'name'    => true,
                         'phone'   => true,
                         'status'  => true,
-                        'actions' => true,
                     ],
                 ],
             ],
@@ -427,10 +419,6 @@ final class SchoolLeadsSectionFullAccessFeatureTest extends CrmTestCase
                     'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
                     'comment' => 'Section smoke',
                 ],
-            ],
-            [
-                'method' => 'DELETE',
-                'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
         ], $this->schoolLeadStatusManagementRoutesPayload());
     }

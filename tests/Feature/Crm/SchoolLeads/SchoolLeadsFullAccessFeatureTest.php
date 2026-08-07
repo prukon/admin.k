@@ -171,7 +171,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                 'phone'   => true,
                 'utm'     => true,
                 'status'  => true,
-                'actions' => true,
             ],
         ])->assertOk();
 
@@ -179,16 +178,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'school_lead_status_id' => $this->schoolLeadProcessingStatusId(),
             'comment' => 'OK',
         ])->assertOk();
-
-        $tempLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'На удаление',
-            'phone'      => '+7 900 999-99-99',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $tempLead->id]))
-            ->assertOk();
     }
 
     public function test_viewer_with_locations_permission_all_endpoints_return_200(): void
@@ -521,9 +510,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
         $this->putJson(route('admin.school-leads.update', ['schoolLead' => $foreignLead->id]), [
             'school_lead_status_id' => $this->schoolLeadSpamStatusId(),
         ])->assertNotFound();
-
-        $this->deleteJson(route('admin.school-leads.destroy', ['schoolLead' => $foreignLead->id]))
-            ->assertNotFound();
     }
 
     /**
@@ -535,13 +521,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'is_enabled' => true,
         ])->id;
-
-        $deleteLead = SchoolLead::create([
-            'partner_id' => $this->partner->id,
-            'name'       => 'Удалить',
-            'phone'      => '+7 900 555-55-55',
-            'school_lead_status_id' => $this->schoolLeadSystemStatusId(),
-        ]);
 
         return array_merge([
             [
@@ -576,7 +555,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                         'phone'    => true,
                         'location' => true,
                         'status'   => true,
-                        'actions'  => true,
                     ],
                 ],
             ],
@@ -588,10 +566,6 @@ final class SchoolLeadsFullAccessFeatureTest extends CrmTestCase
                     'comment'     => 'Smoke',
                     'location_id' => $locationId,
                 ],
-            ],
-            [
-                'method' => 'DELETE',
-                'url'    => route('admin.school-leads.destroy', ['schoolLead' => $deleteLead->id]),
             ],
         ], $this->schoolLeadStatusManagementRoutesPayload());
     }

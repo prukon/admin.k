@@ -283,12 +283,6 @@ function reloadTable() {
         <td>«—» / ссылка на договор / «Создать договор» (встроенная модалка) — см. <a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2–5.8</a>.</td>
       </tr>
       <tr>
-        <td><code>/admin/school-leads</code> — <code>actions</code></td>
-        <td><code>actions</code></td>
-        <td><code>actions</code> + свой <code>render</code></td>
-        <td>Карандаш <code>edit-lead</code> — только если <code>!row.user_id</code>; удаление <code>delete-lead</code> — всегда. См. <a href="/docs/documentation/school-leads-widget#school-leads-actions-column">school-leads-widget §5.5.3</a>.</td>
-      </tr>
-      <tr>
         <td>LTV, «Платежи по месяцам» — chevron</td>
         <td><code>custom</code></td>
         <td><code>custom</code> (пока)</td>
@@ -435,7 +429,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     <li><code>/admin/administrators</code>, <code>/admin/roles/{name}</code> — тот же паттерн toolbar + DataTables, что у тренеров (см. <a href="/docs/documentation/admin-role-staff">admin-role-staff</a>)</li>
     <li><a href="/docs/documentation/admin-teams">/admin/teams</a> — <code>link</code>, <code>list</code> (расписание — <code>list</code> + свой <code>render</code> для badge дней), <code>money</code>, условные колонки по правам; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-payments">/admin/reports/payments</a> — <code>icon</code> (чек), <code>actions</code> (возврат); 0 <code>custom</code></li>
-    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), <code>actions</code> (карандаш при <code>!user_id</code>, §5.5.3), <code>contract</code> (договор); 0 <code>custom</code></li>
+    <li><a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> — <code>inline-select</code> (динамические статусы), filter multiselect статусов (§4.1), <code>contract</code> сразу после статуса (§5.5.3 / §5.6); редактирование по клику на ФИО (§5.5.2–5.5.3); без колонки <code>actions</code>; 0 <code>custom</code></li>
     <li><a href="/docs/documentation/reports-admin#reports-outgoing-emails">/admin/reports/emails</a> — <code>datetime</code> (создано/отправлено), <code>link</code> (колонка «Кому» → модалка), колонка «Партнер» (id + title, как в чеках), фильтр партнёра только для SA (<a href="/docs/documentation/reports-admin#partner-filter-cross-report">§2.4</a>)</li>
     <li><a href="/docs/documentation/reports-admin">Прочие отчёты админки</a> — debt, LTV, monthly, payment-intents, fiscal-receipts (<code>table_key</code> см. §9 там)</li>
     <li><a href="/docs/documentation/settings-logs">/admin/settings/logs</a> — журнал <code>my_logs</code> без columns-settings (фиксированные колонки)</li>

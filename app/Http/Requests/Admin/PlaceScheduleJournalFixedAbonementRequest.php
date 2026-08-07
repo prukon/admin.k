@@ -54,7 +54,21 @@ class PlaceScheduleJournalFixedAbonementRequest extends FormRequest
 
             /** @var \App\Models\UserLessonPackage|null $ulp */
             $ulp = \App\Models\UserLessonPackage::query()->find($ulpId);
-            if (! $ulp || ! $ulp->isFromSettingPrices() || $ulp->billing_month === null) {
+            if (! $ulp) {
+                return;
+            }
+
+            $teamId = (int) $this->input('team_id');
+            if ($ulp->isFromSettingPrices()) {
+                if ($ulp->team_id === null || (int) $ulp->team_id !== $teamId) {
+                    $validator->errors()->add(
+                        'team_id',
+                        'Выберите группу, в которой назначен этот абонемент.'
+                    );
+                }
+            }
+
+            if (! $ulp->isFromSettingPrices() || $ulp->billing_month === null) {
                 return;
             }
 

@@ -7,6 +7,7 @@ use App\Models\Location;
 use App\Models\SchoolLeadStatus;
 use App\Models\Team;
 use App\Services\PartnerContext;
+use App\Enums\SchoolLeadParentMatchConfirmation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -48,6 +49,14 @@ class UpdateSchoolLeadRequest extends FormRequest
 
         if ($this->has('team_id') && $this->input('team_id') === '') {
             $this->merge(['team_id' => null]);
+        }
+
+        if ($this->has('parent_id') && $this->input('parent_id') === '') {
+            $this->merge(['parent_id' => null]);
+        }
+
+        if ($this->has('parent_match_confirmed') && $this->input('parent_match_confirmed') === '') {
+            $this->merge(['parent_match_confirmed' => null]);
         }
 
         if ($this->has('child_birthday') && $this->input('child_birthday') === '') {
@@ -120,6 +129,15 @@ class UpdateSchoolLeadRequest extends FormRequest
             'parent_middlename' => ['nullable', 'string', 'max:100'],
             'parent_phone'      => ['nullable', 'string', 'max:50'],
             'parent_email'      => ['nullable', 'email', 'max:255'],
+            'parent_id'         => ['nullable', 'integer'],
+            'parent_match_confirmed' => [
+                'nullable',
+                'string',
+                Rule::in([
+                    SchoolLeadParentMatchConfirmation::Accepted->value,
+                    SchoolLeadParentMatchConfirmation::Rejected->value,
+                ]),
+            ],
             'child_lastname'    => ['nullable', 'string', 'max:100'],
             'child_firstname'   => ['nullable', 'string', 'max:100'],
             'child_middlename'  => ['nullable', 'string', 'max:100'],
@@ -144,6 +162,11 @@ class UpdateSchoolLeadRequest extends FormRequest
         if ($partnerId) {
             $rules['team_id'][] = Rule::exists('teams', 'id')->where(
                 fn ($query) => $query->where('partner_id', $partnerId)
+            );
+            $rules['parent_id'][] = Rule::exists('parents', 'id')->where(
+                fn ($query) => $query
+                    ->where('partner_id', $partnerId)
+                    ->whereNull('deleted_at')
             );
         }
 
@@ -305,6 +328,8 @@ class UpdateSchoolLeadRequest extends FormRequest
             'parent_middlename'      => 'Отчество родителя',
             'parent_phone'           => 'Телефон родителя',
             'parent_email'           => 'Email родителя',
+            'parent_id'              => 'Родитель из справочника',
+            'parent_match_confirmed' => 'Подтверждение сопоставления родителя',
             'child_lastname'         => 'Фамилия ученика',
             'child_firstname'        => 'Имя ученика',
             'child_middlename'       => 'Отчество ученика',
@@ -324,6 +349,8 @@ class UpdateSchoolLeadRequest extends FormRequest
             'district_id.integer'             => 'Поле «Район» должно быть числом (ID района).',
             'location_id.integer'             => 'Поле «Объект» должно быть числом (ID объекта).',
             'parent_email.email'              => 'Введите корректный email родителя.',
+            'parent_id.exists'                => 'Выбранный родитель не найден в справочнике партнёра.',
+            'parent_match_confirmed.in'       => 'Некорректное значение подтверждения сопоставления родителя.',
             'child_birthday.date'             => 'Некорректная дата рождения ученика.',
             'team_id.integer'                 => 'Некорректный формат группы.',
             'team_id.exists'                  => 'Выбранная группа не существует в базе.',

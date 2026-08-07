@@ -167,13 +167,69 @@ final class ScheduleJournalTeamPivotFeatureTest extends ScheduleJournalTestCase
             'updated_at' => now(),
         ]);
 
+        $this->makeMonthlyFixedAssignment($student, (int) $teamA->id, '2026-08-01', lessons: 2);
+        $this->makeMonthlyFixedAssignment($student, (int) $teamB->id, '2026-08-01', lessons: 2);
+
         $response = $this->getJson(route('schedule.abonement.context', $student))
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonPath('team_locked', false);
 
         $this->assertEqualsCanonicalizing([$teamA->id, $teamB->id], $response->json('user.team_ids'));
 
         $teams = collect($response->json('teams'))->keyBy('id');
         $this->assertSame([1], $teams[$teamA->id]['weekdays']);
         $this->assertSame([3], $teams[$teamB->id]['weekdays']);
+    }
+
+    public function test_abonement_context_excludes_teams_without_setting_prices_fixed(): void
+    {
+        $teamWith = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamEmpty = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $student = $this->makeStudent($teamWith->id);
+        DB::table('team_user')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamEmpty->id,
+            'user_id' => $student->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->makeMonthlyFixedAssignment($student, (int) $teamWith->id, '2026-08-01', lessons: 2);
+        $this->makeFixedAssignment($student, lessons: 2); // classic — не в модалке
+
+        $response = $this->getJson(route('schedule.abonement.context', $student))
+            ->assertOk()
+            ->assertJsonPath('team_locked', true)
+            ->assertJsonPath('team_id', (int) $teamWith->id);
+
+        $teamIds = collect($response->json('teams'))->pluck('id')->all();
+        $this->assertSame([(int) $teamWith->id], array_map('intval', $teamIds));
+        $this->assertTrue(
+            collect($response->json('assignments'))->every(
+                fn ($a) => (bool) ($a['from_setting_prices'] ?? false)
+            )
+        );
+    }
+
+    public function test_abonement_context_locks_team_from_journal_filter(): void
+    {
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $student = $this->makeStudent($teamA->id);
+        DB::table('team_user')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamB->id,
+            'user_id' => $student->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->makeMonthlyFixedAssignment($student, (int) $teamA->id, '2026-08-01', lessons: 2);
+        $this->makeMonthlyFixedAssignment($student, (int) $teamB->id, '2026-08-01', lessons: 2);
+
+        $this->getJson(route('schedule.abonement.context', $student).'?context_team_id='.$teamB->id)
+            ->assertOk()
+            ->assertJsonPath('team_locked', true)
+            ->assertJsonPath('team_id', (int) $teamB->id)
+            ->assertJsonPath('teams.0.id', (int) $teamB->id);
     }
 }
