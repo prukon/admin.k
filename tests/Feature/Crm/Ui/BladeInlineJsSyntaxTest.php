@@ -42,6 +42,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'payment systems settings tab' => ['admin/setting/paymentSystem.blade.php'];
         yield 'tbank commissions settings tab' => ['admin/setting/tbankCommissions.blade.php'];
         yield 'school schedule calendar tab' => ['admin/lessonPackages/tabs/schoolSchedule.blade.php'];
+        yield 'team schedule slot create edit modals' => ['admin/teamScheduleSlots/partials/slotModals.blade.php'];
         yield 'lesson packages tab modals' => ['admin/lessonPackages/tabs/packages.blade.php'];
         yield 'lesson package assignments tab' => ['admin/lessonPackages/tabs/assignments.blade.php'];
         yield 'club fee payment page' => ['payment/clubFee.blade.php'];
@@ -525,6 +526,65 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS модалок «Добавить слот» / «Редактировать занятие» (fetch + errors под полями).
+     */
+    public function test_team_schedule_slot_modals_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/teamScheduleSlots/partials/slotModals.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="slotCreateModal"', $content);
+        $this->assertStringContainsString('id="slotCreateSubmit">Добавить</button>', $content);
+        $this->assertStringContainsString('>Отмена</button>', $content);
+        $this->assertStringContainsString('autoSelectSoleTeam', $content);
+        $this->assertStringContainsString('selectSoleVisibleTeamIfAny', $content);
+        $this->assertStringContainsString('slotCreateLocationsCount', $content);
+        $this->assertStringContainsString('openSlotCreateModalWithDefaults', $content);
+        $this->assertStringContainsString('applyErrors', $content);
+        $this->assertStringContainsString('data-error-for', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+        $this->assertStringContainsString('admin.team-schedule-slots.store', $content);
+        $this->assertStringContainsString('fetch(', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В slotModals.blade.php нет inline <script>');
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'slotCreateSubmit') && ! str_contains($rawScript, 'autoSelectSoleTeam')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-slot-modals-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in slotModals script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В slotModals.blade.php не найден script с slotCreateSubmit / autoSelectSoleTeam');
+    }
+
+    /**
      * P1: inline JS модалки выгрузки Excel на календаре школы (fetch + ошибки под полями).
      */
     public function test_school_schedule_export_modal_inline_script_is_valid_javascript(): void
@@ -576,6 +636,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
     /**
      * P1: inline JS привязки фиксированного абонемента в модалке слота (fetch + errors.patterns).
+     * Включает автоподстановку group_patterns в шаблон привязки.
      */
     public function test_school_schedule_fixed_bind_inline_script_is_valid_javascript(): void
     {
@@ -586,9 +647,18 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('submitSchoolCalSlotFixedRegistration', $content);
         $this->assertStringContainsString('showSchoolCalSlotFixedFieldErrs', $content);
         $this->assertStringContainsString('routes.fixedAssign', $content);
+        $this->assertStringContainsString('routes.fixedAssignPreview', $content);
         $this->assertStringContainsString('schoolCalSlotFixedFormWrap', $content);
+        $this->assertStringContainsString('schoolCalFixedChainPreview', $content);
+        $this->assertStringContainsString('scheduleSchoolCalFixedChainPreview', $content);
+        $this->assertStringContainsString('refreshSchoolCalFixedChainPreview', $content);
         $this->assertStringContainsString('data-err="patterns"', $content);
         $this->assertStringContainsString('X-Requested-With', $content);
+        $this->assertStringContainsString('seedSchoolCalSlotFixedPatternsFromOccurrence', $content);
+        $this->assertStringContainsString('addSchoolCalFixedPatternRow', $content);
+        $this->assertStringContainsString('fillSchoolCalFixedPatternRow', $content);
+        $this->assertStringContainsString('group_patterns', $content);
+        $this->assertStringContainsString('schoolCalSlotBindAction(\'fixed\')', $content);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1]);
@@ -599,6 +669,16 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 continue;
             }
             $fixedScriptFound = true;
+            $this->assertStringContainsString('group_patterns', $rawScript);
+            $this->assertStringContainsString('addSchoolCalFixedPatternRow', $rawScript);
+            $this->assertStringContainsString('fixedAssignPreview', $rawScript);
+            $this->assertStringContainsString('refreshSchoolCalFixedChainPreview', $rawScript);
+            $this->assertStringContainsString('scheduleSchoolCalFixedChainPreview', $rawScript);
+            $previewPos = strpos($rawScript, 'fetch(routes.fixedAssignPreview');
+            $this->assertNotFalse($previewPos, 'Не найден fetch(routes.fixedAssignPreview)');
+            $previewChunk = substr($rawScript, (int) $previewPos, 900);
+            $this->assertStringContainsString('X-Requested-With', $previewChunk);
+            $this->assertStringContainsString("Accept': 'application/json'", $previewChunk);
             $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
             $this->assertNotSame('', trim($js));
 

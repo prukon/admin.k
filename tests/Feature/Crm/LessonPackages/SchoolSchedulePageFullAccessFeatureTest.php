@@ -314,6 +314,17 @@ final class SchoolSchedulePageFullAccessFeatureTest extends CrmTestCase
         ]);
         $slotFixed = $this->mondaySlot($team, '11:00', '12:00');
 
+        $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed-preview'), array_merge([
+            'user_id'                => $studentFixed->id,
+            'user_lesson_package_id' => $ulpFixed->id,
+            'team_schedule_slot_id'  => $slotFixed->id,
+            'anchor_date'            => self::WEEK_MONDAY,
+        ], $this->fixedCalendarBindPattern(1, '11:00', '12:00')))
+            ->assertOk()
+            ->assertJsonStructure(['lessons_needed', 'found', 'complete', 'title', 'items']);
+
+        $this->assertSame(0, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulpFixed->id)->count());
+
         $this->postJson(route('admin.lesson-packages.school-schedule.assign-fixed'), array_merge([
             'user_id'                => $studentFixed->id,
             'user_lesson_package_id' => $ulpFixed->id,
@@ -499,6 +510,16 @@ final class SchoolSchedulePageFullAccessFeatureTest extends CrmTestCase
                 [
                     'method' => 'POST',
                     'url'    => route('admin.lesson-packages.school-schedule.assign-fixed'),
+                    'data'   => array_merge([
+                        'user_id'                => 1,
+                        'user_lesson_package_id' => 1,
+                        'team_schedule_slot_id'  => 1,
+                        'anchor_date'            => self::WEEK_MONDAY,
+                    ], $this->fixedCalendarBindPattern(1, '10:00', '11:00')),
+                ],
+                [
+                    'method' => 'POST',
+                    'url'    => route('admin.lesson-packages.school-schedule.assign-fixed-preview'),
                     'data'   => array_merge([
                         'user_id'                => 1,
                         'user_lesson_package_id' => 1,

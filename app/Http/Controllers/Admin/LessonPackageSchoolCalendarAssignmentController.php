@@ -67,7 +67,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                     'reason' => $r,
                     'existing_assignments' => [],
                 ],
-                'fixed' => ['allowed' => false, 'reason' => $r, 'existing_assignments' => []],
+                'fixed' => ['allowed' => false, 'reason' => $r, 'existing_assignments' => [], 'group_patterns' => []],
                 'single_lesson' => [
                     'allowed' => false,
                     'reason' => $r,
@@ -378,6 +378,212 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         return response()->json(['message' => 'Запись разового занятия отменена. Назначение абонемента сохранено.']);
+    }
+
+    /**
+     * Превью цепочки фиксированной привязки без записи в БД.
+     * Ответ: lessons_needed, found, complete, title, hint, items[{date, label, time_start, time_end}].
+     */
+    public function previewFixed(AssignSchoolCalendarFixedRequest $request): JsonResponse
+    {
+        $partnerId = $this->requirePartnerId();
+        $data = $request->validated();
+
+        /** @var User|null $user */
+        $user = User::query()
+            ->where('partner_id', $partnerId)
+            ->whereKey((int) $data['user_id'])
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Ученик не найден.',
+                'errors' => ['user_id' => ['Ученик не найден.']],
+            ], 422);
+        }
+
+        /** @var UserLessonPackage|null $ulp */
+        $ulp = UserLessonPackage::query()
+            ->with(['lessonPackage'])
+            ->whereKey((int) $data['user_lesson_package_id'])
+            ->first();
+
+        if (! $ulp || (int) $ulp->user_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Назначение не найдено или не принадлежит выбранному ученику.',
+                'errors' => ['user_lesson_package_id' => ['Назначение не найдено или не принадлежит выбранному ученику.']],
+            ], 422);
+        }
+
+        /** @var LessonPackage|null $package */
+        $package = $ulp->lessonPackage;
+        if (! $package || (int) $package->partner_id !== $partnerId || (string) $package->schedule_type !== 'fixed') {
+            return response()->json([
+                'message' => 'Выберите назначение с фиксированным расписанием текущего партнёра.',
+                'errors' => ['user_lesson_package_id' => ['Выберите назначение с фиксированным расписанием текущего партнёра.']],
+            ], 422);
+        }
+
+        if ($ulp->starts_at !== null || $ulp->ends_at !== null) {
+            return response()->json([
+                'message' => 'У этого назначения уже задан период действия.',
+                'errors' => ['user_lesson_package_id' => ['Назначение уже имеет даты периода — повторная привязка недоступна.']],
+            ], 422);
+        }
+
+        if (UserTeamScheduleSlot::query()->where('user_lesson_package_id', (int) $ulp->id)->exists()) {
+            return response()->json([
+                'message' => 'У назначения уже есть записи в расписании школы.',
+                'errors' => ['user_lesson_package_id' => ['У назначения уже есть записи в расписании школы.']],
+            ], 422);
+        }
+
+        if ((int) $ulp->lessons_total < 1) {
+            return response()->json([
+                'message' => 'У абонемента не задан объём занятий.',
+                'errors' => ['user_lesson_package_id' => ['У абонемента не задан объём занятий.']],
+            ], 422);
+        }
+
+        /** @var TeamScheduleSlot|null $anchorSlot */
+        $anchorSlot = TeamScheduleSlot::query()->whereKey((int) $data['team_schedule_slot_id'])->first();
+
+        if (! $anchorSlot || (int) $anchorSlot->partner_id !== $partnerId) {
+            return response()->json([
+                'message' => 'Слот расписания не найден.',
+                'errors' => ['team_schedule_slot_id' => ['Слот расписания не найден.']],
+            ], 422);
+        }
+
+        $locationFilter = isset($data['location_id']) ? (int) $data['location_id'] : null;
+        if ($locationFilter === 0) {
+            $locationFilter = null;
+        }
+
+        if ($locationFilter !== null && $locationFilter > 0
+            && (int) ($anchorSlot->location_id ?? 0) !== $locationFilter) {
+            return response()->json([
+                'message' => 'Выбранный слот не относится к этой локации.',
+                'errors' => ['location_id' => ['Выбранный слот не относится к этой локации.']],
+            ], 422);
+        }
+
+        $effectiveLocationFilter = $locationFilter;
+        if ($effectiveLocationFilter === null || $effectiveLocationFilter === 0) {
+            $lid = $anchorSlot->location_id;
+            $effectiveLocationFilter = $lid !== null ? (int) $lid : null;
+        }
+
+        $anchorDate = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['anchor_date'])->startOfDay();
+
+        $patterns = $this->dedupeFixedPatternsFromValidated($data['patterns'] ?? []);
+        if ($patterns->isEmpty()) {
+            return response()->json([
+                'message' => 'Укажите хотя бы один слот шаблона привязки.',
+                'errors' => ['patterns' => ['Укажите хотя бы один слот шаблона привязки.']],
+            ], 422);
+        }
+
+        if ((int) $anchorSlot->weekday !== (int) $anchorDate->format('N')) {
+            return response()->json([
+                'message' => 'Дата якоря не соответствует дню недели выбранного слота.',
+                'errors' => ['anchor_date' => ['Дата якоря не соответствует дню недели выбранного слота.']],
+            ], 422);
+        }
+
+        if (! $this->calendarService->patternMatchesSlot($patterns, $anchorSlot, (int) $anchorDate->format('N'))) {
+            return response()->json([
+                'message' => 'Шаблон привязки должен включать слот занятия, на которое вы кликнули (день недели и время).',
+                'errors' => [
+                    'patterns' => ['Добавьте в шаблон строку с днём недели и временем слота, с которого открыто окно.'],
+                ],
+            ], 422);
+        }
+
+        if (! $this->calendarService->slotActiveOnDate($anchorSlot, $anchorDate)) {
+            return response()->json([
+                'message' => 'Слот недействителен на выбранную дату.',
+                'errors' => ['anchor_date' => ['Слот недействителен на выбранную дату.']],
+            ], 422);
+        }
+
+        if ($this->calendarService->isOccurrenceSkipped((int) $anchorSlot->id, $anchorDate)) {
+            return response()->json([
+                'message' => 'На эту дату занятие исключено из расписания школы.',
+                'errors' => ['anchor_date' => ['На эту дату занятие исключено из расписания школы.']],
+            ], 422);
+        }
+
+        try {
+            $periodEnd = $this->calendarPeriodService->resolvePlacementPeriodEnd($ulp, $anchorDate);
+        } catch (InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'errors' => ['user_lesson_package_id' => [$e->getMessage()]],
+            ], 422);
+        }
+
+        $scheduledExisting = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', (int) $ulp->id)
+            ->count();
+        $lessonsNeeded = (int) $ulp->lessons_total - $scheduledExisting;
+        if ($lessonsNeeded < 1) {
+            return response()->json([
+                'message' => 'Нет свободных занятий для записи в календарь по этому абонементу.',
+                'errors' => ['user_lesson_package_id' => ['Нет свободных занятий для записи в календарь по этому абонементу.']],
+            ], 422);
+        }
+
+        try {
+            $chain = $this->calendarService->buildFixedOccurrenceChain(
+                $partnerId,
+                $anchorDate,
+                $anchorSlot,
+                $patterns,
+                $lessonsNeeded,
+                $periodEnd,
+                $effectiveLocationFilter,
+                true,
+            );
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage() !== '' ? $e->getMessage() : 'Не удалось построить распределение занятий.',
+                'errors' => ['patterns' => [$e->getMessage() !== '' ? $e->getMessage() : 'Не удалось построить распределение занятий.']],
+                'lessons_needed' => $lessonsNeeded,
+                'found' => 0,
+                'complete' => false,
+                'title' => $this->fixedChainPreviewTitle($lessonsNeeded),
+                'hint' => 'найдено 0 из '.$lessonsNeeded,
+                'items' => [],
+            ], 422);
+        }
+
+        $found = count($chain);
+        $complete = $found >= $lessonsNeeded;
+        $items = [];
+        foreach ($chain as $row) {
+            /** @var CarbonImmutable $date */
+            $date = $row['date'];
+            /** @var TeamScheduleSlot $slot */
+            $slot = $row['slot'];
+            $ts = substr((string) $slot->time_start, 0, 5);
+            $te = substr((string) $slot->time_end, 0, 5);
+            $items[] = [
+                'date' => $date->toDateString(),
+                'time_start' => $ts,
+                'time_end' => $te,
+                'label' => $this->formatFixedChainPreviewLine($date, $ts, $te),
+            ];
+        }
+
+        return response()->json([
+            'lessons_needed' => $lessonsNeeded,
+            'found' => $found,
+            'complete' => $complete,
+            'title' => $this->fixedChainPreviewTitle($lessonsNeeded),
+            'hint' => $complete ? null : ('найдено '.$found.' из '.$lessonsNeeded),
+            'items' => $items,
+        ]);
     }
 
     public function assignFixed(AssignSchoolCalendarFixedRequest $request): JsonResponse|RedirectResponse
@@ -928,6 +1134,65 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         }
 
         return response()->json(['message' => 'Пробное занятие отменено.']);
+    }
+
+    private function fixedChainPreviewTitle(int $lessonsNeeded): string
+    {
+        return 'Распределение '.$lessonsNeeded.' '.$this->russianLessonsWord($lessonsNeeded).' абонемента:';
+    }
+
+    private function russianLessonsWord(int $n): string
+    {
+        $nAbs = abs($n) % 100;
+        $n1 = $nAbs % 10;
+        if ($nAbs > 10 && $nAbs < 20) {
+            return 'занятий';
+        }
+        if ($n1 > 1 && $n1 < 5) {
+            return 'занятия';
+        }
+        if ($n1 === 1) {
+            return 'занятие';
+        }
+
+        return 'занятий';
+    }
+
+    private function formatFixedChainPreviewLine(CarbonImmutable $date, string $timeStart, string $timeEnd): string
+    {
+        static $months = [
+            1 => 'января',
+            2 => 'февраля',
+            3 => 'марта',
+            4 => 'апреля',
+            5 => 'мая',
+            6 => 'июня',
+            7 => 'июля',
+            8 => 'августа',
+            9 => 'сентября',
+            10 => 'октября',
+            11 => 'ноября',
+            12 => 'декабря',
+        ];
+        static $weekdays = [
+            1 => 'понедельник',
+            2 => 'вторник',
+            3 => 'среда',
+            4 => 'четверг',
+            5 => 'пятница',
+            6 => 'суббота',
+            7 => 'воскресенье',
+        ];
+
+        $month = $months[(int) $date->format('n')] ?? $date->format('m');
+        $weekday = $weekdays[(int) $date->format('N')] ?? '';
+
+        $line = ((int) $date->format('j')).' '.$month.' '.$date->format('Y').' '.$timeStart.'-'.$timeEnd;
+        if ($weekday !== '') {
+            $line .= ' ('.$weekday.')';
+        }
+
+        return $line;
     }
 
     /**

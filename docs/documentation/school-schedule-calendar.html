@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание школы: календарь, модалка слота, выгрузка Excel (контакты, исторический остаток), API</title>
+  <title>Расписание школы: календарь, фикс (group_patterns, превью цепочки), выгрузка Excel, API</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
@@ -31,6 +31,9 @@
     (листы «Занятия» / «Назначения», <a href="#school-schedule-export-contacts">контакты ученика и родителя</a>,
     <a href="#school-schedule-export-historical-remaining">исторический остаток</a>).
     Конфликт времени при привязке фикса — <a href="#school-schedule-fixed-overlap">§ конфликт (starts_at)</a>.
+    Автозаполнение шаблона фикса слотами группы и превью цепочки дат —
+    <a href="#school-schedule-fixed-group-patterns">§ group_patterns</a>,
+    <a href="#school-schedule-fixed-chain-preview">§ превью цепочки</a>.
     Отдельно: управление слотами расписания групп (<code>scheduleSlots.manage</code> / просмотр) описано в коде прав и тестах календаря; здесь — клиентская часть календаря и модалки слота.<br>
     <strong>Не путать UI</strong> с журналом посещаемости <code>/schedule</code> (<code>schedule.view</code>):
     календарь — день + время слота, журнал — дневная сетка учеников.
@@ -208,7 +211,7 @@
       </tr>
       <tr>
         <td><code>#schoolCalSlotFixedUlp</code> / <code>#schoolCalSlotFixedSubmit</code></td>
-        <td>Select «Назначение абонемента» (если несколько) и кнопка «Привязать абонемент». Шаблон привязки — <code>#schoolCalFixedPatternsHost</code>, «+ Добавить слот» — <code>#schoolCalFixedAddPattern</code>. Ошибки валидации — под полями блока (<code>data-err</code>). Ученик берётся из <code>#schoolCalSlotUserSelect</code>.</td>
+        <td>Select «Назначение абонемента» (если несколько) и кнопка «Привязать абонемент». Шаблон привязки — <code>#schoolCalFixedPatternsHost</code>, «+ Добавить слот» — <code>#schoolCalFixedAddPattern</code>. Превью дат цепочки — <code>#schoolCalFixedChainPreview</code> (см. <a href="#school-schedule-fixed-chain-preview">§ превью</a>). Ошибки валидации — под полями блока (<code>data-err</code>). Ученик берётся из <code>#schoolCalSlotUserSelect</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -224,7 +227,7 @@
       <tr><td><code>#schoolCalSlotBindPanelsHost</code></td><td>Общий контейнер трёх панелей (<code>data-bind-mode</code>: <code>single</code>, <code>flex</code>, <code>fixed</code>)</td></tr>
       <tr><td><code>#schoolCalSlotSingleFormWrap</code></td><td>Разовое: select назначения и/или блок создания (<code>#schoolCalSlotSingleCreateFields</code>)</td></tr>
       <tr><td><code>#schoolCalSlotFlexFormWrap</code></td><td>Гибкий: select назначения (если несколько)</td></tr>
-      <tr><td><code>#schoolCalSlotFixedFormWrap</code></td><td>Фиксированный: select назначения (если несколько) + шаблон <code>patterns[]</code></td></tr>
+      <tr><td><code>#schoolCalSlotFixedFormWrap</code></td><td>Фиксированный: select назначения (если несколько) + шаблон <code>patterns[]</code> + превью <code>#schoolCalFixedChainPreview</code></td></tr>
       <tr><td><code>data-school-cal-bind-cancel</code></td><td>Кнопка «Отмена» слева от submit в каждой панели — сворачивает панель без сброса кэша bind-actions</td></tr>
       <tr><td><code>.school-cal-slot-bind-dimmable</code></td><td>Элементы модалки, которые затемняются в режиме фокуса (заголовок, сводка, select ученика, кнопки действий, список записей)</td></tr>
     </tbody>
@@ -314,7 +317,7 @@
       <tr><td>Флаги доступности типов привязки (глобально по партнёру)</td><td><code>GET …/school-schedule/assignment-availability</code></td></tr>
       <tr><td>Списки назначений (вспомогательные JSON)</td><td><code>GET …/school-schedule/fixed-packages</code>, <code>flexible-assignments</code>, <code>fixed-assignments</code>, <code>single-lesson-assignments</code> — legacy/API; гибкий и фиксированный inline в модалке слота берут списки из <code>slot-user-bind-actions</code></td></tr>
       <tr><td>Поиск учеников</td><td><code>GET …/lesson-packages/assignments/users-search</code> (модалка слота); <code>flexible-users-search</code>, <code>single-lesson-users-search</code> — legacy-модалки и API</td></tr>
-      <tr><td>Привязка из модалки слота</td><td><code>POST …/assign-flexible</code> (гибкий, inline), <code>assign-fixed</code> (фиксированный, inline), <code>single-lesson-registration</code> (разовое)</td></tr>
+      <tr><td>Привязка из модалки слота</td><td><code>POST …/assign-flexible</code> (гибкий, inline), <code>assign-fixed</code> (фиксированный, inline), <code>assign-fixed-preview</code> (превью цепочки без записи), <code>single-lesson-registration</code> (разовое)</td></tr>
       <tr><td>Legacy-привязка разового</td><td><code>POST …/assign-single-lesson</code> — модалка <code>#schoolCalSingleModal</code></td></tr>
       <tr><td>Разовое: запись из модалки слота</td><td><code>POST …/single-lesson-registration</code> (<code>SchoolCalendarSingleLessonRegistrationService</code>)</td></tr>
       <tr><td>Пробное: доступность / создание / отмена</td><td><code>GET …/trial-registration-eligibility</code>, <code>POST …/trial-registration</code>, <code>DELETE …/trial-registration/{id}</code></td></tr>
@@ -554,6 +557,7 @@
   <ul>
     <li><code>allowed</code>, <code>reason</code> — можно ли привязать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
     <li><code>existing_assignments[]</code> — назначения без периода и без записей в календаре: <code>{ id, label }</code>, где <code>label</code> формирует <code>SchoolCalendarAssignmentEligibilityService::formatFixedAssignmentLabel</code> — тот же формат, что у гибкого: <strong>«"Название" (остаток {lessons_remaining})»</strong>.</li>
+    <li><code>group_patterns[]</code> — все активные слоты <strong>той же группы (<code>team_id</code>) и того же объекта (<code>location_id</code>, включая <code>NULL</code>)</strong>, что у якорного слота (включая сам якорный): <code>{ id, weekday, time_start, time_end }</code>, отсортированы по дню недели и времени начала (<code>SchoolCalendarSlotUserBindActionsService::groupPatternsForSlot</code>). Активность sibling-слота проверяется на <strong>ближайшую дату его дня недели</strong> не раньше якоря (не на дату якоря) — иначе слоты ср/пт с <code>date_start</code> = их первый день ложно отсекались. Используется фронтом для автозаполнения строк «Шаблон привязки» — считается независимо от <code>allowed</code>/<code>existing_assignments</code>.</li>
   </ul>
   <p>Отбор назначений (<code>SchoolCalendarSlotUserBindActionsService::evaluateFixed</code>, запрос <code>fixedAssignmentsQuery</code>):</p>
   <ul>
@@ -570,7 +574,8 @@
     <li>Выбрать ученика в модалке слота — фронт запрашивает <code>slot-user-bind-actions</code>.</li>
     <li><strong>Одно</strong> назначение — кнопка в две строки (базовый текст + <code>label</code>); по клику раскрывается <code>#schoolCalSlotFixedFormWrap</code> только с блоком «Шаблон привязки» (select абонемента скрыт, <code>user_lesson_package_id</code> подставляется автоматически).</li>
     <li><strong>Два и более</strong> — однострочная кнопка «Привязать фиксированный абонемент»; по клику форма с select «Назначение абонемента» (<code>#schoolCalSlotFixedUlp</code>) и шаблоном привязки.</li>
-    <li>Первая строка шаблона (<code>#schoolCalFixedPatternsHost</code>) по умолчанию совпадает с открытым слотом (день недели, время начала/окончания из occurrence). Кнопка «+ Добавить слот» (<code>#schoolCalFixedAddPattern</code>) добавляет строки для остальных дней группы в неделе.</li>
+    <li>Шаблон привязки (<code>#schoolCalFixedPatternsHost</code>) заполняется автоматически из <code>fixed.group_patterns</code> — см. <a href="#school-schedule-fixed-group-patterns">§ автозаполнение</a>. Строки можно удалить или править; «+ Добавить слот» — пустая строка вручную.</li>
+    <li>Под шаблоном — превью дат цепочки (<code>#schoolCalFixedChainPreview</code>) — см. <a href="#school-schedule-fixed-chain-preview">§ превью</a>.</li>
     <li>Submit — <code>#schoolCalSlotFixedSubmit</code> «Привязать абонемент» → <code>POST …/assign-fixed</code> (ученик из <code>#schoolCalSlotUserSelect</code>, не повторный select).</li>
     <li>Ошибки валидации (<code>422</code>, объект <code>errors</code>, в т.ч. <code>patterns.0.weekday</code>, <code>patterns</code>, <code>user_lesson_package_id</code>) выводятся под полями inline-блока (<code>data-err</code>); общий <code>message</code> — во flash/alert.</li>
   </ol>
@@ -580,6 +585,49 @@
     Классика без <code>billing_month</code> в журнале не предлагается — остаётся этот
     <code>assign-fixed</code>. Подробно —
     <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a>.</p>
+
+  <h3 id="school-schedule-fixed-group-patterns">Автозаполнение шаблона слотами группы (<code>group_patterns</code>)</h3>
+  <p>При открытии inline-формы фикса фронт вызывает <code>seedSchoolCalSlotFixedPatternsFromOccurrence</code>:</p>
+  <ol>
+    <li>Первая строка шаблона = якорный слот (день недели и время из открытого occurrence).</li>
+    <li>Дополнительные строки = элементы <code>fixed.group_patterns</code> из кэша <code>slot-user-bind-actions</code>, кроме якоря (<code>id</code> слота).</li>
+  </ol>
+  <p>Сервер (<code>SchoolCalendarSlotUserBindActionsService::groupPatternsForSlot</code>) отбирает слоты так:</p>
+  <ul>
+    <li>тот же <code>partner_id</code>, <code>team_id</code>;</li>
+    <li>тот же объект: <code>location_id</code> совпадает <strong>точно</strong> (включая оба <code>NULL</code> — «без объекта»); слоты группы на другом объекте не попадают;</li>
+    <li>два и более слота в один день недели в разное время — оба включаются;</li>
+    <li>порядок: <code>weekday</code>, затем <code>time_start</code>;</li>
+    <li>sibling считается активным, если <code>slotActiveOnDate</code> истинен на <strong>ближайшую дату его дня недели</strong> не раньше якорной даты (не на дату якоря). Иначе слоты ср/пт с <code>date_start</code> = их первый день недели ложно отсекались при клике в понедельник;</li>
+    <li>отключённые (<code>is_enabled = 0</code>), истёкшие и soft-deleted sibling’ы не включаются; якорный слот в списке всегда есть.</li>
+  </ul>
+  <p><code>group_patterns</code> отдаётся и при <code>allowed=false</code> (например, нет подходящего назначения) — на автозаполнение это не влияет: форма фикса открывается только при <code>allowed=true</code>. Строки шаблона после автозаполнения можно править и удалять; «+ Добавить слот» добавляет пустую строку вручную.</p>
+  <p class="small">Тесты: <code>LessonPackageSchoolScheduleFixedGroupPatternsFeatureTest</code>, регрессия sibling <code>date_start</code> после якоря — в том же файле; базовая фильтрация — также в <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest</code>.</p>
+
+  <h3 id="school-schedule-fixed-chain-preview">Превью распределения занятий</h3>
+  <p>Под блоком шаблона (<code>#schoolCalFixedPatternsHost</code> / «+ Добавить слот») показывается <code>#schoolCalFixedChainPreview</code> (классы <code>school-cal-fixed-chain-preview</code>, список <code>school-cal-fixed-chain-preview__list</code>, выравнивание <strong>по левому краю</strong>).</p>
+  <ul>
+    <li>Заголовок: «Распределение N занятие/занятия/занятий абонемента:» (склонение по числу <code>lessons_needed</code>).</li>
+    <li>Строки: <code>6 августа 2026 17:00-18:00 (четверг)</code> — день месяца, месяц родительный, год, интервал времени, день недели в скобках (именительный: понедельник…воскресенье).</li>
+    <li>Если за период абонемента по шаблону набирается меньше N занятий — подсказка «найдено X из N» (<code>hint</code>), <code>complete=false</code>; список всё равно показывает найденные даты.</li>
+  </ul>
+  <p>Фронт (<code>scheduleSchoolCalFixedChainPreview</code> / <code>refreshSchoolCalFixedChainPreview</code>) дергает API с debounce (~350&nbsp;мс) при открытии формы фикса, смене строк шаблона (change/input/добавить/удалить) и смене select назначения. Запрос не уходит, пока шаблон неполный (пустые время/день) или не выбран ULP / ученик. При скрытии панели фикса превью очищается.</p>
+
+  <h3>API: превью цепочки (<code>POST …/assign-fixed-preview</code>)</h3>
+  <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.assign-fixed-preview</code>. Request: тот же <code>AssignSchoolCalendarFixedRequest</code>, что у <code>assign-fixed</code> (поля <code>user_id</code>, <code>user_lesson_package_id</code>, <code>team_schedule_slot_id</code>, <code>anchor_date</code>, <code>patterns[]</code>, опционально <code>location_id</code>). Контроллер: <code>LessonPackageSchoolCalendarAssignmentController::previewFixed</code>. Право: <code>lessonPackages.view</code>. <strong>Не пишет</strong> в БД: период назначения не выставляется, строки <code>user_team_schedule_slots</code> не создаются.</p>
+  <p>Успех — всегда JSON <code>200</code> (и для AJAX, и для non-AJAX POST), тело:</p>
+  <ul>
+    <li><code>lessons_needed</code>, <code>found</code>, <code>complete</code>;</li>
+    <li><code>title</code> — «Распределение N занятие/занятия/занятий абонемента:»;</li>
+    <li><code>hint</code> — <code>null</code> при полной цепочке, иначе «найдено X из N»;</li>
+    <li><code>items[]</code> — <code>{ date, time_start, time_end, label }</code>, <code>label</code> с годом и днём недели (см. выше).</li>
+  </ul>
+  <p>Цепочка: период через <code>UserLessonPackageCalendarPeriodService::resolvePlacementPeriodEnd</code> (без <code>save</code>); построение — <code>buildFixedOccurrenceChain(..., allowPartial: true)</code> (частичный результат без исключения «не хватает занятий»). Те же бизнес-проверки, что у привязки (якорь в шаблоне, слот партнёра, назначение fixed без периода и без строк календаря и т.д.).</p>
+  <ul>
+    <li><strong>AJAX</strong>: ошибка валидации / бизнеса → <code>422</code>, <code>{ message, errors }</code>.</li>
+    <li><strong>Non-AJAX</strong>: ошибка FormRequest → redirect <code>302</code> + session errors (не пустой <code>200</code>); бизнес-ошибка после валидации → JSON <code>422</code> (в отличие от <code>assign-fixed</code>, который для бизнеса делает redirect через <code>schoolScheduleMutationResponse</code>); успех → JSON <code>200</code>, не redirect.</li>
+  </ul>
+  <p class="small">Тесты: <code>LessonPackageSchoolScheduleFixedChainPreviewFeatureTest</code>; endpoint также в <code>SchoolSchedulePageFullAccessFeatureTest</code>; inline JS — <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code> (<code>fetch(routes.fixedAssignPreview)</code>).</p>
 
   <h3>API: привязка (<code>POST …/assign-fixed</code>)</h3>
   <p>Имя маршрута: <code>admin.lesson-packages.school-schedule.assign-fixed</code>. Request: <code>AssignSchoolCalendarFixedRequest</code>. Контроллер: <code>LessonPackageSchoolCalendarAssignmentController::assignFixed</code>.</p>
@@ -741,7 +789,10 @@
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/location-team-bindings">Локации ↔ группы</a></p>
 
   <h2>Тесты</h2>
-  <p><strong>Фильтр «Объект» и модалка слота:</strong> <code>tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php</code> — week API (<code>location_id</code> пусто / <code>none</code> / id), store с <code>location_id=none</code>, разметка «Все»/«Без объекта», порядок полей в create, smoke 200, 403/гость.</p>
+  <p><strong>Фильтр «Объект» и модалка слота:</strong> <code>tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php</code> — week API (<code>location_id</code> пусто / <code>none</code> / id), store с <code>location_id=none</code>, разметка «Все»/«Без объекта», порядок полей в create, smoke 200, 403/гость.
+    Новая разметка create (0/1/2+ объектов, автовыбор группы, кнопки «Отмена»/«Добавить»): <code>SlotCreateModalMarkupFeatureTest</code>.
+    Доступ / AJAX / non-AJAX store·update: <code>SlotCreateModalAccessFeatureTest</code>, <code>SlotCreateModalAjaxContractFeatureTest</code>, <code>SlotCreateModalNonAjaxSafetyNetFeatureTest</code>.
+    Inline JS модалок — <code>BladeInlineJsSyntaxTest</code> (<code>slotModals.blade.php</code>).</p>
   <p><code>SchoolScheduleAuditLogsFeatureTest.php</code> — endpoint «История», create/update/delete audit-сценарии (пробное, статус, привязки), иконка в toolbar, запись в logs-data.</p>
   <p><code>SchoolSchedulePageFullAccessFeatureTest.php</code> — гость/403 без права, 200 для всех endpoint'ов раздела при <code>lessonPackages.view</code> (включая <code>logs-data</code>).</p>
   <p>Разметка модалки просмотра слота, <code>team_title</code> в JSON недели, загрузка страницы с группами <code>location_id</code>, read-API — <code>LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleAccessAndMutationsFeatureTest.php</code>, <code>LessonPackagesSectionAccessSmokeFeatureTest.php</code>.
@@ -754,14 +805,20 @@
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
     <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
+    <strong>автозаполнение group_patterns</strong> — <code>LessonPackageSchoolScheduleFixedGroupPatternsFeatureTest.php</code> (та же группа/объект, два слота в один день, sibling с <code>date_start</code> после якоря, отсев disabled/expired, AJAX/non-AJAX assign с несколькими patterns);
+    <strong>превью цепочки assign-fixed-preview</strong> — <code>LessonPackageSchoolScheduleFixedChainPreviewFeatureTest.php</code> (UI <code>#schoolCalFixedChainPreview</code>, label с годом и днём недели, «найдено X из N», доступ гость/403/viewer, AJAX 200/422, non-AJAX success JSON без записи в БД, validation redirect);
     <strong>конфликт расписания assign-fixed (starts_at)</strong> — <code>LessonPackageSchoolScheduleAssignmentsValidationFeatureTest.php</code>, <code>LessonPackageSchoolScheduleFixedOverlapAjaxContractFeatureTest.php</code>, <code>LessonPackageSchoolScheduleFixedOverlapNonAjaxSafetyNetFeatureTest.php</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_fixed_bind_inline_script_is_valid_javascript</code>;
     <strong>панели привязки в модалке слота (UX)</strong> — <code>LessonPackageSchoolScheduleSlotModalBindPanelFeatureTest.php</code> (маркеры <code>#schoolCalSlotBindPanelsHost</code>, <code>data-school-cal-bind-cancel</code>, <code>school-cal-slot-modal--bind-focus</code>, static backdrop, кэш <code>schoolCalSlotBindActionsCache</code>, Esc/отмена, независимость flexible/single в одном ответе bind-actions, AJAX/non-AJAX контракты);
     <strong>выгрузка Excel</strong> — <code>LessonPackageSchoolScheduleExportFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAccessFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php</code>, <code>LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code>, <code>BladeInlineJsSyntaxTest::test_school_schedule_export_modal_inline_script_is_valid_javascript</code> (см. <a href="#school-schedule-export">§ выгрузка</a>);
     шаблоны и цепочка фикса — <code>LessonPackageSchoolScheduleFixedPatternsFeatureTest.php</code>;
-    синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>, <code>packages.blade.php</code>).
+    синтаксис inline JS в Blade — <code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> (в т.ч. <code>schoolSchedule.blade.php</code>, <code>slotModals.blade.php</code>, <code>packages.blade.php</code>).
     Общие требования — <a href="/docs/documentation/tests-standards">tests-standards</a>.</p>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/LessonPackages/SchoolScheduleLocationFilterFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/SlotCreateModalMarkupFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/SlotCreateModalAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/SlotCreateModalAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/SlotCreateModalNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php \
@@ -773,7 +830,9 @@
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAccessFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportAjaxContractFeatureTest.php \
-  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php</code></pre>
+  tests/Feature/Crm/LessonPackages/LessonPackageSchoolScheduleExportNonAjaxSafetyNetFeatureTest.php
+php artisan test --env=testing \
+  tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter='team_schedule_slot_modals|school_schedule_export_modal|school_schedule_fixed_bind'</code></pre>
 </div>
 </body>
 </html>

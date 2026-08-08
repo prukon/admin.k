@@ -223,10 +223,11 @@ final class LessonPackageSchoolScheduleFixedRegistrationFeatureTest extends CrmT
         ]))
             ->assertOk()
             ->assertJsonStructure([
-                'fixed' => ['allowed', 'reason', 'existing_assignments'],
+                'fixed' => ['allowed', 'reason', 'existing_assignments', 'group_patterns'],
             ])
             ->assertJsonPath('fixed.allowed', false)
-            ->assertJsonPath('fixed.existing_assignments', []);
+            ->assertJsonPath('fixed.existing_assignments', [])
+            ->assertJsonPath('fixed.group_patterns', []);
     }
 
     public function test_slot_bind_actions_fixed_blocked_without_assignment(): void
@@ -243,7 +244,90 @@ final class LessonPackageSchoolScheduleFixedRegistrationFeatureTest extends CrmT
         ]))
             ->assertOk()
             ->assertJsonPath('fixed.allowed', false)
-            ->assertJsonPath('fixed.existing_assignments', []);
+            ->assertJsonPath('fixed.existing_assignments', [])
+            ->assertJsonCount(1, 'fixed.group_patterns')
+            ->assertJsonPath('fixed.group_patterns.0.id', $slot->id)
+            ->assertJsonPath('fixed.group_patterns.0.weekday', 1)
+            ->assertJsonPath('fixed.group_patterns.0.time_start', '14:00')
+            ->assertJsonPath('fixed.group_patterns.0.time_end', '15:00');
+    }
+
+    public function test_slot_bind_actions_fixed_group_patterns_include_same_team_and_location_slots(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+
+        $student = $this->studentUser();
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+
+        $anchor = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 1,
+            'time_start' => '14:00',
+            'time_end' => '15:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $sibling = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => null,
+            'weekday' => 3,
+            'time_start' => '16:00',
+            'time_end' => '17:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $otherLocation = \App\Models\Location::factory()->create(['partner_id' => $this->partner->id]);
+        $otherLocationSlot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team->id,
+            'location_id' => $otherLocation->id,
+            'weekday' => 5,
+            'time_start' => '10:00',
+            'time_end' => '11:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $otherTeam = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $otherTeamSlot = TeamScheduleSlot::query()->create([
+            'partner_id' => $this->partner->id,
+            'team_id' => $otherTeam->id,
+            'location_id' => null,
+            'weekday' => 2,
+            'time_start' => '09:00',
+            'time_end' => '10:00',
+            'date_start' => '2026-01-01',
+            'date_end' => '9999-12-31',
+            'is_enabled' => 1,
+        ]);
+
+        $res = $this->getJson(route('admin.lesson-packages.school-schedule.slot-user-bind-actions', [
+            'user_id' => $student->id,
+            'team_schedule_slot_id' => $anchor->id,
+            'occurrence_date' => self::WEEK_MONDAY,
+        ]))->assertOk();
+
+        $groupPatterns = $res->json('fixed.group_patterns');
+        $ids = array_column($groupPatterns, 'id');
+
+        $this->assertContains($anchor->id, $ids);
+        $this->assertContains($sibling->id, $ids);
+        $this->assertNotContains($otherLocationSlot->id, $ids);
+        $this->assertNotContains($otherTeamSlot->id, $ids);
+        $this->assertCount(2, $groupPatterns);
+
+        $siblingPattern = collect($groupPatterns)->firstWhere('id', $sibling->id);
+        $this->assertSame(3, $siblingPattern['weekday']);
+        $this->assertSame('16:00', $siblingPattern['time_start']);
+        $this->assertSame('17:00', $siblingPattern['time_end']);
     }
 
     public function test_slot_bind_actions_fixed_one_existing_assignment(): void

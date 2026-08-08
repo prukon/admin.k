@@ -405,7 +405,8 @@ final class TeamScheduleCalendarService
         Collection $patterns,
         int $lessonsNeeded,
         CarbonImmutable $periodEnd,
-        ?int $locationIdFilter
+        ?int $locationIdFilter,
+        bool $allowPartial = false,
     ): array {
         $anchorDate = $anchorDate->startOfDay();
 
@@ -506,7 +507,7 @@ final class TeamScheduleCalendarService
 
         $chain = array_slice($candidates, $anchorIndex, $lessonsNeeded);
 
-        if (count($chain) < $lessonsNeeded) {
+        if (! $allowPartial && count($chain) < $lessonsNeeded) {
             throw new \RuntimeException(
                 'В периоде абонемента не хватает занятий по расписанию школы. Требуется: '.$lessonsNeeded.', найдено с выбранной даты: '.count($chain).'.'
             );

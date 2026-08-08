@@ -26,6 +26,38 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Календарь школы: шаблон фикса из слотов группы + превью цепочки (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Расписание школы»</b> (<code>/admin/lesson-packages/school-schedule</code>,
+    <code>lessonPackages.view</code>) при привязке <b>фиксированного</b> абонемента в модалке слота:
+    <br><br>
+    1) <b>Автозаполнение «Шаблона привязки»</b> — строки <code>patterns[]</code> сразу заполняются
+    всеми активными слотами <strong>той же группы на том же объекте</strong>
+    (<code>fixed.group_patterns</code> в <code>GET …/slot-user-bind-actions</code>):
+    якорный слот первым, остальные по дню недели и времени (в т.ч. два слота в один день).
+    Объект сравнивается точно (<code>location_id</code>, включая оба <code>NULL</code>).
+    Активность sibling-слота — на ближайшую дату <em>его</em> дня недели (не на дату якоря),
+    иначе ср/пт с поздним <code>date_start</code> отсекались.
+    Строки можно править/удалять; «+ Добавить слот» — вручную.
+    <br>
+    2) <b>Превью распределения</b> под шаблоном (<code>#schoolCalFixedChainPreview</code>, выравнивание влево):
+    «Распределение N занятий абонемента:» и список
+    <code>6 августа 2026 17:00-18:00 (четверг)</code>.
+    Если за период набирается меньше N — «найдено X из N».
+    Данные — <code>POST …/assign-fixed-preview</code> (без записи в БД; debounce на фронте).
+    Submit по-прежнему <code>POST …/assign-fixed</code>.
+    <br><br>
+    Документ:
+    <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-group-patterns">school-schedule-calendar § group_patterns</a>,
+    <a href="/docs/documentation/school-schedule-calendar#school-schedule-fixed-chain-preview">§ превью</a>;
+    обзор в абонементах —
+    <a href="/docs/documentation/lesson-packages">lesson-packages § фиксированное расписание</a>.
+    Тесты: <code>LessonPackageSchoolScheduleFixedGroupPatternsFeatureTest</code>,
+    <code>LessonPackageSchoolScheduleFixedChainPreviewFeatureTest</code>,
+    <code>SchoolSchedulePageFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (fixed-bind + preview fetch).
+  </div>
+
   <h2>Журнал: UX модалок «Разложить» / гибкий + превью (2026‑08)</h2>
   <div class="note">
     На <code>/schedule</code> уточнён UI модалок раскладки (доменная модель UTSS без изменений):
@@ -817,7 +849,7 @@
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code>, <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <code>trainer_name</code> в result) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>

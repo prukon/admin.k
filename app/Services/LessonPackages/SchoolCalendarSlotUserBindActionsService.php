@@ -18,7 +18,8 @@ use Carbon\CarbonImmutable;
  *   reason: string|null,
  *   mode?: 'bind_existing'|'create_new'|null,
  *   existing_assignments?: list<array{id: int, label: string}>,
- *   templates?: list<array{id: int, label: string, fee_amount_default: float}>
+ *   templates?: list<array{id: int, label: string, fee_amount_default: float}>,
+ *   group_patterns?: list<array{id: int, weekday: int, time_start: string, time_end: string}>
  * }
  * @phpstan-type SlotUserBindActionsPayload array{
  *   flexible: ActionPayload,
@@ -81,7 +82,7 @@ final class SchoolCalendarSlotUserBindActionsService
         $calendarBlockReason = 'На это занятие у ученика уже есть запись в календаре на выбранную дату.';
 
         $flexible = $this->evaluateFlexible($partnerId, $userId, $occurrence, $calendarRowExists, $calendarBlockReason);
-        $fixed = $this->evaluateFixed($partnerId, $userId, $calendarRowExists, $calendarBlockReason);
+        $fixed = $this->evaluateFixed($partnerId, $userId, $calendarRowExists, $calendarBlockReason, $slot, $occurrence);
         $single = $this->evaluateSingleLesson($partnerId, $userId, $calendarRowExists, $calendarBlockReason);
         $trial = $this->trialEligibility->evaluate($partnerId, $userId, (int) $slot->id, $occurrence);
 
@@ -152,13 +153,22 @@ final class SchoolCalendarSlotUserBindActionsService
     /**
      * @return ActionPayload
      */
-    private function evaluateFixed(int $partnerId, int $userId, bool $calendarRowExists, string $calendarBlockReason): array
-    {
+    private function evaluateFixed(
+        int $partnerId,
+        int $userId,
+        bool $calendarRowExists,
+        string $calendarBlockReason,
+        TeamScheduleSlot $slot,
+        CarbonImmutable $occurrence,
+    ): array {
+        $groupPatterns = $this->groupPatternsForSlot($slot, $occurrence);
+
         if ($calendarRowExists) {
             return [
                 'allowed' => false,
                 'reason' => $calendarBlockReason,
                 'existing_assignments' => [],
+                'group_patterns' => $groupPatterns,
             ];
         }
 
@@ -172,6 +182,7 @@ final class SchoolCalendarSlotUserBindActionsService
                 'allowed' => false,
                 'reason' => 'Нет фиксированного абонемента без привязки к календарю с доступным объёмом занятий.',
                 'existing_assignments' => [],
+                'group_patterns' => $groupPatterns,
             ];
         }
 
@@ -184,7 +195,63 @@ final class SchoolCalendarSlotUserBindActionsService
             'allowed' => true,
             'reason' => null,
             'existing_assignments' => $existing,
+            'group_patterns' => $groupPatterns,
         ];
+    }
+
+    /**
+     * Остальные активные слоты этой же группы на том же объекте (включая якорный слот) —
+     * источник для автоподстановки строк «Шаблон привязки» при фиксированном абонементе.
+     *
+     * Активность sibling-слота проверяется на ближайшую дату его дня недели
+     * (не на дату якоря): у слотов ср/пт date_start часто = их первый день,
+     * и проверка «активен ли в понедельник» ложно отсекала их из шаблона.
+     *
+     * @return list<array{id: int, weekday: int, time_start: string, time_end: string}>
+     */
+    private function groupPatternsForSlot(TeamScheduleSlot $slot, CarbonImmutable $occurrence): array
+    {
+        $rows = TeamScheduleSlot::query()
+            ->where('partner_id', (int) $slot->partner_id)
+            ->where('team_id', (int) $slot->team_id)
+            ->when(
+                $slot->location_id === null,
+                fn ($q) => $q->whereNull('location_id'),
+                fn ($q) => $q->where('location_id', (int) $slot->location_id),
+            )
+            ->orderBy('weekday')
+            ->orderBy('time_start')
+            ->get();
+
+        return $rows
+            ->filter(function (TeamScheduleSlot $row) use ($slot, $occurrence): bool {
+                if ((int) $row->id === (int) $slot->id) {
+                    return true;
+                }
+
+                $candidate = $this->nextWeekdayOnOrAfter($occurrence, (int) $row->weekday);
+
+                return $this->calendarService->slotActiveOnDate($row, $candidate);
+            })
+            ->map(fn (TeamScheduleSlot $row) => [
+                'id' => (int) $row->id,
+                'weekday' => (int) $row->weekday,
+                'time_start' => substr((string) $row->time_start, 0, 5),
+                'time_end' => substr((string) $row->time_end, 0, 5),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Ближайшая дата с ISO-днём недели $weekday (1=пн…7=вс) не раньше $from.
+     */
+    private function nextWeekdayOnOrAfter(CarbonImmutable $from, int $weekday): CarbonImmutable
+    {
+        $fromDow = (int) $from->format('N');
+        $delta = ($weekday - $fromDow + 7) % 7;
+
+        return $from->addDays($delta);
     }
 
     /**
@@ -274,6 +341,7 @@ final class SchoolCalendarSlotUserBindActionsService
             'allowed' => false,
             'reason' => $reason,
             'existing_assignments' => [],
+            'group_patterns' => [],
         ];
 
         return [

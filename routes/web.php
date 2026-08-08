@@ -501,6 +501,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.lesson-packages.school-schedule.assign-flexible');
         Route::post('/admin/lesson-packages/school-schedule/assign-fixed', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignFixed'])
             ->name('admin.lesson-packages.school-schedule.assign-fixed');
+        Route::post('/admin/lesson-packages/school-schedule/assign-fixed-preview', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'previewFixed'])
+            ->name('admin.lesson-packages.school-schedule.assign-fixed-preview');
         Route::post('/admin/lesson-packages/school-schedule/assign-single-lesson', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'assignSingleLesson'])
             ->name('admin.lesson-packages.school-schedule.assign-single-lesson');
         Route::post('/admin/lesson-packages/school-schedule/single-lesson-registration', [\App\Http\Controllers\Admin\LessonPackageSchoolCalendarAssignmentController::class, 'storeSingleLessonRegistration'])

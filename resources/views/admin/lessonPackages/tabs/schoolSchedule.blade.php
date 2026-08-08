@@ -288,6 +288,11 @@
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-primary w-100 mb-2" id="schoolCalFixedAddPattern">+ Добавить слот</button>
                                     <div class="small text-danger mt-1 d-none" data-err="patterns" role="alert"></div>
+                                    <div id="schoolCalFixedChainPreview" class="school-cal-fixed-chain-preview small mt-2 d-none text-start" aria-live="polite">
+                                        <div class="fw-semibold" id="schoolCalFixedChainPreviewTitle"></div>
+                                        <div class="text-muted" id="schoolCalFixedChainPreviewHint"></div>
+                                        <ul class="school-cal-fixed-chain-preview__list mb-0 mt-1" id="schoolCalFixedChainPreviewList"></ul>
+                                    </div>
                                         <p class="small text-muted mb-0 mt-2">
                                             Первая строка по умолчанию совпадает со слотом, по которому вы открыли занятие; добавьте строки для остальных дней группы. Период абонемента и цепочка занятий строятся от якорной даты; для каждого выбранного дня и времени в периоде должно быть действующее занятие группы в расписании школы.
                                         </p>
@@ -369,6 +374,7 @@
                 usersSearch: @json(route('admin.lesson-packages.assignments.users-search')),
                 flexAssign: @json(route('admin.lesson-packages.school-schedule.assign-flexible')),
                 fixedAssign: @json(route('admin.lesson-packages.school-schedule.assign-fixed')),
+                fixedAssignPreview: @json(route('admin.lesson-packages.school-schedule.assign-fixed-preview')),
                 singleAssign: @json(route('admin.lesson-packages.school-schedule.assign-single-lesson')),
                 singleUlps: @json(route('admin.lesson-packages.school-schedule.single-lesson-assignments')),
                 singleUsersSearch: @json(route('admin.lesson-packages.school-schedule.single-lesson-users-search')),
@@ -1741,6 +1747,7 @@
 
             function hideSchoolCalSlotFixedForm(instant) {
                 clearSchoolCalSlotFixedFieldErrs();
+                hideSchoolCalFixedChainPreview();
                 hideSchoolCalSlotBindPanelByMode('fixed', !!instant);
                 const bindFields = document.getElementById('schoolCalSlotFixedBindFields');
                 if (bindFields) {
@@ -1778,6 +1785,34 @@
                 }
             }
 
+            function fillSchoolCalFixedPatternRow(row, weekday, timeStart, timeEnd) {
+                const wEl = row.querySelector('.js-school-cal-fixed-weekday');
+                const tsEl = row.querySelector('.js-school-cal-fixed-time-start');
+                const teEl = row.querySelector('.js-school-cal-fixed-time-end');
+                if (wEl && weekday) {
+                    wEl.value = String(weekday);
+                }
+                if (tsEl && timeStart) {
+                    tsEl.value = String(timeStart).slice(0, 5);
+                }
+                if (teEl && timeEnd) {
+                    teEl.value = String(timeEnd).slice(0, 5);
+                }
+            }
+
+            function addSchoolCalFixedPatternRow(weekday, timeStart, timeEnd) {
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                const first = host?.querySelector('[data-pattern-row]');
+                if (!host || !first) return;
+                const clone = first.cloneNode(true);
+                clone.querySelectorAll('[data-err]').forEach(function (el) {
+                    el.classList.add('d-none');
+                    el.textContent = '';
+                });
+                fillSchoolCalFixedPatternRow(clone, weekday, timeStart, timeEnd);
+                host.appendChild(clone);
+            }
+
             function seedSchoolCalSlotFixedPatternsFromOccurrence() {
                 schoolCalFixedResetPatternRows();
                 if (!selectedOccurrence) {
@@ -1787,18 +1822,20 @@
                 if (!firstRow) {
                     return;
                 }
-                const wEl = firstRow.querySelector('.js-school-cal-fixed-weekday');
-                const tsEl = firstRow.querySelector('.js-school-cal-fixed-time-start');
-                const teEl = firstRow.querySelector('.js-school-cal-fixed-time-end');
-                if (wEl && selectedOccurrence.weekday) {
-                    wEl.value = String(selectedOccurrence.weekday);
-                }
-                if (tsEl && selectedOccurrence.time_start) {
-                    tsEl.value = String(selectedOccurrence.time_start).slice(0, 5);
-                }
-                if (teEl && selectedOccurrence.time_end) {
-                    teEl.value = String(selectedOccurrence.time_end).slice(0, 5);
-                }
+                fillSchoolCalFixedPatternRow(firstRow, selectedOccurrence.weekday, selectedOccurrence.time_start, selectedOccurrence.time_end);
+
+                // Автоподстановка остальных слотов этой же группы на том же объекте —
+                // чтобы не набирать шаблон вручную (см. GET .../slot-user-bind-actions -> fixed.group_patterns).
+                const fixed = schoolCalSlotBindAction('fixed');
+                const groupPatterns = (fixed && fixed.group_patterns) || [];
+                const anchorSlotId = selectedOccurrence.id;
+                groupPatterns
+                    .filter(function (p) { return String(p.id) !== String(anchorSlotId); })
+                    .forEach(function (p) {
+                        addSchoolCalFixedPatternRow(p.weekday, p.time_start, p.time_end);
+                    });
+
+                schoolCalFixedRenumberPatternRows();
             }
 
             function showSchoolCalSlotFixedForm() {
@@ -1820,6 +1857,7 @@
                     }
                 }
                 showSchoolCalSlotBindPanel('fixed');
+                scheduleSchoolCalFixedChainPreview();
             }
 
             function appendSchoolCalSlotFixedPatternsToFormData(fd) {
@@ -1835,6 +1873,134 @@
                     fd.append('patterns[' + i + '][time_start]', ts);
                     fd.append('patterns[' + i + '][time_end]', te);
                 });
+            }
+
+            let schoolCalFixedChainPreviewTimer = null;
+            let schoolCalFixedChainPreviewSeq = 0;
+
+            function hideSchoolCalFixedChainPreview() {
+                const wrap = document.getElementById('schoolCalFixedChainPreview');
+                if (wrap) {
+                    wrap.classList.add('d-none');
+                }
+                const title = document.getElementById('schoolCalFixedChainPreviewTitle');
+                const hint = document.getElementById('schoolCalFixedChainPreviewHint');
+                const list = document.getElementById('schoolCalFixedChainPreviewList');
+                if (title) title.textContent = '';
+                if (hint) {
+                    hint.textContent = '';
+                    hint.classList.add('d-none');
+                }
+                if (list) list.innerHTML = '';
+            }
+
+            function resolveSchoolCalFixedUlpId() {
+                const fixed = schoolCalSlotBindAction('fixed');
+                const existing = fixed.existing_assignments || [];
+                if (existing.length === 1) {
+                    return String(existing[0].id);
+                }
+                return String(document.getElementById('schoolCalSlotFixedUlp')?.value || '');
+            }
+
+            function patternsReadyForFixedPreview() {
+                const host = document.getElementById('schoolCalFixedPatternsHost');
+                if (!host) return false;
+                const rows = host.querySelectorAll('[data-pattern-row]');
+                if (!rows.length) return false;
+                for (let i = 0; i < rows.length; i++) {
+                    const w = rows[i].querySelector('.js-school-cal-fixed-weekday')?.value || '';
+                    const ts = rows[i].querySelector('.js-school-cal-fixed-time-start')?.value || '';
+                    const te = rows[i].querySelector('.js-school-cal-fixed-time-end')?.value || '';
+                    if (!w || !ts || !te) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function scheduleSchoolCalFixedChainPreview() {
+                if (schoolCalFixedChainPreviewTimer) {
+                    clearTimeout(schoolCalFixedChainPreviewTimer);
+                }
+                schoolCalFixedChainPreviewTimer = setTimeout(function () {
+                    schoolCalFixedChainPreviewTimer = null;
+                    refreshSchoolCalFixedChainPreview();
+                }, 350);
+            }
+
+            async function refreshSchoolCalFixedChainPreview() {
+                const wrap = document.getElementById('schoolCalFixedChainPreview');
+                if (!wrap || !selectedOccurrence) {
+                    return;
+                }
+                const formWrap = document.getElementById('schoolCalSlotFixedFormWrap');
+                if (!formWrap || !isSchoolCalSlotBindPanelOpen(formWrap)) {
+                    hideSchoolCalFixedChainPreview();
+                    return;
+                }
+                const $ = window.jQuery;
+                const uid = $ ? $('#schoolCalSlotUserSelect').val() : '';
+                const ulpId = resolveSchoolCalFixedUlpId();
+                if (!uid || !ulpId || !patternsReadyForFixedPreview()) {
+                    hideSchoolCalFixedChainPreview();
+                    return;
+                }
+
+                const seq = ++schoolCalFixedChainPreviewSeq;
+                const locPick = document.getElementById('schoolCalLocation');
+                const fd = new FormData();
+                fd.append('_token', token);
+                fd.append('user_id', String(uid));
+                fd.append('user_lesson_package_id', ulpId);
+                fd.append('team_schedule_slot_id', String(selectedOccurrence.id));
+                fd.append('anchor_date', String(selectedOccurrence.date));
+                fd.append('location_id', locPick ? (locPick.value || '') : '');
+                appendSchoolCalSlotFixedPatternsToFormData(fd);
+
+                try {
+                    const res = await fetch(routes.fixedAssignPreview, {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    });
+                    const data = await res.json().catch(function () { return {}; });
+                    if (seq !== schoolCalFixedChainPreviewSeq) {
+                        return;
+                    }
+                    if (!res.ok || !Array.isArray(data.items)) {
+                        hideSchoolCalFixedChainPreview();
+                        return;
+                    }
+                    const titleEl = document.getElementById('schoolCalFixedChainPreviewTitle');
+                    const hintEl = document.getElementById('schoolCalFixedChainPreviewHint');
+                    const listEl = document.getElementById('schoolCalFixedChainPreviewList');
+                    if (titleEl) {
+                        titleEl.textContent = data.title || '';
+                    }
+                    if (hintEl) {
+                        if (data.hint) {
+                            hintEl.textContent = data.hint;
+                            hintEl.classList.remove('d-none');
+                        } else {
+                            hintEl.textContent = '';
+                            hintEl.classList.add('d-none');
+                        }
+                    }
+                    if (listEl) {
+                        listEl.innerHTML = data.items.map(function (item) {
+                            return '<li>' + escapeHtml(item.label || '') + '</li>';
+                        }).join('');
+                    }
+                    wrap.classList.remove('d-none');
+                } catch (e) {
+                    if (seq === schoolCalFixedChainPreviewSeq) {
+                        hideSchoolCalFixedChainPreview();
+                    }
+                }
             }
 
             function schoolCalSlotBindButtonHtml(baseLabel, assignmentLabel) {
@@ -2373,6 +2539,7 @@
                 clone.querySelectorAll('input[type="time"]').forEach(function (inp) { inp.value = ''; });
                 host.appendChild(clone);
                 schoolCalFixedRenumberPatternRows();
+                scheduleSchoolCalFixedChainPreview();
             });
 
             document.getElementById('schoolCalFixedPatternsHost')?.addEventListener('click', function (e) {
@@ -2383,6 +2550,17 @@
                 if (!row || !host || host.querySelectorAll('[data-pattern-row]').length <= 1) return;
                 row.remove();
                 schoolCalFixedRenumberPatternRows();
+                scheduleSchoolCalFixedChainPreview();
+            });
+
+            document.getElementById('schoolCalFixedPatternsHost')?.addEventListener('change', function () {
+                scheduleSchoolCalFixedChainPreview();
+            });
+            document.getElementById('schoolCalFixedPatternsHost')?.addEventListener('input', function () {
+                scheduleSchoolCalFixedChainPreview();
+            });
+            document.getElementById('schoolCalSlotFixedUlp')?.addEventListener('change', function () {
+                scheduleSchoolCalFixedChainPreview();
             });
 
             document.getElementById('schoolCalOpenFixed')?.addEventListener('click', function () {

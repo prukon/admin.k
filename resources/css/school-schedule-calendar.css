@@ -340,6 +340,18 @@ body.no-scroll {
 .school-cal-slot-bind-panel__fields:not(.d-none) {
     padding-top: 0.25rem;
 }
+.school-cal-fixed-chain-preview {
+    text-align: left;
+}
+.school-cal-fixed-chain-preview__list {
+    padding-left: 1.15rem;
+    margin: 0;
+    text-align: left;
+    list-style-position: outside;
+}
+.school-cal-fixed-chain-preview__list > li {
+    text-align: left;
+}
 #schoolCalSlotModal .school-cal-slot-bind-dimmable {
     transition: opacity 0.3s ease, filter 0.3s ease;
 }
