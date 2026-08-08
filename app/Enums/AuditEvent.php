@@ -66,6 +66,8 @@ enum AuditEvent: string
     case UserLessonPackageDeleted = 'user_lesson_package.deleted';
     case UserLessonPackageManualPaid = 'user_lesson_package.manual_paid';
     case UserLessonPackagePublicPayLinkIssued = 'user_lesson_package.public_pay_link_issued';
+    case UserLessonPackageAutoProlonged = 'user_lesson_package.auto_prolonged';
+    case UserLessonPackageAutoProlongFailed = 'user_lesson_package.auto_prolong_failed';
 
     // --- lesson_occurrence_status dictionary (legacy type 92) ---
     case LessonOccurrenceStatusCreated = 'lesson_occurrence_status.created';
@@ -199,6 +201,8 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted => 'Удаление назначения абонемента',
             self::UserLessonPackageManualPaid => 'Ручная отметка оплаты назначения',
             self::UserLessonPackagePublicPayLinkIssued => 'Выдача ссылки на оплату назначения',
+            self::UserLessonPackageAutoProlonged => 'Автопролонгация назначения абонемента',
+            self::UserLessonPackageAutoProlongFailed => 'Ошибка автопролонгации назначения абонемента',
 
             self::LessonOccurrenceStatusCreated => 'Создание статуса занятия',
             self::LessonOccurrenceStatusUpdated => 'Изменение статуса занятия',
@@ -363,7 +367,9 @@ enum AuditEvent: string
             self::UserLessonPackageUpdated,
             self::UserLessonPackageDeleted,
             self::UserLessonPackageManualPaid,
-            self::UserLessonPackagePublicPayLinkIssued => 'user_lesson_package',
+            self::UserLessonPackagePublicPayLinkIssued,
+            self::UserLessonPackageAutoProlonged,
+            self::UserLessonPackageAutoProlongFailed => 'user_lesson_package',
 
             self::LessonOccurrenceStatusCreated,
             self::LessonOccurrenceStatusUpdated,
@@ -491,7 +497,9 @@ enum AuditEvent: string
             self::UserLessonPackageUpdated,
             self::UserLessonPackageDeleted,
             self::UserLessonPackageManualPaid,
-            self::UserLessonPackagePublicPayLinkIssued => 93,
+            self::UserLessonPackagePublicPayLinkIssued,
+            self::UserLessonPackageAutoProlonged,
+            self::UserLessonPackageAutoProlongFailed => 93,
 
             self::LessonOccurrenceStatusCreated,
             self::LessonOccurrenceStatusUpdated,
@@ -617,6 +625,8 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted => 933,
             self::UserLessonPackageManualPaid => 934,
             self::UserLessonPackagePublicPayLinkIssued => 935,
+            self::UserLessonPackageAutoProlonged => 936,
+            self::UserLessonPackageAutoProlongFailed => 937,
 
             self::LessonOccurrenceStatusCreated => 921,
             self::LessonOccurrenceStatusUpdated => 922,
@@ -873,6 +883,8 @@ enum AuditEvent: string
             933 => self::UserLessonPackageDeleted,
             934 => self::UserLessonPackageManualPaid,
             935 => self::UserLessonPackagePublicPayLinkIssued,
+            936 => self::UserLessonPackageAutoProlonged,
+            937 => self::UserLessonPackageAutoProlongFailed,
 
             921 => self::LessonOccurrenceStatusCreated,
             922 => self::LessonOccurrenceStatusUpdated,

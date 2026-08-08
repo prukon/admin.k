@@ -215,7 +215,16 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Поиск ученика в блоке «Добавить запись» — <code>#schoolCalSlotUserSelect</code> (Select2, <code>GET …/lesson-packages/assignments/users-search</code>). Отдельные модалки «Гибкий абонемент» (<code>#schoolCalFlexModal</code>) и «Фиксированный абонемент» (<code>#schoolCalFixedModal</code>) сняты с UI; списки для inline-привязки гибкого и фиксированного приходят в ответе <code>slot-user-bind-actions</code>. Inline-панели привязки, режим фокуса и формат подписей — см. разделы ниже.</p>
+  <p class="small">Поиск ученика в блоке «Добавить запись» — <code>#schoolCalSlotUserSelect</code> (Select2, <code>GET …/lesson-packages/assignments/users-search</code> <b>без</b> <code>context=assign</code>).
+    Ученик с автопролонгом остаётся выбираемым (нужна первая привязка фикса); disable в Select2 —
+    только если ученик уже записан на это занятие. Запреты flexible / trial / single (и fixed без
+    своего unbound ULP) — в <code>slot-user-bind-actions</code>: <code>allowed: false</code> +
+    <code>UserLessonPackageAutoProlongGuard::BLOCK_REASON</code>
+    (см. <a href="/docs/documentation/lesson-packages#auto-prolong">lesson-packages §auto-prolong</a>).
+    Отдельные модалки «Гибкий абонемент»
+    (<code>#schoolCalFlexModal</code>) и «Фиксированный абонемент» (<code>#schoolCalFixedModal</code>) сняты с UI;
+    списки для inline-привязки гибкого и фиксированного приходят в ответе <code>slot-user-bind-actions</code>.
+    Inline-панели привязки, режим фокуса и формат подписей — см. разделы ниже.</p>
 
   <h2 id="school-schedule-bind-panels-ui">Inline-панели привязки: UX и поведение</h2>
   <p>Формы гибкого, фиксированного и разового занятия встроены в модалку слота (<code>#schoolCalSlotBindPanelsHost</code>) и не открывают вторую модалку. Стили — <code>resources/css/school-schedule-calendar.css</code>, логика — inline JS во вкладке <code>schoolSchedule.blade.php</code>.</p>

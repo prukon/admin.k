@@ -835,6 +835,9 @@ final class LessonPackageController extends AdminBaseController
             'balance' => $a->lessons_remaining.' / '.$a->lessons_total,
             'type_label' => $typeLabel,
             'pay_link_available' => $payLinkAvailable,
+            'auto_prolong_enabled' => (bool) $a->auto_prolong_enabled,
+            'auto_prolong_badge' => $a->showsAutoProlongBadge(),
+            'auto_prolong_badge_label' => $a->showsAutoProlongBadge() ? $a->autoProlongBadgeLabel() : null,
         ];
     }
 
@@ -942,6 +945,7 @@ final class LessonPackageController extends AdminBaseController
                     $assignment->save();
 
                     $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
+                    $this->applyAssignmentAutoProlongIfPresent($assignment, $validated);
 
                     return;
                 }
@@ -960,6 +964,7 @@ final class LessonPackageController extends AdminBaseController
                     $assignment->save();
 
                     $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
+                    $this->applyAssignmentAutoProlongIfPresent($assignment, $validated);
 
                     return;
                 }
@@ -973,6 +978,7 @@ final class LessonPackageController extends AdminBaseController
             $assignment->save();
 
             $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
+            $this->applyAssignmentAutoProlongIfPresent($assignment, $validated);
         });
 
         $assignment->refresh();
@@ -1194,6 +1200,11 @@ final class LessonPackageController extends AdminBaseController
             'manual_paid_at' => $ulp->manual_paid_at?->toIso8601String(),
             'manual_paid_by_display' => $manualByDisplay,
             'can_delete' => (int) $ulp->lessons_remaining === (int) $ulp->lessons_total,
+            'schedule_type' => $sched,
+            'auto_prolong_enabled' => (bool) $ulp->auto_prolong_enabled,
+            'auto_prolong_editable' => $sched === 'fixed' && ! $ulp->isFromSettingPrices(),
+            'auto_prolong_badge' => $ulp->showsAutoProlongBadge(),
+            'auto_prolong_badge_label' => $ulp->showsAutoProlongBadge() ? $ulp->autoProlongBadgeLabel() : null,
         ];
     }
 
@@ -1213,6 +1224,19 @@ final class LessonPackageController extends AdminBaseController
             $assignment,
             CarbonImmutable::createFromFormat('Y-m-d', (string) $validated['ends_at'])->startOfDay()
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function applyAssignmentAutoProlongIfPresent(UserLessonPackage $assignment, array $validated): void
+    {
+        if (! array_key_exists('auto_prolong_enabled', $validated)) {
+            return;
+        }
+
+        $assignment->auto_prolong_enabled = (bool) $validated['auto_prolong_enabled'];
+        $assignment->save();
     }
 
     /**
@@ -1243,12 +1267,28 @@ final class LessonPackageController extends AdminBaseController
             ->limit(30)
             ->get(['id', 'name', 'lastname']);
 
-        $results = $users->map(function (User $u) {
+        // Disable only for create-assignment Select2 (context=assign).
+        // Calendar bind + assignments filter must keep the student selectable
+        // so the first bind of the auto-prolong fixed ULP remains possible.
+        $blockForAssign = (string) $request->query('context', '') === 'assign';
+        $blockedIds = $blockForAssign
+            ? app(\App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::class)
+                ->blockedUserIds($users->pluck('id')->map(fn ($id) => (int) $id)->all())
+            : [];
+
+        $blockReason = \App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::BLOCK_REASON;
+
+        $results = $users->map(function (User $u) use ($blockedIds, $blockReason) {
             $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+            $id = (int) $u->id;
+            $blocked = isset($blockedIds[$id]);
 
             return [
-                'id' => (int) $u->id,
+                'id' => $id,
                 'text' => $text !== '' ? $text : ('#'.$u->id),
+                'disabled' => $blocked,
+                'blocked' => $blocked,
+                'blocked_reason' => $blocked ? $blockReason : null,
             ];
         })->values();
 
@@ -1319,6 +1359,8 @@ final class LessonPackageController extends AdminBaseController
                     'fee_amount_cents' => Money::toCentsOrFail($data['fee_amount']),
                     'is_paid' => false,
                     'created_by' => auth()->id(),
+                    'auto_prolong_enabled' => (string) $package->schedule_type === 'fixed'
+                        && (bool) ($data['auto_prolong_enabled'] ?? false),
                 ]);
             });
 
@@ -1752,6 +1794,7 @@ final class LessonPackageController extends AdminBaseController
             'ends_at' => $endsAt,
             'team' => $teamTitle !== '' ? $teamTitle : '—',
             'balance' => ((int) $assignment->lessons_remaining).' / '.((int) $assignment->lessons_total),
+            'auto_prolong' => $assignment->auto_prolong_enabled ? 'вкл' : 'выкл',
         ];
     }
 
@@ -1783,6 +1826,7 @@ final class LessonPackageController extends AdminBaseController
             'ends_at' => 'Окончание',
             'team' => 'Группа',
             'balance' => 'Остаток',
+            'auto_prolong' => 'Автопролонгация',
         ];
 
         $changes = [];

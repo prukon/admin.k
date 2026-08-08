@@ -22,6 +22,7 @@ use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\SchoolCalendarSingleLessonRegistrationService;
 use App\Services\LessonPackages\SchoolCalendarSlotUserBindActionsService;
 use App\Services\LessonPackages\SchoolCalendarTrialEligibilityService;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\PartnerContext;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
@@ -32,6 +33,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseController
@@ -44,6 +46,7 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
         private readonly SchoolCalendarSlotUserBindActionsService $slotUserBindActionsService,
         private readonly SchoolCalendarSingleLessonRegistrationService $singleLessonRegistrationService,
         private readonly AuditLogger $auditLogger,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
         parent::__construct($partnerContext);
     }
@@ -100,6 +103,16 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $request,
                 'Назначение не найдено или недоступно.',
                 ['user_lesson_package_id' => ['Назначение не найдено или недоступно.']],
+            );
+        }
+
+        try {
+            $this->autoProlongGuard->assertCanBindAssignment($ulp, 'user_id');
+        } catch (ValidationException $e) {
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                $e->errors(),
             );
         }
 
@@ -271,6 +284,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
                 $occurrence,
                 auth()->id(),
             );
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                'errors' => $e->errors(),
+            ], 422);
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
             $field = str_contains($msg, 'назначен') || str_contains($msg, 'абонемент') || str_contains($msg, 'лимит') || str_contains($msg, 'слот в календаре')
@@ -325,6 +343,11 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
 
         try {
             $this->singleLessonRegistrationService->register($partnerId, $data, auth()->id());
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                'errors' => $e->errors(),
+            ], 422);
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
             $field = 'occurrence_date';
@@ -619,6 +642,16 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             );
         }
 
+        try {
+            $this->autoProlongGuard->assertCanBindAssignment($ulp, 'user_id');
+        } catch (ValidationException $e) {
+            return $this->schoolScheduleMutationResponse(
+                $request,
+                UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                $e->errors(),
+            );
+        }
+
         /** @var LessonPackage|null $package */
         $package = $ulp->lessonPackage;
         if (! $package || (int) $package->partner_id !== $partnerId || (string) $package->schedule_type !== 'fixed') {
@@ -897,6 +930,15 @@ final class LessonPackageSchoolCalendarAssignmentController extends AdminBaseCon
             return response()->json([
                 'message' => 'Ученик не найден или недоступен.',
                 'errors' => ['user_id' => ['Ученик не найден или недоступен.']],
+            ], 422);
+        }
+
+        try {
+            $this->autoProlongGuard->assertCanRegisterTrialOrCalendarEntryForUser((int) $user->id);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                'errors' => $e->errors(),
             ], 422);
         }
 

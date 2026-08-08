@@ -288,6 +288,26 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
                                 </div>
+
+                                <div class="col-12 d-none" id="ulp_auto_prolong_wrap">
+                                    <div class="form-check">
+                                        <input class="form-check-input @error('auto_prolong_enabled') is-invalid @enderror"
+                                               type="checkbox"
+                                               value="1"
+                                               name="auto_prolong_enabled"
+                                               id="ulp_auto_prolong_enabled"
+                                            {{ old('auto_prolong_enabled') ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="ulp_auto_prolong_enabled">
+                                            Автопролонгация
+                                        </label>
+                                        <div class="form-text">
+                                            При нулевом остатке система создаст следующий фиксированный абонемент и разложит занятия по тем же слотам.
+                                        </div>
+                                        @error('auto_prolong_enabled')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -366,6 +386,16 @@
                                 <input type="number" class="form-control" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
                                 <div class="invalid-feedback d-block" id="ulp-modal-fee-err"></div>
                             </div>
+                            <div class="col-12 d-none" id="ulp-modal-auto-prolong-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="1" id="ulp-modal-auto-prolong">
+                                    <label class="form-check-label" for="ulp-modal-auto-prolong">Автопролонгация</label>
+                                    <div class="form-text" id="ulp-modal-auto-prolong-hint">
+                                        При нулевом остатке система создаст следующий фиксированный абонемент и разложит занятия по слотам.
+                                    </div>
+                                    <div class="invalid-feedback d-block" id="ulp-modal-auto-prolong-err"></div>
+                                </div>
+                            </div>
                         </div>
 
                         @can('lessonPackages.manualPaid.manage')
@@ -437,6 +467,8 @@
         (function () {
             const scheduleSelect = document.getElementById('ulp_lesson_package_id');
             const feeInput = document.getElementById('ulp_fee_amount');
+            const autoProlongWrap = document.getElementById('ulp_auto_prolong_wrap');
+            const autoProlongInput = document.getElementById('ulp_auto_prolong_enabled');
             const hadOldFee = @json(old('fee_amount') !== null && old('fee_amount') !== '');
 
             function syncFeeFromSelectedPackage() {
@@ -448,7 +480,22 @@
                 }
             }
 
-            scheduleSelect?.addEventListener('change', syncFeeFromSelectedPackage);
+            function syncAutoProlongVisibility() {
+                if (!scheduleSelect || !autoProlongWrap) return;
+                const opt = scheduleSelect.options[scheduleSelect.selectedIndex];
+                const scheduleType = opt ? (opt.getAttribute('data-schedule-type') || '') : '';
+                const isFixed = scheduleType === 'fixed';
+                autoProlongWrap.classList.toggle('d-none', !isFixed);
+                if (!isFixed && autoProlongInput) {
+                    autoProlongInput.checked = false;
+                }
+            }
+
+            scheduleSelect?.addEventListener('change', function () {
+                syncFeeFromSelectedPackage();
+                syncAutoProlongVisibility();
+            });
+            syncAutoProlongVisibility();
             if (!hadOldFee && feeInput && String(feeInput.value).trim() === '') {
                 syncFeeFromSelectedPackage();
             }
@@ -474,11 +521,25 @@
                     dataType: 'json',
                     delay: 250,
                     data: function (params) {
-                        return { q: params.term };
+                        return { q: params.term, context: 'assign' };
                     },
                     processResults: function (data) {
                         return data;
                     }
+                },
+                templateResult: function (item) {
+                    if (!item || item.loading) {
+                        return item && item.text ? item.text : '…';
+                    }
+                    var $el = $('<span></span>').text(item.text || '');
+                    if (item.blocked || item.disabled) {
+                        $el.addClass('text-muted');
+                        $el.attr('title', item.blocked_reason || @json(\App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::BLOCK_REASON));
+                    }
+                    return $el;
+                },
+                templateSelection: function (item) {
+                    return item.text || '';
                 }
             };
             var $ulpCreateModal = $('#ulpAssignmentCreateModal');
@@ -530,7 +591,7 @@
             }
 
             const shouldOpenCreateModal = @json(
-                $errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount') || $errors->has('team_id')
+                $errors->has('user_id') || $errors->has('lesson_package_id') || $errors->has('fee_amount') || $errors->has('team_id') || $errors->has('auto_prolong_enabled')
             );
             if (shouldOpenCreateModal && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                 const createModalEl = document.getElementById('ulpAssignmentCreateModal');
@@ -605,6 +666,19 @@
                         return data != null ? data : '';
                     }
                     return window.KidsCrmTooltip.renderText(data != null ? data : '');
+                }
+
+                function ulpTypeRender(data, type, row) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return data != null ? data : '';
+                    }
+                    var html = window.KidsCrmTooltip.renderText(data != null ? data : '');
+                    if (row && row.auto_prolong_badge && row.auto_prolong_badge_label) {
+                        html += ' <span class="badge text-bg-info ms-1">'
+                            + window.KidsCrmTooltip.escapeHtml(String(row.auto_prolong_badge_label))
+                            + '</span>';
+                    }
+                    return html;
                 }
 
                 function ulpPaidRender(data, type, row) {
@@ -758,7 +832,7 @@
                             data: 'type_label',
                             name: 'type',
                             className: 'text-center text-nowrap',
-                            render: ulpTextRender,
+                            render: ulpTypeRender,
                         },
                         {
                             key: 'actions',
@@ -807,6 +881,9 @@
                 const feeErr = document.getElementById('ulp-modal-fee-err');
                 const periodEndErr = document.getElementById('ulp-modal-period-end-err');
                 const paymentCommentErr = document.getElementById('ulp-modal-payment-comment-err');
+                const autoProlongErr = document.getElementById('ulp-modal-auto-prolong-err');
+                const autoProlongWrap = document.getElementById('ulp-modal-auto-prolong-wrap');
+                const autoProlongInput = document.getElementById('ulp-modal-auto-prolong');
                 const paymentStatusSel = document.getElementById('ulp-modal-payment-status');
                 const paymentCommentEl = document.getElementById('ulp-modal-payment-comment');
                 const paymentCommentWrap = document.getElementById('ulp-modal-payment-comment-wrap');
@@ -828,6 +905,7 @@
                     if (feeErr) feeErr.textContent = '';
                     if (periodEndErr) periodEndErr.textContent = '';
                     if (paymentCommentErr) paymentCommentErr.textContent = '';
+                    if (autoProlongErr) autoProlongErr.textContent = '';
                 }
 
                 function syncPaymentCommentVisibility() {
@@ -868,6 +946,13 @@
                     document.getElementById('ulp-modal-balance').value =
                         String(a.lessons_remaining) + ' / ' + String(a.lessons_total);
                     document.getElementById('ulp-modal-sched-type').value = a.schedule_type_label || '';
+
+                    if (autoProlongWrap && autoProlongInput) {
+                        const editable = !!a.auto_prolong_editable;
+                        autoProlongWrap.classList.toggle('d-none', !editable);
+                        autoProlongInput.checked = !!a.auto_prolong_enabled;
+                        autoProlongInput.disabled = !editable;
+                    }
 
                     const feeInput = document.getElementById('ulp-modal-fee');
                     const saveBtn = document.getElementById('ulp-modal-save');
@@ -964,6 +1049,10 @@
                         body.ends_at = periodEndInput.value;
                     }
 
+                    if (autoProlongInput && autoProlongWrap && !autoProlongWrap.classList.contains('d-none')) {
+                        body.auto_prolong_enabled = !!autoProlongInput.checked;
+                    }
+
                     if (paymentStatusSel) {
                         body.payment_status = paymentStatusSel.value;
                         const initial = paymentStatusSel.dataset.initial || '';
@@ -1002,11 +1091,17 @@
                                 showErr(ps);
                             }
                         }
+                        if (payload.errors && payload.errors.auto_prolong_enabled && autoProlongErr) {
+                            autoProlongErr.textContent = Array.isArray(payload.errors.auto_prolong_enabled)
+                                ? payload.errors.auto_prolong_enabled[0]
+                                : String(payload.errors.auto_prolong_enabled);
+                        }
                         if (!payload.errors || (
                             !payload.errors.fee_amount
                             && !payload.errors.ends_at
                             && !payload.errors.payment_comment
                             && !payload.errors.payment_status
+                            && !payload.errors.auto_prolong_enabled
                         )) {
                             showErr((payload && payload.message) || ('Не удалось сохранить (' + status + ')'));
                         }

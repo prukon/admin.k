@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\UserLessonPackage;
+use App\Services\LessonPackages\FixedLessonPackageAutoProlongService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,7 +38,9 @@ final class UserLessonPackageConsumptionAdjuster
             return;
         }
 
-        DB::transaction(function () use ($assignment, $delta) {
+        $exhaustedId = null;
+
+        $run = function () use ($assignment, $delta, &$exhaustedId): void {
             $row = UserLessonPackage::query()
                 ->whereKey($assignment->getKey())
                 ->lockForUpdate()
@@ -54,6 +57,26 @@ final class UserLessonPackageConsumptionAdjuster
             }
 
             $row->forceFill(['lessons_remaining' => $next])->save();
+
+            // Первое достижение нуля при списании — кандидат на автопролонгацию fixed.
+            if ($delta < 0 && $next === 0 && $row->auto_prolong_enabled) {
+                $exhaustedId = (int) $row->id;
+            }
+        };
+
+        if (DB::transactionLevel() > 0) {
+            $run();
+        } else {
+            DB::transaction($run);
+        }
+
+        if ($exhaustedId === null) {
+            return;
+        }
+
+        $ulpId = $exhaustedId;
+        DB::afterCommit(static function () use ($ulpId): void {
+            app(FixedLessonPackageAutoProlongService::class)->tryProlongAfterExhaustion($ulpId);
         });
     }
 }

@@ -449,6 +449,11 @@
     Логика fixed: <code>JournalFixedAbonementPlacementService</code> +
     <code>JournalTeamScheduleSlotEnsureService</code> (слот группы для дневного UI) +
     <code>UserLessonPackageCalendarPeriodService</code> (период: месяц из установки цен).
+    <br><br>
+    <b>Автопролонгация:</b> place-fixed / place-flexible / place-trial / place-single проверяют
+    <code>UserLessonPackageAutoProlongGuard</code> — при активном флаге у ученика операция
+    блокируется (исключение place-*: привязка того же ULP с флагом). Подробно —
+    <a href="/docs/documentation/lesson-packages#auto-prolong">lesson-packages §auto-prolong</a>.
   </div>
 
   <h3>7.1) UI</h3>

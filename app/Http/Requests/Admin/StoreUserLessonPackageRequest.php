@@ -14,6 +14,15 @@ final class StoreUserLessonPackageRequest extends FormRequest
         return $this->user() !== null;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('auto_prolong_enabled')) {
+            $this->merge([
+                'auto_prolong_enabled' => $this->boolean('auto_prolong_enabled'),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         $partnerId = (int) (app('current_partner')->id ?? 0);
@@ -54,6 +63,10 @@ final class StoreUserLessonPackageRequest extends FormRequest
                 'min:0',
                 'max:999999.99',
             ],
+            'auto_prolong_enabled' => [
+                'sometimes',
+                'boolean',
+            ],
         ];
     }
 
@@ -64,6 +77,14 @@ final class StoreUserLessonPackageRequest extends FormRequest
             $userId = (int) $this->input('user_id');
             $teamId = (int) $this->input('team_id');
             $packageId = (int) $this->input('lesson_package_id');
+            $autoProlong = $this->boolean('auto_prolong_enabled');
+
+            if ($userId > 0) {
+                $guard = app(\App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::class);
+                if ($guard->isBlocked($userId)) {
+                    $validator->errors()->add('user_id', \App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::BLOCK_REASON);
+                }
+            }
 
             if ($packageId > 0) {
                 $package = \App\Models\LessonPackage::query()->find($packageId);
@@ -72,6 +93,28 @@ final class StoreUserLessonPackageRequest extends FormRequest
                         'lesson_package_id',
                         'Абонемент «Постоплата» назначается только в разделе «Установка цен», без записи в назначениях.'
                     );
+                }
+
+                if ($autoProlong) {
+                    if (! $package || (int) $package->partner_id !== $partnerId) {
+                        $validator->errors()->add('auto_prolong_enabled', 'Нельзя включить автопролонгацию для выбранного абонемента.');
+                    } elseif ((string) $package->schedule_type !== 'fixed') {
+                        $validator->errors()->add(
+                            'auto_prolong_enabled',
+                            'Автопролонгация доступна только для фиксированных абонементов.'
+                        );
+                    } elseif ($userId > 0) {
+                        $other = \App\Models\UserLessonPackage::query()
+                            ->where('user_id', $userId)
+                            ->where('auto_prolong_enabled', true)
+                            ->exists();
+                        if ($other) {
+                            $validator->errors()->add(
+                                'auto_prolong_enabled',
+                                'У ученика уже есть абонемент с автопролонгацией. Сначала отключите его.'
+                            );
+                        }
+                    }
                 }
             }
 
@@ -97,6 +140,7 @@ final class StoreUserLessonPackageRequest extends FormRequest
             'lesson_package_id' => 'абонемент',
             'team_id' => 'группа',
             'fee_amount' => 'стоимость для ученика',
+            'auto_prolong_enabled' => 'автопролонгация',
         ];
     }
 

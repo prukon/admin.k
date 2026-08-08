@@ -32,7 +32,7 @@ class DocumentationController extends Controller
         'queues-monitoring'             => 'Очереди в админке: мониторинг, доступы, queue.log, restart worker',
         'tests-standards'             => 'Требования к единообразию Feature‑тестов (партнёр/авторизация/права)',
         'dev-seed-data'               => 'Dev-фикстуры: SEED_DEV_DATA, цепочка Dev*-сидеров, юр. лица, T‑Bank, ограничения prod',
-        'lesson-packages'             => 'Абонементы: шаблоны, назначения, billing_month / период (классика vs месяц из цен), ends_at, конфликт fixed, статусы, Excel',
+        'lesson-packages'             => 'Абонементы: шаблоны, назначения, автопролонгация fixed, billing_month / период (классика vs месяц из цен), ends_at, конфликт fixed, статусы, Excel',
         'postpay'                     => 'Постоплата (postpay): шаблон, users_prices без ULP, журнал create_postpay, лок после оплаты; право lessonPackages.type.postpay',
         'lesson-packages-type-postpay' => 'Право lessonPackages.type.postpay: выбор типа «Постоплата», скрытое, не в базовых ролях',
         'school-schedule-calendar'    => 'Расписание школы: календарь, assign-fixed конфликт по starts_at, inline-панели, выгрузка Excel, JSON/API',

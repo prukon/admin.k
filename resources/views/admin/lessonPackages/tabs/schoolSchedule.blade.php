@@ -2960,16 +2960,39 @@
                             },
                             processResults: function (data) {
                                 const regs = schoolCalSlotRegisteredUserIds || [];
+                                const blockReason = @json(\App\Services\LessonPackages\UserLessonPackageAutoProlongGuard::BLOCK_REASON);
                                 const results = (data.results || []).map(function (item) {
                                     const idNum = parseInt(item.id, 10);
+                                    const registered = regs.indexOf(idNum) !== -1;
+                                    const autoBlocked = !!(item.blocked || item.disabled);
                                     return {
                                         id: item.id,
                                         text: item.text,
-                                        disabled: regs.indexOf(idNum) !== -1,
+                                        disabled: registered || autoBlocked,
+                                        blocked: autoBlocked,
+                                        blocked_reason: autoBlocked
+                                            ? (item.blocked_reason || blockReason)
+                                            : (registered ? 'Ученик уже записан на это занятие' : null),
                                     };
                                 });
                                 return { results: results };
                             },
+                        },
+                        templateResult: function (item) {
+                            if (!item || item.loading) {
+                                return item && item.text ? item.text : '…';
+                            }
+                            const $el = $('<span></span>').text(item.text || '');
+                            if (item.disabled) {
+                                $el.addClass('text-muted');
+                                if (item.blocked_reason) {
+                                    $el.attr('title', item.blocked_reason);
+                                }
+                            }
+                            return $el;
+                        },
+                        templateSelection: function (item) {
+                            return item.text || '';
                         },
                     });
                     $slotUser.on('select2:select change', function () {

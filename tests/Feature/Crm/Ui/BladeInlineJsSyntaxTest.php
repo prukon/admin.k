@@ -811,6 +811,122 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS автопролонгации на вкладке назначений (флаг + Select2 blocked + badge).
+     */
+    public function test_lesson_package_assignment_auto_prolong_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('ulp_auto_prolong_wrap', $content);
+        $this->assertStringContainsString('ulp-modal-auto-prolong', $content);
+        $this->assertStringContainsString('syncAutoProlongVisibility', $content);
+        $this->assertStringContainsString('body.auto_prolong_enabled', $content);
+        $this->assertStringContainsString('payload.errors.auto_prolong_enabled', $content);
+        $this->assertStringContainsString('blocked_reason', $content);
+        $this->assertStringContainsString("context: 'assign'", $content);
+        $this->assertStringContainsString('auto_prolong_badge_label', $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $autoProlongScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'auto_prolong')
+                && ! str_contains($rawScript, 'syncAutoProlongVisibility')
+                && ! str_contains($rawScript, 'blocked_reason')
+            ) {
+                continue;
+            }
+            $autoProlongScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-auto-prolong-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in assignment auto-prolong script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $autoProlongScriptFound,
+            'В assignments.blade.php не найден script с auto_prolong / syncAutoProlongVisibility'
+        );
+    }
+
+    /**
+     * P1: inline JS календаря школы — Select2 ученика с blocked_reason автопролонга.
+     */
+    public function test_school_schedule_auto_prolong_user_select_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('schoolCalSlotUserSelect', $content);
+        $this->assertStringContainsString('blocked_reason', $content);
+        $this->assertStringContainsString('item.blocked', $content);
+        $this->assertStringContainsString('templateResult', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $selectScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'schoolCalSlotUserSelect')
+                || ! str_contains($rawScript, 'blocked_reason')
+            ) {
+                continue;
+            }
+            $selectScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-school-cal-auto-prolong-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in school schedule auto-prolong user select (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $selectScriptFound,
+            'В schoolSchedule.blade.php не найден script с schoolCalSlotUserSelect + blocked_reason'
+        );
+    }
+
+    /**
      * P1: inline JS вкладки «Статусы занятий» (toolbar + DataTables + AJAX CRUD fetch).
      */
     public function test_occurrence_statuses_crud_inline_script_is_valid_javascript(): void

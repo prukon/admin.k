@@ -32,6 +32,7 @@ final class SchoolCalendarSingleLessonRegistrationService
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly SchoolCalendarAssignmentEligibilityService $assignmentEligibility,
         private readonly AuditLogger $auditLogger,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
     }
 
@@ -48,6 +49,8 @@ final class SchoolCalendarSingleLessonRegistrationService
     public function register(int $partnerId, array $data, ?int $createdBy): void
     {
         $userId = (int) $data['user_id'];
+        $this->autoProlongGuard->assertCanRegisterTrialOrCalendarEntryForUser($userId);
+
         $slotId = (int) $data['team_schedule_slot_id'];
         $occurrence = CarbonImmutable::createFromFormat('Y-m-d', (string) $data['occurrence_date'])->startOfDay();
 
@@ -141,6 +144,8 @@ final class SchoolCalendarSingleLessonRegistrationService
         ?int $createdBy,
         bool $useTransaction = true,
     ): void {
+        $this->autoProlongGuard->assertCanRegisterTrialOrCalendarEntryForUser((int) $ulp->user_id);
+
         $ulp->loadMissing(['user']);
         if ($ulp->relationLoaded('lessonPackage')) {
             $ulp->unsetRelation('lessonPackage');

@@ -115,6 +115,15 @@ final class SchoolCalendarSlotUserBindActionsService
             ];
         }
 
+        $autoProlongReason = app(UserLessonPackageAutoProlongGuard::class)->blockReasonForUser($userId);
+        if ($autoProlongReason !== null) {
+            return [
+                'allowed' => false,
+                'reason' => $autoProlongReason,
+                'existing_assignments' => [],
+            ];
+        }
+
         $d = $occurrence->toDateString();
         $occurrenceAware = $this->assignmentEligibility
             ->flexibleAssignmentsQuery($partnerId)
@@ -176,6 +185,22 @@ final class SchoolCalendarSlotUserBindActionsService
             ->fixedAssignmentsQuery($partnerId)
             ->where('user_id', $userId)
             ->get();
+
+        $blocking = app(UserLessonPackageAutoProlongGuard::class)->findBlockingAssignment($userId);
+        if ($blocking !== null) {
+            $existingRows = $existingRows
+                ->filter(fn ($ulp) => (int) $ulp->id === (int) $blocking->id)
+                ->values();
+
+            if ($existingRows->isEmpty()) {
+                return [
+                    'allowed' => false,
+                    'reason' => UserLessonPackageAutoProlongGuard::BLOCK_REASON,
+                    'existing_assignments' => [],
+                    'group_patterns' => $groupPatterns,
+                ];
+            }
+        }
 
         if ($existingRows->isEmpty()) {
             return [
@@ -263,6 +288,17 @@ final class SchoolCalendarSlotUserBindActionsService
             return [
                 'allowed' => false,
                 'reason' => $calendarBlockReason,
+                'mode' => null,
+                'existing_assignments' => [],
+                'templates' => [],
+            ];
+        }
+
+        $autoProlongReason = app(UserLessonPackageAutoProlongGuard::class)->blockReasonForUser($userId);
+        if ($autoProlongReason !== null) {
+            return [
+                'allowed' => false,
+                'reason' => $autoProlongReason,
                 'mode' => null,
                 'existing_assignments' => [],
                 'templates' => [],

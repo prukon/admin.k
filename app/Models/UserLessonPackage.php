@@ -27,6 +27,9 @@ class UserLessonPackage extends Model
         'team_id' => 'int',
         'lesson_package_id' => 'int',
         'created_by' => 'int',
+        'auto_prolong_enabled' => 'bool',
+        'auto_prolonged_from_id' => 'int',
+        'auto_prolonged_to_id' => 'int',
     ];
 
     protected $appends = [
@@ -92,6 +95,43 @@ class UserLessonPackage extends Model
     public function publicPayLink(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(UserLessonPackagePublicPayLink::class, 'user_lesson_package_id');
+    }
+
+    public function autoProlongedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'auto_prolonged_from_id');
+    }
+
+    public function autoProlongedTo(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'auto_prolonged_to_id');
+    }
+
+    /**
+     * Показывать бейдж автопролонгации (активный флаг или звено цепочки продления).
+     */
+    public function showsAutoProlongBadge(): bool
+    {
+        return (bool) $this->auto_prolong_enabled
+            || $this->auto_prolonged_from_id !== null
+            || $this->auto_prolonged_to_id !== null;
+    }
+
+    public function autoProlongBadgeLabel(): string
+    {
+        if ($this->auto_prolong_enabled) {
+            return 'Автопролонг';
+        }
+
+        if ($this->auto_prolonged_to_id !== null) {
+            return 'Автопролонг · продолжен';
+        }
+
+        if ($this->auto_prolonged_from_id !== null) {
+            return 'Автопролонг · из №'.$this->auto_prolonged_from_id;
+        }
+
+        return 'Автопролонг';
     }
 
     /**

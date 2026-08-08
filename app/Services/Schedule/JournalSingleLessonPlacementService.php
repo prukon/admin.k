@@ -12,11 +12,13 @@ use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Support\Money;
 use App\Support\UserPriceTeamMembership;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -30,6 +32,7 @@ final class JournalSingleLessonPlacementService
         private readonly SchoolCalendarAssignmentEligibilityService $assignmentEligibility,
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
     }
 
@@ -60,6 +63,11 @@ final class JournalSingleLessonPlacementService
         ?string $comment = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
+        try {
+            $this->autoProlongGuard->assertCanRegisterTrialOrCalendarEntryForUser((int) $user->id);
+        } catch (ValidationException) {
+            throw new InvalidArgumentException(UserLessonPackageAutoProlongGuard::BLOCK_REASON);
+        }
 
         if ((int) $status->partner_id !== $partnerId || ! $status->is_active) {
             throw new InvalidArgumentException('Выбранный статус не найден или неактивен.');

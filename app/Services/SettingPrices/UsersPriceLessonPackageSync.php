@@ -8,6 +8,7 @@ use App\Models\LessonPackage;
 use App\Models\UserLessonPackage;
 use App\Models\UserPrice;
 use App\Services\UserLessonPackageAssignmentDeletionService;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use Carbon\Carbon;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -21,6 +22,7 @@ final class UsersPriceLessonPackageSync
 {
     public function __construct(
         private readonly UserLessonPackageAssignmentDeletionService $deletionService,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
     }
 
@@ -77,6 +79,13 @@ final class UsersPriceLessonPackageSync
         $createStartsAt = $isFlexible ? $billingMonthStart : null;
 
         if ($linked === null) {
+            if ($this->autoProlongGuard->isBlocked((int) $row->user_id)) {
+                throw new UsersPriceLessonPackageSyncException(
+                    'user_id',
+                    UserLessonPackageAutoProlongGuard::BLOCK_REASON
+                );
+            }
+
             $ulp = UserLessonPackage::query()->create([
                 'user_id' => (int) $row->user_id,
                 'team_id' => (int) $row->team_id,

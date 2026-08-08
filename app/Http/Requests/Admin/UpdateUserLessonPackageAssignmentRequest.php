@@ -6,11 +6,13 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Illuminate\Validation\ValidationException;
 
 final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
 {
@@ -44,6 +46,12 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
         if ($this->has('ends_at') && $this->input('ends_at') === '') {
             $this->merge(['ends_at' => null]);
         }
+
+        if ($this->has('auto_prolong_enabled')) {
+            $this->merge([
+                'auto_prolong_enabled' => $this->boolean('auto_prolong_enabled'),
+            ]);
+        }
     }
 
     public function rules(): array
@@ -59,6 +67,10 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
                 'numeric',
                 'min:0',
                 'max:999999.99',
+            ],
+            'auto_prolong_enabled' => [
+                'sometimes',
+                'boolean',
             ],
         ];
 
@@ -83,6 +95,7 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
             'ends_at' => 'дата окончания',
             'payment_status' => 'статус оплаты',
             'payment_comment' => 'комментарий к изменению статуса',
+            'auto_prolong_enabled' => 'автопролонгация',
         ];
     }
 
@@ -138,6 +151,22 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
 
                 if (! $allowsViaUnpaidTransition) {
                     $v->errors()->add('fee_amount', 'Нельзя менять сумму у оплаченного абонемента.');
+                }
+            }
+
+            if ($this->has('auto_prolong_enabled')) {
+                $wantEnabled = $this->boolean('auto_prolong_enabled');
+                if ($wantEnabled && ! (bool) $assignment->auto_prolong_enabled) {
+                    $assignment->loadMissing('lessonPackage:id,schedule_type');
+                    try {
+                        app(UserLessonPackageAutoProlongGuard::class)->assertCanEnableAutoProlong($assignment);
+                    } catch (ValidationException $e) {
+                        foreach ($e->errors() as $key => $messages) {
+                            foreach ($messages as $message) {
+                                $v->errors()->add($key, $message);
+                            }
+                        }
+                    }
                 }
             }
 

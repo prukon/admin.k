@@ -85,6 +85,11 @@
     <li>Снятие пакета / уход на postpay → физическое удаление <b>неразложенного</b> ULP;
       если разложен → <b>422</b>.</li>
     <li>Оплаченный месяц (<code>effective_is_paid</code>) — sync не создаёт и не меняет ULP.</li>
+    <li><b>Автопролонгация:</b> если у ученика есть ULP с <code>auto_prolong_enabled</code>, создание
+      нового месячного ULP через sync → ошибка с
+      <code>UserLessonPackageAutoProlongGuard::BLOCK_REASON</code>
+      (см. <a href="/docs/documentation/lesson-packages#auto-prolong">lesson-packages §auto-prolong</a>).
+      Месячные ULP из установки цен сами автопролонгацию <b>не</b> поддерживают.</li>
     <li><b>Идемпотентный догон:</b> повторный Apply с теми же значениями снова вызывает sync —
       создаёт отсутствующий ULP и/или чинит <code>ends_at</code> у неразложенного месячного назначения
       (для flexible также <code>starts_at</code> = 1-е число месяца, если ещё нет UTSS).

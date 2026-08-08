@@ -12,11 +12,13 @@ use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -31,6 +33,7 @@ final class JournalFixedAbonementPlacementService
         private readonly TeamScheduleCalendarService $calendarService,
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
     }
 
@@ -53,6 +56,11 @@ final class JournalFixedAbonementPlacementService
             throw new InvalidArgumentException('Выберите хотя бы один день недели.');
         }
 
+        try {
+            $this->autoProlongGuard->assertCanBindAssignment($ulp);
+        } catch (ValidationException) {
+            throw new InvalidArgumentException(UserLessonPackageAutoProlongGuard::BLOCK_REASON);
+        }
         $this->assertUserAndTeam($partnerId, $user, $team);
         $this->assertFixedAssignable($partnerId, $user, $ulp);
 

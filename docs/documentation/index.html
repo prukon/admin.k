@@ -26,6 +26,36 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Автопролонгация фиксированного абонемента (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Назначение абонементов»</b> для классического <code>fixed</code>
+    (не из «Установки цен» / без <code>billing_month</code>) — флаг <b>«Автопролонгация»</b>
+    (создание и редактирование). На ученике одновременно не более одного ULP с включённым флагом.
+    <br><br>
+    1) <b>Триггер:</b> первое достижение <code>lessons_remaining = 0</code> при списании статуса
+    (календарь / журнал / автосписание) → <code>FixedLessonPackageAutoProlongService</code>
+    после коммита транзакции.
+    <br>
+    2) <b>Успех:</b> новый ULP (та же цена, <code>is_paid=false</code>), раскладка по фактическим слотам
+    текущего назначения, старт после последнего UTSS; флаг на новом; у старого —
+    <code>auto_prolonged_to_id</code>; аудит <code>user_lesson_package.auto_prolonged</code>.
+    <br>
+    3) <b>Ошибка:</b> новый ULP не создаётся, флаг снимается, аудит
+    <code>user_lesson_package.auto_prolong_failed</code>.
+    <br>
+    4) <b>Жёсткий запрет:</b> пока флаг активен — нельзя новые назначения / пробное / чужие привязки
+    (assignments, календарь, журнал, sync из установки цен). Исключение — привязка самого
+    автопролонг-ULP. Текст: <code>UserLessonPackageAutoProlongGuard::BLOCK_REASON</code>.
+    В Select2 disable только при <code>users-search?context=assign</code> (создание назначения);
+    календарь/фильтр ученика не блокируют выбор.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#auto-prolong">lesson-packages §auto-prolong</a>;
+    календарь — <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>;
+    sync цен — <a href="/docs/documentation/setting-prices-monthly-users#ulp-sync">setting-prices-monthly-users §ulp-sync</a>;
+    аудит — <a href="/docs/documentation/audit-my-logs">audit-my-logs</a>.
+  </div>
+
   <h2>Календарь школы: шаблон фикса из слотов группы + превью цепочки (2026‑08)</h2>
   <div class="note">
     На вкладке <b>«Расписание школы»</b> (<code>/admin/lesson-packages/school-schedule</code>,
@@ -600,7 +630,9 @@
     и календарём <code>schedule</code>):
     <code>created</code>, <code>updated</code> (только при непустом diff), <code>deleted</code>
     (<code>level=security</code>; при 422 лог не пишется), <code>manual_paid</code>,
-    <code>public_pay_link_issued</code> (выдача ссылки и перевыпуск при смене суммы).
+    <code>public_pay_link_issued</code> (выдача ссылки и перевыпуск при смене суммы),
+    <code>auto_prolonged</code> / <code>auto_prolong_failed</code> (системная автопролонгация фикса,
+    см. <a href="/docs/documentation/lesson-packages#auto-prolong">§auto-prolong</a>).
     Привязки к календарю (<code>schedule.*</code>) в эту модалку <b>не</b> входят.
     Право — <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>
     (<a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>).
@@ -848,7 +880,7 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>история</b> <code>user_lesson_package.*</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <code>trainer_name</code> в result) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>

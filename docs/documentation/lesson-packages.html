@@ -35,6 +35,10 @@
     <b>История назначений (2026‑08):</b> на вкладке «Назначение абонементов» — кнопка «История»
     (категория аудита <code>user_lesson_package</code>, отдельно от шаблонов <code>lesson_package</code>
     и календаря <code>schedule</code>). Подробно — <a href="#assignments-history">§assignments-history</a>.
+    <br><br>
+    <b>Автопролонгация фикса (2026‑08):</b> флаг на классическом <code>fixed</code> из назначений;
+    при обнулении остатка — новый цикл + раскладка (или снятие флага при ошибке).
+    Подробно — <a href="#auto-prolong">§auto-prolong</a>.
   </div>
 
   <h2 id="postpay">Тип шаблона <code>postpay</code> (постоплата)</h2>
@@ -124,6 +128,101 @@
     «разложено» (<code>isLaidOutInSchedule</code>) или есть строки в <code>user_team_schedule_slots</code>.</p>
   <p>После первой привязки дату окончания можно скорректировать вручную — см. <a href="#assignment-ends-at">§ ручная смена <code>ends_at</code></a>
     (редактирование в UI назначений доступно, когда заполнены <b>обе</b> даты периода).</p>
+
+  <h2 id="auto-prolong">Автопролонгация фиксированного абонемента</h2>
+  <div class="note">
+    <b>С 2026‑08.</b> Классический <code>fixed</code> из вкладки «Назначение абонементов»
+    (не из «Установки цен» / без <code>billing_month</code>).
+    Цель — бесшовно создать следующий цикл назначения и сразу разложить занятия по слотам,
+    когда у текущего абона остаток занятий впервые стал нулём.
+  </div>
+
+  <h3>Модель данных</h3>
+  <table>
+    <thead><tr><th>Колонка <code>user_lesson_packages</code></th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr><td><code>auto_prolong_enabled</code></td><td>Флаг «сейчас активна автопролонгация» (bool, default false)</td></tr>
+      <tr><td><code>auto_prolonged_from_id</code></td><td>У нового цикла: id исходного назначения</td></tr>
+      <tr><td><code>auto_prolonged_to_id</code></td><td>У исходного: id созданного следующего цикла (после успеха)</td></tr>
+    </tbody>
+  </table>
+  <p>Бейдж в UI (таблица назначений, колонка «Тип»):
+    <code>showsAutoProlongBadge()</code> — если включён флаг <b>или</b> есть связь <code>from</code>/<code>to</code>.
+    Подписи: «Автопролонг» / «Автопролонг · продолжен» / «Автопролонг · из №{id}».</p>
+
+  <h3>UI (вкладка назначений)</h3>
+  <ul>
+    <li><b>Создание</b> (<code>#ulpAssignmentCreateModal</code>): чекбокс «Автопролонгация»
+      (<code>#ulp_auto_prolong_enabled</code>) в блоке <code>#ulp_auto_prolong_wrap</code> —
+      виден только при выбранном шаблоне <code>schedule_type = fixed</code>
+      (JS <code>syncAutoProlongVisibility</code>; иначе <code>d-none</code> и чекбокс сбрасывается).</li>
+    <li><b>Изменение</b> (<code>#ulpAssignmentEditModal</code>): чекбокс <code>#ulp-modal-auto-prolong</code>
+      при <code>assignment.auto_prolong_editable = true</code> (fixed и не из установки цен).
+      Ошибки — под полем <code>#ulp-modal-auto-prolong-err</code> / <code>errors.auto_prolong_enabled</code>.</li>
+    <li>Выключение флага админом <b>не</b> удаляет уже созданный следующий цикл и его строки календаря.</li>
+  </ul>
+
+  <h3>Правила включения</h3>
+  <ul>
+    <li>Только <code>schedule_type = fixed</code>; у назначения нет <code>billing_month</code>.</li>
+    <li>На ученике не более <b>одного</b> ULP с <code>auto_prolong_enabled = true</code> (глобально у партнёра).</li>
+    <li>Гибкий / разовое / postpay — включить нельзя (<code>422</code> на <code>auto_prolong_enabled</code>).</li>
+  </ul>
+
+  <h3>Триггер и сервисы</h3>
+  <ul>
+    <li>Списание остатка: <code>UserLessonPackageConsumptionAdjuster::applyRemainingLessonsDelta</code>
+      (ручной статус в календаре/журнале и <a href="#auto-attendance">автосписание</a>).</li>
+    <li>При первом переходе к <code>lessons_remaining = 0</code> при активном флаге — после коммита транзакции
+      вызывается <code>FixedLessonPackageAutoProlongService::tryProlongAfterExhaustion</code>.</li>
+    <li>Паттерн слотов берётся <b>по факту</b> из UTSS текущего назначения (актуальные weekday/time слотов),
+      не из «замороженного» графика на момент первой привязки.</li>
+    <li>Старт новой цепочки — после даты последнего UTSS текущего назначения (следующее подходящее занятие слотов).</li>
+    <li>Новый ULP: тот же <code>lesson_package_id</code> / <code>fee_amount_cents</code>, <code>is_paid = false</code>,
+      <code>lessons_*</code> из шаблона; оплата <b>не</b> блокирует раскладку и следующие циклы.</li>
+    <li>Раскладка переиспользует ту же цепочку, что <code>assign-fixed</code>
+      (<code>applyFirstCalendarAnchor</code> → <code>buildFixedOccurrenceChain</code> → overlap-assert).</li>
+  </ul>
+
+  <h3>Успех / ошибка</h3>
+  <ul>
+    <li><b>Успех:</b> новый ULP + строки календаря; флаг на новом; у старого флаг снят и заполнен
+      <code>auto_prolonged_to_id</code>; аудит <code>user_lesson_package.auto_prolonged</code>
+      (author = null, система).</li>
+    <li><b>Ошибка</b> (нет UTSS / слоты не найдены / разные группы / нехватка дат / конфликт времени /
+      аномалия типа): новый ULP <b>не</b> создаётся; флаг на исходном снимается;
+      аудит <code>user_lesson_package.auto_prolong_failed</code> с причиной в описании.</li>
+  </ul>
+
+  <h3>Жёсткий запрет новых назначений</h3>
+  <p>Пока у ученика есть ULP с <code>auto_prolong_enabled</code>, ему нельзя создавать/привязывать
+    любые абонементы и пробное. Сервис: <code>UserLessonPackageAutoProlongGuard</code>,
+    текст: <code>BLOCK_REASON</code>.</p>
+  <ul>
+    <li><b>Исключение:</b> привязка к календарю/журналу <b>того же</b> ULP, у которого включён флаг
+      (<code>assertCanBindAssignment</code>: блокирующий id = id привязываемого). В календаре это обычно
+      первая раскладка unbound fixed; чужие ULP / новое назначение / пробное / разовое create — запрещены.</li>
+    <li>Точки: store назначений; <code>assign-flexible</code> / <code>assign-fixed</code> (чужой ULP) /
+      разовое / пробное в календаре; journal place-* / place-trial / place-single; sync ULP из установки цен
+      (<code>UsersPriceLessonPackageSync</code> при создании нового ULP).</li>
+    <li>UI: Select2 <code>users-search?context=assign</code> (только модалка <b>создания</b> назначения) —
+      <code>disabled</code> + <code>blocked_reason</code> (hover). Фильтр назначений и календарь школы
+      вызывают поиск <b>без</b> <code>context=assign</code> — ученик выбирается; запреты действий —
+      через <code>slot-user-bind-actions</code> (<code>allowed: false</code> + reason для flexible/trial/single
+      и для fixed без своего unbound автопролонг-ULP) / валидацию store.</li>
+  </ul>
+  <p class="small">Смена <code>ends_at</code>, заморозки статусов и выключение флага вручную <b>не</b> откатывают
+    уже созданный следующий цикл. Отдельных push/email-уведомлений нет — только «мой лог» (аудит).</p>
+
+  <p class="small">Миграция: <code>2026_08_09_021000_add_auto_prolong_to_user_lesson_packages_table.php</code>.
+    Тесты:
+    <code>FixedLessonPackageAutoProlongFeatureTest</code>,
+    <code>FixedLessonPackageAutoProlongAccessFeatureTest</code>,
+    <code>FixedLessonPackageAutoProlongAjaxContractFeatureTest</code>,
+    <code>FixedLessonPackageAutoProlongNonAjaxSafetyNetFeatureTest</code>,
+    <code>FixedLessonPackageAutoProlongMarkupFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (assignments + school-schedule Select2).
+  </p>
 
   <h2 id="assignment-ends-at">Ручная смена даты окончания (<code>ends_at</code>)</h2>
   <div class="note">
@@ -526,7 +625,10 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Поиск ученика в фильтре и в модалке «Назначить» — один endpoint: <code>GET /admin/lesson-packages/assignments/users-search?q=</code> (Select2, подпись с остатками абонементов). Тот же endpoint используется в календаре школы для <code>#schoolCalSlotUserSelect</code> — см. <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.</p>
+  <p class="small">Поиск ученика в фильтре и в модалке «Назначить» — один endpoint: <code>GET /admin/lesson-packages/assignments/users-search?q=</code> (Select2).
+    Disable по автопролонгу — только при <code>context=assign</code> (модалка создания); фильтр и календарь
+    без этого параметра (см. <a href="#auto-prolong">§auto-prolong</a>). Тот же endpoint — в календаре школы для <code>#schoolCalSlotUserSelect</code>
+    — см. <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.</p>
   <p class="small">Фильтр «Активность ученика» — последний в панели (перед «Применить» / «Сброс»), как в отчётах § <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>. При нестандартном <code>status</code> (не <code>active</code>) панель фильтров раскрыта (<code>collapse show</code>).</p>
 
   <h3>Таблица и колонки</h3>
@@ -540,7 +642,8 @@
     <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
     <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
     <li>Абонемент (название шаблона)</li>
-    <li>Тип абонемента (фиксированный / гибкий / разовое занятие)</li>
+    <li>Тип абонемента (фиксированный / гибкий / разовое занятие; при автопролонге — бейдж
+      «Автопролонг» / «Автопролонг · продолжен» / «Автопролонг · из №…», см. <a href="#auto-prolong">§auto-prolong</a>)</li>
     <li>Действия (кнопка «Изменить»)</li>
   </ol>
   <p class="small">Колонка «Период» (<code>starts_at</code>–<code>ends_at</code>) в таблице не выводится; период виден в модалке редактирования
@@ -576,7 +679,9 @@
         <td>Создать назначение</td>
         <td>Модалка <code>#ulpAssignmentCreateModal</code>, обычная HTML-форма</td>
         <td><code>POST /admin/lesson-packages/assignments</code></td>
-        <td><b>Non-AJAX safety-net:</b> успех → <code>302</code> redirect на вкладку + flash «Абонемент назначен ученику» + audit <code>user_lesson_package.created</code>; валидация → redirect back с <code>errors</code> в сессии (не пустой <code>200</code>). Request: <code>StoreUserLessonPackageRequest</code>. Создаёт запись без периода (<code>starts_at</code>/<code>ends_at</code> = NULL), <code>lessons_remaining = lessons_total</code> из шаблона.</td>
+        <td><b>Non-AJAX safety-net:</b> успех → <code>302</code> redirect на вкладку + flash «Абонемент назначен ученику» + audit <code>user_lesson_package.created</code>; валидация → redirect back с <code>errors</code> в сессии (не пустой <code>200</code>). Request: <code>StoreUserLessonPackageRequest</code>. Создаёт запись без периода (<code>starts_at</code>/<code>ends_at</code> = NULL), <code>lessons_remaining = lessons_total</code> из шаблона.
+          Опционально <code>auto_prolong_enabled</code> (только classic fixed; иначе / hard ban → <code>422</code> на
+          <code>auto_prolong_enabled</code> или <code>user_id</code>). См. <a href="#auto-prolong">§auto-prolong</a>.</td>
       </tr>
       <tr>
         <td>Открыть / изменить</td>
@@ -586,16 +691,20 @@
           JSON: <code>{ assignment: { …, period_start, period_end, period_editable, … } }</code> /
           <code>{ success, assignment }</code>.
           Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте:
-          <code>fee_amount</code> (рубли), <code>ends_at</code>, <code>payment_comment</code>).
+          <code>fee_amount</code> (рубли), <code>ends_at</code>, <code>payment_comment</code>,
+          <code>auto_prolong_enabled</code>).
           Смена ручной оплаты — только с <code>lessonPackages.manualPaid.manage</code> и обязательным комментарием при смене статуса;
           audit <code>user_lesson_package.manual_paid</code> при смене эффективного статуса оплаты;
           audit <code>user_lesson_package.updated</code> только при непустом diff полей, которые реально меняет форма
-          (обычно <code>fee_amount</code> → <code>fee_amount_cents</code> / <code>ends_at</code>);
+          (обычно <code>fee_amount</code> → <code>fee_amount_cents</code> / <code>ends_at</code> / автопролонгация);
           при ротации публичной ссылки из‑за смены суммы — ещё <code>user_lesson_package.public_pay_link_issued</code>.
           Если период задан (<code>period_editable</code>), в PUT обязательно <code>ends_at</code>
           (дата начала только для просмотра); иначе <code>ends_at</code> prohibited.
+          JSON назначения: <code>auto_prolong_enabled</code>, <code>auto_prolong_editable</code>,
+          <code>auto_prolong_badge</code>, <code>auto_prolong_badge_label</code>.
           Non-AJAX PUT: успех → <code>302</code> + flash; валидация → <code>302</code> + session errors.
           Подробности смены конца периода — <a href="#assignment-ends-at">§assignment-ends-at</a>;
+          автопролонг — <a href="#auto-prolong">§auto-prolong</a>;
           аудит — <a href="#assignments-history">§assignments-history</a>.
         </td>
       </tr>
@@ -658,7 +767,8 @@
         <td><code>user_lesson_package.updated</code></td>
         <td>Изменение назначения абонемента</td>
         <td>Успешный <code>PUT …/assignments/{id}</code>, только если snapshot-diff непустой
-          (поля снимка: абонемент, стоимость, окончание, группа, остаток; форма обычно меняет стоимость / окончание)</td>
+          (поля снимка: абонемент, стоимость, окончание, группа, остаток, автопролонгация вкл/выкл;
+          форма обычно меняет стоимость / окончание / флаг автопролонга)</td>
         <td><code>info</code></td>
       </tr>
       <tr>
@@ -679,6 +789,19 @@
         <td>Выдача ссылки на оплату назначения</td>
         <td>Успешный <code>POST …/public-pay-link</code>; также при перевыпуске токена после смены
           <code>fee_amount_cents</code> (если у назначения уже была ссылка)</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.auto_prolonged</code></td>
+        <td>Автопролонгация назначения абонемента</td>
+        <td>Успешный системный цикл <code>FixedLessonPackageAutoProlongService</code>
+          (новый ULP + раскладка; author обычно null)</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
+        <td><code>user_lesson_package.auto_prolong_failed</code></td>
+        <td>Ошибка автопролонгации назначения абонемента</td>
+        <td>Не удалось создать/разложить следующий цикл; флаг снят; причина в описании лога</td>
         <td><code>info</code></td>
       </tr>
     </tbody>

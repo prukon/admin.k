@@ -11,11 +11,13 @@ use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
+use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Support\UserPriceTeamMembership;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
@@ -27,6 +29,7 @@ final class JournalFlexibleAbonementPlacementService
         private readonly JournalTeamScheduleSlotEnsureService $slotEnsure,
         private readonly UserLessonPackageCalendarPeriodService $calendarPeriodService,
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
+        private readonly UserLessonPackageAutoProlongGuard $autoProlongGuard,
     ) {
     }
 
@@ -53,6 +56,11 @@ final class JournalFlexibleAbonementPlacementService
         ?string $comment = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
+        try {
+            $this->autoProlongGuard->assertCanBindAssignment($ulp);
+        } catch (ValidationException) {
+            throw new InvalidArgumentException(UserLessonPackageAutoProlongGuard::BLOCK_REASON);
+        }
         $this->assertFlexibleAssignable($partnerId, $user, $ulp, $team, $occurrenceDate, $status);
 
         if ((int) $status->partner_id !== $partnerId || ! $status->is_active) {

@@ -67,6 +67,14 @@ final class SchoolCalendarTrialEligibilityService
             ];
         }
 
+        $autoProlongReason = app(UserLessonPackageAutoProlongGuard::class)->blockReasonForUser($userId);
+        if ($autoProlongReason !== null) {
+            return [
+                'allowed' => false,
+                'reason' => $autoProlongReason,
+            ];
+        }
+
         return ['allowed' => true, 'reason' => null];
     }
 
