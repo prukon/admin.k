@@ -320,7 +320,7 @@ final class SchoolScheduleLocationFilterFeatureTest extends CrmTestCase
     {
         $this->grantSchoolSchedulePermissions();
 
-        Location::factory()->create([
+        $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
             'name' => 'Smoke объект',
             'is_enabled' => true,
@@ -338,12 +338,85 @@ final class SchoolScheduleLocationFilterFeatureTest extends CrmTestCase
 
         $createFormPos = strpos($html, 'id="slotCreateForm"');
         $this->assertNotFalse($createFormPos);
-        $createFormHtml = substr($html, (int) $createFormPos, 4000);
+        $editFormPos = strpos($html, 'id="slotEditForm"');
+        $this->assertNotFalse($editFormPos);
+        $createFormHtml = substr($html, (int) $createFormPos, (int) $editFormPos - (int) $createFormPos);
         $locationPos = strpos($createFormHtml, 'js-slot-location-select');
         $teamSelectPos = strpos($createFormHtml, 'js-slot-team-select');
         $this->assertNotFalse($locationPos);
         $this->assertNotFalse($teamSelectPos);
         $this->assertLessThan($teamSelectPos, $locationPos);
+        $this->assertMatchesRegularExpression(
+            '/name="location_id"[^>]*>[\s\S]*?<option[^>]*value="' . preg_quote((string) $location->id, '/') . '"[^>]*selected/',
+            $createFormHtml,
+            'При одном объекте он должен быть выбран по умолчанию в «Добавить слот»'
+        );
+        $this->assertStringContainsString('>Отмена</button>', $createFormHtml);
+        $this->assertStringContainsString('id="slotCreateSubmit">Добавить</button>', $createFormHtml);
+    }
+
+    public function test_slot_create_modal_hides_location_select_when_partner_has_no_locations(): void
+    {
+        $this->grantSchoolSchedulePermissions();
+
+        $html = $this->get(route('admin.lesson-packages.school-schedule'))
+            ->assertOk()
+            ->getContent();
+
+        $createFormPos = strpos($html, 'id="slotCreateForm"');
+        $this->assertNotFalse($createFormPos);
+        $editFormPos = strpos($html, 'id="slotEditForm"');
+        $this->assertNotFalse($editFormPos);
+        $createFormHtml = substr($html, (int) $createFormPos, (int) $editFormPos - (int) $createFormPos);
+
+        $this->assertStringNotContainsString('js-slot-location-select', $createFormHtml);
+        $this->assertStringContainsString('js-slot-team-select', $createFormHtml);
+        $this->assertStringContainsString('>Отмена</button>', $createFormHtml);
+        $this->assertStringContainsString('id="slotCreateSubmit">Добавить</button>', $html);
+    }
+
+    public function test_slot_create_modal_preselects_sole_team_for_selected_location(): void
+    {
+        $this->grantSchoolSchedulePermissions();
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Единственный объект',
+            'is_enabled' => true,
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Единственная группа',
+            'location_id' => $location->id,
+        ]);
+        Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Группа другого объекта',
+            'location_id' => Location::factory()->create([
+                'partner_id' => $this->partner->id,
+                'is_enabled' => false,
+            ])->id,
+        ]);
+
+        $html = $this->get(route('admin.lesson-packages.school-schedule'))
+            ->assertOk()
+            ->getContent();
+
+        $createFormPos = strpos($html, 'id="slotCreateForm"');
+        $this->assertNotFalse($createFormPos);
+        $editFormPos = strpos($html, 'id="slotEditForm"');
+        $this->assertNotFalse($editFormPos);
+        $createFormHtml = substr($html, (int) $createFormPos, (int) $editFormPos - (int) $createFormPos);
+
+        $this->assertMatchesRegularExpression(
+            '/name="location_id"[^>]*>[\s\S]*?<option[^>]*value="' . preg_quote((string) $location->id, '/') . '"[^>]*selected/',
+            $createFormHtml
+        );
+        $this->assertMatchesRegularExpression(
+            '/name="team_id"[^>]*>[\s\S]*?<option[^>]*value="' . preg_quote((string) $team->id, '/') . '"[^>]*selected/',
+            $createFormHtml,
+            'При одном объекте и одной группе на нём группа должна быть выбрана по умолчанию'
+        );
     }
 
     public function test_school_schedule_page_and_location_filter_endpoints_return_200(): void

@@ -36,23 +36,50 @@
                 <form id="slotCreateForm" data-date-end-max="{{ $tssDateEndMax }}">
                     @csrf
 
+                    @php
+                        $slotCreateLocForTeams = null;
+                        $slotCreateDefaultTeamId = '';
+                    @endphp
                     @can('locations.view')
-                        <div class="mb-2">
-                            <label class="form-label mb-1 small">Объект</label>
-                            <select class="form-control form-control-sm js-slot-location-select" name="location_id">
-                                @include('admin.lessonPackages.partials.locationFilterOptions', ['locationFilterSelected' => ''])
-                            </select>
-                            <div class="invalid-feedback d-block" data-error-for="location_id"></div>
-                        </div>
+                        @php
+                            $slotCreateLocationsCount = isset($locations) ? $locations->count() : 0;
+                            $slotCreateLocationSelected = $slotCreateLocationsCount === 1
+                                ? (string) $locations->first()->id
+                                : '';
+                            if ($slotCreateLocationsCount === 1) {
+                                $slotCreateLocForTeams = $slotCreateLocationSelected;
+                            }
+                        @endphp
+                        @if ($slotCreateLocationsCount > 0)
+                            <div class="mb-2">
+                                <label class="form-label mb-1 small">Объект</label>
+                                <select class="form-control form-control-sm js-slot-location-select" name="location_id">
+                                    @include('admin.lessonPackages.partials.locationFilterOptions', ['locationFilterSelected' => $slotCreateLocationSelected])
+                                </select>
+                                <div class="invalid-feedback d-block" data-error-for="location_id"></div>
+                            </div>
+                        @endif
                     @endcan
+                    @php
+                        $slotCreateTeamsForDefault = collect($teams ?? []);
+                        if ($slotCreateLocForTeams !== null && $slotCreateLocForTeams !== '') {
+                            $slotCreateTeamsForDefault = $slotCreateTeamsForDefault->filter(function ($t) use ($slotCreateLocForTeams) {
+                                return (string) ($t->location_id ?? '') === (string) $slotCreateLocForTeams;
+                            });
+                        }
+                        if ($slotCreateTeamsForDefault->count() === 1) {
+                            $slotCreateDefaultTeamId = (string) $slotCreateTeamsForDefault->first()->id;
+                        }
+                    @endphp
 
                     <div class="mb-2">
                         <label class="form-label mb-1 small">Группа*</label>
                         <select class="form-control form-control-sm js-slot-team-select" name="team_id" required>
-                            <option value="">—</option>
+                            <option value="" @selected($slotCreateDefaultTeamId === '')>—</option>
                             @foreach($teams as $t)
                                 <option value="{{ $t->id }}"
-                                        data-location-id="{{ $t->location_id ?? '' }}">{{ $t->title }}</option>
+                                        data-location-id="{{ $t->location_id ?? '' }}"
+                                        @selected((string) $slotCreateDefaultTeamId === (string) $t->id)>{{ $t->title }}</option>
                             @endforeach
                         </select>
                         <div class="invalid-feedback d-block" data-error-for="team_id"></div>
@@ -100,8 +127,8 @@
                 </form>
             </div>
             <div class="modal-footer py-2 px-3">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
-                <button type="button" class="btn btn-primary btn-sm" id="slotCreateSubmit">Сохранить</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary btn-sm" id="slotCreateSubmit">Добавить</button>
             </div>
         </div>
     </div>
@@ -257,22 +284,38 @@
                     }
                 }
 
-                function applySlotFormTeamFilter(form) {
+                function selectSoleVisibleTeamIfAny(teamSelect) {
+                    if (!teamSelect) return;
+                    const allowed = Array.from(teamSelect.options).filter(function (opt) {
+                        return opt.value && !opt.hidden && !opt.disabled;
+                    });
+                    if (allowed.length === 1) {
+                        teamSelect.value = allowed[0].value;
+                    }
+                }
+
+                function applySlotFormTeamFilter(form, options) {
                     if (!form) return;
                     const teamSel = form.querySelector('.js-slot-team-select');
                     const locSel = form.querySelector('.js-slot-location-select');
                     const locId = locSel ? locSel.value : '';
                     filterTeamSelectForLocation(teamSel, locId);
+                    if (options && options.autoSelectSoleTeam) {
+                        selectSoleVisibleTeamIfAny(teamSel);
+                    }
                 }
 
                 function bindSlotFormLocationTeamFilter(form) {
                     if (!form) return;
+                    const isCreate = form.id === 'slotCreateForm';
+                    const opts = isCreate ? { autoSelectSoleTeam: true } : {};
                     const locSel = form.querySelector('.js-slot-location-select');
-                    if (!locSel) return;
-                    locSel.addEventListener('change', function () {
-                        applySlotFormTeamFilter(form);
-                    });
-                    applySlotFormTeamFilter(form);
+                    if (locSel) {
+                        locSel.addEventListener('change', function () {
+                            applySlotFormTeamFilter(form, opts);
+                        });
+                    }
+                    applySlotFormTeamFilter(form, opts);
                 }
 
                 window.filterTeamSelectForLocation = filterTeamSelectForLocation;
@@ -628,8 +671,7 @@
                                 }
                             }
                         }
-                        applySlotFormTeamFilter(form);
-                        form.querySelector('[name="team_id"]').value = '';
+                        applySlotFormTeamFilter(form, { autoSelectSoleTeam: true });
                         form.querySelector('[name="date_start"]')?.dispatchEvent(new Event('change'));
                         const modalEl = document.getElementById('slotCreateModal');
                         if (!modalEl) return;

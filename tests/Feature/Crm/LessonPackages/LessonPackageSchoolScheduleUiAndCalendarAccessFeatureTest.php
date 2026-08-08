@@ -61,6 +61,12 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
         $this->grantPermission('locations.view');
         $this->grantPermission('scheduleSlots.manage');
 
+        Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name' => 'Объект для модалки',
+            'is_enabled' => true,
+        ]);
+
         $html = $this->get(route('admin.lesson-packages.school-schedule'))
             ->assertOk()
             ->getContent();
@@ -77,12 +83,16 @@ final class LessonPackageSchoolScheduleUiAndCalendarAccessFeatureTest extends Cr
 
         $createFormPos = strpos($html, 'id="slotCreateForm"');
         $this->assertNotFalse($createFormPos);
-        $createFormHtml = substr($html, $createFormPos, 4000);
+        $editFormPos = strpos($html, 'id="slotEditForm"');
+        $this->assertNotFalse($editFormPos);
+        $createFormHtml = substr($html, (int) $createFormPos, (int) $editFormPos - (int) $createFormPos);
         $locationPos = strpos($createFormHtml, 'js-slot-location-select');
         $teamSelectPos = strpos($createFormHtml, 'js-slot-team-select');
         $this->assertNotFalse($locationPos);
         $this->assertNotFalse($teamSelectPos);
         $this->assertLessThan($teamSelectPos, $locationPos, 'В модалке «Добавить слот» объект должен быть выше группы');
+        $this->assertStringContainsString('>Отмена</button>', $createFormHtml);
+        $this->assertStringContainsString('id="slotCreateSubmit">Добавить</button>', $createFormHtml);
     }
 
     public function test_week_json_location_filter_none_returns_only_slots_without_object(): void
