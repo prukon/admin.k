@@ -11,6 +11,8 @@ use Tests\Feature\Crm\CrmTestCase;
 
 /**
  * Разметка модалки «Добавить слот»: селект объекта (0/1/2+), автовыбор единственной группы, кнопки.
+ * Плюс контракт JS открытия с ячейки календаря ({@see schoolCalOpenSlotCreateModal}):
+ * тулбар «Все» + один объект → объект остаётся выбранным, группа — autoSelectSoleTeam.
  *
  * @see SchoolScheduleLocationFilterFeatureTest
  * @see docs/documentation/school-schedule-calendar.html
@@ -135,6 +137,33 @@ final class SlotCreateModalMarkupFeatureTest extends CrmTestCase
         $locOpts = $this->selectInnerHtml($create, 'location_id');
         $this->assertOptionSelected($locOpts, (string) $location->id);
         $this->assertOptionNotSelected($locOpts, '');
+    }
+
+    /**
+     * Регрессия: клик по пустой ячейке не должен сбрасывать единственный объект в «Все».
+     * Markup-тест выше ловит только selected в HTML; здесь — логика schoolCalOpenSlotCreateModal.
+     */
+    public function test_school_cal_open_create_modal_keeps_sole_location_when_toolbar_is_all(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $fnPos = strpos($content, 'function schoolCalOpenSlotCreateModal');
+        $this->assertNotFalse($fnPos, 'Не найдена schoolCalOpenSlotCreateModal');
+        $gridClickPos = strpos($content, "document.getElementById('schoolCalGrid')", $fnPos);
+        $this->assertNotFalse($gridClickPos, 'Не найден обработчик клика по сетке после schoolCalOpenSlotCreateModal');
+        $fnBody = substr($content, $fnPos, $gridClickPos - $fnPos);
+
+        $this->assertStringContainsString("opt.value !== 'none'", $fnBody);
+        $this->assertStringContainsString('concrete.length === 1', $fnBody);
+        $this->assertStringContainsString('autoSelectSoleTeam: true', $fnBody);
+        $this->assertStringNotContainsString('teamSel.value = \'\'', $fnBody);
+        $this->assertStringNotContainsString('teamSel.value = ""', $fnBody);
+
+        // Путь клика по ячейке реально зовёт эту функцию (а не только openSlotCreateModalWithDefaults).
+        $afterFn = substr($content, $gridClickPos, 800);
+        $this->assertStringContainsString('schoolCalOpenSlotCreateModal({', $afterFn);
     }
 
     public function test_with_two_enabled_locations_defaults_to_all_not_a_specific_object(): void

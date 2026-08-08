@@ -2833,7 +2833,17 @@
                         v = String(o.locationId);
                     } else {
                         const toolbarLoc = document.getElementById('schoolCalLocation');
-                        v = toolbarLoc ? toolbarLoc.value : '';
+                        const toolbarVal = toolbarLoc ? String(toolbarLoc.value || '') : '';
+                        if (toolbarVal !== '') {
+                            // Явный фильтр тулбара («Без объекта» / конкретный id).
+                            v = toolbarVal;
+                        } else {
+                            // Тулбар «Все»: при одном реальном объекте — он, иначе «Все».
+                            const concrete = [].filter.call(locSel.options, function (opt) {
+                                return opt.value !== '' && opt.value !== 'none';
+                            });
+                            v = concrete.length === 1 ? concrete[0].value : '';
+                        }
                     }
                     if ([].some.call(locSel.options, function (opt) { return opt.value === v; })) {
                         locSel.value = v;
@@ -2842,10 +2852,8 @@
                     }
                 }
                 if (typeof window.applySlotFormTeamFilter === 'function') {
-                    window.applySlotFormTeamFilter(form);
+                    window.applySlotFormTeamFilter(form, { autoSelectSoleTeam: true });
                 }
-                const teamSel = form.querySelector('[name="team_id"]');
-                if (teamSel) teamSel.value = '';
                 form.querySelector('[name="date_start"]')?.dispatchEvent(new Event('change', { bubbles: true }));
                 bootstrap.Modal.getOrCreateInstance(modalEl).show();
             }
