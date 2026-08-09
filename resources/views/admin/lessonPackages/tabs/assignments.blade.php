@@ -444,7 +444,9 @@
                     <div id="ulp-lessons-modal-loading" class="text-muted small d-none">Загрузка…</div>
                     <div id="ulp-lessons-modal-content" class="d-none">
                         <div class="cell-edit-context">
-                            <div class="cell-edit-context__name" id="ulp-lessons-modal-fee"></div>
+                            <div class="cell-edit-context__name" id="ulp-lessons-modal-student"></div>
+                            <div class="cell-edit-context__teams" id="ulp-lessons-modal-package"></div>
+                            <div class="cell-edit-context__date" id="ulp-lessons-modal-fee"></div>
                             <div class="cell-edit-context__teams" id="ulp-lessons-modal-team"></div>
                             <div class="cell-edit-context__summary" id="ulp-lessons-modal-balance"></div>
                         </div>
@@ -1034,6 +1036,8 @@
                 const lessonsLoading = document.getElementById('ulp-lessons-modal-loading');
                 const lessonsContent = document.getElementById('ulp-lessons-modal-content');
                 const lessonsFeeEl = document.getElementById('ulp-lessons-modal-fee');
+                const lessonsStudentEl = document.getElementById('ulp-lessons-modal-student');
+                const lessonsPackageEl = document.getElementById('ulp-lessons-modal-package');
                 const lessonsBalanceEl = document.getElementById('ulp-lessons-modal-balance');
                 const lessonsTeamEl = document.getElementById('ulp-lessons-modal-team');
                 const lessonsListEl = document.getElementById('ulp-lessons-modal-list');
@@ -1048,6 +1052,12 @@
                     }
                     if (lessonsContent) {
                         lessonsContent.classList.add('d-none');
+                    }
+                    if (lessonsStudentEl) {
+                        lessonsStudentEl.textContent = '';
+                    }
+                    if (lessonsPackageEl) {
+                        lessonsPackageEl.textContent = '';
                     }
                     if (lessonsFeeEl) {
                         lessonsFeeEl.textContent = '';
@@ -1100,6 +1110,12 @@
                             }
 
                             var body = result.body || {};
+                            if (lessonsStudentEl) {
+                                lessonsStudentEl.textContent = String(body.student || '—');
+                            }
+                            if (lessonsPackageEl) {
+                                lessonsPackageEl.textContent = String(body.package_name || '—');
+                            }
                             if (lessonsFeeEl) {
                                 lessonsFeeEl.textContent = 'Стоимость абонемента ' + String(body.fee || '—');
                             }

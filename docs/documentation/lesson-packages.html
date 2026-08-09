@@ -823,7 +823,8 @@
         <td>Список занятий</td>
         <td>Модалка <code>#ulpAssignmentLessonsModal</code>, кнопка «Посмотреть все» в колонке «Занятия»</td>
         <td><code>GET …/assignments/{id}/lessons</code></td>
-        <td>JSON: <code>{ fee, balance, schedule_type, team_label, show_team_per_lesson, lessons: [{ date, date_label, status_title, status_color, status_icon, team_label }] }</code>.
+        <td>JSON: <code>{ student, package_name, fee, balance, schedule_type, team_label, show_team_per_lesson, lessons: [{ date, date_label, status_title, status_color, status_icon, team_label }] }</code>.
+          Шапка модалки: ФИО ученика (<code>student</code>, через <code>userLessonPackageStudentDisplay</code>) → название абонемента (<code>package_name</code>) → стоимость → группа → остаток.
           Список из <code>user_team_schedule_slots</code> по возрастанию даты; статус — актуальный event; <code>status_title = null</code> → «без статуса» (серым).
           При статусе UI рисует в скобках иконку (<code>status_icon</code>) и название цветом статуса (<code>status_color</code>, hex <code>#RRGGBB</code> из справочника).
           Для <code>fixed</code> — <code>team_label</code> в шапке (из слота), <code>show_team_per_lesson = false</code>; иначе группа в каждой строке.</td>

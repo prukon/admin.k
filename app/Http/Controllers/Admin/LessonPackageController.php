@@ -960,7 +960,10 @@ final class LessonPackageController extends AdminBaseController
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
         $partnerId = (int) $this->requirePartnerId();
-        $assignment->loadMissing(['lessonPackage:id,schedule_type']);
+        $assignment->loadMissing([
+            'lessonPackage:id,name,schedule_type',
+            'user' => $this->assignmentUserWithTrashedEager(),
+        ]);
 
         $slots = UserTeamScheduleSlot::query()
             ->where('partner_id', $partnerId)
@@ -1040,8 +1043,11 @@ final class LessonPackageController extends AdminBaseController
         }
 
         $feeAmountCents = (int) ($assignment->fee_amount_cents ?? 0);
+        $packageName = trim((string) ($assignment->lessonPackage->name ?? ''));
 
         return response()->json([
+            'student' => $this->userLessonPackageStudentDisplay($assignment),
+            'package_name' => $packageName !== '' ? $packageName : '—',
             'fee' => Money::formatRub($feeAmountCents).' руб.',
             'balance' => ((int) $assignment->lessons_remaining).'/'.((int) $assignment->lessons_total),
             'schedule_type' => $scheduleType,

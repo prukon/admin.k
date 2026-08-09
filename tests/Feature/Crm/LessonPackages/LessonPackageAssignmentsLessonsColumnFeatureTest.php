@@ -53,6 +53,8 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
             ->assertSee('>Занятия<', false)
             ->assertSee('data-column-key="lessons"', false)
             ->assertSee('ulpAssignmentLessonsModal', false)
+            ->assertSee('ulp-lessons-modal-student', false)
+            ->assertSee('ulp-lessons-modal-package', false)
             ->assertSee('schedule-modal-content cell-edit-modal', false)
             ->assertSee('cell-edit-context', false)
             ->assertSee('Посл.:', false)
@@ -217,11 +219,18 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
     public function test_assignment_lessons_endpoint_fixed_shows_team_in_header(): void
     {
         $ctx = $this->seedFixedWithLessons();
+        $student = $ctx['student'];
+        $expectedStudent = trim(($student->lastname ?? '').' '.($student->name ?? ''));
+        if ($expectedStudent === '') {
+            $expectedStudent = 'Ученик #'.(int) $student->id;
+        }
 
         $this->getJson(route('admin.lesson-packages.assignments.lessons', [
             'assignment' => $ctx['assignment']->id,
         ]))
             ->assertOk()
+            ->assertJsonPath('student', $expectedStudent)
+            ->assertJsonPath('package_name', 'Фикс тест')
             ->assertJsonPath('fee', '6 000 руб.')
             ->assertJsonPath('balance', '0/4')
             ->assertJsonPath('schedule_type', 'fixed')
