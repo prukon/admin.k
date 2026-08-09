@@ -966,14 +966,14 @@ final class LessonPackageController extends AdminBaseController
             ->where('partner_id', $partnerId)
             ->where('user_lesson_package_id', (int) $assignment->id)
             ->with(['slot.team:id,title,partner_id'])
-            ->orderByDesc('starts_at')
-            ->orderByDesc('id')
+            ->orderBy('starts_at')
+            ->orderBy('id')
             ->get();
 
         $events = UserLessonOccurrenceStatusEvent::query()
             ->where('partner_id', $partnerId)
             ->where('user_lesson_package_id', (int) $assignment->id)
-            ->with(['lessonOccurrenceStatus:id,title'])
+            ->with(['lessonOccurrenceStatus:id,title,color,icon'])
             ->orderBy('id')
             ->get([
                 'id',
@@ -984,8 +984,8 @@ final class LessonPackageController extends AdminBaseController
                 'lesson_occurrence_status_id',
             ]);
 
-        /** @var array<string, string|null> $latestStatusTitle */
-        $latestStatusTitle = [];
+        /** @var array<string, array{title: string|null, color: string|null, icon: string|null}> $latestStatus */
+        $latestStatus = [];
         foreach ($events as $event) {
             $dateStr = $event->occurrence_date instanceof \Carbon\CarbonInterface
                 ? $event->occurrence_date->format('Y-m-d')
@@ -994,10 +994,15 @@ final class LessonPackageController extends AdminBaseController
                 .'|'.(int) $event->team_schedule_slot_id
                 .'|'.$dateStr
                 .'|'.(int) ($event->user_lesson_package_id ?? 0);
-            $title = $event->lessonOccurrenceStatus
-                ? trim((string) $event->lessonOccurrenceStatus->title)
-                : '';
-            $latestStatusTitle[$key] = $title !== '' ? $title : null;
+            $status = $event->lessonOccurrenceStatus;
+            $title = $status ? trim((string) $status->title) : '';
+            $colorRaw = $status ? trim((string) ($status->color ?? '')) : '';
+            $iconRaw = $status ? trim((string) ($status->icon ?? '')) : '';
+            $latestStatus[$key] = [
+                'title' => $title !== '' ? $title : null,
+                'color' => preg_match('/^#[0-9A-Fa-f]{6}$/', $colorRaw) === 1 ? $colorRaw : null,
+                'icon' => $iconRaw !== '' ? $iconRaw : null,
+            ];
         }
 
         $lessons = [];
@@ -1010,11 +1015,18 @@ final class LessonPackageController extends AdminBaseController
                 .'|'.(int) $utss->team_schedule_slot_id
                 .'|'.$date
                 .'|'.(int) $assignment->id;
+            $statusInfo = $latestStatus[$statusKey] ?? [
+                'title' => null,
+                'color' => null,
+                'icon' => null,
+            ];
 
             $lessons[] = [
                 'date' => $date,
                 'date_label' => $this->formatAssignmentLessonDateLabel($date),
-                'status_title' => $latestStatusTitle[$statusKey] ?? null,
+                'status_title' => $statusInfo['title'],
+                'status_color' => $statusInfo['color'],
+                'status_icon' => $statusInfo['icon'],
                 'team_label' => $teamTitle !== '' ? $teamTitle : '—',
             ];
         }

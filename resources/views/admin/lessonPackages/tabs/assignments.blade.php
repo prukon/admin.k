@@ -1125,15 +1125,44 @@
                                 } else {
                                     lessons.forEach(function (lesson) {
                                         var li = document.createElement('li');
-                                        var statusTitle = lesson.status_title
-                                            ? String(lesson.status_title)
-                                            : 'без статуса';
                                         var text = String(lesson.date_label || '');
                                         if (showTeamPerLesson) {
                                             text += ' · Группа «' + String(lesson.team_label || '—') + '»';
                                         }
-                                        text += ' (' + statusTitle + ')';
-                                        li.textContent = text;
+                                        li.appendChild(document.createTextNode(text + ' ('));
+
+                                        var statusTitle = lesson.status_title
+                                            ? String(lesson.status_title)
+                                            : '';
+                                        if (statusTitle !== '') {
+                                            var statusColor = /^#[0-9A-Fa-f]{6}$/.test(String(lesson.status_color || ''))
+                                                ? String(lesson.status_color)
+                                                : '';
+                                            var statusIcon = String(lesson.status_icon || '').trim();
+                                            if (statusIcon !== '') {
+                                                var iconEl = document.createElement('i');
+                                                iconEl.className = statusIcon;
+                                                iconEl.setAttribute('aria-hidden', 'true');
+                                                if (statusColor !== '') {
+                                                    iconEl.style.color = statusColor;
+                                                }
+                                                iconEl.style.marginRight = '0.25rem';
+                                                li.appendChild(iconEl);
+                                            }
+                                            var statusEl = document.createElement('span');
+                                            statusEl.textContent = statusTitle;
+                                            if (statusColor !== '') {
+                                                statusEl.style.color = statusColor;
+                                            }
+                                            li.appendChild(statusEl);
+                                        } else {
+                                            var emptyStatusEl = document.createElement('span');
+                                            emptyStatusEl.className = 'text-muted';
+                                            emptyStatusEl.textContent = 'без статуса';
+                                            li.appendChild(emptyStatusEl);
+                                        }
+
+                                        li.appendChild(document.createTextNode(')'));
                                         lessonsListEl.appendChild(li);
                                     });
                                 }

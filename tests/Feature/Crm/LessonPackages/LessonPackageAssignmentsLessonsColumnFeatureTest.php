@@ -227,10 +227,14 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
             ->assertJsonPath('schedule_type', 'fixed')
             ->assertJsonPath('team_label', 'Локомотив')
             ->assertJsonPath('show_team_per_lesson', false)
-            ->assertJsonPath('lessons.0.date', '2026-08-14')
-            ->assertJsonPath('lessons.0.status_title', 'Посетил')
-            ->assertJsonPath('lessons.1.date', '2026-08-05')
-            ->assertJsonPath('lessons.1.status_title', null)
+            ->assertJsonPath('lessons.0.date', '2026-08-05')
+            ->assertJsonPath('lessons.0.status_title', null)
+            ->assertJsonPath('lessons.0.status_color', null)
+            ->assertJsonPath('lessons.0.status_icon', null)
+            ->assertJsonPath('lessons.1.date', '2026-08-14')
+            ->assertJsonPath('lessons.1.status_title', 'Посетил')
+            ->assertJsonPath('lessons.1.status_color', '#4CAF82')
+            ->assertJsonPath('lessons.1.status_icon', 'fa-solid fa-circle-check')
             ->assertJsonCount(2, 'lessons');
     }
 
@@ -247,8 +251,8 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
             ->assertJsonPath('show_team_per_lesson', true)
             ->json();
 
-        $this->assertSame('Локомотив', $json['lessons'][0]['team_label']);
-        $this->assertSame('Резерв', $json['lessons'][1]['team_label']);
+        $this->assertSame('Резерв', $json['lessons'][0]['team_label']);
+        $this->assertSame('Локомотив', $json['lessons'][1]['team_label']);
     }
 
     public function test_assignment_lessons_forbidden_without_permission(): void
