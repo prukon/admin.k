@@ -444,6 +444,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::get('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'showAssignment'])
                 ->whereNumber('assignment')
                 ->name('admin.lesson-packages.assignments.show');
+            Route::get('/admin/lesson-packages/assignments/{assignment}/lessons', [LessonPackageController::class, 'assignmentLessons'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.lessons');
             Route::put('/admin/lesson-packages/assignments/{assignment}', [LessonPackageController::class, 'updateAssignment'])
                 ->whereNumber('assignment')
                 ->name('admin.lesson-packages.assignments.update');

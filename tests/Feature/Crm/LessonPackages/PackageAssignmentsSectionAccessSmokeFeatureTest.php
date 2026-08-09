@@ -167,6 +167,16 @@ final class PackageAssignmentsSectionAccessSmokeFeatureTest extends CrmTestCase
             'assignment' => $this->assignment->id,
         ]))->assertOk()->assertJsonStructure(['assignment' => ['id', 'fee_amount']]);
 
+        $this->getJson(route('admin.lesson-packages.assignments.lessons', [
+            'assignment' => $this->assignment->id,
+        ]))->assertOk()->assertJsonStructure([
+            'fee',
+            'balance',
+            'schedule_type',
+            'show_team_per_lesson',
+            'lessons',
+        ]);
+
         $this->putJson(route('admin.lesson-packages.assignments.update', [
             'assignment' => $this->assignment->id,
         ]), [

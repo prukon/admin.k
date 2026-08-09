@@ -155,6 +155,13 @@ final class PackageAssignmentsPageFullAccessFeatureTest extends CrmTestCase
                 'expect' => [200],
             ],
             [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.assignments.lessons', [
+                    'assignment' => $this->assignment->id,
+                ]),
+                'expect' => [200],
+            ],
+            [
                 'method' => 'POST',
                 'url' => route('admin.lesson-packages.assignments.store'),
                 'data' => [

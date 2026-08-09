@@ -16,6 +16,7 @@ use App\Models\Partner;
 use App\Services\Tinkoff\TbankTerminalConfig;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTableSetting;
 use App\Models\UserTeamScheduleSlot;
@@ -690,11 +691,6 @@ final class LessonPackageController extends AdminBaseController
             ->select('user_lesson_packages.*')
             ->join('users', 'users.id', '=', 'user_lesson_packages.user_id')
             ->join('lesson_packages', 'lesson_packages.id', '=', 'user_lesson_packages.lesson_package_id')
-            ->leftJoin('teams', function ($join) use ($partnerId) {
-                $join->on('teams.id', '=', 'user_lesson_packages.team_id')
-                    ->where('teams.partner_id', '=', $partnerId)
-                    ->whereNull('teams.deleted_at');
-            })
             ->where('users.partner_id', $partnerId);
 
         $recordsTotal = (clone $baseQuery)->count();
@@ -719,10 +715,6 @@ final class LessonPackageController extends AdminBaseController
             case 'student':
                 $orderedQuery->orderBy('users.lastname', $orderDir)
                     ->orderBy('users.name', $orderDir)
-                    ->orderBy('user_lesson_packages.id', 'desc');
-                break;
-            case 'team':
-                $orderedQuery->orderBy('teams.title', $orderDir)
                     ->orderBy('user_lesson_packages.id', 'desc');
                 break;
             case 'package':
@@ -764,12 +756,22 @@ final class LessonPackageController extends AdminBaseController
             ->clone()
             ->skip($start)
             ->take($length)
-            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type', 'team:id,title,partner_id'])
+            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type'])
             ->get();
 
         $ulpPublicPayTbankReady = $this->ulpAssignmentPublicPayTbankReady($partnerId);
+        $lastLessons = $this->lastLessonsByAssignmentIds(
+            $partnerId,
+            $rows->pluck('id')->map(static fn ($id) => (int) $id)->all()
+        );
 
-        $data = $rows->map(fn (UserLessonPackage $a) => $this->assignmentDataTableRow($a, $ulpPublicPayTbankReady))->values()->all();
+        $data = $rows->map(
+            fn (UserLessonPackage $a) => $this->assignmentDataTableRow(
+                $a,
+                $ulpPublicPayTbankReady,
+                $lastLessons[(int) $a->id] ?? null
+            )
+        )->values()->all();
 
         return response()->json([
             'draw' => $draw,
@@ -788,10 +790,14 @@ final class LessonPackageController extends AdminBaseController
     }
 
     /**
+     * @param  array{date: string, date_label: string, status_title: string|null}|null  $lastLesson
      * @return array<string, mixed>
      */
-    private function assignmentDataTableRow(UserLessonPackage $a, bool $ulpPublicPayTbankReady): array
-    {
+    private function assignmentDataTableRow(
+        UserLessonPackage $a,
+        bool $ulpPublicPayTbankReady,
+        ?array $lastLesson = null,
+    ): array {
         $student = trim(($a->user->lastname ?? '').' '.($a->user->name ?? ''));
         if ($student === '') {
             $student = '—';
@@ -818,14 +824,11 @@ final class LessonPackageController extends AdminBaseController
             && ! $a->effective_is_paid
             && $feeAmountCents >= 1000;
 
-        $feeDisplay = Money::formatRub($feeAmountCents).' руб';
-
-        $teamTitle = trim((string) ($a->team?->title ?? ''));
+        $feeDisplay = Money::formatRub($feeAmountCents).' руб.';
 
         return [
             'id' => $id,
             'student' => $student,
-            'team_label' => $teamTitle !== '' ? $teamTitle : '—',
             'package_name' => (string) ($a->lessonPackage->name ?? '—'),
             'period' => $period,
             'fee' => $feeDisplay,
@@ -838,7 +841,191 @@ final class LessonPackageController extends AdminBaseController
             'auto_prolong_enabled' => (bool) $a->auto_prolong_enabled,
             'auto_prolong_badge' => $a->showsAutoProlongBadge(),
             'auto_prolong_badge_label' => $a->showsAutoProlongBadge() ? $a->autoProlongBadgeLabel() : null,
+            'has_lessons' => $lastLesson !== null,
+            'last_lesson_date' => $lastLesson['date'] ?? null,
+            'last_lesson_date_label' => $lastLesson['date_label'] ?? null,
+            'last_lesson_status_title' => $lastLesson['status_title'] ?? null,
         ];
+    }
+
+    /**
+     * @param  list<int>  $ulpIds
+     * @return array<int, array{date: string, date_label: string, status_title: string|null}>
+     */
+    private function lastLessonsByAssignmentIds(int $partnerId, array $ulpIds): array
+    {
+        $ulpIds = array_values(array_unique(array_filter(array_map('intval', $ulpIds))));
+        if ($ulpIds === []) {
+            return [];
+        }
+
+        $slots = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->whereIn('user_lesson_package_id', $ulpIds)
+            ->get(['user_id', 'user_lesson_package_id', 'team_schedule_slot_id', 'starts_at']);
+
+        /** @var array<int, array{user_id: int, team_schedule_slot_id: int, user_lesson_package_id: int, date: string}> $lastByUlp */
+        $lastByUlp = [];
+        foreach ($slots as $slot) {
+            $ulpId = (int) $slot->user_lesson_package_id;
+            $date = $slot->starts_at instanceof \Carbon\CarbonInterface
+                ? $slot->starts_at->format('Y-m-d')
+                : (string) $slot->starts_at;
+            if ($date === '') {
+                continue;
+            }
+            if (! isset($lastByUlp[$ulpId]) || $date > $lastByUlp[$ulpId]['date']) {
+                $lastByUlp[$ulpId] = [
+                    'user_id' => (int) $slot->user_id,
+                    'team_schedule_slot_id' => (int) $slot->team_schedule_slot_id,
+                    'user_lesson_package_id' => $ulpId,
+                    'date' => $date,
+                ];
+            }
+        }
+
+        if ($lastByUlp === []) {
+            return [];
+        }
+
+        $dates = array_column($lastByUlp, 'date');
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->where('partner_id', $partnerId)
+            ->whereIn('user_lesson_package_id', array_keys($lastByUlp))
+            ->whereDate('occurrence_date', '>=', min($dates))
+            ->whereDate('occurrence_date', '<=', max($dates))
+            ->with(['lessonOccurrenceStatus:id,title'])
+            ->orderBy('id')
+            ->get([
+                'id',
+                'user_id',
+                'team_schedule_slot_id',
+                'occurrence_date',
+                'user_lesson_package_id',
+                'lesson_occurrence_status_id',
+            ]);
+
+        /** @var array<string, string|null> $latestStatusTitle */
+        $latestStatusTitle = [];
+        foreach ($events as $event) {
+            $dateStr = $event->occurrence_date instanceof \Carbon\CarbonInterface
+                ? $event->occurrence_date->format('Y-m-d')
+                : (string) $event->occurrence_date;
+            $key = (int) $event->user_id
+                .'|'.(int) $event->team_schedule_slot_id
+                .'|'.$dateStr
+                .'|'.(int) ($event->user_lesson_package_id ?? 0);
+            $title = $event->lessonOccurrenceStatus
+                ? trim((string) $event->lessonOccurrenceStatus->title)
+                : '';
+            $latestStatusTitle[$key] = $title !== '' ? $title : null;
+        }
+
+        $result = [];
+        foreach ($lastByUlp as $ulpId => $item) {
+            $key = $item['user_id']
+                .'|'.$item['team_schedule_slot_id']
+                .'|'.$item['date']
+                .'|'.$item['user_lesson_package_id'];
+            $result[$ulpId] = [
+                'date' => $item['date'],
+                'date_label' => $this->formatAssignmentLessonDateLabel($item['date']),
+                'status_title' => $latestStatusTitle[$key] ?? null,
+            ];
+        }
+
+        return $result;
+    }
+
+    private function formatAssignmentLessonDateLabel(string $dateYmd): string
+    {
+        return Carbon::parse($dateYmd)->locale('ru')->translatedFormat('j F Y');
+    }
+
+    public function assignmentLessons(UserLessonPackage $assignment): JsonResponse
+    {
+        $this->authorize('lessonPackages.view');
+        $this->authorize('setPrices.packageAssignments.view');
+        $this->assertAssignmentBelongsToCurrentPartner($assignment);
+
+        $partnerId = (int) $this->requirePartnerId();
+        $assignment->loadMissing(['lessonPackage:id,schedule_type']);
+
+        $slots = UserTeamScheduleSlot::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_lesson_package_id', (int) $assignment->id)
+            ->with(['slot.team:id,title,partner_id'])
+            ->orderByDesc('starts_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $events = UserLessonOccurrenceStatusEvent::query()
+            ->where('partner_id', $partnerId)
+            ->where('user_lesson_package_id', (int) $assignment->id)
+            ->with(['lessonOccurrenceStatus:id,title'])
+            ->orderBy('id')
+            ->get([
+                'id',
+                'user_id',
+                'team_schedule_slot_id',
+                'occurrence_date',
+                'user_lesson_package_id',
+                'lesson_occurrence_status_id',
+            ]);
+
+        /** @var array<string, string|null> $latestStatusTitle */
+        $latestStatusTitle = [];
+        foreach ($events as $event) {
+            $dateStr = $event->occurrence_date instanceof \Carbon\CarbonInterface
+                ? $event->occurrence_date->format('Y-m-d')
+                : (string) $event->occurrence_date;
+            $key = (int) $event->user_id
+                .'|'.(int) $event->team_schedule_slot_id
+                .'|'.$dateStr
+                .'|'.(int) ($event->user_lesson_package_id ?? 0);
+            $title = $event->lessonOccurrenceStatus
+                ? trim((string) $event->lessonOccurrenceStatus->title)
+                : '';
+            $latestStatusTitle[$key] = $title !== '' ? $title : null;
+        }
+
+        $lessons = [];
+        foreach ($slots as $utss) {
+            $date = $utss->starts_at instanceof \Carbon\CarbonInterface
+                ? $utss->starts_at->format('Y-m-d')
+                : (string) $utss->starts_at;
+            $teamTitle = trim((string) ($utss->slot?->team?->title ?? ''));
+            $statusKey = (int) $utss->user_id
+                .'|'.(int) $utss->team_schedule_slot_id
+                .'|'.$date
+                .'|'.(int) $assignment->id;
+
+            $lessons[] = [
+                'date' => $date,
+                'date_label' => $this->formatAssignmentLessonDateLabel($date),
+                'status_title' => $latestStatusTitle[$statusKey] ?? null,
+                'team_label' => $teamTitle !== '' ? $teamTitle : '—',
+            ];
+        }
+
+        $scheduleType = (string) ($assignment->lessonPackage->schedule_type ?? '');
+        $isFixed = $scheduleType === 'fixed';
+        $headerTeam = null;
+        if ($isFixed && $lessons !== []) {
+            $candidate = (string) ($lessons[0]['team_label'] ?? '');
+            $headerTeam = ($candidate !== '' && $candidate !== '—') ? $candidate : null;
+        }
+
+        $feeAmountCents = (int) ($assignment->fee_amount_cents ?? 0);
+
+        return response()->json([
+            'fee' => Money::formatRub($feeAmountCents).' руб.',
+            'balance' => ((int) $assignment->lessons_remaining).'/'.((int) $assignment->lessons_total),
+            'schedule_type' => $scheduleType,
+            'team_label' => $headerTeam,
+            'show_team_per_lesson' => ! $isFixed,
+            'lessons' => $lessons,
+        ]);
     }
 
     public function issueAssignmentPublicPayLink(UserLessonPackage $assignment, UserLessonPackagePublicPayService $service): JsonResponse

@@ -153,6 +153,10 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
                 'url' => route('admin.lesson-packages.assignments.show', ['assignment' => $assignment->id]),
             ],
             [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.assignments.lessons', ['assignment' => $assignment->id]),
+            ],
+            [
                 'method' => 'PUT',
                 'url' => route('admin.lesson-packages.assignments.update', ['assignment' => $assignment->id]),
                 'data' => ['fee_amount' => '120.00'],
@@ -328,7 +332,11 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         $row = $json['data'][0] ?? [];
         $this->assertSame((int) $ctx['assignment']->id, (int) ($row['id'] ?? 0));
         $this->assertArrayHasKey('student', $row);
-        $this->assertArrayHasKey('team_label', $row);
+        $this->assertArrayNotHasKey('team_label', $row);
+        $this->assertArrayHasKey('has_lessons', $row);
+        $this->assertArrayHasKey('last_lesson_date', $row);
+        $this->assertArrayHasKey('last_lesson_date_label', $row);
+        $this->assertArrayHasKey('last_lesson_status_title', $row);
         $this->assertArrayHasKey('fee', $row);
         $this->assertArrayHasKey('effective_is_paid', $row);
         $this->assertArrayHasKey('balance', $row);

@@ -20,6 +20,30 @@
 @endphp
 
 @vite(['resources/css/admin-list-toolbar.css'])
+@vite(['resources/css/schedule.css'])
+<style>
+    .ulp-assignment-lessons-list {
+        margin: 0;
+        padding-left: 1.15rem;
+        max-height: min(50vh, 22rem);
+        overflow-y: auto;
+    }
+    .ulp-assignment-lessons-list > li {
+        margin-bottom: 0.45rem;
+        color: #212529;
+        font-size: 0.9375rem;
+        line-height: 1.4;
+    }
+    .ulp-assignment-lessons-list > li:last-child {
+        margin-bottom: 0;
+    }
+    .ulp-assignment-lessons-cell {
+        line-height: 1.35;
+    }
+    .ulp-assignment-lessons-cell__date {
+        white-space: nowrap;
+    }
+</style>
 
 <div class="tab-content">
     <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
@@ -90,10 +114,6 @@
                                     <label class="form-check-label" for="ulpColStudent">Ученик</label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColTeam" data-column-key="team_label" checked>
-                                    <label class="form-check-label" for="ulpColTeam">Группа</label>
-                                </div>
-                                <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColFee" data-column-key="fee" checked>
                                     <label class="form-check-label" for="ulpColFee">Сумма</label>
                                 </div>
@@ -104,6 +124,10 @@
                                 <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColBalance" data-column-key="balance" checked>
                                     <label class="form-check-label" for="ulpColBalance">Остаток</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColLessons" data-column-key="lessons" checked>
+                                    <label class="form-check-label" for="ulpColLessons">Занятия</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPayLink" data-column-key="pay_link" checked>
@@ -326,10 +350,10 @@
             <tr>
                 <th class="d-none">ID</th>
                 <th>Ученик</th>
-                <th>Группа</th>
                 <th class="text-center text-nowrap" style="width: 1%">Сумма</th>
                 <th class="text-center" style="width: 1%">Оплачен</th>
                 <th class="text-center text-nowrap" style="width: 1%">Остаток</th>
+                <th class="text-start text-nowrap">Занятия</th>
                 <th class="text-start text-nowrap" style="width: 1%">Ссылка на оплату</th>
                 <th>Абонемент</th>
                 <th class="text-center text-nowrap" style="width: 1%">Тип абонемента</th>
@@ -338,6 +362,35 @@
             </thead>
             <tbody></tbody>
         </table>
+    </div>
+
+    <div class="modal fade" id="ulpAssignmentLessonsModal" tabindex="-1" aria-labelledby="ulpAssignmentLessonsModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content schedule-modal-content cell-edit-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ulpAssignmentLessonsModalLabel">Занятия абонемента</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="ulp-lessons-modal-alert" class="alert alert-danger d-none" role="alert"></div>
+                    <div id="ulp-lessons-modal-loading" class="text-muted small d-none">Загрузка…</div>
+                    <div id="ulp-lessons-modal-content" class="d-none">
+                        <div class="cell-edit-context">
+                            <div class="cell-edit-context__name" id="ulp-lessons-modal-fee"></div>
+                            <div class="cell-edit-context__teams" id="ulp-lessons-modal-team"></div>
+                            <div class="cell-edit-context__summary" id="ulp-lessons-modal-balance"></div>
+                        </div>
+                        <div class="cell-edit-section cell-edit-section--last">
+                            <div class="cell-edit-section__label">Занятия</div>
+                            <ol class="ulp-assignment-lessons-list" id="ulp-lessons-modal-list"></ol>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer cell-edit-modal__footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     @can('lessonPackages.view')
@@ -722,14 +775,33 @@
                         + '<i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать</button>';
                 }
 
+                function ulpLessonsRender(data, type, row) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return row.last_lesson_date || '';
+                    }
+
+                    if (!row.has_lessons || !row.last_lesson_date_label) {
+                        return '<span class="text-muted">—</span>';
+                    }
+
+                    return '<div class="ulp-assignment-lessons-cell small">'
+                        + '<div class="ulp-assignment-lessons-cell__date">Посл.: '
+                        + window.KidsCrmTooltip.escapeHtml(String(row.last_lesson_date_label))
+                        + '</div>'
+                        + '<button type="button" class="btn btn-link btn-sm p-0 align-baseline js-ulp-assignment-lessons" '
+                        + 'data-assignment-id="' + window.KidsCrmTooltip.escapeHtml(String(row.id)) + '">'
+                        + 'Посмотреть все</button>'
+                        + '</div>';
+                }
+
                 var dtApi = KidsCrmDataTable.create('#ulp-assignments-table', {
                     columnsSettings: {
                         defaults: {
                             student: true,
-                            team_label: true,
                             fee: true,
                             paid: true,
                             balance: true,
+                            lessons: true,
                             pay_link: true,
                             package_name: true,
                             type_label: true,
@@ -777,14 +849,6 @@
                             render: ulpStudentRender,
                         },
                         {
-                            key: 'team_label',
-                            type: 'text',
-                            data: 'team_label',
-                            name: 'team',
-                            className: 'text-start',
-                            render: ulpTextRender,
-                        },
-                        {
                             key: 'fee',
                             type: 'text',
                             data: 'fee',
@@ -807,6 +871,16 @@
                             name: 'balance',
                             className: 'text-center text-nowrap',
                             render: ulpTextRender,
+                        },
+                        {
+                            key: 'lessons',
+                            type: 'text',
+                            data: 'last_lesson_date_label',
+                            name: 'lessons',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-start',
+                            render: ulpLessonsRender,
                         },
                         {
                             key: 'pay_link',
@@ -870,6 +944,143 @@
 
                 const assignmentsBase = @json(rtrim(route('admin.lesson-packages.assignments'), '/'));
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+                const lessonsModalEl = document.getElementById('ulpAssignmentLessonsModal');
+                const lessonsModal = (lessonsModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal)
+                    ? bootstrap.Modal.getOrCreateInstance(lessonsModalEl)
+                    : null;
+                const lessonsAlert = document.getElementById('ulp-lessons-modal-alert');
+                const lessonsLoading = document.getElementById('ulp-lessons-modal-loading');
+                const lessonsContent = document.getElementById('ulp-lessons-modal-content');
+                const lessonsFeeEl = document.getElementById('ulp-lessons-modal-fee');
+                const lessonsBalanceEl = document.getElementById('ulp-lessons-modal-balance');
+                const lessonsTeamEl = document.getElementById('ulp-lessons-modal-team');
+                const lessonsListEl = document.getElementById('ulp-lessons-modal-list');
+
+                function resetLessonsModal() {
+                    if (lessonsAlert) {
+                        lessonsAlert.classList.add('d-none');
+                        lessonsAlert.textContent = '';
+                    }
+                    if (lessonsLoading) {
+                        lessonsLoading.classList.add('d-none');
+                    }
+                    if (lessonsContent) {
+                        lessonsContent.classList.add('d-none');
+                    }
+                    if (lessonsFeeEl) {
+                        lessonsFeeEl.textContent = '';
+                    }
+                    if (lessonsBalanceEl) {
+                        lessonsBalanceEl.textContent = '';
+                    }
+                    if (lessonsTeamEl) {
+                        lessonsTeamEl.textContent = '';
+                    }
+                    if (lessonsListEl) {
+                        lessonsListEl.innerHTML = '';
+                    }
+                }
+
+                function openAssignmentLessons(assignmentId) {
+                    if (!lessonsModal || !assignmentId) {
+                        return;
+                    }
+                    resetLessonsModal();
+                    if (lessonsLoading) {
+                        lessonsLoading.classList.remove('d-none');
+                    }
+                    lessonsModal.show();
+
+                    fetch(assignmentsBase + '/' + encodeURIComponent(String(assignmentId)) + '/lessons', {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    })
+                        .then(function (res) {
+                            return res.json().then(function (body) {
+                                return { ok: res.ok, status: res.status, body: body };
+                            });
+                        })
+                        .then(function (result) {
+                            if (lessonsLoading) {
+                                lessonsLoading.classList.add('d-none');
+                            }
+                            if (!result.ok) {
+                                if (lessonsAlert) {
+                                    lessonsAlert.textContent = (result.body && result.body.message)
+                                        ? String(result.body.message)
+                                        : 'Не удалось загрузить занятия.';
+                                    lessonsAlert.classList.remove('d-none');
+                                }
+                                return;
+                            }
+
+                            var body = result.body || {};
+                            if (lessonsFeeEl) {
+                                lessonsFeeEl.textContent = 'Стоимость абонемента ' + String(body.fee || '—');
+                            }
+                            if (lessonsBalanceEl) {
+                                lessonsBalanceEl.textContent = 'Остаток занятий '
+                                    + String(body.balance || '—')
+                                    + '.';
+                            }
+                            if (lessonsTeamEl) {
+                                lessonsTeamEl.textContent = body.team_label
+                                    ? ('Группа «' + String(body.team_label) + '»')
+                                    : '';
+                            }
+                            if (lessonsListEl) {
+                                lessonsListEl.innerHTML = '';
+                                var lessons = Array.isArray(body.lessons) ? body.lessons : [];
+                                var showTeamPerLesson = !!body.show_team_per_lesson;
+                                if (lessons.length === 0) {
+                                    var emptyLi = document.createElement('li');
+                                    emptyLi.className = 'text-muted';
+                                    emptyLi.textContent = 'Занятий нет.';
+                                    lessonsListEl.appendChild(emptyLi);
+                                } else {
+                                    lessons.forEach(function (lesson) {
+                                        var li = document.createElement('li');
+                                        var statusTitle = lesson.status_title
+                                            ? String(lesson.status_title)
+                                            : 'без статуса';
+                                        var text = String(lesson.date_label || '');
+                                        if (showTeamPerLesson) {
+                                            text += ' · Группа «' + String(lesson.team_label || '—') + '»';
+                                        }
+                                        text += ' (' + statusTitle + ')';
+                                        li.textContent = text;
+                                        lessonsListEl.appendChild(li);
+                                    });
+                                }
+                            }
+                            if (lessonsContent) {
+                                lessonsContent.classList.remove('d-none');
+                            }
+                        })
+                        .catch(function () {
+                            if (lessonsLoading) {
+                                lessonsLoading.classList.add('d-none');
+                            }
+                            if (lessonsAlert) {
+                                lessonsAlert.textContent = 'Не удалось загрузить занятия.';
+                                lessonsAlert.classList.remove('d-none');
+                            }
+                        });
+                }
+
+                document.addEventListener('click', function (e) {
+                    var btn = e.target && e.target.closest ? e.target.closest('.js-ulp-assignment-lessons') : null;
+                    if (!btn) {
+                        return;
+                    }
+                    e.preventDefault();
+                    openAssignmentLessons(btn.getAttribute('data-assignment-id'));
+                });
+
                 const modalEl = document.getElementById('ulpAssignmentEditModal');
                 if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
                     return;
