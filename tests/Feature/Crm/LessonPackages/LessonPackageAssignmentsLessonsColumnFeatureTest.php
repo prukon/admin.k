@@ -79,6 +79,32 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
         $this->assertSame('2026-08-14', $row['last_lesson_date']);
         $this->assertSame('14 августа 2026', $row['last_lesson_date_label']);
         $this->assertSame('Посетил', $row['last_lesson_status_title']);
+        // «Сегодня» в CrmTestCase — 2026-08-10; 14.08 ещё впереди.
+        $this->assertFalse((bool) $row['last_lesson_is_past']);
+    }
+
+    public function test_assignments_data_marks_past_last_lesson(): void
+    {
+        $ctx = $this->seedFlexibleWithLessons();
+        // Последнее занятие в фикстуре — 14.08; сдвигаем на прошедшую дату.
+        UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', $ctx['assignment']->id)
+            ->whereDate('starts_at', '2026-08-14')
+            ->update(['starts_at' => '2026-08-09']);
+        UserLessonOccurrenceStatusEvent::query()
+            ->where('user_lesson_package_id', $ctx['assignment']->id)
+            ->whereDate('occurrence_date', '2026-08-14')
+            ->update(['occurrence_date' => '2026-08-09']);
+
+        $row = collect($this->getJson(route('admin.lesson-packages.assignments.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]))->json('data'))->firstWhere('id', $ctx['assignment']->id);
+
+        $this->assertNotNull($row);
+        $this->assertSame('2026-08-09', $row['last_lesson_date']);
+        $this->assertTrue((bool) $row['last_lesson_is_past']);
     }
 
     public function test_assignments_data_without_lessons_returns_empty_last_lesson(): void
@@ -111,6 +137,7 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
         $this->assertFalse((bool) $row['has_lessons']);
         $this->assertNull($row['last_lesson_date']);
         $this->assertNull($row['last_lesson_status_title']);
+        $this->assertFalse((bool) $row['last_lesson_is_past']);
     }
 
     public function test_assignment_lessons_endpoint_fixed_shows_team_in_header(): void

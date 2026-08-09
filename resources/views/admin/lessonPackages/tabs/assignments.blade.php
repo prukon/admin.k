@@ -784,8 +784,12 @@
                         return '<span class="text-muted">—</span>';
                     }
 
+                    var dateClass = row.last_lesson_is_past
+                        ? 'ulp-assignment-lessons-cell__date text-danger'
+                        : 'ulp-assignment-lessons-cell__date';
+
                     return '<div class="ulp-assignment-lessons-cell small">'
-                        + '<div class="ulp-assignment-lessons-cell__date">Посл.: '
+                        + '<div class="' + dateClass + '">Посл.: '
                         + window.KidsCrmTooltip.escapeHtml(String(row.last_lesson_date_label))
                         + '</div>'
                         + '<button type="button" class="btn btn-link btn-sm p-0 align-baseline js-ulp-assignment-lessons" '

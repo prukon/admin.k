@@ -790,7 +790,7 @@ final class LessonPackageController extends AdminBaseController
     }
 
     /**
-     * @param  array{date: string, date_label: string, status_title: string|null}|null  $lastLesson
+     * @param  array{date: string, date_label: string, status_title: string|null, is_past: bool}|null  $lastLesson
      * @return array<string, mixed>
      */
     private function assignmentDataTableRow(
@@ -845,12 +845,13 @@ final class LessonPackageController extends AdminBaseController
             'last_lesson_date' => $lastLesson['date'] ?? null,
             'last_lesson_date_label' => $lastLesson['date_label'] ?? null,
             'last_lesson_status_title' => $lastLesson['status_title'] ?? null,
+            'last_lesson_is_past' => (bool) ($lastLesson['is_past'] ?? false),
         ];
     }
 
     /**
      * @param  list<int>  $ulpIds
-     * @return array<int, array{date: string, date_label: string, status_title: string|null}>
+     * @return array<int, array{date: string, date_label: string, status_title: string|null, is_past: bool}>
      */
     private function lastLessonsByAssignmentIds(int $partnerId, array $ulpIds): array
     {
@@ -921,6 +922,7 @@ final class LessonPackageController extends AdminBaseController
             $latestStatusTitle[$key] = $title !== '' ? $title : null;
         }
 
+        $today = Carbon::today()->format('Y-m-d');
         $result = [];
         foreach ($lastByUlp as $ulpId => $item) {
             $key = $item['user_id']
@@ -931,6 +933,7 @@ final class LessonPackageController extends AdminBaseController
                 'date' => $item['date'],
                 'date_label' => $this->formatAssignmentLessonDateLabel($item['date']),
                 'status_title' => $latestStatusTitle[$key] ?? null,
+                'is_past' => $item['date'] < $today,
             ];
         }
 

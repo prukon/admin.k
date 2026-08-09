@@ -641,6 +641,8 @@
     <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
     <li>Занятия — последнее занятие назначения (<code>max(user_team_schedule_slots.starts_at)</code>, включая будущие): в ячейке две строки
       <code>Посл.: 10 августа 2026</code> / ссылка «Посмотреть все» (статус в таблице не показывается; без привязок — «—»).
+      Дата «Посл.» красная (<code>text-danger</code>), если <code>last_lesson_date</code> строго раньше сегодняшней даты сервера
+      (<code>last_lesson_is_past</code> в JSON DataTables).
       Ссылка открывает модалку <code>#ulpAssignmentLessonsModal</code> в стиле журнала (<code>schedule-modal-content cell-edit-modal</code>,
       <code>GET …/assignments/{id}/lessons</code>)</li>
     <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
