@@ -5,6 +5,11 @@
     $activeLocations = $activeLocations ?? collect();
     $assignmentsFilterKeys = ['filter_user_id', 'filter_schedule_type', 'filter_payment_status', 'filter_lessons_remaining', 'filter_location_id'];
     $assignmentsFilterLocation = $filters['filter_location_id'] ?? '';
+    $assignmentsFilterPastLessons = in_array(
+        strtolower(trim((string) ($filters['filter_past_lessons'] ?? ''))),
+        ['1', 'true', 'on', 'yes'],
+        true
+    );
     $assignmentsFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $assignmentsHasActiveFilters = false;
     foreach ($assignmentsFilterKeys as $k) {
@@ -15,6 +20,9 @@
         }
     }
     if (array_key_exists('status', $filters) && ($filters['status'] ?? '') !== 'active') {
+        $assignmentsHasActiveFilters = true;
+    }
+    if ($assignmentsFilterPastLessons) {
         $assignmentsHasActiveFilters = true;
     }
 @endphp
@@ -42,6 +50,34 @@
     }
     .ulp-assignment-lessons-cell__date {
         white-space: nowrap;
+    }
+    .ulp-filter-past-lessons {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: calc(1.5em + 0.75rem + 2px);
+        margin: 0;
+        padding: 0;
+        font-weight: 400 !important;
+        cursor: pointer;
+    }
+    .ulp-filter-past-lessons .form-check-input.ulp-filter-past-lessons__input {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin-top: 0;
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 0;
+        float: none;
+        position: static;
+        flex-shrink: 0;
+    }
+    .ulp-filter-past-lessons__text {
+        margin: 0;
+        padding: 0;
+        line-height: 1.25;
+        font-weight: 400 !important;
+        user-select: none;
     }
 </style>
 
@@ -215,6 +251,18 @@
                         <option value="active" {{ $assignmentsFilterUserStatus === 'active' ? 'selected' : '' }}>Только активные</option>
                         <option value="inactive" {{ $assignmentsFilterUserStatus === 'inactive' ? 'selected' : '' }}>Только неактивные</option>
                     </select>
+                </div>
+                <div class="col-12 col-md-auto">
+                    <div class="form-label d-none d-md-block" aria-hidden="true">&nbsp;</div>
+                    <label class="ulp-filter-past-lessons">
+                        <input type="checkbox"
+                               class="form-check-input ulp-filter-past-lessons__input"
+                               id="ulp-filter-past-lessons"
+                               name="filter_past_lessons"
+                               value="1"
+                               @checked($assignmentsFilterPastLessons)>
+                        <span class="ulp-filter-past-lessons__text">Прошедшие</span>
+                    </label>
                 </div>
                 <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                     <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
@@ -700,6 +748,7 @@
                             ? ($ulpFiltersForm.find('[name="filter_location_id"]').val() || '')
                             : '',
                         status: $ulpFiltersForm.find('[name="status"]').val() || '',
+                        filter_past_lessons: $ulpFiltersForm.find('[name="filter_past_lessons"]').is(':checked') ? '1' : '',
                     };
                 }
 

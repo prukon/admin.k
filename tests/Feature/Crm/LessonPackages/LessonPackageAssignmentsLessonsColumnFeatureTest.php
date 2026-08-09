@@ -96,15 +96,89 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
             ->whereDate('occurrence_date', '2026-08-14')
             ->update(['occurrence_date' => '2026-08-09']);
 
+        // По умолчанию прошедшие скрыты — включаем чекбокс «Прошедшие».
         $row = collect($this->getJson(route('admin.lesson-packages.assignments.data', [
             'draw' => 1,
             'start' => 0,
             'length' => 10,
+            'filter_past_lessons' => '1',
         ]))->json('data'))->firstWhere('id', $ctx['assignment']->id);
 
         $this->assertNotNull($row);
         $this->assertSame('2026-08-09', $row['last_lesson_date']);
         $this->assertTrue((bool) $row['last_lesson_is_past']);
+    }
+
+    public function test_assignments_page_shows_past_lessons_checkbox(): void
+    {
+        $defaultHtml = $this->get(route('admin.lesson-packages.assignments'))
+            ->assertOk()
+            ->assertSee('id="ulp-filter-past-lessons"', false)
+            ->assertSee('>Прошедшие<', false)
+            ->getContent();
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="ulp-filter-past-lessons"[^>]*\bchecked\b/',
+            $defaultHtml
+        );
+
+        $withPastHtml = $this->get(route('admin.lesson-packages.assignments', [
+            'filter_past_lessons' => '1',
+        ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/class="collapse\s+show[^"]*"\s+id="ulpAssignmentsFiltersCollapse"/',
+            $withPastHtml
+        );
+        $this->assertMatchesRegularExpression(
+            '/id="ulp-filter-past-lessons"[^>]*\bchecked\b/',
+            $withPastHtml
+        );
+    }
+
+    public function test_assignments_data_hides_past_last_lesson_by_default(): void
+    {
+        $past = $this->seedFlexibleWithLessons('past');
+        UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', $past['assignment']->id)
+            ->update(['starts_at' => '2026-08-01']);
+
+        $future = $this->seedFlexibleWithLessons('future');
+        $noSlotsPackage = LessonPackage::factory()->create([
+            'partner_id' => $this->partner->id,
+            'schedule_type' => 'no_schedule',
+        ]);
+        $noSlotsStudent = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'is_enabled' => 1,
+        ]);
+        $noSlots = UserLessonPackage::query()->create([
+            'user_id' => $noSlotsStudent->id,
+            'lesson_package_id' => $noSlotsPackage->id,
+            'lessons_total' => 1,
+            'lessons_remaining' => 1,
+            'fee_amount_cents' => 100000,
+            'is_paid' => false,
+            'created_by' => $this->user->id,
+        ]);
+
+        $base = ['draw' => 1, 'start' => 0, 'length' => 50];
+        $defaultIds = collect($this->getJson(route('admin.lesson-packages.assignments.data', $base))
+            ->json('data'))->pluck('id')->map(static fn ($id) => (int) $id)->all();
+
+        $this->assertNotContains((int) $past['assignment']->id, $defaultIds);
+        $this->assertContains((int) $future['assignment']->id, $defaultIds);
+        $this->assertContains((int) $noSlots->id, $defaultIds);
+
+        $withPastIds = collect($this->getJson(route('admin.lesson-packages.assignments.data', $base + [
+            'filter_past_lessons' => '1',
+        ]))->json('data'))->pluck('id')->map(static fn ($id) => (int) $id)->all();
+
+        $this->assertContains((int) $past['assignment']->id, $withPastIds);
+        $this->assertContains((int) $future['assignment']->id, $withPastIds);
+        $this->assertContains((int) $noSlots->id, $withPastIds);
     }
 
     public function test_assignments_data_without_lessons_returns_empty_last_lesson(): void
@@ -195,15 +269,16 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
     /**
      * @return array{assignment: UserLessonPackage, student: User}
      */
-    private function seedFlexibleWithLessons(): array
+    private function seedFlexibleWithLessons(string $suffix = ''): array
     {
+        $tag = $suffix !== '' ? ' '.$suffix : '';
         $student = User::factory()->create([
             'partner_id' => $this->partner->id,
             'is_enabled' => 1,
         ]);
         $package = LessonPackage::query()->create([
             'partner_id' => $this->partner->id,
-            'name' => 'Гибкий тест',
+            'name' => 'Гибкий тест'.$tag,
             'schedule_type' => 'flexible',
             'duration_days' => 30,
             'lessons_count' => 4,
@@ -224,11 +299,11 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
 
         $teamA = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title' => 'Локомотив',
+            'title' => 'Локомотив'.$tag,
         ]);
         $teamB = Team::factory()->create([
             'partner_id' => $this->partner->id,
-            'title' => 'Резерв',
+            'title' => 'Резерв'.$tag,
         ]);
         $slotA = $this->makeSlot($teamA->id);
         $slotB = $this->makeSlot($teamB->id);

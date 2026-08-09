@@ -623,6 +623,16 @@
         <td>Пусто — все ученики; <code>active</code> — только активные; <code>inactive</code> — только отключённые</td>
         <td><code>users.is_enabled</code>. Без параметра в URL (первый заход) — как <code>active</code>. Отдельного permission нет. «Сброс» возвращает «Только активные». См. <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>.</td>
       </tr>
+      <tr>
+        <td><code>filter_past_lessons</code></td>
+        <td><code>ulp-filter-past-lessons</code></td>
+        <td>Чекбокс «Прошедшие»; value <code>1</code>. По умолчанию выключен.</td>
+        <td>По умолчанию (параметр отсутствует / пуст) скрываются назначения, у которых
+          <code>MAX(user_team_schedule_slots.starts_at) &lt; сегодня</code>.
+          При <code>1</code> — прошедшие тоже показываются.
+          Назначения без слотов в <code>user_team_schedule_slots</code> всегда в списке.
+          «Сброс» снимает чекбокс. При включённом чекбоксе панель фильтров раскрыта.</td>
+      </tr>
     </tbody>
   </table>
   <p class="small">Поиск ученика в фильтре и в модалке «Назначить» — один endpoint: <code>GET /admin/lesson-packages/assignments/users-search?q=</code> (Select2).

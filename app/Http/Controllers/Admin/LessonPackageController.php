@@ -2101,6 +2101,48 @@ final class LessonPackageController extends AdminBaseController
         } elseif ($userStatus === 'inactive') {
             $query->where('users.is_enabled', 0);
         }
+
+        // По умолчанию скрываем абоны с прошедшей датой последнего занятия.
+        // filter_past_lessons=1 — показать и прошедшие. Без слотов — всегда в списке.
+        if (! $this->resolveAssignmentIncludePastLessonsFilter($request)) {
+            $today = Carbon::today()->format('Y-m-d');
+            $query->where(function ($outer) use ($partnerId, $today) {
+                $outer->whereNotExists(function ($sub) use ($partnerId) {
+                    $sub->selectRaw('1')
+                        ->from('user_team_schedule_slots')
+                        ->whereColumn(
+                            'user_team_schedule_slots.user_lesson_package_id',
+                            'user_lesson_packages.id'
+                        )
+                        ->where('user_team_schedule_slots.partner_id', $partnerId);
+                })->orWhereRaw(
+                    '(SELECT MAX(starts_at) FROM user_team_schedule_slots'
+                    .' WHERE user_lesson_package_id = user_lesson_packages.id'
+                    .' AND partner_id = ?) >= ?',
+                    [$partnerId, $today]
+                );
+            });
+        }
+    }
+
+    /**
+     * true — показывать абоны с прошедшей датой последнего занятия (чекбокс «Прошедшие»).
+     * Без параметра / пусто / 0 — скрывать такие абоны (дефолт).
+     */
+    private function resolveAssignmentIncludePastLessonsFilter(Request $request): bool
+    {
+        $raw = $request->query('filter_past_lessons');
+        if ($raw === null || $raw === '' || $raw === false) {
+            return false;
+        }
+
+        if (is_bool($raw)) {
+            return $raw;
+        }
+
+        $normalized = strtolower(trim((string) $raw));
+
+        return in_array($normalized, ['1', 'true', 'on', 'yes'], true);
     }
 
     /**
