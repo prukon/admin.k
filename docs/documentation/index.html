@@ -26,6 +26,53 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Назначения: фильтр «Прошедшие» и красная дата последнего занятия (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>):
+    <br><br>
+    1) <b>Чекбокс «Прошедшие»</b> (<code>filter_past_lessons=1</code>): по умолчанию <b>выключен</b> —
+    скрываются назначения, у которых дата последнего занятия
+    (<code>MAX(user_team_schedule_slots.starts_at)</code>) <b>строго раньше</b> сегодняшней даты сервера.
+    При включении прошедшие тоже показываются (вместе с остальными — include-фильтр).
+    Назначения <b>без слотов</b> (ещё не раскиданы) всегда в списке.
+    Сегодняшняя дата последнего занятия <b>не</b> считается прошедшей.
+    <br>
+    2) <b>Колонка «Занятия»</b>: строка «Посл.: …» красная (<code>text-danger</code>), если сервер
+    отдал <code>last_lesson_is_past=true</code> (та же граница: строго до сегодня).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#assignments-past-lessons">lesson-packages §assignments-past-lessons</a>,
+    обзор вкладки —
+    <a href="/docs/documentation/lesson-packages#assignments-tab">§assignments-tab</a>.
+  </div>
+
+  <h2>Назначения: фильтр «Удаленные» ученики (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>)
+    чекбокс <b>«Удаленные»</b> (<code>filter_deleted_users</code>, value <code>1</code>):
+    <br>
+    1) <b>По умолчанию выключен</b> — назначения soft-deleted учеников скрыты
+    (<code>whereNull(users.deleted_at)</code>), даже если <code>status=active</code> /
+    <code>is_enabled=1</code>.
+    <br>
+    2) <b>При включении</b> — include (как «Прошедшие»): в списке живые и удалённые;
+    ФИО через <code>withTrashed()</code> (не «—»), бейдж «Удалён»
+    (<code>user_is_deleted</code> в DataTables и модалке <code>#ulp-modal-user-deleted-badge</code>).
+    <br>
+    3) <b>Модалка / update / lessons</b> для назначения текущего партнёра не дают 404/403
+    из‑за soft-delete (<code>withTrashed</code> в контроллере и
+    <code>UpdateUserLessonPackageAssignmentRequest::authorize</code>).
+    <br>
+    4) <code>users-search</code> удалённых не ищет; preselect <code>filter_user_id</code> —
+    подпись «ФИО (удалён)».
+    <br><br>
+    Права те же: <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>.
+    Подробно —
+    <a href="/docs/documentation/lesson-packages#assignments-deleted-users">lesson-packages §assignments-deleted-users</a>,
+    фильтры — <a href="/docs/documentation/lesson-packages#assignments-tab">§assignments-tab</a>.
+    Тесты: <code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code>.
+  </div>
+
   <h2>Автопролонгация фиксированного абонемента (2026‑08)</h2>
   <div class="note">
     На вкладке <b>«Назначение абонементов»</b> для классического <code>fixed</code>
@@ -880,7 +927,7 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, колонка «Группа», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <code>trainer_name</code> в result) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>

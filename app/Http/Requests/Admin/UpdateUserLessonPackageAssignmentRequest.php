@@ -33,8 +33,20 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
 
         $partnerId = (int) (app('current_partner')->id ?? 0);
 
-        return $assignment->user !== null
-            && (int) $assignment->user->partner_id === $partnerId;
+        // Soft-deleted ученик: связь user без withTrashed → null → ложный 403.
+        $user = $assignment->user;
+        if ($user === null && (int) $assignment->user_id > 0) {
+            $assignment->unsetRelation('user');
+            $assignment->load([
+                'user' => static function ($q): void {
+                    $q->withTrashed()->select(['id', 'name', 'lastname', 'partner_id', 'deleted_at']);
+                },
+            ]);
+            $user = $assignment->user;
+        }
+
+        return $user !== null
+            && (int) $user->partner_id === $partnerId;
     }
 
     protected function prepareForValidation(): void
@@ -213,7 +225,11 @@ final class UpdateUserLessonPackageAssignmentRequest extends FormRequest
     {
         $route = $this->route('assignment');
         if ($route instanceof UserLessonPackage) {
-            return $route->loadMissing('user:id,name,lastname,partner_id');
+            return $route->loadMissing([
+                'user' => static function ($q): void {
+                    $q->withTrashed()->select(['id', 'name', 'lastname', 'partner_id', 'deleted_at']);
+                },
+            ]);
         }
 
         return null;

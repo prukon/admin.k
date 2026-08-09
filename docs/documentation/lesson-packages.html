@@ -39,6 +39,15 @@
     <b>Автопролонгация фикса (2026‑08):</b> флаг на классическом <code>fixed</code> из назначений;
     при обнулении остатка — новый цикл + раскладка (или снятие флага при ошибке).
     Подробно — <a href="#auto-prolong">§auto-prolong</a>.
+    <br><br>
+    <b>Фильтр «Прошедшие» + красная дата (2026‑08):</b> по умолчанию скрыты абоны с прошедшей
+    датой последнего занятия; чекбокс включает их обратно; без слотов всегда видны;
+    «Посл.:» красным при <code>last_lesson_is_past</code>.
+    Подробно — <a href="#assignments-past-lessons">§assignments-past-lessons</a>.
+    <br><br>
+    <b>Фильтр «Удаленные» (2026‑08):</b> soft-deleted ученики по умолчанию скрыты;
+    чекбокс <code>filter_deleted_users</code> показывает их с ФИО и бейджем «Удалён»
+    (не прочерк «—»). Подробно — <a href="#assignments-deleted-users">§assignments-deleted-users</a>.
   </div>
 
   <h2 id="postpay">Тип шаблона <code>postpay</code> (постоплата)</h2>
@@ -626,12 +635,27 @@
       <tr>
         <td><code>filter_past_lessons</code></td>
         <td><code>ulp-filter-past-lessons</code></td>
-        <td>Чекбокс «Прошедшие»; value <code>1</code>. По умолчанию выключен.</td>
-        <td>По умолчанию (параметр отсутствует / пуст) скрываются назначения, у которых
-          <code>MAX(user_team_schedule_slots.starts_at) &lt; сегодня</code>.
-          При <code>1</code> — прошедшие тоже показываются.
-          Назначения без слотов в <code>user_team_schedule_slots</code> всегда в списке.
-          «Сброс» снимает чекбокс. При включённом чекбоксе панель фильтров раскрыта.</td>
+        <td>Чекбокс «Прошедшие»; value <code>1</code>. По умолчанию выключен.
+          Truthy: <code>1</code> / <code>true</code> / <code>on</code> / <code>yes</code>.</td>
+        <td>Include-фильтр (как «Удаленные»): по умолчанию <b>скрывает</b> прошедшие;
+          при включении — показывает их вместе с остальными.
+          Полные правила — <a href="#assignments-past-lessons">§assignments-past-lessons</a>.</td>
+      </tr>
+      <tr>
+        <td><code>filter_deleted_users</code></td>
+        <td><code>ulp-filter-deleted-users</code></td>
+        <td>Чекбокс «Удаленные»; value <code>1</code>. По умолчанию выключен.</td>
+        <td>По умолчанию (параметр отсутствует / пуст / <code>0</code>) скрываются назначения soft-deleted учеников
+          (<code>users.deleted_at IS NOT NULL</code> — join на <code>users</code> + явный <code>whereNull(users.deleted_at)</code>).
+          При <code>1</code> / <code>true</code> / <code>on</code> / <code>yes</code> — такие назначения тоже в списке
+          (вместе с «живыми»; это include-фильтр, как «Прошедшие»).
+          В JSON DataTables: <code>student</code> — реальное ФИО через <code>withTrashed()</code> (не «—»),
+          <code>user_is_deleted</code> — флаг для бейджа «Удалён» в колонке «Ученик» (<code>ulpStudentRender</code>).
+          Модалка редактирования: <code>user_display</code> + <code>user_is_deleted</code>, бейдж
+          <code>#ulp-modal-user-deleted-badge</code>; show/update/lessons не дают 404/403 на soft-deleted ученике
+          текущего партнёра. Полные правила — <a href="#assignments-deleted-users">§assignments-deleted-users</a>.
+          Preselect фильтра ученика (<code>filter_user_id</code>) для удалённого — подпись «ФИО (удалён)».
+          «Сброс» снимает чекбокс. При включённом — панель фильтров раскрыта.</td>
       </tr>
     </tbody>
   </table>
@@ -639,20 +663,124 @@
     Disable по автопролонгу — только при <code>context=assign</code> (модалка создания); фильтр и календарь
     без этого параметра (см. <a href="#auto-prolong">§auto-prolong</a>). Тот же endpoint — в календаре школы для <code>#schoolCalSlotUserSelect</code>
     — см. <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>.</p>
-  <p class="small">Фильтр «Активность ученика» — последний в панели (перед «Применить» / «Сброс»), как в отчётах § <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>. При нестандартном <code>status</code> (не <code>active</code>) панель фильтров раскрыта (<code>collapse show</code>).</p>
+  <p class="small">Фильтр «Активность ученика» — перед чекбоксами «Прошедшие» / «Удаленные» и кнопками «Применить» / «Сброс»,
+    как в отчётах § <a href="/docs/documentation/reports-admin#user-status-filter">reports-admin §2.3</a>.
+    Панель фильтров раскрыта (<code>collapse show</code>), если:
+    нестандартный <code>status</code> (не <code>active</code>),
+    и/или <code>filter_past_lessons=1</code>,
+    и/или <code>filter_deleted_users=1</code>,
+    и/или любой другой активный query-фильтр из таблицы выше.</p>
+  <p class="small">Тесты фильтров/колонки занятий:
+    <code>LessonPackageAssignmentsPastLessonsFilterFeatureTest</code>,
+    <code>LessonPackageAssignmentsLessonsColumnFeatureTest</code>,
+    <code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code>,
+    <code>LessonPackageAssignmentsUserStatusFilterFeatureTest</code>;
+    JS-контракт — <code>BladeInlineJsSyntaxTest</code>
+    (<code>…past_lessons_filter…</code>, <code>…deleted_users_filter…</code>).</p>
+
+  <h3 id="assignments-past-lessons">Фильтр «Прошедшие» и красная дата в колонке «Занятия»</h3>
+  <div class="note">
+    Связка UX на вкладке назначений: сервер считает дату последнего занятия назначения и флаг «прошла»,
+    список по умолчанию прячет абоны с прошедшей датой, а в ячейке «Посл.:» такая дата красится красным.
+  </div>
+  <h4>Критерий «прошедшее»</h4>
+  <ul>
+    <li>Дата последнего занятия = <code>MAX(user_team_schedule_slots.starts_at)</code> по назначению
+      (включая будущие даты в цепочке).</li>
+    <li>«Прошла» = дата <b>строго раньше</b> <code>Carbon::today()</code> (таймзона приложения).
+      <b>Сегодня</b> и <b>будущее</b> — не прошедшие.</li>
+    <li>Если у назначения нет ни одной строки UTSS (создан, но ещё не раскидан на слоты) —
+      он <b>не</b> считается прошедшим и <b>всегда</b> остаётся в выборке фильтра.</li>
+    <li>Смешанные слоты (есть и прошлые, и будущие): берётся MAX → если MAX ≥ сегодня, абон в дефолтном списке.</li>
+  </ul>
+  <h4>Чекбокс «Прошедшие» (<code>filter_past_lessons</code>)</h4>
+  <ul>
+    <li><b>Выключен (дефолт)</b> / параметр отсутствует / пуст / <code>0</code> / <code>false</code> / <code>no</code> /
+      <code>off</code>: в DataTables не попадают назначения с прошедшей датой последнего занятия.</li>
+    <li><b>Включён</b> (<code>1</code> / <code>true</code> / <code>on</code> / <code>yes</code>): прошедшие
+      <b>добавляются</b> к списку (не «только прошедшие» — include-фильтр, как «Удаленные»).</li>
+    <li>UI: <code>#ulp-filter-past-lessons</code>, блок <code>.ulp-filter-past-lessons</code>
+      (flex; сброс bootstrap <code>margin-top</code> у чекбокса; подпись обычным весом).</li>
+    <li>В AJAX: <code>ulpAssignmentFilterParams()</code> шлёт <code>filter_past_lessons: '1'</code> или <code>''</code>.
+      Submit — <code>preventDefault</code> → <code>dtApi.reload({ keepPage: true })</code>.
+      «Сброс» — <code>form.reset()</code> (чекбокс снимается) + reload.</li>
+    <li>Реализация: <code>LessonPackageController::applyAssignmentListFilters</code> /
+      <code>resolveAssignmentIncludePastLessonsFilter</code> (общий helper
+      <code>resolveAssignmentTruthyQueryFlag</code>).</li>
+  </ul>
+  <h4>Красная дата «Посл.:»</h4>
+  <ul>
+    <li>В JSON строки DataTables: <code>has_lessons</code>, <code>last_lesson_date</code> (<code>Y-m-d</code>),
+      <code>last_lesson_date_label</code> (ru), <code>last_lesson_status_title</code>
+      (в таблице статуса нет — только в модалке «Посмотреть все»),
+      <code>last_lesson_is_past</code> (bool).</li>
+    <li>Рендер <code>ulpLessonsRender</code>: при <code>last_lesson_is_past</code> —
+      класс <code>ulp-assignment-lessons-cell__date text-danger</code>, иначе без <code>text-danger</code>.
+      Без занятий — «—».</li>
+    <li>Флаг считается на сервере в <code>lastLessonsByAssignmentIds</code> (<code>is_past</code>),
+      не в браузере — цвет не зависит от TZ клиента.</li>
+  </ul>
+  <h4>Доступ и тесты</h4>
+  <ul>
+    <li>Права вкладки: <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>.
+      Гость / без права → 302/401/403 на страницу и <code>…/data</code>.</li>
+    <li><code>LessonPackageAssignmentsPastLessonsFilterFeatureTest</code> — доступ, UI checked/collapse,
+      дефолт hide / include, границы сегодня/mixed/без слотов, truthy/falsy, изоляция партнёра,
+      <code>last_lesson_is_past</code>.</li>
+    <li><code>LessonPackageAssignmentsLessonsColumnFeatureTest</code> — колонка / модалка / endpoint lessons.</li>
+    <li><code>BladeInlineJsSyntaxTest::test_lesson_package_assignments_past_lessons_filter_and_lessons_column_inline_script_is_valid_javascript</code>
+      — <code>node --check</code> + контракт ветки <code>text-danger</code> и ajax-параметра.</li>
+  </ul>
+
+  <h3 id="assignments-deleted-users">Soft-deleted ученики (фильтр «Удаленные»)</h3>
+  <div class="note">
+    Ученик в CRM удаляется soft delete (<code>users.deleted_at</code>, модель <code>User</code> + <code>SoftDeletes</code>).
+    Записи <code>user_lesson_packages</code> при этом <b>не</b> каскадно удаляются — назначения остаются в БД.
+    Список назначений делает <code>join('users')</code> (без глобального SoftDeletes-scope на join),
+    поэтому без явного фильтра soft-deleted строки попадали бы в выборку, а eager <code>user</code>
+    без <code>withTrashed()</code> отдавал <code>null</code> → в UI было «—», а show/update —
+    ложный 404/403.
+  </div>
+  <ul>
+    <li><b>По умолчанию</b> (чекбокс «Удаленные» выключен): в <code>GET …/assignments/data</code>
+      добавляется <code>whereNull('users.deleted_at')</code> — назначения удалённых учеников скрыты.
+      Это независимо от фильтра «Активность» (<code>status</code> / <code>users.is_enabled</code>):
+      soft-deleted с <code>is_enabled=1</code> всё равно не показывается, пока чекбокс выключен.</li>
+    <li><b>Чекбокс «Удаленные»</b> (<code>filter_deleted_users=1</code>): include-фильтр (как «Прошедшие») —
+      в списке и «живые», и soft-deleted. Truthy-значения: <code>1</code> / <code>true</code> / <code>on</code> / <code>yes</code>.</li>
+    <li><b>Отображение:</b> eager user через <code>withTrashed()</code>; в JSON строки —
+      <code>student</code> (ФИО), <code>user_is_deleted</code>; в колонке «Ученик» — бейдж «Удалён»
+      (<code>ulpStudentRender</code>). В модалке — <code>user_display</code>,
+      <code>#ulp-modal-user-deleted-badge</code>.</li>
+    <li><b>Редактирование:</b> <code>assertAssignmentBelongsToCurrentPartner</code> и
+      <code>UpdateUserLessonPackageAssignmentRequest::authorize</code> грузят ученика с
+      <code>withTrashed()</code> — show / update / lessons для назначения текущего партнёра
+      не дают 404/403 только из‑за soft-delete. Чужой партнёр по-прежнему 404/403.</li>
+    <li><b>Поиск ученика</b> (<code>users-search</code>) soft-deleted <b>не</b> возвращает
+      (обычный Eloquent SoftDeletes). Preselect в фильтре по <code>filter_user_id</code>
+      удалённого — через <code>User::withTrashed()</code>, подпись «ФИО (удалён)».</li>
+    <li><b>«Сброс»</b> снимает чекбокс. Права те же: <code>lessonPackages.view</code> +
+      <code>setPrices.packageAssignments.view</code>.</li>
+  </ul>
+  <p class="small">Тесты: <code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code>
+    (доступ, дефолты UI, include/exclude, имя вместо «—», show/update/lessons, 422 <code>fee_amount</code>,
+    non-AJAX 302); JS —
+    <code>BladeInlineJsSyntaxTest::test_lesson_package_assignments_deleted_users_filter_inline_script_is_valid_javascript</code>.</p>
 
   <h3>Таблица и колонки</h3>
   <p>Таблица <code>#ulp-assignments-table</code>, пресет <code>KidsCrmDataTable.create</code>, класс <code>dt-columns-managed</code>.</p>
   <p>Порядок колонок по умолчанию:</p>
   <ol>
-    <li>Ученик — клик по имени открывает модалку «Изменение абонемента» (класс <code>js-ulp-assignment-edit</code>, <code>KidsCrmTooltip.renderLink</code>)</li>
+    <li>Ученик — клик по имени открывает модалку «Изменение абонемента» (класс <code>js-ulp-assignment-edit</code>, <code>KidsCrmTooltip.renderLink</code>).
+      Для soft-deleted ученика (только при включённом фильтре «Удаленные») рядом бейдж <code>Удалён</code>
+      (<code>user_is_deleted</code> в JSON строки).</li>
     <li>Сумма (в JSON UI — <code>fee_amount</code> рубли из <code>fee_amount_cents</code>; формат через preset <code>money</code> / <code>Money::formatRub</code>)</li>
     <li>Оплачен (бейдж; ручная отметка — подпись «руч.» и tooltip с комментарием)</li>
     <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
     <li>Занятия — последнее занятие назначения (<code>max(user_team_schedule_slots.starts_at)</code>, включая будущие): в ячейке две строки
       <code>Посл.: 10 августа 2026</code> / ссылка «Посмотреть все» (статус в таблице не показывается; без привязок — «—»).
-      Дата «Посл.» красная (<code>text-danger</code>), если <code>last_lesson_date</code> строго раньше сегодняшней даты сервера
-      (<code>last_lesson_is_past</code> в JSON DataTables).
+      Дата «Посл.» красная (<code>text-danger</code>), если <code>last_lesson_is_past</code>
+      (строго раньше сегодня на сервере) — см. <a href="#assignments-past-lessons">§assignments-past-lessons</a>.
       Ссылка открывает модалку <code>#ulpAssignmentLessonsModal</code> в стиле журнала (<code>schedule-modal-content cell-edit-modal</code>,
       <code>GET …/assignments/{id}/lessons</code>)</li>
     <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
@@ -712,7 +840,7 @@
         <td>Модалка <code>#ulpAssignmentEditModal</code>, загрузка и сохранение через <code>fetch</code></td>
         <td><code>GET …/assignments/{id}</code>, <code>PUT …/assignments/{id}</code></td>
         <td>
-          JSON: <code>{ assignment: { …, period_start, period_end, period_editable, … } }</code> /
+          JSON: <code>{ assignment: { …, user_display, user_is_deleted, period_start, period_end, period_editable, … } }</code> /
           <code>{ success, assignment }</code>.
           Ошибки валидации — <code>422</code> + <code>errors</code> (вывод под полями на фронте:
           <code>fee_amount</code> (рубли), <code>ends_at</code>, <code>payment_comment</code>,
@@ -725,7 +853,10 @@
           Если период задан (<code>period_editable</code>), в PUT обязательно <code>ends_at</code>
           (дата начала только для просмотра); иначе <code>ends_at</code> prohibited.
           JSON назначения: <code>auto_prolong_enabled</code>, <code>auto_prolong_editable</code>,
-          <code>auto_prolong_badge</code>, <code>auto_prolong_badge_label</code>.
+          <code>auto_prolong_badge</code>, <code>auto_prolong_badge_label</code>,
+          <code>user_is_deleted</code> (soft-deleted ученик; бейдж в модалке).
+          Ученик грузится через <code>withTrashed()</code> — модалка не 404 на удалённом ученике;
+          <code>UpdateUserLessonPackageAssignmentRequest::authorize</code> тоже учитывает soft-delete (иначе ложный 403).
           Non-AJAX PUT: успех → <code>302</code> + flash; валидация → <code>302</code> + session errors.
           Подробности смены конца периода — <a href="#assignment-ends-at">§assignment-ends-at</a>;
           автопролонг — <a href="#auto-prolong">§auto-prolong</a>;
@@ -756,13 +887,21 @@
         <td>DataTables</td>
         <td>Основная таблица</td>
         <td><code>GET …/assignments/data</code></td>
-        <td>Server-side: <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code> + query-параметры фильтров</td>
+        <td>Server-side: <code>draw</code>, <code>recordsTotal</code>, <code>recordsFiltered</code>, <code>data[]</code>
+          + query-параметры фильтров (в т.ч. <code>filter_deleted_users</code>, <code>filter_past_lessons</code>, <code>status</code>).
+          В элементе <code>data[]</code> среди прочего: <code>student</code>, <code>user_is_deleted</code>,
+          <code>period</code>, <code>fee</code>, <code>effective_is_paid</code>, <code>balance</code>,
+          <code>has_lessons</code>, <code>last_lesson_date</code>, <code>last_lesson_date_label</code>,
+          <code>last_lesson_status_title</code>, <code>last_lesson_is_past</code>
+          (<a href="#assignments-past-lessons">§assignments-past-lessons</a>), автопролонг-бейдж.</td>
       </tr>
     </tbody>
   </table>
-  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show / destroy / public-pay-link
-    (проверка в контроллере). На <code>PUT</code> update — <code>403</code>
-    (<code>UpdateUserLessonPackageAssignmentRequest::authorize</code> отклоняет чужой партнёр до контроллера).</p>
+  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show / destroy / public-pay-link / lessons
+    (проверка в контроллере через <code>assertAssignmentBelongsToCurrentPartner</code>, user с <code>withTrashed</code>).
+    На <code>PUT</code> update — <code>403</code>, если чужой партнёр
+    (<code>UpdateUserLessonPackageAssignmentRequest::authorize</code>, тоже <code>withTrashed</code>).
+    Soft-deleted ученик <b>того же</b> партнёра — не повод для 403/404.</p>
 
   <h3 id="assignments-history">История изменений назначений (аудит)</h3>
   <div class="note">
@@ -880,7 +1019,9 @@
     <li><code>tests/Feature/Crm/LessonPackages/AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code> — job/сервис: «Посетил», списание, пропуски (статус уже есть, флаг выкл, trial, <code>no_schedule</code>, исключённая дата слота, нулевой остаток), идемпотентность</li>
     <li><code>tests/Feature/Jobs/AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code> — dispatch и обработка из очереди <code>default</code></li>
     <li><code>tests/Feature/Console/KernelAutoAttendanceScheduleTest.php</code> — регистрация job в <code>Kernel::schedule</code> (00:05 Moscow)</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsLessonsColumnFeatureTest.php</code> — колонка «Занятия», модалка списка, endpoint <code>…/lessons</code>; колонка «Группа» убрана</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsLessonsColumnFeatureTest.php</code> — колонка «Занятия», модалка списка, endpoint <code>…/lessons</code>; колонка «Группа» убрана; <code>last_lesson_is_past</code>; UI чекбокса «Прошедшие»</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsPastLessonsFilterFeatureTest.php</code> — <b>фильтр «Прошедшие»</b>: дефолт hide / include, сегодня/mixed/без слотов, truthy/falsy, UI checked/collapse, доступ guest/403/admin/superadmin, изоляция партнёра, <code>last_lesson_is_past</code></li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — в т.ч. <code>test_lesson_package_assignments_past_lessons_filter_and_lessons_column_inline_script_is_valid_javascript</code> (<code>node --check</code> + ветка <code>text-danger</code> / ajax-параметр)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTeamAccessFeatureTest.php</code> — <code>teams-for-user</code>, store с <code>team_id</code> в multi legal entity, доступ</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b>: логика active/inactive/all, UI (по умолчанию «Только активные», раскрытие панели), контроль доступа (guest / без <code>lessonPackages.view</code> / admin / superadmin); smoke 200 для страницы, <code>…/data</code>, <code>users-search</code>, columns-settings при всех вариантах <code>status</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsTabFeatureTest.php</code> — UI, фильтры (кроме детальной логики <code>status</code> — см. файл выше), columns-settings, доступ (200/403/guest), non-AJAX store, AJAX show/update/destroy.</li>

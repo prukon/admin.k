@@ -103,6 +103,10 @@
     Полный контракт UI/API — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
     Автопролонгация classic fixed на этой вкладке —
     <a href="/docs/documentation/lesson-packages#auto-prolong">§auto-prolong</a>.
+    Фильтр «Прошедшие» и красная дата —
+    <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>.
+    Фильтр soft-deleted учеников («Удаленные») —
+    <a href="/docs/documentation/lesson-packages#assignments-deleted-users">§assignments-deleted-users</a>.
     Группа маршрутов: <code>can:lessonPackages.view</code> → внутри <code>can:setPrices.packageAssignments.view</code>
     (кроме <code>users-search</code>).
   </div>
@@ -118,6 +122,8 @@
     <li><code>PackageAssignmentsPageFullAccessFeatureTest</code> — матрица endpoint'ов, вкладка скрыта/видна</li>
     <li><code>PackageAssignmentsNonAjaxSafetyNetFeatureTest</code> — store/update без X-Requested-With → 302 + БД</li>
     <li><code>PackageAssignmentsAjaxContractFeatureTest</code> — JSON-контракт модалки</li>
+    <li><code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code> — фильтр «Удаленные», бейдж, show/update soft-deleted</li>
+    <li><code>LessonPackageAssignmentsPastLessonsFilterFeatureTest</code> — фильтр «Прошедшие», <code>last_lesson_is_past</code></li>
     <li><code>DashboardPackageAssignmentsAccessFeatureTest</code> — блок на <code>/cabinet</code></li>
     <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_package_assignments_view_to_base_roles</code></li>
   </ul>
@@ -126,6 +132,8 @@
   <p class="small">
     <a href="/docs/documentation">К списку разделов</a> ·
     <a href="/docs/documentation/lesson-packages#assignments-tab">Назначения</a> ·
+    <a href="/docs/documentation/lesson-packages#assignments-past-lessons">Прошедшие</a> ·
+    <a href="/docs/documentation/lesson-packages#assignments-deleted-users">Удаленные ученики</a> ·
     <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">Консоль</a> ·
     <a href="/docs/documentation/partners-permissions">Базовые права</a>
   </p>

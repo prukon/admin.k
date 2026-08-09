@@ -756,7 +756,10 @@ final class LessonPackageController extends AdminBaseController
             ->clone()
             ->skip($start)
             ->take($length)
-            ->with(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type'])
+            ->with([
+                'user' => $this->assignmentUserWithTrashedEager(),
+                'lessonPackage:id,name,schedule_type',
+            ])
             ->get();
 
         $ulpPublicPayTbankReady = $this->ulpAssignmentPublicPayTbankReady($partnerId);
@@ -798,10 +801,14 @@ final class LessonPackageController extends AdminBaseController
         bool $ulpPublicPayTbankReady,
         ?array $lastLesson = null,
     ): array {
-        $student = trim(($a->user->lastname ?? '').' '.($a->user->name ?? ''));
+        $user = $a->user;
+        $student = trim(($user?->lastname ?? '').' '.($user?->name ?? ''));
         if ($student === '') {
-            $student = '—';
+            $student = $user
+                ? ('Ученик #'.(int) $user->id)
+                : '—';
         }
+        $userIsDeleted = $user !== null && $user->trashed();
 
         $period = '—';
         if ($a->starts_at && $a->ends_at) {
@@ -829,6 +836,7 @@ final class LessonPackageController extends AdminBaseController
         return [
             'id' => $id,
             'student' => $student,
+            'user_is_deleted' => $userIsDeleted,
             'package_name' => (string) ($a->lessonPackage->name ?? '—'),
             'period' => $period,
             'fee' => $feeDisplay,
@@ -1053,7 +1061,10 @@ final class LessonPackageController extends AdminBaseController
             return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         }
 
-        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name']);
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name',
+        ]);
         $hadLink = $assignment->publicPayLink()->exists();
         $previousToken = $hadLink
             ? (string) ($assignment->publicPayLink()->value('token') ?? '')
@@ -1094,7 +1105,11 @@ final class LessonPackageController extends AdminBaseController
     ): JsonResponse|RedirectResponse {
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
-        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name', 'team:id,title']);
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name',
+            'team:id,title',
+        ]);
         $beforeSnapshot = $this->userLessonPackageAuditSnapshot($assignment);
         $beforePaid = (bool) $assignment->effective_is_paid;
 
@@ -1245,7 +1260,11 @@ final class LessonPackageController extends AdminBaseController
         $this->authorize('setPrices.packageAssignments.view');
         $this->assertAssignmentBelongsToCurrentPartner($assignment);
 
-        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name', 'team:id,title']);
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name',
+            'team:id,title',
+        ]);
         $deleteDescription = 'Назначение абонемента удалено.'."\n".$this->formatUserLessonPackageSnapshotDescription($assignment);
 
         try {
@@ -1286,7 +1305,12 @@ final class LessonPackageController extends AdminBaseController
         });
 
         $assignment->refresh();
-        $assignment->load(['user:id,name,lastname,partner_id', 'lessonPackage:id,name,schedule_type,duration_days,lessons_count', 'team:id,title', 'manualPaidBy:id,name,lastname']);
+        $assignment->load([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name,schedule_type,duration_days,lessons_count',
+            'team:id,title',
+            'manualPaidBy:id,name,lastname',
+        ]);
 
         $afterPaid = (bool) $assignment->effective_is_paid;
         if ($beforePaid !== $afterPaid) {
@@ -1311,12 +1335,27 @@ final class LessonPackageController extends AdminBaseController
     private function assertAssignmentBelongsToCurrentPartner(UserLessonPackage $assignment): void
     {
         $partnerId = $this->requirePartnerId();
+        // withTrashed: иначе soft-deleted ученик → user=null → ложный 404.
         // Нужны name/lastname: иначе последующий loadMissing в payload не подгрузит связь (уже частично загружена).
-        $assignment->loadMissing('user:id,name,lastname,partner_id');
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+        ]);
 
         if (! $assignment->user || (int) $assignment->user->partner_id !== $partnerId) {
             abort(404);
         }
+    }
+
+    /**
+     * Eager-load ученика включая soft-deleted (для истории назначений).
+     *
+     * @return \Closure(\Illuminate\Database\Eloquent\Builder<\App\Models\User>): void
+     */
+    private function assignmentUserWithTrashedEager(): \Closure
+    {
+        return static function ($q): void {
+            $q->withTrashed()->select(['id', 'name', 'lastname', 'partner_id', 'deleted_at']);
+        };
     }
 
     /**
@@ -1332,19 +1371,21 @@ final class LessonPackageController extends AdminBaseController
         }
 
         $ulp->loadMissing([
-            'user:id,name,lastname,partner_id',
+            'user' => $this->assignmentUserWithTrashedEager(),
             'lessonPackage:id,name,schedule_type,duration_days,lessons_count',
             'manualPaidBy:id,name,lastname',
         ]);
 
+        $userIsDeleted = false;
         if (! $ulp->user) {
             $userDisplay = '—';
         } else {
+            $userIsDeleted = $ulp->user->trashed();
             $last = trim((string) ($ulp->user->lastname ?? ''));
             $first = trim((string) ($ulp->user->name ?? ''));
             $userDisplay = trim($last.' '.$first);
             if ($userDisplay === '') {
-                $userDisplay = '—';
+                $userDisplay = 'Ученик #'.(int) $ulp->user->id;
             }
         }
 
@@ -1373,6 +1414,7 @@ final class LessonPackageController extends AdminBaseController
         return [
             'id' => (int) $ulp->id,
             'user_display' => $userDisplay,
+            'user_is_deleted' => $userIsDeleted,
             'lesson_package_name' => (string) ($ulp->lessonPackage->name ?? '—'),
             'period_display' => $periodDisplay,
             'period_start' => $ulp->starts_at?->format('Y-m-d'),
@@ -1926,7 +1968,10 @@ final class LessonPackageController extends AdminBaseController
         UserLessonPackage $assignment,
         string $description,
     ): void {
-        $assignment->loadMissing(['user:id,name,lastname,partner_id', 'lessonPackage:id,name']);
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name',
+        ]);
 
         $context = AuditContext::make($description)
             ->withTarget($assignment, $this->userLessonPackageAuditLabel($assignment))
@@ -1943,7 +1988,10 @@ final class LessonPackageController extends AdminBaseController
 
     private function userLessonPackageAuditLabel(UserLessonPackage $assignment): string
     {
-        $assignment->loadMissing(['user:id,name,lastname', 'lessonPackage:id,name']);
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+            'lessonPackage:id,name',
+        ]);
 
         $student = $this->userLessonPackageStudentDisplay($assignment);
         $packageName = trim((string) ($assignment->lessonPackage->name ?? ''));
@@ -1956,13 +2004,27 @@ final class LessonPackageController extends AdminBaseController
 
     private function userLessonPackageStudentDisplay(UserLessonPackage $assignment): string
     {
+        if ($assignment->relationLoaded('user') && $assignment->user === null && (int) $assignment->user_id > 0) {
+            $assignment->unsetRelation('user');
+        }
+
+        $assignment->loadMissing([
+            'user' => $this->assignmentUserWithTrashedEager(),
+        ]);
+
         if (! $assignment->user) {
             return 'Ученик #'.(int) $assignment->user_id;
         }
 
         $display = trim(($assignment->user->lastname ?? '').' '.($assignment->user->name ?? ''));
+        if ($display === '') {
+            $display = 'Ученик #'.(int) $assignment->user_id;
+        }
+        if ($assignment->user->trashed()) {
+            $display .= ' (удалён)';
+        }
 
-        return $display !== '' ? $display : ('Ученик #'.(int) $assignment->user_id);
+        return $display;
     }
 
     /**
@@ -2102,6 +2164,12 @@ final class LessonPackageController extends AdminBaseController
             $query->where('users.is_enabled', 0);
         }
 
+        // По умолчанию скрываем назначения soft-deleted учеников.
+        // filter_deleted_users=1 — показать и их (имя через withTrashed + бейдж «Удалён»).
+        if (! $this->resolveAssignmentIncludeDeletedUsersFilter($request)) {
+            $query->whereNull('users.deleted_at');
+        }
+
         // По умолчанию скрываем абоны с прошедшей датой последнего занятия.
         // filter_past_lessons=1 — показать и прошедшие. Без слотов — всегда в списке.
         if (! $this->resolveAssignmentIncludePastLessonsFilter($request)) {
@@ -2131,7 +2199,21 @@ final class LessonPackageController extends AdminBaseController
      */
     private function resolveAssignmentIncludePastLessonsFilter(Request $request): bool
     {
-        $raw = $request->query('filter_past_lessons');
+        return $this->resolveAssignmentTruthyQueryFlag($request, 'filter_past_lessons');
+    }
+
+    /**
+     * true — показывать назначения soft-deleted учеников (чекбокс «Удаленные»).
+     * Без параметра / пусто / 0 — скрывать (дефолт).
+     */
+    private function resolveAssignmentIncludeDeletedUsersFilter(Request $request): bool
+    {
+        return $this->resolveAssignmentTruthyQueryFlag($request, 'filter_deleted_users');
+    }
+
+    private function resolveAssignmentTruthyQueryFlag(Request $request, string $key): bool
+    {
+        $raw = $request->query($key);
         if ($raw === null || $raw === '' || $raw === false) {
             return false;
         }
@@ -2182,20 +2264,26 @@ final class LessonPackageController extends AdminBaseController
             return null;
         }
 
-        $u = User::query()
+        $u = User::withTrashed()
             ->where('partner_id', $partnerId)
             ->where('id', $uid)
-            ->first(['id', 'name', 'lastname']);
+            ->first(['id', 'name', 'lastname', 'deleted_at']);
 
         if (! $u) {
             return null;
         }
 
         $text = trim(($u->lastname ?? '').' '.($u->name ?? ''));
+        if ($text === '') {
+            $text = 'Ученик #'.$u->id;
+        }
+        if ($u->trashed()) {
+            $text .= ' (удалён)';
+        }
 
         return [
             'id' => $u->id,
-            'text' => $text !== '' ? $text : '—',
+            'text' => $text,
         ];
     }
 }

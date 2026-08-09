@@ -760,6 +760,85 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS фильтра «Удаленные» + бейдж soft-deleted ученика (таблица и модалка).
+     */
+    public function test_lesson_package_assignments_deleted_users_filter_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('id="ulp-filter-deleted-users"', $content);
+        $this->assertStringContainsString('name="filter_deleted_users"', $content);
+        $this->assertStringContainsString('>Удаленные<', $content);
+        $this->assertStringContainsString('id="ulp-modal-user-deleted-badge"', $content);
+        $this->assertStringContainsString("filter_deleted_users:", $content);
+        $this->assertStringContainsString("find('[name=\"filter_deleted_users\"]')", $content);
+        $this->assertStringContainsString('row.user_is_deleted', $content);
+        $this->assertStringContainsString('badge text-bg-secondary ms-1">Удалён</span>', $content);
+        $this->assertStringContainsString("toggle('d-none', !a.user_is_deleted)", $content);
+        $this->assertStringContainsString('ulpStudentRender', $content);
+        $this->assertStringContainsString('fillModal', $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $deletedFilterScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'filter_deleted_users')
+                && ! str_contains($rawScript, 'user_is_deleted')
+            ) {
+                continue;
+            }
+            $deletedFilterScriptFound = true;
+            $this->assertStringContainsString('filter_deleted_users', $rawScript);
+            $this->assertStringContainsString('user_is_deleted', $rawScript);
+            $this->assertStringContainsString('ulp-modal-user-deleted-badge', $rawScript);
+
+            $studentRenderPos = strpos($rawScript, 'function ulpStudentRender');
+            $this->assertNotFalse($studentRenderPos, 'Не найден ulpStudentRender');
+            $studentChunk = substr($rawScript, (int) $studentRenderPos, 900);
+            $this->assertStringContainsString('row.user_is_deleted', $studentChunk);
+            $this->assertStringContainsString('Удалён', $studentChunk);
+
+            $fillPos = strpos($rawScript, 'function fillModal');
+            $this->assertNotFalse($fillPos, 'Не найден fillModal');
+            $fillChunk = substr($rawScript, (int) $fillPos, 700);
+            $this->assertStringContainsString('user_is_deleted', $fillChunk);
+            $this->assertStringContainsString('ulp-modal-user-deleted-badge', $fillChunk);
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-ulp-deleted-users-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in assignments deleted-users script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $deletedFilterScriptFound,
+            'В assignments.blade.php не найден script с filter_deleted_users / user_is_deleted'
+        );
+    }
+
+    /**
      * P1: inline JS модалки «История» на вкладке назначений (showLogModal + logs-data).
      */
     public function test_lesson_package_assignments_history_modal_inline_script_is_valid_javascript(): void
@@ -868,6 +947,92 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertTrue(
             $autoProlongScriptFound,
             'В assignments.blade.php не найден script с auto_prolong / syncAutoProlongVisibility'
+        );
+    }
+
+    /**
+     * P1: фильтр «Прошедшие» + красная дата в колонке «Занятия» (last_lesson_is_past → text-danger).
+     */
+    public function test_lesson_package_assignments_past_lessons_filter_and_lessons_column_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="ulp-filter-past-lessons"', $content);
+        $this->assertStringContainsString('name="filter_past_lessons"', $content);
+        $this->assertStringContainsString('Прошедшие', $content);
+        $this->assertStringContainsString('font-weight: 400 !important', $content);
+
+        $this->assertStringContainsString('function ulpAssignmentFilterParams()', $content);
+        $this->assertStringContainsString(
+            "filter_past_lessons: \$ulpFiltersForm.find('[name=\"filter_past_lessons\"]').is(':checked') ? '1' : ''",
+            $content
+        );
+        $this->assertStringContainsString('ulpAssignmentsFiltersResetBtn', $content);
+        $this->assertStringContainsString('$ulpFiltersForm[0].reset()', $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $content);
+
+        $this->assertStringContainsString('function ulpLessonsRender', $content);
+        $this->assertStringContainsString('row.last_lesson_is_past', $content);
+        $this->assertStringContainsString('ulp-assignment-lessons-cell__date text-danger', $content);
+        $this->assertStringContainsString("'ulp-assignment-lessons-cell__date'", $content);
+        $this->assertStringContainsString('Посл.:', $content);
+        $this->assertStringContainsString('js-ulp-assignment-lessons', $content);
+        $this->assertStringContainsString("key: 'lessons'", $content);
+        $this->assertStringContainsString('render: ulpLessonsRender', $content);
+
+        $renderPos = strpos($content, 'function ulpLessonsRender');
+        $this->assertNotFalse($renderPos);
+        $renderChunk = substr($content, (int) $renderPos, 900);
+        $this->assertStringContainsString('row.last_lesson_is_past', $renderChunk);
+        $this->assertStringContainsString('text-danger', $renderChunk);
+        $this->assertMatchesRegularExpression(
+            '/row\.last_lesson_is_past\s*\?\s*[\'"]ulp-assignment-lessons-cell__date text-danger[\'"]\s*:\s*[\'"]ulp-assignment-lessons-cell__date[\'"]/',
+            $renderChunk,
+            'Красный цвет только при last_lesson_is_past, иначе обычный класс даты'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $scriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'ulpLessonsRender')
+                && ! str_contains($rawScript, 'filter_past_lessons')
+            ) {
+                continue;
+            }
+            $scriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-ulp-past-lessons-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in assignments past-lessons / lessons-column script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $scriptFound,
+            'В assignments.blade.php не найден script с ulpLessonsRender / filter_past_lessons'
         );
     }
 

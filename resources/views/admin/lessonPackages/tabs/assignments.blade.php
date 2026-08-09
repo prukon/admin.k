@@ -10,6 +10,11 @@
         ['1', 'true', 'on', 'yes'],
         true
     );
+    $assignmentsFilterDeletedUsers = in_array(
+        strtolower(trim((string) ($filters['filter_deleted_users'] ?? ''))),
+        ['1', 'true', 'on', 'yes'],
+        true
+    );
     $assignmentsFilterUserStatus = array_key_exists('status', $filters) ? (string) ($filters['status'] ?? '') : 'active';
     $assignmentsHasActiveFilters = false;
     foreach ($assignmentsFilterKeys as $k) {
@@ -23,6 +28,9 @@
         $assignmentsHasActiveFilters = true;
     }
     if ($assignmentsFilterPastLessons) {
+        $assignmentsHasActiveFilters = true;
+    }
+    if ($assignmentsFilterDeletedUsers) {
         $assignmentsHasActiveFilters = true;
     }
 @endphp
@@ -264,6 +272,18 @@
                         <span class="ulp-filter-past-lessons__text">Прошедшие</span>
                     </label>
                 </div>
+                <div class="col-12 col-md-auto">
+                    <div class="form-label d-none d-md-block" aria-hidden="true">&nbsp;</div>
+                    <label class="ulp-filter-past-lessons">
+                        <input type="checkbox"
+                               class="form-check-input ulp-filter-past-lessons__input"
+                               id="ulp-filter-deleted-users"
+                               name="filter_deleted_users"
+                               value="1"
+                               @checked($assignmentsFilterDeletedUsers)>
+                        <span class="ulp-filter-past-lessons__text">Удаленные</span>
+                    </label>
+                </div>
                 <div class="col-12 col-md-auto d-flex flex-wrap align-items-stretch gap-2 ms-md-auto payments-report-filters-actions">
                     <button class="btn btn-primary payments-report-filters-submit" type="submit">Применить</button>
                     <button class="btn btn-outline-secondary payments-report-filters-reset" type="button" id="ulpAssignmentsFiltersResetBtn">Сброс</button>
@@ -454,7 +474,10 @@
 
                         <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label">Ученик</label>
+                                <label class="form-label" for="ulp-modal-user">
+                                    Ученик
+                                    <span id="ulp-modal-user-deleted-badge" class="badge text-bg-secondary ms-1 d-none">Удалён</span>
+                                </label>
                                 <input type="text" class="form-control" id="ulp-modal-user" disabled readonly>
                             </div>
                             <div class="col-12">
@@ -749,6 +772,7 @@
                             : '',
                         status: $ulpFiltersForm.find('[name="status"]').val() || '',
                         filter_past_lessons: $ulpFiltersForm.find('[name="filter_past_lessons"]').is(':checked') ? '1' : '',
+                        filter_deleted_users: $ulpFiltersForm.find('[name="filter_deleted_users"]').is(':checked') ? '1' : '',
                     };
                 }
 
@@ -757,10 +781,14 @@
                         return data != null ? data : '';
                     }
 
-                    return window.KidsCrmTooltip.renderLink(data, {
+                    var html = window.KidsCrmTooltip.renderLink(data, {
                         linkClass: 'js-ulp-assignment-edit',
                         extraAttrs: 'data-assignment-id="' + window.KidsCrmTooltip.escapeHtml(String(row.id)) + '" role="button"',
                     });
+                    if (row && row.user_is_deleted) {
+                        html += ' <span class="badge text-bg-secondary ms-1">Удалён</span>';
+                    }
+                    return html;
                 }
 
                 function ulpTextRender(data, type) {
@@ -1186,6 +1214,10 @@
                     const a = data.assignment;
                     currentId = String(a.id);
                     document.getElementById('ulp-modal-user').value = a.user_display || '';
+                    const deletedBadge = document.getElementById('ulp-modal-user-deleted-badge');
+                    if (deletedBadge) {
+                        deletedBadge.classList.toggle('d-none', !a.user_is_deleted);
+                    }
                     document.getElementById('ulp-modal-package').value = a.lesson_package_name || '';
 
                     const periodEditable = !!a.period_editable;
