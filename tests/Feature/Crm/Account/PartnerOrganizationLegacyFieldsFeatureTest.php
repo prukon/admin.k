@@ -27,7 +27,7 @@ final class PartnerOrganizationLegacyFieldsFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_organization_page_shows_legal_entities_hint_without_legacy_fields(): void
+    public function test_organization_page_shows_allowed_fields_without_legacy_fields(): void
     {
         $this->grantPartnerView($this->user);
 
@@ -35,8 +35,8 @@ final class PartnerOrganizationLegacyFieldsFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewIs('account.index')
             ->assertViewHas('activeTab', 'partner')
-            ->assertSee('Юр. лица', false)
             ->assertSee('name="title"', false)
+            ->assertDontSee('Реквизиты и данные юр. лица', false)
             ->assertDontSee('name="tax_id"', false)
             ->assertDontSee('name="business_type"', false)
             ->assertDontSee('name="organization_name"', false)

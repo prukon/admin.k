@@ -14,17 +14,6 @@
                 <form id="partnerForm" class="text-start row" action="{{ route('admin.partner.store') }}" method="POST" novalidate>
                     @csrf
 
-                    <div class="col-12 mb-3">
-                        <div class="alert alert-info mb-0">
-                            Реквизиты юр. лица (ИНН, банк, НДС и т.д.) добавляются после создания партнёра в справочнике
-                            @can('legal_entities.view')
-                                <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
-                            @else
-                                «Юр. лица».
-                            @endcan
-                        </div>
-                    </div>
-
                     <div class="col-12 col-lg-6 mb-3">
                         <h4>Основная информация</h4>
 
@@ -108,17 +97,6 @@
                     @csrf
                     @method('patch')
                     <input type="hidden" id="edit-partner-id">
-
-                    <div class="col-12 mb-3">
-                        <div class="alert alert-info mb-0">
-                            Реквизиты юр. лица редактируются в справочнике
-                            @can('legal_entities.view')
-                                <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
-                            @else
-                                «Юр. лица».
-                            @endcan
-                        </div>
-                    </div>
 
                     <div class="col-12 col-lg-6 mb-3">
                         <h4>Основная информация</h4>

@@ -149,7 +149,7 @@
         <li class="nav-item">
             <a href="{{ route('account.user.edit') }}" class="nav-link">
                 <i class="nav-icon fa-solid fa-user"></i>
-                <p>Учетная запись</p>
+                <p>Учетная запись@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info right">{{ $unsignedContractsCount }}</span>@endif</p>
             </a>
         </li>
         @endcan

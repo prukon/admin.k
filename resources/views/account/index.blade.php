@@ -34,7 +34,7 @@
                         <li class="nav-item" role="presentation">
                             <a class="nav-link {{ $activeTab == 'myDocuments' ? 'active' : '' }}"
                                href="{{ route('account.documents.index') }}"
-                               role="tab"> Мои документы
+                               role="tab"> Мои документы@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info ms-2">{{ $unsignedContractsCount }}</span>@endif
                             </a>
                         </li>
                 @endcan

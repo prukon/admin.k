@@ -7,17 +7,6 @@
             @csrf
             @method('PATCH')
             <div class="row text-start partner-form-wrap">
-            <div class="col-12 mb-3">
-                <div class="alert alert-info mb-0">
-                    Реквизиты и данные юр. лица (ИНН, ОГРН, банк и т.д.) редактируются в справочнике
-                    @can('legal_entities.view')
-                        <a href="{{ route('admin.legal-entities.index') }}">«Юр. лица»</a>.
-                    @else
-                        «Юр. лица» (раздел доступен пользователям с соответствующими правами).
-                    @endcan
-                </div>
-            </div>
-
             {{--Основные данные организации--}}
             <div class="col-12 col-lg-5 user-data-wrap mb-3">
                 <h4>Основная информация</h4>

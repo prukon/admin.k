@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Contract;
 use App\Models\MenuItem;
 use App\Models\Partner;
 use App\Models\PartnerAccess;
@@ -179,6 +180,13 @@ class AppServiceProvider extends ServiceProvider
                 'allTeamsCount' => $teamsCount,
                 'allUsersCount' => $usersCount,
                 'newSchoolLeadsCount' => $newSchoolLeadsCount,
+                'unsignedContractsCount' => $this->unsignedContractsCountForCurrentUser(),
+            ]);
+        });
+
+        View::composer('account.index', function ($view) {
+            $view->with([
+                'unsignedContractsCount' => $this->unsignedContractsCountForCurrentUser(),
             ]);
         });
 
@@ -215,5 +223,27 @@ class AppServiceProvider extends ServiceProvider
                 'exception' => $event->exception->getMessage(),
             ]);
         });
+    }
+
+    /**
+     * Договоры текущего пользователя, активные к действию
+     * (ожидают заполнения / отправлены / открыты / формируется PDF).
+     */
+    private function unsignedContractsCountForCurrentUser(): int
+    {
+        $user = auth()->user();
+        if (!$user || !$user->can('account.documents.view')) {
+            return 0;
+        }
+
+        return (int) Contract::query()
+            ->where('user_id', $user->id)
+            ->whereIn('status', [
+                Contract::STATUS_AWAITING_CLIENT_FILL,
+                Contract::STATUS_SENT,
+                Contract::STATUS_OPENED,
+                Contract::STATUS_GENERATING_PDF,
+            ])
+            ->count();
     }
 }
