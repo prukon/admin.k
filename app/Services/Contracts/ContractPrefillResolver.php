@@ -108,6 +108,7 @@ class ContractPrefillResolver
             ContractTemplatePrefillSources::CHILD_LASTNAME  => trim((string) ($student->lastname ?? '')),
             ContractTemplatePrefillSources::CHILD_FIRSTNAME => trim((string) ($student->name ?? '')),
             ContractTemplatePrefillSources::CHILD_BIRTHDAY  => $this->studentBirthday($student),
+            ContractTemplatePrefillSources::CHILD_ADDRESS   => trim((string) ($student->address ?? '')),
             ContractTemplatePrefillSources::STUDENT_PHONE      => (string) ($student->phone ?? ''),
             ContractTemplatePrefillSources::STUDENT_EMAIL     => (string) ($student->email ?? ''),
             ContractTemplatePrefillSources::PARENT_FULL_NAME  => (string) ($student->parent_full_name ?? ''),

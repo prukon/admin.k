@@ -12,9 +12,10 @@ use Carbon\Carbon;
  */
 class ContractTemplateVariablePresets
 {
-    public const GROUP_PARENT  = 'parent';
-    public const GROUP_CHILD   = 'child';
-    public const GROUP_CONTRACT = 'contract';
+    public const GROUP_PARENT       = 'parent';
+    public const GROUP_CHILD        = 'child';
+    public const GROUP_LEGAL_ENTITY = 'legal_entity';
+    public const GROUP_CONTRACT     = 'contract';
 
     public const FILL_MODE_CRM    = 'crm';
     public const FILL_MODE_PARENT = 'parent';
@@ -65,10 +66,39 @@ class ContractTemplateVariablePresets
     public static function groupLabels(): array
     {
         return [
-            self::GROUP_PARENT   => 'Родитель (заказчик)',
-            self::GROUP_CHILD    => 'Ребёнок (ученик)',
-            self::GROUP_CONTRACT => 'Договор',
+            self::GROUP_PARENT       => 'Родитель (заказчик)',
+            self::GROUP_CHILD        => 'Ребёнок (ученик)',
+            self::GROUP_LEGAL_ENTITY => 'Юр. лицо',
+            self::GROUP_CONTRACT     => 'Договор',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function legalEntityFieldKeys(): array
+    {
+        return array_column(self::recommendedForGroup(self::GROUP_LEGAL_ENTITY), 'key');
+    }
+
+    public static function isLegalEntityFieldKey(string $key): bool
+    {
+        return in_array(self::canonicalFieldKey($key), self::legalEntityFieldKeys(), true);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $schema
+     */
+    public static function schemaUsesLegalEntityFields(array $schema): bool
+    {
+        foreach ($schema as $field) {
+            $key = self::canonicalFieldKey((string) ($field['key'] ?? ''));
+            if ($key !== '' && self::isLegalEntityFieldKey($key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -209,6 +239,95 @@ class ContractTemplateVariablePresets
                 'prefill_source'   => ContractTemplatePrefillSources::TEAM_TITLE,
                 'required_default' => false,
                 'fill_sort_order'  => 52,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::CHILD_ADDRESS,
+                'label'            => 'Ребёнок: адрес проживания',
+                'description'      => 'Адрес проживания ученика из карточки (users.address).',
+                'group'            => self::GROUP_CHILD,
+                'prefill_source'   => ContractTemplatePrefillSources::CHILD_ADDRESS,
+                'required_default' => false,
+                'fill_sort_order'  => 51,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_NAME,
+                'label'            => 'Юр. лицо: название',
+                'description'      => 'Публичное наименование ИП/организации (organization_name).',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_OGRNIP,
+                'label'            => 'Юр. лицо: ОГРН/ОГРНИП',
+                'description'      => 'ОГРН или ОГРНИП исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_INN,
+                'label'            => 'Юр. лицо: ИНН',
+                'description'      => 'ИНН исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_ADDRESS,
+                'label'            => 'Юр. лицо: юридический адрес',
+                'description'      => 'Юридический адрес исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_BANK_NAME,
+                'label'            => 'Юр. лицо: наименование банка',
+                'description'      => 'Наименование банка исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_BANK_ACCOUNT,
+                'label'            => 'Юр. лицо: расчётный счёт',
+                'description'      => 'Расчётный счёт исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_BIK,
+                'label'            => 'Юр. лицо: БИК',
+                'description'      => 'БИК банка исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
+            ],
+            [
+                'key'              => ContractTemplatePrefillSources::LEGAL_ENTITY_BANK_CORR_ACCOUNT,
+                'label'            => 'Юр. лицо: корреспондентский счёт',
+                'description'      => 'Корреспондентский счёт банка исполнителя.',
+                'admin_hint'       => 'Подставляется автоматически из юр. лица группы договора. Родитель не заполняет.',
+                'group'            => self::GROUP_LEGAL_ENTITY,
+                'fill_mode'        => self::FILL_MODE_SYSTEM,
+                'prefill_source'   => null,
+                'required_default' => false,
             ],
             [
                 'key'              => 'contract_date',

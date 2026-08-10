@@ -25,6 +25,8 @@ class ContractPdfGenerationService
         private readonly ContractParentProfileSyncService $parentProfileSync,
         private readonly ContractStudentProfileSyncService $studentProfileSync,
         private readonly ContractAudit $contractAudit,
+        private readonly ContractTemplateSystemPlaceholders $systemPlaceholders,
+        private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
     ) {
     }
 
@@ -43,6 +45,7 @@ class ContractPdfGenerationService
         );
         $fieldInput = ContractTemplateVariablePresets::composeNameFieldsForPdf($fieldInput);
         $this->assertTemplateDocxAvailable($contract);
+        $this->legalEntityPlaceholders->assertResolvableForContract($contract);
         $this->validateFieldInput($schema, $fieldInput);
 
         $authorId = $authorId ?? Auth::id();
@@ -80,6 +83,7 @@ class ContractPdfGenerationService
         }
 
         $this->assertTemplateDocxAvailable($contract);
+        $this->legalEntityPlaceholders->assertResolvableForContract($contract);
 
         $schema = ContractTemplateVariablePresets::schemaFieldsForParentForm($version->fields_schema ?? []);
         $fieldInput = ContractTemplateVariablePresets::composeNameFieldsForPdf(
@@ -92,7 +96,7 @@ class ContractPdfGenerationService
         $values = ContractTemplateVariablePresets::composeNameFieldsForPdf(
             ContractTemplateVariablePresets::expandDocxPlaceholderValues(array_merge(
                 $this->prefillResolver->mergeInput($prefill, $fieldInput),
-                ContractTemplateSystemPlaceholders::forContract($contract),
+                $this->systemPlaceholders->forContract($contract),
             )),
         );
 

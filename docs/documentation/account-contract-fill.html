@@ -96,8 +96,20 @@
   После успешного generate данные синхронизируются обратно:</p>
   <ul>
     <li><code>ContractParentProfileSyncService</code> — ФИО родителя в <code>parents</code></li>
-    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения ученика в <code>users</code></li>
+    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения и <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>)</li>
   </ul>
+
+  <h3 id="fill-legal-entity">2.5) Реквизиты юрлица и <code>child_address</code></h3>
+  <div class="note">
+    Ключи <code>legal_entity_*</code> из схемы шаблона <b>не</b> показываются в форме родителя (<code>fill_mode=system</code>).
+    При generate их значения мержатся из юрлица группы договора (<code>contracts.group_id</code> → <code>LegalEntityResolver</code>)
+    через <code>ContractLegalEntityPlaceholderService</code> / <code>ContractTemplateSystemPlaceholders</code>
+    и попадают в <code>filled_data</code> и PDF.<br><br>
+    <code>child_address</code> — в панели «Ребёнок», prefill из <code>users.address</code>.
+    Если юрлицо не резолвится, а в схеме есть LE-ключи: AJAX generate → <b>422</b> <code>errors.contract</code>;
+    non-AJAX → redirect с той же ошибкой. Подробно —
+    <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.
+  </div>
 
   <h2>3) Жизненный цикл статусов (кабинет)</h2>
   <table>
@@ -115,8 +127,10 @@
   </div>
 
   <h2>4) Валидация generate</h2>
-  <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля (<code>contract_date</code>, <code>contract_id</code>…) не показываются родителю.
-  Ошибки возвращаются redirect на <code>?fill=</code> с <code>withErrors</code> под ключами <code>fields.{key}</code>.</p>
+  <p><code>AccountContractGenerateRequest</code>: обязательные поля по <code>required</code> в схеме; системные поля
+  (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>…) не показываются родителю.
+  Ошибки валидации полей — redirect / JSON с ключами <code>fields.{key}</code>;
+  ошибка отсутствия юрлица — ключ <code>contract</code> (см. §<a href="#fill-legal-entity">2.5</a>).</p>
 
   <h2>5) Скрытое право «показывать ключи полей»</h2>
   <p>Право <code>account.contracts.showFieldKeys</code> (скрытое в БД, не в базовых ролях): при наличии под полем показывается технический ключ <code>{{…}}</code> из DOCX.</p>
@@ -133,6 +147,7 @@
     <ul>
       <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
       <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей</li>
+      <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — LE-поля скрыты в fill, inject при generate, AJAX/non-AJAX <code>errors.contract</code></li>
       <li><code>AccountContractFillAccessFeatureTest.php</code> — права, showFieldKeys, 404 чужому</li>
       <li><code>AccountContractParentFillEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
       <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>

@@ -573,11 +573,13 @@
       (пустой адрес сбрасывает предыдущее значение при повторном открытии другого ученика).</li>
   </ul>
 
-  <h3>2.5.3) Границы (чего пока нет)</h3>
+  <h3>2.5.3) Связь с договорами и границы</h3>
   <ul>
-    <li>Поле <b>не</b> вынесено в личный кабинет родителя (только админка <code>/admin/users</code>).</li>
-    <li>В пресетах шаблонов договоров (<code>ContractTemplateVariablePresets</code>) отдельной переменной «адрес ребёнка» <b>пока нет</b> —
-      см. <a href="/docs/documentation/contract-templates">contract-templates</a>. Кастомный ключ в DOCX всё равно можно добавить вручную.</li>
+    <li>В шаблонах договоров есть пресет <code>{{child_address}}</code> («Ребёнок: адрес проживания») —
+      prefill из <code>users.address</code>, sync обратно после generate PDF.
+      Подробно: <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.</li>
+    <li>Поле <b>не</b> вынесено в личный кабинет как отдельная карточка профиля (только админка <code>/admin/users</code>
+      и форма заполнения договора, если ключ есть в DOCX).</li>
     <li>Импорт Excel (§8) колонку адреса ученика пока не включает.</li>
   </ul>
 
@@ -586,6 +588,8 @@
     <code>tests/Feature/Crm/Users/UserAddressFieldFeatureTest.php</code> — schema, guest/403, AJAX JSON store/update/edit,
     очистка адреса, 422, non-AJAX 302, изоляция партнёра, порядок полей в HTML, оба JS-пути fill.
     Также <code>BladeInlineJsSyntaxTest::test_edit_user_modal_address_fill_contract_is_valid_javascript</code>.
+    Договорный prefill/sync адреса: <code>ContractTemplateLegalEntityVariablesFeatureTest</code>,
+    <code>ContractStudentProfileSyncTest</code> (см. <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>).
   </p>
 
   <h2 id="user-teams">3) Группы ученика (<code>team_ids</code>, pivot <code>team_user</code>)</h2>

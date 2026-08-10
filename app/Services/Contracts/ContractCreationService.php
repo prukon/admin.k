@@ -26,6 +26,7 @@ class ContractCreationService
         private readonly ContractTemplateService $templateService,
         private readonly ContractAudit $contractAudit,
         private readonly TeamUserSyncService $teamUserSync,
+        private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
     ) {
     }
 
@@ -106,6 +107,12 @@ class ContractCreationService
         $template = $this->templateService->resolveForPartner($partner->id, $templateId);
         /** @var ContractTemplateVersion $version */
         $version = $template->currentVersion;
+
+        $this->legalEntityPlaceholders->assertResolvableForPartnerTeam(
+            (int) $partner->id,
+            $groupId,
+            is_array($version->fields_schema) ? $version->fields_schema : [],
+        );
 
         return Contract::create([
             'school_id'                    => $partner->id,

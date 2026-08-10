@@ -11,6 +11,7 @@ class ContractTemplatePrefillSources
     public const CHILD_LASTNAME     = 'child_lastname';
     public const CHILD_FIRSTNAME    = 'child_firstname';
     public const CHILD_BIRTHDAY     = 'child_birthday';
+    public const CHILD_ADDRESS      = 'child_address';
     /** @deprecated Используйте {@see CHILD_FULL_NAME}. Оставлено для старых шаблонов и воркера. */
     public const STUDENT_FULL_NAME  = 'child_full_name';
     public const STUDENT_PHONE      = 'student_phone';
@@ -25,6 +26,15 @@ class ContractTemplatePrefillSources
     public const PARENT_PHONE       = 'parent_phone';
     public const PARENT_EMAIL       = 'parent_email';
     public const TEAM_TITLE         = 'team_title';
+
+    public const LEGAL_ENTITY_NAME              = 'legal_entity_name';
+    public const LEGAL_ENTITY_OGRNIP            = 'legal_entity_ogrnip';
+    public const LEGAL_ENTITY_INN               = 'legal_entity_inn';
+    public const LEGAL_ENTITY_ADDRESS           = 'legal_entity_address';
+    public const LEGAL_ENTITY_BANK_NAME         = 'legal_entity_bank_name';
+    public const LEGAL_ENTITY_BANK_ACCOUNT      = 'legal_entity_bank_account';
+    public const LEGAL_ENTITY_BIK               = 'legal_entity_bik';
+    public const LEGAL_ENTITY_BANK_CORR_ACCOUNT = 'legal_entity_bank_corr_account';
 
     /**
      * @return array<string, string> key => label for admin UI

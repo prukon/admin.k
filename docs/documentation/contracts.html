@@ -239,6 +239,16 @@
     Ученик чужого партнёра → <b>422</b> (<code>ContractCreationService</code>).
     Недостаточный баланс → redirect на index с <code>?create=1</code>, ошибка в <code>wallet</code> (ValidationException).
   </div>
+
+  <h3 id="template-legal-entity-guard">7.1) Реквизиты юрлица группы в шаблоне</h3>
+  <div class="warn">
+    Если в <code>fields_schema</code> выбранного шаблона есть ключи <code>legal_entity_*</code>, перед созданием договора
+    <code>ContractCreationService</code> проверяет, что для <code>contracts.group_id</code> (снимок группы) резолвится активное юрлицо
+    (<code>LegalEntityResolver</code> / <code>ContractLegalEntityPlaceholderService</code>).
+    Иначе — redirect с <code>errors.group_id</code> (понятный текст), договор не создаётся, 70&nbsp;₽ не списываются.
+    Подробная таблица плейсхолдеров и правила multi-entity —
+    <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.
+  </div>
   <table>
     <thead><tr><th>Действие CRM</th><th>URL / поведение</th></tr></thead>
     <tbody>
@@ -263,7 +273,8 @@
       <li><code>ContractCreateModalFeatureTest.php</code> — модалка, redirect <code>/create</code>, store PDF</li>
       <li><code>ContractCreateModalParentFeatureTest.php</code> — «ФИО родителя», <code>users-search</code>, preselectedUser</li>
       <li><code>ContractCreateTemplateModeModalFeatureTest.php</code> — режим template, баланс, foreign student 422</li>
-      <li><code>ContractStoreTemplateModeTest.php</code> — store template, redirect show, fill_expires_at</li>
+      <li><code>ContractStoreTemplateModeTest.php</code> — store template, redirect show, fill_expires_at; блок/успех при <code>legal_entity_*</code></li>
+      <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — см. <a href="/docs/documentation/contract-templates#legal-entity-variables-tests">contract-templates §6.1</a></li>
       <li><code>ContractsIndexAccessFeatureTest.php</code>, <code>ContractsAccessTest.php</code></li>
       <li><code>ContractsParentAndAccessTest.php</code> — родитель на show, подписант</li>
       <li><code>ContractsSigningTest.php</code>, <code>ContractsSyncFeatureTest.php</code></li>

@@ -104,6 +104,7 @@
   <h3>5.1) Создание (<code>#createContractTemplateModal</code>)</h3>
   <ul>
     <li>Поля: название, файл DOCX (обяз.), аккордеон «Переменные» (справочник пресетов).</li>
+    <li>Группы аккордеона (порядок): «Родитель (заказчик)» → «Ребёнок (ученик)» → <b>«Юр. лицо»</b> → «Договор» → «Свои переменные».</li>
     <li>После загрузки DOCX — таблица полей (<code>fields-editor</code>, id таблицы <code>contract-template-fields-table</code>).</li>
     <li>Колонки: ключ, подпись, группа (родитель/ученик/система), обязательность, prefill; «Порядок» — только при <code>@can('contracts.templates.fillSortOrder.edit')</code>.</li>
     <li>Валидация: <code>ContractTemplateStoreRequest</code>.</li>
@@ -112,7 +113,7 @@
   <h3>5.2) Редактирование (<code>#editContractTemplateModal</code>)</h3>
   <ul>
     <li>Название, опционально новый DOCX (создаёт новую версию, старые договоры остаются на своей версии).</li>
-    <li>Редактор полей тот же; системные поля (<code>contract_date</code>, <code>contract_id</code>…) помечены и не удаляются.</li>
+    <li>Редактор полей тот же; системные поля (<code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code>…) помечены и не удаляются.</li>
     <li>PUT <code>contract-templates.update</code> <b>не меняет</b> email — только subject/body через отдельный endpoint.</li>
     <li>Валидация: <code>ContractTemplateUpdateRequest</code>.</li>
   </ul>
@@ -142,7 +143,7 @@
     <li>Паттерн кликабельных названий — <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
-  <h2>6) Переменные DOCX и <code>fields_schema</code></h2>
+  <h2 id="docx-variables">6) Переменные DOCX и <code>fields_schema</code></h2>
   <p>Единый формат ключей: <code>snake_case</code>, например <code>{{parent_full_name}}</code>.
   Справочник рекомендуемых переменных, русские подписи, <code>prefill_source</code>, группы и <code>fill_sort_order</code> по умолчанию — класс <code>ContractTemplateVariablePresets</code>.</p>
   <table>
@@ -151,20 +152,61 @@
       <tr><td><code>parent_full_name</code></td><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code></td></tr>
       <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code></td></tr>
       <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
+      <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
+      <tr><td><code>legal_entity_*</code></td><td>не в форме родителя (<code>fill_mode=system</code>); подстановка при generate</td></tr>
     </tbody>
   </table>
   <p>При загрузке DOCX для известных ключей автоматически подставляются подписи и prefill из пресетов; неизвестные ключи попадают в схему как кастомные поля.</p>
+
+  <h3 id="legal-entity-variables">6.1) Группа «Юр. лицо» и адрес ребёнка</h3>
   <div class="note">
-    <b>CRM-поля без пресетов (2026‑08).</b>
-    В админке уже есть <code>users.address</code> (адрес проживания ученика) и
-    <code>partner_legal_entities.bank_corr_account</code> (корр. счёт), а также реквизиты ИП
-    (<code>organization_name</code>, <code>tax_id</code>, <code>registration_number</code>, <code>address</code>, <code>bank_*</code>).
-    В <code>ContractTemplateVariablePresets</code> отдельных рекомендуемых ключей под них <b>пока нет</b>
-    (адрес в пресетах — только <code>parent_address</code>).
-    Их можно указать в DOCX как кастомные <code>{{snake_case}}</code>; предзаполнение из CRM для них ещё не подключено.
-    Источники данных: <a href="/docs/documentation/admin-users#user-student-address">admin-users §2.5</a>,
-    <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">admin-legal-entities §4.2.2</a>.
+    В DOCX вставляются плейсхолдеры из аккордеона модалки шаблона. При генерации PDF значения юрлица берутся из
+    <code>partner_legal_entities</code> через <code>LegalEntityResolver::forTeamId(contracts.group_id, school_id)</code>
+    (та же логика, что для оплат: явная привязка группы → при одном юрлице партнёра fallback на него → при multi-entity без привязки — пусто).
+    Сервис: <code>ContractLegalEntityPlaceholderService</code> (assert при создании договора и при generate; значения мержатся в
+    <code>ContractTemplateSystemPlaceholders</code>).
   </div>
+  <table>
+    <thead><tr><th>Плейсхолдер Word</th><th>Подпись в CRM</th><th>Колонка CRM</th></tr></thead>
+    <tbody>
+      <tr><td><code>{{legal_entity_name}}</code></td><td>Юр. лицо: название</td><td><code>organization_name</code> → <code>displayTitle()</code></td></tr>
+      <tr><td><code>{{legal_entity_ogrnip}}</code></td><td>Юр. лицо: ОГРН/ОГРНИП</td><td><code>registration_number</code></td></tr>
+      <tr><td><code>{{legal_entity_inn}}</code></td><td>Юр. лицо: ИНН</td><td><code>tax_id</code></td></tr>
+      <tr><td><code>{{legal_entity_address}}</code></td><td>Юр. лицо: юридический адрес</td><td><code>address</code></td></tr>
+      <tr><td><code>{{legal_entity_bank_name}}</code></td><td>Юр. лицо: наименование банка</td><td><code>bank_name</code></td></tr>
+      <tr><td><code>{{legal_entity_bank_account}}</code></td><td>Юр. лицо: расчётный счёт</td><td><code>bank_account</code></td></tr>
+      <tr><td><code>{{legal_entity_bik}}</code></td><td>Юр. лицо: БИК</td><td><code>bank_bik</code></td></tr>
+      <tr><td><code>{{legal_entity_bank_corr_account}}</code></td><td>Юр. лицо: корреспондентский счёт</td><td><code>bank_corr_account</code></td></tr>
+      <tr><td><code>{{child_address}}</code></td><td>Ребёнок: адрес проживания</td><td><code>users.address</code> (группа «Ребёнок», CRM-prefill)</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Поля <code>legal_entity_*</code> — <code>fill_mode=system</code>: не показываются родителю, <code>required=false</code>, <code>prefill_source=null</code> в схеме.</li>
+    <li><code>child_address</code> — обычное CRM-поле ребёнка: есть в форме родителя, предзаполняется из карточки, после generate пишется обратно через <code>ContractStudentProfileSyncService</code>.</li>
+    <li>Блок срабатывает <b>только если</b> в <code>fields_schema</code> версии есть хотя бы один ключ из группы «Юр. лицо».</li>
+  </ul>
+  <div class="warn">
+    <b>Если юрлицо не определяется</b> (нет активных юрлиц; или multi-entity и у группы нет <code>teams.legal_entity_id</code>):
+    <ul>
+      <li><b>Админ, создание договора</b> (<code>POST /client-contracts</code>, template mode) — ValidationException на <code>group_id</code>, договор <b>не</b> создаётся, 70&nbsp;₽ <b>не</b> списываются, письмо не уходит.</li>
+      <li><b>Родитель, generate PDF</b> — ValidationException на <code>contract</code>: AJAX → <b>422</b> <code>{ message, errors.contract }</code>; non-AJAX → redirect с <code>withErrors</code>.</li>
+    </ul>
+    Шаблон <b>без</b> ключей юрлица можно отправлять даже если у группы нет привязки (блок не применяется).
+  </div>
+  <p class="small">Связанные страницы:
+    <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a> (резолвер),
+    <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">§4.2.2</a> (корр. счёт),
+    <a href="/docs/documentation/admin-users#user-student-address">admin-users §2.5</a> (адрес ученика),
+    <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a> (привязка группы),
+    <a href="/docs/documentation/contracts#template-legal-entity-guard">contracts §7.1</a>,
+    <a href="/docs/documentation/account-contract-fill#fill-legal-entity">account-contract-fill §2.5</a>.
+  </p>
+  <p class="small" id="legal-entity-variables-tests">Тесты:
+    <code>ContractTemplateLegalEntityVariablesFeatureTest</code>,
+    <code>ContractStoreTemplateModeTest</code>,
+    <code>ContractLegalEntityPlaceholderServiceTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (variables-reference / edit-modal-init / index).
+  </p>
 
   <h2>7) Версии DOCX и архив</h2>
   <ul>
@@ -198,6 +240,7 @@
     <li><code>ContractPdfGenerationService</code> — формирование PDF (кабинет + очередь)</li>
     <li><code>LibreOfficePdfConverter</code> / <code>FakeContractPdfConverter</code></li>
     <li><code>ContractPrefillResolver</code> — предзаполнение из users/parents/teams</li>
+    <li><code>ContractLegalEntityPlaceholderService</code> — реквизиты юр. лица группы и блок при отсутствии</li>
     <li><code>ContractParentProfileSyncService</code> / <code>ContractStudentProfileSyncService</code> — sync после generate</li>
     <li><code>ContractPodpislonSendService</code> — SMS (CRM и кабинет)</li>
     <li><code>ContractInvitationEmailRenderer</code> — рендер письма-приглашения</li>
@@ -222,6 +265,7 @@
       <li><code>ContractTemplatesDataTableFeatureTest.php</code>, <code>ContractTemplatesIndexFullAccessFeatureTest.php</code></li>
       <li><code>ContractsDocumentsSectionUiFeatureTest.php</code>, <code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API</li>
       <li><code>ContractStoreTemplateModeTest.php</code>, <code>ContractCreateTemplateModeModalFeatureTest.php</code> — создание договора по шаблону</li>
+      <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — UI «Юр. лицо» / <code>child_address</code>, store DOCX→schema, блок store без юрлица, fill/generate inject, AJAX/non-AJAX 422</li>
       <li><code>ContractRevokeRefundTest.php</code> — revoke + возврат 70&nbsp;₽</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code>, <code>ContractTemplateToParentWorkflowFeatureTest.php</code> — E2E</li>
       <li><code>ContractParentProfileSyncTest.php</code>, <code>ContractStudentProfileSyncTest.php</code></li>
@@ -233,7 +277,9 @@
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/contracts">Договоры (CRM)</a> ·
-    <a href="/docs/documentation/account-contract-fill">Заполнение родителем</a></p>
+    <a href="/docs/documentation/account-contract-fill">Заполнение родителем</a> ·
+    <a href="/docs/documentation/admin-legal-entities">Юр. лица</a> ·
+    <a href="/docs/documentation/admin-users#user-student-address">Адрес ученика</a></p>
 </div>
 </body>
 </html>

@@ -47,6 +47,7 @@ class ContractTemplateVariablePresetsTest extends TestCase
 
         $this->assertArrayNotHasKey('other', $labels);
         $this->assertNotContains('Дополнительно', $labels);
+        $this->assertSame('Юр. лицо', $labels[ContractTemplateVariablePresets::GROUP_LEGAL_ENTITY]);
 
         $contractKeys = array_column(
             ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_CONTRACT),
@@ -58,6 +59,20 @@ class ContractTemplateVariablePresetsTest extends TestCase
         $this->assertContains('contract_date', $contractKeys);
         $this->assertContains('documents_url', $contractKeys);
         $this->assertContains('contract_id', $contractKeys);
+
+        $legalKeys = array_column(
+            ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_LEGAL_ENTITY),
+            'key',
+        );
+        $this->assertContains('legal_entity_name', $legalKeys);
+        $this->assertContains('legal_entity_inn', $legalKeys);
+        $this->assertContains('legal_entity_bank_corr_account', $legalKeys);
+
+        $childKeys = array_column(
+            ContractTemplateVariablePresets::recommendedForGroup(ContractTemplateVariablePresets::GROUP_CHILD),
+            'key',
+        );
+        $this->assertContains('child_address', $childKeys);
     }
 
     /** @test */
@@ -95,10 +110,22 @@ class ContractTemplateVariablePresetsTest extends TestCase
     }
 
     /** @test */
+    public function schema_fields_for_parent_form_excludes_legal_entity_system_fields(): void
+    {
+        $filtered = ContractTemplateVariablePresets::schemaFieldsForParentForm([
+            ['key' => 'child_address', 'label' => 'Адрес', 'required' => false],
+            ['key' => 'legal_entity_inn', 'label' => 'ИНН', 'required' => false],
+            ['key' => 'legal_entity_name', 'label' => 'Название', 'required' => false],
+        ]);
+
+        $this->assertSame(['child_address'], array_column($filtered, 'key'));
+    }
+
+    /** @test */
     public function system_placeholders_include_contract_date(): void
     {
         $contract = new \App\Models\Contract(['id' => 42]);
-        $values = \App\Services\Contracts\ContractTemplateSystemPlaceholders::forContract($contract);
+        $values = \App\Services\Contracts\ContractTemplateSystemPlaceholders::forContractStatic($contract);
 
         $this->assertArrayHasKey('contract_date', $values);
         $this->assertMatchesRegularExpression('/^\d{2}\.\d{2}\.\d{4}$/', $values['contract_date']);

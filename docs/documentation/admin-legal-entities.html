@@ -205,8 +205,9 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
       <tr><td>После ShopCode</td><td>Можно менять через CRM CRUD; <code>bank_account</code> / <code>bank_bik</code> / <code>bank_name</code> — нельзя (422, см. §5)</td></tr>
     </tbody>
   </table>
-  <p class="small">Пресеты переменных шаблонов договоров пока <b>не</b> содержат ключ для корр. счёта —
-    см. <a href="/docs/documentation/contract-templates">contract-templates</a>. Кастомный плейсхолдер в DOCX можно добавить вручную.</p>
+  <p class="small">В шаблонах договоров ключ <code>{{legal_entity_bank_corr_account}}</code> входит в группу «Юр. лицо»
+    и подставляется при генерации PDF из <code>bank_corr_account</code> юрлица группы договора —
+    см. <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.</p>
 
   <h3>4.3) Карточка регистрации (<code>admin/legal-entities/show.blade.php</code>)</h3>
   <ul>
@@ -281,7 +282,10 @@ ShopCode = entity.tinkoff_shop_code (без entity → null)
     <li>Селект юр. лица в модалках create/edit группы — только если у партнёра ≥2 <b>активных</b> юр. лиц (<code>legal_entities.view</code>). Поле <b>обязательно</b> (<code>required</code> в Blade + валидация <code>StoreRequest</code>/<code>UpdateRequest</code>). Подписи опций — <code>displayTitle()</code>. Подробнее — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>.</li>
     <li>В таблице групп колонка «Юр. лицо»: при явной активной привязке — <code>displayTitle()</code>; без привязки в multi-entity — «—» (<code>legal_entity_fallback: true</code>, пустой <code>legal_entity_label</code>). Оплата T‑Bank для такой группы недоступна.</li>
     <li>Доступность T‑Bank на витрине: <code>PaymentService::isTbankAvailable()</code> — глобальный терминал + ShopCode через resolver (см. <a href="/docs/documentation/settings-payment-systems#tbank-availability">settings-payment-systems §4.3</a>).</li>
-    <li>Интеграция с договорами — отдельная фаза (prefill из юр. лица в модалке договора пока не реализован).</li>
+    <li><b>Договоры (шаблоны DOCX):</b> реквизиты юрлица группы подставляются в PDF через плейсхолдеры <code>legal_entity_*</code>
+      (<code>LegalEntityResolver</code> + <code>ContractLegalEntityPlaceholderService</code>).
+      Если в шаблоне есть эти ключи, а юрлицо не определяется — создание договора и generate PDF блокируются.
+      См. <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>.</li>
   </ul>
 
   <h3 id="legal-entities-snapshots-ui">7.1) Снимки <code>legal_entity_id</code> в UI T‑Bank</h3>

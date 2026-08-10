@@ -54,6 +54,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
         yield 'admin partner create edit modals' => ['includes/modal/editPartner.blade.php'];
         yield 'partner lead landing form' => ['landing/partner-lead.blade.php'];
+        yield 'contract templates variables reference copy js' => ['contract-templates/partials/variables-reference.blade.php'];
+        yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
+        yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
     }
 
     /**
@@ -1534,6 +1537,59 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В legal-entities/index.blade.php не найден script с bank_corr_account');
+    }
+
+    /**
+     * P1: копирование {{variable}} в справочнике шаблонов договоров (в т.ч. Юр. лицо).
+     */
+    public function test_contract_template_variables_reference_copy_handler_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/contract-templates/partials/variables-reference.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('contract-template-copy-variable', $content);
+        $this->assertStringContainsString('data-copy=', $content);
+        $this->assertStringContainsString('navigator.clipboard', $content);
+        $this->assertStringContainsString('ContractTemplateVariablePresets::groupLabels()', $content);
+        $this->assertStringContainsString('recommendedForGroup($groupKey)', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (!str_contains($rawScript, 'contract-template-copy-variable')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+            $this->assertStringContainsString("closest('.contract-template-copy-variable')", $js);
+            $this->assertStringContainsString("getAttribute('data-copy')", $js);
+
+            $tempFile = sys_get_temp_dir() . '/blade-js-ct-vars-' . uniqid('', true) . '.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check ' . escapeshellarg($tempFile) . ' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in contract-templates variables-reference (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В variables-reference.blade.php не найден script копирования переменных');
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

@@ -9,15 +9,31 @@ use App\Models\Contract;
  */
 class ContractTemplateSystemPlaceholders
 {
+    public function __construct(
+        private readonly ContractLegalEntityPlaceholderService $legalEntityPlaceholders,
+    ) {
+    }
+
     /**
      * @return array<string, string>
      */
-    public static function forContract(Contract $contract): array
+    public function forContract(Contract $contract): array
     {
-        return [
-            'documents_url' => url('/account-settings/documents'),
-            'contract_id'   => (string) $contract->id,
-            'contract_date' => now()->format('d.m.Y'),
-        ];
+        return array_merge(
+            [
+                'documents_url' => url('/account-settings/documents'),
+                'contract_id'   => (string) $contract->id,
+                'contract_date' => now()->format('d.m.Y'),
+            ],
+            $this->legalEntityPlaceholders->valuesForContract($contract),
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function forContractStatic(Contract $contract): array
+    {
+        return app(self::class)->forContract($contract);
     }
 }

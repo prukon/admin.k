@@ -39,6 +39,11 @@ class ContractStudentProfileSyncService
             }
         }
 
+        if (array_key_exists(ContractTemplatePrefillSources::CHILD_ADDRESS, $filledData)) {
+            $address = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_ADDRESS]);
+            $updates['address'] = $address !== '' ? $address : null;
+        }
+
         if ($updates === []) {
             return;
         }
