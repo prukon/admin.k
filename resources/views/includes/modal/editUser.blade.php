@@ -182,6 +182,18 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12">
+                                                    <div class="mb-3">
+                                                        <label for="edit-address" class="form-label">Адрес проживания</label>
+                                                        <input type="text"
+                                                               name="address"
+                                                               class="form-control"
+                                                               id="edit-address"
+                                                               maxlength="1000"
+                                                               value="">
+                                                    </div>
+                                                </div>
+
                                                 @include('includes.modal._student_health_fields', [
                                                     'variant' => 'checkbox',
                                                 ])
@@ -802,6 +814,7 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
+                        $('#edit-user-form #edit-address').val(response.user.address || '');
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Контекст роли (без смены роли в модалке)
@@ -925,6 +938,7 @@
                         $('#edit-user-form #edit-birthday').val(response.user.birthday);
                         $('#edit-user-form #edit-email').val(response.user.email);
                         window.PhoneInputMask?.setValue('#edit-user-form #edit-phone', response.user.phone);
+                        $('#edit-user-form #edit-address').val(response.user.address || '');
                         $('#edit-user-form #edit-activity').val(response.user.is_enabled);
 
                         // 2) Контекст роли (без смены роли в модалке)

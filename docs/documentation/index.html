@@ -26,6 +26,60 @@
     Это “главная” страница документации (список разделов). Файлы лежат рядом в этой же папке.
   </div>
 
+  <h2>Адрес ученика и корр. счёт юрлица (2026‑08)</h2>
+  <div class="note">
+    Два CRM-поля под договоры и реквизиты (пока <b>без</b> новых пресетов переменных в шаблонах DOCX — см. ниже).<br><br>
+    1) <b>Адрес проживания ученика</b> — колонка <code>users.address</code> (nullable, max 1000).
+    В модалках create/edit на <code>/admin/users</code>, аккордеон «Ученик», после телефона, подпись «Адрес проживания».
+    Не путать с адресом родителя (<code>parents.address</code> / <code>parent_address</code>).
+    Store/Update: <code>nullable|string|max:1000</code>; пустая строка → <code>null</code>.
+    Edit JSON отдаёт <code>user.address</code>; оба JS-пути открытия edit заполняют <code>#edit-address</code> с fallback <code>|| ''</code>.
+    Подробно — <a href="/docs/documentation/admin-users#user-student-address">admin-users §2.5</a>.<br><br>
+    2) <b>Корреспондентский счёт</b> — <code>partner_legal_entities.bank_corr_account</code> (nullable, max 20).
+    В модалках CRM на <code>/admin/legal-entities</code>, после «Расчётный счёт».
+    CRM-only: <b>нет</b> в форме/payload sm-register T‑Bank; после ShopCode поле <b>не</b> блокируется
+    (в отличие от <code>bank_account</code> / <code>bank_bik</code> / <code>bank_name</code>).
+    Подробно — <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">admin-legal-entities §4.2.2</a>.
+  </div>
+
+  <h2>Отчёт «Задолженности»: учёт ручной оплаты (<code>effective_is_paid</code>, 2026‑08)</h2>
+  <div class="note">
+    В отчёте <b>«Задолженности»</b> (<code>/admin/reports/debts</code>, право <code>reports.view</code>)
+    неоплаченность считается по <b>эффективному</b> статусу, а не только по авто-флагу webhook:
+    <br><br>
+    1) <b>Правило:</b> если <code>is_manual_paid</code> не <code>NULL</code> — берём его; иначе <code>is_paid</code>
+    (accessor <code>effective_is_paid</code> у <code>users_prices</code> и <code>user_custom_payment</code>).
+    В SQL отчёта — тот же <code>CASE WHEN … END = 0</code>
+    (<code>DeptReportController::effectiveUnpaidSql</code>) для страницы, DataTables и
+    <code>GET /admin/reports/debts/total</code>.
+    <br>
+    2) <b>Откуда ручная отметка:</b>
+    «Установка цен» → вкладки «По месяцам» / «По ученикам»
+    (<code>POST /admin/setting-prices/manual-paid</code>, право <code>setPrices.manualPaid.manage</code>)
+    и «Дополнительные платежи»
+    (<code>POST …/custom-payments/{id}/manual-paid</code>). Авто <code>is_paid</code> при ручной
+    отметке <b>не</b> перезаписывается.
+    <br>
+    3) <b>Поведение:</b> ручная «оплачено» при <code>is_paid=0</code> убирает строку из долгов и из суммы;
+    ручная «не оплачено» при <code>is_paid=1</code> возвращает долг. Без ручного флага —
+    как раньше, смотрим только <code>is_paid</code>.
+    <br>
+    4) <b>Доп. платежи в отчёте:</b> кроме <code>effective_is_paid=0</code> и
+    <code>amount_cents &gt; 0</code> действует условие <code>date_end &lt; сегодня</code>
+    (записи без <code>date_end</code> в этот отчёт не попадают).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>,
+    отчёт целиком — <a href="/docs/documentation/reports-admin#debts">§3</a>;
+    ручная оплата месяца —
+    <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-debts">setting-prices-monthly-users</a>;
+    доп. платежи —
+    <a href="/docs/documentation/setting-prices-custom-payments#debts-report">setting-prices-custom-payments</a>;
+    модель полей —
+    <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
+    Тесты: <code>DebtsReportManualPaidFeatureTest</code>, <code>DeptReportTest</code>.
+  </div>
+
   <h2>Назначения: фильтр «Прошедшие» и красная дата последнего занятия (2026‑08)</h2>
   <div class="note">
     На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>):
@@ -881,7 +935,7 @@
 
   <h2>Изменения в справочниках (юр. лица и группы, 2026‑06)</h2>
   <div class="note">
-    <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
+    <b>Юр. лица</b> (<code>/admin/legal-entities</code>): публичное наименование в списке и привязках — <code>PartnerLegalEntity::displayTitle()</code> (<code>organization_name</code> → fallback <code>title</code>); поле «Наименование организации» обязательно в модалках CRM; <b>корр. счёт</b> <code>bank_corr_account</code> (CRM-only; после ShopCode редактируется в CRM, р/с — нет) — <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">§4.2.2</a>; колонка «Регистрация в банке» — бейдж + иконка <code>i</code> с <code>KidsCrmTooltip</code>; ошибка удаления при привязанных группах — модалка <code>showErrorModal</code> (не <code>alert</code>); после удаления модалка редактирования не открывается повторно. Подробно — <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>.
     <br><br>
     <b>Группы</b> (<code>/admin/teams</code>): при <b>≥2 активных юр. лицах</b> поле «Юр. лицо» в модалках <b>обязательно</b>; без привязки группы T‑Bank недоступен (жёсткий guard). Колонка «Юр. лицо» — <code>displayTitle()</code> явной привязки; без привязки — «—». Подробно — <a href="/docs/documentation/admin-teams#legal-entities">admin-teams §5.2</a>, <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>.
     <br><br>
@@ -963,7 +1017,7 @@
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
@@ -976,7 +1030,7 @@
     <li><a href="/docs/documentation/admin-districts">Районы (админка): <code>/admin/districts</code> — <code>districts.view</code>, CRUD, multiselect объектов, аудит <code>district.*</code></a></li>
     <li><a href="/docs/documentation/admin-locations">Объекты (админка): <code>/admin/locations</code> — <code>locations.view</code> / <code>locations.manage</code>, M2M админов, привязка групп, аудит <code>location.*</code></a></li>
     <li><a href="/docs/documentation/admin-sport-types">Виды спорта (админка): <code>/admin/sport-types</code> — <code>sport_types.view</code> / <code>sport_types.manage</code>, вкладка «Справочники», аудит <code>sport_type.*</code></a></li>
-    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>legal_entities.manage</code> / <code>legal_entities.sm_register</code>, модалки CRUD, карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
+    <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
@@ -987,7 +1041,7 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF, подпись SMS, sync профиля</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК, консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>адрес проживания</b> (<code>users.address</code>, §2.5), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>Статус→Договор</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>

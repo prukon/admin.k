@@ -36,6 +36,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'outgoing emails report tab' => ['admin/report/outgoing_emails.blade.php'];
         yield 'fiscal receipts report tab' => ['admin/report/fiscal_receipts.blade.php'];
         yield 'payment intents report tab' => ['admin/report/payment_intents.blade.php'];
+        yield 'debts report tab' => ['admin/report/debt.blade.php'];
         yield 'generic multiselect partial' => ['partials/select2/generic-multiselect.blade.php'];
         yield 'schedule journal statuses settings' => ['admin/shared/occurrence_statuses_crud.blade.php'];
         yield 'schedule section index shell' => ['admin/schedule/index.blade.php'];
@@ -333,6 +334,10 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('data-is-former-member', $content);
         $this->assertStringContainsString('/admin/setting-prices/get-team-price', $content);
         $this->assertStringContainsString('/admin/setting-prices/set-price-all-users', $content);
+        $this->assertStringContainsString('/admin/setting-prices/manual-paid', $content);
+        $this->assertStringContainsString('postManualPaid', $content);
+        $this->assertStringContainsString('showManualPaidCommentModal', $content);
+        $this->assertStringContainsString('user-manual-paid-select', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString("Accept': 'application/json'", $content);
         $this->assertStringContainsString('$.ajax', $content);
@@ -1235,6 +1240,66 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS отчёта «Задолженности» — total по тем же фильтрам, default status=active, DataTables.
+     * Контракт: refreshDebtReportTotal дергает /debts/total с debtReportFilterParams (в т.ч. status).
+     */
+    public function test_debts_report_total_refresh_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/report/debt.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $content);
+        $this->assertStringContainsString('#debts-table', $content);
+        $this->assertStringContainsString('debtReportFilterParams', $content);
+        $this->assertStringContainsString('refreshDebtReportTotal', $content);
+        $this->assertStringContainsString("defaultFilterUserStatus = 'active'", $content);
+        $this->assertStringContainsString("status: \$debtFiltersForm.find('[name=\"status\"]').val() || ''", $content);
+        $this->assertStringContainsString('reports.debts.total', $content);
+        $this->assertStringContainsString('debts.getDebts', $content);
+        $this->assertStringContainsString('debt-report-filters', $content);
+        $this->assertStringContainsString('pay-debt-filter-user-status', $content);
+        // Сброс фильтров не должен «забывать» дефолт active при повторном открытии логики reset
+        $this->assertStringContainsString('debtReportFiltersResetBtn', $content);
+        $this->assertStringContainsString('defaultFilterUserStatus', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В debt.blade.php нет inline <script>');
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'refreshDebtReportTotal')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-debts-report-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in debts report script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В debt.blade.php не найден script с refreshDebtReportTotal');
+    }
+
+    /**
      * P1: inline JS лидов — смена статуса у лида с клиентом + динамический tooltip «Создать клиента».
      */
     public function test_school_leads_linked_status_and_create_client_tooltip_inline_script_is_valid_javascript(): void
@@ -1368,6 +1433,107 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В leads.blade.php не найден script с acceptLeadParentMatch + needsParentDecision');
+    }
+
+    /**
+     * P1: editUser — оба пути открытия модалки заполняют адрес ученика (|| '' сброс).
+     */
+    public function test_edit_user_modal_address_fill_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/modal/editUser.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="edit-address"', $content);
+        $this->assertStringContainsString("\$('#edit-user-form #edit-address').val(response.user.address || '')", $content);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($content, "\$('#edit-user-form #edit-address').val(response.user.address || '')")
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $addressScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'edit-address')) {
+                continue;
+            }
+            $addressScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-edit-address-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in editUser address script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($addressScriptFound, 'В editUser.blade.php не найден script с edit-address');
+    }
+
+    /**
+     * P1: legal-entities index — fillForm гидратирует bank_corr_account.
+     */
+    public function test_legal_entities_index_fill_form_bank_corr_account_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/legal-entities/index.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function fillForm(form, data)', $content);
+        $this->assertStringContainsString('bank_corr_account: data.bank_corr_account', $content);
+        $this->assertStringContainsString('bank_account: data.bank_account', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'bank_corr_account')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-le-bank-corr-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in legal-entities bank_corr_account script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В legal-entities/index.blade.php не найден script с bank_corr_account');
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

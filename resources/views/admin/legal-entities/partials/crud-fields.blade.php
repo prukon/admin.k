@@ -49,6 +49,10 @@
 @endphp
 
 <div class="row g-3">
+    <div class="col-12">
+        <div class="alert alert-danger d-none mb-0 js-legal-entity-form-errors" role="alert"></div>
+    </div>
+
     <div class="col-md-3">
         <label class="form-label">Форма организации*</label>
         <select name="business_type" class="form-select js-legal-entity-business-type js-legal-entity-sm-locked" required>
@@ -121,6 +125,12 @@
         <label class="form-label">Расчётный счёт</label>
         <input class="form-control js-legal-entity-sm-locked" name="bank_account" maxlength="32" value="{{ $field('bank_account') }}" />
         <div class="invalid-feedback d-block" data-error-for="bank_account"></div>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Корреспондентский счёт</label>
+        <input class="form-control" name="bank_corr_account" maxlength="20" value="{{ $field('bank_corr_account') }}" />
+        <div class="invalid-feedback d-block" data-error-for="bank_corr_account"></div>
     </div>
 
     <div class="col-md-3">

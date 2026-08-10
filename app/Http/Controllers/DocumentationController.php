@@ -55,7 +55,7 @@ class DocumentationController extends Controller
         'setting-prices-monthly-users' => 'Установка цен: бывшие участники + sync users_prices↔ULP (billing_month, кнопка «+» в журнале)',
         'set-prices-package-assignments' => 'Право setPrices.packageAssignments.view: вкладка назначений + блок на консоли, не в базовых ролях',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
-        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, импорт Excel (users.import), родители, договор, welcome-письмо (send_welcome_email / лид / resend), пол, комментарий, team_ids',
+        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, адрес проживания (users.address), импорт Excel, родители, договор, welcome-письмо, пол, комментарий, team_ids',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: модалки, fields_schema, fill_sort_order, email, версии',
         'account-contract-fill'       => 'Заполнение договора родителем: кабинет, fill/generate/sign, sync профиля',
@@ -63,6 +63,7 @@ class DocumentationController extends Controller
         'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, лид→клиент (welcome-письмо), статус после клиента, договор, статусы, Telegram',
         'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingSlug}, каскад район→объект→услуга, district_id',
         'blog'                        => 'Блог: /blog, админка (blog.view), ИИ, VK (kidscrm): анонс ИИ, очередь default',
+        'admin-legal-entities'        => 'Юр. лица: /admin/legal-entities, bank_corr_account (CRM-only), sm-register, displayTitle, LegalEntityResolver, guardrails',
     ];
 
     /**

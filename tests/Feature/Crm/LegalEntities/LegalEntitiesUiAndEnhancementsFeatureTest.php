@@ -95,6 +95,9 @@ final class LegalEntitiesUiAndEnhancementsFeatureTest extends CrmTestCase
             ->assertDontSee('name="sms_name"', false)
             ->assertSee('placeholder="ИП Иванов Иван..."', false)
             ->assertSee('Реквизиты для банка', false)
+            ->assertSee('Расчётный счёт', false)
+            ->assertSee('Корреспондентский счёт', false)
+            ->assertSee('name="bank_corr_account"', false)
             ->assertSee('Ставка НДС (онлайн-чек)', false)
             ->assertSee('НДС 22%', false)
             ->assertSee('Расчётный НДС 20/120', false);

@@ -394,6 +394,11 @@
             function clearErrors(form) {
                 form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
                 form.querySelectorAll('[data-error-for]').forEach(el => el.textContent = '');
+                const general = form.querySelector('.js-legal-entity-form-errors');
+                if (general) {
+                    general.classList.add('d-none');
+                    general.textContent = '';
+                }
             }
 
             function resolveFormInput(form, key) {
@@ -410,13 +415,23 @@
             }
 
             function applyErrors(form, errors) {
+                const unmapped = [];
                 Object.entries(errors || {}).forEach(([key, messages]) => {
                     const message = (messages && messages[0]) ? messages[0] : 'Ошибка';
                     const input = resolveFormInput(form, key);
                     const err = form.querySelector('[data-error-for="' + key + '"]');
                     if (input) input.classList.add('is-invalid');
-                    if (err) err.textContent = message;
+                    if (err) {
+                        err.textContent = message;
+                    } else {
+                        unmapped.push(message);
+                    }
                 });
+                const general = form.querySelector('.js-legal-entity-form-errors');
+                if (general && unmapped.length) {
+                    general.textContent = unmapped.join(' ');
+                    general.classList.remove('d-none');
+                }
             }
 
             function setRegisteredFieldsLocked(form, locked) {
@@ -474,6 +489,7 @@
                     bank_name: data.bank_name,
                     bank_bik: data.bank_bik,
                     bank_account: data.bank_account,
+                    bank_corr_account: data.bank_corr_account,
                     vat: data.vat,
                     is_default: String(data.is_default ?? 0),
                     is_enabled: String(data.is_enabled ?? 1),
@@ -543,6 +559,21 @@
                     }
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityCreateModal'))?.hide();
                     reloadTable();
+                    if (typeof showSuccessModal === 'function') {
+                        showSuccessModal(
+                            'Создание юр. лица',
+                            data.message || 'Юр. лицо создано',
+                            0
+                        );
+                    }
+                    return;
+                }
+                if (typeof showErrorModal === 'function') {
+                    showErrorModal(
+                        'Создание юр. лица',
+                        data.message || 'Не удалось создать юр. лицо',
+                        0
+                    );
                 }
             });
 
@@ -584,6 +615,21 @@
                 if (ok) {
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityEditModal'))?.hide();
                     reloadTable();
+                    if (typeof showSuccessModal === 'function') {
+                        showSuccessModal(
+                            'Редактирование юр. лица',
+                            data.message || 'Юр. лицо обновлено',
+                            0
+                        );
+                    }
+                    return;
+                }
+                if (typeof showErrorModal === 'function') {
+                    showErrorModal(
+                        'Редактирование юр. лица',
+                        data.message || 'Не удалось сохранить юр. лицо',
+                        0
+                    );
                 }
             });
 

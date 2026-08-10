@@ -45,6 +45,7 @@ class PartnerLegalEntityFactory extends Factory
             'bank_name' => null,
             'bank_bik' => null,
             'bank_account' => null,
+            'bank_corr_account' => null,
             'sm_details_template' => null,
             'tinkoff_shop_code' => null,
             'sm_register_status' => null,

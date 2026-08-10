@@ -63,6 +63,13 @@ class UpdateRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('address') && is_string($this->input('address'))) {
+            $address = trim($this->input('address'));
+            $this->merge([
+                'address' => $address !== '' ? $address : null,
+            ]);
+        }
+
 //        Log::info('UpdateRequest: prepareForValidation', [
 //            'editor_user_id'        => optional($this->user())->id,
 //            'target_user_id'        => optional($targetUser)->id,
@@ -109,7 +116,7 @@ class UpdateRequest extends FormRequest
             'custom.*' => ['nullable', 'string', 'max:255'],
             // 2FA (булево)
             'two_factor_enabled' => ['nullable', 'boolean'],
-
+            'address' => ['nullable', 'string', 'max:1000'],
         ];
 
         $rules = array_merge($rules, $this->studentParentRules());
@@ -287,6 +294,7 @@ class UpdateRequest extends FormRequest
             'start_date' => 'Дата начала занятий',
             'email' => 'Email',
             'phone' => 'Телефон',
+            'address' => 'Адрес проживания',
             'is_enabled' => 'Активность',
             'role_id' => 'Роль',
             'two_factor_enabled' => 'Двухфакторная аутентификация',
@@ -334,7 +342,9 @@ class UpdateRequest extends FormRequest
             // Телефон
             'phone.regex'   => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',
 
-
+            // Адрес проживания ученика
+            'address.string' => 'Поле «Адрес проживания» должно быть строкой.',
+            'address.max' => 'Поле «Адрес проживания» не должно превышать :max символов.',
 
             // Активность
             'is_enabled.boolean' => 'Поле "Активность" должно быть истинным или ложным.',

@@ -124,6 +124,61 @@ final class LegalEntitiesGuardrailsFeatureTest extends CrmTestCase
         $this->assertSame(20, (int) $fresh->vat);
     }
 
+    public function test_registered_entity_with_null_sm_details_allows_crud_when_default_submitted(): void
+    {
+        $smDetailsDefault = 'Выплата по договору, НДС не облагается';
+        $entity = PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-GUARD-NULL-SM')
+            ->create([
+                'vat' => null,
+                'bank_corr_account' => null,
+                'sm_details_template' => null,
+            ]);
+
+        $this->putJson(route('admin.legal-entities.update', $entity), [
+            'business_type' => PartnerLegalEntityBusinessType::OOO->value,
+            'organization_name' => $entity->organization_name ?: $entity->title,
+            'tax_id' => $entity->tax_id,
+            'sm_details_template' => $smDetailsDefault,
+            'vat' => 20,
+            'bank_corr_account' => '30101810400000000555',
+            'is_default' => true,
+            'is_enabled' => true,
+        ])->assertOk();
+
+        $fresh = $entity->fresh();
+        $this->assertSame(20, (int) $fresh->vat);
+        $this->assertSame('30101810400000000555', $fresh->bank_corr_account);
+        $this->assertSame($smDetailsDefault, $fresh->sm_details_template);
+    }
+
+    public function test_registered_entity_rejects_real_sm_details_change_via_crud(): void
+    {
+        $entity = PartnerLegalEntity::factory()
+            ->for($this->partner)
+            ->registered('SHOP-GUARD-SM-CHANGE')
+            ->create([
+                'sm_details_template' => 'Выплата по договору, НДС не облагается',
+            ]);
+
+        $this->putJson(route('admin.legal-entities.update', $entity), [
+            'business_type' => PartnerLegalEntityBusinessType::OOO->value,
+            'organization_name' => $entity->organization_name ?: $entity->title,
+            'tax_id' => $entity->tax_id,
+            'sm_details_template' => 'Другое назначение платежа',
+            'is_default' => true,
+            'is_enabled' => true,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sm_details_template']);
+
+        $this->assertSame(
+            'Выплата по договору, НДС не облагается',
+            $entity->fresh()->sm_details_template
+        );
+    }
+
     public function test_registered_entity_rejects_ceo_change_via_crud(): void
     {
         $smDetails = 'Выплата по договору, НДС не облагается';

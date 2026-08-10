@@ -40,6 +40,7 @@ trait PartnerLegalEntityValidationRules
             'bank_name' => ['nullable', 'string', 'max:255'],
             'bank_bik' => ['nullable', 'string', 'max:20'],
             'bank_account' => ['nullable', 'string', 'max:32'],
+            'bank_corr_account' => ['nullable', 'string', 'max:20'],
             'sm_details_template' => ['nullable', 'string', 'max:500'],
             'vat' => ['nullable', 'integer', Rule::in(CloudKassirVatRate::codes())],
             'ceo' => ['nullable', 'array'],
@@ -93,6 +94,7 @@ trait PartnerLegalEntityValidationRules
             'bank_name' => 'банк',
             'bank_bik' => 'БИК',
             'bank_account' => 'расчётный счёт',
+            'bank_corr_account' => 'корреспондентский счёт',
             'sm_details_template' => 'назначение платежа',
             'vat' => 'ставка НДС',
             'ceo.lastName' => 'фамилия руководителя',
@@ -115,6 +117,8 @@ trait PartnerLegalEntityValidationRules
             'organization_name.required' => 'Введите наименование организации',
             'tax_id.unique' => 'Юр. лицо с таким ИНН уже существует',
             'zip.regex' => 'Индекс должен содержать 6 цифр',
+            'bank_corr_account.string' => 'Поле «Корреспондентский счёт» должно быть строкой.',
+            'bank_corr_account.max' => 'Поле «Корреспондентский счёт» не должно превышать :max символов.',
         ];
     }
 }

@@ -233,10 +233,22 @@
         <td>POST</td>
         <td><code>/admin/setting-prices/manual-paid</code></td>
         <td><code>setting-prices.manual-paid</code></td>
-        <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b></td>
+        <td>Нужны <code>setPrices.manualPaid.manage</code> + членство. Бывший → <b>422</b>.
+          Пишет <code>is_manual_paid</code> / note / by / at, <b>не</b> трогает авто <code>is_paid</code>.
+          См. §<a href="#manual-paid-debts">manual-paid → задолженности</a></td>
       </tr>
     </tbody>
   </table>
+
+  <h2 id="manual-paid-debts">4.1) Ручная оплата месяца и отчёт «Задолженности»</h2>
+  <div class="ok">
+    Отчёт <code>/admin/reports/debts</code> считает долг по <code>effective_is_paid</code>
+    (ручной override важнее webhook <code>is_paid</code>). После успешного
+    <code>POST …/manual-paid</code> с <code>mode=paid</code> месяц исчезает из таблицы и из
+    <code>debts/total</code>; с <code>mode=unpaid</code> при авто <code>is_paid=1</code> — снова появляется.
+    Подробно: <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>,
+    поля — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
+  </div>
 
   <h2 id="code">5) Ключевые файлы</h2>
   <ul>
@@ -255,7 +267,8 @@
     <li><code>SettingPricesMonthlyFormerMembersAccessFeatureTest</code> — guest / 403 / 200, AJAX-контракт, non-AJAX 302, foreign 404, manual-paid</li>
     <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
     <li><code>SettingPricesUsersFormerMembersAccessFeatureTest</code> — доступ, AJAX/non-AJAX save бывшего → 422</li>
-    <li><code>BladeInlineJsSyntaxTest</code> — <code>settings-prices.js</code> + inline JS users (former markers, <code>node --check</code>)</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>settings-prices.js</code> + inline JS users (former markers, <code>node --check</code>; контракт <code>manual-paid</code> / <code>postManualPaid</code>)</li>
+    <li><code>DebtsReportManualPaidFeatureTest</code> — ручная оплата месяца → исчезновение из отчёта задолженностей</li>
   </ul>
   <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersPriceUlpSyncFeatureTest.php \
@@ -268,6 +281,7 @@
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
     <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a> ·
+    <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1 (задолженности + effective_is_paid)</a> ·
     <a href="/docs/documentation/lesson-packages#ulp-billing-month">lesson-packages § billing_month</a> ·
     <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a> ·
     <a href="/docs/documentation/student-team-membership">student-team-membership</a> ·

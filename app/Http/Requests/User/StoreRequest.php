@@ -51,6 +51,13 @@ class StoreRequest extends FormRequest
             $this->merge(['school_lead_id' => null]);
         }
 
+        if ($this->has('address') && is_string($this->input('address'))) {
+            $address = trim($this->input('address'));
+            $this->merge([
+                'address' => $address !== '' ? $address : null,
+            ]);
+        }
+
         if ($this->has('team_ids')) {
             $ids = $this->input('team_ids');
             $ids = is_array($ids) ? $ids : [];
@@ -84,6 +91,7 @@ class StoreRequest extends FormRequest
 
             'email'       => 'nullable|email|max:255|unique:users,email',
             'password'    => 'nullable|string|min:8|max:255',
+            'address'     => 'nullable|string|max:1000',
 
             'is_enabled'  => 'sometimes|boolean', // чекбокс может не прийти
             'role_id'     => 'required|integer|exists:roles,id',
@@ -138,6 +146,7 @@ class StoreRequest extends FormRequest
             'is_enabled' => 'Активность',
             'role_id'        => 'Роль',
             'phone'          => 'Телефон',
+            'address'        => 'Адрес проживания',
             'school_lead_id' => 'Заявка с сайта',
         ] + $this->sendWelcomeEmailAttributes()
             + $this->studentParentAttributes()
@@ -247,6 +256,9 @@ class StoreRequest extends FormRequest
 
 
             'phone.regex'       => 'Поле "Телефон" должно быть российским номером в формате +7XXXXXXXXXX (11 цифр).',
+
+            'address.string' => 'Поле «Адрес проживания» должно быть строкой.',
+            'address.max' => 'Поле «Адрес проживания» не должно превышать :max символов.',
 
             'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',

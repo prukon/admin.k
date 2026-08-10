@@ -425,9 +425,8 @@ class PartnerLegalEntityController extends AdminBaseController
             ];
         }
 
-        $smDetailsDefault = 'Выплата по договору, НДС не облагается';
         if (trim((string) ($data['sm_details_template'] ?? '')) === '') {
-            $data['sm_details_template'] = $smDetailsDefault;
+            $data['sm_details_template'] = self::SM_DETAILS_TEMPLATE_DEFAULT;
         }
 
         return $data;
@@ -475,6 +474,7 @@ class PartnerLegalEntityController extends AdminBaseController
             'bank_name' => $entity->bank_name,
             'bank_bik' => $entity->bank_bik,
             'bank_account' => $entity->bank_account,
+            'bank_corr_account' => $entity->bank_corr_account,
             'sm_details_template' => $entity->sm_details_template,
             'ceo' => $this->normalizeCeoForJson($entity->ceo),
             'vat' => $entity->vat,
@@ -584,6 +584,8 @@ class PartnerLegalEntityController extends AdminBaseController
         return $text !== '' ? $text : $emptyLabel;
     }
 
+    private const SM_DETAILS_TEMPLATE_DEFAULT = 'Выплата по договору, НДС не облагается';
+
     /**
      * Поля, которые после sm-register меняются только через sm-patch (не CRM CRUD).
      *
@@ -679,7 +681,20 @@ class PartnerLegalEntityController extends AdminBaseController
             );
         }
 
+        if ($field === 'sm_details_template') {
+            // CRM подставляет дефолт при пустом значении; null/'' и дефолт — не смена locked-поля.
+            return $this->normalizeSmDetailsTemplate($oldValue)
+                !== $this->normalizeSmDetailsTemplate($newValue);
+        }
+
         return trim((string) ($oldValue ?? '')) !== trim((string) ($newValue ?? ''));
+    }
+
+    private function normalizeSmDetailsTemplate(mixed $value): string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text !== '' ? $text : self::SM_DETAILS_TEMPLATE_DEFAULT;
     }
 
     /**

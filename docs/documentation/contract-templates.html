@@ -154,6 +154,17 @@
     </tbody>
   </table>
   <p>При загрузке DOCX для известных ключей автоматически подставляются подписи и prefill из пресетов; неизвестные ключи попадают в схему как кастомные поля.</p>
+  <div class="note">
+    <b>CRM-поля без пресетов (2026‑08).</b>
+    В админке уже есть <code>users.address</code> (адрес проживания ученика) и
+    <code>partner_legal_entities.bank_corr_account</code> (корр. счёт), а также реквизиты ИП
+    (<code>organization_name</code>, <code>tax_id</code>, <code>registration_number</code>, <code>address</code>, <code>bank_*</code>).
+    В <code>ContractTemplateVariablePresets</code> отдельных рекомендуемых ключей под них <b>пока нет</b>
+    (адрес в пресетах — только <code>parent_address</code>).
+    Их можно указать в DOCX как кастомные <code>{{snake_case}}</code>; предзаполнение из CRM для них ещё не подключено.
+    Источники данных: <a href="/docs/documentation/admin-users#user-student-address">admin-users §2.5</a>,
+    <a href="/docs/documentation/admin-legal-entities#legal-entities-bank-corr">admin-legal-entities §4.2.2</a>.
+  </div>
 
   <h2>7) Версии DOCX и архив</h2>
   <ul>

@@ -14,6 +14,7 @@
     code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
     pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
     .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
     ul { margin: 8px 0 8px 20px; }
     .small { color: #555; font-size: 13px; }
   </style>
@@ -302,32 +303,82 @@
   <h2 id="debts">3) Отчёт “Задолженности”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/debts</code> (middleware <code>can:reports.view</code>)</li>
-    <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (AJAX, server-side; UI — <code>KidsCrmDataTable.create('#debts-table')</code>)</li>
-    <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
+    <li><b>DataTables</b>: <code>GET /admin/reports/getDebts</code> (только AJAX / <code>X-Requested-With</code>; без AJAX → <b>404</b>; UI — <code>KidsCrmDataTable.create('#debts-table')</code>)</li>
+    <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>) —
+      те же фильтры и то же правило оплаты, что у таблицы; на странице JS
+      <code>refreshDebtReportTotal()</code> дергает этот endpoint без перезагрузки</li>
     <li><b>Источники строк</b>:
       <ul>
-        <li><b>Месячные</b> — неоплаченные записи <code>users_prices</code> по <code>effective_is_paid=0</code>
-          (<code>is_manual_paid</code>, если не NULL, иначе <code>is_paid</code>;
-          <code>price&gt;0</code>, месяц &lt; текущего). Ручная оплата из «Установки цен» учитывается.
-          Каждая строка привязана к <code>users_prices.team_id</code> — у ученика в двух группах два долга за один календарный месяц возможны как две строки.</li>
-        <li><b>Периодные / доп. платежи</b> — неоплаченные <code>user_custom_payment</code> по тому же
-          <code>effective_is_paid</code> (даты в записи необязательны; UI админки колонки «Период» не показывает).</li>
+        <li><b>Месячные</b> — записи <code>users_prices</code> с <code>effective_is_paid=0</code>
+          (§<a href="#debts-effective-is-paid">3.1</a>), <code>price_cents &gt; 0</code>,
+          <code>new_month</code> строго раньше текущего календарного месяца.
+          Каждая строка привязана к <code>users_prices.team_id</code> — у ученика в двух группах
+          два долга за один месяц возможны как две строки.</li>
+        <li><b>Доп. платежи</b> — записи <code>user_custom_payment</code> с
+          <code>effective_is_paid=0</code>, <code>amount_cents &gt; 0</code> и
+          <code>date_end &lt; сегодня</code>. Даты в админке при создании необязательны и колонка
+          «Период» в UI доп. платежей не показывается; <b>без заполненного
+          <code>date_end</code> в прошлом запись в этот отчёт не попадёт</b>.</li>
       </ul>
     </li>
     <li><b>Колонки (настройки)</b>:
       <ul>
         <li><code>GET /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.get</code>)</li>
-        <li><code>POST /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.save</code>, тело: <code>columns: {key: true/false}</code>)</li>
+        <li><code>POST /admin/reports/debts/columns-settings</code> (<code>reports.debts.columns-settings.save</code>, тело: <code>columns: {key: true/false}</code>; без <code>columns</code> → <b>422</b>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_debts</code></li>
         <li>Ключи колонок по умолчанию: <code>user_name</code>, <code>month</code>, <code>price</code></li>
       </ul>
     </li>
   </ul>
+
+  <h3 id="debts-effective-is-paid">3.1) Ручная оплата и <code>effective_is_paid</code></h3>
+  <div class="ok">
+    <b>Зачем.</b> На «Установке цен» админ может вручную отметить месяц / доп. платёж оплаченным
+    (наличные, перевод и т.п.), не трогая авто-флаг webhook <code>is_paid</code>.
+    До фикса отчёт смотрел только на <code>is_paid=0</code> и продолжал показывать такие месяцы как долг.
+  </div>
+  <ul>
+    <li><b>Определение</b> (модели <code>UserPrice</code>, <code>UserCustomPayment</code>):
+      <code>is_manual_paid !== null ? is_manual_paid : is_paid</code>.</li>
+    <li><b>SQL в отчёте</b> (<code>DeptReportController::effectiveUnpaidSql</code>), одинаково для
+      <code>debts</code> / <code>getDebts</code> / <code>debts/total</code>:
+      <pre><code>(CASE WHEN {table}.is_manual_paid IS NOT NULL
+      THEN {table}.is_manual_paid ELSE {table}.is_paid END) = 0</code></pre>
+    </li>
+    <li><b>Матрица</b>:
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-size:13px;margin-top:8px;">
+        <thead><tr><th><code>is_paid</code></th><th><code>is_manual_paid</code></th><th>В задолженностях?</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td><code>NULL</code></td><td>да (авто-неоплачено)</td></tr>
+          <tr><td>0</td><td>1</td><td>нет (ручная «оплачено»)</td></tr>
+          <tr><td>1</td><td><code>NULL</code></td><td>нет (авто-оплачено)</td></tr>
+          <tr><td>1</td><td>0</td><td>да (ручная «не оплачено» поверх webhook)</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li><b>Источник ручной отметки</b>:
+      <ul>
+        <li>Месяц: <code>POST /admin/setting-prices/manual-paid</code>
+          (<code>setPrices.manualPaid.manage</code>, комментарий ≥ 3 символов,
+          текущее членство в группе; AJAX JSON / non-AJAX <b>302</b> на users) —
+          см. <a href="/docs/documentation/setting-prices-monthly-users#manual-paid-debts">setting-prices-monthly-users</a>.</li>
+        <li>Доп. платёж: <code>POST …/custom-payments/{id}/manual-paid</code> —
+          см. <a href="/docs/documentation/setting-prices-custom-payments#debts-report">setting-prices-custom-payments</a>.</li>
+      </ul>
+    </li>
+    <li><b>Автопроверки</b>:
+      <code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code>
+      (UX: POST manual-paid → пропажа/появление долга в таблице и total; guest/403;
+      validation <code>errors.comment</code>; Blade default <code>status=active</code>);
+      unit-кейсы флагов — <code>DeptReportTest</code>;
+      JS-контракт страницы — <code>BladeInlineJsSyntaxTest</code> (<code>debt.blade.php</code>,
+      <code>refreshDebtReportTotal</code>).</li>
+  </ul>
   <div class="note">
     <b>Фильтр «Группа» (<code>filter_team_id</code>):</b> для месячных долгов — <code>users_prices.team_id = …</code>; для периодных доп. платежей — ученик состоит в группе (pivot). Текстовый <code>team_title</code> — по любой группе ученика в pivot.
     <br><b>Фильтр локации</b> — §2.1: через группы ученика в pivot (<code>team_user</code> → <code>teams.location_id</code>), не по <code>users_prices.team_id</code>. Платёжные отчёты — <code>payments.location_id</code>.
-    <br><b>Фильтр «Активность ученика»</b> — §2.3: параметр <code>status</code>; по умолчанию только активные (<code>users.is_enabled = 1</code>).
-    <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>.
+    <br><b>Фильтр «Активность ученика»</b> — §2.3: параметр <code>status</code>; по умолчанию только активные (<code>users.is_enabled = 1</code>); сброс фильтров в UI снова ставит <code>active</code>.
+    <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>; гость — <b>302/401/403</b>.
   </div>
 
   <h2>4) Отчёт “Платежи по ученикам (LTV)”</h2>
@@ -625,8 +676,9 @@
     <li><code>tests/Feature/Crm/Reports/FiscalReceiptsReportTest.php</code> — totals, partners-search, DataTables fields</li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsPageFullAccessFeatureTest.php</code> — guest/403/smoke intents, видимость <code>piCanFilterPartner</code></li>
     <li><code>tests/Feature/Crm/Reports/PaymentIntentsReportTest.php</code> — в т.ч. <code>payment_date</code> в JSON (формат «месяц год»), client context, partner_id filter</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code> (+ отдельный кейс partner-filter в emails)</li>
-    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code> и фильтр локации)</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS: <code>outgoing_emails</code>, <code>fiscal_receipts</code>, <code>payment_intents</code>, <code>debt</code> (+ контракт refreshDebtReportTotal / default status=active; settings-prices.js + manual-paid)</li>
+    <li><code>tests/Feature/Crm/Reports/DeptReportTest.php</code> (включая <code>/debts/total</code>, фильтр локации, unit-кейсы <code>is_manual_paid</code>)</li>
+    <li><code>tests/Feature/Crm/Reports/DebtsReportManualPaidFeatureTest.php</code> — UX: ручная оплата из установки цен / доп. платежей ↔ отчёт задолженностей (effective_is_paid), guest/403, Blade/JS-контракт</li>
     <li><code>tests/Feature/Crm/Reports/LtvReportTest.php</code> (включая <code>/ltv/total</code> и фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentMonthlyReportTest.php</code> (включая фильтр локации)</li>
     <li><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> — отчёт «Платежи»: колонка и фильтр</li>

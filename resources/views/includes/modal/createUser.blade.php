@@ -150,6 +150,18 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-12">
+                                                    <div class="mb-3">
+                                                        <label for="create-address" class="form-label">Адрес проживания</label>
+                                                        <input type="text"
+                                                               name="address"
+                                                               class="form-control"
+                                                               id="create-address"
+                                                               maxlength="1000"
+                                                               value="{{ old('address') }}">
+                                                    </div>
+                                                </div>
+
                                                 @include('includes.modal._student_health_fields', [
                                                     'prefix' => 'create',
                                                     'variant' => 'checkbox',

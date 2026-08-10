@@ -164,6 +164,18 @@
     <li>Миграции team_id / backfill — как раньше (<code>2026_06_29_150000</code>, <code>2026_06_29_160000</code>).</li>
   </ul>
 
+  <h2 id="debts-report">5.1) Связь с отчётом «Задолженности»</h2>
+  <div class="ok">
+    Отчёт <code>/admin/reports/debts</code> включает доп. платёж только если
+    <code>effective_is_paid=0</code>, <code>amount_cents &gt; 0</code> и
+    <code>date_end &lt; сегодня</code>. Ручная отметка через
+    <code>POST …/custom-payments/{id}/manual-paid</code> меняет попадание в долги так же,
+    как для месячных <code>users_prices</code>.
+    Записи без <code>date_end</code> (типичный create из UI, даты nullable) в этот отчёт
+    <b>не</b> попадают — это условие SQL отчёта, не баг ручной оплаты.
+    Подробно: <a href="/docs/documentation/reports-admin#debts-effective-is-paid">reports-admin §3.1</a>.
+  </div>
+
   <h2 id="cabinet">6) Консоль ученика (<code>/cabinet</code>)</h2>
   <ul>
     <li>Блок виден при <code>@can('setPrices.customPayments.view')</code> и наличии строк у <code>activeStudent</code>.</li>
@@ -192,6 +204,7 @@
     <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete, статус + comment, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела, в т.ч. mutations + <code>manualPaid.manage</code></li>
     <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки</li>
+    <li><code>DebtsReportManualPaidFeatureTest</code> — manual-paid доп. платежа ↔ отчёт задолженностей</li>
     <li>Payments: <code>PayableTeamPaymentFlowTest</code>, <code>PayableTeamPaymentInitFeatureTest</code>, <code>PaymentAssignmentTeamBackfillTest</code></li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
