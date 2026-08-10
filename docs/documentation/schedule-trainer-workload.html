@@ -36,9 +36,10 @@
   <div class="warn">
     <strong>Не путать</strong> с <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (слоты абонементов, <code>team_schedule_slots</code>, <code>lessonPackages.view</code>).<br>
     Отчёт строится из актуальных статусов занятий (<code>user_lesson_occurrence_status_events</code>):
-    статус «Посетил» + заполненный <code>trainer_profile_id</code> на событии.
+    статус «Посетил» + строки pivot <code>user_lesson_occurrence_status_event_trainers</code>
+    (каждому тренеру визита — отдельный зачёт; legacy-колонка <code>events.trainer_profile_id</code> без pivot <b>не</b> учитывается).
     Группа берётся из слота (<code>team_schedule_slots.team_id</code>).
-    Журнал и календарь школы пишут в один контур — см. <a href="/docs/documentation/schedule-journal">журнал</a>.
+    Журнал пишет мультивыбор тренеров — см. <a href="/docs/documentation/schedule-journal#visited-trainer">журнал §6</a>.
   </div>
 
   <div class="note">
@@ -109,13 +110,15 @@
   <h2>3) Источник данных и формула ячейки</h2>
   <h3>3.1) Какие записи журнала попадают в отчёт</h3>
   <ul>
-    <li>Последнее событие статуса на занятие (ключ user/slot/date/ulp) с «Посетил» и непустым <code>trainer_profile_id</code>.</li>
+    <li>Последнее событие статуса на занятие (ключ user/slot/date/ulp) с «Посетил».</li>
+    <li>Тренеры визита — строки pivot <code>user_lesson_occurrence_status_event_trainers</code>
+      (legacy-колонка <code>events.trainer_profile_id</code> = первый тренер).</li>
+    <li>Каждому тренеру из pivot считается отдельный зачёт (один день × группа).</li>
     <li>Join <code>users</code> (<code>is_enabled = 1</code>, партнёр текущий) и <code>team_schedule_slots</code> → группа.</li>
     <li><code>lesson_occurrence_status_id</code> = «Посетил» текущего партнёра (<code>LessonOccurrenceStatus::attendedIdForPartner($partnerId)</code>, <code>code = attended</code>).</li>
-    <li><code>trainer_profile_id IS NOT NULL</code>.</li>
     <li><code>date</code> в выбранном периоде [<code>date_from</code>, <code>date_to</code>].</li>
   </ul>
-  <p>Записи «Посетил» без тренера, другие статусы и визиты чужого партнёра <strong>не учитываются</strong>.</p>
+  <p>Записи «Посетил» без тренеров в pivot, другие статусы и визиты чужого партнёра <strong>не учитываются</strong>.</p>
 
   <h3>3.2) Группировка</h3>
   <p>SQL-агрегат (сервис <code>TrainerWorkloadReportService</code>):</p>

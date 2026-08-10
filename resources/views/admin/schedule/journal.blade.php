@@ -433,13 +433,16 @@
                             </div>
                         </div>
 
-                        <div class="cell-edit-section d-none" id="cell-trainer-wrap">
-                            <label for="cell-trainer-profile-id" class="cell-edit-section__label">Тренер</label>
-                            <select class="form-select" id="cell-trainer-profile-id" name="trainer_profile_id">
-                                <option value="">Без тренера</option>
+                        <div class="cell-edit-section d-none generic-multiselect-field" id="cell-trainer-wrap">
+                            <label for="cell-trainer-profile-ids" class="cell-edit-section__label">Тренеры</label>
+                            <select id="cell-trainer-profile-ids"
+                                    name="trainer_profile_ids[]"
+                                    class="form-select js-generic-multiselect-select"
+                                    multiple
+                                    data-placeholder="Без тренера">
                             </select>
                             <div class="form-text text-muted" id="cell-trainer-hint"></div>
-                            <div class="invalid-feedback" id="cell-trainer-error"></div>
+                            <div class="invalid-feedback d-block" id="cell-trainer-error" style="display:none;"></div>
                         </div>
 
                         <div class="cell-edit-section cell-edit-section--last">
@@ -635,13 +638,16 @@
                             </div>
                         </div>
 
-                        <div class="cell-edit-section d-none" id="flexible-trainer-wrap">
-                            <label for="flexible-trainer-profile-id" class="cell-edit-section__label">Тренер</label>
-                            <select class="form-select" id="flexible-trainer-profile-id" name="trainer_profile_id">
-                                <option value="">Без тренера</option>
+                        <div class="cell-edit-section d-none generic-multiselect-field" id="flexible-trainer-wrap">
+                            <label for="flexible-trainer-profile-ids" class="cell-edit-section__label">Тренеры</label>
+                            <select id="flexible-trainer-profile-ids"
+                                    name="trainer_profile_ids[]"
+                                    class="form-select js-generic-multiselect-select"
+                                    multiple
+                                    data-placeholder="Без тренера">
                             </select>
                             <div class="form-text text-muted" id="flexible-trainer-hint"></div>
-                            <div class="invalid-feedback" id="flexible-trainer-error"></div>
+                            <div class="invalid-feedback d-block" id="flexible-trainer-error" style="display:none;"></div>
                         </div>
 
                         <div class="cell-edit-section cell-edit-section--last">

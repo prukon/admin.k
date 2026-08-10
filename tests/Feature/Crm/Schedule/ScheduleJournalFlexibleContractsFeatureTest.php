@@ -213,10 +213,46 @@ final class ScheduleJournalFlexibleContractsFeatureTest extends ScheduleJournalT
         $this->assertNotNull($event);
         $this->assertSame((int) $attendedId, (int) $event->lesson_occurrence_status_id);
         $this->assertSame((int) $trainer->id, (int) $event->trainer_profile_id);
+        $this->assertEqualsCanonicalizing(
+            [(int) $trainer->id],
+            $event->trainerProfiles()->pluck('trainer_profiles.id')->map(fn ($id) => (int) $id)->all()
+        );
         $this->assertSame('Поставили с посещением', (string) $event->comment);
 
         $ulp->refresh();
         $this->assertSame(2, (int) $ulp->lessons_remaining);
+    }
+
+    public function test_place_flexible_ajax_with_multiple_trainers(): void
+    {
+        [$student, $team, $trainerA] = $this->makeStudentTeamAndTrainer('Гибкий А');
+        $trainerB = $this->makeTrainerProfile('Гибкий Б');
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $team->id]);
+        $ulp = $this->makeMonthlyFlexibleAssignment($student, (int) $team->id, '2026-09-01', lessons: 2);
+        $attendedId = LessonOccurrenceStatus::attendedIdForPartner((int) $this->partner->id);
+        $this->assertNotNull($attendedId);
+
+        $this->withHeaders($this->ajaxHeaders())
+            ->postJson(
+                route('schedule.abonement.place-flexible', $student),
+                $this->placeFlexiblePayload($ulp, (int) $team->id, '2026-09-13', [
+                    'lesson_occurrence_status_id' => $attendedId,
+                    'trainer_profile_ids' => [$trainerA->id, $trainerB->id],
+                ])
+            )
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $event = UserLessonOccurrenceStatusEvent::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->whereDate('occurrence_date', '2026-09-13')
+            ->orderByDesc('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertEqualsCanonicalizing(
+            [(int) $trainerA->id, (int) $trainerB->id],
+            $event->trainerProfiles()->pluck('trainer_profiles.id')->map(fn ($id) => (int) $id)->all()
+        );
     }
 
     public function test_place_flexible_ajax_inactive_status_returns_422(): void

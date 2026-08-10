@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\DB;
 final class UserLessonOccurrenceStatusService
 {
     /**
+     * @param  list<int>|null  $trainerProfileIds  Тренеры при «Посетил» (каждый получает зачёт в ЗП).
+     *                                             Для BC также принимается legacy через одиночный id в массиве.
+     *
      * @throws \DomainException
      */
     public function apply(
@@ -30,6 +33,7 @@ final class UserLessonOccurrenceStatusService
         ?int $createdByUserId,
         ?int $trainerProfileId = null,
         ?string $comment = null,
+        ?array $trainerProfileIds = null,
     ): UserLessonOccurrenceStatusEvent {
         $run = function () use (
             $partnerId,
@@ -41,6 +45,7 @@ final class UserLessonOccurrenceStatusService
             $createdByUserId,
             $trainerProfileId,
             $comment,
+            $trainerProfileIds,
         ): UserLessonOccurrenceStatusEvent {
             if ($userLessonPackageId !== null) {
                 $prevEvent = UserLessonOccurrenceStatusEvent::query()
@@ -99,10 +104,21 @@ final class UserLessonOccurrenceStatusService
             }
 
             $attended = (string) $status->code === LessonOccurrenceStatus::CODE_ATTENDED;
-            $resolvedTrainerId = $attended ? $trainerProfileId : null;
+            $resolvedIds = [];
+            if ($attended) {
+                if ($trainerProfileIds !== null) {
+                    $resolvedIds = array_values(array_unique(array_map(
+                        static fn ($id): int => (int) $id,
+                        array_filter($trainerProfileIds, static fn ($id): bool => (int) $id > 0)
+                    )));
+                } elseif ($trainerProfileId !== null && (int) $trainerProfileId > 0) {
+                    $resolvedIds = [(int) $trainerProfileId];
+                }
+            }
+            $resolvedTrainerId = $resolvedIds[0] ?? null;
             $resolvedComment = $comment !== null && trim($comment) !== '' ? trim($comment) : null;
 
-            return UserLessonOccurrenceStatusEvent::query()->create([
+            $event = UserLessonOccurrenceStatusEvent::query()->create([
                 'partner_id' => $partnerId,
                 'user_id' => $userId,
                 'team_schedule_slot_id' => $teamScheduleSlotId,
@@ -113,6 +129,10 @@ final class UserLessonOccurrenceStatusService
                 'comment' => $resolvedComment,
                 'created_by' => $createdByUserId,
             ]);
+
+            $event->trainerProfiles()->sync($resolvedIds);
+
+            return $event;
         };
 
         // Уже внутри внешней транзакции (раскладка из журнала) — без вложенного DB::transaction,

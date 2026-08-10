@@ -471,7 +471,7 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
 
   <h3>4.2) Select2 multiselect для модалок (<code>generic-multiselect</code>)</h3>
   <p>
-    <b>Единый компонент</b> для всеичных multiselect в модалках CRM: partial
+    <b>Единый компонент</b> для типичных multiselect в модалках CRM: partial
     <code>resources/views/partials/select2/generic-multiselect.blade.php</code>.
     Обёртки <code>teams-multiselect.blade.php</code>, <code>locations-multiselect.blade.php</code>,
     <code>user-student-teams-multiselect.blade.php</code> — только <code>@include('partials.select2.generic-multiselect')</code>
@@ -484,6 +484,13 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     Синхронизация галочек в списке — через <code>.select2-results__option[aria-selected]</code> (не через устаревший класс <code>--selectable</code>).
     Оболочка поля — как у соседних <code>form-control</code> (класс-обёртка <code>.generic-multiselect-field</code>).
   </p>
+  <div class="note">
+    <strong>Журнал <code>/schedule</code>:</strong> тренеры при «Посетил» в
+    <code>#cellEditModal</code> / <code>#flexiblePlaceModal</code> —
+    <code>trainer_profile_ids[]</code> + тот же <code>KidsCrmGenericMultiselectSelect2</code>
+    (include в <code>admin/schedule/index.blade.php</code>).
+    См. <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>.
+  </div>
 
   <h4>Подключение (модалка)</h4>
   <pre><code>@include('partials.select2.generic-multiselect')

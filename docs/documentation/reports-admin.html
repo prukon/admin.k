@@ -306,8 +306,12 @@
     <li><b>Общая сумма</b>: <code>GET /admin/reports/debts/total</code> (JSON: <code>{ total_formatted, total_raw }</code>)</li>
     <li><b>Источники строк</b>:
       <ul>
-        <li><b>Месячные</b> — неоплаченные записи <code>users_prices</code> (<code>is_paid=0</code>, <code>price&gt;0</code>, месяц &lt; текущего). Каждая строка привязана к <code>users_prices.team_id</code> — у ученика в двух группах два долга за один календарный месяц возможны как две строки.</li>
-        <li><b>Периодные / доп. платежи</b> — неоплаченные <code>user_custom_payment</code> (даты в записи необязательны; UI админки колонки «Период» не показывает).</li>
+        <li><b>Месячные</b> — неоплаченные записи <code>users_prices</code> по <code>effective_is_paid=0</code>
+          (<code>is_manual_paid</code>, если не NULL, иначе <code>is_paid</code>;
+          <code>price&gt;0</code>, месяц &lt; текущего). Ручная оплата из «Установки цен» учитывается.
+          Каждая строка привязана к <code>users_prices.team_id</code> — у ученика в двух группах два долга за один календарный месяц возможны как две строки.</li>
+        <li><b>Периодные / доп. платежи</b> — неоплаченные <code>user_custom_payment</code> по тому же
+          <code>effective_is_paid</code> (даты в записи необязательны; UI админки колонки «Период» не показывает).</li>
       </ul>
     </li>
     <li><b>Колонки (настройки)</b>:

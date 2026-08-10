@@ -580,4 +580,110 @@ class DeptReportTest extends CrmTestCase
             ->assertSee('pay-debt-filter-user-status', false)
             ->assertSee('Активность ученика', false);
     }
+
+    /**
+     * [P0] Ручная оплата месяца (is_manual_paid) исключает users_prices из задолженностей.
+     */
+    public function test_debts_excludes_manually_paid_users_prices(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        $teamManualPaid = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamManualUnpaid = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $teamAutoUnpaid = Team::factory()->create(['partner_id' => $this->partner->id]);
+
+        // Ручная «оплачено», авто is_paid=0 — не долг
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 0,
+            'is_manual_paid' => 1,
+            'price' => 1000,
+            'new_month' => '2026-01-01',
+        ], $teamManualPaid);
+
+        // Ручная «не оплачено», авто is_paid=1 — долг
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 1,
+            'is_manual_paid' => 0,
+            'price' => 700,
+            'new_month' => '2026-01-01',
+        ], $teamManualUnpaid);
+
+        // Без ручного override, is_paid=0 — долг
+        $this->insertUserPrice($this->user, [
+            'is_paid' => 0,
+            'is_manual_paid' => null,
+            'price' => 300,
+            'new_month' => '2026-01-01',
+        ], $teamAutoUnpaid);
+
+        $this->get(route('reports.debts.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 1000.0]);
+
+        $response = $this->get(route('debts.getDebts'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+        $response->assertOk();
+
+        $prices = collect($response->json('data'))->pluck('price')->map(fn ($p) => (float) $p)->sort()->values()->all();
+        $this->assertSame([300.0, 700.0], $prices);
+    }
+
+    /**
+     * [P0] Ручная оплата доп. платежа (is_manual_paid) исключает user_custom_payment из задолженностей.
+     */
+    public function test_debts_excludes_manually_paid_custom_payments(): void
+    {
+        Carbon::setTestNow('2026-02-15');
+
+        DB::table('user_custom_payment')->insert([
+            [
+                'user_id' => $this->user->id,
+                'partner_id' => $this->partner->id,
+                'is_paid' => 0,
+                'is_manual_paid' => 1,
+                'amount_cents' => 100000,
+                'date_start' => '2025-12-01',
+                'date_end' => '2025-12-31',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'user_id' => $this->user->id,
+                'partner_id' => $this->partner->id,
+                'is_paid' => 1,
+                'is_manual_paid' => 0,
+                'amount_cents' => 40000,
+                'date_start' => '2025-11-01',
+                'date_end' => '2025-11-30',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'user_id' => $this->user->id,
+                'partner_id' => $this->partner->id,
+                'is_paid' => 0,
+                'is_manual_paid' => null,
+                'amount_cents' => 25000,
+                'date_start' => '2025-10-01',
+                'date_end' => '2025-10-31',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $this->get(route('reports.debts.total'))
+            ->assertOk()
+            ->assertJson(['total_raw' => 650.0]);
+
+        $response = $this->get(route('debts.getDebts'), [
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json',
+        ]);
+        $response->assertOk();
+
+        $prices = collect($response->json('data'))->pluck('price')->map(fn ($p) => (float) $p)->sort()->values()->all();
+        $this->assertSame([250.0, 400.0], $prices);
+    }
 }

@@ -457,6 +457,21 @@ table.dataTable tbody th, table.dataTable tbody td {
     gap: 0.5rem;
 }
 
+/* Модалки журнала: отключённые кнопки — явные цвета (без белого на белом из глобальных .btn-primary) */
+.schedule-section .modal .btn:disabled,
+.schedule-section .modal .btn.disabled {
+    opacity: 1;
+    pointer-events: none;
+}
+.schedule-section .modal .btn-primary:disabled,
+.schedule-section .modal .btn-primary.disabled,
+.schedule-section .modal .btn-danger:disabled,
+.schedule-section .modal .btn-danger.disabled {
+    color: #fff !important;
+    background-color: #b8bec5 !important;
+    border-color: #a8b0b8 !important;
+}
+
 /* Подсветка столбцов расписания выбранной группы */
 .highlight-column {
     /*border: 2px solid rgba(197, 132, 38, 0.72) !important;*/

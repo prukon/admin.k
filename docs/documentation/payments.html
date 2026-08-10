@@ -140,7 +140,10 @@
     </li>
     <li><b>Старт оплаты</b> (Robokassa / T‑Bank): в <code>payables.meta.team_id</code> сохраняется группа платежа для <b>всех</b> типов оплат (<code>PayableTeamResolver</code>, §<a href="#payments-payable-team">2.3</a>).</li>
     <li><b>Webhook (успех / refund)</b>: <code>UserPrice::markMonthlyPaid($userId, $month, $teamId)</code> — <code>updateOrCreate</code> по <code>(user_id, team_id, new_month)</code>; <code>team_id</code> из <code>payables.meta</code>, иначе primary group из pivot.</li>
-    <li><b>Отчёт «Задолженности»</b>: месячные долги — одна строка на каждую неоплаченную запись <code>users_prices</code>; фильтр <code>filter_team_id</code> для месячной части — по <code>users_prices.team_id</code> (см. <a href="/docs/documentation/reports-admin#debts">reports-admin §3</a>).</li>
+    <li><b>Отчёт «Задолженности»</b>: месячные долги — одна строка на каждую запись <code>users_prices</code>
+      с <code>effective_is_paid=0</code> (ручной override <code>is_manual_paid</code> важнее авто <code>is_paid</code>);
+      фильтр <code>filter_team_id</code> для месячной части — по <code>users_prices.team_id</code>
+      (см. <a href="/docs/documentation/reports-admin#debts">reports-admin §3</a>).</li>
   </ul>
 
   <h3 id="payments-team-snapshot">2.2) Снимок группы в журнале <code>payments</code> (<code>team_id</code> / <code>team_title</code>)</h3>

@@ -279,13 +279,21 @@
     <code>/schedule</code> сохраняет и удаляет занятие через AJAX <b>без</b> <code>location.reload</code>.
     <br><br>
     <b>Сохранение статуса</b> — <code>POST /schedule/update</code>:
-    ответ <code>{ success, message, result: { utss_id, occurrence_date, comment, created, trainer_name, package_hover?, status } }</code>;
-    при «Посетил» <code>trainer_name</code> = ФИО (или <code>null</code>, если тренер не выбран);
-    иначе <code>null</code>. UI закрывает модалку и точечно обновляет ячейку
+    ответ <code>{ success, message, result: { utss_id, occurrence_date, comment, created, trainer_name, trainer_profile_ids, package_hover?, status } }</code>;
+    при «Посетил» <code>trainer_name</code> = ФИО через запятую (или <code>null</code>, если тренеры не выбраны);
+    <code>trainer_profile_ids</code> — массив id; иначе пустой массив / <code>null</code> для имени.
+    UI закрывает модалку и точечно обновляет ячейку
     (<code>renderScheduleCellAfterStatusSave</code> / <code>renderScheduleCellFromResult</code> /
     <code>applyTrainerHoverToCellText</code> в
     <code>schedule.js</code>). <code>created: true</code> при новой отметке постоплаты
     (<code>create_postpay</code>. Non-AJAX → 302 + flash (не пустой 200).
+    <br><br>
+    <b>Мультитренеры (2026‑08)</b> — в <code>#cellEditModal</code> / <code>#flexiblePlaceModal</code>
+    мультиселект <code>trainer_profile_ids[]</code>; pivot
+    <code>user_lesson_occurrence_status_event_trainers</code> → нагрузка/ЗП (каждому зачёт);
+    empty-cell — одиночный BC. Подробно:
+    <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>;
+    тесты <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>.
     <br><br>
     <b>Удаление (аннуляция)</b> — кнопка «Удалить» (только при существующем <code>utss_id</code>) →
     confirm <code>#cellDeleteConfirmModal</code> (ФИО, дата, статус/контекст без времени) →
@@ -311,9 +319,38 @@
     Тесты: <code>ScheduleJournalOccurrenceAnnulmentFeatureTest</code>,
     <code>ScheduleJournalMutationContractsFeatureTest</code>,
     <code>ScheduleJournalHoverAndUiContractsFeatureTest</code>,
+    <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>,
     <code>PostpayJournalMutationContractsFeatureTest</code>,
     <code>ScheduleJournalWorkflowFeatureTest</code> (P2),
     <code>BladeInlineJsSyntaxTest</code> (<code>schedule.js</code>).
+  </div>
+
+  <h2>Журнал: мультитренеры при «Посетил» (2026‑08)</h2>
+  <div class="note">
+    1) UI — <code>#cellEditModal</code> и <code>#flexiblePlaceModal</code>:
+    <code>trainer_profile_ids[]</code> + <code>KidsCrmGenericMultiselectSelect2</code>;
+    пустой выбор = «Без тренера»; список = все активные тренеры партнёра.
+    <br>
+    2) БД — pivot <code>user_lesson_occurrence_status_event_trainers</code>;
+    <code>events.trainer_profile_id</code> = первый (legacy).
+    Миграция бэкофилла из старой колонки.
+    <br>
+    3) Нагрузка / ЗП считают по pivot: одному визиту с N тренерами — N зачётов.
+    Запись только с заполненной legacy-колонкой и пустым pivot <b>не</b> учитывается.
+    <br>
+    4) Ховер ячейки: <code>Тренер: ФИО[, ФИО…]</code>.
+    Повторное открытие сохранённого «Без тренера» не подставляет дефолт группы
+    (<code>trainerIdsForVisited</code> + <code>current_status_id = attended</code>).
+    <br>
+    5) Empty-cell — одиночный <code>trainer_profile_id</code> (BC → pivot).
+    <br>
+    Документы:
+    <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>,
+    <a href="/docs/documentation/schedule-trainer-workload">workload</a>,
+    <a href="/docs/documentation/schedule-trainer-salary">salary</a>,
+    <a href="/docs/documentation/admin-trainers#schedule-journal-trainer">admin-trainers §7</a>.
+    Тесты: <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>,
+    <code>ScheduleCellTrainerFeatureTest</code>, <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
   <h2>Журнал: пробное и разовое на пустой ячейке (2026‑08)</h2>
@@ -392,7 +429,7 @@
     (assignments, teams, trainers, <code>scheduled_status_id</code> / <code>visited_status_id</code>);
     <code>POST …/place-flexible-abonement</code>
     (<code>user_lesson_package_id</code>, <code>team_id</code>, <code>occurrence_date</code>,
-    <code>lesson_occurrence_status_id</code>, опц. <code>trainer_profile_id</code>, <code>comment</code>).
+    <code>lesson_occurrence_status_id</code>, опц. <code>trainer_profile_ids[]</code> (BC: <code>trainer_profile_id</code>), <code>comment</code>).
     AJAX → JSON 200
     <code>result: { utss_id, slots_remaining, lessons_total, status: { id, title, icon, color }, … }</code>
     / 422 с <code>errors</code>; non-AJAX → 302, не пустой 200.
@@ -506,7 +543,8 @@
     AJAX-мутации → JSON 200/422; non-AJAX → 302 на <code>/schedule</code> (не пустой 200).
     Подробно — <a href="/docs/documentation/schedule-journal">schedule-journal</a>
     (§7 place-fixed / place-flexible, §6 статусы/удаление, §11 тесты).
-    Нагрузка тренеров считает «Посетил» с <code>trainer_profile_id</code> на событии статуса.
+    Нагрузка тренеров считает «Посетил» по pivot <code>user_lesson_occurrence_status_event_trainers</code>
+    (каждому выбранному тренеру отдельный зачёт; см. мультиселект в журнале).
   </div>
 
   <h2>Ручная смена даты окончания абонемента (2026‑07)</h2>
@@ -929,9 +967,9 @@
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <code>trainer_name</code> в result) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
-    <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, быстрый выбор месяца (3 ссылки), AJAX <code>schedule.trainer-workload.data</code></a></li>
-    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого, autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
+    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого (кол-во из нагрузки / pivot), autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
     <li><a href="/docs/documentation/location-team-bindings"><strong>Объекты ↔ группы</strong> (<code>teams.location_id</code>): одна группа — один объект, sync с <code>/admin/locations</code>, лендинг, слоты, отчёты; удалены pivot <code>location_team</code>, <code>teams.address</code>, <code>teams.training_base</code></a></li>
     <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки (в т.ч. <b>«Абонементы»</b> → <code>/admin/directories/lesson-packages</code>), <code>DirectoriesMenu</code> (подпись сайдбара; абонементы в меню <b>не</b> входят), права, БД, M2M <code>location_admin_user</code> (до 5 админов на объект), лендинг, CRM заявки, автотесты</a></li>
@@ -941,7 +979,7 @@
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>legal_entities.manage</code> / <code>legal_entities.sm_register</code>, модалки CRUD, карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
-    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО/паспорт/адрес/контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.packageAssignments.view</code>, оба не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах, семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
@@ -958,7 +996,7 @@
 
   <h2>Переиспользование UI</h2>
   <ul>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2) и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
   </ul>
 </div>
 </body>

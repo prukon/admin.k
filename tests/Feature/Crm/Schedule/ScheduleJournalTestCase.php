@@ -170,26 +170,42 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
     /**
      * Произвольное событие статуса занятия (без создания UTSS) — для сценариев,
      * где нужен просто факт "было такое событие в этот день" (нагрузка, история статусов).
+     *
+     * При «Посетил» + trainer_profile_id синхронизирует pivot
+     * user_lesson_occurrence_status_event_trainers (источник истины для ЗП/нагрузки).
+     *
+     * @param  list<int>|null  $trainerProfileIds
      */
     protected function createScheduleStatusEntry(
         int $userId,
         int $statusId,
         string $date,
         ?int $trainerProfileId = null,
+        ?array $trainerProfileIds = null,
     ): UserLessonOccurrenceStatusEvent {
         $user = User::query()->findOrFail($userId);
         $slot = $this->teamScheduleSlotForUser($user, $date);
 
-        return UserLessonOccurrenceStatusEvent::query()->create([
+        $ids = $trainerProfileIds;
+        if ($ids === null && $trainerProfileId !== null && $trainerProfileId > 0) {
+            $ids = [$trainerProfileId];
+        }
+        $ids = array_values(array_unique(array_map('intval', array_filter($ids ?? [], static fn ($id) => (int) $id > 0))));
+
+        $event = UserLessonOccurrenceStatusEvent::query()->create([
             'partner_id' => $user->partner_id,
             'user_id' => $userId,
             'team_schedule_slot_id' => $slot->id,
             'occurrence_date' => $date,
             'user_lesson_package_id' => null,
             'lesson_occurrence_status_id' => $statusId,
-            'trainer_profile_id' => $trainerProfileId,
+            'trainer_profile_id' => $ids[0] ?? null,
             'created_by' => $this->user->id,
         ]);
+
+        $event->trainerProfiles()->sync($ids);
+
+        return $event;
     }
 
     /**

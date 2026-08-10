@@ -117,7 +117,7 @@ final class ScheduleJournalFlexiblePlacementFeatureTest extends ScheduleJournalT
             ->assertSee('name="flexible_lesson_occurrence_status_id"', false)
             ->assertSee('id="flexible-status-'.$scheduledId.'"', false)
             ->assertSee('id="flexible-trainer-wrap"', false)
-            ->assertSee('id="flexible-trainer-profile-id"', false)
+            ->assertSee('id="flexible-trainer-profile-ids"', false)
             ->assertSee('id="flexible-comment"', false)
             ->assertSee('id="flexible-status-error"', false)
             ->assertSee('data-flexible-ulp-id="'.$ulp->id.'"', false)

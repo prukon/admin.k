@@ -34,10 +34,12 @@
 
   <div class="warn">
     <strong>Не путать</strong> с <a href="/docs/documentation/school-schedule-calendar">«Расписание школы»</a> (слоты абонементов).<br>
-    Расчёт строится из актуальных событий статуса «Посетил» с <code>trainer_profile_id</code>
-    (<code>user_lesson_occurrence_status_events</code>, единый контур журнала / календаря) — так же, как
+    Расчёт строится из актуальных событий статуса «Посетил» с тренерами в pivot
+    <code>user_lesson_occurrence_status_event_trainers</code>
+    (контур <code>user_lesson_occurrence_status_events</code> журнала / календаря) — так же, как
     <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>.
-    См. <a href="/docs/documentation/schedule-journal">журнал расписания</a>.
+    Каждому выбранному тренеру идёт отдельный зачёт тренировки.
+    См. <a href="/docs/documentation/schedule-journal#visited-trainer">журнал §6</a>.
   </div>
 
   <div class="note">

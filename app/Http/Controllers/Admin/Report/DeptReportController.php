@@ -41,7 +41,7 @@ class DeptReportController extends AdminBaseController
 
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
-            ->where('users_prices.is_paid', 0)
+            ->whereRaw(self::effectiveUnpaidSql('users_prices'))
             ->where('users_prices.price_cents', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
@@ -53,7 +53,7 @@ class DeptReportController extends AdminBaseController
         $totalPeriods = DB::table('user_custom_payment')
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
-            ->where('user_custom_payment.is_paid', 0)
+            ->whereRaw(self::effectiveUnpaidSql('user_custom_payment'))
             ->where('user_custom_payment.amount_cents', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
@@ -105,7 +105,7 @@ class DeptReportController extends AdminBaseController
 
         $totalMonthly = DB::table('users_prices')
             ->join('users', 'users.id', '=', 'users_prices.user_id')
-            ->where('users_prices.is_paid', 0)
+            ->whereRaw(self::effectiveUnpaidSql('users_prices'))
             ->where('users_prices.price_cents', '>', 0)
             ->where('users_prices.new_month', '<', $currentMonth)
             ->where('users.partner_id', $partnerId);
@@ -116,7 +116,7 @@ class DeptReportController extends AdminBaseController
         $totalPeriods = DB::table('user_custom_payment')
             ->join('users', 'users.id', '=', 'user_custom_payment.user_id')
             ->where('user_custom_payment.partner_id', $partnerId)
-            ->where('user_custom_payment.is_paid', 0)
+            ->whereRaw(self::effectiveUnpaidSql('user_custom_payment'))
             ->where('user_custom_payment.amount_cents', '>', 0)
             ->where('user_custom_payment.date_end', '<', $today);
 
@@ -151,7 +151,7 @@ class DeptReportController extends AdminBaseController
                     DB::raw('users_prices.price_cents as price'),
                     DB::raw('0 as is_period')
                 )
-                ->where('users_prices.is_paid', 0)
+                ->whereRaw(self::effectiveUnpaidSql('users_prices'))
                 ->where('users_prices.price_cents', '>', 0)
                 ->where('users_prices.new_month', '<', $currentMonth)
                 ->where('users.partner_id', $partnerId);
@@ -169,7 +169,7 @@ class DeptReportController extends AdminBaseController
                     DB::raw('1 as is_period')
                 )
                 ->where('user_custom_payment.partner_id', $partnerId)
-                ->where('user_custom_payment.is_paid', 0)
+                ->whereRaw(self::effectiveUnpaidSql('user_custom_payment'))
                 ->where('user_custom_payment.amount_cents', '>', 0)
                 ->where('user_custom_payment.date_end', '<', $today);
 
@@ -255,6 +255,20 @@ class DeptReportController extends AdminBaseController
         );
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Неоплачено по effective_is_paid: is_manual_paid, если не NULL, иначе is_paid.
+     * Таблица только из белого списка (users_prices / user_custom_payment).
+     */
+    private static function effectiveUnpaidSql(string $table): string
+    {
+        $allowed = ['users_prices', 'user_custom_payment'];
+        if (! in_array($table, $allowed, true)) {
+            throw new \InvalidArgumentException('Unsupported table for effective unpaid filter: '.$table);
+        }
+
+        return "(CASE WHEN {$table}.is_manual_paid IS NOT NULL THEN {$table}.is_manual_paid ELSE {$table}.is_paid END) = 0";
     }
 
     /**

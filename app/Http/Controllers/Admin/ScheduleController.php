@@ -41,6 +41,7 @@ use App\Services\Postpay\PostpayJournalService;
 use App\Services\Postpay\PostpayUsersPriceSync;
 use App\Support\BuildsLogTable;
 use App\Support\Money;
+use App\Support\ScheduleOccurrenceTrainerIds;
 use Carbon\Carbon;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use DomainException;
@@ -241,9 +242,16 @@ class ScheduleController extends AdminBaseController
             && $currentStatusId !== null
             && (int) $currentStatusId === (int) $visitedStatusId;
 
-        $trainerForSelect = '';
-        if ($isVisitedEntry && ! empty($selected['trainer_profile_id'])) {
-            $trainerForSelect = (string) $selected['trainer_profile_id'];
+        $trainerIdsForSelect = [];
+        if ($isVisitedEntry) {
+            $trainerIdsForSelect = array_values(array_map(
+                'intval',
+                $selected['trainer_profile_ids'] ?? (
+                    ! empty($selected['trainer_profile_id'])
+                        ? [(int) $selected['trainer_profile_id']]
+                        : []
+                )
+            ));
         }
 
         $preferredTeamId = isset($data['context_team_id']) ? (int) $data['context_team_id'] : null;
@@ -266,7 +274,11 @@ class ScheduleController extends AdminBaseController
             'postpay_teams' => $postpayTeams,
             'postpay_team_id' => $resolvedPostpayTeamId,
             'team_default_trainer_profile_id' => $teamDefault?->id,
-            'trainer_profile_id_for_select' => $isVisitedEntry ? $trainerForSelect : null,
+            'trainer_profile_ids_for_select' => $isVisitedEntry ? $trainerIdsForSelect : [],
+            // BC: первый id строкой (старые клиенты / тесты).
+            'trainer_profile_id_for_select' => $isVisitedEntry && $trainerIdsForSelect !== []
+                ? (string) $trainerIdsForSelect[0]
+                : ($isVisitedEntry ? '' : null),
             'trainers' => $trainers->map(fn (TrainerProfile $profile) => [
                 'id' => $profile->id,
                 'name' => $this->trainerDisplayName($profile),
@@ -346,24 +358,26 @@ class ScheduleController extends AdminBaseController
                 );
 
                 $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-                $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
-                    ? ($data['trainer_profile_id'] ?? null)
-                    : null;
+                $trainerProfileIds = ($visitedStatusId !== null && (int) $status->id === $visitedStatusId)
+                    ? ScheduleOccurrenceTrainerIds::normalize(
+                        $data['trainer_profile_ids'] ?? null,
+                        $data['trainer_profile_id'] ?? null
+                    )
+                    : [];
 
-                if ($trainerProfileId !== null) {
-                    $validTrainer = TrainerProfile::query()
-                        ->where('partner_id', $partnerId)
-                        ->whereKey($trainerProfileId)
-                        ->exists();
-
-                    if (! $validTrainer) {
+                if ($trainerProfileIds !== []) {
+                    $validIds = ScheduleOccurrenceTrainerIds::existingForPartner($partnerId, $trainerProfileIds);
+                    if (count($validIds) !== count($trainerProfileIds)) {
                         throw new InvalidArgumentException('Тренер не найден.');
                     }
+                    $trainerProfileIds = $validIds;
                 }
+
+                $trainerProfileId = $trainerProfileIds[0] ?? null;
 
                 $ulpId = $utss->user_lesson_package_id !== null ? (int) $utss->user_lesson_package_id : null;
                 $prevEvent = UserLessonOccurrenceStatusEvent::query()
-                    ->with(['lessonOccurrenceStatus', 'trainerProfile.user'])
+                    ->with(['lessonOccurrenceStatus', 'trainerProfile.user', 'trainerProfiles.user'])
                     ->where('partner_id', $partnerId)
                     ->where('user_id', (int) $user->id)
                     ->where('team_schedule_slot_id', (int) $utss->team_schedule_slot_id)
@@ -377,7 +391,8 @@ class ScheduleController extends AdminBaseController
                     ->first();
 
                 $oldStatusName = $prevEvent?->lessonOccurrenceStatus?->title ?? 'не было';
-                $oldTrainerName = $this->trainerDisplayName($prevEvent?->trainerProfile);
+                $oldTrainerName = ScheduleOccurrenceTrainerIds::formatNames($prevEvent?->trainerProfiles ?? collect())
+                    ?? $this->trainerDisplayName($prevEvent?->trainerProfile);
                 $comment = isset($data['comment']) ? (string) $data['comment'] : null;
 
                 $this->occurrenceStatusService->apply(
@@ -388,8 +403,9 @@ class ScheduleController extends AdminBaseController
                     $ulpId,
                     $status,
                     $authorId !== null ? (int) $authorId : null,
-                    $trainerProfileId !== null ? (int) $trainerProfileId : null,
+                    $trainerProfileId,
                     $comment,
+                    $trainerProfileIds,
                 );
 
                 if ($teamIdForLock > 0) {
@@ -399,6 +415,16 @@ class ScheduleController extends AdminBaseController
                         $occurrenceDate,
                         $teamIdForLock
                     );
+                }
+
+                $newTrainerName = 'Без тренера';
+                if ($trainerProfileIds !== []) {
+                    $profilesForAudit = TrainerProfile::query()
+                        ->with('user')
+                        ->whereIn('id', $trainerProfileIds)
+                        ->get()
+                        ->sortBy(fn (TrainerProfile $p) => array_search((int) $p->id, $trainerProfileIds, true));
+                    $newTrainerName = ScheduleOccurrenceTrainerIds::formatNames($profilesForAudit) ?? 'Без тренера';
                 }
 
                 $formattedDate = Carbon::parse($occurrenceDate)->format('d.m.Y');
@@ -412,12 +438,8 @@ class ScheduleController extends AdminBaseController
                         $oldStatusName,
                         $status->title,
                         "\n",
-                        $oldTrainerName,
-                        $trainerProfileId
-                            ? $this->trainerDisplayName(
-                                TrainerProfile::query()->with('user')->find($trainerProfileId)
-                            )
-                            : 'Без тренера',
+                        $oldTrainerName ?: 'Без тренера',
+                        $newTrainerName,
                         "\n",
                         (string) ($comment ?? '')
                     ))
@@ -429,13 +451,13 @@ class ScheduleController extends AdminBaseController
 
                 $trainerNameForHover = null;
                 $isAttendedStatus = $visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId;
-                if ($isAttendedStatus && $trainerProfileId !== null) {
-                    $trainerNameForHover = trim($this->trainerDisplayName(
-                        TrainerProfile::query()->with('user')->find($trainerProfileId)
-                    ));
-                    if ($trainerNameForHover === '' || $trainerNameForHover === 'Без тренера') {
-                        $trainerNameForHover = null;
-                    }
+                if ($isAttendedStatus && $trainerProfileIds !== []) {
+                    $profilesForHover = TrainerProfile::query()
+                        ->with('user')
+                        ->whereIn('id', $trainerProfileIds)
+                        ->get()
+                        ->sortBy(fn (TrainerProfile $p) => array_search((int) $p->id, $trainerProfileIds, true));
+                    $trainerNameForHover = ScheduleOccurrenceTrainerIds::formatNames($profilesForHover);
                 }
 
                 $flexiblePayload = [];
@@ -471,6 +493,7 @@ class ScheduleController extends AdminBaseController
                         )
                         : null,
                     'trainer_name' => $isAttendedStatus ? $trainerNameForHover : null,
+                    'trainer_profile_ids' => $isAttendedStatus ? $trainerProfileIds : [],
                     'status' => [
                         'id' => (int) $status->id,
                         'title' => (string) $status->title,
@@ -877,23 +900,23 @@ class ScheduleController extends AdminBaseController
         }
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-        $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId)
-            ? ($data['trainer_profile_id'] ?? null)
-            : null;
+        $trainerProfileIds = ($visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId)
+            ? ScheduleOccurrenceTrainerIds::normalize(
+                $data['trainer_profile_ids'] ?? null,
+                $data['trainer_profile_id'] ?? null
+            )
+            : [];
 
-        if ($trainerProfileId !== null) {
-            $validTrainer = TrainerProfile::query()
-                ->where('partner_id', $partnerId)
-                ->whereKey($trainerProfileId)
-                ->exists();
-            if (! $validTrainer) {
+        if ($trainerProfileIds !== []) {
+            $validIds = ScheduleOccurrenceTrainerIds::existingForPartner($partnerId, $trainerProfileIds);
+            if (count($validIds) !== count($trainerProfileIds)) {
                 return $this->journalMutationResponse(
                     $request,
                     'Тренер не найден.',
-                    ['trainer_profile_id' => ['Тренер не найден.']],
+                    ['trainer_profile_ids' => ['Тренер не найден.']],
                 );
             }
-            $trainerProfileId = (int) $trainerProfileId;
+            $trainerProfileIds = $validIds;
         }
 
         $comment = isset($data['comment']) ? (string) $data['comment'] : null;
@@ -907,8 +930,9 @@ class ScheduleController extends AdminBaseController
                 $occurrenceDate,
                 $status,
                 auth()->id() !== null ? (int) auth()->id() : null,
-                $trainerProfileId,
+                $trainerProfileIds[0] ?? null,
                 $comment,
+                $trainerProfileIds,
             );
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
@@ -1044,14 +1068,15 @@ class ScheduleController extends AdminBaseController
             );
         }
 
-        $trainerProfileId = $this->resolveVisitedTrainerProfileId(
+        $trainerProfileIds = $this->resolveVisitedTrainerProfileIds(
             $partnerId,
             $status,
+            $data['trainer_profile_ids'] ?? null,
             $data['trainer_profile_id'] ?? null,
             $request,
         );
-        if ($trainerProfileId instanceof JsonResponse || $trainerProfileId instanceof RedirectResponse) {
-            return $trainerProfileId;
+        if ($trainerProfileIds instanceof JsonResponse || $trainerProfileIds instanceof RedirectResponse) {
+            return $trainerProfileIds;
         }
 
         $comment = isset($data['comment']) ? (string) $data['comment'] : null;
@@ -1064,8 +1089,9 @@ class ScheduleController extends AdminBaseController
                 $occurrenceDate,
                 $status,
                 auth()->id() !== null ? (int) auth()->id() : null,
-                $trainerProfileId,
+                $trainerProfileIds[0] ?? null,
                 $comment,
+                $trainerProfileIds,
             );
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
@@ -1172,14 +1198,15 @@ class ScheduleController extends AdminBaseController
             );
         }
 
-        $trainerProfileId = $this->resolveVisitedTrainerProfileId(
+        $trainerProfileIds = $this->resolveVisitedTrainerProfileIds(
             $partnerId,
             $status,
+            $data['trainer_profile_ids'] ?? null,
             $data['trainer_profile_id'] ?? null,
             $request,
         );
-        if ($trainerProfileId instanceof JsonResponse || $trainerProfileId instanceof RedirectResponse) {
-            return $trainerProfileId;
+        if ($trainerProfileIds instanceof JsonResponse || $trainerProfileIds instanceof RedirectResponse) {
+            return $trainerProfileIds;
         }
 
         $comment = isset($data['comment']) ? (string) $data['comment'] : null;
@@ -1197,8 +1224,9 @@ class ScheduleController extends AdminBaseController
                     'fee_amount' => $data['fee_amount'] ?? null,
                 ],
                 auth()->id() !== null ? (int) auth()->id() : null,
-                $trainerProfileId,
+                $trainerProfileIds[0] ?? null,
                 $comment,
+                $trainerProfileIds,
             );
         } catch (InvalidArgumentException $e) {
             $msg = $e->getMessage();
@@ -1326,37 +1354,38 @@ class ScheduleController extends AdminBaseController
     }
 
     /**
-     * Тренер учитывается только для статуса «Посетил»; иначе null.
+     * Тренеры учитываются только для статуса «Посетил»; иначе [].
      * При невалидном тренере возвращает journalMutationResponse.
      *
-     * @return int|null|JsonResponse|RedirectResponse
+     * @return list<int>|JsonResponse|RedirectResponse
      */
-    private function resolveVisitedTrainerProfileId(
+    private function resolveVisitedTrainerProfileIds(
         int $partnerId,
         LessonOccurrenceStatus $status,
-        mixed $rawTrainerId,
+        mixed $rawTrainerIds,
+        mixed $rawLegacySingle,
         Request $request,
-    ): int|null|JsonResponse|RedirectResponse {
+    ): array|JsonResponse|RedirectResponse {
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
-        $trainerProfileId = ($visitedStatusId !== null && (int) $status->id === (int) $visitedStatusId)
-            ? ($rawTrainerId !== null && $rawTrainerId !== '' ? (int) $rawTrainerId : null)
-            : null;
-
-        if ($trainerProfileId !== null) {
-            $validTrainer = TrainerProfile::query()
-                ->where('partner_id', $partnerId)
-                ->whereKey($trainerProfileId)
-                ->exists();
-            if (! $validTrainer) {
-                return $this->journalMutationResponse(
-                    $request,
-                    'Тренер не найден.',
-                    ['trainer_profile_id' => ['Тренер не найден.']],
-                );
-            }
+        if ($visitedStatusId === null || (int) $status->id !== (int) $visitedStatusId) {
+            return [];
         }
 
-        return $trainerProfileId;
+        $trainerProfileIds = ScheduleOccurrenceTrainerIds::normalize($rawTrainerIds, $rawLegacySingle);
+        if ($trainerProfileIds === []) {
+            return [];
+        }
+
+        $validIds = ScheduleOccurrenceTrainerIds::existingForPartner($partnerId, $trainerProfileIds);
+        if (count($validIds) !== count($trainerProfileIds)) {
+            return $this->journalMutationResponse(
+                $request,
+                'Тренер не найден.',
+                ['trainer_profile_ids' => ['Тренер не найден.']],
+            );
+        }
+
+        return $validIds;
     }
 
     private function findScheduleStudentForPartner(int $partnerId, int $userId): User

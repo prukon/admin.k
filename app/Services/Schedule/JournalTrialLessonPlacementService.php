@@ -47,6 +47,7 @@ final class JournalTrialLessonPlacementService
         ?int $createdByUserId,
         ?int $trainerProfileId = null,
         ?string $comment = null,
+        ?array $trainerProfileIds = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
 
@@ -62,6 +63,9 @@ final class JournalTrialLessonPlacementService
         $occurrenceYmd = $occurrenceDate->toDateString();
         $commentValue = $comment !== null && trim($comment) !== '' ? trim($comment) : null;
         $utssId = 0;
+        $resolvedTrainerIds = $trainerProfileIds ?? (
+            $trainerProfileId !== null && $trainerProfileId > 0 ? [$trainerProfileId] : []
+        );
 
         try {
             DB::transaction(function () use (
@@ -72,7 +76,7 @@ final class JournalTrialLessonPlacementService
                 $occurrenceYmd,
                 $createdByUserId,
                 $status,
-                $trainerProfileId,
+                $resolvedTrainerIds,
                 $commentValue,
                 &$utssId,
             ): void {
@@ -128,8 +132,9 @@ final class JournalTrialLessonPlacementService
                     null,
                     $status,
                     $createdByUserId,
-                    $trainerProfileId,
+                    $resolvedTrainerIds[0] ?? null,
                     $commentValue,
+                    $resolvedTrainerIds,
                 );
 
                 $utssId = (int) $utss->id;

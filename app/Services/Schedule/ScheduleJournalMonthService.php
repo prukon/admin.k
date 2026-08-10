@@ -12,6 +12,7 @@ use App\Models\LessonOccurrenceStatus;
 use App\Models\LessonPackage;
 use App\Services\Postpay\PostpayMonth;
 use App\Support\Money;
+use App\Support\ScheduleOccurrenceTrainerIds;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -112,12 +113,21 @@ final class ScheduleJournalMonthService
             }
 
             $isAttended = (string) ($status?->code ?? '') === LessonOccurrenceStatus::CODE_ATTENDED;
+            $trainerIds = [];
             $trainerName = null;
-            if ($isAttended && $statusEvent?->trainer_profile_id !== null) {
-                $trainerName = trim((string) ($statusEvent->trainerProfile?->user?->full_name ?? ''));
-                if ($trainerName === '') {
-                    $trainerName = null;
+            if ($isAttended && $statusEvent !== null) {
+                $profiles = $statusEvent->relationLoaded('trainerProfiles')
+                    ? $statusEvent->trainerProfiles
+                    : collect();
+                if ($profiles->isEmpty() && $statusEvent->trainer_profile_id !== null) {
+                    $profiles = collect([$statusEvent->trainerProfile])->filter();
                 }
+                $trainerIds = $profiles
+                    ->map(fn ($p) => (int) $p->id)
+                    ->filter(fn (int $id) => $id > 0)
+                    ->values()
+                    ->all();
+                $trainerName = ScheduleOccurrenceTrainerIds::formatNames($profiles);
             }
             $packageHover = self::appendTrainerToHover($packageHover, $isAttended, $trainerName);
 
@@ -142,9 +152,8 @@ final class ScheduleJournalMonthService
                 'status_icon' => $status?->icon,
                 'status_color' => $status?->color,
                 'status_code' => $status?->code,
-                'trainer_profile_id' => $statusEvent?->trainer_profile_id !== null
-                    ? (int) $statusEvent->trainer_profile_id
-                    : null,
+                'trainer_profile_id' => $trainerIds[0] ?? null,
+                'trainer_profile_ids' => $trainerIds,
                 'trainer_name' => $trainerName,
                 'comment' => $statusEvent?->comment,
             ];
@@ -329,6 +338,7 @@ final class ScheduleJournalMonthService
             ->with([
                 'lessonOccurrenceStatus',
                 'trainerProfile.user',
+                'trainerProfiles.user',
             ])
             ->where('partner_id', $partnerId)
             ->whereIn('user_id', $userIds)

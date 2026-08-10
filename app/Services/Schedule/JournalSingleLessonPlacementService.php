@@ -61,6 +61,7 @@ final class JournalSingleLessonPlacementService
         ?int $createdByUserId,
         ?int $trainerProfileId = null,
         ?string $comment = null,
+        ?array $trainerProfileIds = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
         try {
@@ -87,6 +88,9 @@ final class JournalSingleLessonPlacementService
         $commentValue = $comment !== null && trim($comment) !== '' ? trim($comment) : null;
         $utssId = 0;
         $createdOrBoundUlpId = 0;
+        $resolvedTrainerIds = $trainerProfileIds ?? (
+            $trainerProfileId !== null && $trainerProfileId > 0 ? [$trainerProfileId] : []
+        );
 
         DB::transaction(function () use (
             $partnerId,
@@ -99,7 +103,7 @@ final class JournalSingleLessonPlacementService
             $payload,
             $createdByUserId,
             $status,
-            $trainerProfileId,
+            $resolvedTrainerIds,
             $commentValue,
             &$utssId,
             &$createdOrBoundUlpId,
@@ -181,8 +185,9 @@ final class JournalSingleLessonPlacementService
                 (int) $ulp->id,
                 $status,
                 $createdByUserId,
-                $trainerProfileId,
+                $resolvedTrainerIds[0] ?? null,
                 $commentValue,
+                $resolvedTrainerIds,
             );
 
             $utssId = (int) $utss->id;

@@ -363,9 +363,10 @@ final class TrainerWorkloadReportService
             ->joinSub($latestEventIds, 'latest', function ($join): void {
                 $join->on('latest.id', '=', 'e.id');
             })
+            ->join('user_lesson_occurrence_status_event_trainers as et', 'et.user_lesson_occurrence_status_event_id', '=', 'e.id')
             ->join('users as u', 'u.id', '=', 'e.user_id')
             ->join('trainer_profiles as tp', function ($join) use ($partnerId): void {
-                $join->on('tp.id', '=', 'e.trainer_profile_id')
+                $join->on('tp.id', '=', 'et.trainer_profile_id')
                     ->where('tp.partner_id', '=', $partnerId);
             })
             ->join('team_schedule_slots as tss', 'tss.id', '=', 'e.team_schedule_slot_id')
@@ -373,17 +374,16 @@ final class TrainerWorkloadReportService
             ->where('u.partner_id', $partnerId)
             ->where('u.is_enabled', 1)
             ->where('e.lesson_occurrence_status_id', $visitedStatusId)
-            ->whereNotNull('e.trainer_profile_id')
             ->whereBetween('e.occurrence_date', [$dateFrom, $dateTo])
             ->selectRaw(
-                'e.trainer_profile_id as trainer_profile_id,
+                'et.trainer_profile_id as trainer_profile_id,
                 (WEEKDAY(e.occurrence_date) + 1) as iso_weekday,
                 tss.team_id as team_id,
                 COALESCE(MAX(t.title), ?) as team_title,
                 COUNT(DISTINCT DATE(e.occurrence_date)) as dates_count',
                 [$withoutGroup],
             )
-            ->groupByRaw('e.trainer_profile_id, (WEEKDAY(e.occurrence_date) + 1), tss.team_id')
+            ->groupByRaw('et.trainer_profile_id, (WEEKDAY(e.occurrence_date) + 1), tss.team_id')
             ->orderBy('team_title')
             ->get();
     }

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class UserLessonOccurrenceStatusEvent extends Model
 {
@@ -49,9 +50,25 @@ class UserLessonOccurrenceStatusEvent extends Model
         return $this->belongsTo(LessonOccurrenceStatus::class, 'lesson_occurrence_status_id');
     }
 
+    /**
+     * Legacy/primary: первый тренер из списка (для обратной совместимости).
+     */
     public function trainerProfile(): BelongsTo
     {
         return $this->belongsTo(TrainerProfile::class, 'trainer_profile_id');
+    }
+
+    /**
+     * Все тренеры, которым идёт зачёт тренировки (ЗП / нагрузка).
+     */
+    public function trainerProfiles(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            TrainerProfile::class,
+            'user_lesson_occurrence_status_event_trainers',
+            'user_lesson_occurrence_status_event_id',
+            'trainer_profile_id'
+        )->orderBy('user_lesson_occurrence_status_event_trainers.id');
     }
 
     public function createdBy(): BelongsTo

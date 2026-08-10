@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserLessonOccurrenceStatusEvent;
 
 final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
 {
@@ -104,6 +105,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         ]))
             ->assertOk()
             ->assertJsonPath('trainer_profile_id_for_select', (string) $trainer->id)
+            ->assertJsonPath('trainer_profile_ids_for_select', [(int) $trainer->id])
             ->assertJsonPath('current_status_id', $this->visitedStatusId);
 
         $this->postJson(route('schedule.update'), [
@@ -271,5 +273,53 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         ]))
             ->assertOk()
             ->assertJsonPath('team_default_trainer_profile_id', $first->id);
+    }
+
+    public function test_update_visited_saves_multiple_trainers_for_salary_credit(): void
+    {
+        [$student, $team, $trainerA] = $this->makeStudentTeamAndTrainer('Тренер А');
+        $trainerB = $this->makeTrainerProfile('Тренер Б');
+        $date = '2026-05-18';
+        $utss = $this->createTrialUtss($student, $team, $date);
+
+        $response = $this->postJson(route('schedule.update'), [
+            'user_id' => $student->id,
+            'utss_id' => $utss->id,
+            'occurrence_date' => $date,
+            'lesson_occurrence_status_id' => $this->visitedStatusId,
+            'trainer_profile_ids' => [$trainerA->id, $trainerB->id],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.trainer_profile_ids', [(int) $trainerA->id, (int) $trainerB->id]);
+
+        $trainerName = (string) $response->json('result.trainer_name');
+        $this->assertStringContainsString('Тренер А', $trainerName);
+        $this->assertStringContainsString('Тренер Б', $trainerName);
+        $this->assertStringContainsString(', ', $trainerName);
+
+        $event = UserLessonOccurrenceStatusEvent::query()
+            ->where('user_id', $student->id)
+            ->where('team_schedule_slot_id', $utss->team_schedule_slot_id)
+            ->whereDate('occurrence_date', $date)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame((int) $trainerA->id, (int) $event->trainer_profile_id);
+        $this->assertEqualsCanonicalizing(
+            [(int) $trainerA->id, (int) $trainerB->id],
+            $event->trainerProfiles()->pluck('trainer_profiles.id')->map(fn ($id) => (int) $id)->all()
+        );
+
+        $this->getJson(route('schedule.cell-context', [
+            'user_id' => $student->id,
+            'date' => $date,
+            'utss_id' => $utss->id,
+        ]))
+            ->assertOk()
+            ->assertJsonPath('trainer_profile_ids_for_select', [(int) $trainerA->id, (int) $trainerB->id])
+            ->assertJsonPath('selected.trainer_name', $trainerName);
     }
 }

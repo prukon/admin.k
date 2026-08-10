@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\NormalizesTrainerProfileIds;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class PlaceScheduleJournalSingleLessonRequest extends FormRequest
 {
+    use NormalizesTrainerProfileIds;
+
     public function authorize(): bool
     {
         return true;
@@ -19,7 +22,7 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
     {
         $partnerId = (int) app(PartnerContext::class)->partnerId();
 
-        return [
+        return array_merge([
             'team_id' => [
                 'required',
                 'integer',
@@ -59,23 +62,12 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
                 ),
             ],
             'comment' => ['nullable', 'string', 'max:2000'],
-            'trainer_profile_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('trainer_profiles', 'id')->where(
-                    fn ($query) => $query->where('partner_id', $partnerId)
-                ),
-            ],
-        ];
+        ], $this->trainerProfileIdsRules($partnerId));
     }
 
     protected function prepareForValidation(): void
     {
-        $raw = $this->input('trainer_profile_id');
-
-        if ($raw === '' || $raw === 'none' || $raw === '0') {
-            $this->merge(['trainer_profile_id' => null]);
-        }
+        $this->prepareTrainerProfileIds();
 
         if ($this->filled('description') && ! $this->filled('comment')) {
             $this->merge(['comment' => $this->input('description')]);
@@ -119,7 +111,7 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
 
     public function attributes(): array
     {
-        return [
+        return array_merge([
             'team_id' => 'группа',
             'occurrence_date' => 'дата занятия',
             'user_lesson_package_id' => 'назначение',
@@ -127,13 +119,12 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
             'fee_amount' => 'стоимость',
             'lesson_occurrence_status_id' => 'статус',
             'comment' => 'комментарий',
-            'trainer_profile_id' => 'тренер',
-        ];
+        ], $this->trainerProfileIdsAttributes());
     }
 
     public function messages(): array
     {
-        return [
+        return array_merge([
             'team_id.required' => 'Выберите группу.',
             'team_id.exists' => 'Группа не найдена.',
             'occurrence_date.required' => 'Укажите дату занятия.',
@@ -145,7 +136,6 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
             'fee_amount.min' => 'Стоимость не может быть отрицательной.',
             'lesson_occurrence_status_id.required' => 'Выберите статус.',
             'lesson_occurrence_status_id.exists' => 'Выбранный статус не найден или неактивен.',
-            'trainer_profile_id.exists' => 'Выбранный тренер не найден.',
-        ];
+        ], $this->trainerProfileIdsMessages());
     }
 }

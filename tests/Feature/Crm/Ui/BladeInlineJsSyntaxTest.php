@@ -119,13 +119,45 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('syncFlexibleTrainerBlock', $content);
         $this->assertStringContainsString('populateFlexibleTrainerSelect', $content);
         $this->assertStringContainsString('showFlexibleErrors', $content);
+        // Мультитренеры при «Посетил»: generic multiselect + trainer_profile_ids[].
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2', $content);
+        $this->assertStringContainsString('populateTrainerMultiselect', $content);
+        $this->assertStringContainsString('trainerIdsForVisited', $content);
+        $this->assertStringContainsString('defaultTrainerIdsFromContext', $content);
+        $this->assertStringContainsString('selectedTrainerNames', $content);
+        // UX: сохранённый «Посетил» без тренеров не подменяется team_default.
+        $trainerIdsFnPos = strpos($content, 'function trainerIdsForVisited');
+        $this->assertNotFalse($trainerIdsFnPos);
+        $trainerIdsFnChunk = substr($content, (int) $trainerIdsFnPos, 1400);
+        $this->assertStringContainsString('isVisitedStatusId(ctx.current_status_id)', $trainerIdsFnChunk);
+        $this->assertStringContainsString('trainer_profile_ids_for_select', $trainerIdsFnChunk);
+        $this->assertStringContainsString('team_default_trainer_profile_id', $trainerIdsFnChunk);
+        $this->assertStringContainsString('cell-trainer-profile-ids', $content);
+        $this->assertStringContainsString('flexible-trainer-profile-ids', $content);
+        $this->assertStringContainsString('trainer_profile_ids', $content);
+        $this->assertStringContainsString('trainer_profile_ids_for_select', $content);
+        // Дефолт: при «Посетил» без сохранённых — team_default; при не-Посетил — clear.
+        $this->assertStringContainsString('team_default_trainer_profile_id', $content);
+        $this->assertStringContainsString('clearTrainerMultiselect', $content);
+        $this->assertStringContainsString("names.join(', ')", $content);
+        // Ошибки валидации под мультиселектом (не только legacy trainer_profile_id).
+        $this->assertStringContainsString('errors.trainer_profile_ids', $content);
+        $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2.markInvalid', $content);
         // Успех place-flexible обновляет DOM без reload (reload остаётся у других потоков журнала).
         $flexibleSubmitPos = strpos($content, "url: '/schedule/user/' + userId + '/place-flexible-abonement'");
         $this->assertNotFalse($flexibleSubmitPos);
-        $flexibleSubmitChunk = substr($content, (int) $flexibleSubmitPos, 1200);
+        $flexibleSubmitChunk = substr($content, (int) $flexibleSubmitPos, 1400);
+        $this->assertStringContainsString('trainer_profile_ids: trainerIds', $flexibleSubmitChunk);
+        $this->assertStringContainsString("enrichResultTrainerNameFromSelect(result, '#flexible-trainer-profile-ids')", $flexibleSubmitChunk);
         $this->assertStringContainsString('renderScheduleCellAfterFlexiblePlace', $flexibleSubmitChunk);
         $this->assertStringContainsString('updateFlexibleHintAfterPlace', $flexibleSubmitChunk);
         $this->assertStringNotContainsString('window.location.reload()', $flexibleSubmitChunk);
+        // schedule.update: при не-Посетил не отправляем trainer_profile_ids[].
+        $cellEditSubmitPos = strpos($content, "$('#cellEditForm').on('submit'");
+        $this->assertNotFalse($cellEditSubmitPos);
+        $cellEditSubmitChunk = substr($content, (int) $cellEditSubmitPos, 1800);
+        $this->assertStringContainsString('preventDefault', $cellEditSubmitChunk);
+        $this->assertStringContainsString("item.name !== 'trainer_profile_ids[]'", $cellEditSubmitChunk);
         // Успех place-trial / place-single (пустая ячейка) — точечный DOM без reload.
         $this->assertStringContainsString("'/schedule/user/' + userId + '/place-trial-lesson'", $content);
         $this->assertStringContainsString("'/schedule/user/' + userId + '/place-single-lesson'", $content);
@@ -253,6 +285,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('id="flexible-status-error"', $content);
         $this->assertStringContainsString('name="flexible_lesson_occurrence_status_id"', $content);
         $this->assertStringContainsString('id="flexible-trainer-wrap"', $content);
+        $this->assertStringContainsString('id="flexible-trainer-profile-ids"', $content);
+        $this->assertStringContainsString('name="trainer_profile_ids[]"', $content);
+        $this->assertStringContainsString('js-generic-multiselect-select', $content);
+        $this->assertStringContainsString('id="cell-trainer-wrap"', $content);
+        $this->assertStringContainsString('id="cell-trainer-profile-ids"', $content);
         $this->assertStringContainsString('id="flexible-comment"', $content);
         $this->assertStringContainsString('id="btn-add-flexible-lesson"', $content);
         $this->assertStringContainsString('journal-flexible-hint', $content);

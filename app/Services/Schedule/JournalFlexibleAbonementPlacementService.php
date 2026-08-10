@@ -54,6 +54,7 @@ final class JournalFlexibleAbonementPlacementService
         ?int $createdByUserId,
         ?int $trainerProfileId = null,
         ?string $comment = null,
+        ?array $trainerProfileIds = null,
     ): array {
         $this->assertUserAndTeam($partnerId, $user, $team);
         try {
@@ -70,6 +71,9 @@ final class JournalFlexibleAbonementPlacementService
         $occurrenceYmd = $occurrenceDate->toDateString();
         $utssId = 0;
         $commentValue = $comment !== null && trim($comment) !== '' ? trim($comment) : null;
+        $resolvedTrainerIds = $trainerProfileIds ?? (
+            $trainerProfileId !== null && $trainerProfileId > 0 ? [$trainerProfileId] : []
+        );
 
         DB::transaction(function () use (
             $partnerId,
@@ -80,7 +84,7 @@ final class JournalFlexibleAbonementPlacementService
             $occurrenceYmd,
             $createdByUserId,
             $status,
-            $trainerProfileId,
+            $resolvedTrainerIds,
             $commentValue,
             &$utssId,
         ): void {
@@ -132,8 +136,9 @@ final class JournalFlexibleAbonementPlacementService
                 (int) $ulp->id,
                 $status,
                 $createdByUserId,
-                $trainerProfileId,
+                $resolvedTrainerIds[0] ?? null,
                 $commentValue,
+                $resolvedTrainerIds,
             );
 
             $utssId = (int) $utss->id;

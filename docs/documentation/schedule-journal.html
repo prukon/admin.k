@@ -30,6 +30,21 @@
   <h1>Журнал расписания: <code>/schedule</code></h1>
   <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a></div>
 
+  <div class="ok">
+    <strong>Мультитренеры при «Посетил» (2026‑08).</strong>
+    В модалках <code>#cellEditModal</code> и <code>#flexiblePlaceModal</code> —
+    мультиселект <code>trainer_profile_ids[]</code> (<code>KidsCrmGenericMultiselectSelect2</code>);
+    пустой выбор допустим («Без тренера»).
+    Список — все активные тренеры партнёра (без сужения до тренеров группы).
+    Хранение: pivot <code>user_lesson_occurrence_status_event_trainers</code>
+    (+ legacy <code>events.trainer_profile_id</code> = первый);
+    каждому выбранному — зачёт в <a href="/docs/documentation/schedule-trainer-workload">нагрузке</a>
+    и <a href="/docs/documentation/schedule-trainer-salary">ЗП</a>.
+    Тултип ячейки: <code>Тренер: ФИО[, ФИО…]</code>.
+    Empty-cell — одиночный select (BC). Подробно — <a href="#visited-trainer">§6</a>;
+    тесты — <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>.
+  </div>
+
   <div class="warn">
     <strong>Единый контур с календарём школы (2026‑07).</strong>
     Журнал <code>/schedule</code> — <b>дневное представление</b> тех же занятий
@@ -143,7 +158,8 @@
   <p>
     Строки <code>user_team_schedule_slots</code> / события статусов для пользователей, которые больше не проходят фильтр (смена роли, отключение), в БД могут остаться,
     но строка в таблице журнала не выводится и изменить ячейку через API нельзя.
-    Отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> агрегирует актуальные события «Посетил» с <code>trainer_profile_id</code>
+    Отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> агрегирует актуальные события «Посетил»
+    по pivot <code>user_lesson_occurrence_status_event_trainers</code>
     по включённым пользователям партнёра (<code>is_enabled = 1</code>) без проверки роли ученика.
   </p>
 
@@ -187,9 +203,15 @@
   </p>
   <ul>
     <li><code>lesson_occurrence_status_id</code> — FK на справочник;</li>
-    <li><code>trainer_profile_id</code> — тренер при «Посетил» (nullable);</li>
+    <li><code>trainer_profile_id</code> — primary/legacy тренер при «Посетил» (первый из списка, nullable);</li>
+    <li>pivot <code>user_lesson_occurrence_status_event_trainers</code> — все тренеры визита (каждому идёт зачёт в нагрузке/ЗП);</li>
     <li><code>comment</code> — комментарий к статусу (nullable).</li>
   </ul>
+  <p>
+    В модалках «Статус занятия» и «Занятие из гибкого абонемента» при «Посетил» —
+    мультиселект <code>trainer_profile_ids[]</code> (<code>KidsCrmGenericMultiselectSelect2</code>);
+    пустой выбор = «Без тренера». В тултипе ячейки имена через запятую: <code>Тренер: А, Б</code>.
+  </p>
   <p>
     Смена статуса идёт через <code>UserLessonOccurrenceStatusService::apply</code>:
     при <code>consumes_lesson</code> списывает/возвращает <code>lessons_remaining</code> (или пробный баланс).
@@ -339,8 +361,8 @@
     <li><b>Постоплата:</b> <code>postpayPackageHoverLabel</code> → «Постоплата: {цена}₽ в день»
       (без пробела тысяч; цена из шаблона).</li>
     <li><b>«Посетил»:</b> к базовой строке добавляется
-      <code>appendTrainerToHover</code> → перевод строки + «Тренер: ФИО» или «Тренер не выбран»
-      (если <code>trainer_profile_id</code> пуст).</li>
+      <code>appendTrainerToHover</code> → перевод строки + «Тренер: ФИО[, ФИО…]» или «Тренер не выбран»
+      (если список тренеров пуст; имена через запятую из pivot).</li>
     <li><b>×N:</b> в атрибуте ячейки — строки через <code>\n</code> (kids-tooltip с
       <code>white-space: pre-wrap</code>).</li>
     <li><b>Колонка абонементов (postpay):</b>
@@ -356,21 +378,26 @@
 
   <h2 id="visited-trainer">6) Статус занятия и тренер при «Посетил»</h2>
   <div class="note">
-    Назначение тренера — в модалке ячейки (<code>#cellEditModal</code>), при постановке занятия из гибкого
-    (<code>#flexiblePlaceModal</code>) и при установке пробного/разового на пустой ячейке
-    (<code>#emptyCellPlaceModal</code>), статус «Посетил»). Данные использует отчёт
-    <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>
-    (фильтр по актуальному событию «Посетил» с непустым <code>trainer_profile_id</code>).
+    Назначение тренеров — в модалке ячейки (<code>#cellEditModal</code>) и при постановке из гибкого
+    (<code>#flexiblePlaceModal</code>): мультиселект <code>trainer_profile_ids[]</code>
+    (<code>KidsCrmGenericMultiselectSelect2</code>). Пустая ячейка (<code>#emptyCellPlaceModal</code>) —
+    пока одиночный <code>trainer_profile_id</code> (BC → тот же pivot).
+    Источник истины для нагрузки/ЗП — pivot <code>user_lesson_occurrence_status_event_trainers</code>
+    (каждому выбранному тренеру отдельный зачёт). См.
+    <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>.
   </div>
 
   <h3>6.1) Поведение в модалке</h3>
   <ol>
     <li>При открытии — <code>GET /schedule/cell-context?user_id=&amp;date=&amp;utss_id=</code> (опционально).</li>
-    <li>Блок «Тренер» показывается, если выбран статус с <code>code = attended</code> (id из <code>visited_status_id</code>).</li>
-    <li>В select — активные тренеры партнёра + «Без тренера».</li>
+    <li>Блок «Тренеры» показывается, если выбран статус с <code>code = attended</code> (id из <code>visited_status_id</code>).</li>
+    <li>В мультиселекте — все активные тренеры партнёра; пустой выбор = «Без тренера».</li>
     <li>Если «Посетил» ещё не сохранялся — дефолт = первый тренер группы (<code>team_trainer</code> по <code>context_team_id</code> / слоту).</li>
-    <li>Если «Посетил» сохранён с <code>trainer_profile_id = null</code> — явное «Без тренера».</li>
-    <li>Смена статуса с «Посетил» на другой — тренер на новом событии не сохраняется как «посетивший» (логика сервиса статусов / UI).</li>
+    <li>Если «Посетил» сохранён с пустым списком — явное «Без тренера»
+      (<code>trainerIdsForVisited</code> при <code>current_status_id = attended</code> берёт
+      <code>trainer_profile_ids_for_select</code> как есть, без подстановки <code>team_default</code>).
+      Дефолт группы — только при смене статуса на «Посетил», если сохранённый статус был другим.</li>
+    <li>Смена статуса с «Посетил» на другой — тренеры на новом событии не сохраняются.</li>
   </ol>
 
   <h3>6.2) API <code>GET /schedule/cell-context</code></h3>
@@ -383,20 +410,26 @@
       (для модалки create; в команде — <code>package_name</code>, <code>price_per_lesson</code>)</li>
     <li><code>selected</code> / <code>current_status_id</code> / <code>comment</code> — выбранное занятие
       (в <code>selected</code> также <code>package_hover</code>, <code>package_name</code>,
-      <code>trainer_name</code> / <code>trainer_profile_id</code> при «Посетил»)</li>
-    <li><code>team_ids</code>, <code>teams_label</code>, <code>team_default_trainer_profile_id</code>, <code>trainer_profile_id_for_select</code>, <code>trainers</code></li>
+      <code>trainer_name</code> / <code>trainer_profile_id</code> / <code>trainer_profile_ids</code> при «Посетил»)</li>
+    <li><code>team_ids</code>, <code>teams_label</code>, <code>team_default_trainer_profile_id</code>,
+      <code>trainer_profile_ids_for_select</code> (массив; BC: <code>trainer_profile_id_for_select</code> — первый id строкой),
+      <code>trainers</code> (все активные тренеры партнёра)</li>
   </ul>
 
   <h3>6.3) API <code>POST /schedule/update</code></h3>
-  <p>Валидация: <code>UpdateScheduleJournalOccurrenceRequest</code> — поля <code>user_id</code>, <code>utss_id</code>, <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>, опционально <code>trainer_profile_id</code>, <code>comment</code>; для постоплаты — <code>create_postpay</code> + <code>team_id</code>.</p>
+  <p>Валидация: <code>UpdateScheduleJournalOccurrenceRequest</code> — поля <code>user_id</code>, <code>utss_id</code>, <code>occurrence_date</code>, <code>lesson_occurrence_status_id</code>,
+    опционально <code>trainer_profile_ids[]</code> (и BC <code>trainer_profile_id</code>), <code>comment</code>; для постоплаты — <code>create_postpay</code> + <code>team_id</code>.</p>
   <ul>
     <li>Пишет событие статуса через <code>UserLessonOccurrenceStatusService</code> (списание/возврат остатка по <code>consumes_lesson</code>)</li>
-    <li><code>trainer_profile_id</code> / <code>comment</code> сохраняются на событии</li>
+    <li>При «Посетил»: тренеры в pivot <code>user_lesson_occurrence_status_event_trainers</code>
+      (+ legacy <code>trainer_profile_id</code> = первый); пустой список = «Без тренера».
+      Чужой партнёр → <b>422</b> <code>errors.trainer_profile_ids.*</code></li>
+    <li><code>comment</code> сохраняется на событии</li>
     <li>AJAX / JSON → <code>{ success, message, result }</code> <b>200</b>; валидация → <b>422</b> + <code>errors</code></li>
     <li><code>result</code>:
-      <code>{ utss_id, occurrence_date, comment, created, trainer_name, package_hover?, status: { id, title, icon, color } }</code> —
+      <code>{ utss_id, occurrence_date, comment, created, trainer_name, trainer_profile_ids, package_hover?, status: { id, title, icon, color } }</code> —
       <code>created: true</code> при <code>create_postpay</code> (новая отметка), иначе правка существующего UTSS;
-      <code>trainer_name</code> — ФИО при статусе «Посетил» и выбранном тренере, иначе <code>null</code>
+      <code>trainer_name</code> — ФИО через запятую при статусе «Посетил» и выбранных тренерах, иначе <code>null</code>
       (для DOM-ховера без F5); <code>package_hover</code> заполняется при create_postpay</li>
     <li>Non-AJAX (нет XHR / не expectsJson) → <b>302</b> на <code>schedule.index</code> + flash <code>status</code> / session errors (не пустой 200)</li>
   </ul>
@@ -592,7 +625,7 @@
       (<code>#flexiblePlaceForm</code> с <code>novalidate</code>; ошибки под полями).
       Шапка: ФИО → группа (<code>#flexible-team-display</code>, без слова «Группа») → дата → summary;
       при одной группе / lock — select скрыт; при нескольких — «Выберите группу».
-      В модалке выбираются статус (по умолчанию «Запись»), при «Посетил» — тренер, комментарий.
+      В модалке выбираются статус (по умолчанию «Запись»), при «Посетил» — мультиселект тренеров, комментарий.
       После успешного AJAX страница <b>не</b> перезагружается: обновляются ячейка и подпись
       в колонке абонементов.</li>
     <li>Занятая ячейка / список ×N: кнопка «Добавить занятие из гибкого абонемента»
@@ -610,7 +643,8 @@
       <code>trainers</code>, <code>scheduled_status_id</code> / <code>visited_status_id</code>.</li>
     <li><code>POST /schedule/user/{user}/place-flexible-abonement</code> —
       поля <code>user_lesson_package_id</code>, <code>team_id</code>, <code>occurrence_date</code>,
-      <code>lesson_occurrence_status_id</code>, опционально <code>trainer_profile_id</code>, <code>comment</code>
+      <code>lesson_occurrence_status_id</code>, опционально <code>trainer_profile_ids[]</code>
+      (BC: <code>trainer_profile_id</code>), <code>comment</code>
       (<code>PlaceScheduleJournalFlexibleAbonementRequest</code>).</li>
     <li>Сервис <code>JournalFlexibleAbonementPlacementService</code>: слот через
       <code>JournalTeamScheduleSlotEnsureService::resolveOrCreateNextFreeForUserDate</code>
@@ -694,7 +728,8 @@
     <li><b>Разовое:</b> в списке одновременно свободные назначения (<code>bind_existing</code>)
       <em>и</em> активные шаблоны <code>no_schedule</code> (<code>create_new</code>) —
       не взаимоисключающие режимы как в календаре школы (<code>slot-user-bind-actions</code>).</li>
-    <li>После выбора типа: группа, статус (по умолчанию «Запись»), при «Посетил» — тренер,
+    <li>После выбора типа: группа, статус (по умолчанию «Запись»), при «Посетил» — <b>один</b> тренер
+      (одиночный select <code>trainer_profile_id</code>, BC → pivot; не мультиселект как в §6),
       комментарий; при <code>create_new</code> — редактируемая стоимость (рубли).</li>
     <li><b>Группа:</b> если в фильтре журнала выбрана конкретная группа —
       <code>team_locked</code>, блок выбора скрыт, название группы в шапке модалки
@@ -953,6 +988,8 @@
     <li><code>2026_07_20_150100_drop_statuses_table.php</code> — удаление legacy <code>statuses</code></li>
     <li><code>2026_07_31_030000_journal_unifies_on_user_team_schedule_slots.php</code> — drop <code>schedule_users</code>;
       на <code>user_lesson_occurrence_status_events</code> — <code>trainer_profile_id</code>, <code>comment</code></li>
+    <li><code>2026_08_10_020000_create_user_lesson_occurrence_status_event_trainers_table.php</code> —
+      pivot мультитренеров + бэкофилл из <code>events.trainer_profile_id</code></li>
   </ul>
 
   <h2>10) Связанные файлы</h2>
@@ -983,22 +1020,31 @@
     <li><code>app/Services/LessonPackages/UserLessonOccurrenceStatusService.php</code>,
       <code>SchoolCalendarTrialEligibilityService</code>
       (<code>evaluateUserLevel</code> / <code>alreadyScheduledReason</code> для журнала и календаря)</li>
+    <li><code>app/Support/ScheduleOccurrenceTrainerIds.php</code>,
+      <code>app/Http/Requests/Concerns/NormalizesTrainerProfileIds.php</code> —
+      нормализация <code>trainer_profile_ids[]</code> / BC <code>trainer_profile_id</code></li>
     <li><code>resources/views/admin/schedule/journal.blade.php</code> —
       <code>#cellEditModal</code>, <code>#cellDeleteConfirmModal</code>, <code>#flexiblePlaceModal</code>,
       <code>#emptyCellPlaceModal</code>, <code>#abonementPlaceModal</code>;
-      <code>index.blade.php</code>, <code>_schedule_section_tabs.blade.php</code></li>
+      <code>index.blade.php</code> (+ <code>@include('partials.select2.generic-multiselect')</code>),
+      <code>_schedule_section_tabs.blade.php</code></li>
     <li><code>resources/js/schedule.js</code> — AJAX ячеек (update/delete без reload), place-fixed, place-flexible,
-      empty-cell place-trial/place-single;
+      empty-cell place-trial/place-single; мультиселект тренеров;
       CRUD статусов — inline JS в partial</li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы</a> — тот же контур + время</li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы</a> — назначения, автосписание</li>
     <li><a href="/docs/documentation/postpay">Постоплата</a> — журнал без ULP, лок после оплаты</li>
-    <li><a href="/docs/documentation/reusable-ui-partials">Переиспользуемые UI-блоки</a> — toolbar / DataTable</li>
+    <li><a href="/docs/documentation/reusable-ui-partials">Переиспользуемые UI-блоки</a> — toolbar / DataTable / <code>generic-multiselect</code> §4.2</li>
   </ul>
 
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
+      <li><code>ScheduleJournalMultiTrainerContractsFeatureTest</code> —
+        мультитренеры при «Посетил»: Blade multiselect, AJAX/non-AJAX update + place-flexible,
+        422 по <code>trainer_profile_ids.*</code>, guest/403, pivot → нагрузка (каждому зачёт),
+        ховер «Тренер: A, B», BC <code>trainer_profile_id</code>, empty-cell legacy</li>
+      <li><code>ScheduleCellTrainerFeatureTest</code> — single/multi save, cell-context select ids</li>
       <li><code>ScheduleJournalAccessFeatureTest</code> / <code>ScheduleJournalFullAccessFeatureTest</code> —
         доступ (guest / без права / с <code>schedule.view</code>) + smoke endpoint'ов
         (place-fixed / place-flexible / update / <b>destroy</b>)</li>
@@ -1034,6 +1080,8 @@
       <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> —
         <code>node --check</code> на <code>resources/js/schedule.js</code>
         (update/delete/place-flexible/empty-cell place без <code>reload</code>;
+        мультиселект тренеров: <code>trainer_profile_ids</code>, <code>KidsCrmGenericMultiselectSelect2</code>,
+        <code>defaultTrainerIdsFromContext</code> / <code>trainerIdsForVisited</code>;
         <code>applyTrainerHoverToCellText</code>, <code>setCellEditTeamDisplay</code>,
         <code>syncAbonementStartDateQuickPicks</code>,
         <code>fillAbonementUlpOptions</code> / <code>renderAbonementTeamUi</code> /

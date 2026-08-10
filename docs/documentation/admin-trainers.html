@@ -166,14 +166,28 @@
     </ul>
   </div>
 
-  <h2 id="schedule-journal-trainer">7) Тренер в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
+  <h2 id="schedule-journal-trainer">7) Тренеры в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
-    Отдельно от фильтра в отчётах: при сохранении статуса занятия в журнале со статусом «Посетил»
-    тренер пишется в <code>user_lesson_occurrence_status_events.trainer_profile_id</code> (можно «Без тренера»).
-    UI — модалка ячейки на <code>/schedule</code>; право <code>schedule.view</code> (не <code>trainers.view</code>).
-    По умолчанию подставляется первый тренер группы слота из <code>team_trainer</code> (тот же порядок, что при одном тренере на группу в §4).
-    Подробно: <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал расписания: тренер при «Посетил»</a>.
-    Агрегация визитов по тренеру и дню недели — отчёт <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a> (<code>/schedule/trainer-workload</code>, то же право <code>schedule.view</code>; это <strong>не</strong> фильтр «Тренер» в платёжных отчётах ниже).
+    При статусе «Посетил» можно указать <b>одного или нескольких</b> тренеров
+    (мультиселект <code>trainer_profile_ids[]</code>, <code>KidsCrmGenericMultiselectSelect2</code>).
+    Пустой выбор = «Без тренера».
+    <br>
+    Источник истины для нагрузки и ЗП — pivot
+    <code>user_lesson_occurrence_status_event_trainers</code>
+    (каждому выбранному тренеру отдельный зачёт тренировки).
+    Колонка <code>user_lesson_occurrence_status_events.trainer_profile_id</code> —
+    legacy/primary (первый из списка).
+    <br>
+    UI: модалки ячейки и гибкого абонемента на <code>/schedule</code>;
+    empty-cell пока одиночный <code>trainer_profile_id</code> (BC → тот же pivot).
+    Право <code>schedule.view</code> (не <code>trainers.view</code>).
+    По умолчанию при первом выборе «Посетил» — первый тренер группы из <code>team_trainer</code>;
+    повторное открытие сохранённого «Без тренера» дефолт группы <b>не</b> подставляет.
+    <br>
+    Подробно: <a href="/docs/documentation/schedule-journal#visited-trainer">Журнал: тренеры при «Посетил»</a>,
+    тесты <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>.
+    Агрегация — <a href="/docs/documentation/schedule-trainer-workload">«Нагрузка тренеров»</a>
+    и <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a>.
   </div>
 
   <h2>8) Фильтр «Тренер» в отчётах</h2>
@@ -222,7 +236,9 @@
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер» на <code>/admin/teams</code></li>
       <li><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> — фильтрация данных по тренеру</li>
       <li><code>tests/Feature/Crm/Reports/ReportsTrainerAccessFeatureTest.php</code> — доступ к отчётам, видимость фильтра, trainers-search</li>
-      <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер в ячейке «Посетил» журнала <code>/schedule</code></li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер(ы) в ячейке «Посетил»</li>
+      <li><code>tests/Feature/Crm/Schedule/ScheduleJournalMultiTrainerContractsFeatureTest.php</code> —
+        мультиселект, pivot → нагрузка/ЗП, guest/403, AJAX/non-AJAX, ховер «A, B»</li>
       <li><code>tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php</code>, <code>AdminUsersSectionFeatureTest.php</code> — вкладки раздела «Пользователи»</li>
     </ul>
   </div>

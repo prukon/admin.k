@@ -31,6 +31,11 @@
     </div>
 @endsection
 
+{{-- Как на /admin/districts: include на корне view, чтобы @push styles/scripts попали в layout stacks --}}
+@if(($activeTab ?? 'journal') === 'journal')
+    @include('partials.select2.generic-multiselect')
+@endif
+
 @push('scripts')
     @vite(['resources/css/schedule.css'])
     {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
@@ -39,7 +44,8 @@
         <script>
             window.SCHEDULE_VISITED_STATUS_ID = @json($visitedStatusId ?? null);
         </script>
-        @vite(['resources/js/schedule.js'])
+        {{-- Hotfix: актуальный schedule.js (мультитренеры) до Vite-сборки; старый build всё ещё на #cell-trainer-profile-id --}}
+        <script src="{{ asset('js/schedule-journal.js') }}?v={{ @filemtime(public_path('js/schedule-journal.js')) ?: time() }}"></script>
     @elseif(($activeTab ?? '') === 'trainer-workload')
         @vite(['resources/js/trainer-workload.js'])
     @elseif(($activeTab ?? '') === 'trainer-salary')
