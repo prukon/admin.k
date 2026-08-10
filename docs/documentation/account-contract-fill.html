@@ -32,6 +32,7 @@
     см. также <a href="/docs/documentation/contract-templates">шаблоны договоров</a>,
     <a href="/docs/documentation/contracts">договоры в CRM</a>
     · <a href="#contract-date-placeholders">§4.1 contract_date / Word</a>
+    · <a href="#account-documents-action-counter">§1.0 каунтер активных договоров</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -42,6 +43,47 @@
     Маршруты fill / generate / sign дополнительно защищены middleware <code>contract.owner</code> — только владелец договора (<code>contracts.user_id === Auth::id()</code>); чужой пользователь получает <b>404</b> (anti-enumeration).<br>
     Гость → <b>302</b> на login; без права → <b>403</b>.
   </div>
+
+  <h3 id="account-documents-action-counter">1.0) Каунтер «активных к действию» договоров</h3>
+  <p>На пункте левого меню <b>«Учетная запись»</b> и на вкладке <b>«Мои документы»</b> показывается badge с числом договоров
+    <b>текущего пользователя</b> (<code>contracts.user_id = Auth::id()</code>), у которых статус из набора «активных к действию»:</p>
+  <ul>
+    <li><code>awaiting_client_fill</code> — ожидает заполнения клиентом</li>
+    <li><code>sent</code> — отправлено на подпись</li>
+    <li><code>opened</code> — открыто подписантом</li>
+    <li><code>generating_pdf</code> — формируется PDF после заполнения</li>
+  </ul>
+  <p><b>Не входят</b> в каунтер: <code>draft</code>, <code>signed</code> («Подписано»), <code>expired</code>, <code>revoked</code>, <code>failed</code>.
+    Это <b>не</b> «все кроме signed» — черновики и отозванные/просроченные/ошибочные договоры каунтер не раздувают.</p>
+  <table>
+    <thead><tr><th>Место</th><th>Разметка</th><th>Когда виден</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Сайдбар «Учетная запись»</td>
+        <td><code>&lt;span class="badge badge-info right"&gt;</code> — тот же класс, что у счётчиков «Пользователи» и «Лиды»</td>
+        <td>Только при <code>unsignedContractsCount &gt; 0</code> и праве <code>account.documents.view</code>.
+          Сам пункт меню — под <code>@can('account.user.view')</code>, ссылка на <code>route('account.user.edit')</code>
+          (<code>/account-settings/user/edit</code>), не на список документов.</td>
+      </tr>
+      <tr>
+        <td>Вкладка «Мои документы»</td>
+        <td><code>&lt;span class="badge badge-info ms-2"&gt;</code> (отступ слева от текста вкладки)</td>
+        <td>Только при счётчике &gt; 0; вкладка под <code>@can('account.documents.view')</code>.
+          Badge виден и на соседних вкладках ЛК (user / организация), пока открыт layout <code>account.index</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="note">
+    Переменная View: <code>unsignedContractsCount</code> (имя историческое; по смыслу — число <b>actionable</b>-договоров).
+    Считается в <code>AppServiceProvider::unsignedContractsCountForCurrentUser()</code>,
+    пробрасывается composers’ами на <code>includes.sidebar</code> и <code>account.index</code>.
+    Без права <code>account.documents.view</code> метод возвращает <code>0</code> (badge не рисуется).
+    Обновление — только при полной отрисовке страницы (как счётчик «Новых» у лидов), не после AJAX fill/generate/sign без reload.
+  </div>
+  <p class="small">Разметка: <code>resources/views/includes/sidebar.blade.php</code>, <code>resources/views/account/index.blade.php</code>.
+    Тесты: <code>AccountDocumentsActionCounterFeatureTest</code>, markup-контракты в <code>BladeInlineJsSyntaxTest</code>.
+    Краткая сводка: <a href="/docs/documentation#account-documents-action-counter-index">главная документация</a>
+    · оглавление <code>/doc</code> → «Заполнение договора родителем…».</p>
 
   <h3>1.1) URL</h3>
   <table>
@@ -178,9 +220,12 @@
       <li><code>AccountContractParentFillEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
       <li><code>AccountContractFillFlowUiFeatureTest.php</code> — панели, sign-block, poll, ошибка генерации</li>
       <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
+      <li><code>AccountDocumentsActionCounterFeatureTest.php</code> — каунтер активных договоров (§1.0): сайдбар + вкладка,
+        только actionable-статусы, изоляция по <code>user_id</code>, скрытие при 0 / без права, guest/403</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code> — сквозной E2E</li>
-      <li><code>BladeInlineJsSyntaxTest</code> — <code>account/documents.blade.php</code> (loadContractFill, оба click-триггера, AJAX submit)</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>account/documents.blade.php</code> (loadContractFill, оба click-триггера, AJAX submit);
+        markup-контракт badge на <code>account/index.blade.php</code> и <code>includes/sidebar.blade.php</code></li>
     </ul>
     Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
   </div>

@@ -58,6 +58,44 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
         yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
+        yield 'account settings tabs shell' => ['account/index.blade.php'];
+    }
+
+    /**
+     * P1: вкладка «Мои документы» — badge каунтера с отступом ms-2 (не без margin).
+     */
+    public function test_account_index_documents_tab_counter_badge_markup_contract(): void
+    {
+        $path = resource_path('views/account/index.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("route('account.documents.index')", $content);
+        $this->assertStringContainsString('unsignedContractsCount', $content);
+        $this->assertStringContainsString(
+            '@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info ms-2">{{ $unsignedContractsCount }}</span>@endif',
+            $content
+        );
+        $this->assertStringNotContainsString(
+            'Мои документы@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info">{{ $unsignedContractsCount }}</span>@endif',
+            $content
+        );
+    }
+
+    /**
+     * P1: сайдбар «Учетная запись» — badge как у «Пользователи», скрыт при 0.
+     */
+    public function test_sidebar_account_menu_counter_badge_markup_contract(): void
+    {
+        $path = resource_path('views/includes/sidebar.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('unsignedContractsCount', $content);
+        $this->assertStringContainsString(
+            '@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info right">{{ $unsignedContractsCount }}</span>@endif',
+            $content
+        );
     }
 
     /**

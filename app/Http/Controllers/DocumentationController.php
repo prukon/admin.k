@@ -58,7 +58,7 @@ class DocumentationController extends Controller
         'admin-users'                 => 'Ученики (админка): /admin/users только role=user, адрес проживания (users.address → {{child_address}}), импорт Excel, родители, договор, welcome-письмо, пол, комментарий, team_ids',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», блок без юрлица группы, карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: fields_schema, {{contract_date}} / системные поля, разрывы Word w:t, «Юр. лицо», email, версии',
-        'account-contract-fill'       => 'Заполнение договора родителем: fill/generate/sign, автоподстановка {{contract_date}}, разрывы скобок Word, юрлицо группы',
+        'account-contract-fill'       => 'Заполнение договора родителем: fill/generate/sign, каунтер активных договоров в сайдбаре и на вкладке «Мои документы», авто {{contract_date}}, юрлицо группы',
         'account-partner-organization' => 'Организация партнёра: ЛК и админка, PartnerLegacyLegalFields, оплаты без fallback на partners',
         'school-leads-widget'         => 'Заявки с сайта: виджет iframe, CRM, лид→клиент (welcome-письмо), статус после клиента, договор, статусы, Telegram',
         'school-leads-landing'        => 'Страница заявки партнёра: /lead/{landingSlug}, каскад район→объект→услуга, district_id',
