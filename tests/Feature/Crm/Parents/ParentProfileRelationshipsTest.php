@@ -17,6 +17,7 @@ final class ParentProfileRelationshipsTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'Иванова',
             'firstname'  => 'Мария',
+            'middlename' => null,
         ]);
 
         $child1 = User::factory()->create([

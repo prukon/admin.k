@@ -94,10 +94,23 @@
                                     <a href="{{ route('contract-templates.index', ['create' => 1]) }}" class="alert-link">Создать шаблон</a>
                                 </div>
                             @else
+                                @php
+                                    $singleContractTemplate = $contractTemplates->count() === 1
+                                        ? $contractTemplates->first()
+                                        : null;
+                                    $oldContractTemplateId = old('contract_template_id');
+                                @endphp
                                 <select name="contract_template_id" id="contract_template_id" class="form-select @error('contract_template_id') is-invalid @enderror">
-                                    <option value="">— выберите шаблон —</option>
+                                    @unless($singleContractTemplate)
+                                        <option value="">— выберите шаблон —</option>
+                                    @endunless
                                     @foreach($contractTemplates as $tpl)
-                                        <option value="{{ $tpl->id }}" @selected((int) old('contract_template_id') === (int) $tpl->id)>
+                                        <option value="{{ $tpl->id }}"
+                                            @selected(
+                                                $oldContractTemplateId !== null
+                                                    ? (int) $oldContractTemplateId === (int) $tpl->id
+                                                    : ($singleContractTemplate && (int) $singleContractTemplate->id === (int) $tpl->id)
+                                            )>
                                             {{ $tpl->title }}
                                         </option>
                                     @endforeach

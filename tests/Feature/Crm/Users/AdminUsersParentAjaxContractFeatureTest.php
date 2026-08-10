@@ -165,6 +165,7 @@ final class AdminUsersParentAjaxContractFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'ПоискAjax',
             'firstname'  => 'Родитель',
+            'middlename' => null,
         ]);
 
         $student = User::factory()->create([

@@ -11,6 +11,7 @@ use App\Models\TeamScheduleSlot;
 use App\Models\User;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -24,6 +25,8 @@ use Tests\Feature\Crm\CrmTestCase;
  * - без слотов — всегда в списке;
  * - last_lesson_is_past=true только если дата строго раньше сегодня (сегодня — не прошедшая);
  * - UI: text-danger в ulpLessonsRender при last_lesson_is_past.
+ *
+ * Фикстуры past/today/future завязаны на «сегодня» = 2026-08-10 (см. setUp).
  */
 final class LessonPackageAssignmentsPastLessonsFilterFeatureTest extends CrmTestCase
 {
@@ -31,10 +34,18 @@ final class LessonPackageAssignmentsPastLessonsFilterFeatureTest extends CrmTest
     {
         parent::setUp();
 
+        Carbon::setTestNow('2026-08-10 12:00:00');
+
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     private function grantAssignmentsAccess(): void

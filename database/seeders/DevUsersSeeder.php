@@ -207,11 +207,12 @@ class DevUsersSeeder extends Seeder
         $names = $this->randomParentNameFields();
 
         $parent = ParentProfile::query()->create([
-            'partner_id' => $partnerId,
-            'lastname'   => $names['lastname'],
-            'firstname'  => $names['firstname'],
-            'middlename' => $names['middlename'],
-            'email'      => fake()->boolean(70) ? fake()->safeEmail() : null,
+            'partner_id'         => $partnerId,
+            'lastname'           => $names['lastname'],
+            'firstname'          => $names['firstname'],
+            'middlename'         => $names['middlename'],
+            'full_name_genitive' => $names['full_name_genitive'],
+            'email'              => fake()->boolean(70) ? fake()->safeEmail() : null,
         ]);
 
         foreach ($users as $user) {
@@ -228,18 +229,19 @@ class DevUsersSeeder extends Seeder
 
         $names = $this->randomParentNameFields();
         $parent = ParentProfile::query()->create([
-            'partner_id' => (int) $user->partner_id,
-            'lastname'   => $names['lastname'],
-            'firstname'  => $names['firstname'],
-            'middlename' => $names['middlename'],
-            'email'      => fake()->boolean(70) ? fake()->safeEmail() : null,
+            'partner_id'         => (int) $user->partner_id,
+            'lastname'           => $names['lastname'],
+            'firstname'          => $names['firstname'],
+            'middlename'         => $names['middlename'],
+            'full_name_genitive' => $names['full_name_genitive'],
+            'email'              => fake()->boolean(70) ? fake()->safeEmail() : null,
         ]);
 
         $user->parent_id = $parent->id;
     }
 
     /**
-     * @return array{lastname: string, firstname: string, middlename: ?string}
+     * @return array{lastname: string, firstname: string, middlename: ?string, full_name_genitive: ?string}
      */
     private function randomParentNameFields(): array
     {
@@ -251,11 +253,62 @@ class DevUsersSeeder extends Seeder
                 : $faker->middleNameFemale())
             : null;
 
+        $lastname = $faker->lastName();
+        $firstname = $faker->firstName();
+
         return [
-            'lastname'   => $faker->lastName(),
-            'firstname'  => $faker->firstName(),
-            'middlename' => $middlename,
+            'lastname'           => $lastname,
+            'firstname'          => $firstname,
+            'middlename'         => $middlename,
+            'full_name_genitive' => $faker->boolean(80)
+                ? $this->primitiveParentFullNameGenitive($lastname, $firstname, $middlename)
+                : null,
         ];
+    }
+
+    /**
+     * Примитивное «склонение» для демо-данных (не морфология): Иванов Иван Иванович → Иванова Ивана Ивановича.
+     */
+    private function primitiveParentFullNameGenitive(string $lastname, string $firstname, ?string $middlename): string
+    {
+        return trim(collect([
+            $this->primitiveGenitiveNamePart($lastname, 'lastname'),
+            $this->primitiveGenitiveNamePart($firstname, 'firstname'),
+            $middlename !== null && trim($middlename) !== ''
+                ? $this->primitiveGenitiveNamePart($middlename, 'middlename')
+                : null,
+        ])->filter()->implode(' '));
+    }
+
+    /**
+     * @param  'lastname'|'firstname'|'middlename'  $part
+     */
+    private function primitiveGenitiveNamePart(string $value, string $part): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $lower = mb_strtolower($value);
+
+        if ($part === 'middlename') {
+            if (str_ends_with($lower, 'ич')) {
+                return $value . 'а';
+            }
+            if (str_ends_with($lower, 'на')) {
+                return mb_substr($value, 0, -1) . 'ы';
+            }
+        }
+
+        $lastChar = mb_substr($lower, -1);
+
+        return match ($lastChar) {
+            'а' => mb_substr($value, 0, -1) . 'ы',
+            'я' => mb_substr($value, 0, -1) . 'и',
+            'й' => mb_substr($value, 0, -1) . 'я',
+            default => $value . 'а',
+        };
     }
 
     private function assignPartnerTeam(iterable $users): void

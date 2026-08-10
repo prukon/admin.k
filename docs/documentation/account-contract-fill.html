@@ -31,6 +31,7 @@
     UI: <code>/account-settings/documents</code> (вкладка «Мои документы») ·
     см. также <a href="/docs/documentation/contract-templates">шаблоны договоров</a>,
     <a href="/docs/documentation/contracts">договоры в CRM</a>
+    · <a href="#contract-date-placeholders">§4.1 contract_date / Word</a>
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -81,6 +82,7 @@
     Составные ключи DOCX (<code>parent_full_name</code>, <code>child_full_name</code>) в форме разбиты на части:
     <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>,
     <code>child_lastname</code>, <code>child_firstname</code>.
+    Ключ <code>parent_full_name_genitive</code> — одно поле (не разбивается), prefill из <code>parents.full_name_genitive</code>.
     При генерации PDF полные ФИО собираются в <code>ContractPdfGenerationService</code> / <code>ContractTemplateVariablePresets::composeNameFieldsForPdf</code>.<br><br>
     <code>child_birthday</code> — <code>&lt;input type="date"&gt;</code>, валидация <code>date</code> + <code>before:today</code> (<code>AccountContractGenerateRequest</code>).
     Значения в PDF и <code>filled_data</code> — в формате <code>d.m.Y</code>; в профиле ученика — <code>Y-m-d</code>.
@@ -132,6 +134,27 @@
   Ошибки валидации полей — redirect / JSON с ключами <code>fields.{key}</code>;
   ошибка отсутствия юрлица — ключ <code>contract</code> (см. §<a href="#fill-legal-entity">2.5</a>).</p>
 
+  <h3 id="contract-date-placeholders">4.1) <code>{{contract_date}}</code> и разрывы Word</h3>
+  <div class="note">
+    <b>Поведение:</b> ключ <code>contract_date</code> — <code>fill_mode=system</code> (пресет «Договор»).
+    В модалке заполнения поля нет; при <code>POST …/generate</code> значение берётся из
+    <code>ContractTemplateSystemPlaceholders</code> как <code>now()->format('d.m.Y')</code>
+    и попадает в <code>filled_data</code> и в DOCX→PDF вместе с <code>contract_id</code>, <code>documents_url</code>
+    и (при наличии в схеме) <code>legal_entity_*</code>.<br><br>
+    <b>Разрывы OOXML:</b> в Word на экране видно обычный <code>{{contract_date}}</code>, но файл может хранить
+    <code>{</code> и <code>{</code> в разных <code>w:t</code>. Подстановка —
+    <code>DocxPlaceholderSupport</code> / <code>ContractDocxPlaceholderFiller</code> —
+    учитывает такие разрывы и заменяет <b>все</b> вхождения. Подробности и тесты —
+    <a href="/docs/documentation/contract-templates#docx-placeholder-substitution">contract-templates §6.2</a>.<br><br>
+    <b>Уже скачанный PDF</b> после правки шаблона/кода сам не меняется: нужна повторная генерация
+    (кнопка изменения данных в статусе <code>draft</code> при доступном edit-окне, либо новый договор).
+  </div>
+  <ul>
+    <li>AJAX generate → JSON <code>{ message, poll }</code>; ошибки валидации полей — <code>errors['fields.{key}']</code>.</li>
+    <li>Non-AJAX POST → 302 на index с <code>?fill={id}</code>, flash success; PDF на диске, статус <code>draft</code>.</li>
+    <li>Guest → login; без <code>account.documents.view</code> → 403; чужой договор → 404 (<code>contract.owner</code>).</li>
+  </ul>
+
   <h2>5) Скрытое право «показывать ключи полей»</h2>
   <p>Право <code>account.contracts.showFieldKeys</code> (скрытое в БД, не в базовых ролях): при наличии под полем показывается технический ключ <code>{{…}}</code> из DOCX.</p>
 
@@ -147,6 +170,9 @@
     <ul>
       <li><code>AccountContractFillTest.php</code> — базовый fill, generate, sign</li>
       <li><code>AccountContractFillFormFeatureTest.php</code> — UI полей, порядок, дата, маска телефона, sync профилей</li>
+      <li><code>AccountContractDatePlaceholderFeatureTest.php</code> — <code>contract_date</code> скрыт в форме; AJAX/non-AJAX generate;
+        UX: разрыв скобок Word — все вхождения даты в DOCX; guest/403; extractor</li>
+      <li><code>ContractTemplateContractDateExtractionFeatureTest.php</code> — store DOCX с разорванными <code>{{contract_date}}</code> → schema</li>
       <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — LE-поля скрыты в fill, inject при generate, AJAX/non-AJAX <code>errors.contract</code></li>
       <li><code>AccountContractFillAccessFeatureTest.php</code> — права, showFieldKeys, 404 чужому</li>
       <li><code>AccountContractParentFillEndpointsAccessFeatureTest.php</code> — матрица 401/403/200 по всем URL</li>
@@ -154,8 +180,9 @@
       <li><code>AccountDocumentsFullAccessFeatureTest.php</code> — index, fill JSON, download</li>
       <li><code>ContractTemplateToParentWorkflowFeatureTest.php</code> — admin → email → fill → PDF (CRM + кабинет)</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code> — сквозной E2E</li>
+      <li><code>BladeInlineJsSyntaxTest</code> — <code>account/documents.blade.php</code> (loadContractFill, оба click-триггера, AJAX submit)</li>
     </ul>
-    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateToParentWorkflowFeatureTest.php</code>
+    Запуск блока: <code>php artisan test tests/Feature/Crm/Account/AccountContractDatePlaceholderFeatureTest.php tests/Feature/Crm/Contracts/ContractTemplateContractDateExtractionFeatureTest.php tests/Feature/Crm/Account/AccountContractFillFormFeatureTest.php tests/Feature/Crm/Account/AccountContractParentFillEndpointsAccessFeatureTest.php</code>
   </div>
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·

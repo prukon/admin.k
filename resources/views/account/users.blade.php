@@ -363,6 +363,21 @@
                 </div>
 
                 <div class="mb-3">
+                    <label for="parent_full_name_genitive" class="form-label">ФИО родителя в родительном падеже</label>
+                    <input type="text"
+                           id="parent_full_name_genitive"
+                           name="parent_full_name_genitive"
+                           class="form-control @error('parent_full_name_genitive') is-invalid @enderror"
+                           maxlength="300"
+                           placeholder="Иванова Ивана Ивановича"
+                           value="{{ old('parent_full_name_genitive', $accountParentFields['parent_full_name_genitive'] ?? '') }}"
+                           @unless($canEditAccountParent) disabled aria-disabled="true" @endunless>
+                    @error('parent_full_name_genitive')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-3">
                     <label for="parent_passport" class="form-label">Паспорт</label>
                     <input type="text"
                            id="parent_passport"

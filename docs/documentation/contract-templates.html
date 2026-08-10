@@ -31,6 +31,7 @@
     CRM: вкладка «Шаблоны» на <code>/client-contracts</code> или <code>/client-contract-templates</code> ·
     см. <a href="/docs/documentation/contracts">договоры (CRM)</a>,
     <a href="/docs/documentation/account-contract-fill">заполнение родителем</a>
+    · <a href="#docx-placeholder-substitution">§6.2 подстановка / Word</a>
   </div>
 
   <h2>1) Назначение</h2>
@@ -146,17 +147,30 @@
   <h2 id="docx-variables">6) Переменные DOCX и <code>fields_schema</code></h2>
   <p>Единый формат ключей: <code>snake_case</code>, например <code>{{parent_full_name}}</code>.
   Справочник рекомендуемых переменных, русские подписи, <code>prefill_source</code>, группы и <code>fill_sort_order</code> по умолчанию — класс <code>ContractTemplateVariablePresets</code>.</p>
+  <div class="note">
+    <code>{{parent_full_name}}</code> — именительный (часто собирается из частей ФИО).
+    <code>{{parent_full_name_genitive}}</code> — отдельная строка из <code>parents.full_name_genitive</code>,
+    в форме родителя <b>не</b> разбивается на части; пресет необязательный (<code>required_default=false</code>).
+    Карточка CRM / Excel / Select2 по-прежнему показывают именительный.
+  </div>
   <table>
     <thead><tr><th>Ключ DOCX</th><th>В форме родителя</th></tr></thead>
     <tbody>
       <tr><td><code>parent_full_name</code></td><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code></td></tr>
+      <tr><td><code>parent_full_name_genitive</code></td><td>одно поле; prefill из <code>parents.full_name_genitive</code> (необязательное; тест <code>ContractParentFullNameGenitivePrefillFeatureTest</code>)</td></tr>
       <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code></td></tr>
       <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
       <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
+      <tr><td><code>contract_date</code></td><td>не в форме (<code>fill_mode=system</code>); при generate — <code>now()->format('d.m.Y')</code></td></tr>
+      <tr><td><code>contract_id</code></td><td>не в форме; ID договора</td></tr>
+      <tr><td><code>documents_url</code></td><td>не в форме; URL «Мои документы» (часто в email)</td></tr>
       <tr><td><code>legal_entity_*</code></td><td>не в форме родителя (<code>fill_mode=system</code>); подстановка при generate</td></tr>
     </tbody>
   </table>
   <p>При загрузке DOCX для известных ключей автоматически подставляются подписи и prefill из пресетов; неизвестные ключи попадают в схему как кастомные поля.</p>
+  <p class="small">Скрытие системных полей у родителя — <code>ContractTemplateVariablePresets::schemaFieldsForParentForm</code>
+  (<code>fill_mode=system</code> / <code>isSystemFillField</code>), а не список <code>DocxPlaceholderSupport::systemKeys()</code>
+  (там только legacy-фильтр <code>documents_url</code>, <code>contract_id</code>).</p>
 
   <h3 id="legal-entity-variables">6.1) Группа «Юр. лицо» и адрес ребёнка</h3>
   <div class="note">
@@ -208,6 +222,31 @@
     <code>BladeInlineJsSyntaxTest</code> (variables-reference / edit-modal-init / index).
   </p>
 
+  <h3 id="docx-placeholder-substitution">6.2) Подстановка плейсхолдеров и разрывы Word</h3>
+  <div class="note">
+    Извлечение ключей из DOCX и подстановка значений при generate PDF:
+    <code>DocxPlaceholderExtractor</code> → <code>DocxPlaceholderSupport</code> → <code>ContractDocxPlaceholderFiller</code>
+    (правки в <code>word/document.xml</code> и header/footer частей архива).<br><br>
+    Значения служебных ключей при generate мержит <code>ContractTemplateSystemPlaceholders::forContract</code>:
+    <code>documents_url</code>, <code>contract_id</code>, <code>contract_date</code> (текущая дата сервера, <code>d.m.Y</code>)
+    плюс блок <code>legal_entity_*</code> при наличии в схеме.
+  </div>
+  <p><b>Почему в PDF могло остаться <code>{{contract_date}}</code>:</b> в UI Word плейсхолдер выглядит цельным,
+  но внутри OOXML две открывающие скобки часто лежат в разных <code>&lt;w:t&gt;</code>
+  (после копирования, проверки орфографии и т.п.). Раньше regex требовал смежные <code>{{</code> —
+  подставлялось только первое «цельное» вхождение; остальные оставались текстом
+  <code>{{contract_date}}</code>. Другие ключи при этом могли работать, если Word не рвал у них скобки.</p>
+  <ul>
+    <li>Текущий паттерн допускает XML-теги и пробелы <b>между символами ключа</b> и <b>между парными скобками</b> <code>{</code>/<code>{</code> и <code>}</code>/<code>}</code>.</li>
+    <li>Заменяются <b>все</b> вхождения ключа в документе (не только первое).</li>
+    <li>Правило общее для любого <code>{{snake_case}}</code>, не только для даты; баг чаще проявлялся у <code>contract_date</code> из‑за типичной вёрстки шаблонов.</li>
+    <li>Уже сформированный PDF сам не обновляется — нужна повторная генерация (родитель «изменить данные» / новый generate).</li>
+  </ul>
+  <p class="small">Кабинет и UX: <a href="/docs/documentation/account-contract-fill#contract-date-placeholders">account-contract-fill §4.1</a>.
+  Тесты: <code>ContractDocxPlaceholderFillerTest</code> (unit),
+  <code>AccountContractDatePlaceholderFeatureTest</code>,
+  <code>ContractTemplateContractDateExtractionFeatureTest</code> (store DOCX с разорванными скобками → schema).</p>
+
   <h2>7) Версии DOCX и архив</h2>
   <ul>
     <li>Каждый новый файл DOCX при store/update создаёт запись в <code>contract_template_versions</code> и обновляет <code>current_version_id</code>.</li>
@@ -235,9 +274,9 @@
   <ul>
     <li><code>ContractTemplateService</code> — CRUD шаблонов, нормализация полей, версии</li>
     <li><code>ContractTemplateVariablePresets</code> — справочник переменных и порядок fill</li>
-    <li><code>DocxPlaceholderExtractor</code> — парсинг <code>{{…}}</code> из DOCX</li>
-    <li><code>ContractDocxPlaceholderFiller</code> — подстановка значений в DOCX</li>
-    <li><code>ContractPdfGenerationService</code> — формирование PDF (кабинет + очередь)</li>
+    <li><code>DocxPlaceholderExtractor</code> — парсинг <code>{{…}}</code> из DOCX (в т.ч. при разрыве скобок Word на разные <code>w:t</code>)</li>
+    <li><code>DocxPlaceholderSupport</code> / <code>ContractDocxPlaceholderFiller</code> — подстановка значений; все вхождения ключа, включая разорванные <code>{{</code>/<code>}}</code></li>
+    <li><code>ContractPdfGenerationService</code> — формирование PDF (кабинет + очередь); системные <code>contract_date</code>, <code>contract_id</code>, <code>legal_entity_*</code></li>
     <li><code>LibreOfficePdfConverter</code> / <code>FakeContractPdfConverter</code></li>
     <li><code>ContractPrefillResolver</code> — предзаполнение из users/parents/teams</li>
     <li><code>ContractLegalEntityPlaceholderService</code> — реквизиты юр. лица группы и блок при отсутствии</li>
@@ -266,6 +305,7 @@
       <li><code>ContractsDocumentsSectionUiFeatureTest.php</code>, <code>ContractsDocumentsSectionFullAccessFeatureTest.php</code> — вкладки, email API</li>
       <li><code>ContractStoreTemplateModeTest.php</code>, <code>ContractCreateTemplateModeModalFeatureTest.php</code> — создание договора по шаблону</li>
       <li><code>ContractTemplateLegalEntityVariablesFeatureTest.php</code> — UI «Юр. лицо» / <code>child_address</code>, store DOCX→schema, блок store без юрлица, fill/generate inject, AJAX/non-AJAX 422</li>
+      <li><code>ContractTemplateContractDateExtractionFeatureTest.php</code> — store DOCX с разорванными скобками <code>{{contract_date}}</code> → system-поле в schema; guest/403</li>
       <li><code>ContractRevokeRefundTest.php</code> — revoke + возврат 70&nbsp;₽</li>
       <li><code>ContractTemplateWorkflowFeatureTest.php</code>, <code>ContractTemplateToParentWorkflowFeatureTest.php</code> — E2E</li>
       <li><code>ContractParentProfileSyncTest.php</code>, <code>ContractStudentProfileSyncTest.php</code></li>

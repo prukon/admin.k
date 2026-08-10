@@ -115,6 +115,7 @@ class ContractPrefillResolver
             ContractTemplatePrefillSources::PARENT_LASTNAME   => (string) ($parentFields['parent_lastname'] ?? ''),
             ContractTemplatePrefillSources::PARENT_FIRSTNAME  => (string) ($parentFields['parent_firstname'] ?? ''),
             ContractTemplatePrefillSources::PARENT_MIDDLENAME => (string) ($parentFields['parent_middlename'] ?? ''),
+            ContractTemplatePrefillSources::PARENT_FULL_NAME_GENITIVE => (string) ($parentFields['parent_full_name_genitive'] ?? ''),
             ContractTemplatePrefillSources::PARENT_PASSPORT   => (string) ($parentFields['parent_passport'] ?? ''),
             ContractTemplatePrefillSources::PARENT_PASSPORT_ISSUED => (string) ($parentFields['parent_passport_issued'] ?? ''),
             ContractTemplatePrefillSources::PARENT_ADDRESS    => (string) ($parentFields['parent_address'] ?? ''),

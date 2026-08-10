@@ -65,6 +65,46 @@ class ContractDocxPlaceholderFillerTest extends TestCase
     }
 
     /** @test */
+    public function replaces_when_opening_braces_split_across_word_runs(): void
+    {
+        $source = tempnam(sys_get_temp_dir(), 'docx_') . '.docx';
+        $zip = new ZipArchive();
+        $zip->open($source, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>');
+        // Как в реальных DOCX: {{ вместе в одном run и { + { в разных run (часто у contract_date).
+        $zip->addFromString(
+            'word/document.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            . '<w:body>'
+            . '<w:p><w:r><w:t>{{</w:t></w:r><w:proofErr w:type="spellStart"/><w:r><w:t>contract_date</w:t></w:r>'
+            . '<w:proofErr w:type="spellEnd"/><w:r><w:t>}}</w:t></w:r></w:p>'
+            . '<w:p><w:r><w:t>от </w:t></w:r>'
+            . '<w:r><w:t>{</w:t></w:r><w:proofErr w:type="gramEnd"/>'
+            . '<w:r><w:t>{</w:t></w:r><w:proofErr w:type="spellStart"/>'
+            . '<w:r><w:t>contract_date</w:t></w:r><w:proofErr w:type="spellEnd"/>'
+            . '<w:r><w:t>}}</w:t></w:r></w:p>'
+            . '<w:p><w:r><w:t>{</w:t></w:r><w:r><w:t>{</w:t></w:r>'
+            . '<w:r><w:t>contract_date</w:t></w:r><w:r><w:t>}</w:t></w:r><w:r><w:t>}</w:t></w:r></w:p>'
+            . '</w:body></w:document>'
+        );
+        $zip->close();
+
+        $target = tempnam(sys_get_temp_dir(), 'filled_') . '.docx';
+        (new ContractDocxPlaceholderFiller())->fill($source, $target, [
+            'contract_date' => '10.08.2026',
+        ]);
+
+        $xml = $this->readDocumentXml($target);
+
+        $this->assertSame(3, substr_count($xml, '10.08.2026'));
+        $this->assertStringNotContainsString('contract_date', $xml);
+
+        @unlink($source);
+        @unlink($target);
+    }
+
+    /** @test */
     public function replaces_documents_url_inside_hyperlink_xml(): void
     {
         $source = tempnam(sys_get_temp_dir(), 'docx_') . '.docx';

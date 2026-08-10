@@ -441,6 +441,7 @@
         #editLeadModal.lead-modal-readonly .js-parent-lastname,
         #editLeadModal.lead-modal-readonly .js-parent-firstname,
         #editLeadModal.lead-modal-readonly .js-parent-middlename,
+        #editLeadModal.lead-modal-readonly .js-parent-full-name-genitive,
         #editLeadModal.lead-modal-readonly .js-parent-passport,
         #editLeadModal.lead-modal-readonly .js-parent-passport-issued,
         #editLeadModal.lead-modal-readonly .js-parent-address,

@@ -57,6 +57,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'contract templates variables reference copy js' => ['contract-templates/partials/variables-reference.blade.php'];
         yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
+        yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
     }
 
     /**
@@ -1491,6 +1492,126 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: ФИО родителя в родительном — оба пути editUser + fillParentFio/reset/Select2 не теряют поле.
+     * UX-баг: один из двух AJAX-путей открытия модалки забывает гидратировать genitive →
+     * при повторном открытии остаётся значение предыдущего ученика или пусто.
+     */
+    public function test_edit_user_and_parent_form_genitive_fill_contract_is_valid_javascript(): void
+    {
+        $editPath = resource_path('views/includes/modal/editUser.blade.php');
+        $parentFormPath = resource_path('views/admin/users/_parent_form.blade.php');
+        $this->assertFileExists($editPath);
+        $this->assertFileExists($parentFormPath);
+
+        $editContent = (string) file_get_contents($editPath);
+        $parentForm = (string) file_get_contents($parentFormPath);
+
+        $hydrateLine = 'parent_full_name_genitive: response.user.parent_full_name_genitive';
+        $this->assertStringContainsString($hydrateLine, $editContent);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($editContent, $hydrateLine),
+            'Оба пути открытия editUser должны передавать parent_full_name_genitive в setStudentParentForm'
+        );
+
+        $this->assertStringContainsString('name="parent_full_name_genitive"', $parentForm);
+        $this->assertStringContainsString('js-parent-full-name-genitive', $parentForm);
+        $this->assertStringContainsString('fullNameGenitive:', $parentForm);
+        $this->assertStringContainsString(
+            "$(ids.fullNameGenitive).val(data.parent_full_name_genitive || '')",
+            $parentForm
+        );
+        $this->assertStringContainsString(
+            'parent_full_name_genitive: item.parent_full_name_genitive',
+            $parentForm
+        );
+        $this->assertStringContainsString("parent_full_name_genitive: '',", $parentForm);
+
+        $fillPos = strpos($parentForm, 'function fillParentFio');
+        $this->assertNotFalse($fillPos);
+        $fillChunk = substr($parentForm, (int) $fillPos, 900);
+        $this->assertStringContainsString('parent_full_name_genitive', $fillChunk);
+        $this->assertStringContainsString("|| ''", $fillChunk);
+
+        $resetPos = strpos($parentForm, 'window.resetStudentParentForm');
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($parentForm, (int) $resetPos, 700);
+        $this->assertStringContainsString("parent_full_name_genitive: ''", $resetChunk);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $editContent, $editScripts);
+        $this->assertNotEmpty($editScripts[1]);
+        $editGenitiveFound = false;
+        foreach ($editScripts[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'parent_full_name_genitive')) {
+                continue;
+            }
+            $editGenitiveFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+            $this->assertGreaterThanOrEqual(
+                1,
+                substr_count($rawScript, $hydrateLine)
+            );
+
+            $tempFile = sys_get_temp_dir().'/blade-js-edit-genitive-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in editUser genitive script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+        $this->assertTrue($editGenitiveFound, 'В editUser.blade.php не найден script с parent_full_name_genitive');
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $parentForm, $parentScripts);
+        $this->assertNotEmpty($parentScripts[1]);
+        $parentGenitiveFound = false;
+        foreach ($parentScripts[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'fullNameGenitive')
+                && ! str_contains($rawScript, 'parent_full_name_genitive')
+            ) {
+                continue;
+            }
+            $parentGenitiveFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-parent-genitive-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in _parent_form genitive script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+        $this->assertTrue($parentGenitiveFound, 'В _parent_form.blade.php не найден script с genitive');
+    }
+
+    /**
      * P1: legal-entities index — fillForm гидратирует bank_corr_account.
      */
     public function test_legal_entities_index_fill_form_bank_corr_account_contract_is_valid_javascript(): void
@@ -1590,6 +1711,65 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В variables-reference.blade.php не найден script копирования переменных');
+    }
+
+    /**
+     * P1: кабинет «Мои документы» — AJAX fill/generate (оба триггера открытия + submit).
+     */
+    public function test_account_documents_contract_fill_ajax_handlers_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/account/documents.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("submit', '#contractFillModal .contract-fill-form'", $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('loadContractFill', $content);
+        $this->assertStringContainsString('window.openContractFillModal = loadContractFill', $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill'", $content);
+        $this->assertStringContainsString("click', '.js-open-contract-fill-edit'", $content);
+        $this->assertStringContainsString("'mode=edit'", $content);
+        $this->assertStringContainsString("headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}", $content);
+        $this->assertStringContainsString('showFillAjaxErrors', $content);
+        $this->assertStringContainsString('resp.poll', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (!str_contains($rawScript, 'loadContractFill')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+            $this->assertStringContainsString('e.preventDefault()', $js);
+            $this->assertStringContainsString("'.js-open-contract-fill'", $js);
+            $this->assertStringContainsString("'.js-open-contract-fill-edit'", $js);
+
+            $tempFile = sys_get_temp_dir() . '/blade-js-docs-fill-' . uniqid('', true) . '.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check ' . escapeshellarg($tempFile) . ' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in account/documents fill script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В account/documents.blade.php не найден script loadContractFill');
     }
 
     #[DataProvider('criticalModalBladePathsProvider')]

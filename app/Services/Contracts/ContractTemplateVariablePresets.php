@@ -151,6 +151,15 @@ class ContractTemplateVariablePresets
                 'fill_sort_order'  => 13,
             ],
             [
+                'key'              => ContractTemplatePrefillSources::PARENT_FULL_NAME_GENITIVE,
+                'label'            => 'Родитель: ФИО в родительном падеже',
+                'description'      => 'ФИО заказчика в родительном падеже (например: Иванова Ивана Ивановича).',
+                'group'            => self::GROUP_PARENT,
+                'prefill_source'   => ContractTemplatePrefillSources::PARENT_FULL_NAME_GENITIVE,
+                'required_default' => false,
+                'fill_sort_order'  => 15,
+            ],
+            [
                 'key'              => 'parent_passport',
                 'label'            => 'Родитель: паспорт',
                 'description'      => 'Серия и номер паспорта заказчика.',

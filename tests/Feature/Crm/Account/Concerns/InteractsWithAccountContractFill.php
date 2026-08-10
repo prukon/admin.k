@@ -99,12 +99,46 @@ trait InteractsWithAccountContractFill
     }
 
     /**
-     * @param list<string> $placeholders
+     * Договор awaiting_client_fill с произвольным word/document.xml (для UX-багов разметки Word).
+     *
+     * @param list<array<string, mixed>> $fieldsSchema
      */
-    private function createFillTestDocxOnDisk(array $placeholders): string
+    protected function makeAwaitingFillContractWithDocumentXml(array $fieldsSchema, string $documentXml): Contract
     {
-        $inner = implode(' ', array_map(static fn (string $key): string => '{{' . $key . '}}', $placeholders));
+        $docxPath = $this->createFillTestDocxFromDocumentXml($documentXml);
 
+        $template = ContractTemplate::create([
+            'partner_id'  => $this->partner->id,
+            'title'       => 'Шаблон fill xml test',
+            'is_archived' => false,
+        ]);
+
+        $version = ContractTemplateVersion::create([
+            'contract_template_id' => $template->id,
+            'version'              => 1,
+            'docx_path'            => $docxPath,
+            'docx_sha256'          => str_repeat('d', 64),
+            'fields_schema'        => $fieldsSchema,
+        ]);
+        $template->current_version_id = $version->id;
+        $template->save();
+
+        return Contract::create([
+            'school_id'                    => $this->partner->id,
+            'user_id'                      => $this->user->id,
+            'group_id'                     => null,
+            'creation_mode'                => Contract::CREATION_MODE_TEMPLATE,
+            'contract_template_version_id' => $version->id,
+            'source_pdf_path'              => null,
+            'source_sha256'                => null,
+            'status'                       => Contract::STATUS_AWAITING_CLIENT_FILL,
+            'fill_expires_at'              => now()->addDays(7),
+            'provider'                     => 'podpislon',
+        ]);
+    }
+
+    protected function createFillTestDocxFromDocumentXml(string $documentXml): string
+    {
         $rel = 'contract-templates/fill-test-' . uniqid() . '.docx';
         $abs = Storage::disk()->path($rel);
         @mkdir(dirname($abs), 0775, true);
@@ -112,14 +146,23 @@ trait InteractsWithAccountContractFill
         $zip = new ZipArchive();
         $zip->open($abs, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>');
-        $zip->addFromString(
-            'word/document.xml',
+        $zip->addFromString('word/document.xml', $documentXml);
+        $zip->close();
+
+        return $rel;
+    }
+
+    /**
+     * @param list<string> $placeholders
+     */
+    private function createFillTestDocxOnDisk(array $placeholders): string
+    {
+        $inner = implode(' ', array_map(static fn (string $key): string => '{{' . $key . '}}', $placeholders));
+
+        return $this->createFillTestDocxFromDocumentXml(
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             . '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
             . '<w:body><w:p><w:r><w:t>Договор ' . $inner . '</w:t></w:r></w:p></w:body></w:document>'
         );
-        $zip->close();
-
-        return $rel;
     }
 }

@@ -126,6 +126,20 @@
                            value="{{ $parentMiddlename ?? '' }}">
                 </div>
             </div>
+
+            <div class="col-12">
+                <div class="mb-3">
+                    <label for="{{ $prefix }}-parent-full-name-genitive" class="form-label">ФИО родителя в родительном падеже</label>
+                    <input type="text"
+                           name="parent_full_name_genitive"
+                           class="form-control js-parent-full-name-genitive"
+                           id="{{ $prefix }}-parent-full-name-genitive"
+                           data-parent-prefix="{{ $prefix }}"
+                           maxlength="300"
+                           placeholder="Иванова Ивана Ивановича"
+                           value="{{ $parentFullNameGenitive ?? '' }}">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -308,6 +322,7 @@
                         lastname: '#' + prefix + '-parent-lastname',
                         firstname: '#' + prefix + '-parent-firstname',
                         middlename: '#' + prefix + '-parent-middlename',
+                        fullNameGenitive: '#' + prefix + '-parent-full-name-genitive',
                         passport: '#' + prefix + '-parent-passport',
                         passportIssued: '#' + prefix + '-parent-passport-issued',
                         address: '#' + prefix + '-parent-address',
@@ -513,6 +528,7 @@
                     $(ids.lastname).val(data.parent_lastname || '');
                     $(ids.firstname).val(data.parent_firstname || '');
                     $(ids.middlename).val(data.parent_middlename || '');
+                    $(ids.fullNameGenitive).val(data.parent_full_name_genitive || '');
                     $(ids.passport).val(data.parent_passport || '');
                     $(ids.passportIssued).val(data.parent_passport_issued || '');
                     $(ids.address).val(data.parent_address || '');
@@ -571,6 +587,7 @@
                                             parent_lastname: item.parent_lastname,
                                             parent_firstname: item.parent_firstname,
                                             parent_middlename: item.parent_middlename,
+                                            parent_full_name_genitive: item.parent_full_name_genitive,
                                             parent_passport: item.parent_passport,
                                             parent_passport_issued: item.parent_passport_issued,
                                             parent_address: item.parent_address,
@@ -650,6 +667,7 @@
                         parent_lastname: '',
                         parent_firstname: '',
                         parent_middlename: '',
+                        parent_full_name_genitive: '',
                         parent_passport: '',
                         parent_passport_issued: '',
                         parent_address: '',

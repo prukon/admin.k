@@ -20,6 +20,7 @@ class ContractTemplatePrefillSources
     public const PARENT_LASTNAME    = 'parent_lastname';
     public const PARENT_FIRSTNAME   = 'parent_firstname';
     public const PARENT_MIDDLENAME  = 'parent_middlename';
+    public const PARENT_FULL_NAME_GENITIVE = 'parent_full_name_genitive';
     public const PARENT_PASSPORT    = 'parent_passport';
     public const PARENT_PASSPORT_ISSUED = 'parent_passport_issued';
     public const PARENT_ADDRESS     = 'parent_address';

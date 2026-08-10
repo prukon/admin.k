@@ -73,12 +73,14 @@ final class ParentsAndFamilyCabinetPartnerIsolationFeatureTest extends CrmTestCa
             'partner_id' => $this->partner->id,
             'lastname'   => 'СвойИзолированный',
             'firstname'  => 'Родитель',
+            'middlename' => null,
         ]);
 
         ParentProfile::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'lastname'   => 'СвойИзолированный',
             'firstname'  => 'Чужой',
+            'middlename' => null,
         ]);
 
         $this->withSession([

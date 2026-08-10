@@ -81,6 +81,10 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
   <h2 id="users-prices-seed">3.1) Ученики, группы и <code>DevPricesSeeder</code></h2>
   <ul>
     <li><code>DevUsersSeeder</code> после назначения primary-группы выравнивает <code>team_user</code> под актуальные <code>partner_id</code>/<code>team_id</code>, затем у ~25% учеников через <code>TeamUserSyncService::attachTeamForStudent</code> добавляет ещё группы того же партнёра (итого 2–3).</li>
+    <li>Родители (<code>parents</code>): у части учеников — общая карточка на 2–3 детей, у остальных — отдельная.
+      В ~80% карточек заполняется <code>full_name_genitive</code> примитивной склейкой
+      (Иванов Иван Иванович → Иванова Ивана Ивановича; не морфология, только демо).
+      См. <a href="/docs/documentation/parents-and-family-cabinet#parent-full-name-genitive">parents-and-family-cabinet §1.5</a>.</li>
     <li><code>DevPricesSeeder</code> строит пул уникальных слотов из pivot × окна месяцев (paid: 0–6 мес. назад; unpaid: 7–12), перемешивает и берёт <b>до</b> целевого объёма — без дублей по UNIQUE <code>(user_id, team_id, new_month)</code>.</li>
     <li>Оплаченные цепочки идут через <code>PayableFactory::paidMonthlyWithAllRelations()</code> с явным <code>meta.team_id</code> (не только primary-группа).</li>
     <li>~72% строк <code>users_prices</code> получают <code>lesson_package_id</code> (flexible/fixed/no_schedule или postpay); дополнительно сидятся неоплаченные postpay текущего месяца и <code>team_prices</code> с пакетом; unpaid postpay пересчитываются через <code>PostpayUsersPriceSync</code>.</li>

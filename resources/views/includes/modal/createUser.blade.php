@@ -184,6 +184,7 @@
                             'parentLastname' => old('parent_lastname'),
                             'parentFirstname' => old('parent_firstname'),
                             'parentMiddlename' => old('parent_middlename'),
+                            'parentFullNameGenitive' => old('parent_full_name_genitive'),
                         ])
 
                         @include('includes.modal._student_comment_sex_fields', [

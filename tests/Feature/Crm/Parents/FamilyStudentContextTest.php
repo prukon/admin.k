@@ -170,6 +170,7 @@ final class FamilyStudentContextTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'Иванова',
             'firstname'  => 'Мария',
+            'middlename' => null,
             'email'      => 'mama@example.com',
         ]);
 

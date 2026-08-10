@@ -13,6 +13,7 @@ class StudentParentSyncService
         'parent_lastname',
         'parent_firstname',
         'parent_middlename',
+        'parent_full_name_genitive',
         'parent_passport',
         'parent_passport_issued',
         'parent_address',
@@ -31,6 +32,7 @@ class StudentParentSyncService
             'parent_lastname'         => 'parent_lastname',
             'parent_firstname'        => 'parent_firstname',
             'parent_middlename'       => 'parent_middlename',
+            'parent_full_name_genitive' => 'parent_full_name_genitive',
             'parent_passport'         => 'parent_passport',
             'parent_passport_issued'  => 'parent_passport_issued',
             'parent_address'          => 'parent_address',
@@ -218,6 +220,8 @@ class StudentParentSyncService
      *     address: ?string,
      *     phone: ?string,
      *     email: ?string,
+     *     full_name_genitive: ?string,
+     *     full_name_genitive_present: bool,
      *     has_any: bool
      * }
      */
@@ -228,24 +232,31 @@ class StudentParentSyncService
         $address = $this->normalizeTextPart($payload['parent_address'] ?? null, 1000);
         $phone = $this->normalizePhonePart($payload['parent_phone'] ?? null);
         $email = $this->normalizeEmailPart($payload['parent_email'] ?? null);
+        $fullNameGenitivePresent = array_key_exists('parent_full_name_genitive', $payload);
+        $fullNameGenitive = $fullNameGenitivePresent
+            ? $this->normalizeTextPart($payload['parent_full_name_genitive'], 300)
+            : null;
 
         return [
-            'passport'         => $passport,
-            'passport_issued'  => $passportIssued,
-            'address'          => $address,
-            'phone'            => $phone,
-            'email'            => $email,
-            'has_any'          => $passport !== null
+            'passport'            => $passport,
+            'passport_issued'     => $passportIssued,
+            'address'             => $address,
+            'phone'               => $phone,
+            'email'               => $email,
+            'full_name_genitive'  => $fullNameGenitive,
+            'full_name_genitive_present' => $fullNameGenitivePresent,
+            'has_any'             => $passport !== null
                 || $passportIssued !== null
                 || $address !== null
                 || $phone !== null
-                || $email !== null,
+                || $email !== null
+                || $fullNameGenitivePresent,
         ];
     }
 
     /**
      * @param array{lastname: ?string, firstname: ?string, middlename: ?string, has_any: bool} $names
-     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, has_any: bool} $profileAttributes
+     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, full_name_genitive: ?string, full_name_genitive_present: bool, has_any: bool} $profileAttributes
      */
     private function applyParentProfileAttributes(ParentProfile $parent, array $names, array $profileAttributes): void
     {
@@ -266,16 +277,20 @@ class StudentParentSyncService
                 'email'           => $profileAttributes['email'],
             ], static fn ($value) => $value !== null));
         }
+
+        if ($profileAttributes['full_name_genitive_present']) {
+            $parent->full_name_genitive = $profileAttributes['full_name_genitive'];
+        }
     }
 
     /**
      * @param array{lastname: ?string, firstname: ?string, middlename: ?string, has_any: bool} $names
-     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, has_any: bool} $profileAttributes
+     * @param array{passport: ?string, passport_issued: ?string, address: ?string, phone: ?string, email: ?string, full_name_genitive: ?string, full_name_genitive_present: bool, has_any: bool} $profileAttributes
      * @return array<string, mixed>
      */
     private function buildParentAttributes(array $names, array $profileAttributes): array
     {
-        return array_filter([
+        $attributes = array_filter([
             'lastname'        => $names['lastname'],
             'firstname'       => $names['firstname'],
             'middlename'      => $names['middlename'],
@@ -285,6 +300,12 @@ class StudentParentSyncService
             'phone'           => $profileAttributes['phone'],
             'email'           => $profileAttributes['email'],
         ], static fn ($value) => $value !== null);
+
+        if ($profileAttributes['full_name_genitive_present']) {
+            $attributes['full_name_genitive'] = $profileAttributes['full_name_genitive'];
+        }
+
+        return $attributes;
     }
 
     private function normalizeNamePart(mixed $value): ?string

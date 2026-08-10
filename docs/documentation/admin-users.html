@@ -69,7 +69,7 @@
 
   <h2>2) Список учеников (DataTables)</h2>
   <ul>
-    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
+    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>full_name_genitive</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
     <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
   </ul>
 
@@ -139,6 +139,7 @@
     </thead>
     <tbody>
       <tr><td><code>parents.lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО (nullable, max 100)</td></tr>
+      <tr><td><code>parents.full_name_genitive</code></td><td>ФИО в родительном падеже (nullable, max 300; HTTP-ключ <code>parent_full_name_genitive</code>)</td></tr>
       <tr><td><code>parents.passport</code>, <code>passport_issued</code>, <code>address</code></td><td>Паспорт и адрес (nullable; миграция <code>2026_06_03_120000_…</code>)</td></tr>
       <tr><td><code>parents.phone</code>, <code>email</code></td><td>Контакты карточки родителя (опционально; не путать с <code>users.phone</code> / <code>users.email</code> учётки ученика)</td></tr>
       <tr><td><code>parents.partner_id</code></td><td>Организация (обязательно)</td></tr>
@@ -159,11 +160,12 @@
   </div>
   <div class="ok">
     <b>Редактирование карточки из справочника (2026‑07).</b>
-    В режиме «Из справочника» видны и Select2, и поля ФИО/профиля. Правка ФИО (и остальных полей) при сохранении с
+    В режиме «Из справочника» видны и Select2, и поля ФИО/профиля (включая <b>родительный падеж</b>). Правка при сохранении с
     <code>parent_id</code> пишет в <b>существующую</b> строку <code>parents</code> — изменения общие для всех учеников с этим
-    <code>parent_id</code> (список, edit JSON, семейный кабинет, договоры через <code>parent_full_name</code>).
+    <code>parent_id</code> (список, edit JSON, семейный кабинет, договоры через <code>parent_full_name</code> /
+    <code>parent_full_name_genitive</code>).
     Отдельного подтверждения при нескольких детях нет. Чтобы завести другую карточку — режим «Новый родитель»
-    (очищает <code>parent_id</code>, создаёт новую запись).
+    (очищает <code>parent_id</code>, создаёт новую запись). Подробнее о родительном — §<a href="#user-parent-genitive">2.1.6</a>.
   </div>
   <ul>
     <li><b>Если у партнёра есть хотя бы один родитель в <code>parents</code></b> — переключатель режима (две кнопки: «Из справочника» / «Новый родитель»).
@@ -220,18 +222,40 @@
   <ul>
     <li><code>parent_id</code> — nullable, exists в <code>parents</code> с <code>partner_id = current</code>.</li>
     <li><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code> — ключи HTTP-формы (не колонки <code>users</code>), <code>nullable|string|max:100</code>.</li>
+    <li><code>parent_full_name_genitive</code> — ФИО в родительном падеже, <code>nullable|string|max:300</code> → <code>parents.full_name_genitive</code>.</li>
   </ul>
   <p>Сохранение: <code>StudentParentSyncService::syncForStudent</code> из <code>UserService::update/store</code>.
   При обновлении вызывается, если в теле есть ключи <code>parent_*</code> <b>или</b> у пользователя после сохранения роль не <code>user</code> (сброс <code>parent_id</code>).</p>
   <p class="small">Контракт HTTP: AJAX store/update → JSON 200 (<code>message</code>, у store ещё <code>user</code>); non-AJAX POST/PATCH без <code>X-Requested-With</code> → <code>302</code> на <code>admin.user1</code> (safety-net). Валидация → 422 (AJAX) / redirect + session errors (web).</p>
-  <p>JSON edit: <code>user.parent_lastname</code> и т.д. — из <code>User::parentFormFields()</code> (значения из <code>parents</code>).</p>
+  <p>JSON edit: <code>user.parent_lastname</code> и т.д. — из <code>User::parentFormFields()</code> (значения из <code>parents</code>),
+    в т.ч. <code>user.parent_full_name_genitive</code>.</p>
 
   <h3>2.1.5) Связь с договорами и личным кабинетом</h3>
   <div class="note">
-    Договоры: <code>parent_full_name</code> в модалке «Создать договор» (только просмотр) и предзаполнение подписанта на карточке — см. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.<br>
+    Договоры: <code>parent_full_name</code> (именительный) в модалке «Создать договор» (только просмотр) и предзаполнение подписанта на карточке — см. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.
+    Плейсхолдер <code>{{parent_full_name_genitive}}</code> — из <code>parents.full_name_genitive</code> (§<a href="#user-parent-genitive">2.1.6</a>).<br>
     Быстрый переход к последнему договору ученика из списка пользователей — колонка «Договор» (§<a href="#user-contract-column">2.3</a>).<br>
     Личный кабинет ученика: блок «Данные родителя» (общая карточка <code>parents</code> для всех детей с тем же <code>parent_id</code>), право <code>account.user.parent.update</code> — см. <a href="/docs/documentation/parents-and-family-cabinet#account-parent">parents-and-family-cabinet §4</a>.
   </div>
+
+  <h3 id="user-parent-genitive">2.1.6) ФИО родителя в родительном падеже</h3>
+  <div class="note">
+    Необязательное поле формы родителя: подпись «ФИО родителя в родительном падеже»,
+    name <code>parent_full_name_genitive</code>, id create/edit
+    <code>{prefix}-parent-full-name-genitive</code>, class <code>js-parent-full-name-genitive</code>,
+    <code>maxlength=300</code>, placeholder «Иванова Ивана Ивановича».
+    Расположение: сразу после отчества, перед паспортом (partial <code>_parent_form</code>).
+  </div>
+  <ul>
+    <li>БД: <code>parents.full_name_genitive</code> (миграция <code>2026_08_11_120000_add_full_name_genitive_to_parents_table.php</code>).</li>
+    <li>Валидация: <code>nullable|string|max:300</code>; 422 → ключ <code>parent_full_name_genitive</code>.</li>
+    <li>Select2 <code>parents/search</code> отдаёт <code>parent_full_name_genitive</code>; <code>fillParentFio</code> / reset / оба пути открытия editUser гидратируют поле (иначе UX: «залипание» значения предыдущего ученика).</li>
+    <li>Пустая строка в запросе очищает колонку. Общая карточка — siblings видят то же значение.</li>
+    <li>Договоры: <code>{{parent_full_name_genitive}}</code> — <a href="/docs/documentation/contract-templates#docx-variables">contract-templates §6</a>;
+      полный обзор — <a href="/docs/documentation/parents-and-family-cabinet#parent-full-name-genitive">parents-and-family-cabinet §1.5</a>.</li>
+  </ul>
+  <p class="small">Тесты: <code>AdminUsersParentFullNameGenitiveFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_edit_user_and_parent_form_genitive_fill_contract_is_valid_javascript</code>.</p>
 
   <h2 id="user-contract-column">2.3) Колонка «Договор» в списке пользователей</h2>
   <div class="note">
@@ -1146,6 +1170,7 @@
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
+    <a href="#user-parent-genitive">ФИО в родительном</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="#user-comment-sex">Пол и комментарий</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·

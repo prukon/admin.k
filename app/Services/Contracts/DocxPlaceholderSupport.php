@@ -3,12 +3,18 @@
 namespace App\Services\Contracts;
 
 /**
- * Плейсхолдеры {{key}} в DOCX: Word часто разрывает их XML-тегами между символами.
+ * Плейсхолдеры {{key}} в DOCX: Word часто разрывает их XML-тегами между символами,
+ * в том числе между самими скобками `{` `{` и `}` `}`.
  */
 final class DocxPlaceholderSupport
 {
-    /** Допускает XML-теги внутри {{ ... }} */
-    public const PATTERN_IN_XML = '/\{\{((?:[^{}]|<[^>]+>)*?)\}\}/us';
+    /** XML-тег или пробел между символами плейсхолдера (типичный разрыв Word runs). */
+    private const BETWEEN_CHARS = '(?:<[^>]+>|\s)*';
+
+    /**
+     * Допускает XML-теги / пробелы внутри {{ ... }} и между парными скобками.
+     */
+    public const PATTERN_IN_XML = '/\{' . self::BETWEEN_CHARS . '\{((?:[^{}]|<[^>]+>)*?)\}' . self::BETWEEN_CHARS . '\}/us';
 
     /**
      * Служебные ключи: подставляются автоматически, не показываются в форме клиента.
@@ -102,13 +108,14 @@ final class DocxPlaceholderSupport
 
     public static function buildAggressiveKeyPattern(string $key): string
     {
-        $pattern = '/\{\{(?:<[^>]+>|\s)*';
+        $gap = self::BETWEEN_CHARS;
+        $pattern = '/\{' . $gap . '\{' . $gap;
         $length = strlen($key);
         for ($i = 0; $i < $length; $i++) {
             $pattern .= preg_quote($key[$i], '/');
-            $pattern .= '(?:<[^>]+>|\s)*';
+            $pattern .= $gap;
         }
-        $pattern .= '\}\}/u';
+        $pattern .= '\}' . $gap . '\}/u';
 
         return $pattern;
     }

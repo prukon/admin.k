@@ -33,7 +33,7 @@
     <b>Назначение.</b> Справочник родителей (<code>parents</code>) для ФИО подписанта договора и семейного кабинета (несколько детей с одним <code>users.parent_id</code>).
     Вход в CRM — <b>только</b> под учёткой ученика (<code>users</code>, роль <code>user</code>). Отдельной учётки «мама/папа» нет.
     Контакты для SMS и оплат — <code>users.phone</code> / <code>users.email</code> учётки ученика, под которой выполнен вход.
-    Карточка <code>parents</code> (ФИО, паспорт, адрес, телефон, email родителя) общая для всех детей с тем же <code>parent_id</code>
+    Карточка <code>parents</code> (ФИО, <b>ФИО в родительном падеже</b>, паспорт, адрес, телефон, email родителя) общая для всех детей с тем же <code>parent_id</code>
     и редактируется из админки (§3) и из ЛК (§4) при наличии права.
     При заявке с лендинга карточка может быть <b>автоматически подобрана</b> к лиду
     (<code>school_leads.parent_id</code>) — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>.
@@ -63,7 +63,8 @@
     <tbody>
       <tr><td><code>id</code></td><td>PK</td></tr>
       <tr><td><code>partner_id</code></td><td>Организация (обязательно, FK → <code>partners</code>, cascade)</td></tr>
-      <tr><td><code>lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО родителя / подписанта (nullable, max 100)</td></tr>
+      <tr><td><code>lastname</code>, <code>firstname</code>, <code>middlename</code></td><td>ФИО родителя / подписанта в именительном падеже (nullable, max 100)</td></tr>
+      <tr><td><code>full_name_genitive</code></td><td>ФИО в родительном падеже целиком (nullable, max 300); HTTP-ключ <code>parent_full_name_genitive</code>; см. §<a href="#parent-full-name-genitive">1.5</a></td></tr>
       <tr><td><code>passport</code>, <code>passport_issued</code>, <code>address</code></td><td>Паспорт и адрес (nullable; миграция <code>2026_06_03_120000_…</code>)</td></tr>
       <tr><td><code>phone</code>, <code>email</code></td><td>Опциональные контакты карточки; <code>email</code> также в сайдбаре при семейном режиме. Редактируются в админке и в ЛК (при <code>account.user.parent.update</code>). Телефон родителя и ФИО из этой карточки попадают в <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-contacts">выгрузку Excel календаря школы</a> (колонки «ФИО родителя» / «Телефон родителя»); телефон ученика в той же выгрузке — из <code>users.phone</code></td></tr>
       <tr><td><code>deleted_at</code></td><td>Soft delete</td></tr>
@@ -82,7 +83,7 @@
     <b>Legacy удалён.</b> Колонки <code>users.parent_lastname</code>, <code>users.parent_firstname</code>, <code>users.parent_middlename</code> удалены миграцией
     <code>2026_05_28_130000_drop_legacy_parent_name_columns_from_users_table.php</code>;
     колонка <code>parents.user_id</code> (родительский логин) — миграцией <code>2026_05_28_140000_drop_user_id_from_parents_table.php</code>.
-    В HTTP-формах по-прежнему используются имена полей <code>parent_lastname</code> / <code>parent_firstname</code> / <code>parent_middlename</code> — это <b>ключи запроса</b>, значения пишутся в <code>parents</code>.
+    В HTTP-формах по-прежнему используются имена полей <code>parent_lastname</code> / <code>parent_firstname</code> / <code>parent_middlename</code> / <code>parent_full_name_genitive</code> — это <b>ключи запроса</b>, значения пишутся в <code>parents</code>.
   </div>
 
   <h3>1.3) Миграции</h3>
@@ -96,6 +97,7 @@
       <tr><td><code>2026_05_28_130000_drop_legacy_parent_name_columns_from_users_table.php</code></td><td>Удаление <code>users.parent_*</code> (ФИО только в <code>parents</code>)</td></tr>
       <tr><td><code>2026_05_28_140000_drop_user_id_from_parents_table.php</code></td><td>Удаление <code>parents.user_id</code> (отказ от отдельного логина родителя)</td></tr>
       <tr><td><code>2026_06_03_120000_add_passport_and_address_to_parents_table.php</code></td><td><code>passport</code>, <code>passport_issued</code>, <code>address</code></td></tr>
+      <tr><td><code>2026_08_11_120000_add_full_name_genitive_to_parents_table.php</code></td><td><code>full_name_genitive</code> (ФИО в родительном падеже)</td></tr>
     </tbody>
   </table>
 
@@ -106,6 +108,45 @@
 
 users (role=user) — ученик, вход в CRM
    └── parent_id → parents (общий родитель у братьев/сестёр)</pre>
+
+  <h2 id="parent-full-name-genitive">1.5) ФИО в родительном падеже</h2>
+  <div class="note">
+    Поле для договоров и текстов («от имени Иванова Ивана Ивановича»). Хранится <b>одной строкой</b>,
+    без автосклонения и без отдельных колонок фамилии/имени/отчества в родительном.
+  </div>
+  <table>
+    <thead>
+      <tr><th>Слой</th><th>Значение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>БД</td><td><code>parents.full_name_genitive</code> — <code>nullable|string|max:300</code>, миграция <code>2026_08_11_120000_…</code></td></tr>
+      <tr><td>HTTP / формы</td><td><code>parent_full_name_genitive</code> (не колонка <code>users</code>)</td></tr>
+      <tr><td>Админка</td><td><code>_parent_form</code>: после отчества, до паспорта; create/edit ученика и блок родителя в заявках</td></tr>
+      <tr><td>ЛК</td><td><code>account/users.blade.php</code>; право <code>account.user.parent.update</code>; без права — <code>disabled</code></td></tr>
+      <tr><td>Edit JSON / Select2 search</td><td><code>user.parent_full_name_genitive</code>; <code>results[].parent_full_name_genitive</code></td></tr>
+      <tr><td>Синк</td><td><code>StudentParentSyncService</code>: ключ в payload → запись/очистка; общая карточка для siblings</td></tr>
+      <tr><td>Договоры</td><td>DOCX <code>{{parent_full_name_genitive}}</code>; prefill <code>ContractPrefillResolver</code>; обратный sync из filled_data при непустом значении</td></tr>
+    </tbody>
+  </table>
+  <div class="warn">
+    <b>Что это поле не делает.</b>
+    Не участвует в колонке «Родитель», поиске по ФИО, подписи Select2, выгрузке Excel календаря
+    и read-only «ФИО родителя» в модалке создания договора — там именительный
+    (<code>ParentProfile::full_name</code> / <code>User::parent_full_name</code>).
+    В таблице <code>school_leads</code> отдельной колонки родительного <b>нет</b>: в модалке лида поле видно через
+    <code>_parent_form</code>, но снимок заявки его не хранит; при выборе родителя из справочника значение
+    подставляется из <code>parents</code>.
+  </div>
+  <ul>
+    <li>Валидация: <code>nullable|string|max:300</code>; ошибки — ключ <code>parent_full_name_genitive</code> (под полем).</li>
+    <li>Админка: ФИО именительные не обязательны вместе с родительным (можно сохранить только genitive в профиле при уже существующей карточке / вместе с другими <code>parent_*</code>).</li>
+    <li>ЛК: при любом заполненном поле блока родителя обязательны фамилия и имя — одно только genitive → 422.</li>
+    <li>Пустая строка при наличии ключа в запросе очищает <code>full_name_genitive</code> (в отличие от части других profile-полей с «только non-null fill»).</li>
+  </ul>
+  <p class="small">Тесты: <code>AdminUsersParentFullNameGenitiveFeatureTest</code>, <code>AccountParentFullNameGenitiveFeatureTest</code>,
+    <code>ContractParentFullNameGenitivePrefillFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_edit_user_and_parent_form_genitive_fill_contract_is_valid_javascript</code>.
+    Оглавление — <a href="/doc">/doc</a> (блок «ФИО родителя в родительном падеже»).</p>
 
   <h2>2) Код: модели и сервисы</h2>
   <table>
@@ -123,7 +164,7 @@ users (role=user) — ученик, вход в CRM
 
   <h2 id="parent-shared-edit">3) Админка: ученики (<code>/admin/users</code>)</h2>
   <p class="small">Список и создание на этой странице — только роль <code>user</code> (ученик). Обзор вкладок раздела: <a href="/docs/documentation/admin-users-section">admin-users-section</a>.</p>
-  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> · правка из справочника: <a href="/docs/documentation/admin-users#user-parent-directory-fio">§2.1.2</a>. Кратко:</p>
+  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> · правка из справочника: <a href="/docs/documentation/admin-users#user-parent-directory-fio">§2.1.2</a> · родительный падеж: <a href="/docs/documentation/admin-users#user-parent-genitive">§2.1.6</a> / §<a href="#parent-full-name-genitive">1.5</a>. Кратко:</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
@@ -134,7 +175,7 @@ users (role=user) — ученик, вход в CRM
     </tbody>
   </table>
   <div class="ok">
-    <b>Общая карточка.</b> В режиме «Из справочника» ФИО и поля профиля редактируемы. Сохранение с <code>parent_id</code>
+    <b>Общая карточка.</b> В режиме «Из справочника» ФИО, родительный падеж и поля профиля редактируемы. Сохранение с <code>parent_id</code>
     обновляет существующую <code>parents</code> — изменение видно всем детям с тем же <code>parent_id</code>
     (колонка «Родитель», edit JSON, ЛК, договоры). «Новый родитель» создаёт новую строку.
   </div>
@@ -162,7 +203,7 @@ users (role=user) — ученик, вход в CRM
     </thead>
     <tbody>
       <tr><td><code>account.user.view</code></td><td><code>account.user.view</code></td><td>Доступ к странице и маршрутам группы <code>account.user.*</code></td></tr>
-      <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование карточки родителя (ФИО, паспорт, адрес, телефон, email); без права — поля disabled (readonly)</td></tr>
+      <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование карточки родителя (ФИО, ФИО в родительном падеже, паспорт, адрес, телефон, email); без права — поля disabled (readonly)</td></tr>
       <tr><td><code>users.sex</code></td><td><code>users.sex</code></td><td>Пол ученика: в CRM (колонка, модалки) и в личном кабинете (<code>/account-settings/user/edit</code>); без права — поле не рендерится. Комментарий в кабинете недоступен.</td></tr>
     </tbody>
   </table>
@@ -175,8 +216,10 @@ users (role=user) — ученик, вход в CRM
     <li>Пол (<code>sex</code>) — только при <code>users.sex</code> (§<a href="#account-sex">4.4</a>).</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
     <li>Правка ФИО/профиля в ЛК меняет <b>общую</b> карточку — sibling с тем же <code>parent_id</code> видит изменения сразу (без отдельной учётки родителя).</li>
-    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
+    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>parent_full_name_genitive</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
+    <li>ФИО в родительном падеже: необязательное поле <code>parent_full_name_genitive</code> → <code>parents.full_name_genitive</code> (max 300). Пустая строка очищает значение. В ЛК одно только это поле без фамилии/имени → 422 на <code>parent_lastname</code>/<code>parent_firstname</code>.</li>
   </ul>
+  <p class="small">Тесты: <code>AccountParentFullNameGenitiveFeatureTest</code>.</p>
 
   <h3>4.3) Endpoint’ы учётной записи (smoke доступа)</h3>
   <table>
@@ -289,10 +332,11 @@ users (role=user) — ученик, вход в CRM
   </table>
 
   <h2>6) Договоры</h2>
-  <p>На карточке договора, в модалке «Создать договор» (read-only) и в предзаполнении подписанта ФИО берётся из <code>User::parentFormFields()</code> / <code>parent_full_name</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.</p>
+  <p>На карточке договора, в модалке «Создать договор» (read-only) и в предзаполнении подписанта ФИО в <b>именительном</b> берётся из <code>User::parentFormFields()</code> / <code>parent_full_name</code> → таблица <code>parents</code>. См. <a href="/docs/documentation/contracts#contract-create-modal">contracts §5</a> и <a href="/docs/documentation/contracts#contract-parent">§2–3</a>.</p>
   <ul>
     <li><code>ContractsController@show</code> — <code>User::with('parentProfile')</code>, без legacy-колонок на <code>users</code>.</li>
-    <li><code>ContractPrefillResolver</code> — плейсхолдеры PARENT_* из профиля родителя.</li>
+    <li><code>ContractPrefillResolver</code> — плейсхолдеры <code>PARENT_*</code> из профиля родителя, в т.ч. <code>parent_full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>).</li>
+    <li>DOCX: <code>{{parent_full_name}}</code> (именительный, часто составной) и <code>{{parent_full_name_genitive}}</code> (одно поле) — <a href="/docs/documentation/contract-templates#docx-variables">contract-templates §6</a>.</li>
   </ul>
 
   <h2>7) Изоляция по партнёру</h2>
@@ -328,24 +372,28 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentDirectoryFioFeatureTest.php</code> — правка ФИО из справочника, siblings, доступ</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentFullNameGenitiveFeatureTest.php</code> — родительный падеж в админке</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAjaxContractFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentNonAjaxSafetyNetFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentProfileUpdateTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountParentFullNameGenitiveFeatureTest.php</code> — родительный падеж в ЛК</li>
       <li><code>tests/Feature/Crm/Account/AccountParentNonAjaxSafetyNetFeatureTest.php</code> — ЛК: JSON-контракт правки общей карточки</li>
       <li><code>tests/Feature/Crm/Contracts/ContractsParentAndAccessTest.php</code></li>
+      <li><code>tests/Feature/Crm/Contracts/ContractParentFullNameGenitivePrefillFeatureTest.php</code> — DOCX prefill</li>
       <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — автосопоставление <code>parents</code> к лиду с лендинга</li>
       <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadParentMatcherFeatureTest.php</code> и смежные <code>SchoolLeadParentMatch*</code> — CRM UI/PUT матча</li>
     </ul>
-    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AccountParentNonAjax|SchoolLeadParentMatch'</code>
+    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AdminUsersParentFullNameGenitive|AccountParentFullNameGenitive|AccountParentNonAjax|ContractParentFullNameGenitive|SchoolLeadParentMatch'</code>
   </div>
 
   <h2>9) Что не поддерживается</h2>
   <ul>
     <li>Отдельная учётная запись родителя для входа (<code>parents.user_id</code> удалён).</li>
     <li>Переключение между детьми при разных <code>parent_id</code> (разные записи в <code>parents</code>).</li>
-    <li>Переименование «только для одного ученика» без отвязки: правка ФИО всегда меняет общую карточку; для другой персоны — «Новый родитель» или смена <code>parent_id</code>.</li>
+    <li>Переименование «только для одного ученика» без отвязки: правка ФИО / родительного всегда меняет общую карточку; для другой персоны — «Новый родитель» или смена <code>parent_id</code>.</li>
+    <li>Автосклонение ФИО и отдельные колонки фамилии/имени/отчества в родительном — только ручная строка <code>full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>).</li>
     <li>Отдельный CRUD-раздел <code>/admin/parents</code> (карточка правится из модалки ученика / заявки / ЛК).</li>
     <li>Семейный контекст на страницах договоров у роли <code>user</code> (договоры — право <code>contracts.view</code>, админка).</li>
   </ul>
