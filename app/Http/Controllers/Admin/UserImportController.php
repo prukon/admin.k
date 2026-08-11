@@ -22,18 +22,22 @@ class UserImportController extends AdminBaseController
 
     public function template()
     {
-        return $this->templateBuilder->downloadResponse();
+        $includeGenitive = $this->currentUser()?->can('users.full_name_genitive') ?? false;
+
+        return $this->templateBuilder->downloadResponse($includeGenitive);
     }
 
     public function preview(ImportPreviewRequest $request): JsonResponse
     {
         $partnerId = $this->requirePartnerId();
         $actorId = (int) ($this->currentUser()?->id ?? 0);
+        $includeGenitive = $this->currentUser()?->can('users.full_name_genitive') ?? false;
 
         $payload = $this->importService->previewAndStoreToken(
             $request->file('file'),
             $partnerId,
             $actorId,
+            $includeGenitive,
         );
 
         $result = $payload['result'];

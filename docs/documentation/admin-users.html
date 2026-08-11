@@ -69,7 +69,7 @@
 
   <h2>2) Список учеников (DataTables)</h2>
   <ul>
-    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
+    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>parents.full_name_genitive</code> и <b>не</b> по <code>users.full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
     <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>parent_phone</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
   </ul>
 
@@ -310,6 +310,41 @@
   </ul>
   <p class="small">Тесты: <code>AdminUsersParentFullNameGenitiveFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_edit_user_and_parent_form_genitive_fill_contract_is_valid_javascript</code>.</p>
+
+  <h3 id="user-child-genitive">2.1.7) ФИО ученика в родительном падеже</h3>
+  <div class="note">
+    Необязательное поле карточки <b>ученика</b> (не родителя): подпись «ФИО ученика в родительном падеже»,
+    HTTP-ключ <code>full_name_genitive</code>, id create/edit
+    <code>create-full-name-genitive</code> / <code>edit-full-name-genitive</code>,
+    <code>maxlength=300</code>, placeholder «Иванова Ивана Ивановича».
+    Расположение: сразу после фамилии/имени, перед датой рождения (аккордеон «Ученик»).
+    Ручной ввод целиком; автосклонения нет.
+    <b>Не путать</b> с <code>parent_full_name_genitive</code> (§<a href="#user-parent-genitive">2.1.6</a> / <code>parents.full_name_genitive</code>).
+  </div>
+  <table>
+    <thead><tr><th>Слой</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>БД</td><td><code>users.full_name_genitive</code> — <code>nullable|string|max:300</code>; миграция <code>2026_08_11_180000_add_full_name_genitive_to_users_table.php</code></td></tr>
+      <tr><td>HTTP / CRM / ЛК</td><td><code>full_name_genitive</code></td></tr>
+      <tr><td>Право</td><td><code>users.full_name_genitive</code> — <code>is_visible=0</code>, <b>не</b> в <code>role_base_permissions</code>, миграция права <b>не</b> выдаёт ролям (<code>2026_08_11_190000_…</code>). Одно право для CRM и ЛК (как <code>users.sex</code>). Gate в <code>AuthServiceProvider</code></td></tr>
+      <tr><td>Без права</td><td>Поле <b>не рендерится</b> (<code>@can</code>); ключ из запроса снимается (<code>offsetUnset</code>); значение в БД не меняется; колонки нет в шаблоне Excel</td></tr>
+      <tr><td>С правом</td><td>Валидация <code>nullable|string|max:300</code>; 422 → ключ <code>full_name_genitive</code> (под полем). Пустая строка очищает колонку</td></tr>
+      <tr><td>Edit JSON</td><td><code>user.full_name_genitive</code> (в т.ч. <code>null</code>); оба пути открытия editUser гидратируют <code>#edit-full-name-genitive</code> через <code>|| ''</code> (если поле в DOM)</td></tr>
+      <tr><td>Импорт Excel</td><td>Колонка «ФИО ученика в родительном падеже» только при праве (§<a href="#user-import">8</a>)</td></tr>
+      <tr><td>Договоры</td><td>DOCX <code>{{child_full_name_genitive}}</code>; пресет «Ребёнок: ФИО в родительном падеже», <code>required_default=false</code>; prefill из <code>users.full_name_genitive</code>; reverse sync непустого значения через <code>ContractStudentProfileSyncService</code> — <b>не</b> зависит от права CRM.
+        <a href="/docs/documentation/contract-templates#docx-variables">contract-templates §6</a></td></tr>
+      <tr><td>Поиск / колонки списка</td><td>В фильтр <code>name</code> и DataTables <b>не</b> входит (как и родительный родителя)</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Тесты:
+    <code>AdminUsersChildFullNameGenitiveFeatureTest</code> (guest/403/AJAX/non-AJAX/422/Blade/@can/store без права/изоляция партнёра/smoke),
+    <code>AccountChildFullNameGenitiveFeatureTest</code> (ЛК: save/clear/422/@can/Accept-JSON без XHR),
+    <code>UsersImportChildFullNameGenitivePermissionFeatureTest</code> (шаблон/commit с правом и без, <code>is_visible=0</code>),
+    <code>ContractChildFullNameGenitivePrefillFeatureTest</code>,
+    <code>ContractStudentProfileSyncTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_edit_user_modal_child_genitive_fill_contract_is_valid_javascript</code>
+    (оба пути editUser + <code>|| ''</code> + <code>node --check</code>).
+  </p>
 
   <h2 id="user-contract-column">2.3) Колонка «Договор» в списке пользователей</h2>
   <div class="note">
@@ -719,7 +754,13 @@
     <li><b>Активность</b> — вне аккордеонов.</li>
     <li><b>Дополнительные поля</b> (<code>custom[…]</code>) — под формой, если настроены у партнёра.</li>
   </ol>
-  <p>Порядок полей внутри «Ученик» (create и edit): имя, фамилия, дата рождения, <b>группы</b> (<code>team_ids[]</code>, Select2 — см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>), email, чекбокс «Отправить письмо» (<code>send_welcome_email</code>, только create — §<a href="#user-welcome-credentials">5.1.4</a>), пароль (только create; скрыт при включённом чекбоксе), телефон, <b>адрес проживания</b> (<code>users.address</code>, nullable, max 1000), флаги здоровья (чекбоксы), пол (<code>users.sex</code>).</p>
+  <p>Порядок полей внутри «Ученик» (create и edit): имя, фамилия,
+    <b>ФИО ученика в родительном падеже</b> (<code>users.full_name_genitive</code>, только при <code>users.full_name_genitive</code> — §<a href="#user-child-genitive">2.1.7</a>),
+    дата рождения, <b>группы</b> (<code>team_ids[]</code>, Select2 — см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>),
+    email, чекбокс «Отправить письмо» (<code>send_welcome_email</code>, только create — §<a href="#user-welcome-credentials">5.1.4</a>),
+    пароль (только create; скрыт при включённом чекбоксе), телефон,
+    <b>адрес проживания</b> (<code>users.address</code>, nullable, max 1000),
+    флаги здоровья (чекбоксы), пол (<code>users.sex</code>).</p>
 
   <h3>4.5.2) Multiselect «Группы»</h3>
   <ul>
@@ -923,13 +964,13 @@
     <li><code>app/Services/Users/StudentParentSyncService.php</code></li>
     <li><code>app/Enums/UserSex.php</code></li>
     <li><code>app/Http/Requests/User/Concerns/ValidatesStudentCommentAndSex.php</code></li>
-    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code>, <code>users.sex</code>, <code>users.comment</code></li>
+    <li><code>app/Providers/AuthServiceProvider.php</code> — Gate <code>users.other.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.full_name_genitive</code></li>
     <li><code>database/migrations/2026_05_28_140000_add_student_health_flags_to_users_table.php</code></li>
     <li><code>database/migrations/2026_05_28_140001_add_users_other_update_permission.php</code></li>
     <li><code>database/migrations/2026_06_20_120000_add_comment_and_sex_to_users_table.php</code></li>
     <li><code>database/migrations/2026_06_20_120001_add_users_comment_and_sex_permissions.php</code></li>
     <li><code>database/migrations/2026_06_20_130000_merge_account_user_sex_into_users_sex.php</code></li>
-    <li><code>resources/views/account/users.blade.php</code> — пол в кабинете (<code>@can('users.sex')</code>)</li>
+    <li><code>resources/views/account/users.blade.php</code> — пол (<code>@can('users.sex')</code>) и ФИО ученика в родительном (<code>@can('users.full_name_genitive')</code>) в кабинете</li>
     <li><code>app/Http/Requests/User/AccountUpdateRequest.php</code></li>
     <li><code>app/Http/Controllers/Admin/AccountController.php</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
@@ -1034,6 +1075,7 @@
     </thead>
     <tbody>
       <tr><td>Фамилия ученика, Имя ученика</td><td>Обязательны, max 25 символов</td></tr>
+      <tr><td>ФИО ученика в родительном падеже</td><td>Только при праве <code>users.full_name_genitive</code> (§<a href="#user-child-genitive">2.1.7</a>). Без права колонки нет в шаблоне и значение из файла не пишется. С правом: max 300 → <code>users.full_name_genitive</code>; пустое при update → <code>null</code></td></tr>
       <tr><td>Группа</td><td>Необязательна. Пустая при create → ученик без группы; при update → снимает все группы (§<a href="#user-teams">3</a>)</td></tr>
       <tr><td>Юр. лицо</td><td>Обязательно, если указана группа. Ссылка на <b>существующее активное</b> юр. лицо по <code>PartnerLegalEntity::displayTitle()</code> (без учёта регистра). Из Excel <b>не создаётся</b> — см. <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a></td></tr>
       <tr><td>Email ученика</td><td>Необязателен. Пустой → всегда <b>создание</b>. Совпадение с email ученика (<code>role=user</code>) текущего партнёра → <b>обновление</b> всех полей строки (полная подстановка)</td></tr>
@@ -1175,6 +1217,10 @@
   <div class="note">
     <ul>
       <li><code>tests/Feature/Crm/Users/UserAddressFieldFeatureTest.php</code> — адрес проживания ученика (<code>users.address</code>): AJAX/non-AJAX store/update, 422, guest/403, изоляция партнёра, UI после телефона, оба JS-пути fill <code>#edit-address</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersChildFullNameGenitiveFeatureTest.php</code> — ФИО ученика в родительном (§<a href="#user-child-genitive">2.1.7</a>): guest/403/AJAX/non-AJAX/422/@can/изоляция/smoke</li>
+      <li><code>tests/Feature/Crm/Account/AccountChildFullNameGenitiveFeatureTest.php</code> — то же поле в ЛК (§2.1.7)</li>
+      <li><code>tests/Feature/Crm/Users/UsersImportChildFullNameGenitivePermissionFeatureTest.php</code> — импорт Excel колонка только при <code>users.full_name_genitive</code></li>
+      <li><code>tests/Feature/Crm/Contracts/ContractChildFullNameGenitivePrefillFeatureTest.php</code>, <code>ContractStudentProfileSyncTest.php</code> — prefill/sync <code>{{child_full_name_genitive}}</code></li>
       <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportPreviewDiffFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a> / preview-diff §<a href="#user-import-preview-diff">8.5</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
@@ -1221,6 +1267,7 @@
     Directory FIO / AJAX / non-AJAX: <code>php artisan test --filter='AdminUsersParentDirectoryFio|AdminUsersParentAjaxContract|AdminUsersParentNonAjax'</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
+    ФИО ученика в родительном: <code>php artisan test --filter=ChildFullNameGenitive</code>.
     Импорт Excel: <code>php artisan test --filter=UsersImport</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
   </div>
@@ -1228,7 +1275,8 @@
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
     <a href="#user-parent-phone-column">Телефон родителя в списке</a> ·
-    <a href="#user-parent-genitive">ФИО в родительном</a> ·
+    <a href="#user-parent-genitive">ФИО родителя в родительном</a> ·
+    <a href="#user-child-genitive">ФИО ученика в родительном</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="#user-comment-sex">Пол и комментарий</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·

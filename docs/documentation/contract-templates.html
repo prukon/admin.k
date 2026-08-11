@@ -151,6 +151,8 @@
     <code>{{parent_full_name}}</code> — именительный (часто собирается из частей ФИО).
     <code>{{parent_full_name_genitive}}</code> — отдельная строка из <code>parents.full_name_genitive</code>,
     в форме родителя <b>не</b> разбивается на части; пресет необязательный (<code>required_default=false</code>).
+    <code>{{child_full_name_genitive}}</code> — отдельная строка из <code>users.full_name_genitive</code>,
+    в форме ребёнка <b>не</b> разбивается на части; пресет необязательный; reverse sync только при непустом значении.
     Карточка CRM / Excel / Select2 по-прежнему показывают именительный.
   </div>
   <table>
@@ -159,6 +161,7 @@
       <tr><td><code>parent_full_name</code></td><td><code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code></td></tr>
       <tr><td><code>parent_full_name_genitive</code></td><td>одно поле; prefill из <code>parents.full_name_genitive</code> (необязательное; тест <code>ContractParentFullNameGenitivePrefillFeatureTest</code>)</td></tr>
       <tr><td><code>child_full_name</code></td><td><code>child_lastname</code>, <code>child_firstname</code></td></tr>
+      <tr><td><code>child_full_name_genitive</code></td><td>одно поле; prefill из <code>users.full_name_genitive</code> (необязательное; тест <code>ContractChildFullNameGenitivePrefillFeatureTest</code>)</td></tr>
       <tr><td><code>child_birthday</code></td><td>поле даты; в PDF — <code>d.m.Y</code></td></tr>
       <tr><td><code>child_address</code></td><td>текст; prefill из <code>users.address</code>; после generate — sync обратно в карточку ученика</td></tr>
       <tr><td><code>contract_date</code></td><td>не в форме (<code>fill_mode=system</code>); при generate — <code>now()->format('d.m.Y')</code></td></tr>

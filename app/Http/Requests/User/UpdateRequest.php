@@ -70,6 +70,17 @@ class UpdateRequest extends FormRequest
             ]);
         }
 
+        if ($this->user()?->can('users.full_name_genitive')) {
+            if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
+                $genitive = trim($this->input('full_name_genitive'));
+                $this->merge([
+                    'full_name_genitive' => $genitive !== '' ? $genitive : null,
+                ]);
+            }
+        } else {
+            $this->offsetUnset('full_name_genitive');
+        }
+
 //        Log::info('UpdateRequest: prepareForValidation', [
 //            'editor_user_id'        => optional($this->user())->id,
 //            'target_user_id'        => optional($targetUser)->id,
@@ -124,6 +135,10 @@ class UpdateRequest extends FormRequest
         if ($this->user()->can('users.name.update')) {
             $rules['name'] = ['required', 'string', 'max:30'];
             $rules['lastname'] = ['required', 'string', 'max:30'];
+        }
+
+        if ($this->user()->can('users.full_name_genitive')) {
+            $rules['full_name_genitive'] = ['nullable', 'string', 'max:300'];
         }
 
         if ($this->user()->can('users.birthdate.update')) {
@@ -288,6 +303,7 @@ class UpdateRequest extends FormRequest
         return [
             'name' => 'Имя',
             'lastname' => 'Фамилия',
+            'full_name_genitive' => 'ФИО ученика в родительном падеже',
             'birthday' => 'Дата рождения',
             'team_ids' => 'Группы',
             'team_ids.*' => 'Группа',
@@ -318,6 +334,9 @@ class UpdateRequest extends FormRequest
             'lastname.required' => 'Поле "Фамилия" обязательно для заполнения.',
             'lastname.string' => 'Поле "Фамилия" должно быть строкой.',
             'lastname.max' => 'Поле "Фамилия" не должно превышать :max символов.',
+
+            'full_name_genitive.string' => 'Поле «ФИО ученика в родительном падеже» должно быть строкой.',
+            'full_name_genitive.max' => 'Поле «ФИО ученика в родительном падеже» не должно превышать :max символов.',
 
 
             // Дата рождения

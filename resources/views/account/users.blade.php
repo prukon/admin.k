@@ -87,6 +87,23 @@
                 @endunless
             </div>
 
+            {{-- ФИО ученика в родительном падеже --}}
+            @can('users.full_name_genitive')
+            <div class="mb-3">
+                <label for="full_name_genitive" class="form-label">ФИО ученика в родительном падеже</label>
+                <input type="text"
+                       id="full_name_genitive"
+                       name="full_name_genitive"
+                       class="form-control @error('full_name_genitive') is-invalid @enderror"
+                       maxlength="300"
+                       placeholder="Иванова Ивана Ивановича"
+                       value="{{ old('full_name_genitive', $user->full_name_genitive) }}">
+                @error('full_name_genitive')
+                <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+            @endcan
+
 
             {{-- Поле "Дата рождения" --}}
             <div class="mb-3">

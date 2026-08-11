@@ -125,6 +125,7 @@
     <code>parent_lastname</code>, <code>parent_firstname</code>, <code>parent_middlename</code>,
     <code>child_lastname</code>, <code>child_firstname</code>.
     Ключ <code>parent_full_name_genitive</code> — одно поле (не разбивается), prefill из <code>parents.full_name_genitive</code>.
+    Ключ <code>child_full_name_genitive</code> — одно поле (не разбивается), prefill из <code>users.full_name_genitive</code>.
     При генерации PDF полные ФИО собираются в <code>ContractPdfGenerationService</code> / <code>ContractTemplateVariablePresets::composeNameFieldsForPdf</code>.<br><br>
     <code>child_birthday</code> — <code>&lt;input type="date"&gt;</code>, валидация <code>date</code> + <code>before:today</code> (<code>AccountContractGenerateRequest</code>).
     Значения в PDF и <code>filled_data</code> — в формате <code>d.m.Y</code>; в профиле ученика — <code>Y-m-d</code>.
@@ -140,7 +141,7 @@
   После успешного generate данные синхронизируются обратно:</p>
   <ul>
     <li><code>ContractParentProfileSyncService</code> — ФИО родителя в <code>parents</code></li>
-    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения и <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>)</li>
+    <li><code>ContractStudentProfileSyncService</code> — фамилия, имя, дата рождения, <b>адрес проживания</b> (<code>child_address</code> → <code>users.address</code>) и <b>ФИО в родительном</b> (<code>child_full_name_genitive</code> → <code>users.full_name_genitive</code>, только непустое)</li>
   </ul>
 
   <h3 id="fill-legal-entity">2.5) Реквизиты юрлица и <code>child_address</code></h3>

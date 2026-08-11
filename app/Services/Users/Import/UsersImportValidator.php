@@ -20,8 +20,12 @@ final class UsersImportValidator
      * @param list<UsersImportRow> $rows
      * @param list<UsersImportRowError> $parseErrors
      */
-    public function validate(array $rows, array $parseErrors, int $partnerId): UsersImportValidationResult
-    {
+    public function validate(
+        array $rows,
+        array $parseErrors,
+        int $partnerId,
+        bool $includeStudentFullNameGenitive = false,
+    ): UsersImportValidationResult {
         $errors = $parseErrors;
         $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
 
@@ -72,6 +76,7 @@ final class UsersImportValidator
                 rowNumber: $row->rowNumber,
                 studentLastname: $row->studentLastname,
                 studentName: $row->studentName,
+                studentFullNameGenitive: $row->studentFullNameGenitive,
                 teamTitle: $row->teamTitle,
                 legalEntityTitle: $row->legalEntityTitle,
                 studentEmail: $row->studentEmail,
@@ -101,7 +106,12 @@ final class UsersImportValidator
         $updateUnchangedCount = 0;
 
         if ($isValid && $updateCount > 0) {
-            $diff = $this->buildPreviewDiff($validatedRows, $partnerId, $studentRoleId);
+            $diff = $this->buildPreviewDiff(
+                $validatedRows,
+                $partnerId,
+                $studentRoleId,
+                $includeStudentFullNameGenitive,
+            );
             $changesByRow = $diff['changes_by_row'];
             $updateWithChangesCount = $diff['update_with_changes_count'];
             $updateWithClearsCount = $diff['update_with_clears_count'];
@@ -129,8 +139,12 @@ final class UsersImportValidator
      *     update_with_clears_count: int
      * }
      */
-    private function buildPreviewDiff(array $rows, int $partnerId, int $studentRoleId): array
-    {
+    private function buildPreviewDiff(
+        array $rows,
+        int $partnerId,
+        int $studentRoleId,
+        bool $includeStudentFullNameGenitive = false,
+    ): array {
         $updateEmails = [];
         $parentEmails = [];
 
@@ -189,6 +203,7 @@ final class UsersImportValidator
             $rows,
             $studentsByEmailLower,
             $parentsByEmailLower,
+            $includeStudentFullNameGenitive,
         );
     }
 

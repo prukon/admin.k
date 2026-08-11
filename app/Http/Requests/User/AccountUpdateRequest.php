@@ -58,6 +58,17 @@ class AccountUpdateRequest extends FormRequest
             ]);
         }
 
+        if ($this->user()?->can('users.full_name_genitive')) {
+            if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
+                $genitive = trim($this->input('full_name_genitive'));
+                $this->merge([
+                    'full_name_genitive' => $genitive !== '' ? $genitive : null,
+                ]);
+            }
+        } else {
+            $this->offsetUnset('full_name_genitive');
+        }
+
         $this->prepareStudentParentForValidation();
 
         if ($this->has('sex') && $this->input('sex') === '') {
@@ -85,6 +96,10 @@ class AccountUpdateRequest extends FormRequest
         if ($this->user()->can('account.user.name.update')) {
             $rules['name'] = ['required','string','max:30'];
             $rules['lastname'] = ['required','string','max:30'];
+        }
+
+        if ($this->user()->can('users.full_name_genitive')) {
+            $rules['full_name_genitive'] = ['nullable', 'string', 'max:300'];
         }
 
         if ($this->user()->can('account.user.birthdate.update')) {
@@ -172,6 +187,7 @@ class AccountUpdateRequest extends FormRequest
         return [
             'name'               => 'Имя',
             'lastname'           => 'Фамилия',
+            'full_name_genitive' => 'ФИО ученика в родительном падеже',
             'birthday'           => 'Дата рождения',
             'team_id'            => 'Группа',
             'email'              => 'Email',
@@ -196,6 +212,9 @@ class AccountUpdateRequest extends FormRequest
             'lastname.required' => 'Поле "Фамилия" обязательно для заполнения.',
             'lastname.string'   => 'Поле "Фамилия" должно быть строкой.',
             'lastname.max'      => 'Поле "Фамилия" не должно превышать :max символов.',
+
+            'full_name_genitive.string' => 'Поле «ФИО ученика в родительном падеже» должно быть строкой.',
+            'full_name_genitive.max'    => 'Поле «ФИО ученика в родительном падеже» не должно превышать :max символов.',
 
             // Дата рождения
             'birthday.date'            => 'Поле "Дата рождения" должно быть корректной датой.',

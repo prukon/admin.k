@@ -68,6 +68,21 @@
                                                     </div>
                                                 </div>
 
+                                                @can('users.full_name_genitive')
+                                                <div class="col-12">
+                                                    <div class="mb-3">
+                                                        <label for="create-full-name-genitive" class="form-label">ФИО ученика в родительном падеже</label>
+                                                        <input type="text"
+                                                               name="full_name_genitive"
+                                                               class="form-control"
+                                                               id="create-full-name-genitive"
+                                                               maxlength="300"
+                                                               placeholder="Иванова Ивана Ивановича"
+                                                               value="{{ old('full_name_genitive') }}">
+                                                    </div>
+                                                </div>
+                                                @endcan
+
                                                 <div class="col-12 col-md-6">
                                                     <div class="mb-3">
                                                         <label for="create-birthday" class="form-label">Дата рождения</label>

@@ -58,6 +58,17 @@ class StoreRequest extends FormRequest
             ]);
         }
 
+        if ($this->user()?->can('users.full_name_genitive')) {
+            if ($this->has('full_name_genitive') && is_string($this->input('full_name_genitive'))) {
+                $genitive = trim($this->input('full_name_genitive'));
+                $this->merge([
+                    'full_name_genitive' => $genitive !== '' ? $genitive : null,
+                ]);
+            }
+        } else {
+            $this->offsetUnset('full_name_genitive');
+        }
+
         if ($this->has('team_ids')) {
             $ids = $this->input('team_ids');
             $ids = is_array($ids) ? $ids : [];
@@ -109,6 +120,10 @@ class StoreRequest extends FormRequest
             $this->studentCommentAndSexRules(),
         );
 
+        if ($this->user()?->can('users.full_name_genitive')) {
+            $rules['full_name_genitive'] = 'nullable|string|max:300';
+        }
+
         if ($partnerId) {
             $rules['team_ids.*'][] = Rule::exists('teams', 'id')->where(
                 fn ($query) => $query->where('partner_id', $partnerId)
@@ -137,6 +152,7 @@ class StoreRequest extends FormRequest
         return [
             'name'       => 'Имя',
             'lastname'   => 'Фамилия',
+            'full_name_genitive' => 'ФИО ученика в родительном падеже',
             'email'      => 'Email',
             'password'   => 'Пароль',
             'birthday'   => 'Дата рождения',
@@ -259,6 +275,9 @@ class StoreRequest extends FormRequest
 
             'address.string' => 'Поле «Адрес проживания» должно быть строкой.',
             'address.max' => 'Поле «Адрес проживания» не должно превышать :max символов.',
+
+            'full_name_genitive.string' => 'Поле «ФИО ученика в родительном падеже» должно быть строкой.',
+            'full_name_genitive.max' => 'Поле «ФИО ученика в родительном падеже» не должно превышать :max символов.',
 
             'school_lead_id.integer' => 'Некорректный идентификатор заявки.',
             'school_lead_id.exists'  => 'Заявка не найдена, уже привязана к клиенту или недоступна.',

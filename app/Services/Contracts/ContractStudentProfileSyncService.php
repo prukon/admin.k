@@ -30,6 +30,13 @@ class ContractStudentProfileSyncService
             }
         }
 
+        if (array_key_exists(ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE, $filledData)) {
+            $genitive = trim((string) $filledData[ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE]);
+            if ($genitive !== '') {
+                $updates['full_name_genitive'] = $genitive;
+            }
+        }
+
         if (array_key_exists('child_birthday', $filledData)) {
             $birthday = ContractTemplateVariablePresets::parseFillFormDate(
                 (string) $filledData['child_birthday'],

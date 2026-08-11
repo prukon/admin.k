@@ -33,8 +33,12 @@ final class UsersImportCommitService
      * @param list<UsersImportRow> $rows
      * @return array{created: int, updated: int}
      */
-    public function commit(array $rows, int $partnerId, int $authorId): array
-    {
+    public function commit(
+        array $rows,
+        int $partnerId,
+        int $authorId,
+        bool $includeStudentFullNameGenitive = false,
+    ): array {
         $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
         if ($studentRoleId <= 0) {
             throw new \RuntimeException('Роль ученика не найдена.');
@@ -57,6 +61,7 @@ final class UsersImportCommitService
             $authorId,
             $studentRoleId,
             $legalEntitiesByTitle,
+            $includeStudentFullNameGenitive,
             &$teamCache,
             &$parentCache,
             &$created,
@@ -84,14 +89,18 @@ final class UsersImportCommitService
                     $oldTeamLabel = $this->teamUserSync->teamTitlesLabel($user) ?: '-';
                     $oldParentLabel = $user->parent_full_name ?: '-';
 
-                    $user->update([
+                    $userPayload = [
                         'name' => $row->studentName,
                         'lastname' => $row->studentLastname,
                         'email' => $row->studentEmail,
                         'phone' => $row->studentPhone,
                         'birthday' => $row->birthday,
                         'is_enabled' => $row->isEnabled,
-                    ]);
+                    ];
+                    if ($includeStudentFullNameGenitive) {
+                        $userPayload['full_name_genitive'] = $row->studentFullNameGenitive;
+                    }
+                    $user->update($userPayload);
 
                     if ($row->hasParentData()) {
                         $this->studentParentSync->syncForStudent($user, $partnerId, $parentPayload);
@@ -131,6 +140,9 @@ final class UsersImportCommitService
                     'partner_id' => $partnerId,
                     'team_ids' => $teamIds,
                 ];
+                if ($includeStudentFullNameGenitive) {
+                    $data['full_name_genitive'] = $row->studentFullNameGenitive;
+                }
 
                 $data = array_merge($data, $parentPayload);
 

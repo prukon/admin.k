@@ -8,32 +8,41 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class UsersImportTemplateBuilder
 {
-    public function downloadResponse(): StreamedResponse
+    public function downloadResponse(bool $includeStudentFullNameGenitive = false): StreamedResponse
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Данные');
 
-        $labels = UsersImportColumns::headerLabels();
+        $labels = UsersImportColumns::headerLabels($includeStudentFullNameGenitive);
         $col = 1;
         foreach ($labels as $label) {
             UsersSpreadsheetCells::setValue($sheet, $col, 1, $label);
             $col++;
         }
 
-        UsersSpreadsheetCells::setValue($sheet, 1, 2, 'Иванов');
-        UsersSpreadsheetCells::setValue($sheet, 2, 2, 'Иван');
-        UsersSpreadsheetCells::setValue($sheet, 3, 2, 'Группа А');
-        UsersSpreadsheetCells::setValue($sheet, 4, 2, 'ООО Пример');
-        UsersSpreadsheetCells::setValue($sheet, 5, 2, 'student@example.com');
-        UsersSpreadsheetCells::setValue($sheet, 6, 2, '+79001234567');
-        UsersSpreadsheetCells::setValue($sheet, 7, 2, '01.09.2015');
-        UsersSpreadsheetCells::setValue($sheet, 8, 2, 'да');
-        UsersSpreadsheetCells::setValue($sheet, 9, 2, 'parent@example.com');
-        UsersSpreadsheetCells::setValue($sheet, 10, 2, 'Иванова');
-        UsersSpreadsheetCells::setValue($sheet, 11, 2, 'Мария');
-        UsersSpreadsheetCells::setValue($sheet, 12, 2, 'Петровна');
-        UsersSpreadsheetCells::setValue($sheet, 13, 2, '79007654321');
+        $sampleByKey = [
+            UsersImportColumns::STUDENT_LASTNAME => 'Иванов',
+            UsersImportColumns::STUDENT_NAME => 'Иван',
+            UsersImportColumns::STUDENT_FULL_NAME_GENITIVE => 'Иванова Ивана',
+            UsersImportColumns::TEAM => 'Группа А',
+            UsersImportColumns::LEGAL_ENTITY => 'ООО Пример',
+            UsersImportColumns::STUDENT_EMAIL => 'student@example.com',
+            UsersImportColumns::STUDENT_PHONE => '+79001234567',
+            UsersImportColumns::BIRTHDAY => '01.09.2015',
+            UsersImportColumns::IS_ENABLED => 'да',
+            UsersImportColumns::PARENT_EMAIL => 'parent@example.com',
+            UsersImportColumns::PARENT_LASTNAME => 'Иванова',
+            UsersImportColumns::PARENT_FIRSTNAME => 'Мария',
+            UsersImportColumns::PARENT_MIDDLENAME => 'Петровна',
+            UsersImportColumns::PARENT_PHONE => '79007654321',
+        ];
+
+        $col = 1;
+        foreach (array_keys($labels) as $key) {
+            UsersSpreadsheetCells::setValue($sheet, $col, 2, $sampleByKey[$key] ?? '');
+            $col++;
+        }
 
         foreach (range(1, count($labels)) as $columnIndex) {
             UsersSpreadsheetCells::setColumnAutoSize($sheet, $columnIndex);

@@ -10,6 +10,7 @@ class ContractTemplatePrefillSources
     public const CHILD_FULL_NAME    = 'child_full_name';
     public const CHILD_LASTNAME     = 'child_lastname';
     public const CHILD_FIRSTNAME    = 'child_firstname';
+    public const CHILD_FULL_NAME_GENITIVE = 'child_full_name_genitive';
     public const CHILD_BIRTHDAY     = 'child_birthday';
     public const CHILD_ADDRESS      = 'child_address';
     /** @deprecated Используйте {@see CHILD_FULL_NAME}. Оставлено для старых шаблонов и воркера. */

@@ -232,6 +232,15 @@ class ContractTemplateVariablePresets
                 'fill_sort_order'  => 12,
             ],
             [
+                'key'              => ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE,
+                'label'            => 'Ребёнок: ФИО в родительном падеже',
+                'description'      => 'ФИО ученика в родительном падеже (например: Иванова Ивана Ивановича).',
+                'group'            => self::GROUP_CHILD,
+                'prefill_source'   => ContractTemplatePrefillSources::CHILD_FULL_NAME_GENITIVE,
+                'required_default' => false,
+                'fill_sort_order'  => 15,
+            ],
+            [
                 'key'              => ContractTemplatePrefillSources::CHILD_BIRTHDAY,
                 'label'            => 'Ребёнок: дата рождения',
                 'description'      => 'Дата рождения ученика (из карточки, формат дд.мм.гггг).',

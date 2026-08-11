@@ -1530,6 +1530,74 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: editUser — оба пути открытия модалки заполняют ФИО ученика в родительном (|| '' сброс).
+     * UX-баг: один из двух AJAX-путей (editUserLink2 / editUserLink) забывает гидратировать
+     * → при повторном открытии остаётся значение предыдущего ученика.
+     */
+    public function test_edit_user_modal_child_genitive_fill_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/modal/editUser.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $hydrateLine = "\$('#edit-user-form #edit-full-name-genitive').val(response.user.full_name_genitive || '')";
+        $this->assertStringContainsString('id="edit-full-name-genitive"', $content);
+        $this->assertStringContainsString('@can(\'users.full_name_genitive\')', $content);
+        $this->assertStringContainsString($hydrateLine, $content);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($content, $hydrateLine),
+            'Оба пути открытия editUser (editUserLink2 и editUserLink) должны гидратировать full_name_genitive'
+        );
+
+        $createPath = resource_path('views/includes/modal/createUser.blade.php');
+        $this->assertFileExists($createPath);
+        $createContent = (string) file_get_contents($createPath);
+        $this->assertStringContainsString('id="create-full-name-genitive"', $createContent);
+        $this->assertStringContainsString('@can(\'users.full_name_genitive\')', $createContent);
+        $this->assertStringNotContainsString(
+            "edit-full-name-genitive').val",
+            $createContent,
+            'createUser не должен гидратировать genitive из AJAX edit JSON'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $genitiveScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'edit-full-name-genitive')) {
+                continue;
+            }
+            $genitiveScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-edit-child-genitive-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in editUser child genitive script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($genitiveScriptFound, 'В editUser.blade.php не найден script с edit-full-name-genitive');
+    }
+
+    /**
      * P1: /admin/users — колонка «Телефон родителя» после «Родитель», «Телефон» → «Телефон ученика».
      * UX-баг: в JS columns/defaults забыли parent_phone или оставили старый заголовок «Телефон»
      * → DataTables сдвигает индексы сортировки и путает телефоны ученика/родителя.

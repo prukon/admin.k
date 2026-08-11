@@ -35,6 +35,7 @@ final class UsersImportPreviewDiffBuilder
         array $rows,
         Collection $studentsByEmailLower,
         Collection $parentsByEmailLower,
+        bool $includeStudentFullNameGenitive = false,
     ): array {
         $changesByRow = [];
         $updateWithClears = 0;
@@ -50,7 +51,12 @@ final class UsersImportPreviewDiffBuilder
                 continue;
             }
 
-            $changes = $this->buildForStudent($user, $row, $parentsByEmailLower);
+            $changes = $this->buildForStudent(
+                $user,
+                $row,
+                $parentsByEmailLower,
+                $includeStudentFullNameGenitive,
+            );
             $changesByRow[$row->rowNumber] = $changes;
 
             if ($changes !== []) {
@@ -77,6 +83,7 @@ final class UsersImportPreviewDiffBuilder
         User $user,
         UsersImportRow $row,
         Collection $parentsByEmailLower,
+        bool $includeStudentFullNameGenitive = false,
     ): array {
         $changes = [];
 
@@ -95,6 +102,16 @@ final class UsersImportPreviewDiffBuilder
             $this->normalizeNullableString($user->name),
             $this->normalizeNullableString($row->studentName),
         );
+
+        if ($includeStudentFullNameGenitive) {
+            $this->pushScalarChange(
+                $changes,
+                'student_full_name_genitive',
+                'ФИО в родительном падеже',
+                $this->normalizeNullableString($user->full_name_genitive),
+                $this->normalizeNullableString($row->studentFullNameGenitive),
+            );
+        }
 
         $this->pushScalarChange(
             $changes,

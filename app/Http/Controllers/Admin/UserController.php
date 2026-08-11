@@ -765,6 +765,7 @@ class UserController extends AdminBaseController
         $old = [
             'name'       => (string) ($user->name ?? ''),
             'lastname'   => (string) ($user->lastname ?? ''),
+            'full_name_genitive' => (string) ($user->full_name_genitive ?? ''),
             'email'      => (string) ($user->email ?? ''),
             'is_enabled' => (bool)   ($user->is_enabled ?? false),
             'birthday'   => $user->birthday, // Carbon|string|null — отформатируем ниже
@@ -865,6 +866,7 @@ class UserController extends AdminBaseController
             $new = [
                 'name'       => (string) ($user->name ?? ''),
                 'lastname'   => (string) ($user->lastname ?? ''),
+                'full_name_genitive' => (string) ($user->full_name_genitive ?? ''),
                 'email'      => (string) ($user->email ?? ''),
                 'is_enabled' => (bool)   ($user->is_enabled ?? false),
                 'birthday'   => $user->birthday,
@@ -886,6 +888,11 @@ class UserController extends AdminBaseController
             }
             if ($old['lastname'] !== $new['lastname']) {
                 $changes[] = "Фамилия: {$old['lastname']} → {$new['lastname']}";
+            }
+            if ($old['full_name_genitive'] !== $new['full_name_genitive']) {
+                $oldGenitive = $old['full_name_genitive'] !== '' ? $old['full_name_genitive'] : '—';
+                $newGenitive = $new['full_name_genitive'] !== '' ? $new['full_name_genitive'] : '—';
+                $changes[] = "ФИО ученика в родительном: {$oldGenitive} → {$newGenitive}";
             }
             if ($old['email'] !== $new['email']) {
                 $changes[] = "Email: {$old['email']} → {$new['email']}";

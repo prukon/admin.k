@@ -8,6 +8,7 @@ final class UsersImportRow
         public readonly int $rowNumber,
         public readonly string $studentLastname,
         public readonly string $studentName,
+        public readonly ?string $studentFullNameGenitive,
         public readonly string $teamTitle,
         public readonly string $legalEntityTitle,
         public readonly ?string $studentEmail,
@@ -33,6 +34,7 @@ final class UsersImportRow
             'row_number' => $this->rowNumber,
             'student_lastname' => $this->studentLastname,
             'student_name' => $this->studentName,
+            'student_full_name_genitive' => $this->studentFullNameGenitive,
             'team_title' => $this->teamTitle,
             'legal_entity_title' => $this->legalEntityTitle,
             'student_email' => $this->studentEmail,
@@ -58,6 +60,9 @@ final class UsersImportRow
             rowNumber: (int) ($data['row_number'] ?? 0),
             studentLastname: (string) ($data['student_lastname'] ?? ''),
             studentName: (string) ($data['student_name'] ?? ''),
+            studentFullNameGenitive: array_key_exists('student_full_name_genitive', $data)
+                ? ($data['student_full_name_genitive'] !== null ? (string) $data['student_full_name_genitive'] : null)
+                : null,
             teamTitle: (string) ($data['team_title'] ?? ''),
             legalEntityTitle: (string) ($data['legal_entity_title'] ?? ''),
             studentEmail: isset($data['student_email']) ? (string) $data['student_email'] : null,

@@ -247,6 +247,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('users.import');
         });
 
+        Gate::define('users.full_name_genitive', function (User $user) {
+            return $user->hasPermission('users.full_name_genitive');
+        });
+
         // Управление группами
         Gate::define('groups.view', function (User $user) {
             return $user->hasPermission('groups.view');

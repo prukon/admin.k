@@ -6,6 +6,7 @@ final class UsersImportColumns
 {
     public const STUDENT_LASTNAME = 'student_lastname';
     public const STUDENT_NAME = 'student_name';
+    public const STUDENT_FULL_NAME_GENITIVE = 'student_full_name_genitive';
     public const TEAM = 'team';
     public const LEGAL_ENTITY = 'legal_entity';
     public const STUDENT_EMAIL = 'student_email';
@@ -21,11 +22,18 @@ final class UsersImportColumns
     /**
      * @return array<string, string> column key => header label in template
      */
-    public static function headerLabels(): array
+    public static function headerLabels(bool $includeStudentFullNameGenitive = true): array
     {
-        return [
+        $labels = [
             self::STUDENT_LASTNAME => 'Фамилия ученика',
             self::STUDENT_NAME => 'Имя ученика',
+        ];
+
+        if ($includeStudentFullNameGenitive) {
+            $labels[self::STUDENT_FULL_NAME_GENITIVE] = 'ФИО ученика в родительном падеже';
+        }
+
+        return $labels + [
             self::TEAM => 'Группа',
             self::LEGAL_ENTITY => 'Юр. лицо',
             self::STUDENT_EMAIL => 'Email ученика',
@@ -54,8 +62,8 @@ final class UsersImportColumns
     /**
      * @return list<string>
      */
-    public static function orderedColumnKeys(): array
+    public static function orderedColumnKeys(bool $includeStudentFullNameGenitive = true): array
     {
-        return array_keys(self::headerLabels());
+        return array_keys(self::headerLabels($includeStudentFullNameGenitive));
     }
 }

@@ -140,20 +140,21 @@ final class UsersExcelReader
     /**
      * @return array{rows: list<UsersImportRow>, errors: list<UsersImportRowError>}
      */
-    public function read(UploadedFile $file): array
+    public function read(UploadedFile $file, bool $includeStudentFullNameGenitive = false): array
     {
         $spreadsheet = IOFactory::load($file->getRealPath());
         $sheet = $spreadsheet->getActiveSheet();
 
-        $headerMap = $this->resolveHeaderMap($sheet);
+        $headerMap = $this->resolveHeaderMap($sheet, $includeStudentFullNameGenitive);
         $errors = [];
+        $labels = UsersImportColumns::headerLabels($includeStudentFullNameGenitive);
 
         foreach (UsersImportColumns::requiredColumnKeys() as $requiredKey) {
             if (! isset($headerMap[$requiredKey])) {
                 $errors[] = new UsersImportRowError(
                     1,
-                    UsersImportColumns::headerLabels()[$requiredKey],
-                    'Отсутствует обязательный столбец «' . UsersImportColumns::headerLabels()[$requiredKey] . '».'
+                    $labels[$requiredKey],
+                    'Отсутствует обязательный столбец «' . $labels[$requiredKey] . '».'
                 );
             }
         }
@@ -166,7 +167,7 @@ final class UsersExcelReader
         $highestRow = (int) $sheet->getHighestDataRow();
 
         for ($rowNumber = 2; $rowNumber <= $highestRow; $rowNumber++) {
-            $raw = $this->readRow($sheet, $rowNumber, $headerMap);
+            $raw = $this->readRow($sheet, $rowNumber, $headerMap, $includeStudentFullNameGenitive);
 
             if ($this->isRowCompletelyEmpty($raw)) {
                 continue;
@@ -176,6 +177,9 @@ final class UsersExcelReader
                 rowNumber: $rowNumber,
                 studentLastname: (string) ($raw[UsersImportColumns::STUDENT_LASTNAME] ?? ''),
                 studentName: (string) ($raw[UsersImportColumns::STUDENT_NAME] ?? ''),
+                studentFullNameGenitive: $includeStudentFullNameGenitive
+                    ? ($raw[UsersImportColumns::STUDENT_FULL_NAME_GENITIVE] ?? null)
+                    : null,
                 teamTitle: (string) ($raw[UsersImportColumns::TEAM] ?? ''),
                 legalEntityTitle: (string) ($raw[UsersImportColumns::LEGAL_ENTITY] ?? ''),
                 studentEmail: $raw[UsersImportColumns::STUDENT_EMAIL] ?? null,
@@ -202,9 +206,9 @@ final class UsersExcelReader
     /**
      * @return array<string, int> column key => column index (1-based)
      */
-    private function resolveHeaderMap(Worksheet $sheet): array
+    private function resolveHeaderMap(Worksheet $sheet, bool $includeStudentFullNameGenitive = false): array
     {
-        $labels = UsersImportColumns::headerLabels();
+        $labels = UsersImportColumns::headerLabels($includeStudentFullNameGenitive);
         $labelToKey = [];
         foreach ($labels as $key => $label) {
             $labelToKey[mb_strtolower(trim($label))] = $key;
@@ -232,8 +236,12 @@ final class UsersExcelReader
      * @param array<string, int> $headerMap
      * @return array<string, mixed>
      */
-    private function readRow(Worksheet $sheet, int $rowNumber, array $headerMap): array
-    {
+    private function readRow(
+        Worksheet $sheet,
+        int $rowNumber,
+        array $headerMap,
+        bool $includeStudentFullNameGenitive = false,
+    ): array {
         $get = static function (string $key) use ($sheet, $rowNumber, $headerMap): mixed {
             if (! isset($headerMap[$key])) {
                 return null;
@@ -244,6 +252,12 @@ final class UsersExcelReader
 
         $lastname = UsersImportNormalizer::normalizeText((string) ($get(UsersImportColumns::STUDENT_LASTNAME) ?? ''), 25);
         $name = UsersImportNormalizer::normalizeText((string) ($get(UsersImportColumns::STUDENT_NAME) ?? ''), 25);
+        $fullNameGenitive = $includeStudentFullNameGenitive
+            ? UsersImportNormalizer::normalizeText(
+                (string) ($get(UsersImportColumns::STUDENT_FULL_NAME_GENITIVE) ?? ''),
+                300
+            )
+            : null;
         $team = UsersImportNormalizer::normalizeTeamTitle((string) ($get(UsersImportColumns::TEAM) ?? ''));
         $legalEntity = UsersImportNormalizer::normalizeText((string) ($get(UsersImportColumns::LEGAL_ENTITY) ?? ''), 255);
 
@@ -264,7 +278,7 @@ final class UsersExcelReader
         $parentMiddlename = UsersImportNormalizer::normalizeText((string) ($get(UsersImportColumns::PARENT_MIDDLENAME) ?? ''), 100);
         $parentPhoneRaw = $get(UsersImportColumns::PARENT_PHONE);
 
-        return [
+        $raw = [
             UsersImportColumns::STUDENT_LASTNAME => $lastname ?? '',
             UsersImportColumns::STUDENT_NAME => $name ?? '',
             UsersImportColumns::TEAM => $team ?? '',
@@ -280,6 +294,12 @@ final class UsersExcelReader
             UsersImportColumns::PARENT_MIDDLENAME => $parentMiddlename,
             UsersImportColumns::PARENT_PHONE => UsersImportNormalizer::normalizeParentPhone(is_string($parentPhoneRaw) || is_numeric($parentPhoneRaw) ? (string) $parentPhoneRaw : null),
         ];
+
+        if ($includeStudentFullNameGenitive) {
+            $raw[UsersImportColumns::STUDENT_FULL_NAME_GENITIVE] = $fullNameGenitive;
+        }
+
+        return $raw;
     }
 
     /**

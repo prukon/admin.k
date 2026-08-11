@@ -18,23 +18,32 @@ final class UsersImportService
     ) {
     }
 
-    public function preview(UploadedFile $file, int $partnerId, int $actorId): UsersImportValidationResult
-    {
-        $parsed = $this->reader->read($file);
+    public function preview(
+        UploadedFile $file,
+        int $partnerId,
+        int $actorId,
+        bool $includeStudentFullNameGenitive = false,
+    ): UsersImportValidationResult {
+        $parsed = $this->reader->read($file, $includeStudentFullNameGenitive);
 
         return $this->validator->validate(
             $parsed['rows'],
             $parsed['errors'],
             $partnerId,
+            $includeStudentFullNameGenitive,
         );
     }
 
     /**
      * @return array{token: string, result: UsersImportValidationResult}
      */
-    public function previewAndStoreToken(UploadedFile $file, int $partnerId, int $actorId): array
-    {
-        $result = $this->preview($file, $partnerId, $actorId);
+    public function previewAndStoreToken(
+        UploadedFile $file,
+        int $partnerId,
+        int $actorId,
+        bool $includeStudentFullNameGenitive = false,
+    ): array {
+        $result = $this->preview($file, $partnerId, $actorId, $includeStudentFullNameGenitive);
 
         if (! $result->valid) {
             return [
@@ -49,6 +58,7 @@ final class UsersImportService
             [
                 'partner_id' => $partnerId,
                 'actor_id' => $actorId,
+                'include_student_full_name_genitive' => $includeStudentFullNameGenitive,
                 'rows' => array_map(static fn (UsersImportRow $row) => $row->toCacheArray(), $result->rows),
             ],
             self::CACHE_TTL_SECONDS,
@@ -84,7 +94,14 @@ final class UsersImportService
             throw new \RuntimeException('Нет данных для импорта.');
         }
 
-        $result = $this->commitService->commit($rows, $partnerId, $actorId);
+        $includeStudentFullNameGenitive = (bool) ($payload['include_student_full_name_genitive'] ?? false);
+
+        $result = $this->commitService->commit(
+            $rows,
+            $partnerId,
+            $actorId,
+            $includeStudentFullNameGenitive,
+        );
         Cache::forget(self::CACHE_PREFIX . $token);
 
         return $result;

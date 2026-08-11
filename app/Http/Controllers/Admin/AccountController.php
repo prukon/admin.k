@@ -142,6 +142,7 @@ class AccountController extends AdminBaseController
             static $map = [
                 'lastname'            => 'Фамилия',
                 'name'                => 'Имя',
+                'full_name_genitive'  => 'ФИО ученика в родительном падеже',
                 'email'               => 'Email',
                 'is_enabled'          => 'Аккаунт активен',
                 'team_id'             => 'Команда',
@@ -385,7 +386,7 @@ class AccountController extends AdminBaseController
             $labelOnOff = fn($v) => ((int)$v === 1 ? 'включена' : 'выключена');
             $labelYesNo = fn($v) => ((int)$v === 1 ? 'Да' : 'Нет');
 
-            $watched = ['lastname','name','email','is_enabled','role_id','birthday'];
+            $watched = ['lastname','name','full_name_genitive','email','is_enabled','role_id','birthday'];
             if ($user->can('users.sex')) {
                 $watched[] = 'sex';
             }

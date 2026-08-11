@@ -39,6 +39,15 @@
     (<code>school_leads.parent_id</code>) — см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>.
   </div>
 
+  <div class="warn">
+    <b>Не путать с ФИО ученика в родительном.</b>
+    Родительный падеж <b>ученика</b> хранится в <code>users.full_name_genitive</code>
+    (HTTP <code>full_name_genitive</code>, DOCX <code>{{child_full_name_genitive}}</code>),
+    право <code>users.full_name_genitive</code> — см.
+    <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>.
+    Это поле карточки ребёнка, а не справочника <code>parents</code>.
+  </div>
+
   <h2>0) Как это работает (сценарий)</h2>
   <div class="ok">
     <b>Пример.</b> Брат 1 и брат 2 — две записи <code>users</code> с одним <code>parent_id</code> (одна строка в <code>parents</code>).
@@ -208,21 +217,26 @@ users (role=user) — ученик, вход в CRM
       <tr><td><code>account.user.view</code></td><td><code>account.user.view</code></td><td>Доступ к странице и маршрутам группы <code>account.user.*</code></td></tr>
       <tr><td><code>account.user.parent.update</code></td><td><code>account.user.parent.update</code></td><td>Редактирование карточки родителя (ФИО, ФИО в родительном падеже, паспорт, адрес, телефон, email); без права — поля disabled (readonly)</td></tr>
       <tr><td><code>users.sex</code></td><td><code>users.sex</code></td><td>Пол ученика: в CRM (колонка, модалки) и в личном кабинете (<code>/account-settings/user/edit</code>); без права — поле не рендерится. Комментарий в кабинете недоступен.</td></tr>
+      <tr><td><code>users.full_name_genitive</code></td><td><code>users.full_name_genitive</code></td><td>ФИО ученика в родительном падеже: CRM и ЛК; <code>is_visible=0</code>, не в базовых ролях. Без права — поле не рендерится.
+        См. <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>.</td></tr>
     </tbody>
   </table>
-  <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> и <code>users.sex</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).</p>
+  <p>Базовая роль <code>user</code> получает <code>account.user.parent.update</code> и <code>users.sex</code> из <code>config/role_base_permissions.php</code> (сидер <code>PermissionSeeder</code>).
+    Право <code>users.full_name_genitive</code> в базовый набор <b>не</b> входит.</p>
 
   <h3>4.2) Сохранение</h3>
   <ul>
     <li><code>PATCH /account-settings/user</code> — <code>AccountUpdateRequest</code> + <code>AccountController@update</code>.</li>
     <li>Поля родителя валидируются и сохраняются только при роли <code>user</code> <b>и</b> праве <code>account.user.parent.update</code>.</li>
     <li>Пол (<code>sex</code>) — только при <code>users.sex</code> (§<a href="#account-sex">4.4</a>).</li>
+    <li>ФИО ученика в родительном (<code>full_name_genitive</code>) — только при <code>users.full_name_genitive</code>
+      (<a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>); 422 → ключ <code>full_name_genitive</code>.</li>
     <li>Сервис: <code>StudentParentSyncService::updateFromAccount</code> — обновляет <code>parentProfile</code> ученика; при отсутствии создаёт запись в <code>parents</code> и выставляет <code>users.parent_id</code>.</li>
     <li>Правка ФИО/профиля в ЛК меняет <b>общую</b> карточку — sibling с тем же <code>parent_id</code> видит изменения сразу (без отдельной учётки родителя).</li>
-    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>parent_full_name_genitive</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
-    <li>ФИО в родительном падеже: необязательное поле <code>parent_full_name_genitive</code> → <code>parents.full_name_genitive</code> (max 300). Пустая строка очищает значение. В ЛК одно только это поле без фамилии/имени → 422 на <code>parent_lastname</code>/<code>parent_firstname</code>.</li>
+    <li>Ответ всегда JSON (<code>success</code>, <code>message</code>); ошибки валидации — 422, ключи <code>parent_lastname</code>, <code>parent_full_name_genitive</code>, <code>full_name_genitive</code>, <code>sex</code> и т.д. (вывод под полями на фронте).</li>
+    <li>ФИО родителя в родительном падеже: необязательное поле <code>parent_full_name_genitive</code> → <code>parents.full_name_genitive</code> (max 300). Пустая строка очищает значение. В ЛК одно только это поле без фамилии/имени → 422 на <code>parent_lastname</code>/<code>parent_firstname</code>.</li>
   </ul>
-  <p class="small">Тесты: <code>AccountParentFullNameGenitiveFeatureTest</code>.</p>
+  <p class="small">Тесты: <code>AccountParentFullNameGenitiveFeatureTest</code>, <code>AccountChildFullNameGenitiveFeatureTest</code>.</p>
 
   <h3>4.3) Endpoint’ы учётной записи (smoke доступа)</h3>
   <table>
@@ -396,7 +410,10 @@ users (role=user) — ученик, вход в CRM
     <li>Отдельная учётная запись родителя для входа (<code>parents.user_id</code> удалён).</li>
     <li>Переключение между детьми при разных <code>parent_id</code> (разные записи в <code>parents</code>).</li>
     <li>Переименование «только для одного ученика» без отвязки: правка ФИО / родительного всегда меняет общую карточку; для другой персоны — «Новый родитель» или смена <code>parent_id</code>.</li>
-    <li>Автосклонение ФИО и отдельные колонки фамилии/имени/отчества в родительном — только ручная строка <code>full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>).</li>
+    <li>Автосклонение ФИО и отдельные колонки фамилии/имени/отчества в родительном — только ручная строка
+      <code>parents.full_name_genitive</code> (§<a href="#parent-full-name-genitive">1.5</a>).
+      Аналогично для ученика — <code>users.full_name_genitive</code>
+      (<a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>), это не часть справочника <code>parents</code>.</li>
     <li>Отдельный CRUD-раздел <code>/admin/parents</code> (карточка правится из модалки ученика / заявки / ЛК).</li>
     <li>Семейный контекст на страницах договоров у роли <code>user</code> (договоры — право <code>contracts.view</code>, админка).</li>
   </ul>

@@ -94,6 +94,20 @@
                                                     </div>
                                                 </div>
 
+                                                @can('users.full_name_genitive')
+                                                <div class="col-12">
+                                                    <div class="mb-3">
+                                                        <label for="edit-full-name-genitive" class="form-label">ФИО ученика в родительном падеже</label>
+                                                        <input type="text"
+                                                               name="full_name_genitive"
+                                                               class="form-control"
+                                                               id="edit-full-name-genitive"
+                                                               maxlength="300"
+                                                               placeholder="Иванова Ивана Ивановича">
+                                                    </div>
+                                                </div>
+                                                @endcan
+
                                                 <div class="col-12 col-md-6">
                                                     <div class="mb-3">
                                                         <label for="edit-birthday" class="form-label">Дата рождения</label>
@@ -798,6 +812,7 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-full-name-genitive').val(response.user.full_name_genitive || '');
                         if (typeof window.setStudentParentForm === 'function') {
                             window.setStudentParentForm('edit', {
                                 parent_id: response.user.parent_id,
@@ -923,6 +938,7 @@
                         // 1) Заполняем стандартные поля
                         $('#edit-user-form #edit-name').val(response.user.name);
                         $('#edit-user-form #edit-lastname').val(response.user.lastname);
+                        $('#edit-user-form #edit-full-name-genitive').val(response.user.full_name_genitive || '');
                         if (typeof window.setStudentParentForm === 'function') {
                             window.setStudentParentForm('edit', {
                                 parent_id: response.user.parent_id,
