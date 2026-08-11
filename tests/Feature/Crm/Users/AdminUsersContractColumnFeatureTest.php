@@ -106,9 +106,9 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
             '/admin/users/data?draw=1&start=0&length=10&contract=signed',
             '/admin/users/data?draw=1&start=0&length=10&contract=unsigned',
             '/admin/users/data?draw=1&start=0&length=10&contract=signed&status=active',
-            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=4&order[0][dir]=asc',
-            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=4&order[0][dir]=desc',
             '/admin/users/data?draw=1&start=0&length=10&order[0][column]=5&order[0][dir]=asc',
+            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=5&order[0][dir]=desc',
+            '/admin/users/data?draw=1&start=0&length=10&order[0][column]=6&order[0][dir]=asc',
         ];
     }
 
@@ -443,7 +443,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         }
     }
 
-    public function test_users_data_sorts_by_contract_at_column_index_four(): void
+    public function test_users_data_sorts_by_contract_at_column_index_five(): void
     {
         $this->actingAsUsersViewer(withContractsView: true);
 
@@ -461,11 +461,11 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->createContractForUser($draftUser, Contract::STATUS_DRAFT);
         $this->createContractForUser($signedUser, Contract::STATUS_SIGNED);
 
-        $ascIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=4&order[0][dir]=asc')
+        $ascIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=5&order[0][dir]=asc')
             ->assertOk()
             ->json('data'))->pluck('id')->all();
 
-        $descIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=4&order[0][dir]=desc')
+        $descIds = collect($this->getJson('/admin/users/data?draw=1&start=0&length=100&name=SortContract&order[0][column]=5&order[0][dir]=desc')
             ->assertOk()
             ->json('data'))->pluck('id')->all();
 
@@ -473,7 +473,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->assertTrue(array_search($signedUser->id, $descIds, true) < array_search($draftUser->id, $descIds, true));
     }
 
-    public function test_users_data_sorts_teams_at_column_index_five_with_contracts_view(): void
+    public function test_users_data_sorts_teams_at_column_index_six_with_contracts_view(): void
     {
         $this->actingAsUsersViewer(withContractsView: true);
 
@@ -502,7 +502,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
         $this->createContractForUser($u1, Contract::STATUS_DRAFT);
         $this->createContractForUser($u2, Contract::STATUS_SIGNED);
 
-        $json = $this->getJson('/admin/users/data?draw=1&start=0&length=100&order[0][column]=5&order[0][dir]=asc&name=Sort')->json();
+        $json = $this->getJson('/admin/users/data?draw=1&start=0&length=100&order[0][column]=6&order[0][dir]=asc&name=Sort')->json();
         $ids = collect($json['data'])->pluck('id')->all();
 
         $posU1 = array_search($u1->id, $ids, true);
@@ -725,7 +725,7 @@ final class AdminUsersContractColumnFeatureTest extends CrmTestCase
 
         $this->get(route('admin.user1'))->assertForbidden();
         $this->getJson('/admin/users/data?draw=1&start=0&length=10')->assertForbidden();
-        $this->getJson('/admin/users/data?draw=1&contract=signed&order[0][column]=4&order[0][dir]=asc')->assertForbidden();
+        $this->getJson('/admin/users/data?draw=1&contract=signed&order[0][column]=5&order[0][dir]=asc')->assertForbidden();
         $this->getJson(route('admin.users.table-settings.get'))->assertForbidden();
         $this->postJson(route('admin.users.table-settings.save'), [
             'columns' => ['contract' => true],

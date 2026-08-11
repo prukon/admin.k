@@ -42,6 +42,7 @@ final class AdminUsersParentFeatureTest extends CrmTestCase
             'lastname'   => 'УникальныйРодитель',
             'firstname'  => 'Сергей',
             'middlename' => 'Петрович',
+            'phone'      => '+79001112233',
         ]);
 
         $student = User::factory()->create([
@@ -56,11 +57,17 @@ final class AdminUsersParentFeatureTest extends CrmTestCase
 
         $this->assertNotNull($row);
         $this->assertSame('УникальныйРодитель Сергей Петрович', $row['parent']);
+        $this->assertSame('+7 (900) 111-22-33', $row['parent_phone']);
 
         $search = $this->getJson('/admin/users/data?name=УникальныйРодитель')->json();
         $ids = collect($search['data'])->pluck('id')->all();
 
         $this->assertContains($student->id, $ids);
+
+        $searchByPhone = $this->getJson('/admin/users/data?name=79001112233')->json();
+        $phoneIds = collect($searchByPhone['data'])->pluck('id')->all();
+
+        $this->assertContains($student->id, $phoneIds);
     }
 
     public function test_edit_json_includes_parent_fields(): void
@@ -124,6 +131,7 @@ final class AdminUsersParentFeatureTest extends CrmTestCase
         $row = collect($json['data'])->firstWhere('id', $student->id);
 
         $this->assertSame('Профильный Родитель Тестович', $row['parent']);
+        $this->assertSame('', $row['parent_phone']);
     }
 
     public function test_parents_search_returns_partner_parents(): void
@@ -132,6 +140,7 @@ final class AdminUsersParentFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'УникальныйПоиск',
             'firstname'  => 'Род',
+            'middlename' => null,
         ]);
 
         $this->getJson('/admin/users/parents/search?q=УникальныйПоиск')
@@ -202,13 +211,15 @@ final class AdminUsersParentFeatureTest extends CrmTestCase
     {
         $this->postJson(route('admin.users.table-settings.save'), [
             'columns' => [
-                'parent' => false,
-                'name'   => true,
+                'parent'       => false,
+                'parent_phone' => false,
+                'name'         => true,
             ],
         ])->assertOk();
 
         $this->getJson(route('admin.users.table-settings.get'))
             ->assertOk()
-            ->assertJsonPath('parent', false);
+            ->assertJsonPath('parent', false)
+            ->assertJsonPath('parent_phone', false);
     }
 }

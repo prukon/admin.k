@@ -84,6 +84,7 @@ final class AdminUsersParentAccessFeatureTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'Доступный',
             'firstname'  => 'Родитель',
+            'middlename' => null,
         ]);
 
         $student = User::factory()->create([

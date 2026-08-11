@@ -1530,6 +1530,74 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: /admin/users — колонка «Телефон родителя» после «Родитель», «Телефон» → «Телефон ученика».
+     * UX-баг: в JS columns/defaults забыли parent_phone или оставили старый заголовок «Телефон»
+     * → DataTables сдвигает индексы сортировки и путает телефоны ученика/родителя.
+     */
+    public function test_admin_users_parent_phone_column_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/user.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('<th>Телефон родителя</th>', $content);
+        $this->assertStringContainsString('<th>Телефон ученика</th>', $content);
+        $this->assertStringNotContainsString('<th>Телефон</th>', $content);
+        $this->assertStringContainsString('data-column-key="parent_phone"', $content);
+        $this->assertStringContainsString('for="colParentPhone">Телефон родителя</label>', $content);
+        $this->assertStringContainsString('for="colPhone">Телефон ученика</label>', $content);
+        $this->assertStringContainsString('parent_phone: true', $content);
+
+        $parentKeyPos = strpos($content, "{ key: 'parent', type: 'text', data: 'parent' }");
+        $parentPhoneKeyPos = strpos($content, "key: 'parent_phone'");
+        $phoneKeyPos = strpos($content, "{ key: 'phone', type: 'text', data: 'phone'");
+
+        $this->assertNotFalse($parentKeyPos);
+        $this->assertNotFalse($parentPhoneKeyPos);
+        $this->assertNotFalse($phoneKeyPos);
+        $this->assertLessThan($parentPhoneKeyPos, $parentKeyPos);
+        $this->assertLessThan($phoneKeyPos, $parentPhoneKeyPos);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $usersTableScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'parent_phone') || ! str_contains($rawScript, 'users-table')) {
+                continue;
+            }
+            $usersTableScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-users-parent-phone-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in admin/user.blade.php parent_phone script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $usersTableScriptFound,
+            'В admin/user.blade.php не найден script с users-table и parent_phone'
+        );
+    }
+
+    /**
      * P1: ФИО родителя в родительном — оба пути editUser + fillParentFio/reset/Select2 не теряют поле.
      * UX-баг: один из двух AJAX-путей открытия модалки забывает гидратировать genitive →
      * при повторном открытии остаётся значение предыдущего ученика или пусто.

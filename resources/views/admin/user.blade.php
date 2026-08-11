@@ -128,6 +128,15 @@
                                             <label class="form-check-label" for="colParent">Родитель</label>
                                         </div>
 
+                                        <div class="form-check">
+                                            <input class="form-check-input column-toggle"
+                                                   type="checkbox"
+                                                   data-column-key="parent_phone"
+                                                   id="colParentPhone"
+                                                   checked>
+                                            <label class="form-check-label" for="colParentPhone">Телефон родителя</label>
+                                        </div>
+
                                         @if($canViewContracts)
                                         <div class="form-check">
                                             <input class="form-check-input column-toggle"
@@ -194,7 +203,7 @@
                                                    data-column-key="phone"
                                                    id="colPhone"
                                                    checked>
-                                            <label class="form-check-label" for="colPhone">Телефон</label>
+                                            <label class="form-check-label" for="colPhone">Телефон ученика</label>
                                         </div>
 
                                         <div class="form-check">
@@ -281,6 +290,7 @@
                             <th>Аватар</th>
                             <th>Имя</th>
                             <th>Родитель</th>
+                            <th>Телефон родителя</th>
                             @if($canViewContracts)
                             <th>Договор</th>
                             @endif
@@ -293,7 +303,7 @@
                             <th>Комментарий</th>
                             @endif
                             <th>Email</th>
-                            <th>Телефон</th>
+                            <th>Телефон ученика</th>
                             <th>Статус</th>
                             <th>Действия</th>
                         </tr>
@@ -396,6 +406,7 @@
                         avatar: true,
                         name: true,
                         parent: true,
+                        parent_phone: true,
                         ...(canViewContracts ? { contract: true } : {}),
                         teams: true,
                         birthday: true,
@@ -452,6 +463,7 @@
                         },
                     },
                     { key: 'parent', type: 'text', data: 'parent' },
+                    { key: 'parent_phone', type: 'text', data: 'parent_phone', className: 'dt-col-text text-nowrap' },
                     ...(canViewContracts ? [{
                         key: 'contract',
                         type: 'icon',

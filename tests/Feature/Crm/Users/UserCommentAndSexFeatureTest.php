@@ -1037,7 +1037,7 @@ final class UserCommentAndSexFeatureTest extends CrmTestCase
         bool $canViewSex = true,
         bool $canViewComment = true,
     ): int {
-        $keys = ['rownum', 'avatar', 'name', 'parent'];
+        $keys = ['rownum', 'avatar', 'name', 'parent', 'parent_phone'];
 
         if ($withContracts) {
             $keys[] = 'contract';

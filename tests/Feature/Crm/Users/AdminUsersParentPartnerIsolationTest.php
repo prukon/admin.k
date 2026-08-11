@@ -47,12 +47,14 @@ final class AdminUsersParentPartnerIsolationTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'СвойПартнерРодитель',
             'firstname'  => 'А',
+            'middlename' => null,
         ]);
 
         ParentProfile::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'lastname'   => 'СвойПартнерРодитель',
             'firstname'  => 'Чужой',
+            'middlename' => null,
         ]);
 
         $json = $this->getJson(route('admin.users.parents.search', ['q' => 'СвойПартнерРодитель']))
@@ -178,12 +180,14 @@ final class AdminUsersParentPartnerIsolationTest extends CrmTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'СвойБезЗапроса',
             'firstname'  => 'А',
+            'middlename' => null,
         ]);
 
         ParentProfile::factory()->create([
             'partner_id' => $this->foreignPartner->id,
             'lastname'   => 'СвойБезЗапроса',
             'firstname'  => 'Чужой',
+            'middlename' => null,
         ]);
 
         $json = $this->getJson(route('admin.users.parents.search', ['q' => '', 'limit' => 50]))

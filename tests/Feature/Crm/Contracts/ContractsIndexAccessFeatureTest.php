@@ -206,6 +206,7 @@ class ContractsIndexAccessFeatureTest extends ContractsFeatureTestCase
             'partner_id' => $this->partner->id,
             'lastname'   => 'Dedicated',
             'firstname'  => 'Parent',
+            'middlename' => null,
         ]);
 
         $student = User::factory()->create([

@@ -36,6 +36,7 @@ use App\Services\UserService;
 use App\Services\Users\ClientWelcomeCredentialsService;
 use App\Services\Users\FamilyStudentLoginResolver;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
+use App\Support\RuPhone;
 
 class UserController extends AdminBaseController
 {
@@ -159,7 +160,7 @@ class UserController extends AdminBaseController
             $baseQuery->where('users.id', $validated['id']);
         }
 
-        // Фильтр по имени / email / телефону / дате рождения (панель фильтров или поиск DataTables)
+        // Фильтр по имени / email / телефону ученика / телефону родителя / дате рождения (панель фильтров или поиск DataTables)
         if ($nameSearch !== '') {
             $like = '%' . $nameSearch . '%';
 
@@ -172,7 +173,8 @@ class UserController extends AdminBaseController
                     ->orWhereHas('parentProfile', function ($parentQuery) use ($like) {
                         $parentQuery->where('lastname', 'like', $like)
                             ->orWhere('firstname', 'like', $like)
-                            ->orWhere('middlename', 'like', $like);
+                            ->orWhere('middlename', 'like', $like)
+                            ->orWhere('phone', 'like', $like);
                     });
             });
         }
@@ -277,12 +279,13 @@ class UserController extends AdminBaseController
                 'avatar'       => $avatar,
                 'name'         => $user->full_name ?: 'Без имени',
                 'parent'       => $user->parent_full_name,
+                'parent_phone' => RuPhone::formatForInput($user->parentProfile?->phone),
                 'teams'        => $this->teamUserSync->teamTitlesLabel($user) ?: '',
                 'birthday'     => $user->birthday
                     ? Carbon::parse($user->birthday)->format('d.m.Y')
                     : '',
                 'email'        => $user->email ?? '',
-                'phone'        => $user->phone,
+                'phone'        => RuPhone::formatForInput($user->phone),
                 'status_label' => $user->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'   => (int) $user->is_enabled,
             ];
@@ -1132,7 +1135,7 @@ class UserController extends AdminBaseController
         bool $canViewUserSex,
         bool $canViewUserComment,
     ): array {
-        $keys = ['rownum', 'avatar', 'name', 'parent'];
+        $keys = ['rownum', 'avatar', 'name', 'parent', 'parent_phone'];
 
         if ($canViewContracts) {
             $keys[] = 'contract';
@@ -1169,6 +1172,10 @@ class UserController extends AdminBaseController
                 ->select('users.*')
                 ->orderBy('parents.lastname', $orderDir)
                 ->orderBy('parents.firstname', $orderDir),
+            'parent_phone' => $query
+                ->leftJoin('parents', 'parents.id', '=', 'users.parent_id')
+                ->select('users.*')
+                ->orderBy('parents.phone', $orderDir),
             'contract' => $contractLookup->applyUsersListSortByLatestContractStatus(
                 $query,
                 $partnerId,

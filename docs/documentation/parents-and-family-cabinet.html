@@ -164,7 +164,10 @@ users (role=user) — ученик, вход в CRM
 
   <h2 id="parent-shared-edit">3) Админка: ученики (<code>/admin/users</code>)</h2>
   <p class="small">Список и создание на этой странице — только роль <code>user</code> (ученик). Обзор вкладок раздела: <a href="/docs/documentation/admin-users-section">admin-users-section</a>.</p>
-  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> · правка из справочника: <a href="/docs/documentation/admin-users#user-parent-directory-fio">§2.1.2</a> · родительный падеж: <a href="/docs/documentation/admin-users#user-parent-genitive">§2.1.6</a> / §<a href="#parent-full-name-genitive">1.5</a>. Кратко:</p>
+  <p>Подробно: <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1</a> ·
+    колонка телефона родителя: <a href="/docs/documentation/admin-users#user-parent-phone-column">§2.1.0</a> ·
+    правка из справочника: <a href="/docs/documentation/admin-users#user-parent-directory-fio">§2.1.2</a> ·
+    родительный падеж: <a href="/docs/documentation/admin-users#user-parent-genitive">§2.1.6</a> / §<a href="#parent-full-name-genitive">1.5</a>. Кратко:</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URL</th><th>Назначение</th></tr>
@@ -177,13 +180,13 @@ users (role=user) — ученик, вход в CRM
   <div class="ok">
     <b>Общая карточка.</b> В режиме «Из справочника» ФИО, родительный падеж и поля профиля редактируемы. Сохранение с <code>parent_id</code>
     обновляет существующую <code>parents</code> — изменение видно всем детям с тем же <code>parent_id</code>
-    (колонка «Родитель», edit JSON, ЛК, договоры). «Новый родитель» создаёт новую строку.
+    (колонка «Родитель», «Телефон родителя», edit JSON, ЛК, договоры). «Новый родитель» создаёт новую строку.
   </div>
   <ul>
     <li>В модалках create/edit: блок родителя только для роли <code>user</code>; переключатель «Из справочника» / «Новый родитель» (если в справочнике есть записи), иначе сразу поля ФИО — см. <a href="/docs/documentation/admin-users#user-parent">admin-users §2.1.2</a>.</li>
-    <li>В списке DataTables колонка «Родитель» — склейка ФИО из <code>parents</code> (через <code>parentProfile</code>).</li>
-    <li>Поиск по <code>name</code> ищет также по ФИО в <code>parents</code> (<code>whereHas parentProfile</code>).</li>
-    <li>Сортировка col=3: <code>parents.lastname</code>, <code>parents.firstname</code> (left join).</li>
+    <li>В списке DataTables: колонка «Родитель» — склейка ФИО из <code>parents</code>; колонка «Телефон родителя» (<code>parent_phone</code>) — <code>parents.phone</code> (пусто, если нет родителя/телефона); заголовок «Телефон ученика» — <code>users.phone</code>. Подробно — <a href="/docs/documentation/admin-users#user-parent-phone-column">admin-users §2.1.0</a>.</li>
+    <li>Поиск по <code>name</code> ищет по ФИО в <code>parents</code> и по <code>parents.phone</code> (а также по ФИО/email/телефону/ДР ученика).</li>
+    <li>Сортировка: col=3 — <code>parents.lastname</code>, <code>parents.firstname</code>; col=4 — <code>parents.phone</code> (left join; индексы при полном наборе колонок, см. admin-users §2).</li>
     <li>Право: достаточно <code>users.view</code> + store/update пользователя; отдельного permission на родителя в админке нет.</li>
     <li>HTTP: AJAX → JSON; non-AJAX POST/PATCH → redirect на список учеников (safety-net).</li>
     <li>Пол и комментарий ученика — §<a href="/docs/documentation/admin-users#user-comment-sex">admin-users §2.4</a>: пол — <code>users.sex</code> (CRM и кабинет), комментарий — только CRM (<code>users.comment</code>, §<a href="#account-sex">4.4</a>).</li>

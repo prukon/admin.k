@@ -49,13 +49,13 @@ class DocumentationController extends Controller
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, trainer_profiles, team_trainer, мультитренеры в журнале при «Посетил»',
         'admin-users-section'         => 'Раздел «Пользователи» (вкладки): ученики, тренеры, администраторы, /admin/roles/{name}, UsersSectionTabsResolver',
         'admin-role-staff'            => 'Администраторы и кастомные роли: /admin/administrators, /admin/roles/{name}, RoleStaffUserController, users.role.update, send_welcome_email при create',
-        'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, переключение детей (братья), sidebarPanelIdentity, active_student',
+        'parents-and-family-cabinet'  => 'Родители и семейный кабинет: parents, users.parent_id, телефон родителя в /admin/users, переключение детей (братья), sidebarPanelIdentity, active_student',
         'dashboard-cabinet'           => 'Консоль (/cabinet): блоки оплат (доп./абонементы/сезоны), setPrices.customPayments/packageAssignments/cabinetSeasons',
         'setting-prices-custom-payments' => 'Установка цен → Дополнительные платежи: team_id, customPayments.view (не в базовых ролях), manualPaid.manage',
         'setting-prices-monthly-users' => 'Установка цен: бывшие участники + sync users_prices↔ULP (billing_month, кнопка «+» в журнале)',
         'set-prices-package-assignments' => 'Право setPrices.packageAssignments.view: вкладка назначений + блок на консоли, не в базовых ролях',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
-        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, адрес проживания (users.address → {{child_address}}), импорт Excel, родители, договор, welcome-письмо, пол, комментарий, team_ids',
+        'admin-users'                 => 'Ученики (админка): /admin/users только role=user, телефон родителя в таблице, адрес проживания (users.address → {{child_address}}), импорт Excel, родители, договор, welcome-письмо, пол, комментарий, team_ids',
         'contracts'                   => 'Договоры (клиентские): PDF и режим «форма клиенту», блок без юрлица группы, карточка, revoke/refund, вкладка «Шаблоны»',
         'contract-templates'          => 'Шаблоны DOCX: fields_schema, {{contract_date}} / системные поля, разрывы Word w:t, «Юр. лицо», email, версии',
         'account-contract-fill'       => 'Заполнение договора родителем: fill/generate/sign, каунтер активных договоров в сайдбаре и на вкладке «Мои документы», авто {{contract_date}}, юрлицо группы',
@@ -95,10 +95,20 @@ class DocumentationController extends Controller
     /**
      * Внутренняя документация проекта (не публичная).
      *
+     * Главная `/docs/documentation` (`/doc`) — файл `docs/documentation/index.html`
+     * (анонсы фич + список разделов). Отдельные страницы — `/{slug}`.
+     *
      * ВАЖНО: без произвольных путей (защита от path traversal).
      */
     public function index(): Response
     {
+        $path = base_path('docs/documentation/index.html');
+        if (is_file($path)) {
+            return response((string) file_get_contents($path), 200)
+                ->header('Content-Type', 'text/html; charset=UTF-8');
+        }
+
+        // Fallback, если index.html отсутствует: список страниц из PAGE_TITLES.
         $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
             . '<title>Документация проекта</title>'
             . '<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;line-height:1.5;color:#111;margin:0}'

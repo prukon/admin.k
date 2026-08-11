@@ -17,7 +17,9 @@ class ParentProfileFactory extends Factory
     {
         $lastname = fake()->lastName();
         $firstname = fake()->firstName();
-        $middlename = fake()->boolean(50) ? fake()->middleNameMale() : null;
+        // По умолчанию без отчества: иначе тесты с точным ФИО флакают (~50%).
+        // Нужное отчество задавайте явно в create([...]).
+        $middlename = null;
 
         return [
             'partner_id' => Partner::factory(),

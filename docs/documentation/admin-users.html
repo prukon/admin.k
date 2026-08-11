@@ -69,14 +69,14 @@
 
   <h2>2) Список учеников (DataTables)</h2>
   <ul>
-    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>full_name_genitive</code>), email, телефону, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
-    <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
+    <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
+    <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>parent_phone</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
   </ul>
 
   <h3>Индексы колонок DataTables</h3>
   <p class="small">Индексы фиксированы для сортировки на сервере (<code>UserController@data</code>, <code>order.0.column</code>). Сервер строит порядок колонок методом <code>usersListColumnKeys()</code> — он должен совпадать с массивом <code>columns</code> в JS (<code>admin/user.blade.php</code>).</p>
   <ul class="small">
-    <li>Если у актора нет <code>contracts.view</code>, колонка «Договор» не рендерится — сдвиг на −1 для всех колонок после «Родитель».</li>
+    <li>Если у актора нет <code>contracts.view</code>, колонка «Договор» не рендерится — сдвиг на −1 для всех колонок после «Телефон родителя».</li>
     <li>Если нет <code>users.sex</code> — колонка «Пол» не рендерится; без <code>users.comment</code> — колонка «Комментарий» (§<a href="#user-comment-sex">2.4</a>). Обе вставляются <b>после «Дата рождения»</b>, перед «Email».</li>
   </ul>
 
@@ -92,14 +92,15 @@
       <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td></tr>
       <tr><td>2</td><td><code>name</code></td><td>Имя (ученик)</td></tr>
       <tr><td>3</td><td><code>parent</code></td><td>Родитель (склейка ФИО)</td></tr>
-      <tr><td>4</td><td><code>teams</code></td><td>Группы</td></tr>
-      <tr><td>5</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
-      <tr><td>6</td><td><code>sex</code></td><td>Пол (только при <code>users.sex</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
-      <tr><td>7</td><td><code>comment</code></td><td>Комментарий (только при <code>users.comment</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
-      <tr><td>8</td><td><code>email</code></td><td>Email</td></tr>
-      <tr><td>9</td><td><code>phone</code></td><td>Телефон</td></tr>
-      <tr><td>10</td><td><code>status_label</code></td><td>Статус</td></tr>
-      <tr><td>11</td><td><code>actions</code></td><td>Действия</td></tr>
+      <tr><td>4</td><td><code>parent_phone</code></td><td>Телефон родителя (<code>parents.phone</code>)</td></tr>
+      <tr><td>5</td><td><code>teams</code></td><td>Группы</td></tr>
+      <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td></tr>
+      <tr><td>7</td><td><code>sex</code></td><td>Пол (только при <code>users.sex</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
+      <tr><td>8</td><td><code>comment</code></td><td>Комментарий (только при <code>users.comment</code>, §<a href="#user-comment-sex">2.4</a>)</td></tr>
+      <tr><td>9</td><td><code>email</code></td><td>Email</td></tr>
+      <tr><td>10</td><td><code>phone</code></td><td>Телефон ученика</td></tr>
+      <tr><td>11</td><td><code>status_label</code></td><td>Статус</td></tr>
+      <tr><td>12</td><td><code>actions</code></td><td>Действия</td></tr>
     </tbody>
   </table>
 
@@ -113,15 +114,16 @@
       <tr><td>1</td><td><code>avatar</code></td><td>Аватар</td><td><code>users.image_crop</code></td></tr>
       <tr><td>2</td><td><code>name</code></td><td>Имя</td><td>lastname, name</td></tr>
       <tr><td>3</td><td><code>parent</code></td><td>Родитель</td><td><code>parents.lastname, firstname</code></td></tr>
-      <tr><td>4</td><td><code>contract</code></td><td>Договор</td><td>статус последнего договора (§<a href="#user-contract-column">2.3.5</a>)</td></tr>
-      <tr><td>5</td><td><code>teams</code></td><td>Группы</td><td><code>teams.title</code> (pivot, через запятую)</td></tr>
-      <tr><td>6</td><td><code>birthday</code></td><td>Дата рождения</td><td><code>users.birthday</code></td></tr>
-      <tr><td>7</td><td><code>sex</code></td><td>Пол</td><td><code>users.sex</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.sex</code>)</td></tr>
-      <tr><td>8</td><td><code>comment</code></td><td>Комментарий</td><td><code>users.comment</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.comment</code>)</td></tr>
-      <tr><td>9</td><td><code>email</code></td><td>Email</td><td><code>users.email</code></td></tr>
-      <tr><td>10</td><td><code>phone</code></td><td>Телефон</td><td><code>users.phone</code></td></tr>
-      <tr><td>11</td><td><code>status_label</code></td><td>Статус</td><td><code>users.is_enabled</code></td></tr>
-      <tr><td>12</td><td><code>actions</code></td><td>Действия</td><td>нет</td></tr>
+      <tr><td>4</td><td><code>parent_phone</code></td><td>Телефон родителя</td><td><code>parents.phone</code></td></tr>
+      <tr><td>5</td><td><code>contract</code></td><td>Договор</td><td>статус последнего договора (§<a href="#user-contract-column">2.3.5</a>)</td></tr>
+      <tr><td>6</td><td><code>teams</code></td><td>Группы</td><td><code>teams.title</code> (pivot, через запятую)</td></tr>
+      <tr><td>7</td><td><code>birthday</code></td><td>Дата рождения</td><td><code>users.birthday</code></td></tr>
+      <tr><td>8</td><td><code>sex</code></td><td>Пол</td><td><code>users.sex</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.sex</code>)</td></tr>
+      <tr><td>9</td><td><code>comment</code></td><td>Комментарий</td><td><code>users.comment</code> (§<a href="#user-comment-sex">2.4</a>, при <code>users.comment</code>)</td></tr>
+      <tr><td>10</td><td><code>email</code></td><td>Email</td><td><code>users.email</code></td></tr>
+      <tr><td>11</td><td><code>phone</code></td><td>Телефон ученика</td><td><code>users.phone</code></td></tr>
+      <tr><td>12</td><td><code>status_label</code></td><td>Статус</td><td><code>users.is_enabled</code></td></tr>
+      <tr><td>13</td><td><code>actions</code></td><td>Действия</td><td>нет</td></tr>
     </tbody>
   </table>
 
@@ -148,8 +150,60 @@
       <tr><td><code>users.phone</code>, <code>users.email</code></td><td>Контакты для SMS/оплат на учётке ученика, не дублируются автоматически в <code>parents</code></td></tr>
     </tbody>
   </table>
-  <p class="small">В <code>GET /admin/users/data</code>: <code>"parent": "Фамилия Имя Отчество"</code> из связи <code>parentProfile</code>.
-  Сортировка col=3: join <code>parents</code>, <code>orderBy parents.lastname, parents.firstname</code>.</p>
+  <p class="small">В <code>GET /admin/users/data</code>: <code>"parent": "Фамилия Имя Отчество"</code> и <code>"parent_phone"</code>
+  (из <code>parentProfile.phone</code>; пустая строка, если родителя нет или телефон не задан) — не путать с <code>"phone"</code> ученика.
+  Оба телефона в JSON списка — в маске <code>+7 (999) 999-99-99</code> через <code>RuPhone::formatForInput</code> (в БД канон без изменений).
+  Сортировка col=3 («Родитель»): join <code>parents</code>, <code>orderBy parents.lastname, parents.firstname</code>.
+  Сортировка col=4 («Телефон родителя»): <code>orderBy parents.phone</code>.
+  Фильтр <code>name</code> ищет также по <code>parents.phone</code>.</p>
+
+  <h3 id="user-parent-phone-column">2.1.0) Колонка «Телефон родителя» и «Телефон ученика»</h3>
+  <div class="ok">
+    <b>Назначение.</b> В списке <code>/admin/users</code> телефон родителя и телефон ученика видны раздельно:
+    не нужно открывать карточку, чтобы позвонить родителю.
+  </div>
+  <table>
+    <thead>
+      <tr><th>UI / ключ</th><th>Источник</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>«Телефон родителя», <code>parent_phone</code></td>
+        <td><code>parents.phone</code> через <code>parentProfile</code></td>
+        <td>Колонка сразу после «Родитель». В JSON <code>GET /admin/users/data</code> —
+          маска <code>+7 (999) 999-99-99</code> (<code>RuPhone::formatForInput</code>) или <code>""</code>, если <code>parent_id</code> пуст / телефон не задан.
+          Сортировка: left join <code>parents</code>, <code>orderBy parents.phone</code> (индекс col=4
+          при полном наборе колонок, см. таблицы §2).</td>
+      </tr>
+      <tr>
+        <td>«Телефон ученика», <code>phone</code></td>
+        <td><code>users.phone</code></td>
+        <td>Бывший заголовок «Телефон». Канон хранения <code>+7XXXXXXXXXX</code> (мутатор модели);
+          в JSON списка — маска <code>+7 (999) 999-99-99</code> (<code>RuPhone::formatForInput</code>).
+          Право на <b>запись</b> в модалке — <code>users.phone.update</code>; на <b>просмотр в списке</b>
+          отдельного права нет (достаточно <code>users.view</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><b>Toolbar «Колонки»:</b> тумблеры <code>data-column-key="parent_phone"</code> и
+      <code>data-column-key="phone"</code>; defaults в JS — оба <code>true</code>;
+      persist в <code>user_table_settings</code> (<code>table_key = users_index</code>).</li>
+    <li><b>Фильтр «Имя»</b> (<code>name</code>): кроме ФИО/email/ДР/телефона ученика ищет по
+      <code>parents.phone</code> (<code>whereHas parentProfile</code>). Изоляция партнёра: чужие
+      <code>parents</code> / ученики в выборку не попадают.</li>
+    <li><b>Порядок thead / JS <code>columns</code>:</b> … → <code>parent</code> → <code>parent_phone</code> →
+      (<code>contract</code> при <code>contracts.view</code>) → <code>teams</code> → … → <code>phone</code> → …</li>
+    <li><b>Не путать</b> с колонкой «Телефон родителя» на <code>/admin/school-leads</code>
+      (там ключ <code>phone</code> = <code>school_leads.phone</code>, снимок с лендинга)
+      и с колонками Excel выгрузки календаря школы
+      («Телефон родителя» / «Телефон ученика» — см.
+      <a href="/docs/documentation/school-schedule-calendar#school-schedule-export-contacts">school-schedule-calendar</a>).</li>
+  </ul>
+  <p class="small">Код: <code>UserController@data</code> / <code>usersListColumnKeys</code> /
+    <code>applyUsersListSort</code>; view <code>resources/views/admin/user.blade.php</code>.
+    Тесты: <code>AdminUsersParentPhoneColumnFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_admin_users_parent_phone_column_js_contract_is_valid_javascript</code>.</p>
 
   <h3 id="user-parent-directory-fio">2.1.2) UI и поиск (модалки create / edit)</h3>
   <p>Partial: <code>resources/views/admin/users/_parent_form.blade.php</code> (подключается в <code>createUser</code> / <code>editUser</code>; в заявках — с <code>prefix=lead</code>).</p>
@@ -175,7 +229,7 @@
     <li>Выбор из справочника подставляет ФИО и поля профиля в форму. Поля ФИО <b>редактируемы</b>. Режим «Новый родитель» очищает <code>parent_id</code> и показывает пустые поля — создаётся новая строка <code>parents</code>.</li>
     <li>Правка ФИО в режиме справочника синхронизирует подпись выбранного option в Select2 (JS <code>syncParentSelectLabelFromFio</code>).</li>
     <li>Отвязка: очистка Select2 + пустые <code>parent_*</code> в запросе → <code>parent_id = null</code> (см. <code>isAdminParentBlockCleared</code> в сервисе).</li>
-    <li>В «Поля списка» — колонка «Родитель» (<code>data-column-key="parent"</code>).</li>
+    <li>В «Поля списка» — колонки «Родитель» (<code>data-column-key="parent"</code>) и «Телефон родителя» (<code>parent_phone</code>); «Телефон ученика» — ключ <code>phone</code> (§<a href="#user-parent-phone-column">2.1.0</a>).</li>
     <li>Право на раздел: <code>users.view</code> (отдельного permission на справочник родителей нет).</li>
     <li>Тот же partial с <code>prefix=lead</code> — в модалке заявки (§<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">school-leads-widget §5.5.2</a>); поведение режимов совпадает.</li>
   </ul>
@@ -259,7 +313,7 @@
 
   <h2 id="user-contract-column">2.3) Колонка «Договор» в списке пользователей</h2>
   <div class="note">
-    Колонка в таблице <code>/admin/users</code> сразу после «Родитель». Показывается только если у актора есть <code>contracts.view</code>
+    Колонка в таблице <code>/admin/users</code> сразу после «Телефон родителя». Показывается только если у актора есть <code>contracts.view</code>
     (в Blade: <code>$canViewContracts</code>, в JS: <code>canViewContracts</code>).<br>
     <b>Отличие от заявок с сайта:</b> на <a href="/docs/documentation/school-leads-widget">/admin/school-leads</a> колонка «Договор» видна при <code>users.view</code> <b>или</b> <code>contracts.view</code>. Без клиента в ячейке «—»; после создания клиента из модалки §<a href="/docs/documentation/school-leads-widget#school-lead-edit-modal">5.5.2</a> — ссылка на договор или кнопка «Создать договор» (встроенная модалка, §<a href="/docs/documentation/school-leads-widget#school-lead-contract-inline">5.8</a>).
     На <code>/admin/users</code> — только иконка последнего договора и только при <code>contracts.view</code>; кнопки «Создать договор» в ячейке <b>нет</b>.
@@ -721,10 +775,11 @@
     При <code>send_welcome_email = true</code> или при создании из лида (<code>school_lead_id</code>) пароль формы игнорируется — сервер генерирует свой (§<a href="#user-welcome-credentials">5.1</a>).
   </div>
 
-  <h3>Телефон</h3>
+  <h3>Телефон ученика</h3>
   <div class="note">
-    Поле <code>phone</code> с маской <code>+7 (999) 999-99-99</code> (Inputmask).
+    Поле <code>phone</code> в модалке с маской <code>+7 (999) 999-99-99</code> (Inputmask).
     Хранение: канон <code>+7XXXXXXXXXX</code> в <code>users.phone</code>.
+    В таблице списка заголовок — <b>«Телефон ученика»</b> (не путать с колонкой «Телефон родителя», §<a href="#user-parent-phone-column">2.1.0</a>).
     Право на запись: <code>users.phone.update</code> (без права поле игнорируется на бэкенде и disabled в UI).
     Сразу после телефона в аккордеоне «Ученик» — <a href="#user-student-address">адрес проживания</a> (<code>users.address</code>).
   </div>
@@ -1124,6 +1179,7 @@
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersParentPhoneColumnFeatureTest.php</code> — колонка <code>parent_phone</code> / «Телефон ученика»: Blade-порядок, JSON, поиск, сортировка, guest/403/200, изоляция партнёра, columns-settings 422</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code>, shared FIO у siblings</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentDirectoryFioFeatureTest.php</code> — правка ФИО/профиля при <code>parent_id</code>, UI без скрытия ФИО, доступ guest/403/200, 422 чужой parent</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAjaxContractFeatureTest.php</code> — JSON store/update/edit/search (message, user), 422</li>
@@ -1160,6 +1216,7 @@
       <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code>, <code>TrainerSyncAndTeamsFeatureTest.php</code> — роль trainer</li>
     </ul>
     Запуск колонки «Договор»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code>.
+    Колонка «Телефон родителя»: <code>php artisan test tests/Feature/Crm/Users/AdminUsersParentPhoneColumnFeatureTest.php</code>.
     Родитель и доступ: <code>php artisan test --filter=AdminUsersParent</code>.
     Directory FIO / AJAX / non-AJAX: <code>php artisan test --filter='AdminUsersParentDirectoryFio|AdminUsersParentAjaxContract|AdminUsersParentNonAjax'</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
@@ -1170,6 +1227,7 @@
 
   <p class="small"><a href="/doc">← К оглавлению</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> ·
+    <a href="#user-parent-phone-column">Телефон родителя в списке</a> ·
     <a href="#user-parent-genitive">ФИО в родительном</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="#user-comment-sex">Пол и комментарий</a> ·
