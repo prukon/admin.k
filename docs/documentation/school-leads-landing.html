@@ -119,6 +119,7 @@
     <li>Валидация submit: <code>App\Http\Requests\SubmitSchoolLeadLandingRequest</code> — AJAX: ошибки по полям в JSON, 422; non-AJAX: redirect на страницу лендинга с <code>withErrors</code> / <code>withInput</code>.</li>
     <li>reCAPTCHA v3: <code>App\Services\RecaptchaVerificationService</code>.</li>
     <li>View: <code>resources/views/landing/partner-lead.blade.php</code>.</li>
+    <li><b>CSRF 419</b> на AJAX <code>POST …/submit</code>: JSON <code>message</code> «Сессия устарела. Обновите страницу и отправьте заявку ещё раз.»; тот же текст показывается в <code>[data-error-for="form"]</code> (JS при <code>status === 419</code>). В <code>laravel.log</code> пишется <code>WARNING CSRF token mismatch on school lead submit</code> (<code>App\Exceptions\Handler</code>, маршруты <code>lead.submit</code> / <code>widget.school-lead.submit</code>) — иначе TokenMismatch не попадает в лог (internalDontReport). На проде для cookie сессии рекомендуется <code>SESSION_SECURE_COOKIE=true</code>.</li>
   </ul>
 
   <h3>4.1) Доступ без авторизации</h3>
@@ -322,6 +323,10 @@
       <tr>
         <td><code>SchoolLeadLandingNonAjaxSafetyNetFeatureTest.php</code></td>
         <td>Non-AJAX submit → 302 + запись в БД; AJAX JSON-контракт; валидация/recaptcha</td>
+      </tr>
+      <tr>
+        <td><code>SchoolLeadLandingCsrfFeatureTest.php</code></td>
+        <td>CSRF 419: текст в JS формы; AJAX submit с неверным токеном → 419 + русское <code>message</code> + WARNING в лог</td>
       </tr>
       <tr>
         <td><code>SchoolLeadLandingEndpointsAccessFeatureTest.php</code></td>

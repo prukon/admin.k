@@ -727,7 +727,11 @@
                     showErrors(result.json.errors);
                 } else {
                     var formError = document.querySelector('[data-error-for="form"]');
-                    formError.textContent = result.json.message || 'Не удалось отправить заявку.';
+                    if (result.status === 419) {
+                        formError.textContent = 'Сессия устарела. Обновите страницу и отправьте заявку ещё раз.';
+                    } else {
+                        formError.textContent = (result.json && result.json.message) || 'Не удалось отправить заявку.';
+                    }
                     formError.style.display = 'block';
                 }
             })

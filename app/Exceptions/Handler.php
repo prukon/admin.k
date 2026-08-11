@@ -4,7 +4,10 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -21,6 +24,16 @@ class Handler extends ExceptionHandler
     ];
 
     /**
+     * Маршруты публичных заявок, для которых CSRF 419 нужно писать в laravel.log.
+     *
+     * @var list<string>
+     */
+    private const SCHOOL_LEAD_SUBMIT_ROUTE_NAMES = [
+        'lead.submit',
+        'widget.school-lead.submit',
+    ];
+
+    /**
      * Report or log an exception.
      * Если при отчёте падает код (например, отсутствует SentReports.php у Ignition),
      * перехватываем и пишем в файл напрямую (без Log facade), чтобы приложение не падало.
@@ -28,6 +41,7 @@ class Handler extends ExceptionHandler
     public function report(Throwable $e): void
     {
         try {
+            $this->logSchoolLeadCsrfMismatchIfNeeded($e);
             parent::report($e);
         } catch (Throwable $reportException) {
             $this->writeReportFailureSafely($reportException, $e);
@@ -99,5 +113,53 @@ class Handler extends ExceptionHandler
                 'conflicts' => $e->conflicts,
             ], 422);
         });
+
+        $this->renderable(function (HttpException $e, Request $request): ?Response {
+            // TokenMismatchException до renderable уже map'ится в HttpException 419.
+            if ($e->getStatusCode() !== 419 || ! $this->isSchoolLeadSubmitRequest($request)) {
+                return null;
+            }
+
+            if (! $request->expectsJson() && ! $request->ajax()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Сессия устарела. Обновите страницу и отправьте заявку ещё раз.',
+            ], 419);
+        });
+    }
+
+    /**
+     * TokenMismatchException в internalDontReport — без явной записи в лог 419 на заявках не видно.
+     */
+    private function logSchoolLeadCsrfMismatchIfNeeded(Throwable $e): void
+    {
+        if (! $e instanceof TokenMismatchException) {
+            return;
+        }
+
+        $request = request();
+        if (! $request instanceof Request || ! $this->isSchoolLeadSubmitRequest($request)) {
+            return;
+        }
+
+        Log::warning('CSRF token mismatch on school lead submit', [
+            'route' => $request->route()?->getName(),
+            'path' => $request->path(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'referer' => $request->headers->get('referer'),
+            'has_session_cookie' => $request->cookies->has(config('session.cookie')),
+            'has_token_input' => $request->has('_token'),
+        ]);
+    }
+
+    private function isSchoolLeadSubmitRequest(Request $request): bool
+    {
+        $routeName = $request->route()?->getName();
+
+        return is_string($routeName)
+            && in_array($routeName, self::SCHOOL_LEAD_SUBMIT_ROUTE_NAMES, true);
     }
 }

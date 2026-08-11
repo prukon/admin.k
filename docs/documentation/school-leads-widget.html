@@ -144,6 +144,7 @@
     <li>Согласие ПДн: ссылка на <code>route('policy')</code> (<code>/policy</code>, политика конфиденциальности).</li>
     <li>UTM: из query iframe; <code>page_url</code> / <code>referrer</code> — из JS (страница родителя, если доступна).</li>
     <li>При создании заявки автоматически проставляется системный статус «Новый» (<code>school_lead_status_id</code> = id записи с <code>code = new</code>).</li>
+    <li><b>CSRF 419</b>: как у лендинга — JSON/UI «Сессия устарела…», WARNING в лог на <code>widget.school-lead.submit</code> (см. <a href="/docs/documentation/school-leads-landing">school-leads-landing §4</a>).</li>
   </ul>
 
   <h3>Пример embed-кода для партнёра</h3>
