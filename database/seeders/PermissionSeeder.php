@@ -79,6 +79,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.manualPaid.manage',    'description' => 'Установка цен: ручная отметка оплаты месяца',    'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 21],
             ['name' => 'setPrices.packageAssignments.view', 'description' => 'Назначение абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
             ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 23],
+            ['name' => 'setPrices.paymentNotifications.manage', 'description' => 'Уведомления об оплате абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 24],
 
             // group_slug contracts
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],

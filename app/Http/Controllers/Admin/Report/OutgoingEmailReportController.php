@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin\Report;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\Report\OutgoingEmailReportSelect2SearchRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
+use App\Mail\PaymentNotificationMail;
 use App\Models\OutgoingEmailLog;
 use App\Models\Partner;
 use App\Models\UserTableSetting;
@@ -330,7 +331,7 @@ class OutgoingEmailReportController extends AdminBaseController
      */
     private function hasActiveFilters(array $filters, bool $canFilterPartner): bool
     {
-        $keys = ['created_at_from', 'created_at_to', 'sent_at_from', 'sent_at_to', 'status', 'mailable_class', 'q'];
+        $keys = ['created_at_from', 'created_at_to', 'sent_at_from', 'sent_at_to', 'status', 'mailable_class', 'email_category', 'q'];
         if ($canFilterPartner) {
             $keys[] = 'partner_id';
         }
@@ -417,6 +418,13 @@ class OutgoingEmailReportController extends AdminBaseController
             }
         }
 
+        if ($request->filled('email_category')) {
+            $category = trim((string) $request->query('email_category'));
+            if ($category === PaymentNotificationMail::CATEGORY) {
+                $query->where('outgoing_email_logs.mailable_class', PaymentNotificationMail::class);
+            }
+        }
+
         if ($request->filled('q')) {
             $needle = '%'.trim((string) $request->query('q')).'%';
             $query->where(function ($w) use ($needle) {
@@ -487,6 +495,9 @@ class OutgoingEmailReportController extends AdminBaseController
         $fqcn = (string) $fqcn;
         if ($fqcn === '') {
             return '';
+        }
+        if ($fqcn === PaymentNotificationMail::class) {
+            return PaymentNotificationMail::CATEGORY_LABEL;
         }
         $parts = explode('\\', $fqcn);
         $last = end($parts);

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Установка цен → Уведомления об оплате</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="setting-prices-payment-notifications">Установка цен → «Уведомления»</h1>
+  <div class="small">
+    Файл: <code>/docs/documentation/setting-prices-payment-notifications.html</code>.
+    CRM: <code>/admin/setting-prices/notifications</code>
+    (вкладка в <code>admin/SettingPrices/index</code>, рядом с «По месяцам» / «По ученикам» / «Доп. платежи»).
+    Связано:
+    <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>,
+    <a href="/docs/documentation/postpay">postpay</a>,
+    <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>,
+    <a href="/docs/documentation/reports-admin#reports-outgoing-emails">reports-admin §8</a>.
+  </div>
+
+  <div class="ok">
+    <b>Кратко.</b> Конструктор правил email-уведомлений по неоплаченным месячным начислениям
+    <code>users_prices</code> в разрезе типов абонементов (<code>fixed</code> / <code>flexible</code> / <code>postpay</code>).
+    Письма — на email ученика, <b>отдельно на каждую</b> строку начисления.
+    Cron: ежедневно <b>10:00 Europe/Moscow</b>.
+    Журнал писем — отчёт
+    <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>
+    с фильтром категории «Уведомления об оплате»
+    (<code>email_category=payment_notification</code>).
+  </div>
+
+  <h2 id="permissions">1) Право</h2>
+  <ul>
+    <li><code>setPrices.paymentNotifications.manage</code> — вкладка + CRUD правил + превью + тест-отправка.</li>
+    <li>Группа <code>setPrices</code>, <code>is_visible=0</code>, <b>не</b> в базовых ролях
+      (<code>user</code> / <code>admin</code> / <code>trainer</code>) — opt-in через матрицу прав.</li>
+    <li>Миграция каталога: <code>2026_08_12_100200_add_set_prices_payment_notifications_manage_permission.php</code>
+      (ролям не выдаёт).</li>
+    <li>Нужен также доступ к разделу: <code>setPrices.view</code> (внешний middleware-группа маршрутов).</li>
+    <li>Вкладка в UI: <code>@can('setPrices.paymentNotifications.manage')</code>.</li>
+  </ul>
+
+  <h2 id="routes">2) Маршруты и API</h2>
+  <p>Все под <code>can:setPrices.view</code> + <code>can:setPrices.paymentNotifications.manage</code>.
+    Мутации отвечают <b>JSON</b> (в т.ч. без <code>X-Requested-With</code>) — не HTML-редирект формы.</p>
+  <table>
+    <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Ответ</th></tr>
+    <tr><td>GET</td><td><code>/admin/setting-prices/notifications</code></td><td><code>admin.settingPrices.paymentNotifications</code></td><td>HTML вкладки</td></tr>
+    <tr><td>GET</td><td><code>…/notifications/rules</code></td><td><code>…rules.index</code></td><td>JSON: <code>rules</code>, <code>variables</code>, labels</td></tr>
+    <tr><td>POST</td><td><code>…/notifications/rules</code></td><td><code>…rules.store</code></td><td>201 <code>{ok, rule}</code> / 422 <code>errors</code></td></tr>
+    <tr><td>PUT</td><td><code>…/notifications/rules/{id}</code></td><td><code>…rules.update</code></td><td>200 <code>{ok, rule}</code> / 422 / 404</td></tr>
+    <tr><td>DELETE</td><td><code>…/notifications/rules/{id}</code></td><td><code>…rules.destroy</code></td><td>200 <code>{ok}</code> / 404</td></tr>
+    <tr><td>POST</td><td><code>…/notifications/rules/{id}/toggle</code></td><td><code>…rules.toggle</code></td><td>200 <code>{ok, rule}</code></td></tr>
+    <tr><td>POST</td><td><code>…/notifications/preview</code></td><td><code>…preview</code></td><td>200 <code>{subject, body_html, email_html, variables, is_demo}</code></td></tr>
+    <tr><td>POST</td><td><code>…/notifications/test-send</code></td><td><code>…testSend</code></td><td>200 / 422; тема письма с префиксом <code>[Тест]</code></td></tr>
+  </table>
+  <div class="warn">
+    Правила чужого <code>partner_id</code> → <b>404</b> (не 403). Без права → <b>403</b> на все endpoints вкладки.
+  </div>
+
+  <h2 id="rules">3) Модель правила</h2>
+  <p>Таблица <code>payment_notification_rules</code> (partner-scoped):</p>
+  <table>
+    <tr><th>Поле</th><th>Смысл</th></tr>
+    <tr><td><code>name</code></td><td>Название в UI</td></tr>
+    <tr><td><code>is_enabled</code></td><td>Вкл/выкл (также toggle без полного update)</td></tr>
+    <tr><td><code>schedule_types</code></td><td>JSON: подмножество <code>fixed</code>, <code>flexible</code>, <code>postpay</code>
+      (<code>no_schedule</code> в конструкторе <b>нет</b>)</td></tr>
+    <tr><td><code>trigger_type</code></td><td><code>day_of_month</code> или <code>days_after_overdue</code></td></tr>
+    <tr><td><code>trigger_value</code></td><td>День 1–31 или N дней просрочки 1–90</td></tr>
+    <tr><td><code>billing_month_offset</code></td><td>Только для дня месяца: <code>0</code> = текущий календарный месяц (MSK),
+      <code>-1</code> = предыдущий. Для overdue игнорируется (месяц вычисляется)</td></tr>
+    <tr><td><code>subject_template</code> / <code>body_html_template</code></td><td>Шаблоны с переменными <code>{{…}}</code></td></tr>
+  </table>
+
+  <h3 id="day-of-month">3.1) Триггер «день месяца»</h3>
+  <ul>
+    <li>Срабатывает, если день «сегодня» (MSK) равен <code>trigger_value</code>.</li>
+    <li>В коротких месяцах дни 29–31 не наступают — правило в эти дни <b>не</b> шлёт.</li>
+    <li><code>billing_month_offset=0</code>: целевой <code>users_prices.new_month</code> = 1-е число <b>текущего</b> календарного месяца.</li>
+    <li><code>billing_month_offset=-1</code>: целевой месяц = <b>предыдущий</b> календарный.</li>
+  </ul>
+  <div class="note">
+    <b>Пример постоплаты.</b> Абонемент за сентябрь, правило «1-е число / предыдущий месяц»:
+    письмо 1 октября (целит сентябрь). 1 ноября это же правило целит <b>октябрь</b> —
+    сентябрьскую строку повторно не берёт. Для повторных напоминаний по сентябрю нужны
+    другие правила (другой день или <code>days_after_overdue</code>).
+  </div>
+
+  <h3 id="overdue">3.2) Триггер «дней после начала просрочки»</h3>
+  <div class="note">
+    Для <b>всех</b> типов абонементов в правиле (включая postpay) старт просрочки единый:
+    <b>1-е число следующего месяца</b> после биллинг-месяца M.
+    Пример: абонемент за сентябрь → 1-й день просрочки = 1 октября, 3-й = <b>3 октября</b>.
+    Правило срабатывает только когда <code>сегодня − (N−1)</code> приходится ровно на 1-е число месяца.
+  </div>
+  <div class="warn">
+    Отдельной «постоплатной» даты старта просрочки в коде нет. Разница postpay vs предоплата
+    задаётся админом через календарные правила (день + offset −1) и формулировки шаблонов.
+  </div>
+
+  <h2 id="audience">4) Аудитория рассылки</h2>
+  <ul>
+    <li>Строки <code>users_prices</code> партнёра за целевой <code>new_month</code>
+      (join <code>users.partner_id</code> + <code>lesson_packages</code>).</li>
+    <li><code>price_cents &gt; 0</code>, <code>effective_is_paid = false</code>
+      (ручной <code>is_manual_paid</code> важнее авто <code>is_paid</code> — как в отчёте задолженностей).</li>
+    <li>Есть <code>lesson_package_id</code>, <code>schedule_type</code> шаблона ∈ <code>schedule_types</code> правила.</li>
+    <li>Email ученика валиден; иначе запись dispatch = <code>skipped</code>
+      (<code>missing_or_invalid_email</code>), письмо не ставится в очередь.</li>
+    <li>Одно письмо на каждую подходящую строку <code>users_prices</code>.</li>
+    <li>Перед отправкой из job повторная проверка: если уже оплатили / сумма 0 →
+      <code>skipped</code> (<code>already_paid_or_zero</code>).</li>
+  </ul>
+
+  <h2 id="schedule">5) Расписание и идемпотентность</h2>
+  <ul>
+    <li>Cron: <code>DispatchPaymentNotificationsJob</code> →
+      <code>timezone('Europe/Moscow')->dailyAt('10:00')->withoutOverlapping(55)</code>
+      (<code>app/Console/Kernel.php</code>).</li>
+    <li>Ручной запуск: <code>php artisan payment-notifications:dispatch --date=YYYY-MM-DD [--sync]</code>.</li>
+    <li>Таблица <code>payment_notification_dispatches</code>: UNIQUE
+      (<code>payment_notification_rule_id</code>, <code>users_price_id</code>, <code>trigger_date</code>) —
+      повторный прогон в тот же календарный день не дублирует письма.</li>
+    <li>Отправка: <code>SendPaymentNotificationDispatchJob</code> →
+      <code>PaymentNotificationMail</code> с заголовками <code>X-Partner-Id</code>,
+      <code>X-Email-Category: payment_notification</code>.</li>
+  </ul>
+
+  <h2 id="templates">6) Шаблоны и переменные</h2>
+  <p>В модалке правила — ссылка «Переменные шаблона» (скрываемый блок по умолчанию,
+    паттерн как «Как это работает» при создании договора на
+    <a href="/docs/documentation/contracts">/client-contracts</a>).</p>
+  <ul>
+    <li><code>{{student_name}}</code>, <code>{{student_firstname}}</code>, <code>{{student_lastname}}</code></li>
+    <li><code>{{month}}</code>, <code>{{month_year}}</code> — из <code>users_prices.new_month</code>
+      (locale ru, Europe/Moscow)</li>
+    <li><code>{{amount}}</code> — <code>Money::formatRub(price_cents)</code></li>
+    <li><code>{{team}}</code> — <code>teams.title</code></li>
+    <li><code>{{package}}</code> — <code>lesson_packages.name</code></li>
+    <li><code>{{package_type}}</code> — человекочитаемый тип</li>
+  </ul>
+  <p>Значения переменных экранируются; HTML-разметка шаблона сохраняется.
+    Базовая обёртка письма (<code>resources/views/emails/payment-notification.blade.php</code>):
+    логотип <code>img/logo.png</code> сверху и футер
+    «С уважением, Команда kidscrm.online» — как в welcome-письмах клиента.</p>
+
+  <h2 id="ui">7) UI вкладки</h2>
+  <ul>
+    <li>Текст шапки:
+      «Правила email-рассылки:» / «Абонемент не оплачен.» / «Отправка в 10:00 (Europe/Moscow).»</li>
+    <li>Дефолты «Добавить правило» (<code>openCreate</code>): типы fixed+flexible, день месяца = 5,
+      offset = текущий, правило включено.</li>
+    <li>При триггере overdue блок «Месяц начисления» скрывается (<code>syncTriggerUi</code>).</li>
+    <li>Превью без <code>users_price_id</code> — <b>демо-данные</b>: текущий календарный месяц MSK
+      + полная обёртка в <code>email_html</code> (iframe). Поле «Месяц начисления» правила на демо
+      <b>не влияет</b>.</li>
+    <li>Превью с <code>users_price_id</code> — подстановка из реальной строки начисления.</li>
+  </ul>
+
+  <h2 id="examples">8) Типовые наборы правил (рекомендации)</h2>
+  <ol>
+    <li>Предоплата reminder: fixed+flexible, день 5, offset 0, шаблон «плановая оплата».</li>
+    <li>Предоплата soft overdue: fixed+flexible, день 25, offset 0.</li>
+    <li>Предоплата hard overdue: fixed+flexible, days_after_overdue = 3.</li>
+    <li>Постоплата выставление: postpay, день 1, offset −1.</li>
+    <li>Постоплата просрочка: postpay, день 6, offset −1.</li>
+  </ol>
+
+  <h2 id="emails-report">9) Отчёт «Исходящие письма»</h2>
+  <ul>
+    <li>Фильтр UI «Категория» → <code>email_category=payment_notification</code>
+      → <code>outgoing_email_logs.mailable_class = App\Mail\PaymentNotificationMail</code>.</li>
+    <li>Нужно право <code>reports.emails.view</code> (отдельно от уведомлений).</li>
+    <li>Query: <code>/admin/reports/emails?email_category=payment_notification</code>.</li>
+    <li>Подробно — <a href="/docs/documentation/reports-admin#reports-outgoing-emails-filters">reports-admin §8.1</a>.</li>
+  </ul>
+
+  <h2 id="tests">10) Тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/SettingPrices/PaymentNotificationsFeatureTest.php</code> —
+      доступ, CRUD + field errors, non-AJAX JSON store, превью UX (текущий месяц + лого/футер),
+      test-send, диспетчеризация (offset −1, overdue, skip paid/email, идемпотентность),
+      изоляция партнёра, фильтр категории emails.</li>
+    <li><code>tests/Unit/Services/PaymentNotifications/PaymentNotificationTriggerResolverTest.php</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_payment_notifications_modal_js_contracts_and_syntax</code></li>
+  </ul>
+
+  <h2 id="files">11) Ключевые файлы</h2>
+  <ul>
+    <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — метод вкладки</li>
+    <li><code>app/Http/Controllers/Admin/PaymentNotificationRuleController.php</code></li>
+    <li><code>app/Services/PaymentNotifications/*</code></li>
+    <li><code>app/Mail/PaymentNotificationMail.php</code>, <code>resources/views/emails/payment-notification.blade.php</code></li>
+    <li><code>app/Jobs/DispatchPaymentNotificationsJob.php</code>, <code>SendPaymentNotificationDispatchJob.php</code></li>
+    <li><code>resources/views/admin/SettingPrices/payment-notifications.blade.php</code></li>
+    <li>Миграции: <code>2026_08_12_100000_*</code>, <code>100100_*</code>, <code>100200_*</code></li>
+  </ul>
+</div>
+</body>
+</html>

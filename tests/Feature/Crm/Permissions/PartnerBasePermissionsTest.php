@@ -64,6 +64,10 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('setPrices.customPayments.view', $userPerms);
         $this->assertNotContains('setPrices.customPayments.view', $adminPerms);
         $this->assertNotContains('setPrices.customPayments.view', $trainerPerms);
+
+        $this->assertNotContains('setPrices.paymentNotifications.manage', $userPerms);
+        $this->assertNotContains('setPrices.paymentNotifications.manage', $adminPerms);
+        $this->assertNotContains('setPrices.paymentNotifications.manage', $trainerPerms);
     }
 
     public function test_new_partner_does_not_assign_package_assignments_view_to_base_roles(): void

@@ -24,6 +24,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'setting prices users tab' => ['admin/SettingPrices/users.blade.php'];
         yield 'setting prices monthly tab' => ['admin/SettingPrices/monthly.blade.php'];
         yield 'setting prices custom payments tab' => ['admin/SettingPrices/custom-payments.blade.php'];
+        yield 'setting prices payment notifications tab' => ['admin/SettingPrices/payment-notifications.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
         yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
@@ -1279,6 +1280,96 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В outgoing_emails.blade.php не найден script с getFilterParams');
+    }
+
+    /**
+     * P1: вкладка «Уведомления» — JS-контракты модалки (дефолты openCreate, превью UX, переменные, триггер).
+     */
+    public function test_payment_notifications_modal_js_contracts_and_syntax(): void
+    {
+        $path = resource_path('views/admin/SettingPrices/payment-notifications.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="pnTemplateVarsToggle"', $content);
+        $this->assertStringContainsString('id="pnTemplateVarsPanel"', $content);
+        $this->assertMatchesRegularExpression('/id="pnTemplateVarsPanel"[^>]*\bhidden\b/', $content);
+        $this->assertStringContainsString('Скрыть: переменные шаблона', $content);
+        $this->assertStringNotContainsString('id="pn-variables-help"', $content);
+
+        $this->assertStringContainsString('Правила email-рассылки:', $content);
+        $this->assertStringContainsString('Абонемент не оплачен.', $content);
+        $this->assertStringContainsString('Отправка в 10:00 (Europe/Moscow).', $content);
+
+        $this->assertStringContainsString('function openCreate()', $content);
+        $this->assertStringContainsString("setScheduleTypes(['fixed', 'flexible'])", $content);
+        $this->assertStringContainsString("value = 'day_of_month'", $content);
+        $this->assertStringContainsString("pn-rule-trigger-value').value = '5'", $content);
+        $this->assertStringContainsString("pn-rule-billing-offset').value = '0'", $content);
+        $this->assertStringContainsString("pn-rule-enabled').checked = true", $content);
+
+        $this->assertStringContainsString('function syncTriggerUi()', $content);
+        $this->assertStringContainsString('days_after_overdue', $content);
+        $this->assertStringContainsString("offsetWrap.classList.add('d-none')", $content);
+        $this->assertStringContainsString("offsetWrap.classList.remove('d-none')", $content);
+
+        $this->assertStringContainsString('id="pn-preview-frame"', $content);
+        $this->assertStringContainsString('frame.srcdoc = res.data.email_html', $content);
+        $this->assertStringContainsString('id="pn-preview-demo-note"', $content);
+        $this->assertStringContainsString('res.data.is_demo', $content);
+        $this->assertStringContainsString('showFieldErrors', $content);
+
+        $this->assertStringContainsString('hidden.bs.modal', $content);
+        $this->assertStringContainsString("panel.setAttribute('hidden', 'hidden')", $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'function openCreate') && ! str_contains($rawScript, 'pn-preview-frame')) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-payment-notifications-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in payment-notifications script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, 'В payment-notifications.blade.php не найден script с openCreate / preview');
+    }
+
+    /**
+     * P1: фильтр email_category в исходящих письмах передаётся в getFilterParams.
+     */
+    public function test_outgoing_emails_report_payment_notification_category_filter_js_contract(): void
+    {
+        $path = resource_path('views/admin/report/outgoing_emails.blade.php');
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('name="email_category"', $content);
+        $this->assertStringContainsString('value="payment_notification"', $content);
+        $this->assertStringContainsString('email_category:', $content);
+        $this->assertStringContainsString('[name="email_category"]', $content);
     }
 
     /**

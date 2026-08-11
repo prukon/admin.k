@@ -163,6 +163,16 @@
             </div>
 
             <div class="col-12 col-md-4">
+                <label class="form-label" for="em-filter-email-category">Категория</label>
+                <select class="form-select" id="em-filter-email-category" name="email_category">
+                    <option value="" {{ empty($filters['email_category'] ?? null) ? 'selected' : '' }}>Все</option>
+                    <option value="payment_notification" {{ ($filters['email_category'] ?? '') === 'payment_notification' ? 'selected' : '' }}>
+                        Уведомления об оплате
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-4">
                 <label class="form-label" for="em-filter-q">Поиск (тема, получатель, отправитель, ошибка)</label>
                 <input class="form-control" id="em-filter-q" type="text" name="q" maxlength="255" value="{{ $filters['q'] ?? '' }}">
             </div>
@@ -234,6 +244,7 @@ $(function () {
             sent_at_to: $form.find('[name="sent_at_to"]').val() || '',
             'status[]': statuses,
             mailable_class: $form.find('[name="mailable_class"]').val() || '',
+            email_category: $form.find('[name="email_category"]').val() || '',
             q: $form.find('[name="q"]').val() || ''
         };
         if (canFilterPartner) {

@@ -46,6 +46,11 @@ class Kernel extends ConsoleKernel
             ->dailyAt('00:05')
             ->withoutOverlapping(30);
 
+        $schedule->job(new \App\Jobs\DispatchPaymentNotificationsJob)
+            ->timezone('Europe/Moscow')
+            ->dailyAt('10:00')
+            ->withoutOverlapping(55);
+
     }
 
 

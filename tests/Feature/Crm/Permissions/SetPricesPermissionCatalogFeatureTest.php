@@ -32,6 +32,7 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.manualPaid.manage' => 'Установка цен: ручная отметка оплаты месяца',
             'setPrices.packageAssignments.view' => 'Назначение абонементов',
             'payment.clubfee' => 'Оплата клубного взноса',
+            'setPrices.paymentNotifications.manage' => 'Уведомления об оплате абонементов',
         ];
     }
 
@@ -65,10 +66,13 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.manualPaid.manage',
             'setPrices.packageAssignments.view',
             'payment.clubfee',
+            'setPrices.paymentNotifications.manage',
         ], $rows);
 
         $clubfeeSort = (int) DB::table('permissions')->where('name', 'payment.clubfee')->value('sort_order');
         $this->assertSame(23, $clubfeeSort);
+        $notificationsSort = (int) DB::table('permissions')->where('name', 'setPrices.paymentNotifications.manage')->value('sort_order');
+        $this->assertSame(24, $notificationsSort);
     }
 
     public function test_payment_clubfee_is_not_in_misc_group(): void

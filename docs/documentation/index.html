@@ -28,6 +28,38 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="setting-prices-payment-notifications-index">Установка цен → «Уведомления» об оплате (2026‑08)</h2>
+  <div class="note">
+    Новая вкладка <code>/admin/setting-prices/notifications</code> (рядом с «По месяцам» / «По ученикам»):
+    конструктор правил email по неоплаченным <code>users_prices</code> в разрезе типов
+    <code>fixed</code> / <code>flexible</code> / <code>postpay</code>.
+    <br><br>
+    1) <b>Право</b> <code>setPrices.paymentNotifications.manage</code> (группа <code>setPrices</code>,
+    <code>is_visible=0</code>, <b>не</b> в базовых ролях) + нужен <code>setPrices.view</code>.
+    <br>
+    2) <b>Триггеры:</b> день месяца (с offset 0 = текущий / −1 = предыдущий календарный месяц MSK)
+    или N дней после старта просрочки (старт = 1-е число следующего месяца после биллинг-месяца;
+    для всех типов, включая postpay).
+    <br>
+    3) <b>Аудитория:</b> сумма &gt; 0, <code>effective_is_paid=false</code>, email ученика;
+    одно письмо на строку <code>users_prices</code>.
+    <br>
+    4) <b>Cron</b> 10:00 Europe/Moscow; идемпотентность в <code>payment_notification_dispatches</code>.
+    <br>
+    5) Письма в <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a>
+    — фильтр «Категория → Уведомления об оплате»
+    (<code>email_category=payment_notification</code>).
+    <br>
+    6) UI: переменные шаблона — скрываемый блок в модалке; превью — полное письмо (лого/футер);
+    демо-месяц = текущий MSK (не захардкоженный сентябрь).
+    <br><br>
+    Карточка —
+    <a href="/docs/documentation/setting-prices-payment-notifications">setting-prices-payment-notifications</a>;
+    права —
+    <a href="/docs/documentation/partners-permissions">partners-permissions</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+  </div>
+
   <h2 id="admin-users-parent-phone-column-index">Колонка «Телефон родителя» на /admin/users (2026‑08)</h2>
   <div class="note">
     В таблице учеников <code>/admin/users</code> (только роль <code>user</code>):
@@ -690,7 +722,7 @@
     <a href="/docs/documentation/postpay">postpay</a>.
   </div>
 
-  <h2>Права setPrices: доп. платежи и назначения абонементов (2026‑08)</h2>
+  <h2>Права setPrices: доп. платежи, назначения и уведомления (2026‑08)</h2>
   <div class="note">
     1) <b><code>setPrices.customPayments.view</code></b> — больше <b>не</b> входит в базовый набор ролей
     <code>user</code> / <code>admin</code> / <code>trainer</code>
@@ -710,6 +742,12 @@
     <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>,
     консоль —
     <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>.
+    <br><br>
+    3) <b><code>setPrices.paymentNotifications.manage</code></b> — вкладка
+    <code>/admin/setting-prices/notifications</code> (конструктор email-правил по неоплаченным
+    <code>users_prices</code>). Невидимое, не в базовых ролях; миграция только в каталог.
+    Подробно —
+    <a href="/docs/documentation/setting-prices-payment-notifications#permissions">setting-prices-payment-notifications §1</a>.
   </div>
 
   <h2>Журнал = view над календарём школы (2026‑07)</h2>
@@ -1139,6 +1177,7 @@
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
+    <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов + блок на консоли; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
@@ -1158,7 +1197,7 @@
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search (§8)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>

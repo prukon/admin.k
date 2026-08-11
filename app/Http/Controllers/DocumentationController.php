@@ -53,6 +53,7 @@ class DocumentationController extends Controller
         'dashboard-cabinet'           => 'Консоль (/cabinet): блоки оплат (доп./абонементы/сезоны), setPrices.customPayments/packageAssignments/cabinetSeasons',
         'setting-prices-custom-payments' => 'Установка цен → Дополнительные платежи: team_id, customPayments.view (не в базовых ролях), manualPaid.manage',
         'setting-prices-monthly-users' => 'Установка цен: бывшие участники + sync users_prices↔ULP (billing_month, кнопка «+» в журнале)',
+        'setting-prices-payment-notifications' => 'Установка цен → Уведомления: конструктор правил email по users_prices, setPrices.paymentNotifications.manage, cron 10:00 MSK',
         'set-prices-package-assignments' => 'Право setPrices.packageAssignments.view: вкладка назначений + блок на консоли, не в базовых ролях',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, users_prices.team_id, payments.team_id, отчёты, ЛК',
         'admin-users'                 => 'Ученики (админка): /admin/users только role=user, телефон родителя в таблице, адрес проживания (users.address → {{child_address}}), ФИО ученика в родительном (users.full_name_genitive → {{child_full_name_genitive}}), импорт Excel, родители, договор, welcome-письмо, пол, комментарий, team_ids',

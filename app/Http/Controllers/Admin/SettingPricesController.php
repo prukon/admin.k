@@ -361,6 +361,28 @@ class SettingPricesController extends AdminBaseController
         ]);
     }
 
+    public function paymentNotifications()
+    {
+        $partnerId = $this->requirePartnerId();
+        if (! request()->user()?->can('setPrices.paymentNotifications.manage')) {
+            abort(403);
+        }
+
+        $allTeams = $this->getPartnerTeamsOrdered();
+        $monthString = $this->getCurrentMonthString($partnerId);
+        $monthDate = $this->formatedDate($monthString);
+        $this->ensureTeamPricesForMonth($allTeams, $monthDate);
+        $teamPrices = $this->getTeamPricesForMonth($partnerId, $monthDate);
+
+        return view('admin.SettingPrices.index', [
+            'activeTab' => 'payment_notifications',
+            'teamPrices' => $teamPrices,
+            'allTeams' => $allTeams,
+            'monthString' => $monthString,
+            'paymentNotificationTestEmail' => (string) (request()->user()?->email ?? ''),
+        ]);
+    }
+
     public function customPaymentsData(Request $request)
     {
         $partnerId = $this->requirePartnerId();

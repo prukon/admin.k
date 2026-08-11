@@ -562,6 +562,9 @@
         <li><code>sent_at_from</code>, <code>sent_at_to</code> — дата успешной отправки</li>
         <li><code>status[]</code> — multiselect Select2: <code>sending</code>, <code>sent</code>, <code>failed</code></li>
         <li><code>mailable_class</code> — Select2 AJAX по <code>mailable-classes-search</code></li>
+        <li><code>email_category</code> — быстрый фильтр категории; сейчас <code>payment_notification</code> →
+          <code>App\Mail\PaymentNotificationMail</code> (уведомления об оплате из
+          <a href="/docs/documentation/setting-prices-payment-notifications">установки цен</a>)</li>
         <li><code>q</code> — поиск по теме, <code>to_summary</code>, <code>from_address</code>, <code>error_message</code></li>
       </ul>
     </li>

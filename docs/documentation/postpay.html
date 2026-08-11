@@ -179,6 +179,14 @@
     <li>Серверный guard (тот же порог): <code>UserPriceMonthlyFeePaymentResolver</code> —
       до даты → <b>422</b> с тем же текстом; уже оплачено → <b>422</b>; сумма ≤ 0 → <b>422</b>.</li>
   </ul>
+  <div class="note">
+    <b>Email-уведомления.</b> Для напоминаний по постоплате в конструкторе
+    <a href="/docs/documentation/setting-prices-payment-notifications">«Установка цен → Уведомления»</a>
+    обычно берут тип <code>postpay</code>, день месяца (1 / 6) и
+    <code>billing_month_offset = -1</code> (предыдущий месяц): 1 октября → начисление за сентябрь,
+    когда оплата уже доступна в кабинете. Старт просрочки в триггере
+    <code>days_after_overdue</code> общий для всех типов (1-е следующего месяца).
+  </div>
 
   <h2 id="services">5) Сервисы</h2>
   <table>
@@ -258,6 +266,7 @@
     <a href="/docs/documentation/lesson-packages">Абонементы</a> ·
     <a href="/docs/documentation/schedule-journal">Журнал</a> ·
     <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a> ·
+    <a href="/docs/documentation/setting-prices-payment-notifications">Уведомления об оплате</a> ·
     <a href="/docs/documentation/dashboard-cabinet">Консоль</a> ·
     <a href="/docs/documentation/payments">Оплаты</a>
   </p>

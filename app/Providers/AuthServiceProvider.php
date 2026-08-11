@@ -152,6 +152,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.packageAssignments.view');
         });
 
+        // Уведомления об оплате абонементов (вкладка + конструктор правил)
+        Gate::define('setPrices.paymentNotifications.manage', function (User $user) {
+            return $user->hasPermission('setPrices.paymentNotifications.manage');
+        });
+
         // Журнал расписания
         Gate::define('schedule.view', function (User $user) {
             return $user->hasPermission('schedule.view');

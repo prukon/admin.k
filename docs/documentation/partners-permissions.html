@@ -124,6 +124,8 @@
     В <code>config/role_base_permissions.php</code> для роли <code>admin</code> при создании партнёра <strong>не проставляются</strong> (нужно включить вручную в «Права и роли» / superadmin):
     <ul>
       <li><code>setPrices.customPayments.view</code> — доп. платежи (вкладка + консоль); у <code>user</code> тоже не в базовом наборе — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments</a>;</li>
+      <li><code>setPrices.paymentNotifications.manage</code> — уведомления об оплате (вкладка конструктора правил); не в базовых ролях —
+        <a href="/docs/documentation/setting-prices-payment-notifications#permissions">setting-prices-payment-notifications</a>;</li>
       <li><code>setPrices.packageAssignments.view</code> — назначения абонементов (вкладка + консоль); нужно вместе с <code>lessonPackages.view</code> — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>;</li>
       <li><code>lessonPackages.type.postpay</code> — тип абонемента «Постоплата» (<code>schedule_type=postpay</code>); скрытое; UI option + store/update + выбор в «Установка цен» —
         <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,

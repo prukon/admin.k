@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\Setting\PaymentSystemController;
 use App\Http\Controllers\Admin\Setting\RuleController;
 use App\Http\Controllers\Admin\Setting\SettingController;
 use App\Http\Controllers\Admin\Setting\TbankCommissionsController;
+use App\Http\Controllers\Admin\PaymentNotificationRuleController;
 use App\Http\Controllers\Admin\SettingPricesController;
 use App\Http\Controllers\Admin\TeamColumnsSettingsController;
 use App\Http\Controllers\Admin\TeamController;
@@ -347,6 +348,28 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::post('admin/setting-prices/custom-payments/{id}/manual-paid', [SettingPricesController::class, 'setManualPaidCustomPayment'])
                 ->whereNumber('id')
                 ->name('setting-prices.custom-payments.manual-paid');
+        });
+
+        Route::middleware('can:setPrices.paymentNotifications.manage')->group(function () {
+            Route::get('admin/setting-prices/notifications', [SettingPricesController::class, 'paymentNotifications'])
+                ->name('admin.settingPrices.paymentNotifications');
+            Route::get('admin/setting-prices/notifications/rules', [PaymentNotificationRuleController::class, 'index'])
+                ->name('admin.settingPrices.paymentNotifications.rules.index');
+            Route::post('admin/setting-prices/notifications/rules', [PaymentNotificationRuleController::class, 'store'])
+                ->name('admin.settingPrices.paymentNotifications.rules.store');
+            Route::put('admin/setting-prices/notifications/rules/{id}', [PaymentNotificationRuleController::class, 'update'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.paymentNotifications.rules.update');
+            Route::delete('admin/setting-prices/notifications/rules/{id}', [PaymentNotificationRuleController::class, 'destroy'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.paymentNotifications.rules.destroy');
+            Route::post('admin/setting-prices/notifications/rules/{id}/toggle', [PaymentNotificationRuleController::class, 'toggle'])
+                ->whereNumber('id')
+                ->name('admin.settingPrices.paymentNotifications.rules.toggle');
+            Route::post('admin/setting-prices/notifications/preview', [PaymentNotificationRuleController::class, 'preview'])
+                ->name('admin.settingPrices.paymentNotifications.preview');
+            Route::post('admin/setting-prices/notifications/test-send', [PaymentNotificationRuleController::class, 'testSend'])
+                ->name('admin.settingPrices.paymentNotifications.testSend');
         });
     });
 

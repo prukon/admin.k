@@ -23,6 +23,14 @@
                             role="tab">Дополнительные платежи</a>
                     </li>
                 @endcan
+
+                {{-- Уведомления об оплате абонементов --}}
+                @can('setPrices.paymentNotifications.manage')
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link {{ $activeTab == 'payment_notifications' ? 'active' : '' }}" href="/admin/setting-prices/notifications"
+                            role="tab">Уведомления</a>
+                    </li>
+                @endcan
             </ul>
 
 
@@ -43,6 +51,10 @@
                 @elseif($activeTab === 'custom_payments')
                     @include('admin.SettingPrices.custom-payments', [
                         'users' => $users ?? collect(),
+                    ])
+                @elseif($activeTab === 'payment_notifications')
+                    @include('admin.SettingPrices.payment-notifications', [
+                        'paymentNotificationTestEmail' => $paymentNotificationTestEmail ?? '',
                     ])
                 @endif
             </div>
