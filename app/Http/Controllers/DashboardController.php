@@ -81,7 +81,7 @@ class DashboardController extends Controller
         });
 
         $userLessonPackages = UserLessonPackage::query()
-            ->with(['lessonPackage:id,name'])
+            ->with(['lessonPackage:id,name,schedule_type'])
             ->where('user_id', (int) $curUser->id)
             ->whereHas('user', fn ($q) => $q->where('partner_id', $partnerId))
             ->where('fee_amount_cents', '>', 0)

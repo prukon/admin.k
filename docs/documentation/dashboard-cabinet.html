@@ -131,7 +131,8 @@
     <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
   </div>
   <ul>
-    <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount_cents &gt; 0</code>, eager <code>lessonPackage</code>; для view выставляется атрибут <code>fee_amount</code> в рублях (<code>Money::fromCents</code>).</li>
+    <li>Контроллер: <code>DashboardController::index</code> — выборка <code>UserLessonPackage</code> с <code>fee_amount_cents &gt; 0</code>, eager <code>lessonPackage:id,name,schedule_type</code>; для view выставляется атрибут <code>fee_amount</code> в рублях (<code>Money::fromCents</code>).</li>
+    <li>Период под названием: для <code>fixed</code> / <code>flexible</code> — диапазон <code>starts_at — ends_at</code> в формате <code>D.MM.YYYY</code>; для разового занятия (<code>schedule_type = no_schedule</code>) — только дата начала, <code>translatedFormat('j F Y')</code> (пример: «11 августа 2026»). Если <code>starts_at</code> ещё нет — строка периода не выводится. Админка назначений этот формат не использует.</li>
     <li>Кнопка «Оплатить» / «Оплачено» — по <code>effective_is_paid</code> (как в админке назначений).</li>
     <li>Сумма на экране — из атрибута <code>fee_amount</code> (рубли); источник истины в БД — <code>fee_amount_cents</code>. При переходе на <code>POST /payment</code> resolver читает копейки (<code>UserLessonPackageFeePaymentResolver</code>), POST <code>outSum</code> не используется.</li>
     <li>Блок <b>не</b> скрывается при отсутствии <code>setPrices.cabinetSeasons.view</code> и <b>не</b> фильтруется селектом «Выбор группы».</li>
@@ -323,7 +324,7 @@
     <ul class="small">
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonsAccessFeatureTest.php</code> — право <code>setPrices.cabinetSeasons.view</code>, 200/403/гость, изоляция от <code>setPrices.view</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardSeasonsSetPricesVisibilityFeatureTest.php</code> — видимость сезонов и селекта группы</li>
-      <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code>, дата разового занятия («11 августа 2026») vs диапазон у fixed/flexible</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardPackageAssignmentsAccessFeatureTest.php</code> — право <code>setPrices.packageAssignments.view</code> на консоли: guest / без права скрыт блок / с правом виден</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code> — UI селекта, partial, client-only</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>

@@ -260,14 +260,21 @@
                                     $amountNormalized = number_format((float) $ulp->fee_amount, 2, '.', '');
                                     $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', '');
                                     $paid = (bool) ($ulp->effective_is_paid ?? false);
-                                    $periodParts = [];
-                                    if ($ulp->starts_at) {
-                                        $periodParts[] = $ulp->starts_at->locale('ru')->isoFormat('D.MM.YYYY');
+                                    $isSingleLesson = (string) ($ulp->lessonPackage->schedule_type ?? '') === \App\Models\LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE;
+                                    if ($isSingleLesson) {
+                                        $periodRu = $ulp->starts_at
+                                            ? $ulp->starts_at->locale('ru')->translatedFormat('j F Y')
+                                            : '';
+                                    } else {
+                                        $periodParts = [];
+                                        if ($ulp->starts_at) {
+                                            $periodParts[] = $ulp->starts_at->locale('ru')->isoFormat('D.MM.YYYY');
+                                        }
+                                        if ($ulp->ends_at) {
+                                            $periodParts[] = $ulp->ends_at->locale('ru')->isoFormat('D.MM.YYYY');
+                                        }
+                                        $periodRu = implode(' — ', $periodParts);
                                     }
-                                    if ($ulp->ends_at) {
-                                        $periodParts[] = $ulp->ends_at->locale('ru')->isoFormat('D.MM.YYYY');
-                                    }
-                                    $periodRu = implode(' — ', $periodParts);
                                     $paymentDateLabel = 'Абонемент: '.$pkgName.' №'.(int) $ulp->id;
                                 @endphp
                                 <div class="custom-payment-price col-3">

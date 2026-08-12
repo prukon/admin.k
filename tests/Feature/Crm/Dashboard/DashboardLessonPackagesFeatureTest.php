@@ -219,6 +219,45 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
             ->assertSee('6500', false);
     }
 
+    public function test_cabinet_shows_single_lesson_package_date_as_day_month_year(): void
+    {
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
+        $this->createAssignment($student, 2_500, 'Разовое занятие', [
+            'starts_at' => '2026-08-11',
+            'ends_at' => '2026-08-12',
+        ], [
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE,
+            'duration_days' => 1,
+            'lessons_count' => 1,
+        ]);
+
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertStringContainsString('Разовое занятие', $html);
+        $this->assertStringContainsString('11 августа 2026', $html);
+        $this->assertStringNotContainsString('11.08.2026', $html);
+        $this->assertStringNotContainsString('12.08.2026', $html);
+    }
+
+    public function test_cabinet_shows_regular_lesson_package_as_date_range(): void
+    {
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
+        $this->createAssignment($student, 8_000, 'Фикс 8 занятий', [
+            'starts_at' => '2026-08-11',
+            'ends_at' => '2026-09-12',
+        ], [
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_FIXED,
+        ]);
+
+        $html = $this->cabinetHtmlFor($student);
+
+        $this->assertStringContainsString('Фикс 8 занятий', $html);
+        $this->assertStringContainsString('11.08.2026 — 12.09.2026', $html);
+        $this->assertStringNotContainsString('11 августа 2026', $html);
+    }
+
     public function test_cabinet_hides_assigned_lesson_packages_without_package_assignments_permission(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
@@ -245,16 +284,18 @@ final class DashboardLessonPackagesFeatureTest extends StudentTeamPivotTestCase
 
     /**
      * @param  array<string, mixed>  $overrides
+     * @param  array<string, mixed>  $packageOverrides
      */
     private function createAssignment(
         User $student,
         float $feeAmount,
         string $packageName,
         array $overrides = [],
+        array $packageOverrides = [],
     ): UserLessonPackage {
-        $package = LessonPackage::factory()->forPartner($this->partner->id)->create([
+        $package = LessonPackage::factory()->forPartner($this->partner->id)->create(array_merge([
             'name' => $packageName,
-        ]);
+        ], $packageOverrides));
 
         $lessons = (int) $package->lessons_count;
 
