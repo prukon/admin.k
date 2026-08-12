@@ -30,6 +30,10 @@
                     @endif
 
                     <div class="edit-lead-top-fields mb-3">
+                        <div id="leadChildMatchBanner"
+                             class="alert alert-info py-2 px-3 mb-3 d-none small"
+                             role="status"></div>
+
                         <div id="leadParentMatchBanner"
                              class="alert alert-warning py-2 px-3 mb-3 d-none small"
                              role="status"></div>
@@ -333,6 +337,11 @@
                                 Создать клиента
                             </button>
                         </span>
+                        <button type="button"
+                                class="btn btn-success d-none"
+                                id="attachExistingClientBtn">
+                            Добавить группу существующему клиенту
+                        </button>
                     @endif
                 </div>
             </div>

@@ -14,16 +14,20 @@ use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\SchoolLeadStatus;
 use App\Models\Team;
+use App\Models\User;
 use App\Models\UserField;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\SchoolLeads\LatestUserContractLookup;
+use App\Services\SchoolLeads\SchoolLeadChildMatcher;
+use App\Services\TeamUserSyncService;
 use App\Support\BuildsLogTable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class SchoolLeadController extends AdminBaseController
@@ -33,6 +37,8 @@ class SchoolLeadController extends AdminBaseController
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
+        private readonly SchoolLeadChildMatcher $childMatcher,
+        private readonly TeamUserSyncService $teamUserSync,
     ) {
         parent::__construct($partnerContext);
     }
@@ -138,6 +144,7 @@ class SchoolLeadController extends AdminBaseController
         $canViewLocations = Auth::user()?->can('locations.view') ?? false;
         $canViewDistricts = Auth::user()?->can('districts.view') ?? false;
         $canViewContracts = Auth::user()?->can('contracts.view') ?? false;
+        $canCreateUserFromLead = Auth::user()?->can('users.view') ?? false;
 
         $baseQuery = SchoolLead::query()
             ->where('school_leads.partner_id', $partnerId)
@@ -318,6 +325,11 @@ class SchoolLeadController extends AdminBaseController
                 ->forUserIds($partnerId, $userIds);
         }
 
+        $matchedChildrenByLeadId = collect();
+        if ($canCreateUserFromLead) {
+            $matchedChildrenByLeadId = $this->matchedChildrenForLeads($partnerId, $data);
+        }
+
         $contractLookup = app(LatestUserContractLookup::class);
 
         return response()->json([
@@ -331,7 +343,8 @@ class SchoolLeadController extends AdminBaseController
                 $canViewContracts,
                 $latestContractsByUser,
                 $contractLookup,
-                $matchedParentsById
+                $matchedParentsById,
+                $matchedChildrenByLeadId
             ) {
                 $utmParts = array_filter([
                     $item->utm_source ? 'source: ' . $item->utm_source : null,
@@ -381,6 +394,7 @@ class SchoolLeadController extends AdminBaseController
                     'page_url'               => $item->page_url,
                     'referrer'               => $item->referrer,
                     'created_at'             => $item->created_at?->format('d.m.Y H:i'),
+                    'matched_client'         => $this->matchedClientPayload($matchedChildrenByLeadId->get($item->id)),
                 ] + $statusPayload + $this->schoolLeadParentMatchPayload($item, $matchedParent);
 
                 if ($canViewDistricts) {
@@ -675,6 +689,124 @@ class SchoolLeadController extends AdminBaseController
         }
 
         return $payload;
+    }
+
+    /**
+     * Поверхностное сопоставление ребёнка из лида с уже существующим учеником
+     * (клиентом) партнёра по фамилии и имени — только для лидов, ещё не
+     * превращённых в клиента.
+     *
+     * @param  \Illuminate\Support\Collection<int, SchoolLead>  $leads
+     * @return \Illuminate\Support\Collection<int, User> ключ — id лида
+     */
+    private function matchedChildrenForLeads(int $partnerId, \Illuminate\Support\Collection $leads): \Illuminate\Support\Collection
+    {
+        $unconverted = $leads->filter(fn (SchoolLead $lead) => !$lead->user_id);
+        if ($unconverted->isEmpty()) {
+            return collect();
+        }
+
+        $pairsByLeadId = $unconverted->mapWithKeys(function (SchoolLead $lead) {
+            $childNameParts = $lead->resolvedChildNameParts();
+
+            return [
+                $lead->id => [
+                    'lastname'  => $childNameParts['lastname'],
+                    'firstname' => $childNameParts['firstname'],
+                ],
+            ];
+        });
+
+        $matchesByKey = $this->childMatcher->matchMany($partnerId, collect($pairsByLeadId->values()->all()));
+        if ($matchesByKey->isEmpty()) {
+            return collect();
+        }
+
+        return $pairsByLeadId->map(function (array $pair) use ($matchesByKey) {
+            $key = $this->childMatcher->normalizeKey($pair['lastname'], $pair['firstname']);
+
+            return $key !== null ? $matchesByKey->get($key) : null;
+        })->filter();
+    }
+
+    /**
+     * @return array{id: int, full_name: string, team_titles: list<string>}|null
+     */
+    private function matchedClientPayload(?User $matchedUser): ?array
+    {
+        if (!$matchedUser) {
+            return null;
+        }
+
+        return [
+            'id'          => (int) $matchedUser->id,
+            'full_name'   => $matchedUser->full_name,
+            'team_titles' => $this->teamUserSync->teamTitlesCollection($matchedUser)->all(),
+        ];
+    }
+
+    /**
+     * Вместо создания дубля клиента из лида — добавить группу лида
+     * существующему ученику, найденному по фамилии и имени.
+     */
+    public function attachExistingClient(Request $request, SchoolLead $schoolLead): JsonResponse
+    {
+        $partnerId = $this->requirePartnerContext();
+        $this->assertLeadBelongsToPartner($schoolLead, $partnerId);
+
+        if (!Auth::user()?->can('users.view')) {
+            abort(403);
+        }
+
+        if ($schoolLead->user_id) {
+            return response()->json([
+                'message' => 'К заявке уже привязан клиент.',
+            ], 422);
+        }
+
+        $childNameParts = $schoolLead->resolvedChildNameParts();
+        $matchedUser = $this->childMatcher->match($partnerId, $childNameParts['lastname'], $childNameParts['firstname']);
+
+        if (!$matchedUser) {
+            return response()->json([
+                'message' => 'Совпадение с существующим учеником не найдено. Обновите страницу.',
+            ], 422);
+        }
+
+        $requestedUserId = (int) $request->input('user_id');
+        if ($requestedUserId !== (int) $matchedUser->id) {
+            return response()->json([
+                'message' => 'Совпадение изменилось, обновите страницу.',
+            ], 409);
+        }
+
+        DB::transaction(function () use ($schoolLead, $matchedUser) {
+            if ($schoolLead->team_id) {
+                $this->teamUserSync->attachTeamForStudent($matchedUser, (int) $schoolLead->team_id);
+            }
+
+            $schoolLead->user_id = $matchedUser->id;
+            $schoolLead->save();
+
+            $this->auditLogger->record(
+                AuditEvent::UserUpdated,
+                AuditContext::make(sprintf(
+                    "Группа: %s\nИсточник: заявка #%s (%s)",
+                    $this->teamUserSync->teamTitlesLabel($matchedUser) ?: '-',
+                    $schoolLead->id,
+                    $schoolLead->child_full_name ?: $schoolLead->name,
+                ))
+                    ->withTarget($matchedUser, $matchedUser->full_name ?: "user#{$matchedUser->id}")
+            );
+        });
+
+        $matchedUser->load('teams');
+
+        return response()->json([
+            'message' => 'Группа добавлена существующему клиенту.',
+            'user_id' => $matchedUser->id,
+            'team'    => $this->teamUserSync->teamTitlesLabel($matchedUser),
+        ]);
     }
 
     private function requirePartnerContext(): int

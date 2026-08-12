@@ -414,10 +414,12 @@
                 }
             }
 
-            function showCreateClientResultModal(isSuccess, message) {
+            function showCreateClientResultModal(isSuccess, message, title) {
+                title = title || 'Создание клиента';
+
                 if (isSuccess) {
                     if (typeof showSuccessModal === 'function') {
-                        showSuccessModal('Создание клиента', message || 'Клиент создан.');
+                        showSuccessModal(title, message || 'Клиент создан.');
                         return;
                     }
                     showToast(message || 'Клиент создан.', 'success');
@@ -425,7 +427,7 @@
                 }
 
                 if (typeof showErrorModal === 'function') {
-                    showErrorModal('Создание клиента', message || 'Не удалось создать клиента.');
+                    showErrorModal(title, message || 'Не удалось создать клиента.');
                     return;
                 }
                 if (typeof eroorRespone === 'function') {
@@ -1040,6 +1042,9 @@
                 snapshot: null,
                 matchedParent: null,
             };
+            var leadChildMatchUi = {
+                matchedClient: null,
+            };
             var studentRoleId = @json($studentRoleId ?? 0);
             var userStoreUrl = @json(route('admin.user.store'));
             var canUpdateLeadHealth = @json(auth()->user()?->can('users.other.update') ?? false);
@@ -1080,6 +1085,36 @@
                 $('#leadParentSnapshotLastname, #leadParentSnapshotFirstname, #leadParentSnapshotMiddlename, #leadParentSnapshotPhone, #leadParentSnapshotEmail')
                     .text('—');
                 clearLeadParentSnapshotMatchHighlights();
+            }
+
+            function resetLeadChildMatchUi() {
+                leadChildMatchUi = {
+                    matchedClient: null,
+                };
+                $('#leadChildMatchBanner').addClass('d-none').text('');
+                $('#attachExistingClientBtn').addClass('d-none');
+                $('#createClientBtnWrap').removeClass('d-none');
+            }
+
+            function applyLeadChildMatchLayout() {
+                var matched = leadChildMatchUi.matchedClient;
+                var $banner = $('#leadChildMatchBanner');
+
+                if (!matched) {
+                    $banner.addClass('d-none').text('');
+                    $('#attachExistingClientBtn').addClass('d-none');
+                    $('#createClientBtnWrap').removeClass('d-none');
+                    return;
+                }
+
+                var teams = (matched.team_titles || []).join(', ') || 'без групп';
+                $banner
+                    .removeClass('d-none')
+                    .text('Такой ученик уже есть в базе: ' + matched.full_name + ' (текущие группы: ' + teams + '). '
+                        + 'Вместо создания нового клиента можно добавить группу из заявки этому ученику.');
+
+                $('#createClientBtnWrap').addClass('d-none');
+                $('#attachExistingClientBtn').prop('disabled', leadModalReadOnly).removeClass('d-none');
             }
 
             function clearLeadParentSnapshotMatchHighlights() {
@@ -1530,6 +1565,7 @@
             function populateLeadForm(rowData) {
                 clearLeadFormErrors();
                 resetLeadParentMatchUi();
+                resetLeadChildMatchUi();
                 currentLeadModalRowData = rowData || null;
                 $('#editLeadId').val(rowData.id);
                 setLeadModalStatusPicker(
@@ -1620,6 +1656,9 @@
                 if (hasMatch) {
                     showEditLeadAccordionPanel($('#editLeadAccordionParent'));
                 }
+
+                leadChildMatchUi.matchedClient = rowData.matched_client || null;
+                applyLeadChildMatchLayout();
 
                 syncCreateClientBtnState();
             }
@@ -1846,6 +1885,51 @@
                             syncCreateClientBtnState();
                         });
                 });
+
+                $('#attachExistingClientBtn').on('click', function() {
+                    if (leadModalReadOnly || $(this).prop('disabled')) {
+                        return;
+                    }
+
+                    var matched = leadChildMatchUi.matchedClient;
+                    if (!matched || !matched.id) {
+                        return;
+                    }
+
+                    var $btn = $(this);
+                    var $saveBtn = $('#saveLeadBtn');
+                    var leadId = $('#editLeadId').val();
+                    clearLeadFormErrors();
+                    $btn.prop('disabled', true);
+                    $saveBtn.prop('disabled', true);
+
+                    saveLeadAjax()
+                        .then(function() {
+                            return $.ajax({
+                                url: '/admin/school-leads/' + leadId + '/attach-existing-client',
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json',
+                                },
+                                data: { user_id: matched.id },
+                            });
+                        })
+                        .done(function(response) {
+                            editLeadModal.hide();
+                            dtApi.reload({ keepPage: true });
+                            showCreateClientResultModal(true, (response && response.message) || 'Группа добавлена существующему клиенту.', 'Добавление группы');
+                        })
+                        .fail(function(xhr) {
+                            var message = extractCreateClientErrorMessage(xhr, 'Не удалось добавить группу существующему клиенту.');
+                            $('#editLeadError').removeClass('d-none').text(message);
+                            showCreateClientResultModal(false, message, 'Добавление группы');
+                        })
+                        .always(function() {
+                            $btn.prop('disabled', false);
+                            $saveBtn.prop('disabled', false);
+                        });
+                });
             }
 
             editLeadModalEl.addEventListener('hidden.bs.modal', function() {
@@ -1855,6 +1939,7 @@
                 setLeadModalClientInfo(null);
                 currentLeadModalRowData = null;
                 resetLeadParentMatchUi();
+                resetLeadChildMatchUi();
                 if (typeof window.resetStudentParentForm === 'function') {
                     window.resetStudentParentForm('lead');
                 }

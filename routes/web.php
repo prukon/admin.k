@@ -967,6 +967,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'getColumnsSettings'])->name('admin.school-leads.columns-settings.get');
         Route::post('/admin/school-leads/columns-settings', [\App\Http\Controllers\Admin\SchoolLeadColumnsSettingsController::class, 'saveColumnsSettings'])->name('admin.school-leads.columns-settings.save');
         Route::put('/admin/school-leads/{schoolLead}', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'update'])->name('admin.school-leads.update');
+        Route::post('/admin/school-leads/{schoolLead}/attach-existing-client', [\App\Http\Controllers\Admin\SchoolLeadController::class, 'attachExistingClient'])->name('admin.school-leads.attach-existing-client');
     });
 
     Route::middleware('can:schoolWidget.view')->group(function () {
