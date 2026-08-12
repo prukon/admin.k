@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Права setPrices.cabinetPackages.* — типы абонементов на консоли</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1 id="cabinet-packages-permissions">Права <code>setPrices.cabinetPackages.*</code></h1>
+  <div class="small">Файл: <code>/docs/documentation/set-prices-cabinet-packages.html</code>.
+    Анонс: <a href="/doc#cabinet-packages-type-permissions">/doc</a>.
+    Консоль: <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet"><code>/cabinet</code></a>.
+    Вкладка назначений в админке — отдельно:
+    <a href="/docs/documentation/set-prices-package-assignments"><code>setPrices.packageAssignments.view</code></a>.</div>
+
+  <div class="ok">
+    <b>С 2026‑08</b> отображение абонементов на консоли <b>не</b> зависит от
+    <code>setPrices.packageAssignments.view</code>. Для каждого типа — своё скрытое право группы
+    <code>setPrices</code>. Никому не выдаётся автоматически.
+  </div>
+
+  <h2 id="permissions">1) Права</h2>
+  <table>
+    <thead><tr><th>Имя</th><th>Описание</th><th><code>schedule_type</code></th><th>Где на консоли</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>setPrices.cabinetPackages.fixed.view</code></td>
+        <td>Консоль: фиксированный абонемент</td>
+        <td><code>fixed</code></td>
+        <td>Карточка в блоке «Назначенные абонементы» (ULP)</td>
+      </tr>
+      <tr>
+        <td><code>setPrices.cabinetPackages.flexible.view</code></td>
+        <td>Консоль: гибкий абонемент</td>
+        <td><code>flexible</code></td>
+        <td>Карточка ULP</td>
+      </tr>
+      <tr>
+        <td><code>setPrices.cabinetPackages.single.view</code></td>
+        <td>Консоль: разовое занятие</td>
+        <td><code>no_schedule</code></td>
+        <td>Карточка ULP</td>
+      </tr>
+      <tr>
+        <td><code>setPrices.cabinetPackages.postpay.view</code></td>
+        <td>Консоль: постоплата</td>
+        <td><code>postpay</code></td>
+        <td>Месяцы в блоке сезонов (<code>users_prices</code>), не ULP</td>
+      </tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Группа матрицы</td><td><code>setPrices</code> — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a></td></tr>
+      <tr><td><code>is_visible</code></td><td><b>0</b> (скрытые)</td></tr>
+      <tr><td>Gate</td><td><code>AuthServiceProvider</code></td></tr>
+      <tr><td>Хелпер</td><td><code>App\Support\CabinetLessonPackagePermission</code></td></tr>
+      <tr><td>Seeder</td><td><code>PermissionSeeder</code> (<code>sort_order</code> 25–28)</td></tr>
+      <tr><td>Миграция</td><td><code>2026_08_13_003500_add_set_prices_cabinet_packages_type_permissions.php</code> — только создаёт права, <b>никому не выдаёт</b></td></tr>
+      <tr><td>Базовые роли</td><td>В <code>config/role_base_permissions.php</code> для <code>user</code> / <code>admin</code> / <code>trainer</code> <b>не</b> входят (строки закомментированы)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    После выката права нужно выдать вручную (superadmin / матрица). Без них карточки ULP и месяцы постоплаты на
+    <code>/cabinet</code> скрыты, даже если записи в БД есть.
+    <code>POST /payment</code> эти права не проверяют — кнопка «Оплатить» по-прежнему требует
+    <code>paying.classes</code>.
+  </div>
+
+  <h2 id="what-it-controls">2) Что закрывает</h2>
+  <table>
+    <thead><tr><th>Поверхность</th><th>Без соответствующего права</th><th>С правом</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Карточки ULP (fixed / flexible / single)</td>
+        <td>Тип отфильтрован в <code>DashboardController</code>; блок скрыт, если не осталось ни одной карточки</td>
+        <td>Карточка видна при <code>fee_amount_cents &gt; 0</code></td>
+      </tr>
+      <tr>
+        <td>Месяцы постоплаты в сезонах</td>
+        <td>Строка не попадает в <code>userPrice</code> / JSON <code>getUserDetails</code></td>
+        <td>Месяц в сезонах; блок сезонов показывается и без <code>cabinetSeasons.view</code></td>
+      </tr>
+      <tr>
+        <td>Обычные (не postpay) месяцы сезонов</td>
+        <td>Как раньше: нужны <code>setPrices.cabinetSeasons.view</code></td>
+        <td>Без изменений</td>
+      </tr>
+      <tr>
+        <td>Селект «Выбор группы»</td>
+        <td>—</td>
+        <td>Сезоны / postpay <b>или</b> есть видимые карточки ULP (и 2+ группы)</td>
+      </tr>
+      <tr>
+        <td>Семейный кабинет (смена ребёнка)</td>
+        <td>Без права типа карточки активного ребёнка не видны</td>
+        <td>Данные активного ученика; право проверяется у залогиненного (роль <code>user</code> общая у братьев)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 id="related">3) Связанные права</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td><code>setPrices.packageAssignments.view</code></td><td>Только вкладка/CRUD назначений в админке — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a></td></tr>
+      <tr><td><code>setPrices.cabinetSeasons.view</code></td><td>Обычные месяцы сезонов (не postpay)</td></tr>
+      <tr><td><code>lessonPackages.type.postpay</code></td><td>Создание/выбор типа «Постоплата» в CRM — <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a></td></tr>
+      <tr><td><code>paying.classes</code></td><td>Кнопка «Оплатить» на консоли</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="tests">4) Автотесты</h2>
+  <ul>
+    <li><code>DashboardCabinetPackagesTypeAccessFeatureTest</code> — фильтр карточек по типу; postpay в сезонах / JSON;
+      CRM-права не открывают консоль; <code>lessonPackages.type.postpay</code> не открывает месяцы;
+      селект группы при одном postpay и скрытие селекта без типа; superadmin / trainer;
+      кнопка оплаты и <code>POST /payment</code> без права консоли; смена ребёнка в семье показывает абонементы активного ученика;
+      порядок полей карточки; P2 smoke</li>
+    <li><code>DashboardCabinetPackagesPageFullAccessFeatureTest</code> — гость / 403 без <code>dashboard.view</code> / 200;
+      non-AJAX и AJAX POST <code>/cabinet</code> (тот же index, HTML с карточками, не пустой 200);
+      невалидный <code>title</code> → non-AJAX 302 + <code>errors.title</code>, JSON 422;
+      JSON <code>getUserDetails</code> / <code>getTeamDetails</code>; чужой партнёр; PATCH/PUT/DELETE → не 500 и не 200</li>
+    <li><code>DashboardPackageAssignmentsAccessFeatureTest</code> — <code>packageAssignments.view</code> консоль не открывает; тип — открывает</li>
+    <li><code>SetPricesCabinetPackagesPermissionCatalogFeatureTest</code> — скрытые, группа, sort 25–28, матрица superadmin/admin, не в базовых ролях</li>
+    <li><code>SetPricesPermissionCatalogFeatureTest</code> — каталог группы <code>setPrices</code></li>
+    <li><code>BladeInlineJsSyntaxTest::test_dashboard_cabinet_packages_type_permissions_js_and_markup_contract</code> —
+      нет <code>@can packageAssignments</code>; <code>@canany</code> сезоны+postpay на HTML и <code>dashboardSeasonsEnabled</code>;
+      <code>filterLessonPackagesByTeam</code> до выхода по сезонам; <code>node --check</code></li>
+    <li><code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles</code></li>
+    <li><code>PermissionGroupsReorganizationFeatureTest</code> — группа <code>setPrices</code> (10 прав)</li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter 'DashboardCabinetPackages|DashboardPackageAssignmentsAccessFeatureTest|SetPricesCabinetPackagesPermissionCatalog|test_dashboard_cabinet_packages_type_permissions_js'</code></pre>
+
+  <p class="small">
+    <a href="/docs/documentation">К списку разделов</a> ·
+    <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">Консоль</a> ·
+    <a href="/docs/documentation/set-prices-package-assignments">Назначения (админка)</a> ·
+    <a href="/docs/documentation/postpay#cabinet">Постоплата</a>
+  </p>
+</div>
+</body>
+</html>

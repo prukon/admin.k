@@ -7,7 +7,8 @@ use App\Models\User;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
- * Консоль (/cabinet): блок сезонов и селект группы доступны только при setPrices.cabinetSeasons.view.
+ * Консоль (/cabinet): блок сезонов доступен только при setPrices.cabinetSeasons.view.
+ * Селект группы при 2+ командах — также при абонементах без этого права.
  */
 final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPivotTestCase
 {

@@ -105,6 +105,25 @@ class PlaceScheduleJournalSingleLessonRequest extends FormRequest
                     'lesson_package_id',
                     'Укажите назначение или шаблон разового занятия.'
                 );
+
+                return;
+            }
+
+            if ($ulpId < 1) {
+                return;
+            }
+
+            $ulp = \App\Models\UserLessonPackage::query()->find($ulpId);
+            if (! $ulp || $ulp->team_id === null) {
+                return;
+            }
+
+            $teamId = (int) $this->input('team_id');
+            if ((int) $ulp->team_id !== $teamId) {
+                $validator->errors()->add(
+                    'team_id',
+                    'Выберите группу, в которой назначен этот абонемент.'
+                );
             }
         });
     }

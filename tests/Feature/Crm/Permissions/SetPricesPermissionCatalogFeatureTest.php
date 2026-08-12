@@ -33,6 +33,10 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.packageAssignments.view' => 'Назначение абонементов',
             'payment.clubfee' => 'Оплата клубного взноса',
             'setPrices.paymentNotifications.manage' => 'Уведомления об оплате абонементов',
+            'setPrices.cabinetPackages.fixed.view' => 'Консоль: фиксированный абонемент',
+            'setPrices.cabinetPackages.flexible.view' => 'Консоль: гибкий абонемент',
+            'setPrices.cabinetPackages.single.view' => 'Консоль: разовое занятие',
+            'setPrices.cabinetPackages.postpay.view' => 'Консоль: постоплата',
         ];
     }
 
@@ -67,12 +71,20 @@ final class SetPricesPermissionCatalogFeatureTest extends CrmTestCase
             'setPrices.packageAssignments.view',
             'payment.clubfee',
             'setPrices.paymentNotifications.manage',
+            'setPrices.cabinetPackages.fixed.view',
+            'setPrices.cabinetPackages.flexible.view',
+            'setPrices.cabinetPackages.single.view',
+            'setPrices.cabinetPackages.postpay.view',
         ], $rows);
 
         $clubfeeSort = (int) DB::table('permissions')->where('name', 'payment.clubfee')->value('sort_order');
         $this->assertSame(23, $clubfeeSort);
         $notificationsSort = (int) DB::table('permissions')->where('name', 'setPrices.paymentNotifications.manage')->value('sort_order');
         $this->assertSame(24, $notificationsSort);
+        $this->assertSame(25, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.fixed.view')->value('sort_order'));
+        $this->assertSame(26, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.flexible.view')->value('sort_order'));
+        $this->assertSame(27, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.single.view')->value('sort_order'));
+        $this->assertSame(28, (int) DB::table('permissions')->where('name', 'setPrices.cabinetPackages.postpay.view')->value('sort_order'));
     }
 
     public function test_payment_clubfee_is_not_in_misc_group(): void

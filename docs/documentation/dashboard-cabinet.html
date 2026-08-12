@@ -33,9 +33,15 @@
     <b>Кратко.</b> Страница «Консоль» — личный кабинет ученика (или семейный просмотр данных ребёнка): профиль, календарь посещений, блоки оплат (доп. платежи, назначенные абонементы, сезоны месячных начислений).
     Доступ к странице — <code>dashboard.view</code>; видимость отдельных блоков оплат — отдельные permissions (§<a href="#cabinet-payment-blocks">2</a>).
     Для роли с правом <code>users.view</code> (админ CRM) доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
-    При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме и при наличии <code>setPrices.cabinetSeasons.view</code> показывается селект <b>«Выбор группы»</b> — фильтрация месячных начислений по <code>users_prices.team_id</code> (только на клиенте).
+    При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме селект <b>«Выбор группы»</b>
+    показывается, если есть <code>setPrices.cabinetSeasons.view</code> <em>или</em>
+    <code>setPrices.cabinetPackages.postpay.view</code> <em>или</em>
+    есть видимые назначенные абонементы (права <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>).
+    Фильтрация на клиенте: сезоны по <code>users_prices.team_id</code>,
+    абонементы по <code>user_lesson_packages.team_id</code> (без <code>team_id</code> при селекте скрываются).
     Отдельно (сайдбар layout <code>admin2</code>, шапка <code>/cabinet</code>, учётная запись): при
     <code>account.user.team.update</code> — добавление группы (§<a href="#cabinet-attach-team">7.1</a>).
+    Анонс фильтра абонементов и <code>team_id</code> из журнала — <a href="/doc#cabinet-ulp-team-filter">/doc</a>.
   </div>
 
   <h2>1) Маршруты и права</h2>
@@ -62,8 +68,8 @@
   <p>Порядок сверху вниз (после календаря посещений):</p>
   <ol>
     <li><b>Дополнительные платежи</b> — <code>user_custom_payment</code></li>
+    <li><b>Селект «Выбор группы»</b> (при 2+ группах) — сезоны и/или назначенные абонементы</li>
     <li><b>Назначенные абонементы</b> — <code>user_lesson_packages</code></li>
-    <li><b>Селект «Выбор группы»</b> (при 2+ группах) — только вместе с сезонами</li>
     <li><b>Сезоны</b> — месячные начисления <code>users_prices</code></li>
   </ol>
 
@@ -80,19 +86,19 @@
       </tr>
       <tr>
         <td>Назначенные абонементы</td>
-        <td><code>setPrices.packageAssignments.view</code></td>
-        <td><code>user_lesson_packages.fee_amount_cents &gt; 0</code>, ученик партнёра</td>
+        <td><code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> (по типу)</td>
+        <td><code>user_lesson_packages.fee_amount_cents &gt; 0</code>, ученик партнёра, тип разрешён</td>
         <td><code>payment_kind=lesson_package</code> · <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4</a>, назначение — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments</a></td>
       </tr>
       <tr>
         <td>Селект «Выбор группы»</td>
-        <td><code>setPrices.cabinetSeasons.view</code></td>
+        <td><code>setPrices.cabinetSeasons.view</code> <b>или</b> <code>setPrices.cabinetPackages.postpay.view</code> <b>или</b> (есть видимые ULP по <code>cabinetPackages.*</code>)</td>
         <td>Нет <code>users.view</code>; у ученика 2+ групп в pivot</td>
-        <td>Фильтрует только сезоны (клиент)</td>
+        <td>Фильтрует сезоны и назначенные абонементы (клиент)</td>
       </tr>
       <tr>
         <td>Сезоны (месячные начисления)</td>
-        <td><code>setPrices.cabinetSeasons.view</code></td>
+        <td>HTML блока: <code>setPrices.cabinetSeasons.view</code> <b>или</b> <code>setPrices.cabinetPackages.postpay.view</code>. Обычные месяцы в payload — только сезоны; postpay-месяцы — только <code>.postpay.view</code></td>
         <td>Строки <code>users_prices</code> подставляются в JS</td>
         <td><code>monthly_fee</code> через <code>users_prices</code> · <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a></td>
       </tr>
@@ -125,9 +131,17 @@
 
   <h3 id="lesson-packages-cabinet">2.2) Назначенные абонементы на консоли</h3>
   <div class="note">
-    Блок обёрнут в <code>@can('setPrices.packageAssignments.view')</code>.
-    Базовые роли новых партнёров (<code>user</code>, <code>admin</code>, <code>trainer</code>) право <b>не</b> получают — выдаётся вручную.
-    Без права записи в БД есть, а на <code>/cabinet</code> блока нет. См. <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>,
+    Карточки ULP фильтруются по правам типа:
+    <code>setPrices.cabinetPackages.fixed.view</code>,
+    <code>.flexible.view</code>,
+    <code>.single.view</code>.
+    <code>setPrices.packageAssignments.view</code> на консоль <b>не</b> влияет.
+    Базовые роли новых партнёров эти права <b>не</b> получают — выдаются вручную.
+    Без права типа записи в БД есть, а карточки на <code>/cabinet</code> нет.
+    Права проверяются у <b>залогиненного</b> (superadmin видит все типы через <code>Gate::before</code>).
+    <code>POST /payment</code> этими правами не закрывается — кнопка «Оплатить» требует <code>paying.classes</code>.
+    Анонс: <a href="/doc#cabinet-packages-type-permissions">/doc</a>.
+    См. <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>,
     <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.
   </div>
   <ul>
@@ -135,13 +149,20 @@
     <li>Период под названием: для <code>fixed</code> / <code>flexible</code> — диапазон <code>starts_at — ends_at</code> в формате <code>D.MM.YYYY</code>; для разового занятия (<code>schedule_type = no_schedule</code>) — только дата начала, <code>translatedFormat('j F Y')</code> (пример: «11 августа 2026»). Если <code>starts_at</code> ещё нет — строка периода не выводится. Админка назначений этот формат не использует.</li>
     <li>Кнопка «Оплатить» / «Оплачено» — по <code>effective_is_paid</code> (как в админке назначений).</li>
     <li>Сумма на экране — из атрибута <code>fee_amount</code> (рубли); источник истины в БД — <code>fee_amount_cents</code>. При переходе на <code>POST /payment</code> resolver читает копейки (<code>UserLessonPackageFeePaymentResolver</code>), POST <code>outSum</code> не используется.</li>
-    <li>Блок <b>не</b> скрывается при отсутствии <code>setPrices.cabinetSeasons.view</code> и <b>не</b> фильтруется селектом «Выбор группы».</li>
+    <li>Блок при 2+ группах стоит <b>под</b> селектом «Выбор группы» и фильтруется по <code>user_lesson_packages.team_id</code>
+      (<code>data-ulp-team-id</code>, JS <code>filterLessonPackagesByTeam</code>). Без <code>team_id</code> карточка скрывается.
+      При одной группе селекта нет — показываются все карточки, в том числе без группы.</li>
+    <li>Селект показывается и без <code>setPrices.cabinetSeasons.view</code>, если есть видимые карточки ULP и 2+ группы.</li>
     <li>При смене ученика админом через AJAX (<code>getUserDetails</code>) блок <b>не</b> перерисовывается — остаётся HTML первой загрузки (известное ограничение; сезоны и профиль обновляются через JS).</li>
   </ul>
 
   <h3 id="refresh-price-js">2.3) JavaScript: <code>refreshPrice()</code> и суммы</h3>
   <p>При пересборке сезонов функция <code>refreshPrice()</code> обнуляет только ячейки <code>.seasons .border_price .price-amount</code> (сумма отделена от символа ₽), чтобы не затирать суммы в блоках «Дополнительные платежи» и «Назначенные абонементы».</p>
-  <p>Флаг <code>dashboardSeasonsEnabled</code> в blade (<code>@can('setPrices.cabinetSeasons.view')</code>) отключает вызовы <code>createSeasons</code>, <code>apendPrice</code>, пересчёт задолженности и инициализацию селекта группы.</p>
+  <p>Флаг <code>dashboardSeasonsEnabled</code> в blade
+    (<code>@canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])</code>)
+    включает <code>createSeasons</code>, <code>apendPrice</code> и пересчёт задолженности.
+    Фильтр абонементов <code>filterLessonPackagesByTeam</code> вызывается <b>до</b> раннего выхода,
+    если сезонов нет. Селект группы при одних карточках ULP работает и при <code>dashboardSeasonsEnabled = false</code>.</p>
   <p>Размер шрифта сумм в блоках оплат и сезонах: <code>font-size: 20px</code> (<code>resources/css/style.css</code>, селекторы <code>.custom-payments-block</code> и <code>.seasons</code>). У символа ₽ — один <code>padding-left: 0.25em</code> (без второго зазора от соседнего flex-элемента).</p>
 
   <h3 id="cabinet-custom-payments">2.4) Дополнительные платежи на консоли</h3>
@@ -170,26 +191,30 @@
     <thead><tr><th>Условие</th><th>Что видит пользователь</th></tr></thead>
     <tbody>
       <tr><td>Есть <code>users.view</code> (админ CRM)</td><td>Блок «Выбор ученика»: Select2 «Группа» + «ФИО», AJAX <code>getUserDetails</code> / <code>getTeamDetails</code>. Селект «Выбор группы» для ученика <b>не показывается</b>.</td></tr>
-      <tr><td>Нет <code>users.view</code> (роль <code>user</code>)</td><td>Только свои (или семейные) данные активного ученика; при 2+ группах и <code>setPrices.cabinetSeasons.view</code> — селект «Выбор группы» (§<a href="#team-switcher">5</a>).</td></tr>
+      <tr><td>Нет <code>users.view</code> (роль <code>user</code>)</td><td>Только свои (или семейные) данные активного ученика; при 2+ группах и (сезоны / postpay <em>или</em> видимые абонементы) — селект «Выбор группы» (§<a href="#team-switcher">5</a>).</td></tr>
     </tbody>
   </table>
 
   <h2 id="team-switcher">5) Селект «Выбор группы» (2+ группы)</h2>
   <div class="ok">
-    Отдельного backend-маршрута для переключения группы на консоли <b>нет</b>: выбор хранится в <code>sessionStorage</code> браузера и применяется в JavaScript при отрисовке сезонов.
+    Отдельного backend-маршрута для переключения группы на консоли <b>нет</b>: выбор хранится в <code>sessionStorage</code> браузера и применяется в JavaScript при отрисовке сезонов и карточек абонементов.
   </div>
 
   <h3>5.1) Условия показа</h3>
   <ul>
-    <li>Partial: <code>resources/views/includes/dashboard_team_switcher.blade.php</code> (внутри <code>@can('setPrices.cabinetSeasons.view')</code>).</li>
+    <li>Partial: <code>resources/views/includes/dashboard_team_switcher.blade.php</code>
+      (флаг <code>$dashboardShowTeamSwitcher</code> в <code>dashboard.blade.php</code>).</li>
     <li>Пользователь <b>без</b> права <code>users.view</code> (<code>@cannot('users.view')</code>).</li>
     <li>У <code>activeStudent</code> в pivot <b>2 и более</b> групп партнёра (<code>$curUser->teams->count() &gt;= 2</code>).</li>
+    <li>И <code>setPrices.cabinetSeasons.view</code>, <b>или</b> <code>setPrices.cabinetPackages.postpay.view</code>,
+      <b>или</b> есть видимые назначения ULP с <code>fee_amount_cents &gt; 0</code> (права <code>cabinetPackages.fixed/flexible/single.view</code>).</li>
     <li>При одной группе селект скрыт; жирное выделение названия группы в шапке не используется.</li>
   </ul>
 
   <h3>5.2) Размещение и подпись</h3>
   <ul>
-    <li>Блок расположен <b>сразу над</b> секцией сезонов (<code>.row.seasons</code>), после календаря, дополнительных платежей и назначенных абонементов.</li>
+    <li>Блок расположен <b>сразу над</b> назначенными абонементами и секцией сезонов
+      (<code>#dashboard-lesson-packages</code>, <code>.row.seasons</code>), после календаря и дополнительных платежей.</li>
     <li>Label селекта: <b>«Выбор группы»</b>, элемент: <code>#dashboard-active-team</code>.</li>
   </ul>
 
@@ -212,18 +237,20 @@
     <li>На загрузке страницы в JS передаются все строки <code>users_prices</code> (<code>userPriceAll</code>) и список групп (<code>dashboardTeams</code>).</li>
     <li>Ключ <code>sessionStorage</code>: <code>dashboard_active_team_id_{userId}</code>, где <code>userId</code> — id активного ученика (важно при семейном переключении детей).</li>
     <li>Если в storage нет валидного id — выбирается <b>первая</b> группа из pivot (как дефолт на «Моя группа»).</li>
-    <li>После выбора: фильтр <code>userPrice</code> по <code>team_id</code> → пересборка ячеек сезонов (<code>apendPrice</code>), скрытие пустых сезонов, пересчёт задолженностей.</li>
+    <li>После выбора: фильтр <code>userPrice</code> по <code>team_id</code> → пересборка ячеек сезонов (<code>apendPrice</code>), скрытие пустых сезонов, пересчёт задолженностей;
+      фильтр карточек абонементов (<code>filterLessonPackagesByTeam</code>) — только с совпадающим <code>data-ulp-team-id</code>, без группы скрываются, пустой блок прячется.</li>
     <li>В форме «Оплатить» за месяц в hidden <code>team_id</code> попадает группа отфильтрованной строки <code>users_prices</code> (согласовано с <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>).</li>
   </ol>
 
-  <h3>5.5) Что селект группы <b>не</b> меняет</h3>
+  <h3>5.5) Что селект группы меняет и что нет</h3>
   <table>
-    <thead><tr><th>Блок</th><th>Причина</th></tr></thead>
+    <thead><tr><th>Блок</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td>Календарь посещений</td><td>Данные из <code>user_team_schedule_slots</code> не фильтруются селектом «Выбор группы» на консоли.</td></tr>
-      <tr><td>Дополнительные платежи (<code>user_custom_payment</code>)</td><td>Список на консоли не фильтруется селектом «Выбор группы»; <code>team_id</code> задаётся в админке при создании записи и используется при оплате (<a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>).</td></tr>
-      <tr><td>Назначенные абонементы (<code>user_lesson_packages</code>)</td><td>Отдельный блок; <code>team_id</code> на назначении влияет только на маршрутизацию оплаты (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>).</td></tr>
-      <tr><td>AJAX <code>getUserDetails</code> (админ)</td><td>По-прежнему отдаёт все <code>userPrice</code>; фильтр только в пользовательском режиме на клиенте.</td></tr>
+      <tr><td>Назначенные абонементы (<code>user_lesson_packages</code>)</td><td>При видимом селекте фильтруются по <code>team_id</code> (<code>data-ulp-team-id</code>); без <code>team_id</code> скрываются. При одной группе (селекта нет) показываются все. <code>team_id</code> также нужен для маршрутизации оплаты (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>). Анонс: <a href="/doc#cabinet-ulp-team-filter">/doc</a>.</td></tr>
+      <tr><td>Сезоны (<code>users_prices</code>)</td><td>Фильтр по <code>team_id</code> на клиенте перед отрисовкой ячеек.</td></tr>
+      <tr><td>Календарь посещений</td><td>Данные из <code>user_team_schedule_slots</code> селектом <b>не</b> фильтруются.</td></tr>
+      <tr><td>Дополнительные платежи (<code>user_custom_payment</code>)</td><td>Список на консоли селектом <b>не</b> фильтруется; <code>team_id</code> задаётся в админке при создании записи и используется при оплате (<a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>).</td></tr>
+      <tr><td>AJAX <code>getUserDetails</code> (админ)</td><td><b>Не</b> отдаёт ULP (карточки остаются HTML первой загрузки). <code>userPrice</code> фильтруется правами смотрящего: без <code>cabinetSeasons.view</code> обычные месяцы не попадают, без <code>cabinetPackages.postpay.view</code> — месяцы постоплаты. Фильтр ULP по группе — только в пользовательском режиме на клиенте.</td></tr>
     </tbody>
   </table>
 
@@ -231,14 +258,19 @@
   <p>До появления селекта при 2+ группах в одной ячейке месяца могли отображаться несколько кнопок «Оплатить (Группа …)». В пользовательском режиме с активным селектом за месяц показывается <b>одна</b> кнопка для выбранной группы. Логика нескольких кнопок в <code>apendPrice</code> сохранена для админского AJAX (без селекта «Выбор группы»).</p>
 
   <h2>6) Сезоны и месячные оплаты</h2>
-  <p>Секция <code>.row.seasons</code> рендерится только при <code>@can('setPrices.cabinetSeasons.view')</code>.</p>
+  <p>Секция <code>.row.seasons</code> рендерится при <code>setPrices.cabinetSeasons.view</code>
+    <b>или</b> <code>setPrices.cabinetPackages.postpay.view</code>.</p>
   <ul>
     <li>Ячейки месяцев генерируются в JS (<code>createSeasons</code>), цены подставляются из массива <code>userPrice</code> (или отфильтрованного под группу).</li>
     <li>Каждая оплачиваемая ячейка содержит <code>paymentDate</code>, <code>formatedPaymentDate</code> (<code>YYYY-MM-01</code>), hidden <code>team_id</code>, <code>outSum</code> (на сервере для monthly_fee не источник истины).</li>
     <li>Resolver оплаты: <code>UserPriceMonthlyFeePaymentResolver</code> — при нескольких начислениях за месяц без <code>team_id</code> в POST → <b>422</b> «Укажите группу…»; селект на консоли как раз передаёт нужный <code>team_id</code>.</li>
-    <li><b>Постоплата:</b> в payload сезонов — <code>is_postpay</code>, <code>postpay_pay_available*</code>.
+    <li><b>Постоплата:</b> месяцы с <code>schedule_type=postpay</code> попадают в payload только при
+      <code>setPrices.cabinetPackages.postpay.view</code> (это право <b>не</b> то же, что
+      <code>lessonPackages.type.postpay</code> в CRM).
+      В payload — <code>is_postpay</code>, <code>postpay_pay_available*</code>.
       Сумма видна сразу; кнопка оплаты enabled с 1-го числа следующего месяца (МСК), до этого disabled + tooltip.
-      Сервер дублирует правило в resolver. Подробно — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>.</li>
+      Сервер дублирует правило в resolver. Подробно — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>,
+      <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>.</li>
   </ul>
 
   <h2>7) Связанные файлы</h2>
@@ -251,7 +283,10 @@
     <li><code>app/Services/TeamUserSyncService.php</code> — подписи групп</li>
     <li><code>app/Services/Payments/UserPriceMonthlyFeePaymentResolver.php</code></li>
     <li><code>app/Services/Payments/UserLessonPackageFeePaymentResolver.php</code></li>
-    <li><code>database/seeders/PermissionSeeder.php</code> · миграция <code>2026_07_02_150000_add_set_prices_cabinet_seasons_view_permission.php</code></li>
+    <li><code>app/Support/CabinetLessonPackagePermission.php</code> — права карточек и сезонов на консоли</li>
+    <li><code>database/seeders/PermissionSeeder.php</code> · миграции
+      <code>2026_07_02_150000_add_set_prices_cabinet_seasons_view_permission.php</code>,
+      <code>2026_08_13_003500_add_set_prices_cabinet_packages_type_permissions.php</code></li>
   </ul>
 
   <h2 id="cabinet-attach-team">7.1) Добавление группы в ЛК (сайдбар, /cabinet, учётная запись)</h2>
@@ -324,8 +359,12 @@
     <ul class="small">
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonsAccessFeatureTest.php</code> — право <code>setPrices.cabinetSeasons.view</code>, 200/403/гость, изоляция от <code>setPrices.view</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardSeasonsSetPricesVisibilityFeatureTest.php</code> — видимость сезонов и селекта группы</li>
-      <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code>, дата разового занятия («11 августа 2026») vs диапазон у fixed/flexible</li>
-      <li><code>tests/Feature/Crm/Dashboard/DashboardPackageAssignmentsAccessFeatureTest.php</code> — право <code>setPrices.packageAssignments.view</code> на консоли: guest / без права скрыт блок / с правом виден</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesFeatureTest.php</code> — блок «Назначенные абонементы», суммы, <code>refreshPrice()</code>, дата разового занятия, селект группы без сезонов, <code>data-ulp-team-id</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardLessonPackagesTeamFilterFeatureTest.php</code> — фильтр абонементов селектом группы: 200/403/гость, две группы в DOM, карточка без <code>team_id</code> для JS-hide, нулевая стоимость не включает селект, админ без селекта, <code>getUserDetails</code> не отдаёт ULP, JS-порядок <code>filterLessonPackagesByTeam</code> до выхода по сезонам, P2 smoke</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardPackageAssignmentsAccessFeatureTest.php</code> — <code>packageAssignments.view</code> консоль не открывает; тип <code>cabinetPackages.fixed.view</code> открывает</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetPackagesTypeAccessFeatureTest.php</code> — фильтр карточек по типу; постоплата в сезонах; права смотрящего в семье; CRM-права / <code>type.postpay</code> не открывают консоль; селект группы; оплата без права консоли</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetPackagesPageFullAccessFeatureTest.php</code> — HTTP-матрица консоли для <code>cabinetPackages.*</code>: гость / 403 / 200, POST index, JSON, изоляция, PATCH/DELETE</li>
+      <li><code>tests/Feature/Crm/Permissions/SetPricesCabinetPackagesPermissionCatalogFeatureTest.php</code> — скрытые права, матрица, не в базовых ролях</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code> — UI селекта, partial, client-only</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
@@ -335,8 +374,8 @@
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + pivot</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachMarkupFeatureTest.php</code> — разметка модалки, сайдбар, карандаш на <code>/cabinet</code>, фильтр select, UX семейного ФИО</li>
       <li><code>tests/Feature/Crm/Account/AccountUserEditPageFeatureTest.php</code> — «Группы» readonly, lock-текст / карандаш при <code>account.user.team.update</code></li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach</li>
-      <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (3 права)</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach; фильтр абонементов селектом группы (<code>filterLessonPackagesByTeam</code>); контракт <code>cabinetPackages.*</code> (<code>dashboardSeasonsEnabled</code> + postpay, без <code>packageAssignments.view</code>)</li>
+      <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (10 прав, включая <code>cabinetPackages.*</code>)</li>
     </ul>
     <pre><code>php artisan test --env=testing tests/Feature/Crm/Cabinet/
 php artisan test --env=testing --filter=cabinet_attach_team_modal</code></pre>

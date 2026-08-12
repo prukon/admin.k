@@ -171,7 +171,7 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
         $this->assertStringContainsString('var dashboardSeasonsEnabled = false', $html);
     }
 
-    public function test_get_user_details_json_still_returns_user_price_without_cabinet_seasons_permission(): void
+    public function test_get_user_details_json_omits_user_price_without_cabinet_seasons_permission(): void
     {
         $student = $this->studentWithoutCabinetSeasonsPermission();
 
@@ -184,15 +184,16 @@ final class DashboardCabinetSeasonsAccessFeatureTest extends StudentTeamPivotTes
             ->json();
 
         $this->assertIsArray($json['userPrice'] ?? null);
-        $this->assertNotEmpty($json['userPrice']);
+        $this->assertSame([], $json['userPrice']);
     }
 
     public function test_lesson_packages_remain_visible_without_cabinet_seasons_permission(): void
     {
         $student = $this->studentWithoutCabinetSeasonsPermission();
-        $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
+        $this->grantPermissionForUser($student, 'setPrices.cabinetPackages.fixed.view');
         $package = LessonPackage::factory()->forPartner($this->partner->id)->create([
             'name' => 'Пакет без сезонов',
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_FIXED,
         ]);
         UserLessonPackage::query()->create([
             'user_id'           => $student->id,

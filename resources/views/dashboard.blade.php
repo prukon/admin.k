@@ -1,4 +1,17 @@
 @extends('layouts.admin2')
+@php
+    $dashboardShowTeamSwitcher = auth()->user() !== null
+        && auth()->user()->cannot('users.view')
+        && isset($curUser)
+        && $curUser->teams->count() >= 2
+        && (
+            \App\Support\CabinetLessonPackagePermission::userCanViewSeasonsBlock(auth()->user())
+            || (
+                isset($userLessonPackages)
+                && $userLessonPackages->count() > 0
+            )
+        );
+@endphp
 @section('content')
 
     <div class=" main-content">
@@ -246,10 +259,13 @@
         @endif
         @endcan
 
-        {{-- Назначенные абонементы (оплата из user_lesson_packages.fee_amount) --}}
-        @can('setPrices.packageAssignments.view')
+        @if(!empty($dashboardShowTeamSwitcher))
+            @include('includes.dashboard_team_switcher')
+        @endif
+
+        {{-- Назначенные абонементы (оплата из user_lesson_packages.fee_amount; типы — cabinetPackages.*) --}}
         @if(isset($userLessonPackages) && $userLessonPackages->count() > 0)
-            <div class="row custom-payments custom-payments-block mt-3 mb-3">
+            <div class="row custom-payments custom-payments-block mt-3 mb-3" id="dashboard-lesson-packages">
                 <div class="col-12">
                     <div class="custom-payments-season">
                         <div class="custom-payments-header">Назначенные абонементы</div>
@@ -260,6 +276,7 @@
                                     $amountNormalized = number_format((float) $ulp->fee_amount, 2, '.', '');
                                     $amountDisplay = number_format((float) $ulp->fee_amount, 0, ',', '');
                                     $paid = (bool) ($ulp->effective_is_paid ?? false);
+                                    $ulpTeamId = $ulp->team_id !== null ? (int) $ulp->team_id : 0;
                                     $isSingleLesson = (string) ($ulp->lessonPackage->schedule_type ?? '') === \App\Models\LessonPackage::SCHEDULE_TYPE_NO_SCHEDULE;
                                     if ($isSingleLesson) {
                                         $periodRu = $ulp->starts_at
@@ -277,7 +294,7 @@
                                     }
                                     $paymentDateLabel = 'Абонемент: '.$pkgName.' №'.(int) $ulp->id;
                                 @endphp
-                                <div class="custom-payment-price col-3">
+                                <div class="custom-payment-price col-3" data-ulp-team-id="{{ $ulpTeamId > 0 ? $ulpTeamId : '' }}">
                                     <div class="row align-items-center justify-content-center">
                                         <span class="price-value">{{ $amountDisplay }}<span class="hide-currency" style="padding-left: 0.25em; margin-left: 0;">₽</span></span>
                                     </div>
@@ -320,11 +337,8 @@
                 </div>
             </div>
         @endif
-        @endcan
 
-        @can('setPrices.cabinetSeasons.view')
-        @include('includes.dashboard_team_switcher')
-
+        @canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])
         {{--Сезоны--}}
         <div class="row seasons">
             <div class="col-12">
@@ -372,7 +386,7 @@
                 </div>
             </div>
         </div>
-        @endcan
+        @endcanany
 
     </div>
 
@@ -408,11 +422,12 @@
             @endcannot
             var dashboardStudentId = {{ (int) $curUser->id }};
             var dashboardTeamStorageKey = 'dashboard_active_team_id_' + dashboardStudentId;
-            @can('setPrices.cabinetSeasons.view')
+            @canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])
             var dashboardSeasonsEnabled = true;
             @else
             var dashboardSeasonsEnabled = false;
-            @endcan
+            @endcanany
+            var dashboardTeamSwitcherEnabled = {{ !empty($dashboardShowTeamSwitcher) ? 'true' : 'false' }};
 
             function refreshPrice() {
                 document.querySelectorAll('.seasons .border_price .price-amount').forEach(function (element) {
@@ -493,8 +508,35 @@
                 }).join('');
             }
 
+            function filterLessonPackagesByTeam(teamId) {
+                const block = document.getElementById('dashboard-lesson-packages');
+                if (!block) {
+                    return;
+                }
+
+                const cards = block.querySelectorAll('.custom-payment-price');
+                if (!dashboardTeamSwitcherEnabled) {
+                    cards.forEach(function (card) {
+                        card.classList.remove('d-none');
+                    });
+                    block.classList.remove('d-none');
+                    return;
+                }
+
+                let visible = 0;
+                cards.forEach(function (card) {
+                    const cardTeam = card.getAttribute('data-ulp-team-id');
+                    const show = cardTeam && Number(cardTeam) === Number(teamId);
+                    card.classList.toggle('d-none', !show);
+                    if (show) {
+                        visible += 1;
+                    }
+                });
+                block.classList.toggle('d-none', visible === 0);
+            }
+
             function applyDashboardTeamContext(teamId, persist) {
-                if (!dashboardSeasonsEnabled || !dashboardTeams.length) {
+                if (!dashboardTeamSwitcherEnabled || !dashboardTeams.length) {
                     return;
                 }
 
@@ -508,6 +550,11 @@
                 }
 
                 updateDashboardGroupLabel(teamId);
+                filterLessonPackagesByTeam(teamId);
+                if (!dashboardSeasonsEnabled) {
+                    return;
+                }
+
                 refreshPrice();
                 userPrice = filterUserPriceByTeam(teamId);
                 apendPrice(userPrice);
@@ -518,7 +565,7 @@
             }
 
             function initDashboardTeamSwitcher() {
-                if (!dashboardTeams.length) {
+                if (!dashboardTeamSwitcherEnabled || !dashboardTeams.length) {
                     return;
                 }
 
@@ -1503,15 +1550,17 @@
                 createSeasons();    //Создание сезонов
                 clickSeason();       //Измерение иконок при клике
                 hideAllSeason();     //Скрытие всех сезонов при загрузке страницы
-                if (dashboardTeams.length) {
-                    initDashboardTeamSwitcher();
-                } else {
-                    apendPrice(userPrice);
-                    showSessons();
-                    apendCreditTotalSumm();
-                    apendCreditTotalSummtoNotice();
-                    openFirstSeason();
-                }
+            }
+            if (dashboardTeamSwitcherEnabled) {
+                initDashboardTeamSwitcher();
+            } else if (dashboardSeasonsEnabled) {
+                apendPrice(userPrice);
+                showSessons();
+                apendCreditTotalSumm();
+                apendCreditTotalSummtoNotice();
+                openFirstSeason();
+            }
+            if (dashboardSeasonsEnabled) {
                 closeNotice();
                 showCreditNotice();
             }

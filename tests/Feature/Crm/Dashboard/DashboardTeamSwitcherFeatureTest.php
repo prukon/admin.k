@@ -7,7 +7,8 @@ use App\Models\User;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
- * Консоль (/cabinet): селект «Выбор группы» при 2+ группах ученика (client-side фильтр сезонов).
+ * Консоль (/cabinet): селект «Выбор группы» при 2+ группах ученика
+ * (client-side фильтр сезонов и назначенных абонементов).
  *
  * @see resources/views/includes/dashboard_team_switcher.blade.php
  * @see resources/views/dashboard.blade.php

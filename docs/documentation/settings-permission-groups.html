@@ -63,7 +63,7 @@
       <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.*</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code>, <code>lessonPackages.export</code> (выгрузка Excel с календаря школы), скрытое <code>lessonPackages.type.postpay</code> (тип «Постоплата»)</td></tr>
-      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>setPrices.packageAssignments.view</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code></td></tr>
+      <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>setPrices.packageAssignments.view</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
       <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
@@ -112,6 +112,10 @@
       <code>/database/migrations/2026_08_03_221000_add_set_prices_package_assignments_view_permission.php</code>
       (право в группе <code>setPrices</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).
       См. <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.</li>
+    <li>Миграция <code>setPrices.cabinetPackages.*</code>:
+      <code>/database/migrations/2026_08_13_003500_add_set_prices_cabinet_packages_type_permissions.php</code>
+      (четыре скрытых права консоли по типу абонемента, <b>без</b> выдачи ролям).
+      См. <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>.</li>
     <li>Миграция <code>lessonPackages.type.postpay</code>:
       <code>/database/migrations/2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code>
       (право в группе <code>lessonPackages</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).

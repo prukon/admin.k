@@ -80,6 +80,10 @@ class PermissionSeeder extends Seeder
             ['name' => 'setPrices.packageAssignments.view', 'description' => 'Назначение абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 22],
             ['name' => 'payment.clubfee',                'description' => 'Оплата клубного взноса',                         'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 23],
             ['name' => 'setPrices.paymentNotifications.manage', 'description' => 'Уведомления об оплате абонементов', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 24],
+            ['name' => 'setPrices.cabinetPackages.fixed.view', 'description' => 'Консоль: фиксированный абонемент', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 25],
+            ['name' => 'setPrices.cabinetPackages.flexible.view', 'description' => 'Консоль: гибкий абонемент', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 26],
+            ['name' => 'setPrices.cabinetPackages.single.view', 'description' => 'Консоль: разовое занятие', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 27],
+            ['name' => 'setPrices.cabinetPackages.postpay.view', 'description' => 'Консоль: постоплата', 'group_slug' => 'setPrices', 'is_visible' => 0, 'sort_order' => 28],
 
             // group_slug contracts
             ['name' => 'contracts.sync',                 'description' => 'Договоры: синхронизация статуса с Подпислон',   'group_slug' => 'contracts', 'is_visible' => 0, 'sort_order' => 52],

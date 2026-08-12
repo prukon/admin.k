@@ -345,7 +345,7 @@ users (role=user) — ученик, вход в CRM
       <tr><th>Компонент</th><th>Поведение</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code>) — данные выбранного ребёнка; при 2+ группах и том же праве — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
+      <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code> и <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code> или <code>setPrices.cabinetPackages.postpay.view</code>) — данные выбранного ребёнка; при 2+ группах — селект «Выбор группы», если есть сезоны/постоплата <em>или</em> видимые абонементы (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
       <tr><td><code>AppServiceProvider</code> (view composers)</td><td><code>layouts.admin2</code>: <code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code>, при праве — <code>cabinetTeamAttach</code>; дополнительно <code>dashboard</code> и <code>account.index</code> — <code>cabinetTeamAttach</code> для карандаша в content</td></tr>
     </tbody>
@@ -359,14 +359,15 @@ users (role=user) — ученик, вход в CRM
   <table>
     <thead><tr><th>Элемент</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td>Условие</td><td>Право <code>setPrices.cabinetSeasons.view</code>; активный ученик (<code>activeStudent</code>) в <b>2+</b> группах pivot; залогиненный пользователь <b>без</b> <code>users.view</code>.</td></tr>
-      <tr><td>UI</td><td>Селект «Выбор группы» (<code>#dashboard-active-team</code>) над блоком сезонов (сезоны тоже скрыты без права).</td></tr>
+      <tr><td>Условие</td><td>Активный ученик (<code>activeStudent</code>) в <b>2+</b> группах pivot; залогиненный пользователь <b>без</b> <code>users.view</code>; и есть <code>setPrices.cabinetSeasons.view</code> <em>или</em> <code>setPrices.cabinetPackages.postpay.view</code> <em>или</em> видимые карточки ULP (<code>cabinetPackages.fixed/flexible/single.view</code>).</td></tr>
+      <tr><td>UI</td><td>Селект «Выбор группы» (<code>#dashboard-active-team</code>) над блоком назначенных абонементов и сезонами.</td></tr>
       <tr><td>Шапка «Группа:»</td><td>Все группы через запятую; выбранная в селекте — <b>жирным</b> (JS). При одной группе — без селекта и без жирного.</td></tr>
       <tr><td>Хранение выбора</td><td><code>sessionStorage</code> ключ <code>dashboard_active_team_id_{userId}</code> (отдельно для каждого ребёнка в семье).</td></tr>
-      <tr><td>Backend</td><td>Отдельного POST/маршрута нет; фильтрация <code>users_prices</code> по <code>team_id</code> только на клиенте перед отрисовкой сезонов.</td></tr>
-      <tr><td>Не затрагивается</td><td>Календарь посещений; дополнительные платежи (<code>user_custom_payment</code>); назначенные абонементы (<code>user_lesson_packages</code>).</td></tr>
+      <tr><td>Backend</td><td>Отдельного POST/маршрута нет; на клиенте фильтр сезонов по <code>users_prices.team_id</code> и карточек абонементов по <code>user_lesson_packages.team_id</code> (без группы при селекте скрываются).</td></tr>
+      <tr><td>Не затрагивается</td><td>Календарь посещений; дополнительные платежи (<code>user_custom_payment</code>).</td></tr>
     </tbody>
   </table>
+  <p class="small">Анонс: <a href="/doc#cabinet-ulp-team-filter">/doc — абонементы по группе</a>.</p>
 
   <h3>5.5) <code>FamilyStudentContextService</code> (кратко)</h3>
   <table>
@@ -420,6 +421,7 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Parents/FamilyStudentContextPartnerIsolationTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetPackagesTypeAccessFeatureTest.php</code> — смена ребёнка: абонементы активного ученика / скрытие без <code>cabinetPackages.*.view</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentDirectoryFioFeatureTest.php</code> — правка ФИО из справочника, siblings, доступ</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFullNameGenitiveFeatureTest.php</code> — родительный падеж в админке</li>

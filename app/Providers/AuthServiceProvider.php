@@ -147,9 +147,23 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('setPrices.customPayments.view');
         });
 
-        // Назначения абонементов: вкладка assignments + блок на консоли
+        // Назначения абонементов: вкладка assignments (консоль — отдельные cabinetPackages.*)
         Gate::define('setPrices.packageAssignments.view', function (User $user) {
             return $user->hasPermission('setPrices.packageAssignments.view');
+        });
+
+        // Консоль: отображение абонементов по типу
+        Gate::define('setPrices.cabinetPackages.fixed.view', function (User $user) {
+            return $user->hasPermission('setPrices.cabinetPackages.fixed.view');
+        });
+        Gate::define('setPrices.cabinetPackages.flexible.view', function (User $user) {
+            return $user->hasPermission('setPrices.cabinetPackages.flexible.view');
+        });
+        Gate::define('setPrices.cabinetPackages.single.view', function (User $user) {
+            return $user->hasPermission('setPrices.cabinetPackages.single.view');
+        });
+        Gate::define('setPrices.cabinetPackages.postpay.view', function (User $user) {
+            return $user->hasPermission('setPrices.cabinetPackages.postpay.view');
         });
 
         // Уведомления об оплате абонементов (вкладка + конструктор правил)

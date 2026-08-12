@@ -14,12 +14,14 @@ use App\Models\User;
 use App\Models\UserField;
 use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
+use App\Models\LessonPackage;
 use App\Models\UserPrice;
 use App\Models\Weekday;
 use App\Services\TeamUserSyncService;
 use App\Services\Users\FamilyStudentContextService;
 use App\Services\Postpay\PostpayMonth;
 use App\Services\Postpay\PostpayUsersPriceSync;
+use App\Support\CabinetLessonPackagePermission;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +82,7 @@ class DashboardController extends Controller
             $abonement->setAttribute('amount', (float) Money::fromCents((int) $abonement->amount_cents));
         });
 
+        $actor = auth()->user();
         $userLessonPackages = UserLessonPackage::query()
             ->with(['lessonPackage:id,name,schedule_type'])
             ->where('user_id', (int) $curUser->id)
@@ -87,7 +90,9 @@ class DashboardController extends Controller
             ->where('fee_amount_cents', '>', 0)
             ->orderByDesc('starts_at')
             ->orderByDesc('id')
-            ->get();
+            ->get()
+            ->filter(fn (UserLessonPackage $ulp) => CabinetLessonPackagePermission::userCanViewAssignment($actor, $ulp))
+            ->values();
         // Blade считает суммы в рублях ($ulp->fee_amount) — граница HTTP/шаблонов.
         $userLessonPackages->each(function (UserLessonPackage $ulp) {
             $ulp->setAttribute('fee_amount', (float) Money::fromCents((int) $ulp->fee_amount_cents));
@@ -392,10 +397,16 @@ class DashboardController extends Controller
             $item['effective_is_paid'] = (bool) $row->effective_is_paid;
             $item['is_postpay'] = $isPostpay;
             if ($isPostpay) {
+                if (! CabinetLessonPackagePermission::userCanViewType(auth()->user(), LessonPackage::SCHEDULE_TYPE_POSTPAY)) {
+                    continue;
+                }
                 $item['postpay_pay_available'] = PostpayMonth::isPayAvailableNow($month);
                 $item['postpay_pay_available_from'] = PostpayMonth::payAvailableFrom($month)->format('Y-m-d');
                 $item['postpay_pay_available_label'] = 'Оплата будет доступна с '.PostpayMonth::payAvailableFromLabel($month);
             } else {
+                if (auth()->user() === null || ! auth()->user()->can('setPrices.cabinetSeasons.view')) {
+                    continue;
+                }
                 $item['postpay_pay_available'] = true;
                 $item['postpay_pay_available_from'] = null;
                 $item['postpay_pay_available_label'] = null;

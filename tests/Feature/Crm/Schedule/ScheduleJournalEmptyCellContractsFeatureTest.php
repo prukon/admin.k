@@ -154,6 +154,7 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
 
         $ulpId = (int) $response->json('result.user_lesson_package_id');
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulpId)->count());
+        $this->assertSame((int) $team->id, (int) UserLessonPackage::query()->findOrFail($ulpId)->team_id);
     }
 
     public function test_place_trial_ajax_validation_returns_422_with_errors_not_empty_200(): void
@@ -291,8 +292,63 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
             ->where('lesson_package_id', $template->id)
             ->first();
         $this->assertNotNull($ulp);
+        $this->assertSame((int) $team->id, (int) $ulp->team_id);
         $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
         $this->assertSame(90000, (int) $ulp->fee_amount_cents);
+    }
+
+    public function test_place_single_non_ajax_bind_writes_team_id_and_redirects_not_empty_200(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeFreeSingleLessonAssignment($student);
+        $this->assertNull($ulp->team_id);
+
+        $response = $this->post(
+            route('schedule.empty-cell.place-single', $student),
+            array_merge(
+                $this->placeSingleBindPayload($ulp, (int) $team->id, '2026-09-19'),
+                ['_token' => csrf_token()]
+            )
+        );
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('schedule.index'));
+        $this->assertNotSame(200, $response->getStatusCode());
+
+        $ulp->refresh();
+        $this->assertSame((int) $team->id, (int) $ulp->team_id);
+        $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
+    }
+
+    public function test_place_single_non_ajax_wrong_assignment_team_redirects_with_team_id_errors(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $otherTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Non-AJAX другая группа',
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [
+            (int) $team->id,
+            (int) $otherTeam->id,
+        ]);
+        $ulp = $this->makeFreeSingleLessonAssignment($student);
+        $ulp->team_id = (int) $team->id;
+        $ulp->save();
+
+        $response = $this->from(route('schedule.index'))
+            ->post(
+                route('schedule.empty-cell.place-single', $student),
+                array_merge(
+                    $this->placeSingleBindPayload($ulp, (int) $otherTeam->id, '2026-09-20'),
+                    ['_token' => csrf_token()]
+                )
+            );
+
+        $response->assertStatus(302)
+            ->assertSessionHasErrors(['team_id']);
+        $this->assertNotSame(200, $response->getStatusCode());
+        $this->assertSame(0, $ulp->userTeamScheduleSlots()->count());
+        $this->assertSame((int) $team->id, (int) $ulp->fresh()->team_id);
     }
 
     public function test_place_trial_non_ajax_validation_failure_redirects_with_errors_not_empty_200(): void
@@ -600,5 +656,6 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
 
         $ulpId = (int) $place->json('result.user_lesson_package_id');
         $this->assertSame(1, UserTeamScheduleSlot::query()->where('user_lesson_package_id', $ulpId)->count());
+        $this->assertSame((int) $team->id, (int) UserLessonPackage::query()->findOrFail($ulpId)->team_id);
     }
 }

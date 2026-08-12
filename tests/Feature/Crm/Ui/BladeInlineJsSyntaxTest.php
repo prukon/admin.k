@@ -625,6 +625,165 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: inline JS кабинета — фильтр абонементов селектом группы работает и без сезонов.
+     * Регрессия: applyDashboardTeamContext раньше выходил по !dashboardSeasonsEnabled
+     * до filterLessonPackagesByTeam.
+     */
+    public function test_dashboard_lesson_package_team_filter_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+        $this->assertStringContainsString('filterLessonPackagesByTeam', $content);
+        $this->assertStringContainsString('dashboardTeamSwitcherEnabled', $content);
+        $this->assertStringContainsString('data-ulp-team-id', $content);
+        $this->assertStringContainsString('dashboard-lesson-packages', $content);
+        $this->assertStringContainsString('cardTeam && Number(cardTeam) === Number(teamId)', $content);
+        $this->assertStringContainsString("card.classList.remove('d-none')", $content);
+        $this->assertStringContainsString("block.classList.toggle('d-none', visible === 0)", $content);
+        $this->assertStringContainsString('if (!dashboardTeamSwitcherEnabled || !dashboardTeams.length)', $content);
+        $this->assertDoesNotMatchRegularExpression(
+            '/function applyDashboardTeamContext\([^)]*\)\s*\{\s*if\s*\(\s*!dashboardSeasonsEnabled/',
+            $content,
+            'applyDashboardTeamContext не должен выходить по сезонам до фильтра абонементов.'
+        );
+
+        preg_match(
+            '/function applyDashboardTeamContext\(teamId, persist\) \{([\s\S]*?)\n            function /',
+            $content,
+            $applyMatch
+        );
+        $this->assertNotEmpty($applyMatch[1] ?? '', 'Не найдено тело applyDashboardTeamContext');
+        $applyBody = (string) $applyMatch[1];
+        $filterPos = strpos($applyBody, 'filterLessonPackagesByTeam(teamId)');
+        $seasonsPos = strpos($applyBody, 'if (!dashboardSeasonsEnabled)');
+        $this->assertNotFalse($filterPos);
+        $this->assertNotFalse($seasonsPos);
+        $this->assertLessThan($seasonsPos, $filterPos);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В dashboard.blade.php нет inline <script>');
+
+        $filterScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'filterLessonPackagesByTeam')) {
+                continue;
+            }
+            $filterScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-dashboard-ulp-filter-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in dashboard package-filter script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $filterScriptFound,
+            'В dashboard.blade.php не найден script с filterLessonPackagesByTeam'
+        );
+    }
+
+    /**
+     * P1: консоль — типы абонементов. Регрессия: блок ULP снова обернут
+     * setPrices.packageAssignments.view, а dashboardSeasonsEnabled не включает postpay.
+     */
+    public function test_dashboard_cabinet_packages_type_permissions_js_and_markup_contract(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringNotContainsString(
+            "@can('setPrices.packageAssignments.view')",
+            $content,
+            'Блок абонементов на консоли не должен зависеть от packageAssignments.view'
+        );
+        $this->assertStringContainsString(
+            "@canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])",
+            $content
+        );
+        $this->assertSame(
+            2,
+            substr_count(
+                $content,
+                "@canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])"
+            ),
+            'HTML сезонов и JS dashboardSeasonsEnabled должны использовать один @canany (сезоны + postpay)'
+        );
+        $this->assertStringContainsString('var dashboardSeasonsEnabled = true', $content);
+        $this->assertStringContainsString('var dashboardSeasonsEnabled = false', $content);
+        $this->assertStringContainsString('CabinetLessonPackagePermission::userCanViewSeasonsBlock', $content);
+        $this->assertStringContainsString("isset(\$userLessonPackages)", $content);
+        $this->assertStringContainsString('id="dashboard-lesson-packages"', $content);
+        $this->assertStringContainsString('filterLessonPackagesByTeam', $content);
+        $this->assertStringContainsString('createSeasons()', $content);
+        $this->assertStringContainsString('if (!dashboardSeasonsEnabled)', $content);
+        $this->assertDoesNotMatchRegularExpression(
+            '/function applyDashboardTeamContext\([^)]*\)\s*\{\s*if\s*\(\s*!dashboardSeasonsEnabled/',
+            $content,
+            'При включённых сезонах через postpay фильтр абонементов всё равно должен вызываться раньше выхода.'
+        );
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В dashboard.blade.php нет inline <script>');
+
+        $seasonsScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'dashboardSeasonsEnabled')
+                || ! str_contains($rawScript, 'createSeasons')) {
+                continue;
+            }
+            $seasonsScriptFound = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-dashboard-cabinet-packages-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in dashboard cabinet-packages script (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $seasonsScriptFound,
+            'В dashboard.blade.php не найден script с dashboardSeasonsEnabled / createSeasons'
+        );
+    }
+
+    /**
      * P1: inline JS вкладки «по ученикам» — фильтр former-team-ids + read-only year prices.
      */
     public function test_setting_prices_users_tab_former_members_inline_script_is_valid_javascript(): void

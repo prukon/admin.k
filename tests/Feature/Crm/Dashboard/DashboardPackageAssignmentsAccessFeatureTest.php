@@ -8,11 +8,13 @@ use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserLessonPackage;
+use App\Support\CabinetLessonPackagePermission;
 use Illuminate\Support\Facades\Auth;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
- * Консоль (/cabinet): блок «Назначенные абонементы» и право setPrices.packageAssignments.view.
+ * Консоль (/cabinet): блок «Назначенные абонементы» закрыт правами cabinetPackages.*,
+ * а не setPrices.packageAssignments.view.
  *
  * @see DashboardLessonPackagesFeatureTest
  * @see resources/views/dashboard.blade.php
@@ -38,6 +40,7 @@ final class DashboardPackageAssignmentsAccessFeatureTest extends StudentTeamPivo
     {
         $package = LessonPackage::factory()->forPartner($this->partner->id)->create([
             'name' => $packageName,
+            'schedule_type' => LessonPackage::SCHEDULE_TYPE_FIXED,
         ]);
 
         $lessons = (int) $package->lessons_count;
@@ -64,7 +67,7 @@ final class DashboardPackageAssignmentsAccessFeatureTest extends StudentTeamPivo
         $this->assertNotEquals(200, $response->getStatusCode());
     }
 
-    public function test_cabinet_hides_assigned_packages_without_package_assignments_permission(): void
+    public function test_cabinet_hides_assigned_packages_without_type_permission(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
         $this->createAssignment($student, 5_500, 'Скрытый на консоли');
@@ -78,10 +81,27 @@ final class DashboardPackageAssignmentsAccessFeatureTest extends StudentTeamPivo
         $this->assertStringNotContainsString('Скрытый на консоли', $html);
     }
 
-    public function test_cabinet_shows_assigned_packages_with_package_assignments_permission(): void
+    public function test_package_assignments_permission_alone_does_not_show_cabinet_packages(): void
     {
         $student = $this->makeStudentWithTeams([$this->team]);
         $this->grantPermissionForUser($student, 'setPrices.packageAssignments.view');
+        $this->createAssignment($student, 5_500, 'Только назначения');
+
+        $this->actingAs($student);
+        $this->withSession(['current_partner' => $this->partner->id]);
+
+        $html = $this->get(route('dashboard'))->assertOk()->getContent();
+
+        $this->assertTrue($student->fresh()->can('setPrices.packageAssignments.view'));
+        $this->assertFalse($student->fresh()->can(CabinetLessonPackagePermission::FIXED));
+        $this->assertStringNotContainsString('Назначенные абонементы', $html);
+        $this->assertStringNotContainsString('Только назначения', $html);
+    }
+
+    public function test_cabinet_shows_assigned_packages_with_type_permission(): void
+    {
+        $student = $this->makeStudentWithTeams([$this->team]);
+        $this->grantPermissionForUser($student, CabinetLessonPackagePermission::FIXED);
         $ulp = $this->createAssignment($student, 6_600, 'Видимый на консоли');
 
         $this->actingAs($student);
@@ -98,10 +118,10 @@ final class DashboardPackageAssignmentsAccessFeatureTest extends StudentTeamPivo
             ->assertSee('6600', false);
     }
 
-    public function test_user_without_dashboard_view_gets_403_even_with_package_assignments(): void
+    public function test_user_without_dashboard_view_gets_403_even_with_type_permission(): void
     {
         $actor = $this->createUserWithoutPermission('dashboard.view', $this->partner);
-        $this->grantPermissionForUser($actor, 'setPrices.packageAssignments.view');
+        $this->grantPermissionForUser($actor, CabinetLessonPackagePermission::FIXED);
 
         $this->actingAs($actor);
         $this->withSession(['current_partner' => $this->partner->id]);

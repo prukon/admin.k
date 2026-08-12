@@ -126,7 +126,9 @@
       <li><code>setPrices.customPayments.view</code> — доп. платежи (вкладка + консоль); у <code>user</code> тоже не в базовом наборе — <a href="/docs/documentation/setting-prices-custom-payments#permissions">setting-prices-custom-payments</a>;</li>
       <li><code>setPrices.paymentNotifications.manage</code> — уведомления об оплате (вкладка конструктора правил); не в базовых ролях —
         <a href="/docs/documentation/setting-prices-payment-notifications#permissions">setting-prices-payment-notifications</a>;</li>
-      <li><code>setPrices.packageAssignments.view</code> — назначения абонементов (вкладка + консоль); нужно вместе с <code>lessonPackages.view</code> — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>;</li>
+      <li><code>setPrices.packageAssignments.view</code> — назначения абонементов (вкладка админки); нужно вместе с <code>lessonPackages.view</code> — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>;</li>
+      <li><code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> — отображение типов абонементов на консоли; скрытые; не в базовых ролях —
+        <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>;</li>
       <li><code>lessonPackages.type.postpay</code> — тип абонемента «Постоплата» (<code>schedule_type=postpay</code>); скрытое; UI option + store/update + выбор в «Установка цен» —
         <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>,
         <a href="/docs/documentation/postpay">postpay</a>;</li>
@@ -147,6 +149,7 @@
     Тесты: <code>PartnerBasePermissionsTest::test_new_partner_admin_does_not_receive_optional_manage_permissions</code>,
     <code>test_new_partner_does_not_assign_custom_payments_view_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_package_assignments_view_to_base_roles</code>,
+    <code>test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_lesson_packages_type_postpay_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>.
   </div>

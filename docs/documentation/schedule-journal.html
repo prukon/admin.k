@@ -763,7 +763,9 @@
       либо <code>user_lesson_package_id</code> (bind), либо <code>lesson_package_id</code> + <code>fee_amount</code> (create),
       плюс <code>team_id</code>, дата, статус, опц. тренер/комментарий.
       Сервис: <code>JournalSingleLessonPlacementService</code> —
-      create/bind ULP <code>no_schedule</code>, якорь периода, UTSS, статус
+      create/bind ULP <code>no_schedule</code>, запись <code>user_lesson_packages.team_id</code>
+      (create — сразу; bind без группы — проставляет; bind с другой группой → <b>422</b> на <code>team_id</code>),
+      якорь периода, UTSS, статус
       (списание <code>lessons_remaining</code> при <code>consumes_lesson</code>).
       Аудит: <code>schedule.single_lesson_registered</code>.</li>
     <li>Ученик не в группе / чужой партнёр / не-ученик → <b>422</b> под полем или <b>404</b>
@@ -778,9 +780,11 @@
     (<code>team_schedule_slot_id</code> из сетки). Журнал — дневная модель (дата × группа).
     Оба пути пишут в один контур <code>user_team_schedule_slots</code> + status events;
     правила «одно пробное на ученика» общие (<code>has_used_school_schedule_trial</code> / существующая trial-строка).
+    <code>user_lesson_packages.team_id</code> при разовом пишет <b>только журнал</b>
+    (<a href="/doc#cabinet-ulp-team-filter">/doc</a>); календарь школы при create группу на ULP не ставит.
   </div>
   <p class="small">Тесты: <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
-    <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (доступ AND-прав / AJAX / non-AJAX / P2 smoke),
+    <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (доступ AND-прав / AJAX / non-AJAX / <code>team_id</code> / P2 smoke),
     UI — <code>BladeInlineJsSyntaxTest</code> (<code>emptyCellPlaceForm</code> + place-trial/single без reload).</p>
 
   <h3>7.5) Контракт ответов (fixed / flexible / empty-cell place)</h3>
@@ -1054,7 +1058,8 @@
         ховер колонки «Абонемент»: «…за Y руб» / «за 0 руб», <code>fee_amount_cents</code> в place result,
         guest/403, non-AJAX 302, P2 smoke</li>
       <li><code>ScheduleJournalEmptyCellPlacementFeatureTest</code> / <code>ScheduleJournalEmptyCellContractsFeatureTest</code> —
-        пробное/разовое на пустой ячейке: affordance, create/bind, eligibility, AND-права, AJAX/non-AJAX, P2 smoke</li>
+        пробное/разовое на пустой ячейке: affordance, create/bind, <code>team_id</code> на ULP (create/bind/mismatch 422),
+        eligibility, AND-права, AJAX/non-AJAX (в т.ч. bind пишет группу, non-AJAX mismatch → <code>errors.team_id</code>), P2 smoke</li>
       <li><code>ScheduleJournalFlexibleLimitEmptyCellContractsFeatureTest</code> —
         гибкий при <code>lessons_remaining = 0</code>: empty-cell chooser с disabled flexible,
         доступ guest/403/права, AJAX/non-AJAX place, Blade/JS маркеры, P2 smoke</li>

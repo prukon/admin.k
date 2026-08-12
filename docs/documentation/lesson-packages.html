@@ -391,7 +391,8 @@
   <h2>Разовое занятие (<code>no_schedule</code>)</h2>
   <p>Шаблон абонемента с <code>lesson_packages.schedule_type = no_schedule</code>. Назначение ученику — строка <code>user_lesson_packages</code> с <code>lessons_total</code> / <code>lessons_remaining</code> (обычно 1/1) и индивидуальной стоимостью <code>fee_amount_cents</code> (в теле запроса — <code>fee_amount</code> в рублях).</p>
   <ul>
-    <li><strong>Страница «Назначения»</strong> (<code>POST /admin/lesson-packages/assignments</code>, UI — <a href="/docs/documentation/lesson-packages#assignments-tab">§assignments-tab</a>): создаётся назначение без периода (<code>starts_at</code>/<code>ends_at</code> = NULL). Привязка к календарю — отдельным шагом.</li>
+    <li><strong>Страница «Назначения»</strong> (<code>POST /admin/lesson-packages/assignments</code>, UI — <a href="/docs/documentation/lesson-packages#assignments-tab">§assignments-tab</a>): создаётся назначение без периода (<code>starts_at</code>/<code>ends_at</code> = NULL). Привязка к календарю — отдельным шагом. <code>team_id</code> обязателен при нескольких юр. лицах.</li>
+    <li><strong>Журнал расписания</strong> (<code>POST /schedule/user/{user}/place-single-lesson</code>): create из шаблона или bind свободного назначения. В обоих случаях на ULP пишется <code>team_id</code> группы ячейки (календарь школы этот путь не использует). Подробности — <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>.</li>
     <li><strong>Модалка слота календаря школы</strong> (<code>POST …/school-schedule/single-lesson-registration</code>): если у ученика уже есть свободное назначение (<code>mode=bind_existing</code>), выполняется только привязка к слоту (при одном назначении — две строки на кнопке «Добавить разовое занятие», см. <a href="/docs/documentation/school-schedule-calendar#school-schedule-assignment-labels">формат подписи</a>); иначе (<code>mode=create_new</code>) в одной транзакции создаётся назначение и строка календаря. Подробности UI и API — в <a href="/docs/documentation/school-schedule-calendar">разделе «Расписание школы»</a>.</li>
     <li><strong>Legacy-модалка</strong> <code>#schoolCalSingleModal</code>: привязка уже существующего назначения через <code>POST …/assign-single-lesson</code> (выбор <code>user_lesson_package_id</code>). Основной сценарий для администратора — модалка слота.</li>
   </ul>
@@ -577,7 +578,10 @@
     Право <code>setPrices.packageAssignments.view</code>: группа <code>setPrices</code>, <code>is_visible = 0</code>, в базовые роли <b>не</b> входит.
     Карточка права — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
     Паттерн UI — общий toolbar списков (<a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials §1</a>), как у отчётов и <code>/admin/users</code>.
-    Назначения с <code>fee_amount_cents &gt; 0</code> на консоли (<code>/cabinet</code>) — при том же праве; см. <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>.
+    Назначения с <code>fee_amount_cents &gt; 0</code> на консоли (<code>/cabinet</code>) закрывают отдельные права
+    <code>setPrices.cabinetPackages.fixed/flexible/single.view</code> (не это право вкладки);
+    см. <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>,
+    <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>.
   </div>
 
   <h3>Шапка (toolbar)</h3>

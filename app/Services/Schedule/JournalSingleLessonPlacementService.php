@@ -110,12 +110,14 @@ final class JournalSingleLessonPlacementService
         ): void {
             if ($ulpId > 0) {
                 $ulp = $this->resolveBindableUlp($partnerId, (int) $user->id, $ulpId);
+                $this->syncUlpTeam($ulp, $team);
             } else {
                 $template = $this->resolveSingleLessonTemplate($partnerId, $templateId);
                 $feeAmountCents = Money::toCentsOrFail($payload['fee_amount'] ?? 0);
 
                 $ulp = UserLessonPackage::query()->create([
                     'user_id' => (int) $user->id,
+                    'team_id' => (int) $team->id,
                     'lesson_package_id' => (int) $template->id,
                     'starts_at' => null,
                     'ends_at' => null,
@@ -230,6 +232,21 @@ final class JournalSingleLessonPlacementService
 
         if (! UserPriceTeamMembership::studentBelongsToTeam($user, (int) $team->id, $partnerId)) {
             throw new InvalidArgumentException('Ученик не состоит в выбранной группе.');
+        }
+    }
+
+    private function syncUlpTeam(UserLessonPackage $ulp, Team $team): void
+    {
+        $existingTeamId = (int) ($ulp->team_id ?? 0);
+        $targetTeamId = (int) $team->id;
+
+        if ($existingTeamId > 0 && $existingTeamId !== $targetTeamId) {
+            throw new InvalidArgumentException('Выберите группу, в которой назначен этот абонемент.');
+        }
+
+        if ($existingTeamId !== $targetTeamId) {
+            $ulp->team_id = $targetTeamId;
+            $ulp->save();
         }
     }
 

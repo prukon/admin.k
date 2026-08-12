@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\LessonOccurrenceStatus;
+use App\Models\Team;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
@@ -246,6 +247,7 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
         $this->assertNotNull($ulp);
         $this->assertSame((int) $student->id, (int) $ulp->user_id);
         $this->assertSame((int) $template->id, (int) $ulp->lesson_package_id);
+        $this->assertSame((int) $team->id, (int) $ulp->team_id);
         $this->assertSame(199950, (int) $ulp->fee_amount_cents);
         $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
 
@@ -271,9 +273,60 @@ final class ScheduleJournalEmptyCellPlacementFeatureTest extends ScheduleJournal
             ->assertJsonPath('result.user_lesson_package_id', (int) $ulp->id);
 
         $ulp->refresh();
+        $this->assertSame((int) $team->id, (int) $ulp->team_id);
         $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
         $this->assertNotNull($ulp->starts_at);
         $this->assertNotNull($ulp->ends_at);
+    }
+
+    public function test_place_single_bind_rejects_assignment_of_another_team(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $otherTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'Другая группа разового',
+        ]);
+        app(\App\Services\TeamUserSyncService::class)->syncTeamsForStudent($student, [
+            (int) $team->id,
+            (int) $otherTeam->id,
+        ]);
+        $ulp = $this->makeFreeSingleLessonAssignment($student);
+        $ulp->team_id = (int) $team->id;
+        $ulp->save();
+
+        $response = $this->postJson(
+            route('schedule.empty-cell.place-single', $student),
+            $this->placeSingleBindPayload($ulp, (int) $otherTeam->id, '2026-09-18'),
+            $this->ajaxHeaders()
+        );
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['errors' => ['team_id']]);
+        $this->assertStringContainsString(
+            'групп',
+            mb_strtolower((string) ($response->json('errors.team_id.0') ?? ''))
+        );
+        $this->assertSame(0, $ulp->userTeamScheduleSlots()->count());
+        $this->assertSame((int) $team->id, (int) $ulp->fresh()->team_id);
+    }
+
+    public function test_place_single_bind_keeps_matching_team_id(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $ulp = $this->makeFreeSingleLessonAssignment($student);
+        $ulp->team_id = (int) $team->id;
+        $ulp->save();
+
+        $this->postJson(
+            route('schedule.empty-cell.place-single', $student),
+            $this->placeSingleBindPayload($ulp, (int) $team->id, '2026-09-21'),
+            $this->ajaxHeaders()
+        )
+            ->assertOk()
+            ->assertJsonPath('result.user_lesson_package_id', (int) $ulp->id);
+
+        $this->assertSame((int) $team->id, (int) $ulp->fresh()->team_id);
+        $this->assertSame(1, $ulp->userTeamScheduleSlots()->count());
     }
 
     public function test_place_single_bind_rejects_already_laid_out_assignment(): void

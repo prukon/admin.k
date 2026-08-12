@@ -28,6 +28,107 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="cabinet-packages-type-permissions">Консоль: права на типы абонементов setPrices.cabinetPackages.* (2026‑08)</h2>
+  <div class="note">
+    Блок «Назначенные абонементы» и месяцы постоплаты на <code>/cabinet</code>
+    <b>больше не</b> зависят от <code>setPrices.packageAssignments.view</code>
+    (это право осталось только для вкладки назначений в админке).
+    Для каждого типа — своё скрытое право группы <code>setPrices</code>
+    (<code>is_visible = 0</code>). В базовые роли <code>user</code> / <code>admin</code> / <code>trainer</code>
+    <b>не</b> входят; миграция только создаёт права, никому не выдаёт.
+    После выката нужно выдать вручную, иначе карточки и месяцы постоплаты на консоли скрыты,
+    даже если записи в БД есть.
+    <br><br>
+    1) <b>Карточки ULP</b> (блок «Назначенные абонементы»):
+    <code>setPrices.cabinetPackages.fixed.view</code> — <code>schedule_type=fixed</code>,
+    <code>.flexible.view</code> — гибкий,
+    <code>.single.view</code> — разовое (<code>no_schedule</code>).
+    Фильтр в <code>DashboardController</code> по правам <b>залогиненного</b> (не ученика).
+    Нулевая стоимость (<code>fee_amount_cents = 0</code>) по-прежнему скрыта.
+    <br>
+    2) <b>Постоплата</b> на консоли — не карточка ULP, а месяцы в блоке сезонов
+    (<code>users_prices</code>): право <code>setPrices.cabinetPackages.postpay.view</code>.
+    Это <b>не</b> то же, что <code>lessonPackages.type.postpay</code> (выбор типа шаблона в CRM).
+    С одним postpay-правом блок сезонов показывается и без <code>cabinetSeasons.view</code>;
+    обычные (не postpay) месяцы по-прежнему требуют <code>cabinetSeasons.view</code>.
+    <br>
+    3) <b>Селект «Выбор группы»</b> (2+ группы, без <code>users.view</code>):
+    сезоны / postpay <em>или</em> есть видимые карточки ULP.
+    Если назначения в БД есть, а права типа нет — селект и блок не показываются.
+    <br>
+    4) <b>Оплата</b> <code>POST /payment</code> этими правами <b>не</b> закрывается.
+    Кнопка «Оплатить» на карточке — <code>paying.classes</code>.
+    <br>
+    5) <b>AJAX</b> <code>getUserDetails</code> по-прежнему <b>не</b> отдаёт ULP;
+    <code>userPrice</code> фильтруется теми же правами смотрящего (сезоны / postpay).
+    Смена ребёнка в семье перерисовывает карточки активного ученика (права — у роли <code>user</code>).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>,
+    <a href="/docs/documentation/dashboard-cabinet#lesson-packages-cabinet">dashboard-cabinet §2.2</a>,
+    <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>,
+    <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>.
+    Тесты:
+    <code>DashboardCabinetPackagesTypeAccessFeatureTest</code>,
+    <code>DashboardCabinetPackagesPageFullAccessFeatureTest</code>,
+    <code>DashboardPackageAssignmentsAccessFeatureTest</code>,
+    <code>SetPricesCabinetPackagesPermissionCatalogFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_dashboard_cabinet_packages_type_permissions_js_and_markup_contract</code>.
+  </div>
+
+  <h2 id="cabinet-ulp-team-filter">Консоль: абонементы по группе + team_id разового из журнала (2026‑08)</h2>
+  <div class="note">
+    Разовое занятие из журнала и оплата абонементов на <code>/cabinet</code> завязаны на
+    <code>user_lesson_packages.team_id</code>. Backfill старых назначений <b>нет</b>.
+    <br><br>
+    1) <b>Журнал</b> <code>POST /schedule/user/{user}/place-single-lesson</code>
+    (пустая ячейка, create из шаблона или bind свободного ULP <code>no_schedule</code>):
+    на назначение пишется <code>team_id</code> группы ячейки.
+    Bind без группы — проставляет; bind, если группа уже другая → <b>422</b>
+    <code>errors.team_id</code> («Выберите группу, в которой назначен этот абонемент.»).
+    Календарь школы (<code>SchoolCalendarSingleLessonRegistrationService</code>)
+    <code>team_id</code> при create <b>не</b> пишет — путь не менялся.
+    <br>
+    2) <b>Консоль</b> <code>/cabinet</code>: селект «Выбор группы»
+    (<code>#dashboard-active-team</code>) стоит <b>над</b> блоком «Назначенные абонементы»,
+    не только над сезонами. Partial
+    <code>includes/dashboard_team_switcher.blade.php</code>.
+    <br>
+    3) <b>Когда селект виден</b> (пользовательский режим, без <code>users.view</code>,
+    у активного ученика 2+ групп):
+    есть <code>setPrices.cabinetSeasons.view</code>
+    <em>или</em> <code>setPrices.cabinetPackages.postpay.view</code>
+    <em>или</em> есть видимые карточки ULP
+    (<code>fee_amount_cents &gt; 0</code> и права
+    <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>).
+    Право сезонов для абонементов <b>не</b> обязательно.
+    Админ с <code>users.view</code> — ученический селект не показывается.
+    <br>
+    4) <b>Фильтр карточек</b> (клиент, <code>filterLessonPackagesByTeam</code>,
+    <code>sessionStorage</code> <code>dashboard_active_team_id_{userId}</code>):
+    при видимом селекте остаются только карточки с совпадающим
+    <code>data-ulp-team-id</code>; без <code>team_id</code> скрываются;
+    пустой блок прячется. При одной группе селекта нет — показываются все карточки,
+    в том числе без группы. JS фильтрует абонементы <b>до</b> раннего выхода,
+    если сезонов нет.
+    <br>
+    5) Селект <b>не</b> фильтрует календарь посещений и дополнительные платежи.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/dashboard-cabinet#team-switcher">dashboard-cabinet §5</a>,
+    <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>,
+    <a href="/docs/documentation/lesson-packages">lesson-packages</a> (разовое),
+    <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>,
+    <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.
+    Тесты:
+    <code>DashboardLessonPackagesTeamFilterFeatureTest</code>,
+    <code>DashboardLessonPackagesFeatureTest</code>,
+    <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
+    <code>ScheduleJournalEmptyCellContractsFeatureTest</code>
+    (create/bind <code>team_id</code>, mismatch 422, non-AJAX),
+    <code>BladeInlineJsSyntaxTest</code> (<code>filterLessonPackagesByTeam</code>).
+  </div>
+
   <h2 id="cabinet-attach-team-index">ЛК: добавление группы (сайдбар, /cabinet, учётная запись) (2026‑08)</h2>
   <div class="note">
     Ученик (роль <code>user</code>) с опциональным правом <code>account.user.team.update</code> может
@@ -653,6 +754,9 @@
     Слот — <code>JournalTeamScheduleSlotEnsureService</code> (дневная модель журнала).
     Разовое: одновременно bind свободного ULP <code>no_schedule</code> и create из шаблона
     (в календаре школы режимы взаимоисключающие).
+    На ULP журнала пишется <code>team_id</code> группы ячейки
+    (create — сразу; bind без группы — проставляет; другая группа → 422).
+    Календарь школы при create разового <code>team_id</code> <b>не</b> пишет.
     Статус пишется сразу (в календаре — обычно отдельным шагом).
     Аудит: <code>schedule.trial_registered</code> / <code>schedule.single_lesson_registered</code>.
     <br><br>
@@ -662,11 +766,14 @@
     (AJAX 200/422; non-AJAX 302, не пустой 200).
     <br><br>
     Документ: <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>.
+    Фильтр этих абонементов на консоли —
+    <a href="/doc#cabinet-ulp-team-filter">анонс team_id / селект группы</a>.
     Календарь школы (timed-слот) —
     <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>
-    (оба пути — один контур UTSS).
+    (оба пути — один контур UTSS; <code>team_id</code> на ULP пишет только журнал).
     Тесты: <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
-    <code>ScheduleJournalEmptyCellContractsFeatureTest</code>.
+    <code>ScheduleJournalEmptyCellContractsFeatureTest</code>
+    (в т.ч. запись <code>team_id</code> и mismatch 422).
   </div>
 
   <h2>Журнал: занятия из гибкого абонемента «на лету» (2026‑08)</h2>
@@ -770,8 +877,12 @@
     3) «Установка цен»: новый выбор postpay-пакета без права → <b>422</b> на поле пакета;
     уже назначенный id можно сохранить повторно; каталог скрывает неназначенные postpay.
     <br>
-    4) Журнал <code>create_postpay</code> и оплата с консоли этим правом <b>не</b> закрываются
+    4) Журнал <code>create_postpay</code> и <code>POST /payment</code> этим правом <b>не</b> закрываются
     (нужен уже назначенный месяц + <code>schedule.view</code> / правила оплаты).
+    <b>Показ</b> месяцев постоплаты на <code>/cabinet</code> — отдельное право
+    <code>setPrices.cabinetPackages.postpay.view</code>
+    (<a href="/doc#cabinet-packages-type-permissions">анонс</a>,
+    <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>).
     <br><br>
     Карточка права —
     <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>;
@@ -790,7 +901,10 @@
     <br><br>
     2) <b><code>setPrices.packageAssignments.view</code></b> — новое невидимое право (<code>is_visible = 0</code>,
     группа <code>setPrices</code>). Нужно вместе с <code>lessonPackages.view</code> для вкладки
-    <code>/admin/lesson-packages/assignments</code>, CRUD назначений и блока «Назначенные абонементы» на консоли.
+    <code>/admin/lesson-packages/assignments</code> и CRUD назначений.
+    Блок «Назначенные абонементы» на консоли закрывают отдельные права
+    <code>setPrices.cabinetPackages.*</code>
+    (<a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>).
     В базовые роли <b>не</b> входит; миграция только создаёт право, никому не выдаёт.
     <code>users-search</code> остаётся на одном <code>lessonPackages.view</code> (календарь школы).
     Подробно —
@@ -1192,7 +1306,7 @@
     строка «Организация» и timeline из 4 шагов на карточке платежа (<a href="/docs/documentation/tbank#payment-show-card">tbank §5.7</a>).
     Колонка «Партнёр» — по-прежнему название клуба (<code>partners.title</code>), не юр. лицо.
     <br><br>
-    <b>Группа платежа (<code>team_id</code>):</b> для всех типов оплат (месячный взнос, клубный, доп. платёж, абонемент) юр. лицо и выплата определяются через группу в <code>payables.meta.team_id</code> — <code>PayableTeamResolver</code> (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>). В админке: колонка «Группа» в <a href="/docs/documentation/setting-prices-custom-payments">доп. платежах</a>; для назначений абонементов группа задаётся при создании (multi legal entity) и в модалке занятий — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>; backfill — миграции <code>2026_06_29_150000</code> + <code>2026_06_29_160000</code>.
+    <b>Группа платежа (<code>team_id</code>):</b> для всех типов оплат (месячный взнос, клубный, доп. платёж, абонемент) юр. лицо и выплата определяются через группу в <code>payables.meta.team_id</code> — <code>PayableTeamResolver</code> (<a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>). В админке: колонка «Группа» в <a href="/docs/documentation/setting-prices-custom-payments">доп. платежах</a>; для назначений абонементов группа задаётся при создании (multi legal entity) и в модалке занятий — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>; разовое из журнала пишет <code>user_lesson_packages.team_id</code> группы ячейки (<a href="/doc#cabinet-ulp-team-filter">анонс</a>); backfill старых ULP из журнала <b>нет</b> (исторический backfill оплат — миграции <code>2026_06_29_150000</code> + <code>2026_06_29_160000</code>).
     <br><br>
     <b>CloudKassir (чеки):</b> ИНН принципала, наименование и НДС — из юр. лица по той же цепочке (<code>forFiscalReceipt</code> → payable → группа). Без <code>meta.team_id</code> и привязки группы к юр. лицу чек не собирается. СНО — из env платформы; <code>partners.email</code>, <code>phone</code>, <code>website</code> — по-прежнему с партнёра. Подробно — <a href="/docs/documentation/admin-legal-entities#legal-entities-fiscal">admin-legal-entities §5.1</a>.
     <br><br>
@@ -1236,7 +1350,8 @@
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
-    <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов + блок на консоли; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
+    <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
+    <li><a href="/docs/documentation/set-prices-cabinet-packages"><strong>Права setPrices.cabinetPackages.*</strong>: отображение типов абонементов на консоли (фиксированный / гибкий / разовое / постоплата); скрытые; не в базовых ролях</a></li>
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
@@ -1255,10 +1370,10 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
-    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (оплата с 1-го следующего месяца)</a></li>
+    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца)</a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого (кол-во из нагрузки / pivot), autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
@@ -1272,7 +1387,7 @@
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.packageAssignments.view</code>, оба не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах, <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>

@@ -182,13 +182,13 @@
       <tr><td><code>monthly_fee</code></td><td><code>users_prices</code> / <code>payables.meta.team_id</code></td></tr>
       <tr><td><code>club_fee</code></td><td>форма: 1 группа — авто; 2+ — обязательный выбор; 0 групп — запрет оплаты</td></tr>
       <tr><td><code>custom_payment_fee</code></td><td><code>user_custom_payment.team_id</code> (задаётся в админке при создании)</td></tr>
-      <tr><td><code>lesson_package_fee</code></td><td>при ≥2 юр. лицах — <code>user_lesson_packages.team_id</code> при назначении; иначе календарь → primary group</td></tr>
+      <tr><td><code>lesson_package_fee</code></td><td><code>user_lesson_packages.team_id</code> (вкладка назначений при ≥2 юр. лицах; разовое из журнала — группа ячейки), иначе календарь → primary group. См. <a href="/doc#cabinet-ulp-team-filter">/doc</a></td></tr>
     </tbody>
   </table>
   <p>Юр. лицо для выплаты: <code>teams.legal_entity_id</code> → активное юр. лицо с ShopCode. При <b>одном</b> активном юр. лице без привязки группы резолвер использует единственное юр. лицо. При <b>≥2</b> активных — без явной привязки Init T‑Bank <b>запрещён</b> (см. <a href="#payments-multi-entity-guard">§2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>).</p>
   <p><b>Backfill</b> (миграция <code>2026_06_29_160000_backfill_team_id_on_payment_assignments.php</code>): для старых строк без <code>team_id</code> в <code>user_custom_payment</code> и <code>user_lesson_packages</code> — primary group ученика (для абонемента сначала группа из календаря). Сервис: <code>PaymentAssignmentTeamBackfill</code>.</p>
   <p><b>Админка доп. платежей</b> (<code>/admin/setting-prices/custom-payments</code>): при создании обязателен селект «Группа»; в таблице — колонки «Группа», «Описание», «Статус», «Действия» (без «Период»). Update/delete — <code>setPrices.manualPaid.manage</code>. Подробно — <a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a>.</p>
-  <p><b>Назначения абонементов</b> (<code>/admin/lesson-packages/assignments</code>): при ≥2 юр. лицах — обязательный селект «Группа» при создании; в таблице колонки «Группа» нет (группа — в модалке занятий). См. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>.</p>
+  <p><b>Назначения абонементов</b> (<code>/admin/lesson-packages/assignments</code>): при ≥2 юр. лицах — обязательный селект «Группа» при создании; в таблице колонки «Группа» нет (группа — в модалке занятий). Разовое из журнала пишет <code>user_lesson_packages.team_id</code> независимо от числа юр. лиц. См. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages §assignments-tab</a>, <a href="/doc#cabinet-ulp-team-filter">/doc</a>.</p>
 
   <h3 id="payments-payable-team-migrations">2.3.1) Миграции и backfill</h3>
   <table>
