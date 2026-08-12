@@ -102,7 +102,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'account.documents.view',         'description' => 'Страница "Учетная запись -> "Мои документы"',   'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 70],
             ['name' => 'account.user.name.update',      'description' => 'Изменение своего имени',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 10],
             ['name' => 'account.user.birthdate.update',  'description' => 'Изменение своей даты рождения',                  'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 20],
-            ['name' => 'account.user.team.update',       'description' => 'Изменение своей группы',                         'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
+            ['name' => 'account.user.team.update',       'description' => 'ЛК: добавление группы (сайдбар)',                 'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'account.user.startDate.update',  'description' => 'Изменение даты своего начала занятий',           'group_slug' => 'account',  'is_visible' => 0, 'sort_order' => 40],
             ['name' => 'account.user.email.update',      'description' => 'Изменение своего email',                         'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 50],
             ['name' => 'account.user.phone.update',      'description' => 'Изменение своего телефона',                      'group_slug' => 'account',  'is_visible' => 1, 'sort_order' => 60],

@@ -142,9 +142,11 @@ final class DashboardTeamSwitcherFeatureTest extends StudentTeamPivotTestCase
         $matched = collect($routes)->filter(function ($route) {
             $uri = $route->uri();
 
+            // Не путать с POST /cabinet/teams/attach (добавление группы) —
+            // проверяем только маршруты переключения «активной» группы на консоли.
             return str_contains($uri, 'dashboard-active-team')
                 || str_contains($uri, 'cabinet/active-team')
-                || str_contains($uri, 'cabinet/team');
+                || preg_match('#^cabinet/team(/|$)#', $uri) === 1;
         });
 
         $this->assertCount(

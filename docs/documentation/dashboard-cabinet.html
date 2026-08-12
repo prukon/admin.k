@@ -34,6 +34,8 @@
     Доступ к странице — <code>dashboard.view</code>; видимость отдельных блоков оплат — отдельные permissions (§<a href="#cabinet-payment-blocks">2</a>).
     Для роли с правом <code>users.view</code> (админ CRM) доступны селекты «Группа» / «ФИО» и AJAX-подгрузка данных другого ученика.
     При <b>2+ группах</b> у активного ученика в <b>пользовательском</b> режиме и при наличии <code>setPrices.cabinetSeasons.view</code> показывается селект <b>«Выбор группы»</b> — фильтрация месячных начислений по <code>users_prices.team_id</code> (только на клиенте).
+    Отдельно (сайдбар layout <code>admin2</code>, шапка <code>/cabinet</code>, учётная запись): при
+    <code>account.user.team.update</code> — добавление группы (§<a href="#cabinet-attach-team">7.1</a>).
   </div>
 
   <h2>1) Маршруты и права</h2>
@@ -44,9 +46,13 @@
       <tr><td>GET</td><td><code>/get-user-details</code></td><td><code>getUserDetails</code></td><td><code>dashboard.view</code></td><td>JSON: данные ученика для админского селекта (все <code>userPrice</code> без фильтра по группе)</td></tr>
       <tr><td>GET</td><td><code>/get-team-details</code></td><td><code>getTeamDetails</code></td><td><code>dashboard.view</code></td><td>JSON: ученики группы (pivot <code>team_user</code>)</td></tr>
       <tr><td>POST</td><td><code>/cabinet/active-student</code></td><td><code>cabinet.active-student.switch</code></td><td><code>auth</code> + <code>2fa</code></td><td>Семейный переключатель ребёнка (session). См. <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a></td></tr>
+      <tr><td>POST</td><td><code>/cabinet/teams/attach</code></td><td><code>cabinet.teams.attach</code></td><td><code>account.user.team.update</code></td><td>Добавить группу активному ученику (только attach). См. <a href="#cabinet-attach-team">§ attach</a></td></tr>
     </tbody>
   </table>
-  <p>Middleware группы: <code>auth</code>, <code>2fa</code>, <code>can:dashboard.view</code>. Без права — <b>403</b>; гость — redirect на login / не 200 на JSON.</p>
+  <p>Middleware для консоли (<code>/cabinet</code>, <code>get-user-details</code>, <code>get-team-details</code>):
+    <code>auth</code>, <code>2fa</code>, <code>can:dashboard.view</code>. Без права — <b>403</b>; гость — redirect на login / не 200 на JSON.
+    Endpoint <code>POST /cabinet/teams/attach</code> — отдельно: <code>auth</code>, <code>2fa</code>, <code>can:account.user.team.update</code>
+    (не требует <code>dashboard.view</code>).</p>
   <div class="warn">
     <b>Важно.</b> Право <code>setPrices.cabinetSeasons.view</code> <b>не</b> защищает маршруты консоли — только видимость блока сезонов в HTML/JS. Endpoint'ы <code>/cabinet</code> и AJAX-ручки доступны при <code>dashboard.view</code> независимо от сезонов.
   </div>
@@ -191,6 +197,13 @@
     <li>При 2+ группах выводятся <b>все</b> названия через запятую (<code>span.dashboard-group-name</code>, атрибут <code>data-multi-team="1"</code> на <code>.group-value</code>).</li>
     <li>Название группы, выбранной в селекте, выделяется <b>жирным</b> (<code>&lt;strong&gt;</code>) через JS (<code>updateDashboardGroupLabel</code>).</li>
     <li>При одной группе — обычный текст без <code>data-multi-team</code> и без жирного.</li>
+    <li>Справа от <code>.group-value</code> — иконка карандаша (<code>cabinet-attach-team-pencil</code>, partial
+      <code>includes/cabinet_attach_team_pencil.blade.php</code>, <code>fa-pen</code>) при
+      <code>account.user.team.update</code> и наличии <code>$cabinetTeamAttach</code>; открывает ту же модалку attach (§<a href="#cabinet-attach-team">7.1</a>).
+      Вне <code>.group-value</code>, чтобы AJAX-обновление названия не затирало иконку.
+      Переменная <code>$cabinetTeamAttach</code> для контента страницы — view composer
+      на <code>dashboard</code> / <code>account.index</code> (секция content рендерится до layout).
+      Ховер: <code>resources/css/style.css</code> (opacity / цвет / scale).</li>
   </ul>
 
   <h3>5.4) Поведение при смене группы (клиент)</h3>
@@ -240,6 +253,71 @@
     <li><code>database/seeders/PermissionSeeder.php</code> · миграция <code>2026_07_02_150000_add_set_prices_cabinet_seasons_view_permission.php</code></li>
   </ul>
 
+  <h2 id="cabinet-attach-team">7.1) Добавление группы в ЛК (сайдбар, /cabinet, учётная запись)</h2>
+  <div class="note">
+    Право <code>account.user.team.update</code> (описание в сидере: «ЛК: добавление группы (сайдбар)»;
+    группа <code>account</code>; <code>is_visible=0</code>; <b>не</b> в базовых ролях user/admin/trainer).
+    Миграция <code>2026_08_12_210000_revoke_account_user_team_update_from_base_roles</code> обновляет описание
+    и снимает право со всех <code>permission_role</code> (раньше было в base admin без UI).
+    Анонс на <a href="/doc#cabinet-attach-team-index">/doc</a>.
+  </div>
+  <div class="ok">
+    <b>UI (одна модалка).</b>
+    <ul>
+      <li><b>Сайдбар</b> (все страницы <code>admin2</code>), под «Роль», выше семейного переключателя:
+        <code>Группа: {названия через запятую}</code> + ссылка <b>«изменить»</b>.
+        Ellipsis: <code>dt-cell-ellipsis</code> + <code>KidsCrmTooltip</code> scope <code>text</code>
+        (ховер <code>ulp-assignment-paid-tooltip</code> только при обрезке).
+        Partial: <code>includes/cabinet_attach_team.blade.php</code>.</li>
+      <li><b>/cabinet</b> — карандаш справа от <code>.group-value</code> (вне span, чтобы AJAX не затирал).</li>
+      <li><b>/account-settings/user/edit</b> — карандаш у label «Группы»; при праве lock-подпись скрыта,
+        без права — «Изменение групп доступно только администратору CRM». Поле групп остаётся readonly/disabled.</li>
+    </ul>
+    Карандаш: <code>includes/cabinet_attach_team_pencil.blade.php</code>, ховер —
+    <code>resources/css/style.css</code> (<code>.cabinet-attach-team-pencil</code>).
+    Модалка: <code>includes/modal/cabinet_attach_team_modal.blade.php</code> (вне сайдбара).
+    Только актор с ролью <code>user</code>; цель attach — активный ученик семейного контекста
+    (<code>FamilyStudentContextService::activeStudent</code>).
+    Кандидаты select: группы с <code>location_id</code> из множества объектов текущих групп ученика,
+    без уже назначенных; soft-deleted и <code>is_enabled=0</code> не попадают; при 2+ объектах — <code>optgroup</code>.
+    Только attach (<code>TeamUserSyncService::attachTeamForStudent</code>); снять/заменить нельзя.
+    Без групп или без объектов у групп — сайдбар/карандаш/модалка не рендерятся.
+    Аудит: <code>user.account_updated</code>.
+  </div>
+  <table>
+    <thead><tr><th>Канал</th><th>Поведение</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>AJAX (<code>fetch</code> + <code>Accept: application/json</code>)</td>
+        <td>200 JSON <code>{ success, message, teams_label }</code>; 422 → <code>errors.team_id[]</code> (вывод под select). Успех на клиенте — <code>location.reload()</code>.</td>
+      </tr>
+      <tr>
+        <td>Non-AJAX (нативный POST)</td>
+        <td>Safety-net: <b>302</b> <code>back()</code> + flash <code>status</code>, pivot обновлён; валидация → 302 + session <code>errors.team_id</code> (не пустой 200 / не сырой JSON).</td>
+      </tr>
+      <tr>
+        <td>Без права / гость</td>
+        <td>403 / redirect login; сайдбар, карандаш и модалка не рендерятся.</td>
+      </tr>
+      <tr>
+        <td>Admin / trainer (даже с правом)</td>
+        <td>UI скрыт; POST → 422 на <code>team_id</code> (сервис только для роли <code>user</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Код: <code>CabinetTeamAttachService</code>, <code>CabinetTeamController</code>,
+    <code>AttachCabinetTeamRequest</code>, view composers в <code>AppServiceProvider</code>
+    (<code>layouts.admin2</code>, <code>dashboard</code>, <code>account.index</code> → <code>cabinetTeamAttach</code>).
+    Тесты:
+    <code>CabinetTeamAttachFeatureTest</code>,
+    <code>CabinetTeamAttachFullAccessFeatureTest</code>,
+    <code>CabinetTeamAttachNonAjaxSafetyNetFeatureTest</code>,
+    <code>CabinetTeamAttachMarkupFeatureTest</code>,
+    <code>AccountUserEditPageFeatureTest</code> (карандаш / lock на учётной записи),
+    <code>BladeInlineJsSyntaxTest::test_cabinet_attach_team_modal_ajax_contract_and_valid_javascript</code>,
+    <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>.
+  </p>
+
   <h2>8) Feature-тесты</h2>
   <div class="note">
     <ul class="small">
@@ -251,10 +329,16 @@
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code> — pivot в AJAX</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS в <code>dashboard.blade.php</code></li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFeatureTest.php</code> — attach / валидация / семейный контекст</li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFullAccessFeatureTest.php</code> — гость / 403 / 200 / кнопка на других страницах</li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + pivot</li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachMarkupFeatureTest.php</code> — разметка модалки, сайдбар, карандаш на <code>/cabinet</code>, фильтр select, UX семейного ФИО</li>
+      <li><code>tests/Feature/Crm/Account/AccountUserEditPageFeatureTest.php</code> — «Группы» readonly, lock-текст / карандаш при <code>account.user.team.update</code></li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach</li>
       <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (3 права)</li>
     </ul>
-    <pre><code>php artisan test --env=testing tests/Feature/Crm/Dashboard/</code></pre>
+    <pre><code>php artisan test --env=testing tests/Feature/Crm/Cabinet/
+php artisan test --env=testing --filter=cabinet_attach_team_modal</code></pre>
   </div>
 
   <p class="small">

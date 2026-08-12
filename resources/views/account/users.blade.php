@@ -269,16 +269,21 @@
                 $studentTeamsLabel = $user->teams->pluck('title')->filter()->sort()->values()->implode(', ');
             @endphp
             <div class="mb-3">
-                <label class="form-label">Группы</label>
+                <label class="form-label d-inline-flex align-items-center mb-1">
+                    <span>Группы</span>
+                    @include('includes.cabinet_attach_team_pencil')
+                </label>
                 <input type="text"
                        class="form-control"
                        value="{{ $studentTeamsLabel !== '' ? $studentTeamsLabel : '—' }}"
                        readonly
                        disabled
                        aria-disabled="true">
-                <div class="form-text text-muted mt-1">
-                    <i class="fa-solid fa-lock me-1"></i>Изменение групп доступно только администратору CRM
-                </div>
+                @cannot('account.user.team.update')
+                    <div class="form-text text-muted mt-1">
+                        <i class="fa-solid fa-lock me-1"></i>Изменение групп доступно только администратору CRM
+                    </div>
+                @endcannot
             </div>
             @endif
 

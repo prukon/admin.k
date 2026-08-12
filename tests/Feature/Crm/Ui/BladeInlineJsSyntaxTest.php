@@ -60,6 +60,77 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'contract templates index page scripts' => ['contract-templates/index.blade.php'];
         yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
         yield 'account settings tabs shell' => ['account/index.blade.php'];
+        yield 'cabinet attach team modal' => ['includes/modal/cabinet_attach_team_modal.blade.php'];
+    }
+
+    /**
+     * P1: модалка «Добавить группу» в ЛК — AJAX-контракт (preventDefault, fetch, errors.team_id, reload).
+     */
+    public function test_cabinet_attach_team_modal_ajax_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/modal/cabinet_attach_team_modal.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('cabinetAttachTeamForm', $content);
+        $this->assertStringContainsString('cabinetAttachTeamSelect', $content);
+        $this->assertStringContainsString('data-error-for="team_id"', $content);
+        $this->assertStringContainsString('ФИО ученика', $content);
+        $this->assertStringContainsString('Текущая группа', $content);
+        $this->assertStringContainsString('Объект', $content);
+        $this->assertStringContainsString('Новая группа', $content);
+        $this->assertStringContainsString('Отмена', $content);
+        $this->assertStringContainsString('cabinetAttachTeamSubmit', $content);
+
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString('fetch(', $content);
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('X-Requested-With', $content);
+        $this->assertStringContainsString('XMLHttpRequest', $content);
+        $this->assertStringContainsString('errors.team_id', $content);
+        $this->assertStringContainsString('window.location.reload()', $content);
+        $this->assertStringContainsString('hidden.bs.modal', $content);
+        $this->assertStringContainsString('form.reset()', $content);
+        $this->assertStringContainsString('is-invalid', $content);
+
+        $submitPos = strpos($content, "form.addEventListener('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, (int) $submitPos, 2200);
+        $this->assertStringContainsString('preventDefault', $submitChunk);
+        $this->assertStringContainsString('fetch(', $submitChunk);
+        $this->assertStringContainsString('window.location.reload()', $submitChunk);
+        $this->assertStringContainsString('team_id', $submitChunk);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В cabinet_attach_team_modal нет inline <script>');
+
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'cabinetAttachTeamForm')) {
+                continue;
+            }
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-cabinet-attach-team-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in cabinet attach team modal (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
     }
 
     /**

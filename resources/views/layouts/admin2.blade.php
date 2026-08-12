@@ -352,6 +352,8 @@
                         {{--                    <h6> Роль: {{auth()->user()->role->label}}</h6> --}}
                        <h6> Роль: {{ optional(auth()->user()->role)->label ?? 'Не указана' }} </h6>
 
+                        @include('includes.cabinet_attach_team')
+
                         @include('includes.family_student_switcher')
 
                         @can('servicePayments.view')
@@ -485,6 +487,7 @@
     @include('includes.modal.confirmDeleteModal')
     @include('includes.modal.successModal')
     @include('includes.modal.errorModal')
+    @include('includes.modal.cabinet_attach_team_modal')
 
 
 

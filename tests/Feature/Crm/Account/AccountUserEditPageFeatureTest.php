@@ -90,13 +90,55 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('>Группы</label>', $html);
+        $this->assertStringContainsString('>Группы</span>', $html);
         $this->assertStringContainsString('readonly', $html);
         $this->assertStringContainsString('Изменение групп доступно только администратору CRM', $html);
+        $this->assertStringNotContainsString('cabinet-attach-team-pencil', $html);
         $this->assertStringNotContainsString('id="team"', $html);
         $this->assertStringNotContainsString('name="team_id"', $html);
         $this->assertStringContainsString('Account-A', $html);
         $this->assertStringContainsString('Account-B', $html);
+    }
+
+    public function test_student_edit_page_with_team_update_permission_shows_pencil_and_hides_lock_hint(): void
+    {
+        $location = \App\Models\Location::factory()->forPartner((int) $this->partner->id)->create([
+            'name' => 'Account Loc',
+        ]);
+        $teamA = Team::factory()->create([
+            'partner_id'  => $this->partner->id,
+            'location_id' => $location->id,
+            'title'       => 'Account-Pencil-A',
+            'is_enabled'  => 1,
+        ]);
+        Team::factory()->create([
+            'partner_id'  => $this->partner->id,
+            'location_id' => $location->id,
+            'title'       => 'Account-Pencil-B',
+            'is_enabled'  => 1,
+        ]);
+        app(TeamUserSyncService::class)->attachTeamForStudent($this->user, (int) $teamA->id);
+
+        DB::table('permission_role')->insertOrIgnore([
+            'partner_id'    => (int) $this->user->partner_id,
+            'role_id'       => (int) $this->user->role_id,
+            'permission_id' => $this->permissionId('account.user.team.update'),
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+        $this->user->unsetRelation('role');
+
+        $this->actingAs($this->user);
+
+        $html = (string) $this->get(route('account.user.edit'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('>Группы</span>', $html);
+        $this->assertStringContainsString('cabinet-attach-team-pencil', $html);
+        $this->assertStringContainsString('data-bs-target="#cabinetAttachTeamModal"', $html);
+        $this->assertStringNotContainsString('Изменение групп доступно только администратору CRM', $html);
+        $this->assertStringContainsString('Account-Pencil-A', $html);
     }
 
     public function test_admin_edit_page_shows_role_label_and_hides_team_field(): void

@@ -67,7 +67,7 @@
       <tr><td><code>contracts</code></td><td>Договоры</td><td><code>contracts.sync</code>, <code>contracts.templates.fillSortOrder.edit</code>, <code>account.contracts.showFieldKeys</code></td></tr>
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
-      <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …</td></tr>
+      <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles)</td></tr>
       <tr><td><code>users</code></td><td>Управление пользователями</td><td>Страница <code>trainers.view</code> и поля CRM: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), …</td></tr>
       <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, …</td></tr>
       <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
@@ -78,6 +78,10 @@
   <div class="warn">
     <b>Важно: <code>account.*</code> и <code>users.*</code> — разные группы.</b><br>
     <code>account.user.name.update</code> — изменение <b>своего</b> имени в личном кабинете.<br>
+    <code>account.user.team.update</code> — ЛК: добавление группы (сайдбар, карандаш на
+    <code>/cabinet</code> и учётной записи; только attach);
+    <code>is_visible=0</code>, не в <code>role_base_permissions</code>.
+    См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.<br>
     <code>users.name.update</code> — изменение имени <b>другого</b> пользователя в CRM (модалка редактирования).<br>
     Группировка визуально разделяет эти сценарии; семантика прав не объединялась.
   </div>
@@ -117,6 +121,10 @@
       <code>/database/migrations/2026_08_11_190000_add_users_full_name_genitive_permission.php</code>
       (право в группе <code>users</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям; не в <code>role_base_permissions</code>).
       См. <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>.</li>
+    <li>Миграция <code>account.user.team.update</code> (описание + revoke с ролей):
+      <code>/database/migrations/2026_08_12_210000_revoke_account_user_team_update_from_base_roles.php</code>
+      (право уже в каталоге; <code>is_visible=0</code>; снятие с <code>permission_role</code>; не в base roles).
+      См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>

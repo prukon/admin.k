@@ -263,19 +263,51 @@ users (role=user) — ученик, вход в CRM
     <li>Тесты: <code>UserCommentAndSexFeatureTest</code> — раздел «Личный кабинет: пол через users.sex».</li>
   </ul>
 
-  <h3 id="account-groups">4.5) Группы ученика (только просмотр)</h3>
+  <h3 id="account-groups">4.5) Группы ученика</h3>
   <div class="note">
-    Для роли <code>user</code> на <code>/account-settings/user/edit</code> (<code>resources/views/account/users.blade.php</code>) выводится блок «Группы»:
-    read-only поле со списком названий из pivot (<code>$user->teams</code>), подпись с иконкой замка «Изменение групп доступно только администратору CRM».
-    Поле не отправляется при PATCH; изменение состава групп — только в CRM (<code>/admin/users</code>, <code>team_ids[]</code>, право <code>users.group.update</code>).
-    См. <a href="/docs/documentation/student-team-membership">student-team-membership §6</a>.
+    На <code>/account-settings/user/edit</code> блок «Группы» — <b>просмотр</b>
+    (<code>readonly</code> + <code>disabled</code>, значения из pivot <code>$user->teams</code>).
+    Без права <code>account.user.team.update</code> — подпись
+    «Изменение групп доступно только администратору CRM» (полный sync/замена/снятие —
+    только CRM <code>/admin/users</code>, <code>users.group.update</code>).
+    При праве — подпись скрыта; рядом с label — карандаш
+    (<code>includes/cabinet_attach_team_pencil.blade.php</code>), если есть
+    <code>$cabinetTeamAttach</code> (view composer на <code>account.index</code>);
+    открывает ту же модалку attach, что сайдбар / <code>/cabinet</code>.
   </div>
+  <div class="ok">
+    <b>Добавление группы в ЛК.</b> При праве <code>account.user.team.update</code>
+    (<code>is_visible=0</code>, <b>не</b> в базовых ролях):
+    сайдбар «Группа: … изменить», карандаш на <code>/cabinet</code> и на учётной записи,
+    одна модалка attach. Кандидаты — <b>только</b> группы объектов текущих групп ученика;
+    уже назначенные / disabled / soft-deleted не показываются. Действие — только <b>attach</b>.
+    Endpoint: <code>POST /cabinet/teams/attach</code> (<code>cabinet.teams.attach</code>),
+    <code>AttachCabinetTeamRequest</code> + <code>CabinetTeamController</code> +
+    <code>CabinetTeamAttachService</code> → <code>TeamUserSyncService::attachTeamForStudent</code>.
+    AJAX: ошибки — JSON <code>errors.team_id</code> (под select); успех — <code>location.reload()</code>.
+    Non-AJAX safety-net: 302 <code>back()</code> + flash <code>status</code>.
+    UI скрыт, если у активного ученика нет групп или у групп нет <code>location_id</code>.
+    Семейный режим: attach — активный ребёнок из session; поле «Группы» на учётной записи —
+    команды залогиненного профиля.
+    См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>,
+    <a href="/doc#cabinet-attach-team-index">анонс /doc</a>,
+    <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
+  </div>
+  <p class="small">Тесты: <code>CabinetTeamAttachFeatureTest</code>,
+    <code>CabinetTeamAttachFullAccessFeatureTest</code>,
+    <code>CabinetTeamAttachNonAjaxSafetyNetFeatureTest</code>,
+    <code>CabinetTeamAttachMarkupFeatureTest</code>,
+    <code>AccountUserEditPageFeatureTest</code>.</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
 
   <h3>5.1) UI и условия показа</h3>
   <ul>
-    <li>Partial: <code>resources/views/includes/family_student_switcher.blade.php</code>, подключается в <code>layouts/admin2.blade.php</code> (блок user-panel, под строкой «Роль»).</li>
+    <li>Порядок в user-panel сайдбара: «Роль» → (опционально) блок <b>«Группа: … изменить»</b>
+      (<code>includes/cabinet_attach_team.blade.php</code>, право <code>account.user.team.update</code>) →
+      семейный переключатель → баланс и т.д.</li>
+    <li>Partial переключателя: <code>resources/views/includes/family_student_switcher.blade.php</code>,
+      layout <code>admin2.blade.php</code>.</li>
     <li>Переключатель виден, если <code>FamilyStudentContextService::accessibleStudents()</code> содержит <b>больше одного</b> ученика.</li>
     <li>В селект попадают: активные (<code>is_enabled</code>) ученики с тем же <code>parent_id</code> и <code>partner_id</code>; залогиненный ученик всегда в списке, даже если отключён.</li>
     <li>Отключённый брат/сестра в селект <b>не</b> попадает; прямой <code>POST</code> switch на него → <b>403</b>.</li>
@@ -299,6 +331,7 @@ users (role=user) — ученик, вход в CRM
     </thead>
     <tbody>
       <tr><td><code>GET /cabinet</code> (консоль)</td><td><code>dashboard.view</code></td><td><code>activeStudent()</code></td></tr>
+      <tr><td><code>POST /cabinet/teams/attach</code></td><td><code>account.user.team.update</code></td><td><code>activeStudent()</code> (только роль <code>user</code>)</td></tr>
       <tr><td><code>GET /reports/payments</code>, <code>GET /getUserPayments</code></td><td><code>myPayments.view</code></td><td><code>activeStudent()</code></td></tr>
       <tr><td><code>GET /account-settings/user/edit</code></td><td><code>account.user.view</code></td><td>залогиненный <code>auth()->user()</code> (свой пароль, телефон)</td></tr>
       <tr><td><code>POST /cabinet/active-student</code></td><td>достаточно <code>auth</code> + 2fa (отдельного permission нет)</td><td>проверка sibling через <code>parent_id</code></td></tr>
@@ -314,7 +347,7 @@ users (role=user) — ученик, вход в CRM
     <tbody>
       <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code>) — данные выбранного ребёнка; при 2+ группах и том же праве — селект «Выбор группы» (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
-      <tr><td><code>AppServiceProvider</code> (view composer <code>admin2</code>)</td><td><code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code></td></tr>
+      <tr><td><code>AppServiceProvider</code> (view composers)</td><td><code>layouts.admin2</code>: <code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code>, при праве — <code>cabinetTeamAttach</code>; дополнительно <code>dashboard</code> и <code>account.index</code> — <code>cabinetTeamAttach</code> для карандаша в content</td></tr>
     </tbody>
   </table>
   <div class="warn">

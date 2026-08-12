@@ -214,6 +214,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/cabinet/active-student', [\App\Http\Controllers\User\FamilyStudentContextController::class, 'switch'])
         ->name('cabinet.active-student.switch');
 
+    Route::post('/cabinet/teams/attach', [\App\Http\Controllers\User\CabinetTeamController::class, 'attach'])
+        ->middleware('can:account.user.team.update')
+        ->name('cabinet.teams.attach');
+
     //Консоль (feature test +)
     Route::middleware(['can:dashboard.view'])->group(function () {
         Route::match(['get', 'post'], '/cabinet', [DashboardController::class, 'index'])->name('dashboard');

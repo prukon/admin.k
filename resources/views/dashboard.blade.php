@@ -110,7 +110,7 @@
                                     <span class="dashboard-group-name" data-team-id="{{ $team->id }}">{{ $team->title }}</span>@if(!$loop->last), @endif
                                 @endforeach
                             @endif
-                        </span></div>
+                        </span>@include('includes.cabinet_attach_team_pencil')</div>
 
 
                     <div class="fields-wrap">

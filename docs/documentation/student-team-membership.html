@@ -136,7 +136,8 @@
   <table>
     <thead><tr><th>Страница</th><th>Поведение</th></tr></thead>
     <tbody>
-      <tr><td><code>/account-settings/user/edit</code></td><td>Поле «Группы» — <b>только чтение</b> (<code>readonly</code> + <code>disabled</code>), значения из pivot через <code>$user->teams</code>. Подпись: «Изменение групп доступно только администратору CRM». В <code>AccountUpdateRequest</code> / PATCH нет <code>team_id</code>. Редактирование — <code>/admin/users</code> (<code>users.group.update</code>). См. <a href="/docs/documentation/parents-and-family-cabinet#account-groups">parents-and-family-cabinet §4.5</a>.</td></tr>
+      <tr><td><code>/account-settings/user/edit</code></td><td>Поле «Группы» — <b>чтение</b> (<code>readonly</code> + <code>disabled</code>), значения из pivot через <code>$user->teams</code>. Без <code>account.user.team.update</code> — lock-подпись про администратора CRM. При праве — карандаш (та же модалка attach), подпись скрыта. Полный sync/замена — <code>/admin/users</code> (<code>users.group.update</code>). См. <a href="/docs/documentation/parents-and-family-cabinet#account-groups">parents-and-family-cabinet §4.5</a>.</td></tr>
+      <tr><td>Сайдбар (layout <code>admin2</code>)</td><td>«Группа: {названия…}» + ссылка «изменить» при <code>account.user.team.update</code>: только attach; кандидаты из объектов текущих групп; <code>POST /cabinet/teams/attach</code>. Карандаш на <code>/cabinet</code> и у «Группы» на учётной записи — та же модалка. См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</td></tr>
       <tr><td><code>/cabinet</code> (<code>dashboard.view</code>)</td><td>Консоль: профиль, календарь, блоки оплат. Сезоны и селект «Выбор группы» — при <code>setPrices.cabinetSeasons.view</code>; при 2+ группах у активного ученика (без <code>users.view</code>) — селект над сезонами, жирное выделение выбранной группы в шапке. Подробно: <a href="/docs/documentation/dashboard-cabinet">dashboard-cabinet</a>.</td></tr>
       <tr><td><code>/my-group</code> (<code>myGroup.view</code>)</td><td>Если несколько групп — select «Выберите группу для просмотра»; <code>GET /my-group/data?team_id=</code> возвращает одногруппников выбранной группы.</td></tr>
       <tr><td>«Мои документы»</td><td>Read-only подпись групп ученика (pivot).</td></tr>
@@ -161,6 +162,7 @@
     <thead><tr><th>Permission</th><th>Где</th></tr></thead>
     <tbody>
       <tr><td><code>users.group.update</code></td><td>Запись <code>team_ids</code> в <code>/admin/users</code></td></tr>
+      <tr><td><code>account.user.team.update</code></td><td>ЛК: добавить группу (сайдбар / карандаш → <code>POST /cabinet/teams/attach</code>); <code>is_visible=0</code>, не в base roles</td></tr>
       <tr><td><code>schedule.view</code></td><td>Журнал, в т.ч. <code>sync-teams</code> и <code>set-group</code></td></tr>
       <tr><td><code>contracts.view</code></td><td>Lookups групп для договоров</td></tr>
       <tr><td><code>myGroup.view</code></td><td>Страница «Моя группа» (роль <code>user</code> по умолчанию в base permissions)</td></tr>
@@ -192,6 +194,10 @@
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalTeamPivotFeatureTest.php</code> — журнал attach/sync/context</li>
       <li><code>tests/Feature/Crm/Contracts/ContractGroupPivotFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFeatureTest.php</code> — attach группы из ЛК</li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFullAccessFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachNonAjaxSafetyNetFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachMarkupFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code>, <code>DashboardTeamSwitcherAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Payments/MultiTeamMonthlyPaymentFlowTest.php</code>, <code>MultiTeamMonthlyPaymentAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Reports/PaymentReportTeamPivotFeatureTest.php</code>, <code>LtvReportTeamPivotFeatureTest.php</code></li>

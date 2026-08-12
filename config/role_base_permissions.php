@@ -78,7 +78,7 @@ return [
             // 'blog.view',
             'account.user.name.update',
             'account.user.birthdate.update',
-            'account.user.team.update',
+            // 'account.user.team.update', // ЛК: добавление группы — опционально, по умолчанию выкл.
             'account.user.startDate.update',
             'account.user.email.update',
             'account.user.phone.update',

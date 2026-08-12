@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentContextService;
+use App\Services\Users\CabinetTeamAttachService;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -126,6 +127,7 @@ class AppServiceProvider extends ServiceProvider
             $activeStudent = null;
             $showFamilyStudentSwitcher = false;
             $sidebarPanelIdentity = ['name' => '', 'email' => ''];
+            $cabinetTeamAttach = null;
 
             if (Auth::check()) {
                 $actor = Auth::user();
@@ -134,6 +136,11 @@ class AppServiceProvider extends ServiceProvider
                 $showFamilyStudentSwitcher = $familyStudents->count() > 1;
                 $activeStudent = $familyContext->activeStudent($actor);
                 $sidebarPanelIdentity = $familyContext->sidebarPanelIdentity($actor);
+
+                if (Gate::allows('account.user.team.update')) {
+                    $cabinetTeamAttach = app(CabinetTeamAttachService::class)
+                        ->sidebarContext($actor);
+                }
             }
 
             $view->with([
@@ -144,7 +151,21 @@ class AppServiceProvider extends ServiceProvider
                 'activeStudent' => $activeStudent,
                 'showFamilyStudentSwitcher' => $showFamilyStudentSwitcher,
                 'sidebarPanelIdentity' => $sidebarPanelIdentity,
+                'cabinetTeamAttach' => $cabinetTeamAttach,
             ]);
+        });
+
+        // Контент @section('content') рендерится до layout — переменные composer layout
+        // в дочерних views недоступны. Composer для карандаша у «Группа:» / «Группы».
+        View::composer(['dashboard', 'account.index'], function ($view) {
+            $cabinetTeamAttach = null;
+
+            if (Auth::check() && Gate::allows('account.user.team.update')) {
+                $cabinetTeamAttach = app(CabinetTeamAttachService::class)
+                    ->sidebarContext(Auth::user());
+            }
+
+            $view->with('cabinetTeamAttach', $cabinetTeamAttach);
         });
 
         /**

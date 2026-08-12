@@ -28,6 +28,63 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="cabinet-attach-team-index">ЛК: добавление группы (сайдбар, /cabinet, учётная запись) (2026‑08)</h2>
+  <div class="note">
+    Ученик (роль <code>user</code>) с опциональным правом <code>account.user.team.update</code> может
+    <b>добавить</b> себе (или активному ребёнку в семье) ещё одну группу — только attach,
+    без замены и снятия. Полный sync групп по-прежнему только в CRM
+    (<code>/admin/users</code>, <code>users.group.update</code>).
+    <br><br>
+    1) <b>Право</b> <code>account.user.team.update</code> (группа <code>account</code>,
+    <code>is_visible=0</code>, <b>не</b> в базовых ролях <code>user</code>/<code>admin</code>/<code>trainer</code>).
+    Миграция <code>2026_08_12_210000_revoke_account_user_team_update_from_base_roles</code>
+    снимает выдачу со всех ролей (раньше попадало в base admin без UI).
+    Назначается вручную партнёру/роли.
+    <br>
+    2) <b>Точки входа UI</b> (одна модалка <code>#cabinetAttachTeamModal</code>):
+    <br>— сайдбар layout <code>admin2</code> (все страницы): <code>Группа: {названия через запятую}</code>
+    + ссылка <b>«изменить»</b>; длинные названия — <code>dt-cell-ellipsis</code> +
+    <code>KidsCrmTooltip</code> (ховер только при обрезке);
+    <br>— <code>/cabinet</code>: карандаш справа от <code>.group-value</code> в шапке профиля;
+    <br>— <code>/account-settings/user/edit</code>: карандаш у label «Группы»;
+    при праве lock-текст «Изменение групп доступно только администратору CRM» <b>скрыт</b>,
+    без права — показан. Поле групп остаётся <code>readonly</code>/<code>disabled</code>.
+    <br>Карандаш: partial <code>includes/cabinet_attach_team_pencil.blade.php</code>,
+    ховер в <code>resources/css/style.css</code> (<code>.cabinet-attach-team-pencil</code>).
+    <br>
+    3) <b>Модалка:</b> ФИО активного ученика, текущие группы, объекты, select новой группы,
+    «Отмена» / «Добавить». Ширина — стандартная Bootstrap (не fullscreen).
+    <br>
+    4) <b>Кандидаты</b> — группы с <code>location_id</code> из объектов текущих групп ученика;
+    уже назначенные, <code>is_enabled=0</code> и soft-deleted не показываются; при 2+ объектах — <code>optgroup</code>.
+    <br>
+    5) <b>Скрытие UI:</b> нет права; актор не роль <code>user</code> (сервис/POST тоже);
+    у активного ученика нет групп или у групп нет объекта (<code>location_id = null</code>).
+    <br>
+    6) <b>Семейный режим:</b> attach и подписи в сайдбаре/модалке — для
+    <code>active_student_user_id</code> (session), не для «чужого» sibling.
+    Поле «Группы» на учётной записи показывает команды <b>залогиненного</b> профиля.
+    <br>
+    7) <b>API:</b> <code>POST /cabinet/teams/attach</code> (<code>cabinet.teams.attach</code>),
+    middleware <code>can:account.user.team.update</code>.
+    AJAX → 200 JSON <code>{ success, message, teams_label }</code> или 422 <code>errors.team_id</code>
+    (вывод под select); non-AJAX → 302 <code>back()</code> + flash <code>status</code>.
+    Успех на клиенте — <code>location.reload()</code>. Аудит: <code>user.account_updated</code>.
+    <br>
+    8) <b>View composers:</b> <code>layouts.admin2</code> (сайдбар/модалка) +
+    <code>dashboard</code> / <code>account.index</code> (карандаш в content до layout).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>,
+    <a href="/docs/documentation/parents-and-family-cabinet#account-groups">parents-and-family-cabinet §4.5</a>,
+    <a href="/docs/documentation/student-team-membership">student-team-membership</a>,
+    права — <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+    Тесты: <code>CabinetTeamAttach*FeatureTest</code>,
+    <code>AccountUserEditPageFeatureTest</code> (карандаш / lock-текст),
+    JS-контракт в <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
   <h2 id="setting-prices-payment-notifications-index">Установка цен → «Уведомления» об оплате (2026‑08)</h2>
   <div class="note">
     Новая вкладка <code>/admin/setting-prices/notifications</code> (рядом с «По месяцам» / «По ученикам»):
@@ -1183,7 +1240,7 @@
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
-    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра)</a></li>
+    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo), <code>PartnerLegacyLegalFields</code>, доступ guest/403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли»</a></li>
@@ -1214,13 +1271,13 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.packageAssignments.view</code>, оба не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах, семейный контекст, <code>dashboard.view</code></a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.packageAssignments.view</code>, оба не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах, <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
-    <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК, консоль <code>/cabinet</code>, «Моя группа»</a></li>
+    <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>Статус→Договор</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
