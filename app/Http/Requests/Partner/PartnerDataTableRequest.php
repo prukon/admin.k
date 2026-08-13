@@ -22,6 +22,17 @@ class PartnerDataTableRequest extends FormRequest
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'title'  => 'Поиск',
+            'status' => 'Статус',
+            'draw'   => 'draw',
+            'start'  => 'start',
+            'length' => 'Количество строк',
+        ];
+    }
+
     public function messages(): array
     {
         return [

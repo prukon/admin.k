@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Weekday;
 use App\Services\TeamService;
 use App\Services\UserService;
+use App\Support\PartnerListMetrics;
 use Carbon\Carbon;
 
 //use Illuminate\Http\Request;
@@ -53,6 +54,7 @@ class PartnerController extends AdminBaseController
     {
         return view('admin.partners.index', [
             'activeTab' => 'partners',
+            'partnerMetricMonthLabels' => PartnerListMetrics::monthColumnLabels(),
         ]);
     }
 
@@ -70,25 +72,27 @@ class PartnerController extends AdminBaseController
         if ($titleSearch !== '') {
             $like = '%' . $titleSearch . '%';
             $baseQuery->where(function ($q) use ($like, $titleSearch) {
-                $q->where('title', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('phone', 'like', $like);
+                $q->where('partners.title', 'like', $like)
+                    ->orWhere('partners.email', 'like', $like)
+                    ->orWhere('partners.phone', 'like', $like);
 
                 if (ctype_digit($titleSearch)) {
-                    $q->orWhere('id', (int) $titleSearch);
+                    $q->orWhere('partners.id', (int) $titleSearch);
                 }
             });
         }
 
         $status = $validated['status'] ?? null;
         if ($status === 'active') {
-            $baseQuery->where('is_enabled', 1);
+            $baseQuery->where('partners.is_enabled', 1);
         } elseif ($status === 'inactive') {
-            $baseQuery->where('is_enabled', 0);
+            $baseQuery->where('partners.is_enabled', 0);
         }
 
         $totalRecords = Partner::query()->count();
         $recordsFiltered = (clone $baseQuery)->count();
+
+        PartnerListMetrics::applyJoins($baseQuery);
 
         $orderColumnIndex = $request->input('order.0.column');
         $orderDir         = $request->input('order.0.dir', 'asc') === 'desc' ? 'desc' : 'asc';
@@ -98,32 +102,41 @@ class PartnerController extends AdminBaseController
             $orderColumnName = $columnsDef[(int) $orderColumnIndex]['name'];
         }
 
-        switch ($orderColumnName) {
-            case 'order_by':
-                $baseQuery->orderBy('order_by', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
-            case 'title':
-                $baseQuery->orderBy('title', $orderDir);
-                break;
-            case 'email':
-                $baseQuery->orderBy('email', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
-            case 'phone':
-                $baseQuery->orderBy('phone', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
-            case 'status_label':
-                $baseQuery->orderBy('is_enabled', $orderDir)
-                    ->orderBy('title', 'asc');
-                break;
-            case 'rownum':
-            case 'actions':
-            default:
-                $baseQuery->orderBy('order_by', 'asc')
-                    ->orderBy('title', 'asc');
-                break;
+        $metricOrderExpr = is_string($orderColumnName)
+            ? PartnerListMetrics::orderByExpression($orderColumnName)
+            : null;
+
+        if ($metricOrderExpr !== null) {
+            $baseQuery->orderBy($metricOrderExpr, $orderDir)
+                ->orderBy('partners.title', 'asc');
+        } else {
+            switch ($orderColumnName) {
+                case 'order_by':
+                    $baseQuery->orderBy('partners.order_by', $orderDir)
+                        ->orderBy('partners.title', 'asc');
+                    break;
+                case 'title':
+                    $baseQuery->orderBy('partners.title', $orderDir);
+                    break;
+                case 'email':
+                    $baseQuery->orderBy('partners.email', $orderDir)
+                        ->orderBy('partners.title', 'asc');
+                    break;
+                case 'phone':
+                    $baseQuery->orderBy('partners.phone', $orderDir)
+                        ->orderBy('partners.title', 'asc');
+                    break;
+                case 'status_label':
+                    $baseQuery->orderBy('partners.is_enabled', $orderDir)
+                        ->orderBy('partners.title', 'asc');
+                    break;
+                case 'rownum':
+                case 'actions':
+                default:
+                    $baseQuery->orderBy('partners.order_by', 'asc')
+                        ->orderBy('partners.title', 'asc');
+                    break;
+            }
         }
 
         $start  = $validated['start'] ?? 0;
@@ -135,7 +148,7 @@ class PartnerController extends AdminBaseController
             ->get();
 
         $data = $partners->map(function (Partner $partner) {
-            return [
+            return array_merge([
                 'id'                 => $partner->id,
                 'order_by'           => $partner->order_by,
                 'title'              => $partner->title,
@@ -143,7 +156,7 @@ class PartnerController extends AdminBaseController
                 'phone'              => $partner->phone ?? '',
                 'status_label'       => $partner->is_enabled ? 'Активен' : 'Неактивен',
                 'is_enabled'         => (int) $partner->is_enabled,
-            ];
+            ], PartnerListMetrics::payload($partner));
         })->toArray();
 
         return response()->json([

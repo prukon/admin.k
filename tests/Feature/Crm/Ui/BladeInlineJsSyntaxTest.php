@@ -54,6 +54,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
         yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
         yield 'admin partner create edit modals' => ['includes/modal/editPartner.blade.php'];
+        yield 'admin partners list metrics tab' => ['admin/partners/tabs/partners.blade.php'];
         yield 'partner lead landing form' => ['landing/partner-lead.blade.php'];
         yield 'contract templates variables reference copy js' => ['contract-templates/partials/variables-reference.blade.php'];
         yield 'contract templates edit modal init' => ['contract-templates/partials/edit-modal-init.blade.php'];
@@ -120,11 +121,94 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 $this->assertSame(
                     0,
                     $exitCode,
+                    "JS syntax error in cabinet_attach_team_modal, script #{$index}:\n".implode("\n", $output)
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+    }
+
+    /**
+     * P1: список /admin/partners — метрики, дефолты колонок, сброс фильтра, node --check.
+     */
+    public function test_partners_list_metrics_inline_script_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/partners/tabs/partners.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="partners-table"', $content);
+        $this->assertStringContainsString('KidsCrmDataTable.create', $content);
+        $this->assertStringContainsString("const defaultFilterStatus = 'active';", $content);
+        $this->assertStringContainsString("$('#filter-status').val(defaultFilterStatus);", $content);
+        $this->assertStringContainsString("e.preventDefault();", $content);
+        $this->assertStringContainsString('reloadPartnersTable', $content);
+        $this->assertStringContainsString('window.reloadPartnersTable', $content);
+
+        $this->assertStringContainsString('active_users_count: true', $content);
+        $this->assertStringContainsString('signed_contracts_count: true', $content);
+        $this->assertStringContainsString('turnover_all: true', $content);
+        $this->assertStringContainsString('turnover_month_0: true', $content);
+        $this->assertStringContainsString('turnover_month_1: true', $content);
+        $this->assertStringContainsString('turnover_month_2: true', $content);
+
+        $this->assertStringContainsString("key: 'active_users_count', type: 'count'", $content);
+        $this->assertStringContainsString("key: 'signed_contracts_count', type: 'count'", $content);
+        $this->assertStringContainsString("key: 'turnover_all', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'turnover_month_0', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'turnover_month_1', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'turnover_month_2', type: 'money'", $content);
+
+        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[0] }}', $content);
+        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[1] }}', $content);
+        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[2] }}', $content);
+        $this->assertStringNotContainsString("key: 'август'", $content);
+        $this->assertStringNotContainsString('Оборот за август', $content);
+
+        $resetPos = strpos($content, "$('#filter-reset').on('click'");
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($content, (int) $resetPos, 400);
+        $this->assertStringContainsString('defaultFilterStatus', $resetChunk);
+        $this->assertStringNotContainsString("$('#filter-status').val('');", $resetChunk);
+
+        $theadPos = strpos($content, '<th>Статус</th>');
+        $usersPos = strpos($content, '<th>Кол-во активных пользователей</th>');
+        $contractsPos = strpos($content, '<th>Кол-во договоров</th>');
+        $turnoverPos = strpos($content, '<th>Оборот за всё время</th>');
+        $actionsPos = strpos($content, '<th>Действия</th>');
+        $this->assertNotFalse($theadPos);
+        $this->assertNotFalse($usersPos);
+        $this->assertNotFalse($contractsPos);
+        $this->assertNotFalse($turnoverPos);
+        $this->assertNotFalse($actionsPos);
+        $this->assertLessThan($usersPos, $theadPos);
+        $this->assertLessThan($contractsPos, $usersPos);
+        $this->assertLessThan($turnoverPos, $contractsPos);
+        $this->assertLessThan($actionsPos, $turnoverPos);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], 'В admin/partners/tabs/partners.blade.php нет inline <script>');
+
+        foreach ($matches[1] as $index => $rawScript) {
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            if (trim($js) === '') {
+                continue;
+            }
+
+            $tempFile = sys_get_temp_dir().'/blade-js-partners-metrics-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
                     sprintf(
-                        "JS syntax error in cabinet attach team modal (block #%d):\n%s\n--- preview ---\n%s",
+                        "JS syntax error in partners.blade.php, script #%d:\n%s",
                         $index + 1,
-                        implode("\n", $output),
-                        mb_substr($js, 0, 800)
+                        implode("\n", $output)
                     )
                 );
             } finally {

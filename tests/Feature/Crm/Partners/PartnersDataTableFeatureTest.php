@@ -41,6 +41,9 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('reloadPartnersTable', false)
             ->assertSee('>№<', false)
+            ->assertSee('Кол-во активных пользователей', false)
+            ->assertSee('Кол-во договоров', false)
+            ->assertSee('Оборот за всё время', false)
             ->assertSee('option value="active" selected', false);
     }
 
@@ -73,10 +76,19 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             'phone',
             'status_label',
             'is_enabled',
+            'active_users_count',
+            'signed_contracts_count',
+            'turnover_all',
+            'turnover_month_0',
+            'turnover_month_1',
+            'turnover_month_2',
         ], array_keys($row));
         $this->assertSame('Неактивен', $row['status_label']);
         $this->assertSame(0, $row['is_enabled']);
         $this->assertSame('Struct partner', $row['title']);
+        $this->assertSame(0, $row['active_users_count']);
+        $this->assertSame(0, $row['signed_contracts_count']);
+        $this->assertEquals(0, $row['turnover_all']);
     }
 
     public function test_data_filters_by_status_active(): void
@@ -193,8 +205,22 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
     {
         $partner = Partner::factory()->create([
             'title' => 'By id search',
+            'email' => 'byidsearch@example.test',
+            'phone' => null,
             'is_enabled' => true,
         ]);
+
+        Partner::query()
+            ->where('id', '!=', $partner->id)
+            ->get()
+            ->each(function (Partner $other, int $index) {
+                $label = 'other' . str_repeat('x', $index + 1);
+                $other->forceFill([
+                    'phone' => null,
+                    'email' => $label . '@example.test',
+                    'title' => $label,
+                ])->save();
+            });
 
         $this->getJson(route('admin.partner.data', [
             'draw' => 1,
@@ -382,6 +408,12 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
                 ['name' => 'email'],
                 ['name' => 'phone'],
                 ['name' => 'status_label'],
+                ['name' => 'active_users_count'],
+                ['name' => 'signed_contracts_count'],
+                ['name' => 'turnover_all'],
+                ['name' => 'turnover_month_0'],
+                ['name' => 'turnover_month_1'],
+                ['name' => 'turnover_month_2'],
                 ['name' => 'actions'],
             ],
             'draw' => 1,
@@ -399,6 +431,8 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
         $this->assertNotNull($row);
         $this->assertArrayHasKey('title', $row);
         $this->assertArrayHasKey('status_label', $row);
+        $this->assertArrayHasKey('active_users_count', $row);
+        $this->assertArrayHasKey('turnover_all', $row);
     }
 
     public function test_data_validates_invalid_status_returns_422(): void

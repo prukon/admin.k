@@ -28,6 +28,66 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="admin-partners-list-metrics">Админка: метрики в списке партнёров (2026‑08)</h2>
+  <div class="note">
+    На <code>/admin/partners</code> (вкладка списка клубов, право <code>partner.view</code>)
+    после «Статус» и перед «Действия» — шесть колонок метрик.
+    Таблица показывает <b>всех</b> партнёров платформы (не режется по <code>current_partner</code>);
+    цифры в строке считаются только для этого партнёра.
+    По умолчанию фильтр «Только активные» (<code>status=active</code>, <code>partners.is_enabled=1</code>);
+    колонки метрик по умолчанию видимы (toolbar «Колонки»,
+    <code>user_table_settings.table_key = partners_index</code>).
+    <br><br>
+    1) <b>Кол-во активных пользователей</b>
+    (<code>active_users_count</code>, тип <code>count</code>):
+    только ученики (<code>roles.name = user</code>), <code>users.partner_id</code>,
+    <code>is_enabled = 1</code>, без soft-delete. Админы и тренеры не входят.
+    <br>
+    2) <b>Кол-во договоров</b>
+    (<code>signed_contracts_count</code>, тип <code>count</code>):
+    число записей <code>contracts</code> со <code>status = signed</code>
+    и <code>school_id = partners.id</code> (документы, не уникальные ученики).
+    Любой другой статус (<code>draft</code>, <code>sent</code>, <code>opened</code>,
+    <code>revoked</code>, <code>expired</code>, <code>failed</code> и т.д.) не считается.
+    <br>
+    3) <b>Оборот за всё время</b>
+    (<code>turnover_all</code>, тип <code>money</code>):
+    <code>SUM(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code>,
+    через <code>payments.user_id → users.partner_id</code>.
+    Это <b>не</b> отчёт LTV: та же привязка платёж→ученик→партнёр и тот же отсев нулевых сумм,
+    но без фильтров LTV (группа / локация / активность ученика) и без scope
+    <code>current_partner</code>. В JSON — рубли (1050 коп. → <code>10.5</code>).
+    Платежи отключённых и soft-deleted учеников входят в оборот, в счётчик активных — нет.
+    <br>
+    4) <b>Оборот за текущий / прошлый / позапрошлый месяц</b>
+    (<code>turnover_month_0/1/2</code>, тип <code>money</code>):
+    та же сумма, полуинтервал <code>[startOfMonth, nextMonth)</code>
+    по <code>payments.operation_date</code> (дата платежа, не <code>payment_month</code> абонемента).
+    Ключи колонок стабильные; подписи «Оборот за август» считаются на дату запроса
+    (timezone <code>Europe/Moscow</code>). В сентябре заголовки сами становятся
+    «сентябрь / август / июль», сохранённые настройки колонок не ломаются.
+    1-е число 00:00 текущего месяца входит, 1-е следующего — нет.
+    <br>
+    5) Сортировка по всем шести колонкам поддерживается.
+    Если у пользователя старые настройки без новых ключей, клиент подставляет дефолт
+    <code>true</code> (<code>KidsCrmDataTable</code> merge) — колонки не скрываются.
+    <br>
+    6) Доступ: гость HTML → <b>302</b>, JSON → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
+    JSON списка: <code>GET /admin/partners/data</code>
+    (<code>PartnerDataTableRequest</code>; 422 с <code>errors</code> под полями
+    «Поиск» / «Статус» / «Количество строк»).
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/account-partner-organization#partners-index-metrics">account-partner-organization §3.1.1</a>.
+    Не путать с отчётом LTV —
+    <a href="/docs/documentation/reports-admin#ltv-vs-partners-turnover">reports-admin §4</a>.
+    Тесты:
+    <code>PartnersListMetricsFeatureTest</code>,
+    <code>PartnersDataTableFeatureTest</code>,
+    <code>tests/Unit/Support/PartnerListMetricsTest.php</code>,
+    <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>.
+  </div>
+
   <h2 id="cabinet-packages-type-permissions">Консоль: права на типы абонементов setPrices.cabinetPackages.* (2026‑08)</h2>
   <div class="note">
     Блок «Назначенные абонементы» и месяцы постоплаты на <code>/cabinet</code>
@@ -1292,6 +1352,8 @@
     <b>Общее:</b> несколько юр. лиц на партнёра; CRUD в модалках; sm-register на карточке <code>/admin/legal-entities/{id}</code> (<code>legal_entities.sm_register</code>); <code>LegalEntityResolver</code> для оплат — ShopCode и реквизиты <b>только</b> из <code>partner_legal_entities</code> (без fallback на <code>partners</code>). При <b>одном</b> активном юр. лице группа может быть без <code>legal_entity_id</code> — резолвер использует единственное юр. лицо.
     <br><br>
     <b>Организация партнёра (2026‑06‑30):</b> реквизиты и НДС — только в «Юр. лица»; с карточки партнёра и вкладки «Организация» в ЛК убраны legacy-поля, а также <b>город</b>, <b>индекс</b> и <b>данные руководителя</b> (поле <code>title</code> переименовано в UI в «Название школы/секции»). Legacy-колонки <code>partners.*</code> в БД сохранены, приложение их не пишет из форм (<code>PartnerLegacyLegalFields</code>). Подробно — <a href="/docs/documentation/account-partner-organization">account-partner-organization</a>.
+    Метрики списка <code>/admin/partners</code> (2026‑08) — отдельный анонс
+    <a href="/doc#admin-partners-list-metrics">выше на этой странице</a>.
   </div>
 
   <h2>Изменения в оплатах (T‑Bank, 2026‑06)</h2>
@@ -1356,7 +1418,7 @@
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
     <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>account.user.team.update</code></a></li>
-    <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo), <code>PartnerLegacyLegalFields</code>, доступ guest/403, AJAX/non-AJAX, оплаты без fallback</a></li>
+    <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, подписанные договоры, оборот по <code>operation_date</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли»</a></li>
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>

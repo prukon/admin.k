@@ -31,7 +31,9 @@
     Файл: <code>/docs/documentation/account-partner-organization.html</code> ·
     Юр. лица (справочник): <a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a> ·
     Оплаты / resolver: <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a> ·
-    Права партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a>
+    Права партнёра: <a href="/docs/documentation/partners-permissions">partners-permissions</a> ·
+    Метрики списка: <a href="#partners-index-metrics">§3.1.1</a>
+    (<a href="/doc#admin-partners-list-metrics">анонс на /doc</a>)
   </div>
 
   <div class="note">
@@ -106,6 +108,67 @@
   </ul>
   <p>Legacy-поля (тип бизнеса, ИНН, банк, НДС, город, индекс, данные руководителя и т.д.) из модалок и JSON <code>GET /admin/partner/{id}/edit</code> <b>убраны</b>. Колонки <code>partners.city</code>, <code>partners.zip</code>, <code>partners.ceo</code> в БД сохранены, но приложение их не читает и не пишет (<code>PartnerLegacyLegalFields::strip</code>). В таблице партнёров удалены колонки «Организация» и «ИНН».</p>
 
+  <h3 id="partners-index-metrics">3.1.1) Колонки метрик в списке <code>/admin/partners</code></h3>
+  <p class="small">Анонс на главной документации: <a href="/doc#admin-partners-list-metrics">/doc#admin-partners-list-metrics</a>.</p>
+  <div class="note">
+    Порядок thead (13 колонок): № → Сортировка → Наименование → E-mail → Телефон → Статус →
+    шесть метрик → Действия. Метрики стоят после «Статус», перед «Действия».
+    Список — <b>все</b> партнёры платформы (не <code>current_partner</code>); агрегаты изолированы по строке
+    (<code>users.partner_id</code> / <code>contracts.school_id</code>).
+    Видимость — toolbar «Колонки», ключи в <code>user_table_settings.table_key = partners_index</code>,
+    дефолты JS все <code>true</code>. Сортировка по умолчанию — колонка «Сортировка» (<code>order_by</code> asc).
+    Фильтр статуса по умолчанию в UI: <code>status=active</code> (только <code>partners.is_enabled=1</code>);
+    пустой <code>status</code> в запросе — все партнёры. Поиск <code>title</code> — название / email / телефон / id.
+    <br><br>
+    Ключи месяцев стабильные (<code>turnover_month_0/1/2</code>), подписи «Оборот за август» считаются на дату запроса
+    (текущий / прошлый / позапрошлый месяц, timezone <code>Europe/Moscow</code>,
+    <code>PartnerListMetrics::monthColumnLabels()</code>).
+    В сентябре заголовки сами становятся «сентябрь / август / июль»; ключи колонок и <code>user_table_settings</code> не меняются.
+    Если у пользователя сохранены <b>старые</b> настройки без новых ключей, клиент подставляет дефолт <code>true</code>
+    из JS (<code>KidsCrmDataTable</code> merge: ключ отсутствует в ответе GET → <code>defaults</code>), новые колонки не скрываются.
+    Агрегаты: <code>App\Support\PartnerListMetrics</code> (leftJoin подзапросов после фильтров, <code>recordsFiltered</code> считается до join),
+    JSON DataTables <code>GET /admin/partners/data</code>. Сортировка по метрикам — <code>orderByExpression()</code>.
+    Неактивные и soft-deleted ученики не входят в «Кол-во активных пользователей», но их платежи входят в оборот
+    (join платежей идёт через <code>DB::table('users')</code> без <code>whereNull(deleted_at)</code>).
+    Договоры в статусах кроме <code>signed</code> не считаются.
+    Оборот месяца — полуинтервал <code>[startOfMonth, nextMonth)</code> по <code>operation_date</code>: 1-е 00:00 текущего месяца входит, 1-е следующего — нет.
+    Нулевые <code>summ_cents</code> не входят в сумму. Копейки в JSON — рубли с дробью (1050 коп. → <code>10.5</code>).
+    Оборот <b>не</b> равен отчёту LTV: нет фильтров группы / локации / активности ученика и нет scope текущего партнёра
+    (см. <a href="/docs/documentation/reports-admin#ltv-vs-partners-turnover">reports-admin §4</a>).
+  </div>
+  <table>
+    <thead><tr><th>Ключ</th><th>Заголовок</th><th>Тип KidsCrmDataTable</th><th>Как считается</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>active_users_count</code></td>
+        <td>Кол-во активных пользователей</td>
+        <td><code>count</code></td>
+        <td>Ученики (<code>roles.name = user</code>, <code>users.role_id</code>), <code>users.partner_id</code>, <code>is_enabled = 1</code>, <code>deleted_at IS NULL</code>. Админы и тренеры не входят.</td>
+      </tr>
+      <tr>
+        <td><code>signed_contracts_count</code></td>
+        <td>Кол-во договоров</td>
+        <td><code>count</code></td>
+        <td>Число записей <code>contracts</code> со <code>status = signed</code> и <code>school_id = partners.id</code> (документы, не уникальные ученики).</td>
+      </tr>
+      <tr>
+        <td><code>turnover_all</code></td>
+        <td>Оборот за всё время</td>
+        <td><code>money</code></td>
+        <td><code>SUM(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code>, через <code>payments.user_id → users.partner_id</code>. В JSON — рубли (float).</td>
+      </tr>
+      <tr>
+        <td><code>turnover_month_0</code> … <code>_2</code></td>
+        <td>Оборот за {текущий / прошлый / позапрошлый месяц}</td>
+        <td><code>money</code></td>
+        <td>Та же сумма, полуинтервал по <code>payments.operation_date</code> (дата платежа, не <code>payment_month</code> абонемента).</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Доступ к HTML и JSON тот же, что у раздела (§3.4): гость GET index → <b>302</b>, JSON data/columns-settings → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
+  Валидация DataTables: <code>PartnerDataTableRequest</code> (<code>attributes</code> + <code>messages</code>); 422 отдаёт <code>errors</code> с ключами полей (<code>title</code> / <code>status</code> / <code>length</code> и т.д.).</p>
+  <p class="small">Тесты: <code>PartnersListMetricsFeatureTest</code> (гость 302/401, 403, 200, 422 <code>errors[status|title|length]</code>, порядок thead, дефолтные тумблеры, январские заголовки, старые column-settings не прячут новые колонки, границы месяца, неактивный ученик в обороте, копейки, отсутствие дублей строк), <code>PartnersDataTableFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>, <code>tests/Unit/Support/PartnerListMetricsTest.php</code>.</p>
+
   <h3>3.2) Эндпоинты (право <code>partner.view</code>)</h3>
   <table>
     <thead><tr><th>Метод</th><th>URL</th><th>Назначение</th><th>AJAX / JSON</th><th>Non-AJAX</th></tr></thead>
@@ -169,8 +232,10 @@
   <h2>6) Ключевые файлы</h2>
   <ul>
     <li><code>app/Support/PartnerLegacyLegalFields.php</code></li>
+    <li><code>app/Support/PartnerListMetrics.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerSettingController.php</code></li>
     <li><code>app/Http/Controllers/Admin/PartnerController.php</code></li>
+    <li><code>app/Http/Requests/Partner/PartnerDataTableRequest.php</code></li>
     <li><code>app/Http/Requests/Partner/UpdateRequest.php</code>, <code>StorePartnerRequest.php</code>, <code>UpdatePartnerRequest.php</code></li>
     <li><code>app/Services/PartnerLegalEntities/LegalEntityResolver.php</code></li>
     <li><code>resources/views/account/organizations.blade.php</code></li>
@@ -187,12 +252,14 @@
       <li><code>tests/Feature/Crm/Partners/PartnerAdminOperationalFieldsFeatureTest.php</code> — UI подписи, edit JSON, strip city/zip/ceo, сохранение полей</li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php</code> — guest/403/200/201/302/422 по всем endpoint'ам раздела</li>
       <li><code>tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php</code> — UI, strip legacy, AJAX, доступ</li>
-      <li><code>tests/Feature/Crm/Partners/PartnerAdminNonAjaxSafetyNetFeatureTest.php</code></li>
+      <li><code>tests/Feature/Crm/Partners/PartnersListMetricsFeatureTest.php</code> — активные ученики, подписанные договоры, оборот по <code>operation_date</code></li>
+      <li><code>tests/Feature/Crm/Partners/PartnersDataTableFeatureTest.php</code> — структура строки DataTables, в т.ч. ключи метрик</li>
+      <li><code>tests/Unit/Support/PartnerListMetricsTest.php</code> — подписи месяцев и окна дат</li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code> — resolver и PaymentService без fallback на <code>partners</code></li>
       <li><code>tests/Feature/Crm/PartnerLegalEntities/MultiEntityTbankGuardAccessFeatureTest.php</code> — multi-entity guard, Init, клубный взнос, CRM групп</li>
       <li><code>tests/Feature/Crm/Payments/PaymentServiceTbankAvailabilityFeatureTest.php</code> — доступность T‑Bank только при ShopCode в юр. лице</li>
       <li><code>tests/Feature/Crm/Payments/CloudKassirReceiptBuilderAgentTest.php</code>, <code>SendCloudKassirReceiptJobTest.php</code> — чеки через юр. лицо и группу (<a href="/docs/documentation/tests-standards#legal-entity-test-fixtures">tests-standards §5</a>)</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>organizations.blade.php</code>, <code>editPartner.blade.php</code></li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>organizations.blade.php</code>, <code>editPartner.blade.php</code>, <code>admin/partners/tabs/partners.blade.php</code> (контракт метрик + валидный JS)</li>
     </ul>
   </div>
   <pre><code>php artisan test --env=testing \
@@ -202,6 +269,10 @@
   tests/Feature/Crm/Partners/PartnerAdminSectionAccessFeatureTest.php \
   tests/Feature/Crm/Partners/PartnerAdminLegacyFieldsFeatureTest.php \
   tests/Feature/Crm/Partners/PartnerAdminNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnersListMetricsFeatureTest.php \
+  tests/Feature/Crm/Partners/PartnersDataTableFeatureTest.php \
+  tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php --filter=partners_list_metrics \
+  tests/Unit/Support/PartnerListMetricsTest.php \
   tests/Feature/Crm/PartnerLegalEntities/PartnerLegacyLegalFieldsResolverFeatureTest.php</code></pre>
 </div>
 </body>

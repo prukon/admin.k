@@ -381,7 +381,7 @@
     <br>Без <code>reports.view</code> страница и все AJAX-эндпоинты отвечают <b>403</b>; гость — <b>302/401/403</b>.
   </div>
 
-  <h2>4) Отчёт “Платежи по ученикам (LTV)”</h2>
+  <h2 id="ltv-vs-partners-turnover">4) Отчёт “Платежи по ученикам (LTV)”</h2>
   <ul>
     <li><b>Страница</b>: <code>/admin/reports/ltv</code> (middleware <code>can:reports.view</code>)</li>
     <li><b>DataTables</b>: <code>GET /admin/reports/ltv/data</code> (AJAX; UI — <code>KidsCrmDataTable.create('#ltv-table')</code>)</li>
@@ -407,7 +407,10 @@
     Вложенная таблица платежей инициализируется через обычный <code>$('#…').DataTable({ serverSide: true, … })</code>, не через <code>KidsCrmDataTable.create</code> (намеренно: нет dropdown «Колонки» у дочерней таблицы).
   </div>
   <div class="note">
-    “Общая сумма” в LTV — это <code>sum(payments.summ_cents)</code> (копейки; в UI/JSON — рубли) по тем же фильтрам (и по текущему партнёру), что и таблица.
+    “Общая сумма” в LTV — это <code>sum(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code> (копейки; в UI/JSON — рубли) по тем же фильтрам (и по текущему партнёру), что и таблица.
+    <b>Не путать</b> с колонками оборота в списке <code>/admin/partners</code>: там сумма всех платежей учеников <em>этой</em> строки партнёра без фильтров LTV (группа / локация / активность) и без scope <code>current_partner</code> —
+    <a href="/docs/documentation/account-partner-organization#partners-index-metrics">account-partner-organization §3.1.1</a>,
+    <a href="/doc#admin-partners-list-metrics">анонс на /doc</a>.
     Фильтр локации — §2.1: <code>payments.location_id</code> (опциональный снимок при create); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.
     Фильтр «Активность ученика» — §2.3: <code>status</code> в тех же endpoints; при <code>status=active</code> детализация неактивного ученика возвращает пустой набор / нулевую сумму.
   </div>

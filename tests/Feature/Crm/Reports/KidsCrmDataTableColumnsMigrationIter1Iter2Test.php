@@ -66,6 +66,9 @@ final class KidsCrmDataTableColumnsMigrationIter1Iter2Test extends CrmTestCase
         $this->asSuperadmin();
 
         $this->assertPageColumnUsesPresetType(route('admin.partner.index'), 'title', 'link');
+        $this->assertPageColumnUsesPresetType(route('admin.partner.index'), 'active_users_count', 'count');
+        $this->assertPageColumnUsesPresetType(route('admin.partner.index'), 'signed_contracts_count', 'count');
+        $this->assertPageColumnUsesPresetType(route('admin.partner.index'), 'turnover_all', 'money');
         $this->assertPageColumnUsesPresetType(route('admin.team.index'), 'weekdays_label', 'list');
     }
 
