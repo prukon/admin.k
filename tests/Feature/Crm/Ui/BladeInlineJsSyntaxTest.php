@@ -131,6 +131,101 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: семейный переключатель — native POST, selected активного ученика, без AJAX-submit.
+     */
+    public function test_family_student_switcher_posts_student_id_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/family_student_switcher.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("route('cabinet.active-student.switch')", $content);
+        $this->assertStringContainsString('method="post"', $content);
+        $this->assertStringContainsString('name="student_user_id"', $content);
+        $this->assertStringContainsString('id="family-active-student"', $content);
+        $this->assertStringContainsString('onchange="this.form.submit()"', $content);
+        $this->assertStringContainsString('@selected', $content);
+        $this->assertStringContainsString('$activeStudent', $content);
+        $this->assertStringContainsString('$familyStudents', $content);
+        $this->assertStringNotContainsString('fetch(', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+
+        $js = 'document.querySelector("#family-active-student") && document.querySelector("#family-active-student").form && document.querySelector("#family-active-student").form.submit();';
+        $tempFile = sys_get_temp_dir().'/blade-js-family-switcher-'.uniqid('', true).'.js';
+        try {
+            file_put_contents($tempFile, $js);
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+            $this->assertSame(0, $exitCode, implode("\n", $output));
+        } finally {
+            @unlink($tempFile);
+        }
+    }
+
+    /**
+     * P1: консоль — две JS-сборки формы «Оплатить» сезон (шаблон и пересборка) сохраняют team_id и период.
+     */
+    public function test_dashboard_season_pay_forms_keep_team_and_period_on_rebuild(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("paymentUrl: '{{ route('payment') }}'", $content);
+        $this->assertStringContainsString('const paymentUrl = window.Laravel.paymentUrl', $content);
+
+        $initialPos = strpos($content, 'name="formatedPaymentDate" value="${formatedPaymentDate}"');
+        $this->assertNotFalse($initialPos);
+        $initialChunk = substr($content, $initialPos - 400, 900);
+        $this->assertStringContainsString('action="${paymentUrl}"', $initialChunk);
+        $this->assertStringContainsString('method="POST"', $initialChunk);
+        $this->assertStringContainsString('name="team_id"', $initialChunk);
+        $this->assertStringContainsString('name="formatedPaymentDate"', $initialChunk);
+
+        $singlePos = strpos($content, 'name="formatedPaymentDate" value="${matchedData.new_month}"');
+        $this->assertNotFalse($singlePos);
+        $singleChunk = substr($content, $singlePos - 500, 1100);
+        $this->assertStringContainsString('action="${paymentUrl}"', $singleChunk);
+        $this->assertStringContainsString('name="team_id" value="${matchedData.team_id || \'\'}"', $singleChunk);
+        $this->assertStringContainsString('name="formatedPaymentDate" value="${matchedData.new_month}"', $singleChunk);
+        $this->assertStringContainsString('method="POST"', $singleChunk);
+
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($content, 'name="formatedPaymentDate" value="${matchedData.new_month}"'),
+            'Ожидались обе пересборки формы (одна группа и несколько групп)'
+        );
+        $this->assertStringContainsString('name="team_id" value="${matchedData.team_id || \'\'}"', $content);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1]);
+        $foundPayRebuild = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'matchedData.team_id')) {
+                continue;
+            }
+            $foundPayRebuild = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $tempFile = sys_get_temp_dir().'/blade-js-dashboard-family-pay-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    "JS syntax error in dashboard season pay rebuild, script #{$index}:\n".implode("\n", $output)."\n".mb_substr($js, 0, 400)
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+        $this->assertTrue($foundPayRebuild, 'В dashboard.blade.php нет пересборки формы оплаты с matchedData.team_id');
+    }
+
+    /**
      * P1: список /admin/partners — метрики, дефолты колонок, сброс фильтра, node --check.
      */
     public function test_partners_list_metrics_inline_script_contract_and_valid_javascript(): void
@@ -695,6 +790,35 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertNotFalse($moneyCasePos);
         $moneyChunk = substr($content, (int) $moneyCasePos, 1200);
         $this->assertStringNotContainsString('parseInt(value, 10)', $moneyChunk);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/kids-datatable.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: видимость колонок KidsCrmDataTable — по ключу, не по индексу.
+     * Иначе после смены порядка столбцов скрытый «Телефон» уедет на чужую колонку.
+     */
+    public function test_kids_datatable_applies_column_visibility_by_key_not_index(): void
+    {
+        $path = resource_path('js/kids-datatable.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function buildColumnsMap(columnDefinitions)', $content);
+        $this->assertStringContainsString('map[col.key] = index', $content);
+        $this->assertStringContainsString('function applyVisibleColumns(config)', $content);
+        $this->assertStringContainsString('const colIndex = columnsMap[key];', $content);
+        $this->assertStringContainsString('toBool(config[key], defaultColumnsVisibility[key])', $content);
+        $this->assertStringContainsString('[data-column-key="\' + key + \'"]', $content);
+        $this->assertStringNotContainsString('config[colIndex]', $content);
+        $this->assertStringNotContainsString('config[index]', $content);
 
         $output = [];
         $exitCode = 0;
@@ -1850,6 +1974,86 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($found, 'В debt.blade.php не найден script с refreshDebtReportTotal');
+    }
+
+    /**
+     * P1: порядок колонок заявок в inline JS — ключи, when-флаги, columns-settings по имени.
+     */
+    public function test_school_leads_column_order_inline_script_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("KidsCrmDataTable.create('#leads-table'", $content);
+        $this->assertStringContainsString("key: 'child_full_name'", $content);
+        $this->assertStringContainsString("key: 'name'", $content);
+        $this->assertStringContainsString("key: 'status'", $content);
+        $this->assertStringContainsString("key: 'location'", $content);
+        $this->assertStringContainsString("key: 'team_title'", $content);
+        $this->assertStringContainsString("key: 'phone'", $content);
+        $this->assertStringContainsString("key: 'contract'", $content);
+        $this->assertStringContainsString('when: canViewLocations', $content);
+        $this->assertStringContainsString('when: canShowLeadClientColumn', $content);
+        $this->assertStringContainsString('when: canViewDistricts', $content);
+        $this->assertStringContainsString("toggleSelector: '.school-leads-column-toggle'", $content);
+        $this->assertStringContainsString('child_full_name: true', $content);
+        $this->assertStringContainsString('phone: true', $content);
+        $this->assertStringContainsString("order: [[0, 'desc']]", $content);
+        $this->assertStringNotContainsString('data-column-key="0"', $content);
+
+        $createPos = strpos($content, "KidsCrmDataTable.create('#leads-table'");
+        $this->assertNotFalse($createPos);
+        $columnsPos = strpos($content, 'columns: [', $createPos);
+        $this->assertNotFalse($columnsPos);
+        $commentPos = strpos($content, "key: 'comment'", $columnsPos);
+        $this->assertNotFalse($commentPos);
+        $columnsChunk = substr($content, $columnsPos, $commentPos - $columnsPos);
+
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'name'"),
+            strpos($columnsChunk, "key: 'child_full_name'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'status'"),
+            strpos($columnsChunk, "key: 'name'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'location'"),
+            strpos($columnsChunk, "key: 'status'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'team_title'"),
+            strpos($columnsChunk, "key: 'location'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'phone'"),
+            strpos($columnsChunk, "key: 'team_title'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'contract'"),
+            strpos($columnsChunk, "key: 'phone'")
+        );
+
+        $locationBlockStart = strpos($columnsChunk, "key: 'location'");
+        $teamBlockStart = strpos($columnsChunk, "key: 'team_title'");
+        $this->assertNotFalse($locationBlockStart);
+        $this->assertNotFalse($teamBlockStart);
+        $locationBlock = substr($columnsChunk, $locationBlockStart, $teamBlockStart - $locationBlockStart);
+        $this->assertStringContainsString('when: canViewLocations', $locationBlock);
+
+        $phoneBlockStart = strpos($columnsChunk, "key: 'phone'");
+        $contractBlockStart = strpos($columnsChunk, "key: 'contract'");
+        $phoneBlock = substr($columnsChunk, $phoneBlockStart, $contractBlockStart - $phoneBlockStart);
+        $this->assertStringNotContainsString('when: canShowLeadClientColumn', $phoneBlock);
+        $contractBlock = substr($columnsChunk, $contractBlockStart, 400);
+        $this->assertStringContainsString('when: canShowLeadClientColumn', $contractBlock);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "KidsCrmDataTable.create('#leads-table'",
+            'blade-js-school-leads-columns'
+        );
     }
 
     /**

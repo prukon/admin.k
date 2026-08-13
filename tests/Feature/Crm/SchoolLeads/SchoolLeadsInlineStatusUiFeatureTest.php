@@ -43,35 +43,59 @@ final class SchoolLeadsInlineStatusUiFeatureTest extends CrmTestCase
         );
     }
 
-    public function test_status_column_is_placed_after_parent_name_in_table_and_columns_menu(): void
+    public function test_status_column_is_placed_after_parent_name_before_location_and_phone(): void
     {
         $html = $this->get(route('admin.school-leads'))->assertOk()->getContent();
 
+        $childHeaderPos = strpos($html, '<th>ФИО ребенка</th>');
         $parentHeaderPos = strpos($html, '<th>ФИО родителя</th>');
         $statusHeaderPos = strpos($html, 'lead-status-col-header');
+        $locationHeaderPos = strpos($html, '<th>Объект</th>');
+        $teamHeaderPos = strpos($html, '<th>Секция</th>');
         $phoneHeaderPos = strpos($html, '<th>Телефон родителя</th>');
 
+        $this->assertNotFalse($childHeaderPos);
         $this->assertNotFalse($parentHeaderPos);
         $this->assertNotFalse($statusHeaderPos);
+        $this->assertNotFalse($locationHeaderPos);
+        $this->assertNotFalse($teamHeaderPos);
         $this->assertNotFalse($phoneHeaderPos);
+        $this->assertLessThan($parentHeaderPos, $childHeaderPos);
         $this->assertLessThan($statusHeaderPos, $parentHeaderPos);
-        $this->assertLessThan($phoneHeaderPos, $statusHeaderPos);
+        $this->assertLessThan($locationHeaderPos, $statusHeaderPos);
+        $this->assertLessThan($teamHeaderPos, $locationHeaderPos);
+        $this->assertLessThan($phoneHeaderPos, $teamHeaderPos);
 
+        $childTogglePos = strpos($html, 'data-column-key="child_full_name"');
         $nameTogglePos = strpos($html, 'data-column-key="name"');
         $statusTogglePos = strpos($html, 'data-column-key="status"');
+        $locationTogglePos = strpos($html, 'data-column-key="location"');
+        $teamTogglePos = strpos($html, 'data-column-key="team_title"');
         $phoneTogglePos = strpos($html, 'data-column-key="phone"');
 
+        $this->assertNotFalse($childTogglePos);
         $this->assertNotFalse($nameTogglePos);
         $this->assertNotFalse($statusTogglePos);
+        $this->assertNotFalse($locationTogglePos);
+        $this->assertNotFalse($teamTogglePos);
         $this->assertNotFalse($phoneTogglePos);
+        $this->assertLessThan($nameTogglePos, $childTogglePos);
         $this->assertLessThan($statusTogglePos, $nameTogglePos);
-        $this->assertLessThan($phoneTogglePos, $statusTogglePos);
+        $this->assertLessThan($locationTogglePos, $statusTogglePos);
+        $this->assertLessThan($teamTogglePos, $locationTogglePos);
+        $this->assertLessThan($phoneTogglePos, $teamTogglePos);
 
+        $childColumnPos = strpos($html, "key: 'child_full_name'");
         $statusColumnPos = strpos($html, "key: 'status'");
+        $locationColumnPos = strpos($html, "key: 'location'");
         $phoneColumnPos = strpos($html, "key: 'phone'");
+        $this->assertNotFalse($childColumnPos);
         $this->assertNotFalse($statusColumnPos);
+        $this->assertNotFalse($locationColumnPos);
         $this->assertNotFalse($phoneColumnPos);
-        $this->assertLessThan($phoneColumnPos, $statusColumnPos);
+        $this->assertLessThan($statusColumnPos, $childColumnPos);
+        $this->assertLessThan($locationColumnPos, $statusColumnPos);
+        $this->assertLessThan($phoneColumnPos, $locationColumnPos);
     }
 
     public function test_status_settings_modal_uses_otobrazhat_column_header(): void

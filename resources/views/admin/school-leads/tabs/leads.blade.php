@@ -98,12 +98,30 @@
                                 <div class="small text-muted text-uppercase mb-2 px-1 payments-report-columns-menu-label">Вид таблицы</div>
 
                                 <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_full_name" id="slColChildName" checked>
+                                    <label class="form-check-label" for="slColChildName">ФИО ребенка</label>
+                                </div>
+                                <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="name" id="slColName" checked>
                                     <label class="form-check-label" for="slColName">ФИО родителя</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="status" id="slColStatus" checked>
                                     <label class="form-check-label" for="slColStatus">Статус</label>
+                                </div>
+                                @if ($canViewLocations)
+                                    <div class="form-check">
+                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="location" id="slColLocation" checked>
+                                        <label class="form-check-label" for="slColLocation">Объект</label>
+                                    </div>
+                                @endif
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="team_title" id="slColTeam" checked>
+                                    <label class="form-check-label" for="slColTeam">Секция</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="phone" id="slColPhone" checked>
+                                    <label class="form-check-label" for="slColPhone">Телефон родителя</label>
                                 </div>
                                 @if ($canShowLeadClientColumn)
                                     <div class="form-check">
@@ -112,16 +130,8 @@
                                     </div>
                                 @endif
                                 <div class="form-check">
-                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="phone" id="slColPhone" checked>
-                                    <label class="form-check-label" for="slColPhone">Телефон родителя</label>
-                                </div>
-                                <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="parent_email" id="slColParentEmail" checked>
                                     <label class="form-check-label" for="slColParentEmail">Email родителя</label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_full_name" id="slColChildName" checked>
-                                    <label class="form-check-label" for="slColChildName">ФИО ребенка</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_birthday" id="slColChildBirthday" checked>
@@ -133,16 +143,6 @@
                                         <label class="form-check-label" for="slColDistrict">Район</label>
                                     </div>
                                 @endif
-                                @if ($canViewLocations)
-                                    <div class="form-check">
-                                        <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="location" id="slColLocation" checked>
-                                        <label class="form-check-label" for="slColLocation">Объект</label>
-                                    </div>
-                                @endif
-                                <div class="form-check">
-                                    <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="team_title" id="slColTeam" checked>
-                                    <label class="form-check-label" for="slColTeam">Секция</label>
-                                </div>
                                 <div class="form-check">
                                     <input class="form-check-input school-leads-column-toggle" type="checkbox" data-column-key="child_flags" id="slColChildFlags" checked>
                                     <label class="form-check-label" for="slColChildFlags">Особые условия</label>
@@ -239,22 +239,22 @@
         <thead>
             <tr>
                 <th>№</th>
+                <th>ФИО ребенка</th>
                 <th>ФИО родителя</th>
                 <th class="lead-status-col-header" title="Статус можно изменить прямо в таблице — нажмите на бейдж в строке">Статус</th>
-                @if ($canShowLeadClientColumn)
-                    <th>Договор</th>
-                @endif
-                <th>Телефон родителя</th>
-                <th>Email родителя</th>
-                <th>ФИО ребенка</th>
-                <th>Дата рождения</th>
-                @if ($canViewDistricts)
-                    <th>Район</th>
-                @endif
                 @if ($canViewLocations)
                     <th>Объект</th>
                 @endif
                 <th>Секция</th>
+                <th>Телефон родителя</th>
+                @if ($canShowLeadClientColumn)
+                    <th>Договор</th>
+                @endif
+                <th>Email родителя</th>
+                <th>Дата рождения</th>
+                @if ($canViewDistricts)
+                    <th>Район</th>
+                @endif
                 <th>Особые условия</th>
                 <th>UTM / источник</th>
                 <th>Страница</th>
@@ -764,6 +764,19 @@
                 columns: [
                     { type: 'id', data: 'id', name: 'id' },
                     {
+                        key: 'child_full_name',
+                        type: 'text',
+                        data: 'child_full_name',
+                        name: 'child_full_name',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
+                        },
+                    },
+                    {
                         key: 'name',
                         type: 'link',
                         data: 'parent_full_name',
@@ -815,6 +828,46 @@
                         },
                     },
                     {
+                        key: 'location',
+                        type: 'text',
+                        data: 'location_name',
+                        name: 'location_name',
+                        when: canViewLocations,
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
+                        },
+                    },
+                    {
+                        key: 'team_title',
+                        type: 'text',
+                        data: 'team_title',
+                        name: 'team_title',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
+                        },
+                    },
+                    {
+                        key: 'phone',
+                        type: 'text',
+                        data: 'parent_phone',
+                        name: 'phone',
+                        render: function (data, type) {
+                            if (type !== 'display') {
+                                return data != null ? data : '';
+                            }
+
+                            return renderOptionalText(data);
+                        },
+                    },
+                    {
                         key: 'contract',
                         type: 'actions',
                         when: canShowLeadClientColumn,
@@ -848,36 +901,10 @@
                         },
                     },
                     {
-                        key: 'phone',
-                        type: 'text',
-                        data: 'parent_phone',
-                        name: 'phone',
-                        render: function (data, type) {
-                            if (type !== 'display') {
-                                return data != null ? data : '';
-                            }
-
-                            return renderOptionalText(data);
-                        },
-                    },
-                    {
                         key: 'parent_email',
                         type: 'text',
                         data: 'parent_email',
                         name: 'parent_email',
-                        render: function (data, type) {
-                            if (type !== 'display') {
-                                return data != null ? data : '';
-                            }
-
-                            return renderOptionalText(data);
-                        },
-                    },
-                    {
-                        key: 'child_full_name',
-                        type: 'text',
-                        data: 'child_full_name',
-                        name: 'child_full_name',
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data != null ? data : '';
@@ -906,33 +933,6 @@
                         data: 'district_name',
                         name: 'district_name',
                         when: canViewDistricts,
-                        render: function (data, type) {
-                            if (type !== 'display') {
-                                return data != null ? data : '';
-                            }
-
-                            return renderOptionalText(data);
-                        },
-                    },
-                    {
-                        key: 'location',
-                        type: 'text',
-                        data: 'location_name',
-                        name: 'location_name',
-                        when: canViewLocations,
-                        render: function (data, type) {
-                            if (type !== 'display') {
-                                return data != null ? data : '';
-                            }
-
-                            return renderOptionalText(data);
-                        },
-                    },
-                    {
-                        key: 'team_title',
-                        type: 'text',
-                        data: 'team_title',
-                        name: 'team_title',
                         render: function (data, type) {
                             if (type !== 'display') {
                                 return data != null ? data : '';

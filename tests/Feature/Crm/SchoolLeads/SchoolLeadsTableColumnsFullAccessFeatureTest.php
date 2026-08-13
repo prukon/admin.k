@@ -82,6 +82,22 @@ final class SchoolLeadsTableColumnsFullAccessFeatureTest extends CrmTestCase
                 ]),
             ],
             [
+                'method' => 'GET',
+                'url'    => route('admin.school-leads.columns-settings.get'),
+            ],
+            [
+                'method' => 'POST',
+                'url'    => route('admin.school-leads.columns-settings.save'),
+                'data'   => [
+                    'columns' => [
+                        'child_full_name' => true,
+                        'name'            => true,
+                        'status'          => true,
+                        'phone'           => false,
+                    ],
+                ],
+            ],
+            [
                 'method' => 'PUT',
                 'url'    => route('admin.school-leads.update', ['schoolLead' => $this->lead->id]),
                 'data'   => [
@@ -175,7 +191,7 @@ final class SchoolLeadsTableColumnsFullAccessFeatureTest extends CrmTestCase
         );
     }
 
-    public function test_admin_page_shows_contract_after_status_and_endpoints_return_200(): void
+    public function test_admin_page_shows_new_column_order_and_endpoints_return_200(): void
     {
         $this->asAdmin();
 
@@ -185,15 +201,27 @@ final class SchoolLeadsTableColumnsFullAccessFeatureTest extends CrmTestCase
             ->assertDontSee("key: 'actions'", false)
             ->getContent();
 
+        $childPos = strpos($html, "key: 'child_full_name'");
+        $namePos = strpos($html, "key: 'name'");
         $statusPos = strpos($html, "key: 'status'");
-        $contractPos = strpos($html, "key: 'contract'");
+        $locationPos = strpos($html, "key: 'location'");
+        $teamPos = strpos($html, "key: 'team_title'");
         $phonePos = strpos($html, "key: 'phone'");
+        $contractPos = strpos($html, "key: 'contract'");
 
+        $this->assertNotFalse($childPos);
+        $this->assertNotFalse($namePos);
         $this->assertNotFalse($statusPos);
-        $this->assertNotFalse($contractPos);
+        $this->assertNotFalse($locationPos);
+        $this->assertNotFalse($teamPos);
         $this->assertNotFalse($phonePos);
-        $this->assertLessThan($contractPos, $statusPos);
-        $this->assertLessThan($phonePos, $contractPos);
+        $this->assertNotFalse($contractPos);
+        $this->assertLessThan($namePos, $childPos);
+        $this->assertLessThan($statusPos, $namePos);
+        $this->assertLessThan($locationPos, $statusPos);
+        $this->assertLessThan($teamPos, $locationPos);
+        $this->assertLessThan($phonePos, $teamPos);
+        $this->assertLessThan($contractPos, $phonePos);
 
         foreach ($this->coreRoutesPayload() as $item) {
             $response = $this->call(
@@ -253,5 +281,58 @@ final class SchoolLeadsTableColumnsFullAccessFeatureTest extends CrmTestCase
         $this->assertSame(405, $response->getStatusCode());
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNull($this->lead->fresh()->deleted_at);
+    }
+
+    public function test_guest_is_denied_on_columns_settings_get_and_save(): void
+    {
+        Auth::logout();
+
+        $get = $this->getJson(route('admin.school-leads.columns-settings.get'));
+        $this->assertContains($get->getStatusCode(), [302, 401, 403]);
+        $this->assertNotSame(500, $get->getStatusCode());
+
+        $post = $this->postJson(route('admin.school-leads.columns-settings.save'), [
+            'columns' => ['name' => true],
+        ]);
+        $this->assertContains($post->getStatusCode(), [302, 401, 403]);
+        $this->assertNotSame(500, $post->getStatusCode());
+        $this->assertNotSame(200, $post->getStatusCode());
+    }
+
+    public function test_user_without_school_leads_view_gets_403_on_columns_settings(): void
+    {
+        $denied = $this->createUserWithoutPermission('schoolLeads.view', $this->partner);
+        $this->actingAs($denied);
+        $this->withSession(['current_partner' => $this->partner->id, '2fa:passed' => true]);
+
+        $this->getJson(route('admin.school-leads.columns-settings.get'))->assertForbidden();
+        $this->postJson(route('admin.school-leads.columns-settings.save'), [
+            'columns' => ['name' => true],
+        ])->assertForbidden();
+    }
+
+    public function test_unsupported_methods_on_columns_settings_do_not_return_500_or_empty_200(): void
+    {
+        $this->asAdmin();
+
+        foreach (['PUT', 'PATCH', 'DELETE'] as $method) {
+            $response = $this->json($method, route('admin.school-leads.columns-settings.save'), [
+                'columns' => ['name' => true],
+            ]);
+
+            $this->assertNotSame(
+                500,
+                $response->getStatusCode(),
+                "{$method} columns-settings.save не должен отдавать 500"
+            );
+            if ($response->getStatusCode() === 200) {
+                $this->assertNotSame('', trim((string) $response->getContent()));
+            }
+            $this->assertContains(
+                $response->getStatusCode(),
+                [404, 405],
+                "{$method} columns-settings.save: ожидался 404/405, получен {$response->getStatusCode()}"
+            );
+        }
     }
 }

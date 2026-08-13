@@ -55,7 +55,7 @@
     При создании из лида / «Добавить» с welcome: логин (<code>users.email = parent_email</code>) выдаётся первому ребёнку; второму — <code>users.email = null</code> и письмо «входите как раньше» (<code>FamilyStudentLoginResolver</code>, см. <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>).
   </div>
   <ul>
-    <li>Права (роли, permissions) остаются у <b>залогиненного</b> ученика; переключатель меняет только <b>контекст просмотра</b> (платежи, консоль и т.д.) — session <code>active_student_user_id</code>.</li>
+    <li>Права (роли, permissions) остаются у <b>залогиненного</b> ученика; переключатель меняет только <b>контекст просмотра</b> (платежи, консоль и т.д.) — session <code>active_student_user_id</code>. Оплата месяца / доп. платежа / абонемента с витрины тоже идёт в этот контекст: начисление, запись платежа и строка «Плательщик» — выбранный ребёнок, право <code>paying.classes</code> — учётка входа.</li>
     <li>Если у ученика нет <code>parent_id</code> или нет второго активного ребёнка с тем же <code>parent_id</code> — переключателя нет.</li>
     <li>При семейном режиме (переключатель виден) в сайдбаре над селектом «Имя» и «Почта» показываются <code>parents.full_name</code> и <code>parents.email</code> (см. <code>FamilyStudentContextService::sidebarPanelIdentity</code>).</li>
     <li>Редактирование карточки родителя (ФИО, паспорт, адрес, телефон, email) в личном кабинете или в админке меняет общую запись <code>parents</code> — изменения видны всем детям с этим <code>parent_id</code>.</li>
@@ -300,6 +300,7 @@ users (role=user) — ученик, вход в CRM
     <code>AccountUserEditPageFeatureTest</code>.</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
+  <p class="small">Оплата за выбранного ребёнка (витрина, Init, отчёты) — <a href="/doc#family-student-payment-index">анонс на /doc</a>.</p>
 
   <h3>5.1) UI и условия показа</h3>
   <ul>
@@ -331,6 +332,7 @@ users (role=user) — ученик, вход в CRM
     </thead>
     <tbody>
       <tr><td><code>GET /cabinet</code> (консоль)</td><td><code>dashboard.view</code></td><td><code>activeStudent()</code></td></tr>
+      <tr id="family-payment"><td><code>POST /payment</code>, <code>POST /payment/pay</code>, T‑Bank Init карта/СБП (месячный, доп. платёж, абонемент)</td><td><code>paying.classes</code> (+ метод оплаты) у <b>залогиненного</b></td><td>начисление, строка «Плательщик» и <code>payables</code>/<code>payment_intents.user_id</code> — <code>activeStudent()</code>; клубный взнос — учётка входа. Анонс: <a href="/doc#family-student-payment-index">/doc</a></td></tr>
       <tr><td><code>POST /cabinet/teams/attach</code></td><td><code>account.user.team.update</code></td><td><code>activeStudent()</code> (только роль <code>user</code>)</td></tr>
       <tr><td><code>GET /reports/payments</code>, <code>GET /getUserPayments</code></td><td><code>myPayments.view</code></td><td><code>activeStudent()</code></td></tr>
       <tr><td><code>GET /account-settings/user/edit</code></td><td><code>account.user.view</code></td><td>залогиненный <code>auth()->user()</code> (свой пароль, телефон)</td></tr>
@@ -346,6 +348,7 @@ users (role=user) — ученик, вход в CRM
     </thead>
     <tbody>
       <tr><td><code>DashboardController::index</code></td><td>Расписание, назначенные абонементы (<code>fee_amount_cents &gt; 0</code> и <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>), поля, сезоны (при <code>setPrices.cabinetSeasons.view</code> или <code>setPrices.cabinetPackages.postpay.view</code>) — данные выбранного ребёнка; при 2+ группах — селект «Выбор группы», если есть сезоны/постоплата <em>или</em> видимые абонементы (§<a href="#cabinet-team-switcher">5.6</a>)</td></tr>
+      <tr><td><code>FamilyPaymentPayerResolver</code> → витрина / Init</td><td>Месячный взнос, доп. платёж, абонемент: сумма, группа, строка «Плательщик», hidden <code>userName</code>/<code>userId</code>, <code>payables.user_id</code>, <code>payment_intents.user_id</code>, <code>Shp_userId</code>, T‑Bank <code>DATA.user_id</code> — выбранный ребёнок. Права и контакты входа — actor. В <code>intent.meta.actor_user_id</code> кто нажал «Оплатить». Клубный взнос пока без семейного контекста.</td></tr>
       <tr><td><code>ReportController</code> («Мои платежи»)</td><td>Платежи выбранного ребёнка</td></tr>
       <tr><td><code>AppServiceProvider</code> (view composers)</td><td><code>layouts.admin2</code>: <code>familyStudents</code>, <code>activeStudent</code>, переключатель, <code>sidebarPanelIdentity</code>, при праве — <code>cabinetTeamAttach</code>; дополнительно <code>dashboard</code> и <code>account.index</code> — <code>cabinetTeamAttach</code> для карандаша в content</td></tr>
     </tbody>
@@ -418,6 +421,9 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Parents/ParentProfileRelationshipsTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/StudentParentSyncServiceTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/FamilyStudentContextTest.php</code></li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentMonthlyPaymentFeatureTest.php</code> — UX: консоль после switch → POST витрины без 403; разные/одна группа; webhook; доп. платёж и абонемент; GET /payment не 500; 422 по полям</li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentFullAccessFeatureTest.php</code> — guest / без прав / 200 витрины, non-AJAX switch 302</li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentMarkupFeatureTest.php</code> — selected переключателя, userPrice активного ребёнка, @can «Оплатить», витрина «Плательщик» после switch / без switch</li>
       <li><code>tests/Feature/Crm/Parents/FamilyStudentContextPartnerIsolationTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Parents/ParentsAndFamilyCabinetPartnerIsolationFeatureTest.php</code></li>

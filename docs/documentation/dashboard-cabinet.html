@@ -62,7 +62,7 @@
   <div class="warn">
     <b>Важно.</b> Право <code>setPrices.cabinetSeasons.view</code> <b>не</b> защищает маршруты консоли — только видимость блока сезонов в HTML/JS. Endpoint'ы <code>/cabinet</code> и AJAX-ручки доступны при <code>dashboard.view</code> независимо от сезонов.
   </div>
-  <p>Оплата с консоли: <code>POST /payment</code> (<code>paying.classes</code>). См. <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>, блок «Поставщик услуг» при T‑Bank — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>. Публичная ссылка на оплату абонемента (СБП) — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>.</p>
+  <p>Оплата с консоли: <code>POST /payment</code> (<code>paying.classes</code> у учётки входа). Месячный взнос, доп. платёж и абонемент после семейного switch идут на <code>activeStudent()</code> — <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a>, <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>, анонс <a href="/doc#family-student-payment-index">/doc</a>. Клубный взнос пока на учётку входа. Блок «Поставщик услуг» при T‑Bank — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>. Публичная ссылка на оплату абонемента (СБП) — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>.</p>
 
   <h2 id="cabinet-payment-blocks">2) Блоки оплат на консоли</h2>
   <p>Порядок сверху вниз (после календаря посещений):</p>
@@ -367,6 +367,9 @@
       <li><code>tests/Feature/Crm/Permissions/SetPricesCabinetPackagesPermissionCatalogFeatureTest.php</code> — скрытые права, матрица, не в базовых ролях</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherFeatureTest.php</code> — UI селекта, partial, client-only</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamSwitcherAccessFeatureTest.php</code> — 200/403/401, JSON-контракты</li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentMonthlyPaymentFeatureTest.php</code> — после switch оплата месяца/доп. платежа/абонемента активного ученика; UX консоль→витрина без 403</li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentFullAccessFeatureTest.php</code> — HTTP-матрица семейной оплаты</li>
+      <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentMarkupFeatureTest.php</code> — selected переключателя, payload сезонов, @can «Оплатить», витрина «Плательщик»</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code> — pivot в AJAX</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFeatureTest.php</code> — attach / валидация / семейный контекст</li>

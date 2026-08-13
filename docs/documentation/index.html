@@ -28,6 +28,106 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="family-student-payment-index">Семейный кабинет: оплата за выбранного ребёнка (2026‑08)</h2>
+  <div class="note">
+    Вход в CRM — учётка ученика. У братьев с одним <code>parent_id</code> в сайдбаре есть
+    «Просмотр данных ученика» (<code>session.active_student_user_id</code>).
+    Раньше консоль и «Мои платежи» смотрели на выбранного ребёнка, а витрина
+    <code>POST /payment</code> и Init — на <code>auth()->user()</code>.
+    После switch на брата 2 «Оплатить» давало <b>403</b> (разные группы) либо
+    могло зачислить месяц брату 1 (одна группа). На витрине в «Плательщик» оставалось имя учётки входа.
+    <br><br>
+    1) <b>Модель (без <code>Auth::login</code> sibling).</b>
+    Actor = учётка входа: права <code>paying.classes</code> / <code>payment.method.*</code>, 2FA, контакты входа.
+    Student = <code>FamilyStudentContextService::activeStudent()</code> после
+    <code>canAccessStudent()</code>: сумма, группа, начисление, журнал.
+    Сервис: <code>FamilyPaymentPayerResolver</code>
+    (<code>resolve()</code> на витрине; <code>forPayableType()</code> на Init).
+    <br>
+    2) <b>Что списывается выбранному ребёнку:</b>
+    месячный взнос, доп. платёж, назначенный абонемент.
+    На витрине строка «Плательщик» и hidden <code>userName</code> / <code>userId</code> —
+    <code>$payerStudent</code> (имя/id активного ученика), не <code>auth()</code>.
+    Init (Робокасса, T‑Bank карта/СБП) пишет <code>payables.user_id</code>,
+    <code>payment_intents.user_id</code>, <code>Shp_userId</code>, T‑Bank <code>DATA.user_id</code>
+    на него же. В <code>intent.meta.actor_user_id</code> — кто нажал «Оплатить» (аудит, не ФИО в отчётах).
+    POST <code>userId</code> с формы сервер <b>не</b> доверяет.
+    <br>
+    3) <b>Отчёты.</b> Журнал <code>payments.user_id</code> = выбранный ребёнок.
+    Админка «Платежи», LTV, «Платежи по месяцам», задолженности, payment-intents,
+    «Мои платежи» в ЛК (<code>activeStudent()</code>) показывают брата 2, как если бы он платил из своей учётки.
+    <br>
+    4) <b>Клубный взнос</b> (<code>/payment/club-fee</code> и Init без месяца) —
+    пока учётка входа. Не путать с месячным с консоли.
+    <br>
+    5) <b>Доступ:</b> без <code>paying.classes</code> у actor — 403 на витрину даже после switch;
+    без метода оплаты — 403 на Init; гость — redirect/401, не 200 и не 500.
+    GET <code>/payment</code> страницы не открывает (маршрут POST); в адресной строке
+    после submit с консоли всё равно <code>/payment</code>.
+    <br>
+    6) <b>Без переключателя</b> (один ученик) actor = student: поведение как раньше.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/parents-and-family-cabinet#family-cabinet">parents-and-family-cabinet §5</a>,
+    <a href="/docs/documentation/payments#vitrina-payment">payments §3.1.1</a>,
+    <a href="/docs/documentation/dashboard-cabinet">dashboard-cabinet</a>,
+    <a href="/docs/documentation/reports-payments">reports-payments</a>.
+    Тесты: <code>FamilyStudentMonthlyPaymentFeatureTest</code> (в т.ч. UX консоль→витрина без 403, webhook на брата 2),
+    <code>FamilyStudentPaymentFullAccessFeatureTest</code>,
+    <code>FamilyStudentPaymentMarkupFeatureTest</code> («Плательщик» после switch / без switch),
+    JS-контракт селекта в <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
+  <h2 id="school-leads-column-order-2026-08">Заявки: порядок колонок таблицы (2026‑08)</h2>
+  <div class="note">
+    На <code>/admin/school-leads</code> (вкладка «Заявки») колонки переставлены под ежедневную работу с заявкой.
+    Разметка (<code>thead</code>), меню toolbar «Колонки» и массив DataTables <code>columns</code>
+    в <code>resources/views/admin/school-leads/tabs/leads.blade.php</code> идут в одном порядке.
+    <br><br>
+    1) <b>Полный порядок слева направо:</b>
+    № → ФИО ребенка (<code>child_full_name</code>) → ФИО родителя (<code>name</code>, клик → модалка)
+    → Статус (<code>status</code>, inline-picker) → Объект (<code>location</code>) → Секция (<code>team_title</code>)
+    → Телефон родителя (<code>phone</code>) → Договор (<code>contract</code>) → Email родителя
+    → Дата рождения → Район → Особые условия → UTM / источник → Страница → Комментарий.
+    Колонки «Действия» нет; правка по-прежнему по клику на ФИО родителя.
+    <br>
+    2) <b>Условные колонки</b> (и thead, и меню, и JS <code>when</code> — иначе DataTables ломает таблицу):
+    «Объект» только при <code>locations.view</code>;
+    «Договор» при <code>users.view</code> и/или <code>contracts.view</code>;
+    «Район» при <code>districts.view</code>.
+    Без права колонка не занимает место: после «Статус» сразу «Секция», если нет объекта.
+    «№» в меню «Колонки» нет (служебная, всегда видна).
+    <br>
+    3) <b>Персональная видимость не сбрасывается.</b>
+    <code>user_table_settings.table_key = school_leads_index</code> хранит объект
+    <code>{ ключ: bool }</code>, не индексы и не порядок.
+    Кто скрыл «Телефон», так и не увидит его — столбец просто на новом месте, если снова включить.
+    Чистить настройки или просить админов перенастроить колонки не нужно.
+    KidsCrmDataTable применяет show/hide по ключу (<code>data-column-key</code>).
+    <br>
+    4) <b>JSON data не переставлялся:</b> <code>parent_full_name</code> / <code>child_full_name</code> /
+    <code>parent_phone</code> остаются своими полями. Сортировка по умолчанию — колонка №
+    (<code>order: [[0, 'desc']]</code>).
+    <br>
+    5) <b>columns-settings</b> (<code>schoolLeads.view</code>):
+    GET <code>/admin/school-leads/columns-settings</code> → <b>200</b> объект
+    <code>{ ключ: bool }</code>; если настроек нет или <code>columns</code> в БД не массив → <code>[]</code>
+    (без записи в БД).
+    POST → AJAX и non-AJAX успех: <b>200</b> <code>{success: true}</code> + запись в БД.
+    Без <code>columns</code>: AJAX → <b>422</b> <code>errors.columns</code>, non-AJAX → <b>302</b> + session errors.
+    Гость 302/401, без права 403. PUT/PATCH/DELETE на этот URI → 404/405.
+    <br><br>
+    Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-actions-column">school-leads-widget §5.5.3</a>,
+    договор — <a href="/docs/documentation/school-leads-widget#school-lead-contract-column">§5.6</a>,
+    inline-статус — <a href="/docs/documentation/school-leads-widget#school-leads-inline-status">§5.5.1</a>.
+    Тесты: <code>SchoolLeadsTableColumnsFeatureTest</code> (порядок, thead=columns, видимость по ключу),
+    <code>SchoolLeadsTableColumnsFullAccessFeatureTest</code>,
+    <code>SchoolLeadsTableColumnsAjaxContractFeatureTest</code>,
+    <code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_school_leads_column_order_inline_script_contract_and_valid_javascript</code>,
+    <code>test_kids_datatable_applies_column_visibility_by_key_not_index</code>.
+  </div>
+
   <h2 id="journal-monthly-payment-check">Журнал: галочка оплаты месяца по группам (2026‑08)</h2>
   <div class="note">
     Колонка с рублём на <code>/schedule</code> показывает оплату <b>месячного начисления</b>
@@ -735,8 +835,9 @@
   <div class="note">
     На <code>/admin/school-leads</code> (вкладка «Заявки»):
     <br>
-    1) Порядок колонок: <b>ФИО родителя → Статус → Договор</b> (при <code>users.view</code> и/или <code>contracts.view</code>) → телефон и далее.
-    Тот же порядок в меню «Колонки» и в DataTables <code>columns</code>.
+    1) Порядок колонок — см. актуальный анонс
+    <a href="#school-leads-column-order-2026-08">«Заявки: порядок колонок таблицы»</a>
+    (ребёнок → родитель → статус → объект → секция → телефон → договор и далее).
     <br>
     2) Колонки <b>«Действия» нет</b>: правка/просмотр — клик по ФИО родителя (<code>edit-lead</code> → модалка §5.5.2).
     <br>
@@ -1472,6 +1573,9 @@
     <b>Multi-entity guard (2026‑06‑30):</b> при ≥2 активных юр. лицах Init T‑Bank запрещён, если у выбранной группы нет активной привязки <code>teams.legal_entity_id</code> с ShopCode; ошибка Init — «Для выбранной группы не настроено юр. лицо». Клубный взнос: кнопки T‑Bank скрываются JS до выбора группы с доступным ShopCode. Подробно — <a href="/docs/documentation/payments#payments-multi-entity-guard">payments §2.3.5</a>, <a href="/docs/documentation/admin-legal-entities#legal-entity-resolver">admin-legal-entities §1.1</a>.
     <br><br>
     <b>«Поставщик услуг» на витрине (2026‑07):</b> на <code>POST /payment</code>, <code>/payment/club-fee</code> и публичной странице оплаты абонемента <code>GET /pay/ulp/{token}</code> (при T‑Bank СБП) показывается строка с юр. лицом, которому уйдёт net-выплата и которое попадёт в чек CloudKassir — та же цепочка, что при Init (<code>PayableTeamResolver</code> → <code>LegalEntityResolver</code>). Формат: <code>{organization_name}, ИНН {tax_id}, {city}</code>. На витрине ученика без валидного юр. лица — «Обратитесь в школу», кнопки T‑Bank скрыты; на публичной ссылке — «Обратитесь в школу/клуб.» Робокасса на витрине не затрагивается. Подробно — <a href="/docs/documentation/payments#payment-checkout-service-provider">payments §3.1.2</a>, публичная СБП-страница — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>.
+    <br><br>
+    <b>Семейный кабинет, оплата за выбранного ребёнка (2026‑08):</b> отдельный анонс
+    <a href="/doc#family-student-payment-index">выше на этой странице</a>.
   </div>
 
   <h2>История изменений на страницах CRM</h2>
@@ -1502,7 +1606,7 @@
   <h2>Разделы</h2>
   <ul>
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
-    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
+    <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), webhook, «Цены»</a></li>
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
@@ -1526,7 +1630,7 @@
     <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker</a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
@@ -1544,15 +1648,15 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
     <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>Статус→Договор</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>)</a></li>

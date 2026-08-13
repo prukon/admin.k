@@ -25,6 +25,12 @@
   <ul>
     <li>Страница: <code>/admin/reports/payments</code></li>
   </ul>
+  <div class="note">
+    Колонка ФИО и фильтр ученика смотрят на <code>payments.user_id</code> — это ученик, которому зачислена оплата.
+    В семейном кабинете после switch это выбранный ребёнок (<code>activeStudent()</code>), не учётка входа.
+    Кто нажал «Оплатить», лежит только в <code>payment_intents.meta.actor_user_id</code> и в отчёте как ФИО не показывается.
+    Анонс: <a href="/doc#family-student-payment-index">/doc</a>.
+  </div>
 
   <h2 id="team-filter">1.1) Группы ученика и оплаченная группа (<code>payments.team_id</code>)</h2>
   <div class="note">

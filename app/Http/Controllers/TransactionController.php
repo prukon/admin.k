@@ -11,6 +11,7 @@ use App\Models\PaymentSystem;
 use App\Models\Team;
 use App\Models\UserCustomPayment;
 use App\Models\UserLessonPackage;
+use App\Services\Payments\FamilyPaymentPayerResolver;
 use App\Services\Payments\PaymentCheckoutContextResolver;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\PaymentService;
@@ -96,7 +97,9 @@ class TransactionController extends Controller
         $curPartner = app('current_partner');
         $partnerId = (int) $curPartner->id;
 
-        $user = $request->user();
+        $payer = app(FamilyPaymentPayerResolver::class)->resolve($request->user());
+        $actor = $payer->actor;
+        $user = $payer->student;
 
         $upp = null;
         $lessonPackage = null;
@@ -155,8 +158,8 @@ class TransactionController extends Controller
             }
         }
 
-        $canTbankCard = $user->can('payment.method.tbankCard');
-        $canTbankSbp = $user->can('payment.method.tbankSBP');
+        $canTbankCard = $actor->can('payment.method.tbankCard');
+        $canTbankSbp = $actor->can('payment.method.tbankSBP');
 
         $checkoutContext = app(PaymentCheckoutContextResolver::class)->forUserPaymentPage(
             $curPartner,
@@ -171,11 +174,12 @@ class TransactionController extends Controller
         );
 
         $robokassaAvailable = $paymentService->isRobokassaAvailable($curPartner)
-            && $user->can('payment.method.robokassa');
+            && $actor->can('payment.method.robokassa');
         $tbankAvailable = $checkoutContext->tbankCardAvailable;
         $tbankSbpAvailable = $checkoutContext->tbankSbpAvailable;
         $showTbankLegalEntityBlock = $checkoutContext->showTbankLegalEntityBlock;
         $serviceProviderLabel = $checkoutContext->serviceProviderLabel;
+        $payerStudent = $user;
 
         return view('payment.paymentUser', compact(
             'paymentDate',
@@ -192,6 +196,7 @@ class TransactionController extends Controller
             'monthlyTeamTitle',
             'showTbankLegalEntityBlock',
             'serviceProviderLabel',
+            'payerStudent',
         ));
     }
 
@@ -199,10 +204,6 @@ class TransactionController extends Controller
     public function pay(Request $request)
     {
         $this->authorize('payment.method.robokassa');
-
-        $user = $request->user();
-        $userId = (int) $user->id;
-        $userName = (string) ($user->name ?? '');
 
         $partnerId = (int) app('current_partner')->id;
 
@@ -214,6 +215,15 @@ class TransactionController extends Controller
         $hasMonthly = $request->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+
+        $payer = app(FamilyPaymentPayerResolver::class)->forPayableType(
+            $request->user(),
+            $paymentKind,
+            $hasMonthly,
+        );
+        $user = $payer->student;
+        $userId = $payer->studentId();
+        $userName = (string) ($user->name ?? '');
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
@@ -348,7 +358,7 @@ class TransactionController extends Controller
             'status' => 'pending',
             'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
-            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId, $payer->actorId()), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($request)));
 
         // На всякий случай (защита от future-regressions с fillable)

@@ -227,7 +227,7 @@
             <div class="summary-grid">
                 <div>
                     <div class="summary-item-label">Плательщик</div>
-                    <div class="summary-item-value">{{ auth()->user()->name }}</div>
+                    <div class="summary-item-value">{{ $payerStudent->name }}</div>
                 </div>
                 <div>
                     <div class="summary-item-label">Платежный период</div>
@@ -269,7 +269,7 @@
                     <form action="{{ route('payment.tinkoff.sbp') }}" method="POST">
                         @csrf
                         <input type="hidden" name="partner_id" value="{{ $partnerId }}">
-                        <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
+                        <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
                         <input type="hidden" name="outSum" value="{{ $outSum }}">
                         <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                         <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
@@ -295,7 +295,7 @@
                             <form action="{{ route('payment.tinkoff.pay') }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="partner_id" value="{{ $partnerId }}">
-                                <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
+                                <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">
@@ -317,8 +317,8 @@
                             <img class="img-fluid d-block" src="{{ asset('/img/partners/robokassa.png') }}" alt="Робокасса">
                             <form id="paymentForm" action="{{ route('payment.pay') }}" method="POST">
                                 @csrf
-                                <input type="hidden" name="userName" value="{{ auth()->user()->name }}">
-                                <input type="hidden" name="userId" value="{{ auth()->user()->id }}">
+                                <input type="hidden" name="userName" value="{{ $payerStudent->name }}">
+                                <input type="hidden" name="userId" value="{{ $payerStudent->id }}">
                                 <input type="hidden" name="outSum" value="{{ $outSum }}">
                                 <input type="hidden" name="paymentDate" value="{{ $paymentDate }}">
                                 <input type="hidden" name="formatedPaymentDate" value="{{ $formatedPaymentDate }}">

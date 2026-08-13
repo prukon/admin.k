@@ -227,7 +227,7 @@
 
   <h2>6) Заявки с сайта и создание договора</h2>
   <ul>
-    <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (сразу после «Статус» на <code>/admin/school-leads</code>) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
+    <li>После привязки ученика к заявке — кнопка «Создать договор» в колонке «Договор» (после «Телефон родителя» на <code>/admin/school-leads</code>, §5.5.3 / §5.6) и в read-only модалке лида открывает ту же модалку создания <b>на странице заявок</b> (<code>KidsCrmContractCreate.openModal</code>). Альтернатива — прямой переход <code>GET /client-contracts?user_id={id}</code>.</li>
     <li>Ученик и ФИО родителя предзаполняются в модалке, если у ученика есть запись в <code>parents</code>.</li>
     <li>На странице <a href="/docs/documentation/admin-users#user-contract-column">/admin/users</a> — колонка и фильтр «Договор» (только при <code>contracts.view</code>): иконка PDF последнего договора с tooltip «Статус: …», сортировка по статусу; без кнопки «Создать договор».</li>
     <li>Полный сценарий лид → клиент → договор: <a href="/docs/documentation/school-leads-widget">school-leads-widget.html</a> (§5.5.2–5.8).</li>

@@ -70,11 +70,14 @@ trait ResolvesPaymentCheckoutTeam
     /**
      * @return array<string, mixed>
      */
-    protected function paymentIntentMetaWithTeam(string $userName, int $paymentTeamId): array
+    protected function paymentIntentMetaWithTeam(string $userName, int $paymentTeamId, ?int $actorUserId = null): array
     {
         $meta = ['user_name' => $userName];
         if ($paymentTeamId > 0) {
             $meta['team_id'] = $paymentTeamId;
+        }
+        if ($actorUserId !== null && $actorUserId > 0) {
+            $meta['actor_user_id'] = $actorUserId;
         }
 
         return $meta;

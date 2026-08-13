@@ -8,6 +8,8 @@ use App\Http\Requests\Tinkoff\CreateSbpPaymentRequest;
 use App\Models\Payable;
 use App\Models\PaymentIntent;
 use App\Models\UserCustomPayment;
+use App\Services\Payments\FamilyPaymentPayer;
+use App\Services\Payments\FamilyPaymentPayerResolver;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\PaymentIntentClientContext;
 use App\Services\Payments\UserLessonPackageFeePaymentResolver;
@@ -49,10 +51,6 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
 
-        $user = $r->user();
-        $userId = (int) $user->id;
-        $userName = (string) ($user->name ?? '');
-
         $paymentKind = (string) $r->input('payment_kind', '');
         $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
         $userLessonPackageId = $r->filled('user_lesson_package_id') ? (int) $r->input('user_lesson_package_id') : null;
@@ -61,6 +59,11 @@ class TinkoffPaymentController extends Controller
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+
+        $payer = $this->familyCheckoutPayer($r, $paymentKind, $hasMonthly);
+        $user = $payer->student;
+        $userId = $payer->studentId();
+        $userName = (string) ($user->name ?? '');
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
@@ -184,7 +187,7 @@ class TinkoffPaymentController extends Controller
             'status' => 'pending',
             'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
-            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId), JSON_UNESCAPED_UNICODE),
+            'meta' => json_encode($this->paymentIntentMetaWithTeam($userName, $paymentTeamId, $payer->actorId()), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
 
         // One-stage (PayType=O) + DATA.month для трассировки
@@ -226,10 +229,6 @@ class TinkoffPaymentController extends Controller
             return back()->withErrors(['tinkoff' => 'Оплата T‑Bank не подключена на платформе']);
         }
 
-        $user = $r->user();
-        $userId = (int) $user->id;
-        $userName = (string) ($user->name ?? '');
-
         $paymentKind = (string) $r->input('payment_kind', '');
         $userPeriodPriceId = $r->filled('custom_payment_id') ? (int) $r->input('custom_payment_id') : null;
         $userLessonPackageId = $r->filled('user_lesson_package_id') ? (int) $r->input('user_lesson_package_id') : null;
@@ -238,6 +237,11 @@ class TinkoffPaymentController extends Controller
         $hasMonthly = $r->filled('formatedPaymentDate')
             && is_string($rawFmt)
             && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFmt);
+
+        $payer = $this->familyCheckoutPayer($r, $paymentKind, $hasMonthly);
+        $user = $payer->student;
+        $userId = $payer->studentId();
+        $userName = (string) ($user->name ?? '');
         $monthlyTeamId = null;
         $upp = null;
         $lessonPackage = null;
@@ -360,7 +364,7 @@ class TinkoffPaymentController extends Controller
             'out_sum_cents' => $amountCents,
             'payment_date' => $paymentDate,
             'meta' => json_encode(array_merge(
-                $this->paymentIntentMetaWithTeam($userName, $paymentTeamId),
+                $this->paymentIntentMetaWithTeam($userName, $paymentTeamId, $payer->actorId()),
                 ['method' => 'sbp']
             ), JSON_UNESCAPED_UNICODE),
         ], PaymentIntentClientContext::fromRequest($r)));
@@ -429,6 +433,15 @@ class TinkoffPaymentController extends Controller
             'cabinetUrl' => route('dashboard'),
             'homeUrl' => url('/'),
         ];
+    }
+
+    private function familyCheckoutPayer(Request $r, string $paymentKind, bool $hasMonthly): FamilyPaymentPayer
+    {
+        return app(FamilyPaymentPayerResolver::class)->forPayableType(
+            $r->user(),
+            $paymentKind,
+            $hasMonthly,
+        );
     }
 
     /**
