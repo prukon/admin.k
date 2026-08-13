@@ -6,6 +6,7 @@ namespace App\Services\Postpay;
 
 use App\Models\LessonPackage;
 use App\Models\UserPrice;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,9 +41,15 @@ final class PostpayAmountCalculator
             )
             : 0;
 
+        $grossCents = $visits * $pricePerLessonCents;
+        $percent = (int) ($row->discount_percent ?? 0);
+        $amountCents = $percent >= 1
+            ? Money::payableAfterDiscountCents($grossCents, $percent)
+            : $grossCents;
+
         return [
             'visits' => $visits,
-            'amount_cents' => $visits * $pricePerLessonCents,
+            'amount_cents' => $amountCents,
             'price_per_lesson_cents' => $pricePerLessonCents,
         ];
     }

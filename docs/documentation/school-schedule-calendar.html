@@ -187,7 +187,7 @@
       </tr>
       <tr>
         <td><code>#schoolCalSlotSingleCreateFields</code></td>
-        <td>Блок создания нового назначения (<code>mode=create_new</code>): select шаблона <code>#schoolCalSlotSingleTemplate</code>, поле стоимости <code>#schoolCalSlotSingleFee</code> (₽, по умолчанию из <code>fee_amount_default</code> шаблона; при ручном вводе дефолт при смене шаблона не перезаписывается). Submit — <code>#schoolCalSlotSingleSubmit</code> «Записать в расписание».</td>
+        <td>Блок создания нового назначения (<code>mode=create_new</code>): select шаблона <code>#schoolCalSlotSingleTemplate</code>, поле стоимости <code>#schoolCalSlotSingleFee</code> (₽, по умолчанию из <code>fee_amount_default</code> = каталог шаблона × текущий % скидки ученика; при ручном вводе дефолт при смене шаблона не перезаписывается). Submit — <code>#schoolCalSlotSingleSubmit</code> «Записать в расписание».</td>
       </tr>
       <tr>
         <td><code>#schoolCalOpenFlexible</code></td>
@@ -717,7 +717,14 @@
     <li><code>allowed</code>, <code>reason</code> — можно ли записать; при занятой ячейке слота/даты у ученика — <code>allowed=false</code>;</li>
     <li><code>mode</code> — <code>bind_existing</code> (есть «свободное» назначение: число строк в <code>user_team_schedule_slots</code> по этому <code>user_lesson_package_id</code> &lt; <code>lessons_total</code>) или <code>create_new</code>;</li>
     <li><code>existing_assignments[]</code> — <code>{ id, label }</code> для select (если несколько) и для второй строки кнопки (если одно); <code>label</code> — <code>formatSingleLessonAssignmentLabel</code>, формат <strong>«"Название" (остаток {lessons_remaining})»</strong> (как у гибкого/фиксированного);</li>
-    <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с <code>{ id, label, fee_amount_default }</code> (<code>fee_amount_default</code> в рублях из <code>lesson_packages.price_cents</code> через <code>Money::fromCents</code>). При <code>bind_existing</code> массив пустой.</li>
+    <li><code>templates[]</code> — активные шаблоны партнёра (<code>is_active</code>, <code>lessons_count &gt; 0</code>) с
+      <code>{ id, label, fee_amount_default, discount_percent, discount_comment, discount_tooltip }</code>.
+      <code>fee_amount_default</code> — рубли к оплате: каталог <code>lesson_packages.price_cents</code>
+      × текущий % карточки ученика (<code>UserPercentDiscount::payableCentsForUser</code>), не сырая цена каталога.
+      Иконка <code>%</code> и tooltip <code>Скидка N%. {основание}</code> — с этих полей.
+      При <code>bind_existing</code> массив пустой.
+      См. <a href="/doc#user-percent-discount-index">/doc</a>,
+      <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>.</li>
   </ul>
   <p>Если свободных назначений нет и активных шаблонов разового занятия тоже нет — <code>allowed=false</code>, <code>reason</code> про отсутствие шаблонов.</p>
   <p>Два разовых занятия у одного ученика <strong>в один день в разных слотах</strong> разрешены (проверка только пересечения слот+дата, не «одно разовое в день»).</p>
@@ -812,6 +819,9 @@
     <strong>автосписание «Посетил»</strong> — <code>AutoMarkYesterdayLessonOccurrencesFeatureTest.php</code>, <code>LessonPackageAutoAttendanceCrudFeatureTest.php</code>, <code>LessonPackageAutoAttendanceAccessFeatureTest.php</code>, <code>LessonPackagesNonAjaxSafetyNetFeatureTest.php</code>, <code>AutoMarkYesterdayLessonOccurrencesJobQueueTest.php</code>, <code>KernelAutoAttendanceScheduleTest.php</code> (см. <a href="/docs/documentation/lesson-packages#auto-attendance">lesson-packages §Автосписание</a>);
     пробные — <code>LessonPackageSchoolScheduleTrialFeatureTest.php</code>;
     разовые из модалки слота — <code>LessonPackageSchoolScheduleSingleLessonRegistrationFeatureTest.php</code>;
+    <strong>персональная скидка ученика</strong> на <code>fee_amount_default</code> / снимок —
+    <code>LessonPackageUserPercentDiscountFeatureTest.php</code>
+    (<a href="/doc#user-percent-discount-index">/doc</a>);
     <strong>гибкие inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFlexibleRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFlexible</code>, <code>#schoolCalSlotFlexFormWrap</code>, <code>slot-user-bind-actions</code> → <code>flexible.existing_assignments</code>, one-click / select, AJAX и non-AJAX <code>assign-flexible</code>, фильтр по дате, единый label);
     <strong>фиксированные inline в модалке слота</strong> — <code>LessonPackageSchoolScheduleFixedRegistrationFeatureTest.php</code> (UI-маркеры <code>#schoolCalOpenFixed</code>, <code>#schoolCalSlotFixedFormWrap</code>, <code>slot-user-bind-actions</code> → <code>fixed.existing_assignments</code>, шаблон <code>patterns[]</code>, AJAX и non-AJAX <code>assign-fixed</code>, единый label <code>"…" (остаток N)</code>, доступ гость/403);
     <strong>автозаполнение group_patterns</strong> — <code>LessonPackageSchoolScheduleFixedGroupPatternsFeatureTest.php</code> (та же группа/объект, два слота в один день, sibling с <code>date_start</code> после якоря, отсев disabled/expired, AJAX/non-AJAX assign с несколькими patterns);

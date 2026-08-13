@@ -327,6 +327,46 @@ document.addEventListener('DOMContentLoaded', function () {
         return Math.round(v * r * 100) / 100;
     }
 
+    function userDiscountApi() {
+        return window.KidsCrmUserDiscount || null;
+    }
+
+    function payableRubAfterUserDiscount(amountRub, percent) {
+        const api = userDiscountApi();
+        if (!api) {
+            return amountRub;
+        }
+        const cents = api.centsFromRub(amountRub);
+        return api.rubFromCents(api.payableAfterDiscountCents(cents, percent));
+    }
+
+    function currentUserDiscountPercent(up, userTeam) {
+        if (userTeam && userTeam.discount_percent != null) {
+            return parseInt(userTeam.discount_percent, 10) || 0;
+        }
+        if (up && up.user_discount_percent != null) {
+            return parseInt(up.user_discount_percent, 10) || 0;
+        }
+        return 0;
+    }
+
+    function currentUserDiscountComment(up, userTeam) {
+        if (userTeam && userTeam.discount_comment) {
+            return String(userTeam.discount_comment);
+        }
+        if (up && up.user_discount_comment) {
+            return String(up.user_discount_comment);
+        }
+        return '';
+    }
+
+    function appliedDiscountPercent(up) {
+        if (!up || up.applied_discount_percent == null) {
+            return 0;
+        }
+        return parseInt(up.applied_discount_percent, 10) || 0;
+    }
+
     function postpayVisitsTooltipTitle() {
         const month = getSelectedMonthLabel();
         if (month) {
@@ -671,11 +711,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const isPostpay = !!(up.is_postpay || packageIsPostpay(packageId));
             const postpayVisits = (up.postpay_visits != null) ? up.postpay_visits : 0;
             const postpayPkg = isPostpay ? findLessonPackage(packageId) : null;
-            // Postpay: только visits × ставка (0 посещений → 0). Без пакета в каталоге — сумма с сервера.
-            const priceForInput = isPostpay
+            const appliedPct = appliedDiscountPercent(up);
+            const userPct = currentUserDiscountPercent(up, userTeam);
+            const grossPostpay = isPostpay
                 ? (postpayPkg
                     ? calcPostpayAmount(postpayVisits, postpayPkg.price)
                     : (up.price != null ? up.price : 0))
+                : 0;
+            const priceForInput = isPostpay
+                ? payableRubAfterUserDiscount(grossPostpay, appliedPct || userPct)
                 : up.price;
             // Бывшие: всегда disabled. Текущие: абонемент всегда (если не оплачено);
             // сумма открыта при первичной установке (нет абона), иначе — через карандаш.
@@ -715,6 +759,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
             const postpayPriceClass = isPostpay ? ' is-postpay-calc' : '';
 
+            const priceInputHtml = '<input type="number" step="0.01" min="0"'
+                + ' class="form-control form-control-sm setting-prices-monthly-price-input' + postpayPriceClass + '"'
+                + ' value="' + escapeAttr(formatPriceValue(priceForInput)) + '"'
+                + ' ' + priceInputDisabled
+                + ' aria-label="Цена"'
+                + (isFormer || isPostpay ? ' readonly' : '')
+                + postpayPriceHintAttrs + '>';
+            const api = userDiscountApi();
+            const priceCellInner = api
+                ? api.wrapPriceHtml(
+                    priceInputHtml,
+                    appliedPct,
+                    up.applied_discount_comment || ''
+                )
+                : priceInputHtml;
+
             const userBlock = `
                         <div class="setting-prices-user-card mb-2 pb-2 border-bottom${formerCardClass}" data-user-id="${uid}"${formerDataAttr}${abonEstablishedAttr} data-is-postpay="${isPostpay ? '1' : '0'}">
                             <div class="setting-prices-monthly-row d-flex align-items-center gap-1 flex-nowrap w-100 min-w-0">
@@ -730,13 +790,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </div>
                                 ${postpayVisitsHtml}
                                 <div class="setting-prices-monthly-price flex-shrink-0">
-                                    <input type="number" step="0.01" min="0"
-                                        class="form-control form-control-sm setting-prices-monthly-price-input${postpayPriceClass}"
-                                        value="${escapeAttr(formatPriceValue(priceForInput))}"
-                                        ${priceInputDisabled}
-                                        aria-label="Цена"
-                                        ${isFormer || isPostpay ? 'readonly' : ''}
-                                        ${postpayPriceHintAttrs}>
+                                    ${priceCellInner}
                                 </div>
                                 <div class="setting-prices-monthly-status flex-shrink-0 min-w-0">
                                     ${statusCellHtml}
@@ -771,32 +825,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
         $card.attr('data-is-postpay', isPostpay ? '1' : '0');
 
-        let $visits = $card.find('.setting-prices-monthly-postpay-visits');
-        if (isPostpay) {
-            if ($visits.length === 0) {
-                $visits = $(buildPostpayVisitsHtml(0));
-                $card.find('.setting-prices-monthly-package').after($visits);
-            }
             const known = uid
                 ? usersPrice.find(function (u) {
                     return String(u.user_id) === String(uid);
                 })
                 : null;
+            const userTeam = lastUsersTeam.find(function (team) {
+                return String(team.id) === String(uid);
+            });
+            const previewPct = currentUserDiscountPercent(known, userTeam);
+            const previewComment = currentUserDiscountComment(known, userTeam);
+            const $priceWrap = $priceInput.closest('.kids-user-discount-price-wrap');
+            const api = userDiscountApi();
+
+            let $visits = $card.find('.setting-prices-monthly-postpay-visits');
+        if (isPostpay) {
+            if ($visits.length === 0) {
+                $visits = $(buildPostpayVisitsHtml(0));
+                $card.find('.setting-prices-monthly-package').after($visits);
+            }
             const knownVisits = (known && known.postpay_visits != null) ? Number(known.postpay_visits) : 0;
             $visits.find('input')
                 .val(String(knownVisits))
                 .attr('title', postpayVisitsTooltipTitle());
             applyKidsHintAttrs($visits.find('input'), postpayVisitsTooltipTitle());
-            // Только visits × ставка; при 0 посещений — 0 (не ставка за занятие).
-            const amount = calcPostpayAmount(knownVisits, pkg.price);
+            const amount = payableRubAfterUserDiscount(calcPostpayAmount(knownVisits, pkg.price), previewPct);
             $priceInput.val(formatPriceValue(amount));
             $priceInput.prop('disabled', true).prop('readonly', true);
             $priceInput.addClass('is-postpay-calc');
             applyKidsHintAttrs($priceInput, POSTPAY_PRICE_TOOLTIP);
+            if (api && $priceWrap.length) {
+                api.showBadge($priceWrap.get(0), previewPct, previewComment);
+            }
         } else {
             $visits.remove();
             if (pkg) {
-                $priceInput.val(formatPriceValue(pkg.price));
+                $priceInput.val(formatPriceValue(payableRubAfterUserDiscount(pkg.price, previewPct)));
             }
             $priceInput.prop('readonly', false);
             $priceInput.removeClass('is-postpay-calc');
@@ -805,6 +869,9 @@ document.addEventListener('DOMContentLoaded', function () {
             $priceInput.removeAttr('data-bs-placement');
             $priceInput.removeAttr('data-bs-custom-class');
             $priceInput.removeAttr('title');
+            if (api && $priceWrap.length) {
+                api.showBadge($priceWrap.get(0), previewPct, previewComment);
+            }
         }
 
         // Сразу фиксируем выбор в состоянии — иначе карандаш перерисует строку из старых данных БД.
@@ -856,6 +923,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         if (idx >= 0) {
             usersPrice[idx].price = $input.val();
+        }
+        const api = userDiscountApi();
+        const $wrap = $input.closest('.kids-user-discount-price-wrap');
+        if (!api || !$wrap.length) {
+            return;
+        }
+        const uidForTeam = $card.attr('data-user-id');
+        const userTeam = lastUsersTeam.find(function (team) {
+            return String(team.id) === String(uidForTeam);
+        });
+        const pkg = findLessonPackage($card.find('.setting-prices-monthly-package-select').val());
+        if (!pkg || pkg.is_postpay) {
+            return;
+        }
+        const previewPct = currentUserDiscountPercent(idx >= 0 ? usersPrice[idx] : null, userTeam);
+        const expected = payableRubAfterUserDiscount(pkg.price, previewPct);
+        const current = Number($input.val());
+        if (previewPct >= 1 && Number.isFinite(current) && Math.abs(current - expected) < 0.001) {
+            api.showBadge($wrap.get(0), previewPct, currentUserDiscountComment(idx >= 0 ? usersPrice[idx] : null, userTeam));
+        } else {
+            api.hideBadge($wrap.get(0));
         }
     });
 

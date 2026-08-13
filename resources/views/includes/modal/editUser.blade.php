@@ -240,6 +240,10 @@
                             'canViewUserSex' => $canViewUserSex ?? null,
                             'canViewUserComment' => $canViewUserComment ?? null,
                         ])
+                        @include('includes.modal._student_discount_fields', [
+                            'prefix' => 'edit',
+                            'canManageUserDiscount' => $canManageUserDiscount ?? null,
+                        ])
 
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -449,11 +453,34 @@
             if ($('#edit-comment').length) {
                 $('#edit-comment').val(user.comment || '');
             }
+            setEditUserDiscountFields(user);
+        }
+
+        function setEditUserDiscountFields(user) {
+            const $percent = $('#edit-discount_percent');
+            const $comment = $('#edit-discount_comment');
+            if ($percent.length) {
+                const p = user && user.discount_percent != null && user.discount_percent !== ''
+                    ? user.discount_percent
+                    : '';
+                $percent.val(p === 0 || p === '0' ? '' : p);
+            }
+            if ($comment.length) {
+                $comment.val((user && user.discount_comment) || '');
+            }
+            syncEditUserDiscountRequired();
+        }
+
+        function syncEditUserDiscountRequired() {
+            const p = parseInt($('#edit-discount_percent').val(), 10) || 0;
+            const need = p >= 1;
+            $('#edit-user-form .js-user-discount-comment-required').toggleClass('d-none', !need);
         }
 
         function applyEditUserCommentSexPermissions(ui) {
             const canSex = ui?.canViewUserSex === true;
             const canComment = ui?.canViewUserComment === true;
+            const canDiscount = ui?.canManageUserDiscount === true;
 
             if (!canSex) {
                 $('.js-user-sex-wrap').remove();
@@ -462,15 +489,19 @@
             if (!canComment) {
                 $('.js-user-comment-wrap').remove();
             }
+
+            if (!canDiscount) {
+                $('.js-user-discount-wrap').remove();
+            }
         }
 
         function syncEditUserCommentSexFields(roleId, roles) {
             const studentRoleId = studentRoleIdFromRoles(roles);
             const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
 
-            $('#edit-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap').each(function () {
+            $('#edit-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap, .js-user-discount-wrap').each(function () {
                 $(this).toggleClass('d-none', !isStudent);
-                $(this).find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+                $(this).find('.js-user-comment-sex-field, .js-user-discount-percent, .js-user-discount-comment').prop('disabled', !isStudent);
             });
         }
 
@@ -1159,6 +1190,8 @@
                 }
             );
         }
+
+        $(document).on('input change', '#edit-discount_percent', syncEditUserDiscountRequired);
 
         $(document).on('hidden.bs.modal', '#editUserModal', function () {
             const $form   = $('#edit-user-form');

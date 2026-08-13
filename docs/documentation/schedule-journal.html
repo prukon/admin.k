@@ -28,7 +28,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Журнал расписания: <code>/schedule</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a></div>
+  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a>, <a href="/doc#journal-monthly-payment-check">галочка оплаты месяца</a></div>
 
   <div class="ok">
     <strong>Мультитренеры при «Посетил» (2026‑08).</strong>
@@ -43,6 +43,16 @@
     Тултип ячейки: <code>Тренер: ФИО[, ФИО…]</code>.
     Empty-cell — одиночный select (BC). Подробно — <a href="#visited-trainer">§6</a>;
     тесты — <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>.
+  </div>
+
+  <div class="ok">
+    <strong>Колонка оплаты месяца (2026‑08).</strong>
+    Галочка в колонке с рублём — по <code>users_prices</code> группы и месяца
+    (<code>effective_is_paid</code>, <code>price_cents &gt; 0</code>), не «ученик целиком».
+    «Все группы»: часть оплачена — жёлтая + ховер групп; все начисления оплачены —
+    зелёная (ховер «Все группы оплачены» при 2+ начислениях).
+    Фильтр группы — зелёная только у оплаченной. Подробно — <a href="#payment-column">§5.2</a>;
+    анонс — <a href="/doc#journal-monthly-payment-check">/doc</a>.
   </div>
 
   <div class="warn">
@@ -301,7 +311,8 @@
   <ul>
     <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id) — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
     <li>Ячейка дня: цвет/иконка актуального статуса; без статуса — серая <code>fa-circle</code> (занятие всё равно видно).
-      Ховер и колонка абонементов — см. <a href="#cell-hover-ui">§5.1</a>.</li>
+      Ховер и колонка абонементов — см. <a href="#cell-hover-ui">§5.1</a>.
+      Колонка оплаты месяца (зелёная / жёлтая галочка) — <a href="#payment-column">§5.2</a>.</li>
     <li>Несколько занятий в один день — бейдж <code>×N</code> (<code>data-occurrence-count</code>) → модалка списка → редактирование одного <code>utss_id</code>.
       В UI журнала время слота <b>не показывается</b> (техническое назначение; работаем с датой): ни в списке дня, ни в <code>#cellEditModal</code> / confirm удаления.</li>
     <li>Клик по ячейке / занятию → <code>#cellEditModal</code> (<code>#cellEditForm</code>): радио <code>lesson_occurrence_status_id</code>, комментарий, тренер при «Посетил»;
@@ -375,6 +386,55 @@
       underline только на hover; «сегодня» скрыта вне <code>billing_month</code>
       (<code>syncAbonementStartDateQuickPicks</code>).</li>
   </ul>
+
+  <h3 id="payment-column">5.2) Колонка оплаты месяца (галочка)</h3>
+  <div class="ok">
+    Шапка колонки — иконка рубля (<code>th.schedule-payment-status</code>).
+    Данные собирает <code>JournalMonthlyPaymentStatusService::statusesByUser</code>
+    в <code>ScheduleController@index</code> → <code>$journalPaymentStatuses[userId]</code>.
+    Источник — только месячные <code>users_prices</code> выбранного месяца
+    с <code>price_cents &gt; 0</code> и <code>effective_is_paid</code>
+    (как в <a href="/docs/documentation/payments#users-prices">payments</a>
+    и отчёте задолженностей).
+    Абонементы ULP и <code>user_custom_payment</code> в колонку <b>не</b> входят.
+    Постоплата входит: её месяц тоже строка <code>users_prices</code>
+    (лок ячеек после оплаты — отдельно, <a href="/docs/documentation/postpay#lock">postpay §3.1</a>).
+    Ховер — <code>@include('partials.ui.tooltip-hint')</code>
+    (KidsCrmTooltip, scope <code>hint</code>, уже на <code>#schedule-table</code>).
+    Маркер в DOM: <code>data-journal-payment-status="paid|partial"</code>.
+    Иконки: <code>fas fa-circle-check text-success</code> / <code>text-warning</code>.
+  </div>
+  <p>Смена фильтра год/месяц/группа — полный GET
+    (<code>window.location.href</code> в <code>resources/js/schedule.js</code>
+    и hotfix <code>public/js/schedule-journal.js</code>);
+    клиент галочки не патчит. Отдельного POST/PATCH у колонки нет.
+    Право страницы — <code>schedule.view</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Фильтр группы</th><th>Состояние начислений (<code>price_cents &gt; 0</code>)</th><th>Индикатор</th><th>Ховер</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>«Все группы»</td><td>Нет оплаченных начислений (все неоплачены / нет строк / только нулевые суммы)</td><td>пусто</td><td>—</td></tr>
+      <tr><td>«Все группы»</td><td>Ровно одно начисление и оно оплачено</td><td>зелёная галочка</td><td>нет (не навязываем «Все группы оплачены»)</td></tr>
+      <tr><td>«Все группы»</td><td>Два и больше начислений, все оплачены</td><td>зелёная галочка</td><td>«Все группы оплачены»</td></tr>
+      <tr><td>«Все группы»</td><td>Часть начислений оплачена</td><td>жёлтая галочка</td><td>«Оплачено: …» + перевод строки + «Не оплачено: …» (названия групп через запятую; порядок <code>teams.order_by</code>, title; нет названия — «Группа»)</td></tr>
+      <tr><td>Конкретная группа</td><td>Начисление этой группы оплачено</td><td>зелёная галочка</td><td>нет</td></tr>
+      <tr><td>Конкретная группа</td><td>Не оплачено / нет начисления / <code>price_cents = 0</code></td><td>пусто</td><td>—</td></tr>
+      <tr><td>«Без группы»</td><td>любое</td><td>пусто</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Считать «группы» для жёлтой/зелёной сводки — это <b>строки начисления месяца</b>, не состав pivot
+    <code>team_user</code>: две группы в членстве и одно начисление с <code>price_cents &gt; 0</code>
+    ведут себя как одна группа (зелёная без ховера «Все группы оплачены»).
+    Ручная отметка <code>is_manual_paid</code> важнее авто <code>is_paid</code>.
+    Изоляция: <code>users.partner_id = current_partner</code>; чужой партнёр и
+    <code>is_enabled = 0</code> в таблицу журнала не попадают.
+    Анонс: <a href="/doc#journal-monthly-payment-check">/doc</a>.
+    Тесты: <code>ScheduleJournalMonthlyPaymentStatusFeatureTest</code>
+    (HTTP 200/403/401/302, UX-баг частичной оплаты, разметка строки, фильтр группы),
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_monthly_payment_column_blade_and_filter_js_contract</code>.
+  </p>
 
   <h2 id="visited-trainer">6) Статус занятия и тренер при «Посетил»</h2>
   <div class="note">
@@ -744,7 +804,9 @@
       <code>GetScheduleJournalEmptyCellContextRequest</code>
       (<code>occurrence_date</code>, опц. <code>context_team_id</code> = id из фильтра).
       Ответ: <code>trial { allowed, reason, label }</code>,
-      <code>single_options[]</code> (<code>key, mode, label, user_lesson_package_id|lesson_package_id, fee_amount, fee_amount_label</code>),
+      <code>single_options[]</code> (<code>key, mode, label, user_lesson_package_id|lesson_package_id, fee_amount, fee_amount_label, discount_percent, discount_comment</code>;
+      для <code>create_new</code> <code>fee_amount</code> = каталог × текущий % карточки,
+      для <code>bind_existing</code> — уже выставленная сумма ULP и снимок назначения),
       <code>flexible_options[]</code> (<code>key, mode: flexible, label, user_lesson_package_id, team_id, slots_remaining, lessons_total, allowed, reason</code>),
       <code>teams</code>, <code>team_id</code>, <code>team_locked</code>, тренеры / status ids.
       Сервис: <code>JournalEmptyCellPlacementContextService</code>.</li>
@@ -784,8 +846,9 @@
     (<a href="/doc#cabinet-ulp-team-filter">/doc</a>); календарь школы при create группу на ULP не ставит.
   </div>
   <p class="small">Тесты: <code>ScheduleJournalEmptyCellPlacementFeatureTest</code>,
-    <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (доступ AND-прав / AJAX / non-AJAX / <code>team_id</code> / P2 smoke),
-    UI — <code>BladeInlineJsSyntaxTest</code> (<code>emptyCellPlaceForm</code> + place-trial/single без reload).</p>
+    <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (доступ AND-прав / AJAX / non-AJAX / <code>team_id</code> / P2 smoke /
+    персональная скидка на <code>create_new</code>),
+    UI — <code>BladeInlineJsSyntaxTest</code> (<code>emptyCellPlaceForm</code> + place-trial/single без reload + <code>syncEmptyCellFeeBadge</code>).</p>
 
   <h3>7.5) Контракт ответов (fixed / flexible / empty-cell place)</h3>
   <table>

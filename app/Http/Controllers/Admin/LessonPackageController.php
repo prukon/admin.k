@@ -32,6 +32,7 @@ use App\Services\UserLessonPackageAssignmentDeletionService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Support\LessonPackagePostpayPermission;
 use App\Support\Money;
+use App\Services\Pricing\UserPercentDiscount;
 use App\Support\PartnerLegalEntityMode;
 use App\Support\BuildsLogTable;
 use Carbon\CarbonImmutable;
@@ -840,6 +841,12 @@ final class LessonPackageController extends AdminBaseController
             'package_name' => (string) ($a->lessonPackage->name ?? '—'),
             'period' => $period,
             'fee' => $feeDisplay,
+            'discount_percent' => $a->discount_percent !== null ? (int) $a->discount_percent : null,
+            'discount_comment' => $a->discount_comment ? (string) $a->discount_comment : null,
+            'discount_tooltip' => UserPercentDiscount::tooltip(
+                $a->discount_percent !== null ? (int) $a->discount_percent : null,
+                $a->discount_comment !== null ? (string) $a->discount_comment : null
+            ),
             'effective_is_paid' => (bool) $a->effective_is_paid,
             'is_manual_paid' => $a->is_manual_paid,
             'manual_paid_note' => $manualNote,
@@ -1164,7 +1171,7 @@ final class LessonPackageController extends AdminBaseController
                     $assignment->save();
                     $assignment->refresh();
 
-                    $assignment->fee_amount_cents = $feeCents;
+                    $this->applyAssignmentFeeAndDiscountSnapshot($assignment, $feeCents, $feeChangingInside);
                     $assignment->save();
 
                     $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
@@ -1174,7 +1181,7 @@ final class LessonPackageController extends AdminBaseController
                 }
 
                 if (! $oldEffectivePaid && $desiredPaid) {
-                    $assignment->fee_amount_cents = $feeCents;
+                    $this->applyAssignmentFeeAndDiscountSnapshot($assignment, $feeCents, $feeChangingInside);
                     $assignment->save();
                     $assignment->refresh();
 
@@ -1197,7 +1204,7 @@ final class LessonPackageController extends AdminBaseController
                 abort(422, 'Нельзя менять сумму у оплаченного абонемента.');
             }
 
-            $assignment->fee_amount_cents = $feeCents;
+            $this->applyAssignmentFeeAndDiscountSnapshot($assignment, $feeCents, $feeChangingInside);
             $assignment->save();
 
             $this->applyAssignmentEndsAtIfPresent($assignment, $validated, $calendarPeriodService);
@@ -1443,6 +1450,12 @@ final class LessonPackageController extends AdminBaseController
             'schedule_type_label' => $schedLabel,
             'fee_amount' => (float) Money::fromCents((int) ($ulp->fee_amount_cents ?? 0)),
             'fee_editable' => ! $ulp->effective_is_paid,
+            'discount_percent' => $ulp->discount_percent !== null ? (int) $ulp->discount_percent : null,
+            'discount_comment' => $ulp->discount_comment ? (string) $ulp->discount_comment : null,
+            'discount_tooltip' => UserPercentDiscount::tooltip(
+                $ulp->discount_percent !== null ? (int) $ulp->discount_percent : null,
+                $ulp->discount_comment !== null ? (string) $ulp->discount_comment : null
+            ),
             'is_paid' => (bool) $ulp->is_paid,
             'is_manual_paid' => $ulp->is_manual_paid,
             'effective_is_paid' => (bool) $ulp->effective_is_paid,
@@ -1489,6 +1502,37 @@ final class LessonPackageController extends AdminBaseController
         $assignment->save();
     }
 
+    private function applyAssignmentFeeAndDiscountSnapshot(
+        UserLessonPackage $assignment,
+        int $feeCents,
+        bool $feeChanged
+    ): void {
+        $assignment->fee_amount_cents = $feeCents;
+        if (! $feeChanged) {
+            return;
+        }
+
+        $assignment->loadMissing(['user', 'lessonPackage']);
+        $package = $assignment->lessonPackage;
+        $user = $assignment->user;
+        if ($user && method_exists($user, 'trashed') && $user->trashed()) {
+            $user = null;
+        }
+
+        if ($package && $user) {
+            $snap = UserPercentDiscount::snapshotIfMatchesCatalog(
+                (int) $package->price_cents,
+                $feeCents,
+                $user
+            );
+            $assignment->discount_percent = $snap['discount_percent'];
+            $assignment->discount_comment = $snap['discount_comment'];
+        } else {
+            $assignment->discount_percent = null;
+            $assignment->discount_comment = null;
+        }
+    }
+
     /**
      * Select2: поиск учеников текущего партнёра для назначения абонементов.
      */
@@ -1515,7 +1559,7 @@ final class LessonPackageController extends AdminBaseController
             ->orderBy('lastname')
             ->orderBy('name')
             ->limit(30)
-            ->get(['id', 'name', 'lastname']);
+            ->get(['id', 'name', 'lastname', 'discount_percent', 'discount_comment']);
 
         // Disable only for create-assignment Select2 (context=assign).
         // Calendar bind + assignments filter must keep the student selectable
@@ -1539,6 +1583,8 @@ final class LessonPackageController extends AdminBaseController
                 'disabled' => $blocked,
                 'blocked' => $blocked,
                 'blocked_reason' => $blocked ? $blockReason : null,
+                'discount_percent' => UserPercentDiscount::percent($u),
+                'discount_comment' => UserPercentDiscount::comment($u),
             ];
         })->values();
 
@@ -1598,6 +1644,13 @@ final class LessonPackageController extends AdminBaseController
         try {
             /** @var UserLessonPackage $assignment */
             $assignment = DB::transaction(function () use ($data, $user, $package) {
+                $feeCents = Money::toCentsOrFail($data['fee_amount']);
+                $snap = UserPercentDiscount::snapshotIfMatchesCatalog(
+                    (int) $package->price_cents,
+                    $feeCents,
+                    $user
+                );
+
                 return UserLessonPackage::query()->create([
                     'user_id' => (int) $user->id,
                     'team_id' => ! empty($data['team_id']) ? (int) $data['team_id'] : null,
@@ -1606,7 +1659,9 @@ final class LessonPackageController extends AdminBaseController
                     'ends_at' => null,
                     'lessons_total' => (int) $package->lessons_count,
                     'lessons_remaining' => (int) $package->lessons_count,
-                    'fee_amount_cents' => Money::toCentsOrFail($data['fee_amount']),
+                    'fee_amount_cents' => $feeCents,
+                    'discount_percent' => $snap['discount_percent'],
+                    'discount_comment' => $snap['discount_comment'],
                     'is_paid' => false,
                     'created_by' => auth()->id(),
                     'auto_prolong_enabled' => (string) $package->schedule_type === 'fixed'

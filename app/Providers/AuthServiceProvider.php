@@ -510,6 +510,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('users.comment');
         });
 
+        Gate::define('users.discount.manage', function (User $user) {
+            return $user->hasPermission('users.discount.manage');
+        });
+
 //////////////////////// Разное  //////////////////////
 
         // Пример: Gate для доступа в админку

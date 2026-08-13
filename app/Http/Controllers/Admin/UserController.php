@@ -100,6 +100,7 @@ class UserController extends AdminBaseController
         $canViewContracts = $currentUser?->can('contracts.view') ?? false;
         $canViewUserSex = $currentUser?->can('users.sex') ?? false;
         $canViewUserComment = $currentUser?->can('users.comment') ?? false;
+        $canManageUserDiscount = $currentUser?->can('users.discount.manage') ?? false;
         $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
 
         // 6) Отдаём на view
@@ -113,6 +114,7 @@ class UserController extends AdminBaseController
             'canViewContracts',
             'canViewUserSex',
             'canViewUserComment',
+            'canManageUserDiscount',
             'studentRoleId'
         ) + $this->usersSectionViewData('users'));
     }
@@ -702,6 +704,7 @@ class UserController extends AdminBaseController
         if (request()->ajax()) {
             $canViewUserSex = $currentUser?->can('users.sex') ?? false;
             $canViewUserComment = $currentUser?->can('users.comment') ?? false;
+            $canManageUserDiscount = $currentUser?->can('users.discount.manage') ?? false;
 
             // Преобразуем модель в массив
             $userArray = $user->toArray();
@@ -717,6 +720,10 @@ class UserController extends AdminBaseController
 
             if (!$canViewUserComment) {
                 unset($userArray['comment']);
+            }
+
+            if (!$canManageUserDiscount) {
+                unset($userArray['discount_percent'], $userArray['discount_comment']);
             }
 
             $trainerTeamIds = [];
@@ -743,6 +750,7 @@ class UserController extends AdminBaseController
                 'ui' => [
                     'canViewUserSex' => $canViewUserSex,
                     'canViewUserComment' => $canViewUserComment,
+                    'canManageUserDiscount' => $canManageUserDiscount,
                 ],
             ]);
         }
@@ -778,6 +786,8 @@ class UserController extends AdminBaseController
             'is_with_disability' => $user->is_with_disability,
             'sex' => $user->sex,
             'comment' => $user->comment,
+            'discount_percent' => $user->discount_percent,
+            'discount_comment' => $user->discount_comment,
         ];
 
         // Валидные входные данные
@@ -879,6 +889,8 @@ class UserController extends AdminBaseController
                 'is_with_disability' => $user->is_with_disability,
                 'sex' => $user->sex,
                 'comment' => $user->comment,
+                'discount_percent' => $user->discount_percent,
+                'discount_comment' => $user->discount_comment,
             ];
 
             $changes = [];
@@ -957,6 +969,25 @@ class UserController extends AdminBaseController
                     . ($oldComment !== '' ? $oldComment : '-')
                     . ' → '
                     . ($newComment !== '' ? $newComment : '-');
+            }
+
+            if ($actor && $actor->can('users.discount.manage')) {
+                $oldPercent = (int) ($old['discount_percent'] ?? 0);
+                $newPercent = (int) ($new['discount_percent'] ?? 0);
+                $oldDiscountComment = trim((string) ($old['discount_comment'] ?? ''));
+                $newDiscountComment = trim((string) ($new['discount_comment'] ?? ''));
+                if ($oldPercent !== $newPercent) {
+                    $changes[] = 'Скидка, %: '
+                        . ($oldPercent > 0 ? (string) $oldPercent : '—')
+                        . ' → '
+                        . ($newPercent > 0 ? (string) $newPercent : '—');
+                }
+                if ($oldDiscountComment !== $newDiscountComment) {
+                    $changes[] = 'Основание скидки: '
+                        . ($oldDiscountComment !== '' ? $oldDiscountComment : '-')
+                        . ' → '
+                        . ($newDiscountComment !== '' ? $newDiscountComment : '-');
+                }
             }
 
             // Приклеиваем изменения по кастом-полям

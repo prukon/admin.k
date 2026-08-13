@@ -189,7 +189,8 @@ final class FixedLessonPackageAutoProlongFeatureTest extends CrmTestCase
         $new = UserLessonPackage::query()->findOrFail((int) $ctx['ulp']->auto_prolonged_to_id);
         $this->assertTrue((bool) $new->auto_prolong_enabled);
         $this->assertSame((int) $ctx['ulp']->id, (int) $new->auto_prolonged_from_id);
-        $this->assertSame(77700, (int) $new->fee_amount_cents);
+        $this->assertSame(500000, (int) $new->fee_amount_cents);
+        $this->assertNull($new->discount_percent);
         $this->assertFalse((bool) $new->is_paid);
         $this->assertSame(2, (int) $new->lessons_total);
         $this->assertSame(2, (int) $new->lessons_remaining);
@@ -208,6 +209,42 @@ final class FixedLessonPackageAutoProlongFeatureTest extends CrmTestCase
         );
         $this->assertTrue($ctx['ulp']->showsAutoProlongBadge());
         $this->assertTrue($new->showsAutoProlongBadge());
+    }
+
+    public function test_auto_prolong_new_cycle_uses_current_student_percent_and_catalog_price(): void
+    {
+        $ctx = $this->seededLaidOutFixed(2, true);
+        $ctx['student']->update([
+            'discount_percent' => 10,
+            'discount_comment' => 'Льгота семьи',
+        ]);
+        $status = $this->attendedStatus();
+        $service = app(UserLessonOccurrenceStatusService::class);
+
+        $dates = UserTeamScheduleSlot::query()
+            ->where('user_lesson_package_id', $ctx['ulp']->id)
+            ->orderBy('starts_at')
+            ->pluck('starts_at')
+            ->map(fn ($d) => CarbonImmutable::parse((string) $d)->toDateString())
+            ->all();
+
+        foreach ($dates as $date) {
+            $service->apply(
+                $this->partner->id,
+                (int) $ctx['student']->id,
+                (int) $ctx['slot']->id,
+                $date,
+                (int) $ctx['ulp']->id,
+                $status,
+                $this->user->id,
+            );
+        }
+
+        $ctx['ulp']->refresh();
+        $new = UserLessonPackage::query()->findOrFail((int) $ctx['ulp']->auto_prolonged_to_id);
+        $this->assertSame(450000, (int) $new->fee_amount_cents);
+        $this->assertSame(10, (int) $new->discount_percent);
+        $this->assertSame('Льгота семьи', (string) $new->discount_comment);
     }
 
     public function test_auto_prolong_failure_disables_flag_writes_log_and_does_not_create_ulp(): void

@@ -108,8 +108,9 @@
   <h3 id="amount">2.2) Формула суммы</h3>
   <div class="note">
     <code>users_prices.price_cents</code> = число актуальных статусов с <code>consumes_lesson = true</code>
-    за месяц в этой группе × <b>текущая</b> цена шаблона (<code>lesson_packages.price_cents</code>).
-    Канон денег — <a href="/docs/documentation/money">money</a> (в UI — рубли).
+    за месяц в этой группе × цена шаблона (<code>lesson_packages.price_cents</code>),
+    затем персональная скидка ученика по <b>снимку строки</b> (<code>users_prices.discount_percent</code>),
+    не по актуальному % карточки. Канон — <a href="/docs/documentation/money">money</a> вариант А.
     <br>Актуальный статус = последний event по ключу занятия (как в отчётах журнала).
     <br>При 0 посещений — <b>0 ₽</b> (кнопка оплаты недоступна, т.к. сумма ≤ 0).
     <br>Смена цены шаблона пересчитывает <b>неоплаченные</b> postpay-строки; оплаченные (<code>effective_is_paid</code>) не трогаются.
@@ -146,6 +147,10 @@
       (<code>PostpayJournalService::postpayAbonementColumnLabel</code>,
       класс <code>journal-postpay-hint</code>; см.
       <a href="/docs/documentation/schedule-journal#cell-hover-ui">schedule-journal §5.1</a>).</li>
+    <li>Колонка с рублём (оплата месяца) смотрит на ту же строку <code>users_prices</code>
+      постоплатного месяца (<code>effective_is_paid</code>, <code>price_cents &gt; 0</code>) —
+      <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>.
+      Это индикатор; лок ячеек после оплаты — §<a href="#lock">3.1</a>.</li>
     <li>Ховер ячейки postpay: «Постоплата: {цена}₽ в день»; при «Посетил» —
       доп. строка тренера (как у остальных занятий).</li>
     <li>В модалке «Статус занятия» у статусов с <code>consumes_lesson</code> (в postpay-контексте) —

@@ -13,6 +13,7 @@ use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
+use App\Services\Pricing\UserPercentDiscount;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -209,6 +210,13 @@ final class FixedLessonPackageAutoProlongService
                     return;
                 }
 
+                $locked->loadMissing('user');
+                $snap = UserPercentDiscount::snapshotFromUser($locked->user);
+                $payableCents = UserPercentDiscount::payableCentsForUser(
+                    (int) ($package->price_cents ?? 0),
+                    $locked->user
+                );
+
                 $newUlp = UserLessonPackage::query()->create([
                     'user_id' => (int) $locked->user_id,
                     'team_id' => $locked->team_id !== null ? (int) $locked->team_id : $teamId,
@@ -217,7 +225,9 @@ final class FixedLessonPackageAutoProlongService
                     'ends_at' => null,
                     'lessons_total' => $lessonsNeeded,
                     'lessons_remaining' => $lessonsNeeded,
-                    'fee_amount_cents' => (int) ($locked->fee_amount_cents ?? 0),
+                    'fee_amount_cents' => $payableCents,
+                    'discount_percent' => $snap['discount_percent'],
+                    'discount_comment' => $snap['discount_comment'],
                     'is_paid' => false,
                     'created_by' => null,
                     'auto_prolong_enabled' => false,

@@ -19,6 +19,7 @@ class UserLessonPackage extends Model
         'lessons_total' => 'int',
         'lessons_remaining' => 'int',
         'fee_amount_cents' => 'integer',
+        'discount_percent' => 'integer',
         'is_paid' => 'bool',
         'is_manual_paid' => 'boolean',
         'manual_paid_at' => 'datetime',

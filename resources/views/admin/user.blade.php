@@ -317,10 +317,12 @@
                     'studentRoleId' => $studentRoleId ?? null,
                     'canViewUserSex' => $canViewUserSex,
                     'canViewUserComment' => $canViewUserComment,
+                    'canManageUserDiscount' => $canManageUserDiscount ?? false,
                 ])
                 @include('includes.modal.editUser', [
                     'canViewUserSex' => $canViewUserSex,
                     'canViewUserComment' => $canViewUserComment,
+                    'canManageUserDiscount' => $canManageUserDiscount ?? false,
                 ])
                 @include('includes.modal.fieldModal')
                 @include('admin.users._import_modal')

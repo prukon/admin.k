@@ -37,6 +37,7 @@ use App\Http\Requests\Admin\UserCustomPaymentStoreRequest;
 use App\Http\Requests\Admin\UserCustomPaymentUpdateRequest;
 use App\Http\Requests\Admin\SetManualUserCustomPaymentPaidRequest;
 use App\Services\Postpay\PostpayUsersPriceSync;
+use App\Services\Pricing\UserPercentDiscount;
 use App\Services\SettingPrices\UsersPriceLessonPackageSync;
 use App\Services\SettingPrices\UsersPriceLessonPackageSyncException;
 use App\Support\Money;
@@ -931,6 +932,26 @@ class SettingPricesController extends AdminBaseController
             // JS (settings-prices.js) работает с ценой в рублях — граница HTTP/JSON.
             $row->setAttribute('price', (float) Money::fromCents((int) $row->price_cents));
 
+            if (! $row->relationLoaded('user')) {
+                $row->load('user');
+            }
+            $appliedPercent = $row->discount_percent !== null ? (int) $row->discount_percent : null;
+            $appliedComment = $row->discount_comment !== null ? (string) $row->discount_comment : null;
+            $row->setAttribute('applied_discount_percent', $appliedPercent);
+            $row->setAttribute('applied_discount_comment', $appliedComment);
+            $row->setAttribute(
+                'applied_discount_tooltip',
+                UserPercentDiscount::tooltip($appliedPercent, $appliedComment)
+            );
+            $row->setAttribute(
+                'user_discount_percent',
+                UserPercentDiscount::percent($row->user)
+            );
+            $row->setAttribute(
+                'user_discount_comment',
+                UserPercentDiscount::comment($row->user)
+            );
+
             $out[] = $row;
         }
 
@@ -1184,6 +1205,8 @@ class SettingPricesController extends AdminBaseController
 
         foreach ($users as $user) {
             $userId = (int) $user->id;
+            $snap = UserPercentDiscount::snapshotFromUser($user);
+            $payableCents = UserPercentDiscount::payableCentsForUser($priceCents, $user);
 
             /** @var UserPrice|null $userPrice */
             $userPrice = UserPrice::query()
@@ -1198,6 +1221,7 @@ class SettingPricesController extends AdminBaseController
                 }
 
                 if ($isPostpay && $package) {
+                    $userPrice->fill($snap);
                     $this->postpaySync->applyPackageToRow($userPrice, $package);
                     $this->syncUserPriceLessonPackage(
                         $userPrice,
@@ -1205,8 +1229,10 @@ class SettingPricesController extends AdminBaseController
                     );
                 } else {
                     $userPrice->update([
-                        'price_cents' => $priceCents,
+                        'price_cents' => $payableCents,
                         'lesson_package_id' => $lessonPackageId,
+                        'discount_percent' => $snap['discount_percent'],
+                        'discount_comment' => $snap['discount_comment'],
                     ]);
                     if ($package) {
                         $userPrice->setRelation('lessonPackage', $package);
@@ -1225,6 +1251,8 @@ class SettingPricesController extends AdminBaseController
                     'price_cents' => 0,
                     'lesson_package_id' => $lessonPackageId,
                     'is_paid' => false,
+                    'discount_percent' => $snap['discount_percent'],
+                    'discount_comment' => $snap['discount_comment'],
                 ]);
                 $created->setRelation('lessonPackage', $package);
                 $this->postpaySync->syncRow($created);
@@ -1234,9 +1262,11 @@ class SettingPricesController extends AdminBaseController
                     'user_id' => $userId,
                     'team_id' => $team->id,
                     'new_month' => $monthDate,
-                    'price_cents' => $priceCents,
+                    'price_cents' => $payableCents,
                     'lesson_package_id' => $lessonPackageId,
                     'is_paid' => false,
+                    'discount_percent' => $snap['discount_percent'],
+                    'discount_comment' => $snap['discount_comment'],
                 ]);
                 if ($package) {
                     $created->setRelation('lessonPackage', $package);
@@ -1539,6 +1569,7 @@ class SettingPricesController extends AdminBaseController
                         && (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId;
                     if ($packageChanged || (int) ($userPriceRecord->lesson_package_id ?? 0) !== (int) $newPackageId) {
                         $userPriceRecord->lesson_package_id = $newPackageId;
+                        $userPriceRecord->fill(UserPercentDiscount::snapshotFromUser($user));
                         $userPriceRecord->save();
                     }
                     $userPriceRecord->setRelation('lessonPackage', $resolvedPackage);
@@ -1586,6 +1617,15 @@ class SettingPricesController extends AdminBaseController
                 if ($packageKeyPresent) {
                     $payload['lesson_package_id'] = $newPackageId;
                 }
+
+                $catalogCents = $resolvedPackage
+                    ? (int) $resolvedPackage->price_cents
+                    : $newPriceCents;
+                $snap = $resolvedPackage
+                    ? UserPercentDiscount::snapshotIfMatchesCatalog($catalogCents, $newPriceCents, $user)
+                    : UserPercentDiscount::emptySnapshot();
+                $payload['discount_percent'] = $snap['discount_percent'];
+                $payload['discount_comment'] = $snap['discount_comment'];
 
                 if ($payload === []) {
                     continue;
@@ -1723,6 +1763,18 @@ class SettingPricesController extends AdminBaseController
                 'manual_paid_note'  => $priceRow && $priceRow->manual_paid_note
                     ? (string) $priceRow->manual_paid_note
                     : null,
+                'applied_discount_percent' => $priceRow && $priceRow->discount_percent !== null
+                    ? (int) $priceRow->discount_percent
+                    : null,
+                'applied_discount_comment' => $priceRow && $priceRow->discount_comment
+                    ? (string) $priceRow->discount_comment
+                    : null,
+                'applied_discount_tooltip' => $priceRow
+                    ? UserPercentDiscount::tooltip(
+                        $priceRow->discount_percent !== null ? (int) $priceRow->discount_percent : null,
+                        $priceRow->discount_comment !== null ? (string) $priceRow->discount_comment : null
+                    )
+                    : null,
             ];
         }
 
@@ -1738,6 +1790,8 @@ class SettingPricesController extends AdminBaseController
                 'lastname'  => $user->lastname,
                 'team_id'   => $teamId,
                 'team_name' => $team->title,
+                'discount_percent' => UserPercentDiscount::percent($user),
+                'discount_comment' => UserPercentDiscount::comment($user),
             ],
             'year'           => $year,
             'months'         => $months,
@@ -1776,7 +1830,7 @@ class SettingPricesController extends AdminBaseController
 
         $authorId = auth()->id();
 
-        DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team) {
+        DB::transaction(function () use ($items, $userId, $teamId, $year, $authorId, $team, $user) {
             foreach ($items as $item) {
                 $newMonth = $item['new_month'];
                 $price = round((float) $item['price'], 2);
@@ -1820,6 +1874,28 @@ class SettingPricesController extends AdminBaseController
                         $resolvedPackage = LessonPackage::query()->find($resolvedPackageId);
                     }
 
+                    if ($resolvedPackage && $resolvedPackage->isPostpay()) {
+                        if ($packageChanged || (int) ($userPrice->lesson_package_id ?? 0) !== (int) $resolvedPackageId) {
+                            $userPrice->lesson_package_id = $resolvedPackageId;
+                            $userPrice->fill(UserPercentDiscount::snapshotFromUser($user));
+                            $userPrice->save();
+                        }
+                        $userPrice->setRelation('lessonPackage', $resolvedPackage);
+                        $this->postpaySync->syncRow($userPrice);
+                        $this->syncUserPriceLessonPackage($userPrice, 'prices.lesson_package_id');
+
+                        $this->auditLogger->record(
+                            AuditEvent::PricingStudentApply,
+                            AuditContext::make(
+                                'Обновлена постоплата: '.Money::formatRub((int) $userPrice->price_cents)." руб. Абонемент #{$resolvedPackageId}. Период: {$monthLabel}. Группа: {$team->title}."
+                            )
+                                ->withUserId($userId)
+                                ->withTargetReference('App\Models\UserPrice', (int) $userPrice->id, $userPrice->user->name ?? 'Пользователь')
+                                ->withCreatedAt(now())
+                        );
+                        continue;
+                    }
+
                     if (! $priceChanged && ! $packageChanged) {
                         // Идемпотентный догон: создать ULP / выставить ends_at конца billing_month.
                         if ($resolvedPackage
@@ -1839,6 +1915,15 @@ class SettingPricesController extends AdminBaseController
                     if ($packageKeyPresent) {
                         $payload['lesson_package_id'] = $resolvedPackageId;
                     }
+
+                    $catalogCents = $resolvedPackage
+                        ? (int) $resolvedPackage->price_cents
+                        : $priceCents;
+                    $snap = $resolvedPackage
+                        ? UserPercentDiscount::snapshotIfMatchesCatalog($catalogCents, $priceCents, $user)
+                        : UserPercentDiscount::emptySnapshot();
+                    $payload['discount_percent'] = $snap['discount_percent'];
+                    $payload['discount_comment'] = $snap['discount_comment'];
 
                     if ($payload === []) {
                         continue;
@@ -1865,14 +1950,34 @@ class SettingPricesController extends AdminBaseController
                             ->withCreatedAt(now())
                     );
                 } else {
+                    $createPackage = ($packageKeyPresent && $newPackageId)
+                        ? LessonPackage::query()->find($newPackageId)
+                        : null;
+                    $createSnap = $createPackage
+                        ? UserPercentDiscount::snapshotIfMatchesCatalog(
+                            (int) $createPackage->price_cents,
+                            $priceCents,
+                            $user
+                        )
+                        : UserPercentDiscount::emptySnapshot();
+                    if ($createPackage && $createPackage->isPostpay()) {
+                        $createSnap = UserPercentDiscount::snapshotFromUser($user);
+                    }
+
                     $created = UserPrice::create([
                         'user_id' => $userId,
                         'team_id' => $teamId,
                         'new_month' => $newMonth,
-                        'price_cents' => $priceCents,
+                        'price_cents' => ($createPackage && $createPackage->isPostpay()) ? 0 : $priceCents,
                         'lesson_package_id' => $packageKeyPresent ? $newPackageId : null,
                         'is_paid' => false,
+                        'discount_percent' => $createSnap['discount_percent'],
+                        'discount_comment' => $createSnap['discount_comment'],
                     ]);
+                    if ($createPackage && $createPackage->isPostpay()) {
+                        $created->setRelation('lessonPackage', $createPackage);
+                        $this->postpaySync->syncRow($created);
+                    }
                     $this->syncUserPriceLessonPackage(
                         $created,
                         'prices.lesson_package_id'

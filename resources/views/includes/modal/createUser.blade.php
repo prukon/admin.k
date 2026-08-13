@@ -208,6 +208,10 @@
                             'canViewUserSex' => $canViewUserSex ?? null,
                             'canViewUserComment' => $canViewUserComment ?? null,
                         ])
+                        @include('includes.modal._student_discount_fields', [
+                            'prefix' => 'create',
+                            'canManageUserDiscount' => $canManageUserDiscount ?? null,
+                        ])
 
                         <div class="col-12 col-md-6">
                             <div class="mb-3">
@@ -351,17 +355,38 @@
             }
         }
 
+        function setCreateUserDiscountFields(values) {
+            const $percent = $('#create-discount_percent');
+            const $comment = $('#create-discount_comment');
+            if ($percent.length) {
+                $percent.val(values.discount_percent != null && values.discount_percent !== ''
+                    ? values.discount_percent
+                    : '');
+            }
+            if ($comment.length) {
+                $comment.val(values.discount_comment || '');
+            }
+            syncCreateUserDiscountRequired();
+        }
+
         function resetCreateUserCommentSexFields() {
             setCreateUserCommentSexFields({ sex: '', comment: '' });
+            setCreateUserDiscountFields({ discount_percent: '', discount_comment: '' });
+        }
+
+        function syncCreateUserDiscountRequired() {
+            const p = parseInt($('#create-discount_percent').val(), 10) || 0;
+            const need = p >= 1;
+            $('#create-user-form .js-user-discount-comment-required').toggleClass('d-none', !need);
         }
 
         function syncCreateUserCommentSexFields(roleId) {
             const studentRoleId = createStudentRoleId();
             const isStudent = studentRoleId && parseInt(roleId, 10) === studentRoleId;
 
-            $('#create-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap').each(function () {
+            $('#create-user-form').find('.js-user-sex-wrap, .js-user-comment-wrap, .js-user-discount-wrap').each(function () {
                 $(this).toggleClass('d-none', !isStudent);
-                $(this).find('.js-user-comment-sex-field').prop('disabled', !isStudent);
+                $(this).find('.js-user-comment-sex-field, .js-user-discount-percent, .js-user-discount-comment').prop('disabled', !isStudent);
             });
         }
 
@@ -389,6 +414,8 @@
             syncCreateUserHealthFields(roleId);
             syncCreateUserCommentSexFields(roleId);
         });
+
+        $createUserFormRoot.on('input change', '#create-discount_percent', syncCreateUserDiscountRequired);
 
         syncCreateUserStudentSection(currentCreateRoleId());
         syncCreateUserHealthFields(currentCreateRoleId());

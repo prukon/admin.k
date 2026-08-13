@@ -135,6 +135,10 @@
       <li><code>users.full_name_genitive</code> — ФИО ученика в родительном падеже (CRM / ЛК / колонка импорта Excel); скрытое (<code>is_visible=0</code>);
         по умолчанию никому; договоры <code>{{child_full_name_genitive}}</code> работают независимо —
         <a href="/docs/documentation/admin-users#user-child-genitive">admin-users §2.1.7</a>;</li>
+      <li><code>users.discount.manage</code> — персональная скидка ученика % (карточка create/edit, снимок на начислении/назначении);
+        видно в матрице (<code>is_visible=1</code>); не в базовых ролях —
+        <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
+        <a href="/doc#user-percent-discount-index">/doc</a>;</li>
       <li><code>account.user.team.update</code> — ЛК: добавление группы (сайдбар «Группа: … изменить»,
         карандаш на <code>/cabinet</code> и <code>/account-settings/user/edit</code>; только attach);
         скрытое (<code>is_visible=0</code>); не в базовых ролях; миграция revoke с ролей —
@@ -151,7 +155,8 @@
     <code>test_new_partner_does_not_assign_package_assignments_view_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_cabinet_packages_type_permissions_to_base_roles</code>,
     <code>test_new_partner_does_not_assign_lesson_packages_type_postpay_to_base_roles</code>,
-    <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>.
+    <code>test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>,
+    <code>UserPercentDiscountFeatureTest::test_permission_is_visible_and_not_in_role_base_permissions</code>.
   </div>
 
   <h2>8) Роль <code>trainer</code> и право <code>trainers.view</code></h2>

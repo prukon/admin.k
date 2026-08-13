@@ -97,6 +97,10 @@ final class UsersPriceLessonPackageSync
                 'lessons_total' => $lessons,
                 'lessons_remaining' => $lessons,
                 'fee_amount_cents' => $feeAmountCents,
+                'discount_percent' => $row->discount_percent !== null ? (int) $row->discount_percent : null,
+                'discount_comment' => $row->discount_comment !== null && trim((string) $row->discount_comment) !== ''
+                    ? (string) $row->discount_comment
+                    : null,
                 'is_paid' => false,
                 'created_by' => $actorId,
             ]);
@@ -153,6 +157,18 @@ final class UsersPriceLessonPackageSync
         if (! $row->effective_is_paid && ! $linked->effective_is_paid) {
             if ((int) $linked->fee_amount_cents !== $feeAmountCents) {
                 $payload['fee_amount_cents'] = $feeAmountCents;
+            }
+            $rowPercent = $row->discount_percent !== null ? (int) $row->discount_percent : null;
+            $rowComment = $row->discount_comment !== null && trim((string) $row->discount_comment) !== ''
+                ? (string) $row->discount_comment
+                : null;
+            $linkedPercent = $linked->discount_percent !== null ? (int) $linked->discount_percent : null;
+            $linkedComment = $linked->discount_comment !== null && trim((string) $linked->discount_comment) !== ''
+                ? (string) $linked->discount_comment
+                : null;
+            if ($rowPercent !== $linkedPercent || $rowComment !== $linkedComment) {
+                $payload['discount_percent'] = $rowPercent;
+                $payload['discount_comment'] = $rowComment;
             }
         }
 

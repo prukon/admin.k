@@ -134,6 +134,11 @@ table.dataTable tbody th, table.dataTable tbody td {
     width: 30px;
 }
 
+.journal-monthly-payment-hint.kids-tooltip-hint {
+    color: inherit;
+    margin-left: 0;
+}
+
 
 .schedule-user-name {
     padding-top: 10px !important;

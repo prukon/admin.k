@@ -108,9 +108,12 @@
     <li><b>user_id</b> — ученик</li>
     <li><b>team_id</b> — группа начисления (<b>NOT NULL</b>); UNIQUE <code>(user_id, team_id, new_month)</code> (миграция <code>2026_06_21_120000_add_team_id_to_users_prices_table.php</code>)</li>
     <li><b>new_month</b>: дата <code>YYYY-MM-01</code></li>
-    <li><b>price_cents</b>: начисленная сумма к оплате за месяц в этой группе (<b>BIGINT копейки</b>; источник истины для витрины и Init). В JSON UI по-прежнему отдаётся <code>price</code> в рублях через <code>Money</code>.</li>
+    <li><b>price_cents</b>: начисленная сумма к оплате за месяц в этой группе (<b>BIGINT копейки</b>; источник истины для витрины и Init). В JSON UI по-прежнему отдаётся <code>price</code> в рублях через <code>Money</code>. Может уже включать персональную скидку ученика (вариант А).</li>
+    <li><b>discount_percent</b>, <b>discount_comment</b>: снимок скидки на момент выставления (nullable). Правка карточки ученика эти поля и <code>price_cents</code> не пересчитывает.
+      Подробно — <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
+      <a href="/doc#user-percent-discount-index">/doc</a>.</li>
     <li><b>is_paid</b>: автоматическая отметка из webhook (<code>monthly_fee</code>)</li>
-    <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического)</li>
+    <li><b>is_manual_paid</b>, <b>manual_paid_at</b>, <b>manual_paid_by</b>: ручной override из «Цены» (<code>setPrices.manualPaid.manage</code>); для UI/отчётов — accessor <code>effective_is_paid</code> (ручной важнее автоматического). Журнал <code>/schedule</code> (колонка с рублём) читает те же строки по группе и месяцу — <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>, <a href="/doc#journal-monthly-payment-check">анонс</a>.</li>
   </ul>
 
   <h3 id="users-prices-by-team">2.1) Начисления по группам: «Цены», витрина, webhook</h3>

@@ -62,6 +62,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'account documents fill modal ajax' => ['account/documents.blade.php'];
         yield 'account settings tabs shell' => ['account/index.blade.php'];
         yield 'cabinet attach team modal' => ['includes/modal/cabinet_attach_team_modal.blade.php'];
+        yield 'user percent discount js helper' => ['partials/ui/discount-percent-js.blade.php'];
     }
 
     /**
@@ -424,6 +425,15 @@ final class BladeInlineJsSyntaxTest extends TestCase
         // jQuery $.ajax по умолчанию ставит X-Requested-With: XMLHttpRequest;
         // backend также принимает expectsJson через Accept: application/json.
 
+        // Смена фильтра группы — полный GET (сервер пересчитывает галочку оплаты), не патч иконки в DOM.
+        $filterChangePos = strpos($content, "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'");
+        $this->assertNotFalse($filterChangePos);
+        $filterChunk = substr($content, (int) $filterChangePos, 700);
+        $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $filterChunk);
+        $this->assertStringContainsString('window.location.href = newUrl.toString()', $filterChunk);
+        $this->assertStringNotContainsString('data-journal-payment-status', $filterChunk);
+        $this->assertStringNotContainsString('journalPaymentStatuses', $content);
+
         $output = [];
         $exitCode = 0;
         exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
@@ -432,6 +442,60 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $exitCode,
             "JS syntax error in resources/js/schedule.js:\n".implode("\n", $output)
         );
+    }
+
+    /**
+     * P1: колонка оплаты месяца в журнале — серверный HTML + tooltip-hint, без legacy userPrices.
+     * Смена фильтра группы в hotfix-копии schedule-journal.js тоже полный GET.
+     */
+    public function test_schedule_journal_monthly_payment_column_blade_and_filter_js_contract(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $content = (string) file_get_contents($blade);
+
+        $this->assertStringContainsString("partials.ui.tooltip-hint", $content);
+        $this->assertStringContainsString('journalPaymentStatuses', $content);
+        $this->assertStringContainsString('data-journal-payment-status', $content);
+        $this->assertStringContainsString('journal-monthly-payment-hint', $content);
+        $this->assertStringContainsString("payState === 'paid' || \$payState === 'partial'", $content);
+        $this->assertStringContainsString("'iconClass' => \$payIcon", $content);
+        $this->assertStringContainsString("'wrapperClass' => 'journal-monthly-payment-hint'", $content);
+        $this->assertStringNotContainsString('$userPrices[$user->id]', $content);
+        $this->assertStringNotContainsString('is_paid == 1', $content);
+        $this->assertStringContainsString('id="filter-team"', $content);
+        $this->assertStringContainsString('value="all"', $content);
+        $this->assertStringContainsString('value="none"', $content);
+
+        $hint = resource_path('views/partials/ui/tooltip-hint.blade.php');
+        $this->assertFileExists($hint);
+        $hintContent = (string) file_get_contents($hint);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $hintContent);
+        $this->assertStringContainsString('data-bs-toggle="tooltip"', $hintContent);
+        $this->assertStringContainsString('ulp-assignment-paid-tooltip', $hintContent);
+        $this->assertStringContainsString('wrapperClass', $hintContent);
+        $this->assertStringContainsString('iconClass', $hintContent);
+        $this->assertStringNotContainsString('<script', $hintContent);
+
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+            $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $js);
+            $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
+            $this->assertStringNotContainsString('data-journal-payment-status', $js);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
     }
 
     /**
@@ -510,6 +574,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('name="empty_cell_lesson_occurrence_status_id"', $content);
         $this->assertStringContainsString('id="empty-cell-trainer-wrap"', $content);
         $this->assertStringContainsString('id="empty-cell-fee-amount"', $content);
+        $this->assertStringContainsString('kids-user-discount-price-wrap', $content);
         $this->assertStringContainsString('id="btnEmptyCellPlace"', $content);
         $this->assertStringContainsString('data-empty-lesson=', $content);
         $this->assertStringContainsString('id="edit-user-teams-display"', $content);
@@ -567,6 +632,47 @@ final class BladeInlineJsSyntaxTest extends TestCase
             0,
             $exitCode,
             "JS syntax error in resources/js/settings-prices.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: вкладка «по месяцам» — % у цены ученика по снимку строки; левая колонка группы без %.
+     */
+    public function test_setting_prices_monthly_vite_discount_badge_uses_applied_snapshot_not_team_price(): void
+    {
+        $path = resource_path('js/settings-prices.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function appliedDiscountPercent(up)', $content);
+        $this->assertStringContainsString('function currentUserDiscountPercent(up, userTeam)', $content);
+        $this->assertStringContainsString('function payableRubAfterUserDiscount(amountRub, percent)', $content);
+        $this->assertStringContainsString('api.wrapPriceHtml(', $content);
+        $this->assertStringContainsString('appliedPct', $content);
+        $this->assertStringContainsString('up.applied_discount_comment', $content);
+        $this->assertStringContainsString('api.hideBadge($wrap.get(0))', $content);
+        $this->assertStringContainsString('kids-user-discount-price-wrap', $content);
+
+        $wrapPos = strpos($content, 'api.wrapPriceHtml(');
+        $this->assertNotFalse($wrapPos);
+        $wrapChunk = substr($content, (int) $wrapPos, 400);
+        $this->assertStringContainsString('appliedPct', $wrapChunk);
+        $this->assertStringNotContainsString('setting-prices-team-price-value', $wrapChunk);
+
+        $teamUiPos = strpos($content, 'function syncTeamRowPackageUi');
+        $this->assertNotFalse($teamUiPos);
+        $teamChunk = substr($content, (int) $teamUiPos, 2500);
+        $this->assertStringContainsString('setting-prices-team-price-value', $teamChunk);
+        $this->assertStringNotContainsString('wrapPriceHtml', $teamChunk);
+        $this->assertStringNotContainsString('KidsCrmUserDiscount', $teamChunk);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/settings-prices.js (discount):\n".implode("\n", $output)
         );
     }
 
@@ -2351,6 +2457,242 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertTrue($found, 'В account/documents.blade.php не найден script loadContractFill');
     }
 
+    /**
+     * P1: createUser — скидка только у роли ученик; * у основания при % ≥ 1; сброс при reset.
+     */
+    public function test_create_user_modal_discount_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/modal/createUser.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@include('includes.modal._student_discount_fields'", $content);
+        $this->assertStringContainsString("'prefix' => 'create'", $content);
+        $this->assertStringContainsString('function setCreateUserDiscountFields(values)', $content);
+        $this->assertStringContainsString('function syncCreateUserDiscountRequired()', $content);
+        $this->assertStringContainsString('function resetCreateUserCommentSexFields()', $content);
+        $this->assertStringContainsString("setCreateUserDiscountFields({ discount_percent: '', discount_comment: '' })", $content);
+        $this->assertStringContainsString("find('.js-user-sex-wrap, .js-user-comment-wrap, .js-user-discount-wrap')", $content);
+        $this->assertStringContainsString("toggleClass('d-none', !isStudent)", $content);
+        $this->assertStringContainsString('const need = p >= 1;', $content);
+        $this->assertStringContainsString(".js-user-discount-comment-required').toggleClass('d-none', !need)", $content);
+        $this->assertStringContainsString('$createUserFormRoot.on(\'input change\', \'#create-discount_percent\', syncCreateUserDiscountRequired)', $content);
+        $this->assertStringContainsString("window.resetCreateUserCommentSexFields = resetCreateUserCommentSexFields", $content);
+        $this->assertStringContainsString("xhr.responseJSON.errors", $content);
+        $this->assertStringContainsString('$form.find(\'[name="\' + safe + \'"]\')', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'syncCreateUserDiscountRequired',
+            'blade-js-create-discount'
+        );
+
+        $partial = (string) file_get_contents(resource_path('views/includes/modal/_student_discount_fields.blade.php'));
+        $this->assertStringContainsString('id="{{ $fieldPrefix }}discount_percent"', $partial);
+        $this->assertStringContainsString('data-error-for="discount_percent"', $partial);
+        $this->assertStringContainsString('data-error-for="discount_comment"', $partial);
+        $this->assertStringContainsString('js-user-discount-comment-required', $partial);
+    }
+
+    /**
+     * P1: editUser — оба пути открытия модалки заполняют скидку; 0% → пустое поле, не «0».
+     */
+    public function test_edit_user_modal_discount_fill_contract_on_both_open_paths(): void
+    {
+        $path = resource_path('views/includes/modal/editUser.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@include('includes.modal._student_discount_fields'", $content);
+        $this->assertStringContainsString('function setEditUserDiscountFields(user)', $content);
+        $this->assertStringContainsString('function syncEditUserDiscountRequired()', $content);
+        $this->assertStringContainsString('setEditUserCommentSexFields(response.user)', $content);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($content, 'setEditUserCommentSexFields(response.user)')
+        );
+        $this->assertStringContainsString('function editUserLink2()', $content);
+        $this->assertStringContainsString('function editUserLink()', $content);
+        $this->assertStringContainsString("\$percent.val(p === 0 || p === '0' ? '' : p)", $content);
+        $this->assertStringContainsString('ui?.canManageUserDiscount === true', $content);
+        $this->assertStringContainsString("\$('.js-user-discount-wrap').remove()", $content);
+        $this->assertStringContainsString("find('.js-user-sex-wrap, .js-user-comment-wrap, .js-user-discount-wrap')", $content);
+        $this->assertStringContainsString('const need = p >= 1;', $content);
+        $this->assertStringContainsString("$(document).on('input change', '#edit-discount_percent', syncEditUserDiscountRequired)", $content);
+
+        $link2Pos = strpos($content, 'function editUserLink2()');
+        $linkPos = strpos($content, 'function editUserLink()');
+        $this->assertNotFalse($link2Pos);
+        $this->assertNotFalse($linkPos);
+        $this->assertStringContainsString(
+            'setEditUserCommentSexFields(response.user)',
+            substr($content, (int) $link2Pos, (int) $linkPos - (int) $link2Pos)
+        );
+        $this->assertStringContainsString(
+            'setEditUserCommentSexFields(response.user)',
+            substr($content, (int) $linkPos, 4000)
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'setEditUserDiscountFields',
+            'blade-js-edit-discount'
+        );
+    }
+
+    /**
+     * P1: вкладка «по ученикам» — дефолт цены со скидкой карточки; бейдж по снимку месяца; hide при ручной сумме.
+     */
+    public function test_setting_prices_year_tab_discount_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/SettingPrices/users.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('KidsCrmUserDiscount', $content);
+        $this->assertStringContainsString('function payableRubAfterUserDiscount', $content);
+        $this->assertStringContainsString('function yearUserDiscountPercent()', $content);
+        $this->assertStringContainsString('lastYearUserDiscount.percent', $content);
+        $this->assertStringContainsString('item.applied_discount_percent', $content);
+        $this->assertStringContainsString('api.wrapPriceHtml(priceInputHtml, appliedPct, item.applied_discount_comment || \'\')', $content);
+        $this->assertStringContainsString('$input.val(formatPriceValue(payableRubAfterUserDiscount(pkgPrice, pct)))', $content);
+        $this->assertStringContainsString('api.hideBadge($wrap.get(0))', $content);
+        $this->assertStringContainsString("\$('#user-prices-table-wrapper').on('change', '.setting-prices-monthly-package-select'", $content);
+        $this->assertStringContainsString("\$('#user-prices-table-wrapper').on('input change', '.user-price-input'", $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'payableRubAfterUserDiscount',
+            'blade-js-year-discount'
+        );
+    }
+
+    /**
+     * P1: назначения — смена ученика и смена пакета пересчитывают сумму со скидкой; бейдж в таблице и в модалке «Изменить».
+     */
+    public function test_lesson_package_assignments_discount_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function selectedUserDiscount()', $content);
+        $this->assertStringContainsString('function syncFeeFromSelectedPackage()', $content);
+        $this->assertStringContainsString('window.ulpSyncFeeFromSelectedPackage = syncFeeFromSelectedPackage', $content);
+        $this->assertStringContainsString('api.payableAfterDiscountCents(cents, disc.percent)', $content);
+        $this->assertStringContainsString("\$ulpUser.on('change'", $content);
+        $this->assertStringContainsString('window.ulpSyncFeeFromSelectedPackage()', $content);
+        $this->assertStringContainsString("scheduleSelect?.addEventListener('change'", $content);
+        $this->assertStringContainsString('function ulpFeeRender(data, type, row)', $content);
+        $this->assertStringContainsString('KidsCrmUserDiscount.badgeHtml(row.discount_percent, row.discount_comment)', $content);
+        $this->assertStringContainsString('feeInput.dataset.discountPercent', $content);
+        $this->assertStringContainsString('function syncUlpModalFeeBadge(feeInput)', $content);
+        $this->assertStringContainsString('api.hideBadge(wrap)', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'syncFeeFromSelectedPackage',
+            'blade-js-ulp-discount'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'syncUlpModalFeeBadge',
+            'blade-js-ulp-modal-discount'
+        );
+    }
+
+    /**
+     * P1: календарь школы — create_new подставляет fee_amount_default со скидкой;
+     * смена шаблона не затирает сумму, если поле уже трогали.
+     */
+    public function test_school_calendar_single_fee_discount_js_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/schoolSchedule.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function syncSchoolCalSlotSingleFeeBadgeFromOption(opt)', $content);
+        $this->assertStringContainsString('function populateSchoolCalSlotSingleForm(single)', $content);
+        $this->assertStringContainsString('data-fee-default', $content);
+        $this->assertStringContainsString('data-discount-percent', $content);
+        $this->assertStringContainsString('data-discount-comment', $content);
+        $this->assertStringContainsString('feeInp.value = first.fee_amount_default != null ? String(first.fee_amount_default) : \'\'', $content);
+        $this->assertStringContainsString('syncSchoolCalSlotSingleFeeBadgeFromOption(tplSel.options[tplSel.selectedIndex])', $content);
+        $this->assertStringContainsString('if (schoolCalSlotSingleFeeTouched)', $content);
+        $this->assertStringContainsString('schoolCalSlotSingleFeeTouched = true', $content);
+        $this->assertStringContainsString('api.hideBadge(wrap)', $content);
+
+        $changePos = strpos($content, "document.getElementById('schoolCalSlotSingleTemplate')?.addEventListener('change'");
+        $this->assertNotFalse($changePos);
+        $changeChunk = substr($content, (int) $changePos, 900);
+        $this->assertStringContainsString('if (schoolCalSlotSingleFeeTouched)', $changeChunk);
+        $this->assertStringContainsString('return;', $changeChunk);
+        $this->assertStringContainsString('data-fee-default', $changeChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'syncSchoolCalSlotSingleFeeBadgeFromOption',
+            'blade-js-schoolcal-discount'
+        );
+    }
+
+    /**
+     * P1: журнал — create_new несёт data-discount-*; бейдж только у create_new, иначе hide.
+     */
+    public function test_schedule_journal_empty_cell_discount_js_contract_is_valid_javascript(): void
+    {
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $path) {
+            $this->assertFileExists($path);
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString("\$input.attr('data-discount-percent'", $content);
+            $this->assertStringContainsString("\$input.attr('data-discount-comment'", $content);
+            $this->assertStringContainsString('function syncEmptyCellFeeBadge($checked)', $content);
+            $this->assertStringContainsString('data-mode', $content);
+            $this->assertStringContainsString("!== 'create_new'", $content);
+            $this->assertStringContainsString('api.hideBadge(wrap)', $content);
+            $this->assertStringContainsString("data-discount-comment", $content);
+            $this->assertStringContainsString('api.showBadge(wrap, pct', $content);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$path}:\n".implode("\n", $output)
+            );
+        }
+    }
+
+    /**
+     * P1: общий helper бейджа % — синтаксис и контракт формулы (1000 − 10% = 900).
+     */
+    public function test_discount_percent_js_partial_contract_is_valid_javascript(): void
+    {
+        $path = resource_path('views/partials/ui/discount-percent-js.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('w.KidsCrmUserDiscount = {', $content);
+        $this->assertStringContainsString('payableAfterDiscountCents: function (priceCents, percent)', $content);
+        $this->assertStringContainsString('const discount = Math.round(cents * p / 100);', $content);
+        $this->assertStringContainsString('return cents - discount;', $content);
+        $this->assertStringContainsString('wrapPriceHtml: function (inputHtml, percent, comment)', $content);
+        $this->assertStringContainsString('hideBadge: function (wrapEl)', $content);
+        $this->assertStringContainsString('matchesPayable: function (amountRub, catalogRub, percent)', $content);
+        $this->assertStringContainsString("'Скидка ' + p + '%. '", $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'KidsCrmUserDiscount',
+            'blade-js-discount-helper'
+        );
+    }
+
     #[DataProvider('criticalModalBladePathsProvider')]
     public function test_critical_modal_inline_scripts_have_valid_javascript_syntax(string $relativePath): void
     {
@@ -2397,6 +2739,50 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 @unlink($tempFile);
             }
         }
+    }
+
+    /**
+     * @param  non-empty-string  $needle
+     */
+    private function assertInlineScriptsContainingHaveValidJavascript(string $path, string $needle, string $tempPrefix): void
+    {
+        $content = (string) file_get_contents($path);
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
+        $this->assertNotEmpty($matches[1], "В {$path} не найдено inline <script>");
+
+        $found = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, $needle)) {
+                continue;
+            }
+            $found = true;
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/'.$tempPrefix.'-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in %s (needle %s, block #%d):\n%s\n--- preview ---\n%s",
+                        $path,
+                        $needle,
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue($found, "В {$path} не найден script с «{$needle}»");
     }
 
     private function normalizeBladeScriptForSyntaxCheck(string $script): string

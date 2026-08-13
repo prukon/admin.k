@@ -32,6 +32,7 @@ use App\Services\PartnerContext;
 use App\Services\Schedule\JournalEmptyCellPlacementContextService;
 use App\Services\Schedule\JournalFixedAbonementPlacementService;
 use App\Services\Schedule\JournalFlexibleAbonementPlacementService;
+use App\Services\Schedule\JournalMonthlyPaymentStatusService;
 use App\Services\Schedule\JournalOccurrenceAnnulmentService;
 use App\Services\Schedule\JournalSingleLessonPlacementService;
 use App\Services\Schedule\JournalTrialLessonPlacementService;
@@ -70,6 +71,7 @@ class ScheduleController extends AdminBaseController
         private readonly UserLessonOccurrenceStatusService $occurrenceStatusService,
         private readonly PostpayJournalService $postpayJournal,
         private readonly PostpayUsersPriceSync $postpaySync,
+        private readonly JournalMonthlyPaymentStatusService $journalMonthlyPaymentStatus,
     ) {
         parent::__construct($partnerContext);
     }
@@ -145,13 +147,12 @@ class ScheduleController extends AdminBaseController
             }
         }
 
-        $userPrices = DB::table('users_prices')
-            ->select('user_id', 'is_paid', 'is_manual_paid')
-            ->whereIn('user_id', $users->pluck('id'))
-            ->whereYear('new_month', $year)
-            ->whereMonth('new_month', $month)
-            ->get()
-            ->keyBy('user_id');
+        $journalPaymentStatuses = $this->journalMonthlyPaymentStatus->statusesByUser(
+            $partnerId,
+            $userIds,
+            $monthFirst,
+            (string) $team_id,
+        );
 
         $teams = Team::where('partner_id', $partnerId)
             ->where('is_enabled', 1)
@@ -176,7 +177,7 @@ class ScheduleController extends AdminBaseController
             'users',
             'journalOccurrences',
             'journalAssignments',
-            'userPrices',
+            'journalPaymentStatuses',
             'postpayUsers',
             'postpayLockedUsers',
             'postpayByUser',

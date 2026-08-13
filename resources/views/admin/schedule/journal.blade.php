@@ -161,8 +161,25 @@
                             @endif
                         </td>
                         <td class="text-center">
-                            @if(isset($userPrices[$user->id]) && $userPrices[$user->id]->is_paid == 1)
-                                <i class="fas fa-circle-check text-success"></i>
+                            @php
+                                $payStatus = $journalPaymentStatuses[(int) $user->id] ?? null;
+                                $payState = is_array($payStatus) ? (string) ($payStatus['state'] ?? '') : '';
+                                $payHover = is_array($payStatus) ? (string) ($payStatus['hover'] ?? '') : '';
+                                $payIcon = is_array($payStatus) ? (string) ($payStatus['icon_class'] ?? '') : '';
+                            @endphp
+                            @if($payState === 'paid' || $payState === 'partial')
+                                <span data-journal-payment-status="{{ $payState }}">
+                                    @if($payHover !== '')
+                                        @include('partials.ui.tooltip-hint', [
+                                            'title' => $payHover,
+                                            'placement' => 'top',
+                                            'iconClass' => $payIcon,
+                                            'wrapperClass' => 'journal-monthly-payment-hint',
+                                        ])
+                                    @else
+                                        <i class="{{ $payIcon }}" aria-hidden="true"></i>
+                                    @endif
+                                </span>
                             @endif
                         </td>
                         <td class="text-center align-middle schedule-col-setup schedule-col-abonements">
@@ -703,7 +720,9 @@
 
                             <div class="cell-edit-section d-none" id="empty-cell-fee-wrap">
                                 <label for="empty-cell-fee-amount" class="cell-edit-section__label">Стоимость, руб</label>
-                                <input type="number" class="form-control" id="empty-cell-fee-amount" name="fee_amount" min="0" step="0.01">
+                                <div class="kids-user-discount-price-wrap">
+                                    <input type="number" class="form-control" id="empty-cell-fee-amount" name="fee_amount" min="0" step="0.01">
+                                </div>
                                 <div class="invalid-feedback" id="empty-cell-fee-error"></div>
                             </div>
 

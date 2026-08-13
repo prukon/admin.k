@@ -146,10 +146,14 @@
 
   <h3>Иконка-подсказка в форме</h3>
   <p>Partial (только HTML): <code>resources/views/partials/ui/tooltip-hint.blade.php</code></p>
-  <pre><code>@include('partials.ui.tooltip-hint', [
-    'title' => 'Текст подсказки',
-    'placement' => 'top',
-])</code></pre>
+  <pre><code>    @include('partials.ui.tooltip-hint', [
+        'title' => 'Текст подсказки',
+        'placement' => 'top',
+        'iconClass' => 'fa fa-info-circle',
+        'wrapperClass' => 'ms-1',
+    ])</code></pre>
+  <p>Опционально: <code>iconClass</code> (по умолчанию <code>fa fa-info-circle</code>),
+    <code>wrapperClass</code> (доп. классы span; по умолчанию <code>ms-1</code>).</p>
   <p>Инициализация hint'ов на DOMContentLoaded и при открытии модалок — через <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code> (глобально в <code>kids-tooltip.js</code>).</p>
   <p>Scope <code>generic</code> — для элементов с <code>data-bs-toggle="tooltip"</code> и <code>data-bs-title</code> (или <code>title</code>), если tooltip создаётся вне пресета DataTable (например, на страницах расписания, в модалках цен).</p>
   <p class="small"><b>Важно:</b> единственное место создания <code>new bootstrap.Tooltip(...)</code> в проекте — модуль <code>kids-tooltip.js</code>. На страницах не вызывать Bootstrap Tooltip напрямую.</p>
@@ -162,6 +166,7 @@
     <tbody>
       <tr><td><code>/admin/legal-entities</code></td><td>«Регистрация в банке» = Нет</td><td>«Обратитесь к администратору платформы»</td></tr>
       <tr><td><code>/admin/teams</code></td><td>«Юр. лицо», <code>legal_entity_fallback</code></td><td>Без явной привязки в multi-entity — «—» (оплата T‑Bank недоступна). При явной привязке — <code>displayTitle()</code> без иконки fallback.</td></tr>
+      <tr><td><code>/schedule</code></td><td>Колонка оплаты месяца (галочка)</td><td>Жёлтая при частичной оплате начислений: «Оплачено: …» / «Не оплачено: …». Зелёная при 2+ оплаченных начислениях в «Все группы»: «Все группы оплачены». Одна оплаченная строка — без ховера. См. <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a></td></tr>
     </tbody>
   </table>
 
@@ -170,6 +175,13 @@
   <pre><code>showErrorModal(headerText, messageText, reloadOnClose = 0)</code></pre>
   <p>Открывает <code>#errorModal</code> через <code>showModalQueued('errorModal', …)</code>. Третий аргумент <code>reloadOnClose = 1</code> — перезагрузка страницы после закрытия. Используется вместо <code>alert()</code> для ошибок AJAX (например удаление юр. лица с привязанными группами — <a href="/docs/documentation/admin-legal-entities#legal-entities-list">admin-legal-entities §4.1</a>).</p>
   <p class="small">Тест: <code>tests/Feature/Crm/Ui/ErrorModalFeatureTest.php</code>.</p>
+
+  <h3 id="discount-percent-js">2.3) Иконка персональной скидки (<code>KidsCrmUserDiscount</code>)</h3>
+  <p>Partial: <code>resources/views/partials/ui/discount-percent-js.blade.php</code> → <code>window.KidsCrmUserDiscount</code>.
+    Рисует бейдж <code>%</code> у поля суммы, если на снимке есть процент.
+    Tooltip: <code>Скидка N%. {основание}</code> (процент снимка, не текущая карточка).
+    Канон поведения — <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>,
+    <a href="/doc#user-percent-discount-index">/doc</a>.</p>
 
   <h2 id="kidscrm-datatable">3) DataTables: пресет <code>KidsCrmDataTable</code></h2>
   <p>Файл: <code>resources/js/kids-datatable.js</code>. Документация в коде: <code>partials/datatables/kids-datatable.blade.php</code>.</p>

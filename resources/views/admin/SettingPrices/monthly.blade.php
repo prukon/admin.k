@@ -11,6 +11,7 @@
                 white-space: nowrap;
             }
         </style>
+        @include('partials.ui.discount-percent-badge-styles')
     @endpush
 
 
@@ -137,6 +138,7 @@
     </div>
 
 @section('scripts')
+    @include('partials.ui.discount-percent-js')
     @vite(['resources/js/settings-prices.js'])
     <script>
         $('#single-select-date').on('change', function () {

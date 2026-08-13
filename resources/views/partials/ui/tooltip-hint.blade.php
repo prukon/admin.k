@@ -3,7 +3,12 @@
 
     CSS: resources/css/kids-tooltip.css (layouts/admin2 через Vite).
 
-    @include('partials.ui.tooltip-hint', ['title' => 'Текст подсказки', 'placement' => 'top'])
+    @include('partials.ui.tooltip-hint', [
+        'title' => 'Текст подсказки',
+        'placement' => 'top',
+        'iconClass' => 'fa fa-info-circle',
+        'wrapperClass' => 'ms-1',
+    ])
 --}}
 @php
     $hintTitle = trim((string) ($title ?? ''));
@@ -11,10 +16,12 @@
         ? $placement
         : 'top';
     $hintIconClass = trim((string) ($iconClass ?? 'fa fa-info-circle'));
+    $hintExtraClass = trim((string) ($wrapperClass ?? 'ms-1'));
+    $hintClass = trim('kids-tooltip-hint d-inline-block '.$hintExtraClass);
 @endphp
 
 @if($hintTitle !== '')
-    <span class="kids-tooltip-hint d-inline-block ms-1"
+    <span class="{{ $hintClass }}"
           tabindex="0"
           data-kids-tooltip-hint
           data-bs-toggle="tooltip"

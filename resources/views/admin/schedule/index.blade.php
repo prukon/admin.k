@@ -41,9 +41,11 @@
     {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
     <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}">
     @if(($activeTab ?? 'journal') === 'journal')
+        @include('partials.ui.discount-percent-badge-styles')
         <script>
             window.SCHEDULE_VISITED_STATUS_ID = @json($visitedStatusId ?? null);
         </script>
+        @include('partials.ui.discount-percent-js')
         {{-- Hotfix: актуальный schedule.js (мультитренеры) до Vite-сборки; старый build всё ещё на #cell-trainer-profile-id --}}
         <script src="{{ asset('js/schedule-journal.js') }}?v={{ @filemtime(public_path('js/schedule-journal.js')) ?: time() }}"></script>
     @elseif(($activeTab ?? '') === 'trainer-workload')

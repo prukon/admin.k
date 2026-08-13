@@ -92,7 +92,11 @@
   </ul>
 
   <h2 id="discount">5) Скидки %</h2>
-  <p>UI скидок пока может отсутствовать; контракт зафиксирован в <code>Money</code> и unit-тестах.</p>
+  <p>
+    UI персональной скидки ученика — <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>,
+    анонс — <a href="/doc#user-percent-discount-index">/doc</a>.
+    Расчёт в <code>App\Support\Money</code> и <code>App\Services\Pricing\UserPercentDiscount</code>.
+  </p>
   <p><b>Вариант А</b>:</p>
   <ol>
     <li><code>скидка_cents = Money::discountCents(price_cents, percent)</code> — <code>round(price × % / 100)</code></li>
@@ -143,6 +147,7 @@
   <h2 id="related">9) Связанные разделы</h2>
   <ul>
     <li><a href="/docs/documentation/payments">payments</a> — payables / intents / users_prices / ULP pay</li>
+    <li><a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a> — персональная скидка ученика (анонс <a href="/doc#user-percent-discount-index">/doc</a>)</li>
     <li><a href="/docs/documentation/lesson-packages">lesson-packages</a> — шаблоны <code>price_cents</code>, назначения <code>fee_amount</code> (HTTP) / <code>fee_amount_cents</code> (БД)</li>
     <li><a href="/docs/documentation/postpay">postpay</a> — пересчёт <code>users_prices.price_cents</code></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a></li>
@@ -156,6 +161,10 @@
   <h2 id="tests">10) Тесты</h2>
   <ul>
     <li><code>tests/Unit/Support/MoneyTest.php</code> — helper, округление, скидки вариант А</li>
+    <li><code>tests/Unit/Services/Pricing/UserPercentDiscountTest.php</code> — персональная скидка, снимок vs override, tooltip</li>
+    <li><code>tests/Feature/Crm/Users/UserPercentDiscountFeatureTest.php</code> + Access / AjaxContract / NonAjaxSafetyNet</li>
+    <li><code>tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php</code></li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php</code></li>
     <li><code>tests/Feature/Crm/Money/MoneyCentsRoundTripFeatureTest.php</code> — round-trip руб↔коп, ledger, отчёты</li>
     <li><code>tests/Feature/Crm/Money/MoneyCentsAccessContractsFeatureTest.php</code> — доступ, AJAX/non-AJAX, 422</li>
     <li><code>tests/Feature/Crm/Money/MoneyCentsWorkflowFeatureTest.php</code> — [P2] HTTP-smoke: страница → submit → data/get</li>

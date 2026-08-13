@@ -44,6 +44,7 @@ class User extends Authenticatable
         'two_factor_expires_at' => 'datetime',
         'phone_verified_at' => 'datetime',
         'has_used_school_schedule_trial' => 'boolean',
+        'discount_percent' => 'integer',
     ];
 
     protected $appends = ['full_name', 'parent_full_name'];

@@ -187,8 +187,10 @@
     <li>Паттерн слотов берётся <b>по факту</b> из UTSS текущего назначения (актуальные weekday/time слотов),
       не из «замороженного» графика на момент первой привязки.</li>
     <li>Старт новой цепочки — после даты последнего UTSS текущего назначения (следующее подходящее занятие слотов).</li>
-    <li>Новый ULP: тот же <code>lesson_package_id</code> / <code>fee_amount_cents</code>, <code>is_paid = false</code>,
-      <code>lessons_*</code> из шаблона; оплата <b>не</b> блокирует раскладку и следующие циклы.</li>
+    <li>Новый ULP: тот же <code>lesson_package_id</code>, <code>is_paid = false</code>,
+      <code>lessons_*</code> из шаблона; сумма — <b>текущая</b> цена шаблона × <b>текущий</b> % скидки ученика
+      (снимок на новом ULP; не копия <code>fee_amount_cents</code> предыдущего цикла).
+      Оплата <b>не</b> блокирует раскладку и следующие циклы.</li>
     <li>Раскладка переиспользует ту же цепочку, что <code>assign-fixed</code>
       (<code>applyFirstCalendarAnchor</code> → <code>buildFixedOccurrenceChain</code> → overlap-assert).</li>
   </ul>
@@ -778,7 +780,10 @@
     <li>Ученик — клик по имени открывает модалку «Изменение абонемента» (класс <code>js-ulp-assignment-edit</code>, <code>KidsCrmTooltip.renderLink</code>).
       Для soft-deleted ученика (только при включённом фильтре «Удаленные») рядом бейдж <code>Удалён</code>
       (<code>user_is_deleted</code> в JSON строки).</li>
-    <li>Сумма (в JSON UI — <code>fee_amount</code> рубли из <code>fee_amount_cents</code>; формат через preset <code>money</code> / <code>Money::formatRub</code>)</li>
+    <li>Сумма (в JSON UI — <code>fee_amount</code> рубли из <code>fee_amount_cents</code>; формат через preset <code>money</code> / <code>Money::formatRub</code>).
+      Если при выставлении сработала скидка ученика — рядом иконка <code>%</code> с tooltip
+      <code>Скидка N%. {основание}</code> (снимок <code>discount_percent</code> / <code>discount_comment</code>,
+      см. <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>)</li>
     <li>Оплачен (бейдж; ручная отметка — подпись «руч.» и tooltip с комментарием)</li>
     <li>Остаток (<code>lessons_remaining / lessons_total</code>)</li>
     <li>Занятия — последнее занятие назначения (<code>max(user_team_schedule_slots.starts_at)</code>, включая будущие): в ячейке две строки
@@ -1037,6 +1042,7 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php</code> — [P2] страница → show → update <code>ends_at</code> → show/data без F5</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача public-pay-link, Init при открытии <code>/pay/ulp/{token}</code>, expired/404.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма через <code>Money::formatRub</code>, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php</code> — снимок скидки на назначениях, DataTable tooltip, bind-actions, show/update AJAX.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис inline JS вкладки (в т.ч. <code>ends_at</code> в модалке) и <code>payment/ulp-public-pay.blade.php</code> (<code>node --check</code>).</li>
   </ul>
@@ -1056,6 +1062,7 @@ php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAss
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAjaxContractFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php
 php artisan test --env=testing --filter=test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code></pre>
 </div>
 </body>

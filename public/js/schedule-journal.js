@@ -1705,6 +1705,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 $input.attr('data-ulp-id', opt.user_lesson_package_id || '');
                 $input.attr('data-package-id', opt.lesson_package_id || '');
                 $input.attr('data-fee-amount', opt.fee_amount);
+                $input.attr('data-discount-percent', opt.discount_percent != null ? opt.discount_percent : '');
+                $input.attr('data-discount-comment', opt.discount_comment || '');
                 $label.append($input);
                 $label.append($('<span class="cell-status-option__title"></span>').text(opt.label));
                 $wrap.append($('<div class="cell-status-option form-check"></div>').append($label));
@@ -1737,6 +1739,28 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function syncEmptyCellFeeBadge($checked) {
+        var api = window.KidsCrmUserDiscount;
+        var feeInput = document.getElementById('empty-cell-fee-amount');
+        var wrap = feeInput ? feeInput.closest('.kids-user-discount-price-wrap') : null;
+        if (!api || !wrap) {
+            return;
+        }
+        if (!$checked || !$checked.length || ($checked.attr('data-mode') || '') !== 'create_new') {
+            api.hideBadge(wrap);
+            return;
+        }
+        var pct = parseInt($checked.attr('data-discount-percent') || '0', 10) || 0;
+        var def = Number($checked.attr('data-fee-amount'));
+        var current = Number($(feeInput).val());
+        if (pct >= 1 && Number.isFinite(current) && Number.isFinite(def) && Math.abs(current - def) < 0.001) {
+            api.showBadge(wrap, pct, $checked.attr('data-discount-comment') || '');
+            api.initHint(wrap);
+        } else {
+            api.hideBadge(wrap);
+        }
+    }
+
     function applyEmptyCellChoiceSelection() {
         clearEmptyCellErrors();
         emptyCellSelectedOption = null;
@@ -1747,6 +1771,7 @@ document.addEventListener('DOMContentLoaded', function () {
         $('#empty-cell-fee-wrap').addClass('d-none');
         $('#empty-cell-details-wrap').addClass('d-none');
         $('#btnEmptyCellPlace').prop('disabled', true);
+        syncEmptyCellFeeBadge(null);
 
         var $checked = $('input[name="empty_cell_choice"]:checked');
         if (!$checked.length || $checked.prop('disabled')) {
@@ -1787,6 +1812,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         if (($checked.attr('data-mode') || '') === 'create_new') {
             $('#empty-cell-fee-wrap').removeClass('d-none');
+            syncEmptyCellFeeBadge($checked);
         }
         $('#empty-cell-details-wrap').removeClass('d-none');
         $('#btnEmptyCellPlace').prop('disabled', false);
@@ -1851,6 +1877,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $(document).on('change', 'input[name="empty_cell_choice"]', function () {
         applyEmptyCellChoiceSelection();
+    });
+
+    $(document).on('input change', '#empty-cell-fee-amount', function () {
+        syncEmptyCellFeeBadge($('input[name="empty_cell_choice"]:checked'));
     });
 
     $(document).on('change', 'input[name="empty_cell_lesson_occurrence_status_id"]', syncEmptyCellTrainerBlock);

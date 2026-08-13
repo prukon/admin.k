@@ -28,6 +28,98 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="journal-monthly-payment-check">Журнал: галочка оплаты месяца по группам (2026‑08)</h2>
+  <div class="note">
+    Колонка с рублём на <code>/schedule</code> показывает оплату <b>месячного начисления</b>
+    (<code>users_prices</code> за выбранный год/месяц), а не «оплачен ли ученик целиком».
+    Раньше запрос схлопывал все строки месяца через <code>keyBy(user_id)</code> без
+    <code>team_id</code>: если у ученика две группы и оплачена одна, зелёная галочка
+    горела и в «Все группы», и в фильтре любой из его групп.
+    <br><br>
+    1) <b>Источник:</b> строки <code>users_prices</code> с <code>price_cents &gt; 0</code>
+    за первый день месяца (<code>new_month</code>), партнёр ученика.
+    Оплачено = <code>effective_is_paid</code> (ручная <code>is_manual_paid</code> важнее
+    авто <code>is_paid</code> — как в «Ценах» и задолженностях).
+    Абонементы ULP и доп. платежи <b>не</b> входят; постоплата — да (она тоже в
+    <code>users_prices</code>). Нулевая сумма игнорируется (это не долг).
+    Членство в pivot без начисления на галочку не влияет.
+    <br>
+    2) <b>«Все группы»:</b> нет оплаченных начислений — пусто;
+    все начисления оплачены — зелёная галочка
+    (ховер «Все группы оплачены» только если таких начислений <b>два и больше</b>);
+    оплачена часть — жёлтая галочка, ховер две строки
+    «Оплачено: {группы}» / «Не оплачено: {группы}» (названия по <code>order_by</code> / title).
+    <br>
+    3) <b>Фильтр конкретной группы</b> — зелёная галочка строго если оплачено начисление
+    этой группы; иначе пусто (жёлтого нет, ховера нет).
+    Смена фильтра — полный GET (<code>schedule.js</code> / <code>schedule-journal.js</code>,
+    <code>window.location.href</code>), сервер пересчитывает колонку.
+    <br>
+    4) <b>«Без группы»</b> — галочки нет, даже если за месяц есть <code>users_prices</code>.
+    <br>
+    5) Право <code>schedule.view</code>; отдельного API нет (только HTML
+    <code>GET /schedule</code>). Ховер — <code>@include('partials.ui.tooltip-hint')</code>,
+    KidsCrmTooltip scope <code>hint</code>.
+    <br><br>
+    Документ: <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
+    <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>,
+    <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.
+    Тесты: <code>ScheduleJournalMonthlyPaymentStatusFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (колонка + фильтр группы).
+  </div>
+
+  <h2 id="user-percent-discount-index">Персональная скидка ученика % (2026‑08)</h2>
+  <div class="note">
+    У ученика (<code>roles.name = user</code>) на карточке в <code>/admin/users</code> —
+    целый процент 0–100 и обязательное основание, если % ≥ 1.
+    При выставлении цены сумма считается по
+    <a href="/docs/documentation/money#discount">Money, вариант А</a>
+    (1 000 ₽ и 10% → 900 ₽). На начислении и назначении пишется <b>снимок</b>
+    процента и основания; правка карточки <b>не</b> пересчитывает уже выставленные суммы.
+    <br><br>
+    1) <b>Карточка:</b> поля только в модалках create/edit, только роль «Ученик»
+    (после комментария, до «Активность»). Колонки в таблице учеников <b>нет</b>.
+    Право <code>users.discount.manage</code> (группа <code>users</code>, видно в матрице,
+    <b>не</b> в <code>role_base_permissions</code> — после выката выдать вручную).
+    Без права поля не рендерятся, ключи с store/update снимаются.
+    0 / пусто → оба поля <code>NULL</code>; отрицательное или дробное → <b>422</b>
+    <code>errors.discount_percent</code> (не молчаливый сброс). Основание max 500.
+    Для тренера/админа поля игнорируются.
+    <br>
+    2) <b>Установка цен:</b> «По месяцам» — цена группы слева каталожная, без иконки <code>%</code>;
+    у учеников справа сумма = каталог × % карточки и снимок на строке.
+    «По ученикам» (год) — то же при save. Ручная сумма, не совпадающая с формулой,
+    прячет иконку и очищает снимок.
+    <br>
+    3) <b>Постоплата:</b> % от «посещения × цена занятия» по <b>снимку строки</b>
+    <code>users_prices.discount_percent</code>, не по новому % карточки.
+    <br>
+    4) <b>Назначения / календарь / журнал:</b> дефолт суммы разового create =
+    каталог × текущий % карточки; иконка <code>%</code> и tooltip
+    <code>Скидка N%. {основание}</code> — процент <b>снимка</b>.
+    Автопролонг fixed: новый цикл = текущий % карточки × текущая цена шаблона
+    (не копия старого <code>fee_amount_cents</code>).
+    <br>
+    5) <b>Вне скоупа:</b> доп. платежи (custom payments). Консоль показывает уже выставленные
+    <code>fee_amount_cents</code> / <code>users_prices.price_cents</code> (снимок уже внутри суммы).
+    <br><br>
+    Карточка — <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>;
+    формула — <a href="/docs/documentation/money#discount">money §5</a>;
+    цены — <a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a>;
+    постоплата — <a href="/docs/documentation/postpay#amount">postpay §2.2</a>;
+    назначения — <a href="/docs/documentation/lesson-packages">lesson-packages</a>;
+    календарь — <a href="/docs/documentation/school-schedule-calendar">school-schedule-calendar</a>;
+    журнал — <a href="/docs/documentation/schedule-journal#place-empty-cell">schedule-journal §7.4</a>;
+    право — <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>,
+    <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
+    Тесты: <code>UserPercentDiscountFeatureTest</code> / Access / AjaxContract / NonAjaxSafetyNet,
+    <code>SettingPricesUserPercentDiscountFeatureTest</code>,
+    <code>LessonPackageUserPercentDiscountFeatureTest</code>,
+    <code>ScheduleJournalEmptyCellContractsFeatureTest</code> (create_new),
+    <code>FixedLessonPackageAutoProlongFeatureTest</code>,
+    JS — <code>BladeInlineJsSyntaxTest</code> (оба пути editUser, year tab, assignments, календарь, журнал, Vite monthly).
+  </div>
+
   <h2 id="admin-partners-list-metrics">Админка: метрики в списке партнёров (2026‑08)</h2>
   <div class="note">
     На <code>/admin/partners</code> (вкладка списка клубов, право <code>partner.view</code>)
@@ -662,6 +754,9 @@
   <div class="note">
     Все бизнес-суммы в БД — <code>BIGINT *_cents</code>. Helper <code>App\Support\Money</code>.
     Округление математическое; скидки % — вариант А (округлить скидку, затем вычесть).
+    Персональная скидка ученика на карточке и снимок на начислении/назначении —
+    <a href="/doc#user-percent-discount-index">анонс</a> /
+    <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>.
     UI: целые рубли; <code>,xx</code> только при ненулевых копейках (<code>Money::formatRub</code> / DataTables preset <code>money</code>).
     Документ: <a href="/docs/documentation/money">money</a>.
     Миграция: <code>2026_08_06_180000_convert_money_columns_to_cents.php</code>.
@@ -1408,7 +1503,8 @@
   <ul>
     <li><a href="/docs/documentation/dev-seed-data"><strong>Dev-фикстуры (SEED_DEV_DATA)</strong>: цепочка Dev*-сидеров, юр. лица/справочники/T‑Bank/history, GuardsDevSeedData, ограничения prod</a></li>
     <li><a href="/docs/documentation/payments">Оплаты: <code>payment_intents</code> / <code>payables</code> / <code>payments</code> / <code>users_prices</code> — начисления по группам, <code>PayableTeamResolver</code>, снимок <code>payments.team_id</code>, витрина и публичная СБП-ссылка абонемента (<b>«Поставщик услуг»</b> при T‑Bank), webhook, «Цены»</a></li>
-    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot</a></li>
+    <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
+    <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
@@ -1417,7 +1513,7 @@
     <li><a href="/docs/documentation/settings-payment-systems"><strong>Настройки → Платёжные системы</strong>: Robokassa per-partner, <b>глобальный терминал T‑Bank</b>, <code>TbankTerminalConfig</code>, права, AJAX/non-AJAX store, миграция</a></li>
     <li><a href="/docs/documentation/partner-scope-guide">Как работать с partner_id: обычный админ и страницы superadmin (логи <code>SUPERADMIN_ALL_OR_FILTER</code> + soft-scope отчётов §5 / reports-admin §2.4)</a></li>
     <li><a href="/docs/documentation/partner-context">Партнёр‑контекст и SetPartner: current_partner, anti‑leak, блокировки</a></li>
-    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>account.user.team.update</code></a></li>
+    <li><a href="/docs/documentation/partners-permissions">Партнёры: базовые роли и права по умолчанию (user/admin в разрезе партнёра); опциональные права в т.ч. <code>users.discount.manage</code>, <code>account.user.team.update</code></a></li>
     <li><a href="/docs/documentation/account-partner-organization"><strong>Организация партнёра</strong>: ЛК «Организация» (<code>account.partner.*</code>), CRUD <code>/admin/partners</code> (модалки без city/zip/ceo; <b>метрики списка</b> — активные ученики, подписанные договоры, оборот по <code>operation_date</code>, <a href="/doc#admin-partners-list-metrics">анонс</a> / <a href="/docs/documentation/account-partner-organization#partners-index-metrics">§3.1.1</a>), <code>PartnerLegacyLegalFields</code>, доступ guest 302/401 / 403, AJAX/non-AJAX, оплаты без fallback</a></li>
     <li><a href="/docs/documentation/settings-roles-custom">Настройки: кастомные роли и стартовый набор прав (admin из конфига, UI без перезагрузки)</a></li>
     <li><a href="/docs/documentation/settings-permission-groups">Матрица прав: группы permissions (permission_groups), аккордеон на «Права и роли»</a></li>
@@ -1432,10 +1528,10 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
-    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца)</a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
-    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code> — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого (кол-во из нагрузки / pivot), autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
@@ -1455,7 +1551,7 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>Статус→Договор</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
@@ -1464,7 +1560,7 @@
 
   <h2>Переиспользование UI</h2>
   <ul>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
   </ul>
 </div>
 </body>

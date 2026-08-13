@@ -15,6 +15,7 @@ class UserPrice extends Model
 
     protected $casts = [
         'price_cents'        => 'integer',
+        'discount_percent'   => 'integer',
         'is_paid'            => 'boolean',
         'is_manual_paid'     => 'boolean',
         'manual_paid_at'     => 'datetime',

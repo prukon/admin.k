@@ -13,6 +13,7 @@ use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\LessonPackages\SchoolCalendarTrialEligibilityService;
 use App\Services\TeamUserSyncService;
 use App\Support\Money;
+use App\Services\Pricing\UserPercentDiscount;
 
 /**
  * Контекст модалки «пробное / разовое» на пустой ячейке журнала /schedule.
@@ -43,7 +44,9 @@ final class JournalEmptyCellPlacementContextService
      *         user_lesson_package_id: int|null,
      *         lesson_package_id: int|null,
      *         fee_amount: float,
-     *         fee_amount_label: string
+     *         fee_amount_label: string,
+     *         discount_percent: int|null,
+     *         discount_comment: string|null
      *     }>,
      *     single_blocked_reason: string|null,
      *     flexible_options: list<array{
@@ -227,7 +230,9 @@ final class JournalEmptyCellPlacementContextService
      *     user_lesson_package_id: int|null,
      *     lesson_package_id: int|null,
      *     fee_amount: float,
-     *     fee_amount_label: string
+     *     fee_amount_label: string,
+     *     discount_percent: int|null,
+     *     discount_comment: string|null
      * }>
      */
     private function buildSingleOptions(int $partnerId, int $userId): array
@@ -252,6 +257,8 @@ final class JournalEmptyCellPlacementContextService
                 'lesson_package_id' => null,
                 'fee_amount' => (float) Money::fromCents($cents),
                 'fee_amount_label' => $feeLabel,
+                'discount_percent' => $ulp->discount_percent !== null ? (int) $ulp->discount_percent : null,
+                'discount_comment' => $ulp->discount_comment ? (string) $ulp->discount_comment : null,
             ];
         }
 
@@ -259,10 +266,14 @@ final class JournalEmptyCellPlacementContextService
             ->singleLessonTemplatesQuery($partnerId)
             ->get(['id', 'name', 'price_cents']);
 
+        $user = User::query()->find($userId);
+
         foreach ($templateRows as $pkg) {
-            $cents = (int) $pkg->price_cents;
+            $catalogCents = (int) $pkg->price_cents;
+            $cents = UserPercentDiscount::payableCentsForUser($catalogCents, $user);
             $feeLabel = Money::formatRub($cents, ' руб');
             $name = (string) ($pkg->name !== '' ? $pkg->name : 'Разовое занятие');
+            $snap = UserPercentDiscount::snapshotFromUser($user);
             $options[] = [
                 'key' => 'create:'.$pkg->id,
                 'mode' => 'create_new',
@@ -271,6 +282,8 @@ final class JournalEmptyCellPlacementContextService
                 'lesson_package_id' => (int) $pkg->id,
                 'fee_amount' => (float) Money::fromCents($cents),
                 'fee_amount_label' => $feeLabel,
+                'discount_percent' => $snap['discount_percent'],
+                'discount_comment' => $snap['discount_comment'],
             ];
         }
 

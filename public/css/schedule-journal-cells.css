@@ -13,6 +13,11 @@
     box-sizing: border-box !important;
 }
 
+.journal-monthly-payment-hint.kids-tooltip-hint {
+    color: inherit;
+    margin-left: 0;
+}
+
 .schedule-cell__swatch {
     display: flex;
     align-items: center;

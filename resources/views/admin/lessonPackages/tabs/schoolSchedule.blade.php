@@ -7,6 +7,7 @@
 
 @once
     @vite(['resources/css/school-schedule-calendar.css'])
+    @include('partials.ui.discount-percent-badge-styles')
 @endonce
 
 <div class="school-cal">
@@ -226,7 +227,9 @@
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label small mb-1" for="schoolCalSlotSingleFee">Стоимость, ₽</label>
-                                            <input type="number" class="form-control form-control-sm" id="schoolCalSlotSingleFee" min="0" step="0.01" inputmode="decimal" aria-describedby="schoolCalSlotSingleFeeErr">
+                                            <div class="kids-user-discount-price-wrap">
+                                                <input type="number" class="form-control form-control-sm" id="schoolCalSlotSingleFee" min="0" step="0.01" inputmode="decimal" aria-describedby="schoolCalSlotSingleFeeErr">
+                                            </div>
                                             <div class="small text-danger mt-1 d-none" id="schoolCalSlotSingleFeeErr" data-err="fee_amount" role="alert"></div>
                                         </div>
                                     </div>
@@ -366,6 +369,7 @@
 @endcan
 
 @push('scripts')
+    @include('partials.ui.discount-percent-js')
     <script>
         (function () {
             const routes = {
@@ -507,6 +511,31 @@
 
             let schoolCalSlotBindActionsCache = null;
             let schoolCalSlotSingleFeeTouched = false;
+
+            function schoolCalSlotSingleFeeWrap() {
+                const feeInp = document.getElementById('schoolCalSlotSingleFee');
+                return feeInp ? feeInp.closest('.kids-user-discount-price-wrap') : null;
+            }
+
+            function syncSchoolCalSlotSingleFeeBadgeFromOption(opt) {
+                const api = window.KidsCrmUserDiscount;
+                const wrap = schoolCalSlotSingleFeeWrap();
+                const feeInp = document.getElementById('schoolCalSlotSingleFee');
+                if (!api || !wrap || !feeInp) {
+                    return;
+                }
+                const pct = opt ? (parseInt(opt.getAttribute('data-discount-percent') || '0', 10) || 0) : 0;
+                const comment = opt ? (opt.getAttribute('data-discount-comment') || '') : '';
+                const def = opt ? Number(opt.getAttribute('data-fee-default')) : NaN;
+                const current = Number(feeInp.value);
+                if (pct >= 1 && Number.isFinite(current) && Number.isFinite(def)
+                    && Math.abs(current - def) < 0.001) {
+                    api.showBadge(wrap, pct, comment);
+                    api.initHint(wrap);
+                } else {
+                    api.hideBadge(wrap);
+                }
+            }
             const schoolCalFlexibleButtonDefaultLabel = 'Привязать гибкий абонемент';
             const schoolCalFixedButtonDefaultLabel = 'Привязать фиксированный абонемент';
             const schoolCalSingleButtonDefaultLabel = 'Добавить разовое занятие';
@@ -1580,7 +1609,12 @@
                     }
                 } else if (mode === 'create_new' && tplSel && feeInp && createFields) {
                     tplSel.innerHTML = templates.map(function (item) {
-                        return '<option value="' + String(item.id) + '" data-fee-default="' + String(item.fee_amount_default ?? '') + '">' + escapeHtml(item.label || ('#' + item.id)) + '</option>';
+                        const commentAttr = escapeHtml(item.discount_comment || '').replace(/"/g, '&quot;');
+                        return '<option value="' + String(item.id)
+                            + '" data-fee-default="' + String(item.fee_amount_default ?? '')
+                            + '" data-discount-percent="' + String(item.discount_percent != null ? item.discount_percent : 0)
+                            + '" data-discount-comment="' + commentAttr
+                            + '">' + escapeHtml(item.label || ('#' + item.id)) + '</option>';
                     }).join('');
                     const first = templates[0];
                     if (first) {
@@ -1590,6 +1624,7 @@
                     if (bindFields) {
                         bindFields.classList.add('d-none');
                     }
+                    syncSchoolCalSlotSingleFeeBadgeFromOption(tplSel.options[tplSel.selectedIndex]);
                 } else {
                     if (bindFields) {
                         bindFields.classList.add('d-none');
@@ -2608,10 +2643,14 @@
                 }
                 const def = opt.getAttribute('data-fee-default');
                 feeInp.value = def != null ? String(def) : '';
+                syncSchoolCalSlotSingleFeeBadgeFromOption(opt);
             });
 
             document.getElementById('schoolCalSlotSingleFee')?.addEventListener('input', function () {
                 schoolCalSlotSingleFeeTouched = true;
+                const tplSel = document.getElementById('schoolCalSlotSingleTemplate');
+                const opt = tplSel && tplSel.options ? tplSel.options[tplSel.selectedIndex] : null;
+                syncSchoolCalSlotSingleFeeBadgeFromOption(opt);
             });
 
             document.getElementById('schoolCalOpenTrial')?.addEventListener('click', async () => {

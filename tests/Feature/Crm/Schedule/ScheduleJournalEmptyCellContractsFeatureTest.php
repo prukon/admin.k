@@ -77,6 +77,51 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
         $this->assertSame('create_new', $create['mode']);
     }
 
+    public function test_empty_cell_create_new_option_uses_current_student_discount(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $student->update([
+            'discount_percent' => 10,
+            'discount_comment' => 'Льгота',
+        ]);
+        $template = $this->makeSingleLessonTemplate('Разовое со скидкой', 100000);
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.empty-cell.context', $student).'?'.http_build_query([
+                'occurrence_date' => '2026-09-10',
+                'context_team_id' => $team->id,
+            ]))
+            ->assertOk();
+
+        $create = collect($response->json('single_options') ?? [])->firstWhere('lesson_package_id', (int) $template->id);
+        $this->assertNotNull($create);
+        $this->assertSame('create_new', $create['mode']);
+        $this->assertEqualsWithDelta(900.0, (float) ($create['fee_amount'] ?? 0), 0.001);
+        $this->assertSame(10, (int) ($create['discount_percent'] ?? 0));
+        $this->assertSame('Льгота', (string) ($create['discount_comment'] ?? ''));
+    }
+
+    public function test_empty_cell_create_new_option_does_not_force_discount_when_student_has_none(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $template = $this->makeSingleLessonTemplate('Разовое без скидки', 100000);
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.empty-cell.context', $student).'?'.http_build_query([
+                'occurrence_date' => '2026-09-10',
+                'context_team_id' => $team->id,
+            ]))
+            ->assertOk();
+
+        $create = collect($response->json('single_options') ?? [])->firstWhere('lesson_package_id', (int) $template->id);
+        $this->assertNotNull($create);
+        $this->assertEqualsWithDelta(1000.0, (float) ($create['fee_amount'] ?? 0), 0.001);
+        $this->assertTrue(
+            ($create['discount_percent'] ?? null) === null
+            || (int) $create['discount_percent'] === 0
+        );
+    }
+
     public function test_empty_cell_context_ajax_validation_returns_422_not_empty_200(): void
     {
         [$student] = $this->makeStudentWithTeam();

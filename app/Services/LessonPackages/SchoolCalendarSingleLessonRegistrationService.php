@@ -16,6 +16,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\TeamScheduleCalendarService;
 use App\Services\UserLessonPackageCalendarPeriodService;
 use App\Services\UserLessonPackageConsumptionAdjuster;
+use App\Services\Pricing\UserPercentDiscount;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
@@ -75,9 +76,15 @@ final class SchoolCalendarSingleLessonRegistrationService
 
         $template = $this->resolveSingleLessonTemplate($partnerId, (int) $data['lesson_package_id']);
         $feeAmountCents = Money::toCentsOrFail($data['fee_amount'] ?? 0);
+        $user = User::query()->whereKey($userId)->first();
+        $snap = UserPercentDiscount::snapshotIfMatchesCatalog(
+            (int) $template->price_cents,
+            $feeAmountCents,
+            $user
+        );
         $createdUlpId = null;
 
-        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmountCents, $slot, $occurrence, $createdBy, &$createdUlpId): void {
+        DB::transaction(function () use ($partnerId, $userId, $template, $feeAmountCents, $snap, $slot, $occurrence, $createdBy, &$createdUlpId): void {
             /** @var UserLessonPackage $ulp */
             $ulp = UserLessonPackage::query()->create([
                 'user_id' => $userId,
@@ -87,6 +94,8 @@ final class SchoolCalendarSingleLessonRegistrationService
                 'lessons_total' => (int) $template->lessons_count,
                 'lessons_remaining' => (int) $template->lessons_count,
                 'fee_amount_cents' => $feeAmountCents,
+                'discount_percent' => $snap['discount_percent'],
+                'discount_comment' => $snap['discount_comment'],
                 'is_paid' => false,
                 'created_by' => $createdBy,
             ]);

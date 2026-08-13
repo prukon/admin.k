@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\LessonPackages;
 
 use App\Models\TeamScheduleSlot;
+use App\Models\User;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\Pricing\UserPercentDiscount;
 use App\Services\TeamScheduleCalendarService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
@@ -18,7 +20,7 @@ use Carbon\CarbonImmutable;
  *   reason: string|null,
  *   mode?: 'bind_existing'|'create_new'|null,
  *   existing_assignments?: list<array{id: int, label: string}>,
- *   templates?: list<array{id: int, label: string, fee_amount_default: float}>,
+ *   templates?: list<array{id: int, label: string, fee_amount_default: float, discount_percent: int|null, discount_comment: string|null, discount_tooltip: string|null}>,
  *   group_patterns?: list<array{id: int, weekday: int, time_start: string, time_end: string}>
  * }
  * @phpstan-type SlotUserBindActionsPayload array{
@@ -339,11 +341,24 @@ final class SchoolCalendarSlotUserBindActionsService
             ];
         }
 
-        $templates = $templateRows->map(fn ($pkg) => [
-            'id' => (int) $pkg->id,
-            'label' => (string) $pkg->name,
-            'fee_amount_default' => (float) Money::fromCents((int) $pkg->price_cents),
-        ])->values()->all();
+        $user = User::query()->find($userId);
+        $templates = $templateRows->map(function ($pkg) use ($user) {
+            $catalogCents = (int) $pkg->price_cents;
+            $payableCents = UserPercentDiscount::payableCentsForUser($catalogCents, $user);
+            $snap = UserPercentDiscount::snapshotFromUser($user);
+
+            return [
+                'id' => (int) $pkg->id,
+                'label' => (string) $pkg->name,
+                'fee_amount_default' => (float) Money::fromCents($payableCents),
+                'discount_percent' => $snap['discount_percent'],
+                'discount_comment' => $snap['discount_comment'],
+                'discount_tooltip' => UserPercentDiscount::tooltip(
+                    $snap['discount_percent'],
+                    $snap['discount_comment']
+                ),
+            ];
+        })->values()->all();
 
         return [
             'allowed' => true,

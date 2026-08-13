@@ -211,6 +211,7 @@
             border-color: #adb5bd !important;
         }
     </style>
+    @include('partials.ui.discount-percent-badge-styles')
 @endpush
 
 {{-- Toast Bootstrap 5 для "Сохранено / Ошибка" --}}
@@ -228,6 +229,7 @@
 </div>
 
 @push('scripts')
+    @include('partials.ui.discount-percent-js')
     @vite(['resources/js/setting-prices-manual-paid-modal.js'])
     <script>
         (function () {
@@ -237,6 +239,7 @@
             let editingNewMonth = null;
             /** @type {Array<{id:number,name:string,price:number}>} */
             let lastLessonPackages = [];
+            let lastYearUserDiscount = { percent: 0, comment: '' };
 
             const DETAIL_DISABLED_TITLE = 'Выберите конкретную группу';
 
@@ -253,6 +256,20 @@
 
             function escapeHtml(s) {
                 return escapeAttr(s).replace(/'/g, '&#39;');
+            }
+
+            function yearUserDiscountPercent() {
+                return (window.KidsCrmUserDiscount
+                    ? window.KidsCrmUserDiscount.percentOf(lastYearUserDiscount.percent)
+                    : (parseInt(lastYearUserDiscount.percent, 10) || 0));
+            }
+
+            function payableRubAfterUserDiscount(amountRub, percent) {
+                const api = window.KidsCrmUserDiscount;
+                if (!api) {
+                    return amountRub;
+                }
+                return api.rubFromCents(api.payableAfterDiscountCents(api.centsFromRub(amountRub), percent));
             }
 
             function formatPriceValue(val) {
@@ -483,11 +500,17 @@
                     btnSave.prop('disabled', true);
                     lastPricesPayload = response;
                     lastLessonPackages = [];
+                    lastYearUserDiscount = { percent: 0, comment: '' };
                     return;
                 }
 
                 lastPricesPayload = response;
                 lastLessonPackages = Array.isArray(response.lessonPackages) ? response.lessonPackages : [];
+                const yearUser = response.user || {};
+                lastYearUserDiscount = {
+                    percent: yearUser.discount_percent != null ? (parseInt(yearUser.discount_percent, 10) || 0) : 0,
+                    comment: yearUser.discount_comment || ''
+                };
                 const isFormer = !!response.is_former_member;
                 const canManual = !isFormer && !!response.can_manage_manual_paid;
 
@@ -564,12 +587,19 @@
                         '</select>';
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-price flex-shrink-0">';
-                    html += '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
+                    const priceInputHtml = '<input type="number" step="0.01" min="0" class="form-control form-control-sm user-price-input setting-prices-monthly-price-input" ' +
                         'data-new-month="' + item.new_month + '" ' +
                         'data-effective-paid="' + (effectivePaid ? '1' : '0') + '" ' +
                         'value="' + escapeAttr(formatPriceValue(item.price)) + '" ' + priceDisabledAttr +
                         (isFormer ? ' readonly' : '') +
                         ' aria-label="Цена за месяц">';
+                    const appliedPct = item.applied_discount_percent != null
+                        ? (parseInt(item.applied_discount_percent, 10) || 0)
+                        : 0;
+                    const api = window.KidsCrmUserDiscount;
+                    html += api
+                        ? api.wrapPriceHtml(priceInputHtml, appliedPct, item.applied_discount_comment || '')
+                        : priceInputHtml;
                     html += '</div>';
                     html += '<div class="setting-prices-monthly-status flex-shrink-0 min-w-0 user-price-status-cell">';
                     html += statusViewHtml;
@@ -835,13 +865,48 @@
                     }
                     const selectedOpt = select.options[select.selectedIndex];
                     const pkgPrice = selectedOpt ? selectedOpt.getAttribute('data-price') : null;
-                    const $input = $(select).closest('.setting-prices-user-card').find('.user-price-input');
+                    const $card = $(select).closest('.setting-prices-user-card');
+                    const $input = $card.find('.user-price-input');
                     if (!$input.length) {
                         return;
                     }
-                    // Подставляем цену абонемента даже если сумма ещё locked (до карандаша).
+                    const api = window.KidsCrmUserDiscount;
+                    const $wrap = $input.closest('.kids-user-discount-price-wrap');
+                    const pct = yearUserDiscountPercent();
+                    const comment = lastYearUserDiscount.comment || '';
+                    // Подставляем цену абонемента (со скидкой ученика) даже если сумма ещё locked (до карандаша).
                     if (select.value && pkgPrice != null && pkgPrice !== '') {
-                        $input.val(formatPriceValue(pkgPrice));
+                        $input.val(formatPriceValue(payableRubAfterUserDiscount(pkgPrice, pct)));
+                        if (api && $wrap.length) {
+                            api.showBadge($wrap.get(0), pct, comment);
+                            api.initHint($wrap.get(0));
+                        }
+                    } else if (api && $wrap.length) {
+                        api.hideBadge($wrap.get(0));
+                    }
+                });
+
+                $('#user-prices-table-wrapper').on('input change', '.user-price-input', function () {
+                    const $input = $(this);
+                    const $card = $input.closest('.setting-prices-user-card');
+                    const $wrap = $input.closest('.kids-user-discount-price-wrap');
+                    const api = window.KidsCrmUserDiscount;
+                    if (!api || !$wrap.length) {
+                        return;
+                    }
+                    const select = $card.find('.setting-prices-monthly-package-select').get(0);
+                    const selectedOpt = select && select.options ? select.options[select.selectedIndex] : null;
+                    const pkgPrice = selectedOpt ? selectedOpt.getAttribute('data-price') : null;
+                    const pct = yearUserDiscountPercent();
+                    if (!pkgPrice || pct < 1) {
+                        api.hideBadge($wrap.get(0));
+                        return;
+                    }
+                    if (api.matchesPayable($input.val(), pkgPrice, pct)) {
+                        api.showBadge($wrap.get(0), pct, lastYearUserDiscount.comment || '');
+                        api.initHint($wrap.get(0));
+                    } else {
+                        api.hideBadge($wrap.get(0));
                     }
                 });
 

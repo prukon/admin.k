@@ -37,6 +37,7 @@
 
 @vite(['resources/css/admin-list-toolbar.css'])
 @vite(['resources/css/schedule.css'])
+@include('partials.ui.discount-percent-badge-styles')
 <style>
     .ulp-assignment-lessons-list {
         margin: 0;
@@ -367,15 +368,17 @@
 
                                 <div class="col-12">
                                     <label class="form-label">Стоимость</label>
-                                    <input type="number"
-                                           name="fee_amount"
-                                           id="ulp_fee_amount"
-                                           step="0.01"
-                                           min="0"
-                                           max="999999.99"
-                                           value="{{ old('fee_amount') }}"
-                                           class="form-control @error('fee_amount') is-invalid @enderror"
-                                           required>
+                                    <div class="kids-user-discount-price-wrap">
+                                        <input type="number"
+                                               name="fee_amount"
+                                               id="ulp_fee_amount"
+                                               step="0.01"
+                                               min="0"
+                                               max="999999.99"
+                                               value="{{ old('fee_amount') }}"
+                                               class="form-control @error('fee_amount') is-invalid @enderror"
+                                               required>
+                                    </div>
                                     @error('fee_amount')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -509,7 +512,9 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label" for="ulp-modal-fee">Стоимость для ученика</label>
-                                <input type="number" class="form-control" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
+                                <div class="kids-user-discount-price-wrap">
+                                    <input type="number" class="form-control" id="ulp-modal-fee" step="0.01" min="0" max="999999.99">
+                                </div>
                                 <div class="invalid-feedback d-block" id="ulp-modal-fee-err"></div>
                             </div>
                             <div class="col-12 d-none" id="ulp-modal-auto-prolong-wrap">
@@ -584,6 +589,7 @@
 
 @section('scripts')
     @parent
+    @include('partials.ui.discount-percent-js')
     <script>
         if (typeof showLogModal === 'function') {
             showLogModal(@json(route('logs.data.lesson-package-assignment')));
@@ -597,13 +603,53 @@
             const autoProlongInput = document.getElementById('ulp_auto_prolong_enabled');
             const hadOldFee = @json(old('fee_amount') !== null && old('fee_amount') !== '');
 
+            function selectedUserDiscount() {
+                const $user = window.jQuery ? window.jQuery('#ulp_user_id') : null;
+                if (!$user || !$user.length || typeof $user.select2 !== 'function') {
+                    return { percent: 0, comment: '' };
+                }
+                const data = $user.select2('data');
+                const item = data && data[0] ? data[0] : null;
+                return {
+                    percent: item && item.discount_percent != null ? (parseInt(item.discount_percent, 10) || 0) : 0,
+                    comment: item && item.discount_comment ? String(item.discount_comment) : ''
+                };
+            }
+
+            function syncCreateFeeBadge() {
+                const api = window.KidsCrmUserDiscount;
+                if (!api || !feeInput) {
+                    return;
+                }
+                const wrap = feeInput.closest('.kids-user-discount-price-wrap');
+                if (!wrap || !scheduleSelect) {
+                    return;
+                }
+                const opt = scheduleSelect.options[scheduleSelect.selectedIndex];
+                const cents = opt ? parseInt(opt.getAttribute('data-price-cents') || '0', 10) : 0;
+                const disc = selectedUserDiscount();
+                if (api.matchesPayable(feeInput.value, cents / 100, disc.percent)) {
+                    api.showBadge(wrap, disc.percent, disc.comment);
+                    api.initHint(wrap);
+                } else {
+                    api.hideBadge(wrap);
+                }
+            }
+
             function syncFeeFromSelectedPackage() {
                 if (!feeInput || !scheduleSelect) return;
                 const opt = scheduleSelect.options[scheduleSelect.selectedIndex];
                 const cents = opt ? parseInt(opt.getAttribute('data-price-cents') || '0', 10) : 0;
-                if (!isNaN(cents) && cents >= 0) {
-                    feeInput.value = (cents / 100).toFixed(2);
+                if (isNaN(cents) || cents < 0) {
+                    return;
                 }
+                const api = window.KidsCrmUserDiscount;
+                const disc = selectedUserDiscount();
+                const payableCents = api
+                    ? api.payableAfterDiscountCents(cents, disc.percent)
+                    : cents;
+                feeInput.value = (payableCents / 100).toFixed(2);
+                syncCreateFeeBadge();
             }
 
             function syncAutoProlongVisibility() {
@@ -617,13 +663,18 @@
                 }
             }
 
+            window.ulpSyncFeeFromSelectedPackage = syncFeeFromSelectedPackage;
+
             scheduleSelect?.addEventListener('change', function () {
                 syncFeeFromSelectedPackage();
                 syncAutoProlongVisibility();
             });
+            feeInput?.addEventListener('input', syncCreateFeeBadge);
             syncAutoProlongVisibility();
             if (!hadOldFee && feeInput && String(feeInput.value).trim() === '') {
                 syncFeeFromSelectedPackage();
+            } else {
+                syncCreateFeeBadge();
             }
         })();
     </script>
@@ -673,6 +724,11 @@
                 ulpUserSelect2.dropdownParent = $ulpCreateModal;
             }
             $ulpUser.select2(ulpUserSelect2);
+            $ulpUser.on('change', function () {
+                if (typeof window.ulpSyncFeeFromSelectedPackage === 'function') {
+                    window.ulpSyncFeeFromSelectedPackage();
+                }
+            });
 
             @if(!empty($multiLegalEntityMode))
             var $ulpTeam = $('#ulp_team_id');
@@ -789,6 +845,17 @@
                     });
                     if (row && row.user_is_deleted) {
                         html += ' <span class="badge text-bg-secondary ms-1">Удалён</span>';
+                    }
+                    return html;
+                }
+
+                function ulpFeeRender(data, type, row) {
+                    if (type !== 'display' && type !== 'filter') {
+                        return data != null ? data : '';
+                    }
+                    var html = window.KidsCrmTooltip.renderText(data != null ? data : '');
+                    if (row && row.discount_tooltip && window.KidsCrmUserDiscount) {
+                        html += ' ' + window.KidsCrmUserDiscount.badgeHtml(row.discount_percent, row.discount_comment);
                     }
                     return html;
                 }
@@ -937,7 +1004,7 @@
                             data: 'fee',
                             name: 'fee',
                             className: 'text-center text-nowrap',
-                            render: ulpTextRender,
+                            render: ulpFeeRender,
                         },
                         {
                             key: 'paid',
@@ -1245,6 +1312,31 @@
                     if (autoProlongErr) autoProlongErr.textContent = '';
                 }
 
+                function syncUlpModalFeeBadge(feeInput) {
+                    const api = window.KidsCrmUserDiscount;
+                    if (!api || !feeInput) {
+                        return;
+                    }
+                    const wrap = feeInput.closest('.kids-user-discount-price-wrap');
+                    if (!wrap) {
+                        return;
+                    }
+                    const pct = parseInt(feeInput.dataset.discountPercent || '0', 10) || 0;
+                    const original = Number(feeInput.dataset.originalFee);
+                    const current = Number(feeInput.value);
+                    if (pct >= 1 && Number.isFinite(current) && Number.isFinite(original)
+                        && Math.abs(current - original) < 0.001) {
+                        api.showBadge(wrap, pct, feeInput.dataset.discountComment || '');
+                        api.initHint(wrap);
+                    } else {
+                        api.hideBadge(wrap);
+                    }
+                }
+
+                document.getElementById('ulp-modal-fee')?.addEventListener('input', function () {
+                    syncUlpModalFeeBadge(this);
+                });
+
                 function syncPaymentCommentVisibility() {
                     if (!paymentStatusSel || !paymentCommentWrap) return;
                     const initial = paymentStatusSel.dataset.initial || '';
@@ -1299,6 +1391,10 @@
                     const saveBtn = document.getElementById('ulp-modal-save');
                     feeInput.value = a.fee_amount || '';
                     feeInput.disabled = !a.fee_editable;
+                    feeInput.dataset.originalFee = String(a.fee_amount != null ? a.fee_amount : '');
+                    feeInput.dataset.discountPercent = String(a.discount_percent != null ? a.discount_percent : 0);
+                    feeInput.dataset.discountComment = a.discount_comment ? String(a.discount_comment) : '';
+                    syncUlpModalFeeBadge(feeInput);
                     if (saveBtn) {
                         saveBtn.disabled = false;
                     }

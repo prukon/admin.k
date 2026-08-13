@@ -40,7 +40,7 @@
     модель данных начислений — <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>.
     <br><br>
     <b>Постоплата:</b> в select абонемента тип <code>postpay</code> доступен при праве
-    <code>lessonPackages.type.postpay</code> — сумма = посещения × цена занятия,
+    <code>lessonPackages.type.postpay</code> — сумма = посещения × цена занятия, затем скидка по снимку строки,
     без записи в <code>user_lesson_packages</code>.
     Для остальных типов (<code>fixed</code> / <code>flexible</code> / <code>no_schedule</code>) при сохранении
     <code>users_prices.lesson_package_id</code> сервис <code>UsersPriceLessonPackageSync</code> создаёт/обновляет
@@ -51,6 +51,12 @@
     новый выбор → <b>422</b> на поле пакета.
     Подробно — <a href="/docs/documentation/postpay">postpay</a>,
     <a href="/docs/documentation/lesson-packages-type-postpay">lesson-packages-type-postpay</a>.
+    <br><br>
+    <b>Персональная скидка ученика:</b> «Применить» слева копирует каталожную цену группы без иконки <code>%</code>;
+    у учеников справа сумма = каталог × % карточки, на строке пишется снимок.
+    Постоплата: после «посещения × ставка» применяется % <b>снимка строки</b>.
+    Анонс — <a href="/doc#user-percent-discount-index">/doc</a>,
+    карточка — <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a>.
     <br><br>
     <b>Уведомления об оплате:</b> отдельная вкладка
     <code>/admin/setting-prices/notifications</code>
@@ -261,7 +267,10 @@
     <li><code>app/Http/Controllers/Admin/SettingPricesController.php</code> — <code>getTeamPrice</code>, <code>formerMemberPricesForTeamMonth</code>, <code>usersForPricesUsersTab</code>, <code>userYearPrices</code>, apply/save/manual</li>
     <li><code>app/Services/SettingPrices/UsersPriceLessonPackageSync.php</code> — create/update/delete ULP из начисления</li>
     <li><code>app/Support/UserPriceTeamMembership.php</code> — <code>studentBelongsToTeam</code>, <code>studentHasPositivePriceHistoryForTeam</code></li>
-    <li><code>resources/js/settings-prices.js</code> — UI monthly (Vite)</li>
+    <li>При «Применить» слева (абонемент группы) цена каталога копируется в <code>team_prices</code>;
+      у учеников справа — персональная сумма (каталог × % карточки) и снимок скидки.
+      Иконка <code>%</code> у поля цены ученика: скидка применилась при выставлении; tooltip
+      <code>Скидка N%. {основание}</code> — см. <a href="/docs/documentation/admin-users.html#user-percent-discount">admin-users §2.6</a>.</li>
     <li><code>resources/views/admin/SettingPrices/monthly.blade.php</code>, <code>users.blade.php</code></li>
   </ul>
 
@@ -273,7 +282,7 @@
     <li><code>SettingPricesMonthlyFormerMembersAccessFeatureTest</code> — guest / 403 / 200, AJAX-контракт, non-AJAX 302, foreign 404, manual-paid</li>
     <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
     <li><code>SettingPricesUsersFormerMembersAccessFeatureTest</code> — доступ, AJAX/non-AJAX save бывшего → 422</li>
-    <li><code>BladeInlineJsSyntaxTest</code> — <code>settings-prices.js</code> + inline JS users (former markers, <code>node --check</code>; контракт <code>manual-paid</code> / <code>postManualPaid</code>)</li>
+    <li><code>SettingPricesUserPercentDiscountFeatureTest</code> — персональная скидка: apply-all по ученикам, snapshot vs override, JSON года и getTeamPrice, year save AJAX/non-AJAX, страница helpers, постоплата по снимку строки</li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — ручная оплата месяца → исчезновение из отчёта задолженностей</li>
   </ul>
   <pre><code>php artisan test --env=testing \
@@ -282,7 +291,8 @@
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesMonthlyFormerMembersAccessFeatureTest.php \
   tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersFeatureTest.php \
-  tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php</code></pre>
+  tests/Feature/Crm/SettingPrices/SettingPricesUsersFormerMembersAccessFeatureTest.php \
+  tests/Feature/Crm/SettingPrices/SettingPricesUserPercentDiscountFeatureTest.php</code></pre>
 
   <h2 id="related">7) Связанные страницы</h2>
   <p class="small">
@@ -292,6 +302,8 @@
     <a href="/docs/documentation/schedule-journal#place-fixed">schedule-journal §7</a> ·
     <a href="/docs/documentation/student-team-membership">student-team-membership</a> ·
     <a href="/docs/documentation/postpay">postpay</a> ·
+    <a href="/doc#user-percent-discount-index">персональная скидка (/doc)</a> ·
+    <a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a> ·
     <a href="/docs/documentation/setting-prices-custom-payments">доп. платежи</a> ·
     <a href="/docs/documentation/dashboard-cabinet">консоль /cabinet</a> ·
     <a href="/docs/documentation/set-prices-package-assignments">packageAssignments.view</a>

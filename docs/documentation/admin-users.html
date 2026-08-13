@@ -705,6 +705,84 @@
     <code>ContractStudentProfileSyncTest</code> (см. <a href="/docs/documentation/contract-templates#legal-entity-variables">contract-templates §6.1</a>).
   </p>
 
+  <h2 id="user-percent-discount">2.6) Персональная скидка ученика (%)</h2>
+  <div class="note">
+    У каждого <b>ученика</b> (<code>roles.name = user</code>) может быть индивидуальная скидка:
+    целый процент 0–100 и обязательное основание (комментарий), если процент ≥ 1.
+    При выставлении цены абонемента / месяца сумма считается по <a href="/docs/documentation/money.html#discount">Money, вариант А</a>
+    (1 000 ₽ и 10% → 900 ₽). На начислении и назначении пишется <b>снимок</b>
+    (<code>users_prices.discount_percent</code> / <code>user_lesson_packages.discount_percent</code> и основание).
+    Последующая правка карточки ученика <b>не</b> пересчитывает уже выставленные суммы.
+    Анонс на главной документации: <a href="/doc#user-percent-discount-index">/doc</a>.
+  </div>
+
+  <h3>2.6.1) Поля и право</h3>
+  <table>
+    <thead><tr><th>Где</th><th>Колонки</th><th>Смысл</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>users</code></td>
+        <td><code>discount_percent</code> (tinyint, 0–100, nullable), <code>discount_comment</code> (string 500, nullable)</td>
+        <td>Текущее правило на карточке. Процент 0 / пусто → оба поля <code>NULL</code>.
+          Отрицательное или дробное значение → <b>422</b> <code>errors.discount_percent</code> (не молчаливый сброс).</td>
+      </tr>
+      <tr>
+        <td><code>users_prices</code>, <code>user_lesson_packages</code></td>
+        <td>те же имена</td>
+        <td>Снимок «какой % сработал, когда выставляли». Пусто = ручной override или скидки не было</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Право <code>users.discount.manage</code> (группа <code>users</code>, <code>is_visible = 1</code>).
+    <b>Не</b> входит в <code>role_base_permissions</code> — назначается вручную в матрице ролей.
+    Без права поля в модалках не рендерятся, ключи из store/update снимаются.
+    Колонки скидки в DataTables <code>/admin/users</code> <b>нет</b>.
+  </p>
+
+  <h3>2.6.2) UI</h3>
+  <ul>
+    <li>Модалки create/edit ученика: partial <code>_student_discount_fields.blade.php</code> (только роль <code>user</code>).</li>
+    <li>Иконка <code>%</code> у поля цены (установка цен, назначения, календарь школы, журнал) значит:
+      «когда выставляли, скидка применилась». Tooltip через <code>KidsCrmTooltip</code> / hint:
+      <code>Скидка 10%. {основание}</code> — процент <b>снимка</b>, не текущая карточка.</li>
+    <li>Ручная правка суммы, если она не совпадает с формулой от каталога, прячет иконку и очищает снимок.</li>
+    <li>Левая колонка «по месяцам» (цена группы) остаётся каталожной, без <code>%</code>. Скидка — на строках учеников справа.</li>
+  </ul>
+
+  <h3>2.6.3) Где применяется</h3>
+  <ul>
+    <li>Установка цен: «По месяцам» (apply всем / правая колонка) и «По ученикам» (год).</li>
+    <li>Постоплата: % от <code>посещения × цена занятия</code>; пересчёт визитов берёт снимок строки, не новый % карточки.</li>
+    <li>Назначения абонементов и календарь школы / журнал (разовое create).</li>
+    <li>Автопролонг fixed: новый цикл = <b>текущий</b> % карточки × <b>текущая</b> цена шаблона (не копия старого <code>fee_amount_cents</code>).</li>
+    <li>Доп. платежи (custom payments) — вне скоупа.</li>
+  </ul>
+
+  <h3>2.6.4) Тесты</h3>
+  <p class="small">
+    Unit: <code>tests/Unit/Services/Pricing/UserPercentDiscountTest.php</code>.<br>
+    Карточка ученика:
+    <code>UserPercentDiscountFeatureTest</code> (gate, поля, persist, trainer, DataTable без колонки),
+    <code>UserPercentDiscountAccessFeatureTest</code> (гость / 403 без <code>users.view</code> / чужой партнёр),
+    <code>UserPercentDiscountAjaxContractFeatureTest</code> (JSON 200/422, <code>errors[discount_*]</code>),
+    <code>UserPercentDiscountNonAjaxSafetyNetFeatureTest</code> (POST/PATCH без AJAX → 302 + запись в БД).<br>
+    Установка цен: <code>SettingPricesUserPercentDiscountFeatureTest</code>
+    (apply-all, snapshot vs override, JSON года и <code>getTeamPrice</code>, year save AJAX/non-AJAX, постоплата по снимку).<br>
+    Назначения / календарь: <code>LessonPackageUserPercentDiscountFeatureTest</code>
+    (store snapshot vs override, DataTable tooltip, users-search, bind-actions, show/update AJAX).<br>
+    Журнал: <code>ScheduleJournalEmptyCellContractsFeatureTest</code>
+    (<code>create_new</code> в empty-cell-context — сумма и снимок с карточки).<br>
+    JS: <code>BladeInlineJsSyntaxTest</code> — create/edit (оба пути <code>editUserLink</code>/<code>editUserLink2</code>),
+    year tab, assignments (смена ученика и пакета), календарь школы
+    (<code>schoolCalSlotSingleFeeTouched</code> не затирает сумму), журнал
+    (<code>syncEmptyCellFeeBadge</code> только для <code>create_new</code>),
+    Vite <code>settings-prices.js</code> (бейдж по <code>applied_discount_*</code>, левая колонка группы без <code>%</code>),
+    helper <code>partials/ui/discount-percent-js.blade.php</code>.<br>
+    Каталог прав: <code>PermissionGroupsReorganizationFeatureTest</code> (группа <code>users</code> — 16 прав).
+    Автопролонг: <code>FixedLessonPackageAutoProlongFeatureTest</code> (новый цикл = текущий % карточки × цена шаблона).
+  </p>
+
   <h2 id="user-teams">3) Группы ученика (<code>team_ids</code>, pivot <code>team_user</code>)</h2>
   <div class="note">
     У ученика может быть <b>несколько групп</b>. Источник истины — pivot <code>team_user</code>.
@@ -751,6 +829,9 @@
     <li><b>Аккордеон «Ученик»</b> (по умолчанию свёрнут) — поля ученика и multiselect групп.</li>
     <li><b>Аккордеон «Данные родителя»</b> (по умолчанию свёрнут) — блок из <code>_parent_form.blade.php</code>.</li>
     <li><b>Комментарий</b> — вне аккордеонов (только при <code>users.comment</code>, роль <code>user</code>).</li>
+    <li><b>Персональная скидка %</b> — вне аккордеонов, после комментария и до «Активность»
+      (только при <code>users.discount.manage</code>, роль <code>user</code>;
+      partial <code>_student_discount_fields.blade.php</code> — §<a href="#user-percent-discount">2.6</a>).</li>
     <li><b>Активность</b> — вне аккордеонов.</li>
     <li><b>Дополнительные поля</b> (<code>custom[…]</code>) — под формой, если настроены у партнёра.</li>
   </ol>
@@ -804,7 +885,8 @@
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
     Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с аудитом (<code>event = user.created</code>) и опциональными <code>user_field_values</code>.
     Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании через отдельную вкладку с выбором роли могут задаваться в create; на вкладке «Пользователи» с фиксированной ролью <code>user</code> — см. §2.2.<br>
-    Пол и комментарий (§<a href="#user-comment-sex">2.4</a>) — в модалках <b>create и edit</b> при <code>users.sex</code> / <code>users.comment</code>.<br>
+    Пол и комментарий (§<a href="#user-comment-sex">2.4</a>) — в модалках <b>create и edit</b> при <code>users.sex</code> / <code>users.comment</code>.
+    Персональная скидка (§<a href="#user-percent-discount">2.6</a>) — там же при <code>users.discount.manage</code>.<br>
     На этой странице селект роли в модалке скрыт: передаётся скрытое <code>role_id</code> = id системной роли <code>user</code> (<code>lockStudentRole</code> в view). Создание администратора, тренера или сотрудника с кастомной ролью — через соответствующую вкладку (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
   </div>
 
@@ -1267,6 +1349,7 @@
     Directory FIO / AJAX / non-AJAX: <code>php artisan test --filter='AdminUsersParentDirectoryFio|AdminUsersParentAjaxContract|AdminUsersParentNonAjax'</code>.
     Мед./особенности: <code>php artisan test --env=testing tests/Feature/Crm/Users/StudentHealthFlagsFeatureTest.php tests/Feature/Crm/Users/StudentHealthFlagsPartnerIsolationFeatureTest.php</code>.
     Пол и комментарий: <code>php artisan test tests/Feature/Crm/Users/UserCommentAndSexFeatureTest.php --env=testing</code>.
+    Персональная скидка: <code>php artisan test tests/Feature/Crm/Users/UserPercentDiscountFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountAccessFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountAjaxContractFeatureTest.php tests/Feature/Crm/Users/UserPercentDiscountNonAjaxSafetyNetFeatureTest.php --env=testing</code>.
     ФИО ученика в родительном: <code>php artisan test --filter=ChildFullNameGenitive</code>.
     Импорт Excel: <code>php artisan test --filter=UsersImport</code>.
     Полный раздел пользователей: <code>php artisan test tests/Feature/Crm/Users/</code>.
@@ -1279,6 +1362,7 @@
     <a href="#user-child-genitive">ФИО ученика в родительном</a> ·
     <a href="#user-health">Мед./особенности ученика</a> ·
     <a href="#user-comment-sex">Пол и комментарий</a> ·
+    <a href="#user-percent-discount">Персональная скидка</a> ·
     <a href="#user-contract-column">Колонка «Договор»</a> ·
     <a href="#user-import">Импорт из Excel</a> ·
     <a href="#user-import-preview-diff">Preview-diff</a> ·

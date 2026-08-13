@@ -14,6 +14,7 @@ use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\LessonPackages\UserLessonPackageAutoProlongGuard;
 use App\Services\UserLessonPackageCalendarPeriodService;
+use App\Services\Pricing\UserPercentDiscount;
 use App\Support\Money;
 use App\Support\UserPriceTeamMembership;
 use Carbon\CarbonImmutable;
@@ -114,6 +115,11 @@ final class JournalSingleLessonPlacementService
             } else {
                 $template = $this->resolveSingleLessonTemplate($partnerId, $templateId);
                 $feeAmountCents = Money::toCentsOrFail($payload['fee_amount'] ?? 0);
+                $snap = UserPercentDiscount::snapshotIfMatchesCatalog(
+                    (int) $template->price_cents,
+                    $feeAmountCents,
+                    $user
+                );
 
                 $ulp = UserLessonPackage::query()->create([
                     'user_id' => (int) $user->id,
@@ -124,6 +130,8 @@ final class JournalSingleLessonPlacementService
                     'lessons_total' => (int) $template->lessons_count,
                     'lessons_remaining' => (int) $template->lessons_count,
                     'fee_amount_cents' => $feeAmountCents,
+                    'discount_percent' => $snap['discount_percent'],
+                    'discount_comment' => $snap['discount_comment'],
                     'is_paid' => false,
                     'created_by' => $createdByUserId,
                 ]);
