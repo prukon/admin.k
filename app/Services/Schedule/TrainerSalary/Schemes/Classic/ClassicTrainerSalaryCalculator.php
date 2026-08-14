@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Schedule;
+namespace App\Services\Schedule\TrainerSalary\Schemes\Classic;
 
 /**
- * Расчёт сумм ЗП тренеров: канон — целочисленная арифметика в копейках (BIGINT *_cents).
+ * Схема classic: оклад + (кол-во тренировок × ставка) + бонусы − вычеты.
+ * Канон — целочисленная арифметика в копейках (BIGINT *_cents).
  */
-final class TrainerSalaryCalculator
+final class ClassicTrainerSalaryCalculator
 {
     /**
      * @return array{

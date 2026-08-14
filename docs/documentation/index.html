@@ -28,6 +28,61 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="trainer-salary-kansas-index">ЗП тренеров: схема «Канзас» и смена схемы без слепка (2026‑08)</h2>
+  <div class="note">
+    Модуль <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a>
+    (<code>/schedule/trainer-salary</code>) — каталог изолированных схем на школу.
+    Сейчас две: <code>classic</code> (оклад + ставка × тренировки + бонусы − вычеты)
+    и <code>kansas</code> (оклад за тренировку + премия от среднего учеников).
+    <br><br>
+    1) <b>Как superadmin включает схему.</b>
+    Отдельного переключателя на вкладке ЗП нет. В контексте школы:
+    Настройки → Права и роли (<code>/admin/settings/rules</code>), группа «Расписание»,
+    скрытые права (видны только superadmin):
+    «ЗП тренеров: схема «Классическая»» / «… схема «Канзас»».
+    Достаточно галочки у любой роли партнёра (обычно <code>admin</code>).
+    Сотрудникам для вкладки нужны ещё <code>schedule.trainerSalary.view</code> и при правке
+    <code>manage</code>. Если выданы обе схемы, побеждает <code>classic</code> (первая в реестре).
+    Superadmin видит модуль и без выдачи: fallback — classic.
+    <br>
+    2) <b>Канзас в таблице.</b>
+    Сверху поле X (базовая надбавка к премии) — одно на школу за месяц.
+    У тренера: оклад за тренировку и базовая премия.
+    Строки групп (и поле «Баз. среднее») появляются только если в выбранном месяце
+    у тренера есть занятия со статусом «Посетил» (pivot тренеров визита).
+    Без визитов — «Нет тренировок с визитами…», базу указать негде.
+    База — на группу, общая для всех тренеров этой группы; число с одной десятой (16 или 16.5).
+    Формула: <code>diff = round(факт,1) − round(база,1)</code>,
+    премия = max(0, базовая премия + diff × X), за тренировку = оклад + премия,
+    группа = это × число тренировок (слот+дата, не календарный день нагрузки).
+    <br>
+    3) <b>Смена схемы, если ещё не было расчёта.</b>
+    Пока за месяц нет слепков («Расчет» хотя бы у одного тренера / «Сформировать всех»), период следует
+    текущему праву партнёра: открыли страницу (в том числе только <code>view</code>), сменили месяц или PATCH/POST —
+    <code>scheme_code</code> обновляется, черновик старой схемы сбрасывается
+    (оклад/бонусы/X не переносятся). Визиты журнала остаются: после classic→kansas
+    под тренерами появятся группы. Повторное открытие уже канзасовского месяца X не обнуляет.
+    Гость и сотрудник без схемы период не переключают (302/401/403).
+    Если выданы обе схемы — unlocked-месяц становится <code>classic</code>.
+    <br>
+    4) <b>После первого слепка</b> схема месяца фиксируется целиком. Листы ЗП остаются как были.
+    Новый месяц открывается уже по текущему праву.
+    <br>
+    5) Кнопка в строке у обеих схем — «Расчет»; пакет — «Сформировать всех».
+    Клиент: hotfix <code>public/js/trainer-salary.js</code> и <code>public/css/trainer-salary.css</code> (не Vite).
+    Успешный PATCH/POST Канзаса отдаёт <code>reload_table</code> + полный <code>table_html</code>.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/schedule-trainer-salary#schemes">schedule-trainer-salary §1.1</a>,
+    <a href="/docs/documentation/schedule-trainer-salary#scheme-switch">§1.3 смена схемы</a>,
+    <a href="/docs/documentation/schedule-trainer-salary#kansas">§12 Канзас</a>,
+    <a href="/docs/documentation/schedule-trainer-salary-sheets">листы ЗП</a>.
+    Тесты: <code>ScheduleTrainerSalarySchemeSwitchFeatureTest</code>,
+    <code>ScheduleTrainerSalaryKansasFeatureTest</code>,
+    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code>,
+    <code>KansasTrainerSalaryCalculatorTest</code>.
+  </div>
+
   <h2 id="family-student-payment-index">Семейный кабинет: оплата за выбранного ребёнка (2026‑08)</h2>
   <div class="note">
     Вход в CRM — учётка ученика. У братьев с одним <code>parent_id</code> в сайдбаре есть
@@ -1637,7 +1692,7 @@
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
-    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: черновик за месяц, формула итого (кол-во из нагрузки / pivot), autosave, слепки vN / batch, права <code>schedule.trainerSalary.*</code></a></li>
+    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code> и <code>kansas</code>, включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
     <li><a href="/docs/documentation/location-team-bindings"><strong>Объекты ↔ группы</strong> (<code>teams.location_id</code>): одна группа — один объект, sync с <code>/admin/locations</code>, лендинг, слоты, отчёты; удалены pivot <code>location_team</code>, <code>teams.address</code>, <code>teams.training_base</code></a></li>
     <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки (в т.ч. <b>«Абонементы»</b> → <code>/admin/directories/lesson-packages</code>), <code>DirectoriesMenu</code> (подпись сайдбара; абонементы в меню <b>не</b> входят), права, БД, M2M <code>location_admin_user</code> (до 5 админов на объект), лендинг, CRM заявки, автотесты</a></li>

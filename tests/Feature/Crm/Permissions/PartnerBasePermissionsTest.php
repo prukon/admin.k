@@ -116,6 +116,32 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('lessonPackages.type.postpay', $trainerPerms);
     }
 
+    public function test_new_partner_does_not_assign_trainer_salary_scheme_classic_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('schedule.trainerSalary.scheme.classic', $userPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.classic', $adminPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.classic', $trainerPerms);
+    }
+
+    public function test_new_partner_does_not_assign_trainer_salary_scheme_kansas_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $userPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $adminPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $trainerPerms);
+    }
+
     public function test_new_partner_does_not_assign_payment_clubfee_to_base_roles(): void
     {
         $partner = Partner::factory()->create();

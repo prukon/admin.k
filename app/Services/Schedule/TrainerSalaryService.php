@@ -9,6 +9,8 @@ use App\Models\TrainerSalaryDraftLine;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
 use App\Models\User;
+use App\Services\Schedule\TrainerSalary\TrainerSalaryScheme;
+use App\Services\Schedule\TrainerSalary\TrainerSalarySchemeResolver;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +19,7 @@ use Illuminate\Support\Str;
 final class TrainerSalaryService
 {
     public function __construct(
-        private readonly TrainerWorkloadReportService $workloadReportService,
-        private readonly TrainerSalaryCalculator $calculator,
+        private readonly TrainerSalarySchemeResolver $schemeResolver,
     ) {
     }
 
@@ -36,6 +37,7 @@ final class TrainerSalaryService
     /**
      * @return array{
      *     period: TrainerSalaryPeriod,
+     *     scheme: TrainerSalaryScheme,
      *     year: int,
      *     month: int,
      *     month_label: string,
@@ -49,8 +51,9 @@ final class TrainerSalaryService
         [$dateFrom, $dateTo] = $this->monthPeriodStrings($year, $month);
 
         $period = $this->ensurePeriod($partnerId, $year, $month);
-        $this->syncDraftLinesForActiveTrainers($period, $partnerId);
-        $this->refreshTrainingsCounts($period, $partnerId, $dateFrom, $dateTo);
+        $scheme = $this->schemeResolver->schemeForPeriod($period);
+        $scheme->syncDraftLines($period, $partnerId);
+        $scheme->refreshComputedInputs($period, $partnerId, $dateFrom, $dateTo);
 
         $trainers = $this->activeTrainersForPartner($partnerId);
         $draftByTrainer = TrainerSalaryDraftLine::query()
@@ -68,13 +71,14 @@ final class TrainerSalaryService
                 continue;
             }
 
-            $rows[] = $this->draftLinePayload($draft, $trainer['name'], $latestSnapshots[$trainerId] ?? null);
+            $rows[] = $this->draftLinePayload($scheme, $draft, $trainer['name'], $latestSnapshots[$trainerId] ?? null);
         }
 
         $monthStart = Carbon::createFromDate($year, $month, 1)->locale('ru');
 
         return [
             'period' => $period,
+            'scheme' => $scheme,
             'year' => $year,
             'month' => $month,
             'month_label' => mb_ucfirst($monthStart->translatedFormat('F Y'), 'UTF-8'),
@@ -85,13 +89,7 @@ final class TrainerSalaryService
     }
 
     /**
-     * @param array{
-     *     base_salary?: string|float|int|null,
-     *     rate_per_training?: string|float|int|null,
-     *     bonuses?: string|float|int|null,
-     *     deductions?: string|float|int|null,
-     *     comment?: string|null
-     * } $data рубли (допускаются копейки), конвертируются в копейки перед сохранением
+     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
     public function updateDraftLine(
@@ -102,40 +100,37 @@ final class TrainerSalaryService
     ): array {
         $this->assertTrainerBelongsToPartner($trainerProfile, $partnerId);
 
+        $scheme = $this->schemeResolver->schemeForPeriod($period);
+
         $draft = TrainerSalaryDraftLine::query()
             ->where('trainer_salary_period_id', $period->id)
             ->where('trainer_profile_id', $trainerProfile->id)
             ->first();
 
         if ($draft === null) {
-            $draft = $this->createDraftLineFromProfile($period, $trainerProfile);
+            $draft = $scheme->createDraftLine($period, $trainerProfile);
         }
 
-        if (array_key_exists('base_salary', $data)) {
-            $draft->base_salary_cents = Money::toCentsOrFail($data['base_salary']);
-        }
-        if (array_key_exists('rate_per_training', $data)) {
-            $draft->rate_per_training_cents = Money::toCentsOrFail($data['rate_per_training']);
-        }
-        if (array_key_exists('bonuses', $data)) {
-            $draft->bonuses_cents = Money::toCentsOrFail($data['bonuses']);
-        }
-        if (array_key_exists('deductions', $data)) {
-            $draft->deductions_cents = Money::toCentsOrFail($data['deductions']);
-        }
-        if (array_key_exists('comment', $data)) {
-            $draft->comment = $data['comment'] !== null && trim($data['comment']) !== ''
-                ? trim($data['comment'])
-                : null;
-        }
+        return DB::transaction(function () use ($period, $trainerProfile, $partnerId, $data, $scheme, $draft): array {
+            $scheme->applyDraftInput($draft, $data);
 
-        $this->applyComputedAmounts($draft);
-        $draft->save();
+            if ($scheme->draftInputRequiresAllTrainersRecompute($data)) {
+                if (! $draft->exists) {
+                    $draft->save();
+                }
+                [$dateFrom, $dateTo] = $this->monthPeriodStrings((int) $period->year, (int) $period->month);
+                $scheme->refreshComputedInputs($period, $partnerId, $dateFrom, $dateTo);
+                $draft = $draft->fresh() ?? $draft;
+            } else {
+                $scheme->compute($draft);
+                $draft->save();
+            }
 
-        $latest = $this->latestSnapshotForTrainer($period->id, (int) $trainerProfile->id);
-        $name = $this->trainerDisplayName($trainerProfile);
+            $latest = $this->latestSnapshotForTrainer($period->id, (int) $trainerProfile->id);
+            $name = $this->trainerDisplayName($trainerProfile);
 
-        return $this->draftLinePayload($draft->fresh(), $name, $latest);
+            return $this->draftLinePayload($scheme, $draft->fresh() ?? $draft, $name, $latest);
+        });
     }
 
     /**
@@ -149,8 +144,9 @@ final class TrainerSalaryService
     ): array {
         $this->assertTrainerBelongsToPartner($trainerProfile, $partnerId);
 
+        $scheme = $this->schemeResolver->schemeForPeriod($period);
         [$dateFrom, $dateTo] = $this->monthPeriodStrings((int) $period->year, (int) $period->month);
-        $this->refreshTrainingsCounts($period, $partnerId, $dateFrom, $dateTo);
+        $scheme->refreshComputedInputs($period, $partnerId, $dateFrom, $dateTo);
 
         $draft = TrainerSalaryDraftLine::query()
             ->where('trainer_salary_period_id', $period->id)
@@ -158,19 +154,20 @@ final class TrainerSalaryService
             ->first();
 
         if ($draft === null) {
-            $draft = $this->createDraftLineFromProfile($period, $trainerProfile);
-            $this->applyComputedAmounts($draft);
+            $draft = $scheme->createDraftLine($period, $trainerProfile);
+            $scheme->compute($draft);
             $draft->save();
         } else {
-            $this->applyComputedAmounts($draft);
+            $scheme->compute($draft);
             $draft->save();
         }
 
-        $snapshot = $this->insertSnapshot($period, $draft, $actor, null);
+        $snapshot = $this->insertSnapshot($period, $scheme, $draft, $actor, null);
 
         return [
             'snapshot' => $this->snapshotPayload($snapshot, $actor),
             'row' => $this->draftLinePayload(
+                $scheme,
                 $draft->fresh(),
                 $this->trainerDisplayName($trainerProfile),
                 $snapshot,
@@ -190,15 +187,16 @@ final class TrainerSalaryService
         int $partnerId,
         User $actor,
     ): array {
+        $scheme = $this->schemeResolver->schemeForPeriod($period);
         [$dateFrom, $dateTo] = $this->monthPeriodStrings((int) $period->year, (int) $period->month);
-        $this->syncDraftLinesForActiveTrainers($period, $partnerId);
-        $this->refreshTrainingsCounts($period, $partnerId, $dateFrom, $dateTo);
+        $scheme->syncDraftLines($period, $partnerId);
+        $scheme->refreshComputedInputs($period, $partnerId, $dateFrom, $dateTo);
 
         $batchId = (string) Str::uuid();
         $trainers = $this->activeTrainersForPartner($partnerId);
         $rows = [];
 
-        DB::transaction(function () use ($period, $partnerId, $actor, $batchId, $trainers, &$rows): void {
+        DB::transaction(function () use ($period, $partnerId, $actor, $batchId, $trainers, $scheme, &$rows): void {
             foreach ($trainers as $trainerMeta) {
                 $profile = TrainerProfile::query()
                     ->where('partner_id', $partnerId)
@@ -215,14 +213,15 @@ final class TrainerSalaryService
                     ->first();
 
                 if ($draft === null) {
-                    $draft = $this->createDraftLineFromProfile($period, $profile);
+                    $draft = $scheme->createDraftLine($period, $profile);
                 }
 
-                $this->applyComputedAmounts($draft);
+                $scheme->compute($draft);
                 $draft->save();
 
-                $snapshot = $this->insertSnapshot($period, $draft, $actor, $batchId);
+                $snapshot = $this->insertSnapshot($period, $scheme, $draft, $actor, $batchId);
                 $rows[] = $this->draftLinePayload(
+                    $scheme,
                     $draft->fresh(),
                     $trainerMeta['name'],
                     $snapshot,
@@ -246,99 +245,63 @@ final class TrainerSalaryService
             ->first();
     }
 
+    public function schemeForPeriod(TrainerSalaryPeriod $period): TrainerSalaryScheme
+    {
+        return $this->schemeResolver->schemeForPeriod($period);
+    }
+
     public function ensurePeriod(int $partnerId, int $year, int $month): TrainerSalaryPeriod
     {
-        return TrainerSalaryPeriod::query()->firstOrCreate(
+        $scheme = $this->schemeResolver->requireActiveScheme($partnerId);
+
+        $period = TrainerSalaryPeriod::query()->firstOrCreate(
             [
                 'partner_id' => $partnerId,
                 'year' => $year,
                 'month' => $month,
             ],
-        );
-    }
-
-    private function syncDraftLinesForActiveTrainers(TrainerSalaryPeriod $period, int $partnerId): void
-    {
-        $profiles = TrainerProfile::query()
-            ->where('partner_id', $partnerId)
-            ->where('is_enabled', true)
-            ->whereHas('user', fn ($q) => $q->where('is_enabled', true))
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $existingTrainerIds = TrainerSalaryDraftLine::query()
-            ->where('trainer_salary_period_id', $period->id)
-            ->pluck('trainer_profile_id')
-            ->all();
-
-        $existingSet = array_fill_keys(array_map('intval', $existingTrainerIds), true);
-
-        foreach ($profiles as $profile) {
-            if (isset($existingSet[(int) $profile->id])) {
-                continue;
-            }
-
-            $draft = $this->createDraftLineFromProfile($period, $profile);
-            $this->applyComputedAmounts($draft);
-            $draft->save();
-        }
-    }
-
-    private function refreshTrainingsCounts(
-        TrainerSalaryPeriod $period,
-        int $partnerId,
-        string $dateFrom,
-        string $dateTo,
-    ): void {
-        $counts = $this->workloadReportService->trainerRowTrainingsTotals($partnerId, $dateFrom, $dateTo);
-
-        $drafts = TrainerSalaryDraftLine::query()
-            ->where('trainer_salary_period_id', $period->id)
-            ->get();
-
-        foreach ($drafts as $draft) {
-            $trainerId = (int) $draft->trainer_profile_id;
-            $draft->trainings_count = $counts[$trainerId] ?? 0;
-            $this->applyComputedAmounts($draft);
-            $draft->save();
-        }
-    }
-
-    private function createDraftLineFromProfile(
-        TrainerSalaryPeriod $period,
-        TrainerProfile $profile,
-    ): TrainerSalaryDraftLine {
-        return new TrainerSalaryDraftLine([
-            'trainer_salary_period_id' => $period->id,
-            'trainer_profile_id' => $profile->id,
-            'base_salary_cents' => (int) ($profile->default_base_salary_cents ?? 0),
-            'rate_per_training_cents' => (int) ($profile->default_rate_per_training_cents ?? 0),
-            'trainings_count' => 0,
-            'trainings_amount_cents' => 0,
-            'bonuses_cents' => 0,
-            'deductions_cents' => 0,
-            'comment' => null,
-            'total_cents' => 0,
-        ]);
-    }
-
-    private function applyComputedAmounts(TrainerSalaryDraftLine $draft): void
-    {
-        $computed = $this->calculator->compute(
-            (int) $draft->trainings_count,
-            (int) $draft->base_salary_cents,
-            (int) $draft->rate_per_training_cents,
-            (int) $draft->bonuses_cents,
-            (int) $draft->deductions_cents,
+            [
+                'scheme_code' => $scheme->code(),
+            ],
         );
 
-        $draft->trainings_amount_cents = $computed['trainings_amount_cents'];
-        $draft->total_cents = $computed['total_cents'];
+        return $this->rebaseUnlockedPeriodToActiveScheme($period, $scheme);
+    }
+
+    /**
+     * Пока по месяцу нет слепков («Расчет» / «Сформировать всех»), период следует
+     * текущей схеме партнёра. Черновик старой схемы сбрасывается, поля не переносятся.
+     */
+    private function rebaseUnlockedPeriodToActiveScheme(
+        TrainerSalaryPeriod $period,
+        TrainerSalaryScheme $activeScheme,
+    ): TrainerSalaryPeriod {
+        $currentCode = trim((string) ($period->scheme_code ?? ''));
+        if ($currentCode === $activeScheme->code()) {
+            return $period;
+        }
+
+        if ($period->snapshots()->exists()) {
+            return $period;
+        }
+
+        return DB::transaction(function () use ($period, $activeScheme): TrainerSalaryPeriod {
+            $this->schemeResolver->schemeForPeriod($period)->discardUnlockedDraft($period);
+
+            TrainerSalaryDraftLine::query()
+                ->where('trainer_salary_period_id', $period->id)
+                ->delete();
+
+            $period->scheme_code = $activeScheme->code();
+            $period->save();
+
+            return $period->refresh();
+        });
     }
 
     private function insertSnapshot(
         TrainerSalaryPeriod $period,
+        TrainerSalaryScheme $scheme,
         TrainerSalaryDraftLine $draft,
         User $actor,
         ?string $batchId,
@@ -350,22 +313,22 @@ final class TrainerSalaryService
 
         $formedAt = now();
 
-        return TrainerSalarySnapshot::query()->create([
-            'trainer_salary_period_id' => $period->id,
-            'trainer_profile_id' => $draft->trainer_profile_id,
-            'version' => $nextVersion,
-            'batch_id' => $batchId,
-            'base_salary_cents' => $draft->base_salary_cents,
-            'rate_per_training_cents' => $draft->rate_per_training_cents,
-            'trainings_count' => $draft->trainings_count,
-            'trainings_amount_cents' => $draft->trainings_amount_cents,
-            'bonuses_cents' => $draft->bonuses_cents,
-            'deductions_cents' => $draft->deductions_cents,
-            'comment' => $draft->comment,
-            'total_cents' => $draft->total_cents,
-            'formed_by_user_id' => $actor->id,
-            'formed_at' => $formedAt,
-        ]);
+        $snapshot = TrainerSalarySnapshot::query()->create(array_merge(
+            $scheme->snapshotAttributes($draft),
+            [
+                'trainer_salary_period_id' => $period->id,
+                'trainer_profile_id' => $draft->trainer_profile_id,
+                'scheme_code' => $scheme->code(),
+                'version' => $nextVersion,
+                'batch_id' => $batchId,
+                'formed_by_user_id' => $actor->id,
+                'formed_at' => $formedAt,
+            ],
+        ));
+
+        $scheme->afterSnapshotCreated($snapshot, $draft);
+
+        return $snapshot;
     }
 
     /**
@@ -423,25 +386,17 @@ final class TrainerSalaryService
      * @return array<string, mixed>
      */
     private function draftLinePayload(
+        TrainerSalaryScheme $scheme,
         TrainerSalaryDraftLine $draft,
         string $trainerName,
         ?TrainerSalarySnapshot $latestSnapshot,
     ): array {
-        return [
-            'trainer_profile_id' => (int) $draft->trainer_profile_id,
-            'trainer_name' => $trainerName,
-            'base_salary' => $this->formatMoney((int) $draft->base_salary_cents),
-            'rate_per_training' => $this->formatMoney((int) $draft->rate_per_training_cents),
-            'trainings_count' => (int) $draft->trainings_count,
-            'trainings_amount' => $this->formatMoney((int) $draft->trainings_amount_cents),
-            'bonuses' => $this->formatMoney((int) $draft->bonuses_cents),
-            'deductions' => $this->formatMoney((int) $draft->deductions_cents),
-            'comment' => $draft->comment,
-            'total' => $this->formatMoney((int) $draft->total_cents),
-            'latest_snapshot' => $latestSnapshot !== null
-                ? $this->snapshotPayload($latestSnapshot)
-                : null,
-        ];
+        $payload = $scheme->rowPayload($draft, $trainerName);
+        $payload['latest_snapshot'] = $latestSnapshot !== null
+            ? $this->snapshotPayload($latestSnapshot)
+            : null;
+
+        return $payload;
     }
 
     /**
@@ -456,17 +411,13 @@ final class TrainerSalaryService
             'id' => (int) $snapshot->id,
             'version' => (int) $snapshot->version,
             'batch_id' => $snapshot->batch_id,
+            'scheme_code' => (string) ($snapshot->scheme_code ?: ''),
             'formed_at' => $snapshot->formed_at?->toIso8601String(),
             'formed_by_name' => $formedBy ? trim($formedBy->full_name ?? '') : '',
             'total' => $this->formatMoney((int) $snapshot->total_cents),
         ];
     }
 
-    /**
-     * Копейки → рублёвая строка "0.00" (dot, всегда 2 знака).
-     * Используется как для полей, редактируемых через <input type="number">,
-     * так и для расчётных read-only полей (совместимый формат для JS live-update).
-     */
     private function formatMoney(int $cents): string
     {
         return $cents < 0 ? '-' . Money::fromCents(-$cents) : Money::fromCents($cents);

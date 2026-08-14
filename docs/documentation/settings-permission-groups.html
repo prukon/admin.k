@@ -60,7 +60,7 @@
     <tbody>
       <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …</td></tr>
       <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
-      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.*</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
+      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code>, <code>lessonPackages.export</code> (выгрузка Excel с календаря школы), скрытое <code>lessonPackages.type.postpay</code> (тип «Постоплата»)</td></tr>
       <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>setPrices.packageAssignments.view</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
@@ -116,6 +116,14 @@
       <code>/database/migrations/2026_08_13_003500_add_set_prices_cabinet_packages_type_permissions.php</code>
       (четыре скрытых права консоли по типу абонемента, <b>без</b> выдачи ролям).
       См. <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>.</li>
+    <li>Миграция <code>schedule.trainerSalary.scheme.classic</code>:
+      <code>/database/migrations/2026_08_14_211600_add_trainer_salary_scheme_classic.php</code>
+      (право в группе <code>schedule</code>, <code>is_visible=0</code>, не в базовых ролях, <b>без</b> выдачи ролям).
+      См. <a href="/docs/documentation/schedule-trainer-salary">schedule-trainer-salary</a>.</li>
+    <li>Миграция <code>schedule.trainerSalary.scheme.kansas</code>:
+      <code>/database/migrations/2026_08_14_231500_add_trainer_salary_scheme_kansas.php</code>
+      (право в группе <code>schedule</code>, <code>is_visible=0</code>, не в базовых ролях, <b>без</b> выдачи ролям; таблицы ввода Канзаса).
+      См. <a href="/docs/documentation/schedule-trainer-salary">schedule-trainer-salary §12</a>.</li>
     <li>Миграция <code>lessonPackages.type.postpay</code>:
       <code>/database/migrations/2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code>
       (право в группе <code>lessonPackages</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).

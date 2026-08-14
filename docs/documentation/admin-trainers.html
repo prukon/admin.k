@@ -150,9 +150,11 @@
   <p>
     Поля профиля используются при <strong>первом</strong> создании строки черновика за месяц на вкладке
     <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> (<code>/schedule/trainer-salary</code>).
+    Схема <code>classic</code> копирует оклад и ставку; <code>kansas</code> копирует только
+    <code>default_rate_per_training_cents</code> в оклад за тренировку (оклад classic в Канзасе не используется).
     Изменение в карточке тренера не перезаписывает уже существующий черновик за прошлые/текущие месяцы.
   </p>
-  <p>Права на расчёт ЗП — отдельные: <code>schedule.trainerSalary.view</code> / <code>schedule.trainerSalary.manage</code> (не <code>trainers.view</code>).</p>
+  <p>Права на расчёт ЗП — отдельные: схема <code>schedule.trainerSalary.scheme.classic</code> или <code>schedule.trainerSalary.scheme.kansas</code> (включает superadmin) плюс <code>schedule.trainerSalary.view</code> / <code>manage</code> (не <code>trainers.view</code>).</p>
 
   <h3 id="trainer-welcome-credentials">6.2) Welcome-письмо при создании (<code>send_welcome_email</code>)</h3>
   <div class="note">

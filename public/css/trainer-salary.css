@@ -1,0 +1,23 @@
+/* Hotfix стилей ЗП (в т.ч. схема Канзас) до следующей Vite-сборки schedule.css */
+.trainer-salary-kansas-x {
+    max-width: 22rem;
+}
+
+.trainer-salary-kansas-x-field {
+    max-width: 10rem;
+}
+
+.trainer-salary-kansas-head .trainer-salary-trainer-name {
+    font-weight: 600;
+}
+
+.trainer-salary-kansas-group-name {
+    font-weight: 500;
+    padding-left: 1.25rem !important;
+    color: var(--bs-secondary-color);
+}
+
+.trainer-salary-kansas-block + .trainer-salary-kansas-block .trainer-salary-kansas-head .trainer-salary-trainer-name,
+.trainer-salary-kansas-block + .trainer-salary-kansas-block .trainer-salary-kansas-head .trainer-salary-cell {
+    border-top: 2px solid var(--bs-border-color);
+}

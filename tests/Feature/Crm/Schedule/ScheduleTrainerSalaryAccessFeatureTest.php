@@ -53,7 +53,44 @@ final class ScheduleTrainerSalaryAccessFeatureTest extends ScheduleTrainerSalary
 
         $this->getJson(route('schedule.trainer-salary.data'))
             ->assertOk()
-            ->assertJsonStructure(['year', 'month', 'month_label', 'table_html', 'rows']);
+            ->assertJsonPath('scheme_code', 'classic')
+            ->assertJsonStructure(['year', 'month', 'month_label', 'table_html', 'rows', 'scheme_code']);
+    }
+
+    public function test_forbidden_with_view_but_without_classic_scheme(): void
+    {
+        $this->grantPermission('schedule.trainerSalary.view');
+        $this->grantPermission('schedule.trainerSalary.manage');
+
+        $this->get(route('schedule.trainer-salary'))
+            ->assertForbidden();
+
+        $this->getJson(route('schedule.trainer-salary.data'))
+            ->assertForbidden();
+
+        $trainer = $this->makeTrainerProfile('Без схемы');
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'bonuses' => 100,
+        ])->assertForbidden();
+    }
+
+    public function test_superadmin_sees_salary_without_classic_scheme(): void
+    {
+        $this->asSuperadmin();
+        $this->makeTrainerProfile('Тренер SA');
+
+        $this->get(route('schedule.trainer-salary'))
+            ->assertOk()
+            ->assertSee('ЗП тренеров', false)
+            ->assertSee('trainer-salary-app', false)
+            ->assertSee('Тренер SA', false);
+
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'classic')
+            ->assertJsonPath('can_manage', true);
     }
 
     public function test_manage_endpoints_forbidden_without_manage_permission(): void
@@ -135,5 +172,24 @@ final class ScheduleTrainerSalaryAccessFeatureTest extends ScheduleTrainerSalary
 
         $this->assertStringNotContainsString('trainer-salary-form-one-btn', $html);
         $this->assertStringNotContainsString('>Действие</', $html);
+    }
+
+    public function test_staff_with_kansas_scheme_sees_kansas_not_classic(): void
+    {
+        $this->grantTrainerSalaryViewKansas();
+        $this->grantTrainerSalaryManage();
+        $this->makeTrainerProfile('Тренер Канзас');
+
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'kansas')
+            ->assertJsonPath('can_manage', true);
+
+        $html = (string) $this->get(route('schedule.trainer-salary'))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('базовая надбавка к премии', $html);
+        $this->assertStringContainsString('data-scheme-code="kansas"', $html);
+        $this->assertStringNotContainsString('как в отчёте «Нагрузка тренеров»', $html);
     }
 }

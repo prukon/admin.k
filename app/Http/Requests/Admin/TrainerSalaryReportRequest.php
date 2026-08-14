@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\TrainerSalaryAccess;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -11,7 +12,7 @@ class TrainerSalaryReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('schedule.trainerSalary.view') ?? false;
+        return TrainerSalaryAccess::canViewModule($this->user());
     }
 
     public function rules(): array

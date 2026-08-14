@@ -148,8 +148,10 @@
   </ul>
   <p class="small">
     То же значение столбца «Итого» (режим без групп) используется как <code>trainings_count</code> на вкладке
-    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> за календарный месяц
+    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> <strong>только в схеме <code>classic</code></strong>
     (<code>TrainerWorkloadReportService::trainerRowTrainingsTotals()</code>).
+    Схема <code>kansas</code> считает тренировки иначе: слот + дата, а не календарный день нагрузки
+    (см. <a href="/docs/documentation/schedule-trainer-salary#kansas">ЗП §12</a>).
   </p>
 
   <h2>4) UI и AJAX</h2>

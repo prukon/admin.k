@@ -8,12 +8,19 @@ use App\Models\TrainerProfile;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
 use App\Models\User;
+use App\Services\Schedule\TrainerSalary\TrainerSalaryScheme;
+use App\Services\Schedule\TrainerSalary\TrainerSalarySchemeResolver;
 use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 final class TrainerSalarySheetService
 {
+    public function __construct(
+        private readonly TrainerSalarySchemeResolver $schemeResolver,
+    ) {
+    }
+
     /**
      * @return array{
      *     year: int,
@@ -137,6 +144,7 @@ final class TrainerSalarySheetService
      *     version_label: string,
      *     trainers_count: int,
      *     grand_total: string,
+     *     table_view: string,
      *     rows: list<array<string, mixed>>
      * }
      */
@@ -159,9 +167,10 @@ final class TrainerSalarySheetService
             'UTF-8',
         );
 
+        $scheme = $this->schemeForSnapshots($snapshots);
         $rows = $snapshots
             ->sortBy(fn (TrainerSalarySnapshot $s) => $this->trainerSortKey($s->trainerProfile))
-            ->map(fn (TrainerSalarySnapshot $s) => $this->snapshotToRow($s))
+            ->map(fn (TrainerSalarySnapshot $s) => $this->snapshotToRow($scheme, $s))
             ->values()
             ->all();
 
@@ -177,6 +186,8 @@ final class TrainerSalarySheetService
             'version_label' => 'Пакет',
             'trainers_count' => count($rows),
             'grand_total' => $this->formatMoney($this->sumTotalsCents($snapshots)),
+            'table_view' => $scheme->sheetDetailTableView(),
+            'scheme_code' => $scheme->code(),
             'rows' => $rows,
         ];
     }
@@ -193,6 +204,7 @@ final class TrainerSalarySheetService
         }
 
         $period = $snapshot->period;
+        $scheme = $this->schemeResolver->schemeForPeriod($period);
         $monthLabel = mb_ucfirst(
             Carbon::createFromDate((int) $period->year, (int) $period->month, 1)->locale('ru')->translatedFormat('F Y'),
             'UTF-8',
@@ -212,7 +224,9 @@ final class TrainerSalarySheetService
             'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
             'trainers_count' => 1,
             'grand_total' => $this->formatMoney((int) $snapshot->total_cents),
-            'rows' => [$this->snapshotToRow($snapshot)],
+            'table_view' => $scheme->sheetDetailTableView(),
+            'scheme_code' => $scheme->code(),
+            'rows' => [$this->snapshotToRow($scheme, $snapshot)],
         ];
     }
 
@@ -295,23 +309,28 @@ final class TrainerSalarySheetService
     }
 
     /**
+     * @param Collection<int, TrainerSalarySnapshot> $snapshots
+     */
+    private function schemeForSnapshots(Collection $snapshots): TrainerSalaryScheme
+    {
+        $first = $snapshots->first();
+        if ($first?->period !== null) {
+            return $this->schemeResolver->schemeForPeriod($first->period);
+        }
+
+        $period = new TrainerSalaryPeriod([
+            'scheme_code' => (string) ($first?->scheme_code ?: ''),
+        ]);
+
+        return $this->schemeResolver->schemeForPeriod($period);
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function snapshotToRow(TrainerSalarySnapshot $snapshot): array
+    private function snapshotToRow(TrainerSalaryScheme $scheme, TrainerSalarySnapshot $snapshot): array
     {
-        return [
-            'trainer_profile_id' => (int) $snapshot->trainer_profile_id,
-            'trainer_name' => $this->trainerDisplayName($snapshot->trainerProfile),
-            'base_salary' => $this->formatMoney((int) $snapshot->base_salary_cents),
-            'rate_per_training' => $this->formatMoney((int) $snapshot->rate_per_training_cents),
-            'trainings_count' => (int) $snapshot->trainings_count,
-            'trainings_amount' => $this->formatMoney((int) $snapshot->trainings_amount_cents),
-            'bonuses' => $this->formatMoney((int) $snapshot->bonuses_cents),
-            'deductions' => $this->formatMoney((int) $snapshot->deductions_cents),
-            'comment' => $snapshot->comment,
-            'total' => $this->formatMoney((int) $snapshot->total_cents),
-            'version' => (int) $snapshot->version,
-        ];
+        return $scheme->snapshotRowPayload($snapshot, $this->trainerDisplayName($snapshot->trainerProfile));
     }
 
     /**

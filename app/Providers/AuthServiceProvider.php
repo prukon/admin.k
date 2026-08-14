@@ -183,6 +183,12 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('schedule.trainerSalary.manage', function (User $user) {
             return $user->hasPermission('schedule.trainerSalary.manage');
         });
+        Gate::define('schedule.trainerSalary.scheme.classic', function (User $user) {
+            return $user->hasPermission('schedule.trainerSalary.scheme.classic');
+        });
+        Gate::define('schedule.trainerSalary.scheme.kansas', function (User $user) {
+            return $user->hasPermission('schedule.trainerSalary.scheme.kansas');
+        });
 
         // Расписание школы (слоты)
         Gate::define('scheduleSlots.view', function (User $user) {

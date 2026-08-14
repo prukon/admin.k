@@ -137,6 +137,7 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
 
         $this->assertSame((int) $this->user->id, (int) $latest->formed_by_user_id);
         $this->assertNotNull($latest->formed_at);
+        $this->assertSame('classic', (string) $latest->scheme_code);
     }
 
     public function test_form_all_creates_snapshots_with_shared_batch_id(): void
@@ -324,6 +325,7 @@ final class ScheduleTrainerSalaryFeatureTest extends ScheduleTrainerSalaryTestCa
             ->first();
 
         $this->assertNotNull($period);
+        $this->assertSame('classic', (string) $period->scheme_code);
 
         $this->assertDatabaseHas('trainer_salary_draft_lines', [
             'trainer_salary_period_id' => $period->id,

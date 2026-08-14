@@ -8,13 +8,14 @@
      data-draft-url-template="{{ route('schedule.trainer-salary.draft.update', ['trainerProfile' => '__ID__']) }}"
      data-form-one-url-template="{{ route('schedule.trainer-salary.snapshots.form-one', ['trainerProfile' => '__ID__']) }}"
      data-form-all-url="{{ route('schedule.trainer-salary.snapshots.form-all') }}"
+     data-scheme-code="{{ $scheme_code ?? '' }}"
      data-can-manage="{{ ($canManageTrainerSalary ?? false) ? '1' : '0' }}">
     <div class="card trainer-salary-surface border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             <div class="trainer-salary-header mb-3 mb-md-4">
                 <h1 class="h5 mb-1 fw-semibold text-body trainer-salary-title">ЗП тренеров</h1>
                 <p class="text-muted small mb-0 trainer-salary-subtitle">
-                    Черновик за календарный месяц. Кол-во тренировок — как в отчёте «Нагрузка тренеров» (итог по строке).
+                    {{ $draft_subtitle ?? 'Черновик за календарный месяц. Кол-во тренировок — как в отчёте «Нагрузка тренеров» (итог по строке).' }}
                 </p>
             </div>
 
@@ -41,10 +42,10 @@
             <div id="trainer-salary-flash" class="alert d-none mb-3" role="alert"></div>
 
             <div class="trainer-salary-table-scroll" id="trainer-salary-table-host">
-                @include('admin.schedule._trainer_salary_table', [
+                @include($table_view ?? 'admin.schedule.trainer-salary.classic._table', array_merge([
                     'rows' => $rows ?? [],
                     'canManage' => $canManageTrainerSalary ?? false,
-                ])
+                ], $draft_view_data ?? []))
             </div>
         </div>
     </div>

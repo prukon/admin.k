@@ -32,13 +32,14 @@
   </div>
 
   <h2>1) Права</h2>
-  <p>Достаточно <code>schedule.trainerSalary.view</code> (то же, что для «ЗП тренеров»). <code>schedule.view</code> не обязателен.</p>
+  <p>Нужны <code>schedule.trainerSalary.view</code> и включённая схема партнёра (<code>schedule.trainerSalary.scheme.classic</code> или <code>schedule.trainerSalary.scheme.kansas</code>). <code>schedule.view</code> не обязателен. Карточка слепка рисует таблицу той схемы, которой он сформирован (<code>scheme_code</code>).</p>
   <table>
     <thead><tr><th>Ситуация</th><th>Результат</th></tr></thead>
     <tbody>
       <tr><td>Гость</td><td>редирект / JSON <b>401</b></td></tr>
       <tr><td>Нет <code>schedule.trainerSalary.view</code></td><td><b>403</b></td></tr>
-      <tr><td>Есть <code>view</code></td><td>список, <code>data</code>, карточки batch/snapshot → <b>200</b></td></tr>
+      <tr><td>Есть <code>view</code>, нет схемы у партнёра</td><td><b>403</b></td></tr>
+      <tr><td>Есть <code>view</code> и схема (или superadmin)</td><td>список, <code>data</code>, карточки batch/snapshot → <b>200</b></td></tr>
       <tr><td>Слепок другого партнёра</td><td>карточка snapshot → <b>404</b></td></tr>
     </tbody>
   </table>
@@ -59,14 +60,18 @@
   <h2>3) Типы листов</h2>
   <ul>
     <li><strong>Полный лист</strong> — все слепки с одним <code>batch_id</code> (кнопка «Сформировать всех»). В списке — одна строка на пакет.</li>
-    <li><strong>По тренеру</strong> — слепок без <code>batch_id</code> («Сформировать» в строке); в списке — отдельные строки с версией vN.</li>
+    <li><strong>По тренеру</strong> — слепок без <code>batch_id</code> (кнопка «Расчет» в строке на вкладке ЗП); в списке — отдельные строки с версией vN.</li>
   </ul>
   <p>Колонка «Сумма итого» — сумма <code>total</code> (рубли в UI из <code>total_cents</code>) по всем строкам листа. Ссылки «Открыть» ведут на batch или snapshot show.</p>
 
   <h2>4) UI</h2>
   <ul>
-    <li>Список: <code>trainer_salary_sheets.blade.php</code>, JS <code>trainer-salary-sheets.js</code>.</li>
-    <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>, таблица <code>_trainer_salary_sheet_detail_table.blade.php</code> (класс <code>trainer-salary-table--readonly</code>).</li>
+    <li>Список: <code>trainer_salary_sheets.blade.php</code>, JS <code>trainer-salary-sheets.js</code> (Vite на вкладке листов).</li>
+    <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>. Таблица рисуется по <code>scheme_code</code> слепка:
+      classic — <code>trainer-salary/classic/_sheet_detail_table.blade.php</code>,
+      kansas — <code>trainer-salary/kansas/_sheet_detail_table.blade.php</code>
+      (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы и X).
+      Смена текущей схемы партнёра карточку уже сформированного слепка не меняет.</li>
     <li>Бейдж «Актуальная» — последняя <code>version</code> тренера за выбранный месяц.</li>
     <li>Бейдж «Последний пакет» — последний полный <code>batch_id</code> за месяц.</li>
     <li>Блок «Актуальная версия по каждому тренеру» — сводка последних слепков (при выключенном «Только актуальные»).</li>
@@ -81,7 +86,11 @@
 
   <h2>6) Тесты</h2>
   <pre><code>php artisan test --env=testing --filter=ScheduleTrainerSalarySheets</code></pre>
-  <p class="small">Общий фильтр ЗП: <code>--filter=ScheduleTrainerSalary</code> (включает и листы, и вкладку черновика).</p>
+  <p class="small">Общий фильтр ЗП: <code>--filter=ScheduleTrainerSalary</code> (включает и листы, и вкладку черновика, и Канзас access/UI).</p>
+  <p class="small">
+    Канзас: <code>ScheduleTrainerSalaryKansasAccessFeatureTest</code> (листы 403 без схемы, snapshot/batch readonly),
+    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest::test_kansas_snapshot_page_is_readonly_and_shows_groups</code>.
+  </p>
 
   <p class="small">
     <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a> ·

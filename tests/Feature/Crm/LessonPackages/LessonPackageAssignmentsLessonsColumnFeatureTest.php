@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
 use App\Models\UserTeamScheduleSlot;
+use Carbon\Carbon;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
@@ -21,6 +22,8 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Carbon::setTestNow('2026-08-10 12:00:00');
 
         $this->withSession([
             'current_partner' => $this->partner->id,
@@ -44,6 +47,12 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
 
         $this->actingAs($this->user);
         LessonOccurrenceStatusesSeeder::ensureForPartner((int) $this->partner->id);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_assignments_page_shows_lessons_column_and_hides_team_column(): void
@@ -81,7 +90,7 @@ final class LessonPackageAssignmentsLessonsColumnFeatureTest extends CrmTestCase
         $this->assertSame('2026-08-14', $row['last_lesson_date']);
         $this->assertSame('14 августа 2026', $row['last_lesson_date_label']);
         $this->assertSame('Посетил', $row['last_lesson_status_title']);
-        // «Сегодня» в CrmTestCase — 2026-08-10; 14.08 ещё впереди.
+        // «Сегодня» зафиксировано в setUp как 2026-08-10; 14.08 ещё впереди.
         $this->assertFalse((bool) $row['last_lesson_is_past']);
     }
 

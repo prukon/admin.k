@@ -55,6 +55,8 @@ class PermissionSeeder extends Seeder
             // group_slug schedule
             ['name' => 'schedule.trainerSalary.view',    'description' => 'ЗП тренеров: просмотр вкладки и черновика',     'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'schedule.trainerSalary.manage',  'description' => 'ЗП тренеров: редактирование и формирование слепков', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
+            ['name' => 'schedule.trainerSalary.scheme.kansas', 'description' => 'ЗП тренеров: схема «Канзас» (оклад за тренировку + премия от среднего)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 29],
+            ['name' => 'schedule.trainerSalary.scheme.classic', 'description' => 'ЗП тренеров: схема «Классическая» (оклад + ставка за тренировку)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
             ['name' => 'scheduleSlots.table',            'description' => 'Расписание школы: вкладка «Таблица занятий»',   'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 33],
 

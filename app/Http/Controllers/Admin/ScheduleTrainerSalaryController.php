@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\UpdateTrainerSalaryDraftLineRequest;
 use App\Models\TrainerProfile;
 use App\Services\PartnerContext;
 use App\Services\Schedule\TrainerSalaryService;
+use App\Support\TrainerSalaryAccess;
 use Illuminate\Http\JsonResponse;
 
 class ScheduleTrainerSalaryController extends AdminBaseController
@@ -28,7 +29,7 @@ class ScheduleTrainerSalaryController extends AdminBaseController
 
         return view('admin.schedule.index', array_merge($payload, [
             'activeTab' => 'trainer-salary',
-            'canManageTrainerSalary' => $request->user()?->can('schedule.trainerSalary.manage') ?? false,
+            'canManageTrainerSalary' => TrainerSalaryAccess::canManageModule($request->user()),
         ]));
     }
 
@@ -53,10 +54,20 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             $request->draftPayload(),
         );
 
-        return response()->json([
+        $scheme = $this->salaryService->schemeForPeriod($period);
+        $canManage = TrainerSalaryAccess::canManageModule($request->user());
+        $payload = [
             'message' => 'Черновик сохранён',
             'row' => $row,
-        ]);
+        ];
+
+        if ($scheme->prefersFullTableReload()) {
+            $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
+            $payload['reload_table'] = true;
+            $payload['table_html'] = $page['table_html'];
+        }
+
+        return response()->json($payload);
     }
 
     public function formOne(
@@ -73,12 +84,22 @@ class ScheduleTrainerSalaryController extends AdminBaseController
         $period = $this->salaryService->ensurePeriod($partnerId, $year, $month);
 
         $result = $this->salaryService->formSnapshotForTrainer($period, $trainerProfile, $partnerId, $actor);
+        $scheme = $this->salaryService->schemeForPeriod($period);
+        $canManage = TrainerSalaryAccess::canManageModule($request->user());
 
-        return response()->json([
+        $payload = [
             'message' => 'Слепок ЗП сформирован (версия ' . ($result['snapshot']['version'] ?? '') . ')',
             'snapshot' => $result['snapshot'],
             'row' => $result['row'],
-        ]);
+        ];
+
+        if ($scheme->prefersFullTableReload()) {
+            $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
+            $payload['reload_table'] = true;
+            $payload['table_html'] = $page['table_html'];
+        }
+
+        return response()->json($payload);
     }
 
     public function formAll(FormTrainerSalarySnapshotRequest $request): JsonResponse
@@ -93,13 +114,23 @@ class ScheduleTrainerSalaryController extends AdminBaseController
         $period = $this->salaryService->ensurePeriod($partnerId, $year, $month);
 
         $result = $this->salaryService->formSnapshotsForAllTrainers($period, $partnerId, $actor);
+        $scheme = $this->salaryService->schemeForPeriod($period);
+        $canManage = TrainerSalaryAccess::canManageModule($request->user());
 
-        return response()->json([
+        $payload = [
             'message' => 'Сформированы слепки ЗП для ' . $result['snapshots_count'] . ' тренеров',
             'batch_id' => $result['batch_id'],
             'snapshots_count' => $result['snapshots_count'],
             'rows' => $result['rows'],
-        ]);
+        ];
+
+        if ($scheme->prefersFullTableReload()) {
+            $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
+            $payload['reload_table'] = true;
+            $payload['table_html'] = $page['table_html'];
+        }
+
+        return response()->json($payload);
     }
 
     /**
@@ -109,8 +140,23 @@ class ScheduleTrainerSalaryController extends AdminBaseController
     {
         $partnerId = $this->requirePartnerId();
         [$year, $month] = $request->resolvedYearMonth();
+        $canManage = TrainerSalaryAccess::canManageModule($request->user());
 
+        return $this->composeDraftPage($partnerId, $year, $month, $canManage);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function composeDraftPage(int $partnerId, int $year, int $month, bool $canManage): array
+    {
         $report = $this->salaryService->buildReport($partnerId, $year, $month);
+        $scheme = $report['scheme'];
+        $draftViewData = $scheme->draftViewData($report['period']);
+        $viewData = array_merge([
+            'rows' => $report['rows'],
+            'canManage' => $canManage,
+        ], $draftViewData);
 
         return [
             'year' => $report['year'],
@@ -118,12 +164,13 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             'month_label' => $report['month_label'],
             'date_from' => $report['date_from'],
             'date_to' => $report['date_to'],
+            'scheme_code' => $scheme->code(),
+            'draft_subtitle' => $scheme->draftSubtitle(),
+            'draft_view_data' => $draftViewData,
+            'table_view' => $scheme->draftTableView(),
             'rows' => $report['rows'],
-            'can_manage' => $request->user()?->can('schedule.trainerSalary.manage') ?? false,
-            'table_html' => view('admin.schedule._trainer_salary_table', [
-                'rows' => $report['rows'],
-                'canManage' => $request->user()?->can('schedule.trainerSalary.manage') ?? false,
-            ])->render(),
+            'can_manage' => $canManage,
+            'table_html' => view($scheme->draftTableView(), $viewData)->render(),
         ];
     }
 }

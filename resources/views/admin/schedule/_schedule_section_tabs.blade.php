@@ -19,6 +19,7 @@
         </li>
     @endcan
     @can('schedule.trainerSalary.view')
+        @if(\App\Support\TrainerSalaryAccess::canViewModule())
         <li class="nav-item" role="presentation">
             <a class="nav-link {{ ($activeTab ?? '') === 'trainer-salary' ? 'active' : '' }}"
                href="{{ route('schedule.trainer-salary') }}"
@@ -29,5 +30,6 @@
                href="{{ route('schedule.trainer-salary-sheets') }}"
                role="tab">Листы ЗП</a>
         </li>
+        @endif
     @endcan
 </ul>

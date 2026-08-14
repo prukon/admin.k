@@ -50,6 +50,8 @@ return [
             // 'setPrices.cabinetPackages.single.view',
             // 'setPrices.cabinetPackages.postpay.view',
             // 'schedule.view',
+            // 'schedule.trainerSalary.scheme.classic',
+            // 'schedule.trainerSalary.scheme.kansas',
             'scheduleSlots.view',
             'scheduleSlots.manage',
             'scheduleSlots.table',

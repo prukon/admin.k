@@ -44,7 +44,7 @@ class DocumentationController extends Controller
         'admin-teams'                 => 'Группы (админка): /admin/teams — groups.view, вкладка в «Справочники», month_price_cents, объекты, тренер, расписание',
         'schedule-journal'            => 'Журнал /schedule: раскладка fixed/flexible, колонка оплаты месяца по группам (users_prices / effective_is_paid), разовое (create_new — сумма и снимок персональной скидки), статусы, мультитренеры при «Посетил» (pivot → ЗП/нагрузка)',
         'schedule-trainer-workload'   => 'Нагрузка тренеров: /schedule/trainer-workload, pivot event_trainers, матрица, AJAX data',
-        'schedule-trainer-salary'     => 'ЗП тренеров: *_cents, зачёт по pivot тренеров визита, autosave, слепки',
+        'schedule-trainer-salary'     => 'ЗП тренеров: схемы classic и kansas, смена схемы без слепка, *_cents, pivot визита, autosave, слепки',
         'schedule-trainer-salary-sheets' => 'Листы ЗП: архив слепков (readonly), batch/snapshot, latest_only',
         'admin-trainers'              => 'Тренеры (админка): /admin/trainers, trainer_profiles, team_trainer, мультитренеры в журнале при «Посетил»',
         'admin-users-section'         => 'Раздел «Пользователи» (вкладки): ученики, тренеры, администраторы, /admin/roles/{name}, UsersSectionTabsResolver',

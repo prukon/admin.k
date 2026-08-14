@@ -59,6 +59,15 @@ class AppServiceProvider extends ServiceProvider
             return new PartnerContext();
         });
 
+        $this->app->singleton(\App\Services\Schedule\TrainerSalary\TrainerSalarySchemeRegistry::class, function ($app) {
+            return new \App\Services\Schedule\TrainerSalary\TrainerSalarySchemeRegistry([
+                $app->make(\App\Services\Schedule\TrainerSalary\Schemes\Classic\ClassicTrainerSalaryScheme::class),
+                $app->make(\App\Services\Schedule\TrainerSalary\Schemes\Kansas\KansasTrainerSalaryScheme::class),
+            ]);
+        });
+
+        $this->app->singleton(\App\Services\Schedule\TrainerSalary\TrainerSalarySchemeResolver::class);
+
         $this->app->singleton(FamilyStudentContextService::class);
 
         $this->app->singleton(AuditLogger::class);

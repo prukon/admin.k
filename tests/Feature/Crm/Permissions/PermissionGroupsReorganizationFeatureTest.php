@@ -41,7 +41,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         return [
             'mainMenu'        => 17,
             'reports'         => 9,
-            'schedule'        => 4,
+            'schedule'        => 6,
             'directories'     => 8,
             'lessonPackages'  => 4,
             'setPrices'       => 10,
@@ -109,6 +109,8 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'reports.payments.payout_amount.column.view',
             ],
             'schedule' => [
+                'schedule.trainerSalary.scheme.kansas',
+                'schedule.trainerSalary.scheme.classic',
                 'schedule.trainerSalary.view',
                 'schedule.trainerSalary.manage',
                 'scheduleSlots.manage',

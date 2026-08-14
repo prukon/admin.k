@@ -60,7 +60,7 @@
         @endcan
 
         {{--Журнал расписания--}}
-        @if(auth()->user()?->can('schedule.view') || auth()->user()?->can('schedule.trainerSalary.view'))
+        @if(auth()->user()?->can('schedule.view') || \App\Support\TrainerSalaryAccess::canViewModule())
             <li class="nav-item">
                 <a href="{{ auth()->user()?->can('schedule.view') ? '/schedule' : route('schedule.trainer-salary') }}" class="nav-link">
 {{--                    <i class="nav-icon fa-solid fa-receipt"></i>--}}

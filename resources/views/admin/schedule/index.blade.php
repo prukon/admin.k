@@ -16,6 +16,10 @@
                     'year' => $year ?? null,
                     'month' => $month ?? null,
                     'rows' => $rows ?? [],
+                    'table_view' => $table_view ?? null,
+                    'scheme_code' => $scheme_code ?? null,
+                    'draft_subtitle' => $draft_subtitle ?? null,
+                    'draft_view_data' => $draft_view_data ?? [],
                     'canManageTrainerSalary' => $canManageTrainerSalary ?? false,
                 ])
             @elseif(($activeTab ?? '') === 'trainer-salary-sheets')
@@ -51,7 +55,9 @@
     @elseif(($activeTab ?? '') === 'trainer-workload')
         @vite(['resources/js/trainer-workload.js'])
     @elseif(($activeTab ?? '') === 'trainer-salary')
-        @vite(['resources/js/trainer-salary.js'])
+        {{-- Hotfix до следующей Vite-сборки: актуальный trainer-salary.js (схема kansas) --}}
+        <link rel="stylesheet" href="{{ asset('css/trainer-salary.css') }}?v={{ @filemtime(public_path('css/trainer-salary.css')) ?: time() }}">
+        <script src="{{ asset('js/trainer-salary.js') }}?v={{ @filemtime(public_path('js/trainer-salary.js')) ?: time() }}"></script>
     @elseif(($activeTab ?? '') === 'trainer-salary-sheets')
         @vite(['resources/js/trainer-salary-sheets.js'])
     @endif

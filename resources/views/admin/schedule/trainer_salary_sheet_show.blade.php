@@ -35,7 +35,7 @@
                     </div>
 
                     <div class="trainer-salary-table-scroll">
-                        @include('admin.schedule._trainer_salary_sheet_detail_table', [
+                        @include($sheet['table_view'] ?? 'admin.schedule.trainer-salary.classic._sheet_detail_table', [
                             'rows' => $sheet['rows'] ?? [],
                         ])
                     </div>
@@ -47,4 +47,5 @@
 
 @push('scripts')
     @vite(['resources/css/schedule.css'])
+    <link rel="stylesheet" href="{{ asset('css/trainer-salary.css') }}?v={{ @filemtime(public_path('css/trainer-salary.css')) ?: time() }}">
 @endpush

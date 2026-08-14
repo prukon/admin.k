@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\TrainerSalaryAccess;
 use Illuminate\Foundation\Http\FormRequest;
 
 class FormTrainerSalarySnapshotRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('schedule.trainerSalary.manage') ?? false;
+        return TrainerSalaryAccess::canManageModule($this->user());
     }
 
     public function rules(): array

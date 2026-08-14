@@ -18,6 +18,7 @@ class TrainerSalarySnapshot extends Model
         'trainer_salary_period_id' => 'int',
         'trainer_profile_id' => 'int',
         'version' => 'int',
+        'scheme_code' => 'string',
         'base_salary_cents' => 'integer',
         'rate_per_training_cents' => 'integer',
         'trainings_count' => 'int',

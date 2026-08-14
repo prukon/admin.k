@@ -12,11 +12,51 @@ abstract class ScheduleTrainerSalaryTestCase extends ScheduleJournalTestCase
     protected function grantTrainerSalaryView(?User $actor = null): void
     {
         $this->grantPermission('schedule.trainerSalary.view', $actor);
+        $this->grantClassicScheme($actor);
     }
 
     protected function grantTrainerSalaryManage(?User $actor = null): void
     {
         $this->grantPermission('schedule.trainerSalary.manage', $actor);
+    }
+
+    protected function grantClassicScheme(?User $actor = null): void
+    {
+        $this->grantPermission('schedule.trainerSalary.scheme.classic', $actor);
+    }
+
+    protected function grantKansasScheme(?User $actor = null): void
+    {
+        $this->grantPermission('schedule.trainerSalary.scheme.kansas', $actor);
+    }
+
+    protected function grantTrainerSalaryViewKansas(?User $actor = null): void
+    {
+        $this->grantPermission('schedule.trainerSalary.view', $actor);
+        $this->grantKansasScheme($actor);
+    }
+
+    protected function revokePermission(string $permissionName, ?User $actor = null): void
+    {
+        $actor ??= $this->user;
+
+        DB::table('permission_role')
+            ->where('partner_id', $this->partner->id)
+            ->where('role_id', $actor->role_id)
+            ->where('permission_id', $this->permissionId($permissionName))
+            ->delete();
+    }
+
+    protected function useClassicSchemeOnly(?User $actor = null): void
+    {
+        $this->revokePermission('schedule.trainerSalary.scheme.kansas', $actor);
+        $this->grantClassicScheme($actor);
+    }
+
+    protected function useKansasSchemeOnly(?User $actor = null): void
+    {
+        $this->revokePermission('schedule.trainerSalary.scheme.classic', $actor);
+        $this->grantKansasScheme($actor);
     }
 
     protected function grantPermission(string $permissionName, ?User $actor = null): void

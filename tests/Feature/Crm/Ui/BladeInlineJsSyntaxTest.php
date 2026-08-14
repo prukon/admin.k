@@ -2873,6 +2873,67 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: ЗП тренеров — hotfix public/js/trainer-salary.js и resources/js/trainer-salary.js
+     * (два пути, как schedule-journal). Канзас: reload_table + extra.team_id + data-save-trainer-id.
+     */
+    public function test_trainer_salary_js_kansas_reload_contract_is_valid_javascript(): void
+    {
+        $resourcePath = resource_path('js/trainer-salary.js');
+        $publicPath = public_path('js/trainer-salary.js');
+        $this->assertFileExists($resourcePath);
+        $this->assertFileExists($publicPath);
+        $this->assertSame(
+            (string) file_get_contents($resourcePath),
+            (string) file_get_contents($publicPath),
+            'Hotfix public/js/trainer-salary.js должен совпадать с resources/js/trainer-salary.js'
+        );
+
+        $index = (string) file_get_contents(resource_path('views/admin/schedule/index.blade.php'));
+        $this->assertStringContainsString("asset('js/trainer-salary.js')", $index);
+        $this->assertStringNotContainsString("@vite(['resources/js/trainer-salary.js'])", $index);
+
+        foreach ([$resourcePath, $publicPath] as $path) {
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString('function applyTableHtml(html)', $content);
+            $this->assertStringContainsString('result.body.reload_table && applyTableHtml(result.body.table_html)', $content);
+            $this->assertStringContainsString("extra.team_id = tr.getAttribute('data-team-id')", $content);
+            $this->assertStringContainsString("input.getAttribute('data-save-trainer-id')", $content);
+            $this->assertStringContainsString("input.closest('.trainer-salary-kansas-x')", $content);
+            $this->assertStringContainsString("field === 'base_avg_students'", $content);
+            $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+            $this->assertStringContainsString("'Accept': 'application/json'", $content);
+            $this->assertStringContainsString('showRowErrors(tr, result.body.errors)', $content);
+            $this->assertStringContainsString('showHostFieldErrors(result.body.errors)', $content);
+            $this->assertStringContainsString('[data-error-for="', $content);
+            $this->assertStringContainsString('bindTableEvents()', $content);
+            $this->assertStringContainsString("monthEl.addEventListener('change'", $content);
+            $this->assertStringContainsString('if (!canManage)', $content);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$path}:\n".implode("\n", $output)
+            );
+        }
+
+        foreach ([
+            resource_path('views/admin/schedule/trainer-salary/kansas/_table.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/kansas/_sheet_detail_table.blade.php'),
+        ] as $blade) {
+            $this->assertFileExists($blade);
+            $this->assertStringNotContainsString(
+                '<script',
+                (string) file_get_contents($blade),
+                'Таблица Канзаса не должна содержать inline <script> — логика в trainer-salary.js'
+            );
+        }
+    }
+
+    /**
      * P1: общий helper бейджа % — синтаксис и контракт формулы (1000 − 10% = 900).
      */
     public function test_discount_percent_js_partial_contract_is_valid_javascript(): void

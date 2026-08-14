@@ -18,6 +18,7 @@ class TrainerSalaryPeriod extends Model
         'partner_id' => 'int',
         'year' => 'int',
         'month' => 'int',
+        'scheme_code' => 'string',
     ];
 
     public function partner(): BelongsTo
