@@ -18,7 +18,7 @@
   </style>
 </head>
 <body>
-<div class="wrap">
+    <div class="wrap">
   <h1>Документация</h1>
   <div class="small">Папка: <code>/docs/documentation</code>. В кабинете со правом «документация»
     эта страница открывается по <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.</div>
@@ -26,6 +26,52 @@
   <div class="note">
     Это “главная” страница документации (список разделов и анонсы). Открывается по
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
+  </div>
+
+  <h2 id="users-page-length-index">Ученики: запоминать «Показать N» для админа (2026‑08)</h2>
+  <div class="note">
+    На <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
+    селект «Показать 10 / 20 / 50 / 100» сохраняется так же, как на заявках:
+    <code>user_table_settings.page_length</code>, <code>table_key = users_index</code>.
+    Номер страницы не пишем.
+    <br><br>
+    PHP подставляет <code>usersPageLength</code> при открытии списка.
+    Смена селекта → <code>POST /admin/users/columns-settings</code> с <code>page_length</code>
+    (колонки не затираются). GET колонок по-прежнему <code>{ ключ: bool }</code> / <code>[]</code>.
+    <br>
+    Тесты: <code>UsersPageLengthFeatureTest</code>,
+    <code>UsersPageLengthFullAccessFeatureTest</code>,
+    <code>UserTableSettingsControllerTest</code> (колонки без регрессии),
+    <code>BladeInlineJsSyntaxTest</code> (POST только <code>page_length</code>, без номера страницы).
+    Подробно — <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>,
+    заявки — <a href="#school-leads-page-length-index">анонс заявок</a>.
+  </div>
+
+  <h2 id="school-leads-page-length-index">Заявки: запоминать «Показать N» для админа (2026‑08)</h2>
+  <div class="note">
+    На <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
+    селект DataTables «Показать 10 / 20 / 50 / 100» сохраняется на пользователя,
+    как видимость колонок — в <code>user_table_settings</code>
+    (<code>table_key = school_leads_index</code>, поле <code>page_length</code>).
+    Номер страницы не пишем.
+    <br><br>
+    1) <b>Старт таблицы.</b> PHP читает <code>page_length</code> при открытии вкладки «Заявки»
+    и передаёт <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
+    Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>.
+    <br>
+    2) <b>Смена селекта.</b> <code>KidsCrmDataTable</code> с <code>persistPageLength: true</code>
+    шлёт <code>POST /admin/school-leads/columns-settings</code> с <code>page_length</code> (без <code>columns</code>).
+    Ошибка валидации → <b>422</b> <code>errors.page_length</code>, текст под блоком «Показать N».
+    <br>
+    3) <b>GET колонок не менялся:</b> по-прежнему объект <code>{ ключ: bool }</code> или <code>[]</code>,
+    ключа <code>page_length</code> в JSON нет. Сохранение колонок не затирает <code>page_length</code> и наоборот.
+    <br>
+    Тесты: <code>SchoolLeadsPageLengthFeatureTest</code>,
+    <code>SchoolLeadsPageLengthFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
+    (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
+    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>.
+    Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.
   </div>
 
   <h2 id="trainer-salary-kansas-month-settings-index">Канзас: модалка «Настройки месяца» и таблица черновика (2026‑08)</h2>
@@ -274,6 +320,7 @@
     (без записи в БД).
     POST → AJAX и non-AJAX успех: <b>200</b> <code>{success: true}</code> + запись в БД.
     Без <code>columns</code>: AJAX → <b>422</b> <code>errors.columns</code>, non-AJAX → <b>302</b> + session errors.
+    С <code>page_length</code> (10/20/50/100) колонки не обязательны — см. <a href="#school-leads-page-length-index">«Показать N»</a>.
     Гость 302/401, без права 403. PUT/PATCH/DELETE на этот URI → 404/405.
     <br><br>
     Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-actions-column">school-leads-widget §5.5.3</a>,

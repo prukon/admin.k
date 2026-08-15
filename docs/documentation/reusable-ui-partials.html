@@ -430,6 +430,29 @@ KidsCrmDataTable.bindNavLinks(document.getElementById('contracts-table'));</code
     При смене «Показать 10 / 20 / …» пересчёт выполняется на каждой отрисовке (например, 15 записей при 20 на странице — пагинация скрыта; при 10 на странице — видна).</p>
   <p>Отключить на конкретной таблице: <code>dataTable: { hidePaginationWhenSinglePage: false }</code>.</p>
 
+  <h3 id="persist-page-length">Персональный «Показать N» (<code>persistPageLength</code>)</h3>
+  <p>По умолчанию пресет <b>не</b> пишет размер страницы в БД. Opt-in:</p>
+  <pre><code>columnsSettings: {
+  persistPageLength: true,
+  urls: { get: '…/columns-settings', save: '…/columns-settings' },
+},
+dataTable: {
+  pageLength: {{ $savedPageLength }}, // начальное значение с сервера, чтобы не было второго AJAX
+}</code></pre>
+  <ul>
+    <li>Смена селекта → <code>POST</code> на <code>columnsSettings.urls.save</code> с полем <code>page_length</code> (без <code>columns</code>).</li>
+    <li>Ошибка 422: текст <code>errors.page_length</code> под <code>.dataTables_length</code> (<code>.kids-dt-page-length-error</code>).</li>
+    <li>Сейчас включено на
+      <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
+      (<code>table_key = school_leads_index</code>) и
+      <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
+      (<code>table_key = users_index</code>). Номер страницы не сохраняется.</li>
+  </ul>
+  <p class="small">Тесты: <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
+    (тело POST: только <code>page_length</code>, gate <code>persistPageLength !== true</code>),
+    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>
+    (<code>node --check</code> на двух blade + исходнике пресета).</p>
+
   <h3>Эталонные страницы</h3>
   <ul>
     <li><a href="/docs/documentation/admin-locations">/admin/locations</a> — locations, list, badge, columns-settings, multiselect групп</li>

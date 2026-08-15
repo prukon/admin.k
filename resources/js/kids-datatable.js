@@ -619,6 +619,85 @@
         paginate.style.display = pages > 1 ? '' : 'none';
     }
 
+    function resolveCsrfToken(settings) {
+        return settings.csrfToken
+            || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            || '';
+    }
+
+    function firstValidationError(xhr, field) {
+        const json = xhr && xhr.responseJSON;
+        if (json && json.errors && json.errors[field] && json.errors[field].length) {
+            return String(json.errors[field][0]);
+        }
+
+        return '';
+    }
+
+    function pageLengthErrorHost(wrapper) {
+        if (!wrapper) {
+            return null;
+        }
+
+        return wrapper.querySelector('.dataTables_length');
+    }
+
+    function clearPageLengthError(wrapper) {
+        const host = pageLengthErrorHost(wrapper);
+        if (!host) {
+            return;
+        }
+
+        const err = host.querySelector('.kids-dt-page-length-error');
+        if (err) {
+            err.remove();
+        }
+    }
+
+    function showPageLengthError(wrapper, message) {
+        const host = pageLengthErrorHost(wrapper);
+        if (!host) {
+            return;
+        }
+
+        let err = host.querySelector('.kids-dt-page-length-error');
+        if (!err) {
+            err = document.createElement('div');
+            err.className = 'invalid-feedback d-block kids-dt-page-length-error';
+            host.appendChild(err);
+        }
+
+        err.textContent = message;
+    }
+
+    function bindPageLengthPersist(table, settings) {
+        if (!settings || settings.persistPageLength !== true || !settings.urls || !settings.urls.save) {
+            return;
+        }
+
+        const csrfToken = resolveCsrfToken(settings);
+
+        table.on('length.kidsCrmPageLength', function (event, dtSettings, length) {
+            const wrapper = table.table().container();
+            clearPageLengthError(wrapper);
+
+            $.ajax({
+                url: settings.urls.save,
+                type: 'POST',
+                data: {
+                    _token: csrfToken,
+                    page_length: length,
+                },
+                error: function (xhr) {
+                    const message = firstValidationError(xhr, 'page_length')
+                        || (xhr.responseJSON && xhr.responseJSON.message)
+                        || 'Не удалось сохранить количество строк';
+                    showPageLengthError(wrapper, message);
+                },
+            });
+        });
+    }
+
     function ensureTableScrollHost(tableNode, settings) {
         const $table = $(tableNode);
         const $wrapper = $table.closest('.dataTables_wrapper');
@@ -786,9 +865,7 @@
             }
 
             const toggleSelector = settings.toggleSelector || '.column-toggle';
-            const csrfToken = settings.csrfToken
-                || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                || '';
+            const csrfToken = resolveCsrfToken(settings);
 
             $(toggleSelector).on('change.kidsCrmDataTable', function () {
                 const key = $(this).data('column-key');
@@ -813,6 +890,7 @@
 
         loadColumnsConfigFromServer();
         bindColumnToggles();
+        bindPageLengthPersist(table, settings);
         table.columns.adjust();
 
         return {

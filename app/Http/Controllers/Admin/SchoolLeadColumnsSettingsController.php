@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\SchoolLeadColumnsSettingsSaveRequest;
 use App\Models\UserTableSetting;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class SchoolLeadColumnsSettingsController extends Controller
@@ -26,19 +26,24 @@ class SchoolLeadColumnsSettingsController extends Controller
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(SchoolLeadColumnsSettingsSaveRequest $request)
     {
         $userId = Auth::id();
+        $data = $request->validated();
+        $payload = [];
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
+        if (array_key_exists('columns', $data) && is_array($data['columns'])) {
+            $payload['columns'] = $data['columns'];
+        }
 
-        $normalized = [];
+        if (array_key_exists('page_length', $data) && $data['page_length'] !== null) {
+            $payload['page_length'] = (int) $data['page_length'];
+        }
 
-        foreach ($data['columns'] as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            $normalized[$key] = $bool ?? false;
+        if ($payload === []) {
+            return response()->json([
+                'success' => true,
+            ]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -46,9 +51,7 @@ class SchoolLeadColumnsSettingsController extends Controller
                 'user_id'   => $userId,
                 'table_key' => 'school_leads_index',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json([

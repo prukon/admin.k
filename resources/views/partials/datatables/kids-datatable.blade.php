@@ -8,6 +8,7 @@
             defaults: { name: true, actions: true },
             urls: { get: '.../columns-settings', save: '.../columns-settings' },
             csrfToken: '...',
+            persistPageLength: false, // true — POST page_length при смене «Показать N»
         },
         dataTable: {
             ajax: { url: '.../data', data: (d) => { ... } },

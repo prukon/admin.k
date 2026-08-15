@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UserTableSettingsSaveRequest;
 use App\Models\UserTableSetting;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class UserTableSettingsController extends Controller
@@ -41,36 +41,29 @@ class UserTableSettingsController extends Controller
     }
 
     /**
-     * Сохранить настройки колонок для текущего пользователя.
-     * Ожидает в запросе: columns: { avatar: true, name: false, ... }
+     * Сохранить настройки колонок и/или «Показать N» для текущего пользователя.
      *
-     * POST /admin/users/table-settings
+     * POST /admin/users/columns-settings
      */
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(UserTableSettingsSaveRequest $request)
     {
         $userId = Auth::id();
         $actor = Auth::user();
+        $data = $request->validated();
+        $payload = [];
 
-        // валидируем только, что это массив
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
+        if (array_key_exists('columns', $data) && is_array($data['columns'])) {
+            $payload['columns'] = $this->filterColumnsByActorPermissions($data['columns'], $actor);
+        }
 
-        $rawColumns = $this->filterColumnsByActorPermissions($data['columns'], $actor);
+        if (array_key_exists('page_length', $data) && $data['page_length'] !== null) {
+            $payload['page_length'] = (int) $data['page_length'];
+        }
 
-        // аккуратно нормализуем к boolean
-        $normalized = [];
-
-        foreach ($rawColumns as $key => $value) {
-            // в запрос может прилететь 1/0, "1"/"0", true/false, "true"/"false"
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
-            // если вдруг ничего не распознали — считаем false
-            if ($bool === null) {
-                $bool = false;
-            }
-
-            $normalized[$key] = $bool;
+        if ($payload === []) {
+            return response()->json([
+                'success' => true,
+            ]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -78,9 +71,7 @@ class UserTableSettingsController extends Controller
                 'user_id'   => $userId,
                 'table_key' => 'users_index',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json([

@@ -725,6 +725,7 @@
                         contract: canShowLeadClientColumn,
                     },
                     toggleSelector: '.school-leads-column-toggle',
+                    persistPageLength: true,
                     urls: {
                         get: @json(route('admin.school-leads.columns-settings.get')),
                         save: @json(route('admin.school-leads.columns-settings.save')),
@@ -732,6 +733,7 @@
                     csrfToken: csrfToken,
                 },
                 dataTable: {
+                    pageLength: @json((int) ($leadsPageLength ?? 10)),
                     ajax: {
                         url: @json(route('admin.school-leads.data')),
                         type: 'GET',

@@ -15,6 +15,7 @@ use App\Models\SchoolLead;
 use App\Models\SchoolLeadStatus;
 use App\Models\Team;
 use App\Models\UserField;
+use App\Models\UserTableSetting;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
 use App\Services\PartnerContext;
@@ -80,6 +81,8 @@ class SchoolLeadController extends AdminBaseController
 
         $stats = $this->buildPartnerLeadStats($partnerId);
 
+        $authUserId = Auth::id();
+
         $viewData = [
             'canViewLocations'         => $canViewLocations,
             'canViewDistricts'         => $canViewDistricts,
@@ -92,6 +95,10 @@ class SchoolLeadController extends AdminBaseController
             'defaultStatusFilterIds'   => $defaultStatusFilterIds,
             'leadStats'                => $stats,
             'studentRoleId'            => (int) (Role::query()->where('name', 'user')->value('id') ?? 0),
+            'leadsPageLength'          => UserTableSetting::pageLengthForUser(
+                $authUserId !== null ? (int) $authUserId : null,
+                'school_leads_index'
+            ),
         ];
 
         if ($canViewContracts) {

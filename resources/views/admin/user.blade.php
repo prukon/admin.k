@@ -419,6 +419,7 @@
                         status_label: true,
                         actions: true,
                     },
+                    persistPageLength: true,
                     urls: {
                         get: @json(route('admin.users.table-settings.get')),
                         save: @json(route('admin.users.table-settings.save')),
@@ -426,6 +427,7 @@
                     csrfToken: '{{ csrf_token() }}',
                 },
                 dataTable: {
+                    pageLength: @json((int) ($usersPageLength ?? 10)),
                     ajax: {
                         url: @json(route('admin.users.data')),
                         type: 'GET',

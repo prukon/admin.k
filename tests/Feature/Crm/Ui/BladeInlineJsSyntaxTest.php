@@ -873,6 +873,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('[data-column-key="\' + key + \'"]', $content);
         $this->assertStringNotContainsString('config[colIndex]', $content);
         $this->assertStringNotContainsString('config[index]', $content);
+        $this->assertStringContainsString('function bindPageLengthPersist(table, settings)', $content);
+        $this->assertStringContainsString('settings.persistPageLength !== true', $content);
+        $this->assertStringContainsString('page_length: length', $content);
+        $this->assertStringContainsString('kids-dt-page-length-error', $content);
+        $this->assertStringContainsString("table.on('length.kidsCrmPageLength'", $content);
 
         $output = [];
         $exitCode = 0;
@@ -881,6 +886,104 @@ final class BladeInlineJsSyntaxTest extends TestCase
             0,
             $exitCode,
             "JS syntax error in resources/js/kids-datatable.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: persistPageLength шлёт только page_length, не номер страницы и не columns.
+     * UX-баг: если вместе с length уйдут columns=defaults — скрытые колонки вспыхнут после смены «Показать N».
+     */
+    public function test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number(): void
+    {
+        $path = resource_path('js/kids-datatable.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $fnStart = strpos($content, 'function pageLengthErrorHost(wrapper)');
+        $this->assertNotFalse($fnStart);
+        $fnEnd = strpos($content, 'function ensureTableScrollHost', $fnStart);
+        $this->assertNotFalse($fnEnd);
+        $chunk = substr($content, $fnStart, $fnEnd - $fnStart);
+
+        $this->assertStringContainsString('function bindPageLengthPersist(table, settings)', $chunk);
+        $this->assertStringContainsString('settings.persistPageLength !== true', $chunk);
+        $this->assertStringContainsString("table.on('length.kidsCrmPageLength'", $chunk);
+        $this->assertStringContainsString('page_length: length', $chunk);
+        $this->assertStringContainsString("firstValidationError(xhr, 'page_length')", $chunk);
+        $this->assertStringContainsString('.dataTables_length', $chunk);
+        $this->assertStringContainsString('kids-dt-page-length-error', $chunk);
+        $this->assertStringNotContainsString('start:', $chunk);
+        $this->assertStringNotContainsString('columns:', $chunk);
+        $this->assertStringNotContainsString('draw:', $chunk);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in resources/js/kids-datatable.js:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * P1: opt-in только заявки и ученики. Иначе «Показать N» начнёт писать в чужие columns-settings.
+     */
+    public function test_only_school_leads_and_users_blades_opt_in_to_page_length_persist(): void
+    {
+        $hits = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(resource_path('views'))
+        );
+
+        foreach ($iterator as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $contents = (string) file_get_contents($file->getPathname());
+            if (! str_contains($contents, 'persistPageLength: true')) {
+                continue;
+            }
+
+            $relative = str_replace(
+                resource_path('views').DIRECTORY_SEPARATOR,
+                '',
+                $file->getPathname()
+            );
+            $hits[] = str_replace('\\', '/', $relative);
+        }
+
+        sort($hits);
+
+        $this->assertSame([
+            'admin/school-leads/tabs/leads.blade.php',
+            'admin/user.blade.php',
+        ], $hits);
+
+        $leads = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
+        $leadsCreate = strpos($leads, "KidsCrmDataTable.create('#leads-table'");
+        $this->assertNotFalse($leadsCreate);
+        $leadsChunk = substr($leads, $leadsCreate, 1800);
+        $this->assertStringContainsString('persistPageLength: true', $leadsChunk);
+        $this->assertStringContainsString('pageLength: @json((int) ($leadsPageLength ?? 10))', $leadsChunk);
+
+        $users = (string) file_get_contents(resource_path('views/admin/user.blade.php'));
+        $usersCreate = strpos($users, "KidsCrmDataTable.create('#users-table'");
+        $this->assertNotFalse($usersCreate);
+        $usersChunk = substr($users, $usersCreate, 1800);
+        $this->assertStringContainsString('persistPageLength: true', $usersChunk);
+        $this->assertStringContainsString('pageLength: @json((int) ($usersPageLength ?? 10))', $usersChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/admin/school-leads/tabs/leads.blade.php'),
+            "KidsCrmDataTable.create('#leads-table'",
+            'blade-js-school-leads-page-length'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/admin/user.blade.php'),
+            "KidsCrmDataTable.create('#users-table'",
+            'blade-js-users-page-length'
         );
     }
 
@@ -2051,6 +2154,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('when: canShowLeadClientColumn', $content);
         $this->assertStringContainsString('when: canViewDistricts', $content);
         $this->assertStringContainsString("toggleSelector: '.school-leads-column-toggle'", $content);
+        $this->assertStringContainsString('persistPageLength: true', $content);
+        $this->assertStringContainsString('pageLength: @json((int) ($leadsPageLength ?? 10))', $content);
         $this->assertStringContainsString('child_full_name: true', $content);
         $this->assertStringContainsString('phone: true', $content);
         $this->assertStringContainsString("order: [[0, 'desc']]", $content);
@@ -2384,6 +2489,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('for="colParentPhone">Телефон родителя</label>', $content);
         $this->assertStringContainsString('for="colPhone">Телефон ученика</label>', $content);
         $this->assertStringContainsString('parent_phone: true', $content);
+        $this->assertStringContainsString('persistPageLength: true', $content);
+        $this->assertStringContainsString('pageLength: @json((int) ($usersPageLength ?? 10))', $content);
 
         $parentKeyPos = strpos($content, "{ key: 'parent', type: 'text', data: 'parent' }");
         $parentPhoneKeyPos = strpos($content, "key: 'parent_phone'");

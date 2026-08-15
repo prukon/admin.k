@@ -160,8 +160,8 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>HTML: список (DataTables), toolbar со счётчиками, панель фильтров, меню колонок</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON для DataTables (см. §5.2)</td></tr>
-      <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>JSON видимости: объект ключ → bool. Нет строки / <code>columns</code> не массив → <code>[]</code>. Без записи в БД</td></tr>
-      <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости: <code>columns</code> — объект ключ → bool (не индексы). AJAX/JSON и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД (не пустой 200). Без <code>columns</code> / не массив: AJAX → <b>422</b> <code>errors.columns</code>; non-AJAX → <b>302</b> + session errors. Гость → 302/401; без <code>schoolLeads.view</code> → 403. PUT/PATCH/DELETE на этот URI → 404/405</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>JSON видимости: объект ключ → bool. Нет строки / <code>columns</code> не массив → <code>[]</code>. Без записи в БД. Ключа <code>page_length</code> в ответе нет (§5.1.3)</td></tr>
+      <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости и/или «Показать N»: <code>columns</code> — объект ключ → bool (не индексы) и/или <code>page_length</code> ∈ {10,20,50,100}. AJAX/JSON и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД. Без <code>columns</code> и без <code>page_length</code>: AJAX → <b>422</b> <code>errors.columns</code>; non-AJAX → <b>302</b> + session errors. Невалидный <code>page_length</code>: AJAX → <b>422</b> <code>errors.page_length</code>; non-AJAX → <b>302</b>. Гость → 302/401; без <code>schoolLeads.view</code> → 403. PUT/PATCH/DELETE на этот URI → 404/405</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей, <code>parent_id</code> / <code>parent_match_confirmed</code> (§5.5.5); при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code>: можно менять только <code>school_lead_status_id</code>; любые другие поля → <b>422</b> (AJAX) / redirect с ошибками (non-AJAX). AJAX (<code>X-Requested-With</code> / <code>Accept: application/json</code>) → JSON; иначе → <b>302</b> на <code>/admin/school-leads</code></td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/statuses</code></td><td><code>can:schoolLeads.view</code></td><td>JSON: список статусов партнёра + системный «Новый» (§5.4)</td></tr>
@@ -196,7 +196,7 @@
       </ul>
     </li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings (<code>user_table_settings.school_leads_index</code>, объект ключ → bool, не индексы). Порядок по умолчанию: № → ФИО ребенка → ФИО родителя → Статус → Объект → Секция → Телефон родителя → далее остальные (§5.5.3). Колонки «Действия» нет. Число <code>&lt;th&gt;</code> всегда совпадает с активными DataTable <code>columns</code> (условные «Объект»/«Договор»/«Район» выпадают и из thead, и через <code>when</code>).</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; «Показать N» запоминается на админа (§5.1.3); редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
     <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2): без клиента — полное редактирование; с клиентом — поля read-only, <b>кроме статуса</b> (§5.5.4). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>status</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>phone</code>, <code>parent_email</code>, <code>child_full_name</code>, <code>child_birthday</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>team_title</code>, <code>child_flags</code>, <code>utm</code>, <code>page_url</code>, <code>comment</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
@@ -269,6 +269,39 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li><b>CRUD статусов</b> (§5.4) — отдельные события: <code>school_lead.status_created</code>, <code>school_lead.status_updated</code>, <code>school_lead.status_deleted</code> (категория <code>school_lead</code>).</li>
     <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar → <code>GET /admin/school-leads/logs-data</code> (<code>route('logs.data.school-lead')</code>), модалка <code>includes.logModal</code>.</li>
   </ul>
+
+  <h3 id="school-leads-page-length">5.1.4) «Показать N» — персонально на админа</h3>
+  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на вкладке «Заявки» сохраняется в
+    <code>user_table_settings.page_length</code> для <code>table_key = school_leads_index</code>
+    (та же строка, что видимость колонок). Номер страницы (<code>start</code>) не хранится.</p>
+  <ul>
+    <li><b>Старт.</b> <code>SchoolLeadController::index</code> читает <code>page_length</code> текущего пользователя
+      и передаёт <code>$leadsPageLength</code> в Blade. <code>KidsCrmDataTable.create</code> получает
+      <code>dataTable.pageLength</code> и <code>columnsSettings.persistPageLength: true</code>.
+      Нет записи / значение не из <code>10, 20, 50, 100</code> → <b>10</b>
+      (<code>UserTableSetting::resolvePageLength</code>).</li>
+    <li><b>Смена селекта.</b> Пресет слушает <code>length.dt</code> и делает
+      <code>POST /admin/school-leads/columns-settings</code> только с <code>page_length</code>
+      (колонки в этом запросе не отправляются и не затираются). Request:
+      <code>SchoolLeadColumnsSettingsSaveRequest</code>.</li>
+    <li><b>Ошибки.</b> Невалидное значение: AJAX → <b>422</b> <code>errors.page_length</code>
+      («Можно показать 10, 20, 50 или 100 записей.»), текст под <code>.dataTables_length</code>
+      (<code>.kids-dt-page-length-error</code>). Non-AJAX → <b>302</b> + session errors.
+      Пустой POST по-прежнему 422/302 по <code>columns</code>.</li>
+    <li><b>GET columns-settings</b> не отдаёт <code>page_length</code> — контракт видимости колонок
+      <code>{ ключ: bool }</code> / <code>[]</code> не менялся. Сохранение колонок не сбрасывает
+      <code>page_length</code>.</li>
+    <li>Другие админские таблицы на <code>KidsCrmDataTable</code> это <b>не</b> включают, пока нет
+      <code>persistPageLength: true</code> и поддержки <code>page_length</code> в их columns-settings.
+      На <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a> уже включено
+      (<code>table_key = users_index</code>).</li>
+  </ul>
+  <p class="small">Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие страницы держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется, лендинг/виджет без opt-in),
+    <code>SchoolLeadsPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
+    <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
+    (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
+    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>.
+    Анонс — <a href="/doc#school-leads-page-length-index">/doc</a>.</p>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>
@@ -767,7 +800,7 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
   <p class="small">
     Покрытие доступа: <code>SchoolLeadsPageFullAccessFeatureTest</code> (вкладка «Заявки»: страница, data с <code>status_ids[]</code> и комбинированными фильтрами, columns-settings, logs-data, update заявок и CRUD статусов, inline-update статуса с цветом — все endpoint'ы §5 → 200 при <code>schoolLeads.view</code>),
     <code>SchoolLeadsActionsColumnFullAccessFeatureTest</code> (§5.5.3: нет колонки «Действия»; гость/403; viewer/admin → 200 на страницу, data с лидами с клиентом и без, update и статусы),
-    <code>SchoolLeadsTableColumnsFeatureTest</code> / <code>SchoolLeadsTableColumnsFullAccessFeatureTest</code> / <code>SchoolLeadsTableColumnsAjaxContractFeatureTest</code> / <code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest</code> (порядок колонок, thead↔JS, видимость по ключу, columns-settings 200/403/422/302),
+    <code>SchoolLeadsTableColumnsFeatureTest</code> / <code>SchoolLeadsTableColumnsFullAccessFeatureTest</code> / <code>SchoolLeadsTableColumnsAjaxContractFeatureTest</code> / <code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest</code> / <code>SchoolLeadsPageLengthFeatureTest</code> / <code>SchoolLeadsPageLengthFullAccessFeatureTest</code> (порядок колонок, thead↔JS, видимость по ключу, columns-settings 200/403/422/302, персональный page_length, UX повторного открытия),
     <code>SchoolLeadEditModalFullAccessFeatureTest</code> (модалка §5.5.2: гость/403; viewer/admin → 200 на core endpoint'ы, расширенный <code>PUT</code>, workflow «создать клиента» и встроенная модалка договора),
     <code>SchoolLeadStatusesPageFullAccessFeatureTest</code>,
     <code>SchoolLeadsAccessFeatureTest</code>, <code>SchoolLeadsFullAccessFeatureTest</code>
@@ -842,14 +875,15 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li>Модели: <code>App\Models\SchoolLead</code> (<code>user()</code>, <code>schoolLeadStatus()</code>, <code>team()</code>, <code>source</code>), <code>SchoolLeadStatus</code>, <code>User</code> (<code>schoolLead()</code>), <code>PartnerWidget</code>, <code>PartnerTelegramLinkToken</code></li>
     <li>Сервисы: <code>PartnerWidgetService</code>, <code>PartnerTelegramLinkService</code>, <code>SchoolLeadNotificationService</code>, <code>SchoolLeadLandingService</code>, <code>TelegramBotClient</code>, <code>SchoolLeads\LatestUserContractLookup</code></li>
     <li>Контроллеры: <code>SchoolLeadWidgetController</code>, <code>SchoolLeadLandingController</code>, <code>Admin\SchoolLeadController</code>, <code>Admin\SchoolLeadStatusController</code>, <code>Admin\SchoolLeadColumnsSettingsController</code>, <code>Admin\SchoolWidgetController</code>, <code>Admin\SchoolLeadLandingController</code>, <code>Admin\UserController</code> (привязка <code>user_id</code> к лиду), <code>Contracts\ContractsController</code> (<code>create</code> с <code>user_id</code>), <code>TelegramSchoolLeadWebhookController</code></li>
-    <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
-    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code></li>
+    <li>Request: <code>SubmitSchoolLeadRequest</code>, <code>SubmitSchoolLeadLandingRequest</code>, <code>UpdateSchoolLeadRequest</code>, <code>StoreSchoolLeadStatusRequest</code>, <code>UpdateSchoolLeadStatusRequest</code>, <code>SchoolLeadColumnsSettingsSaveRequest</code>, <code>User\StoreRequest</code> (<code>school_lead_id</code>)</li>
+    <li>Миграции: <code>2026_05_19_140001_create_school_leads_table.php</code>, <code>140002_seed_school_leads_permissions_and_widgets.php</code>, <code>150000_add_school_leads_telegram_chat_id_to_partners_table.php</code>, <code>160000_add_location_id_to_school_leads_table.php</code>, <code>170000_add_user_id_to_school_leads_table.php</code>, <code>2026_05_29_100000_add_landing_key_to_partner_widgets_table.php</code>, <code>2026_05_30_120000_add_landing_slug_to_partner_widgets_table.php</code>, <code>2026_05_29_100001_add_extended_fields_to_school_leads_table.php</code>, <code>2026_05_29_120002_add_sport_type_id_to_school_leads_table.php</code>, <code>2026_06_16_140000_create_school_lead_statuses_and_migrate_school_leads.php</code>, <code>2026_06_17_120000_update_system_school_lead_new_status_color.php</code>, <code>2026_08_16_003000_add_page_length_to_user_table_settings_table.php</code></li>
     <li>View: <code>resources/views/widget/school-lead-form.blade.php</code>, <code>resources/views/landing/partner-lead.blade.php</code>, <code>admin/school-leads/index.blade.php</code> (+ <code>tabs/leads.blade.php</code>, <code>partials/edit-lead-modal.blade.php</code>, <code>partials/status-settings.blade.php</code>), <code>admin/users/_parent_form.blade.php</code>, <code>includes/modal/_student_health_fields.blade.php</code>, <code>contracts/partials/create-modal.blade.php</code> (встроен на странице заявок при <code>contracts.view</code>); сайдбар — <code>resources/views/includes/sidebar.blade.php</code> (§3.1); View composer — <code>App\Providers\AppServiceProvider</code>; стили inline-статуса — <code>resources/css/datatables-columns.css</code></li>
   </ul>
 
   <h2>10) Автотесты</h2>
   <pre><code>php artisan test --env=testing --filter=SchoolLead
-php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
+php artisan test --env=testing tests/Feature/Crm/SchoolLeads/
+php artisan test --env=testing tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLengthFeatureTest.php tests/Feature/Crm/SchoolLeads/SchoolLeadsPageLengthFullAccessFeatureTest.php</code></pre>
   <p><b>Публичный виджет и страница заявки</b></p>
   <ul>
     <li><code>tests/Feature/Public/SchoolLeadWidgetSubmitTest.php</code> — форма виджета, submit, consent, inactive widget</li>
@@ -870,6 +904,8 @@ php artisan test --env=testing tests/Feature/Crm/SchoolLeads/</code></pre>
     <li><code>SchoolLeadsTableColumnsFeatureTest.php</code> — порядок ребёнок→родитель→статус→объект→секция→телефон→договор; thead совпадает с активными DataTable columns; без locations.view нет «Объект»; скрытый <code>phone</code> остаётся по ключу; mapping parent/child FIO; нет «Действия»; маршрут destroy отсутствует; DELETE URL → 405</li>
     <li><code>SchoolLeadsTableColumnsFullAccessFeatureTest.php</code> — гость/403/200 на page/data/columns-settings/update; DELETE URL → 405; PUT/PATCH/DELETE columns-settings → 404/405 не 500</li>
     <li><code>SchoolLeadsTableColumnsAjaxContractFeatureTest.php</code> — GET/POST JSON columns-settings: 200 <code>{success:true}</code>, 422 <code>errors.columns</code>, нормализация bool, изоляция пользователя</li>
+    <li><code>SchoolLeadsPageLengthFeatureTest.php</code> — §5.1.4: <code>page_length</code> 10/20/50/100 в БД на админа; index подставляет <code>pageLength</code>; GET колонок без ключа <code>page_length</code>; 422 <code>errors.page_length</code>; колонки и page_length не затирают друг друга; повторное открытие держит N; скрытие колонок не сбрасывает N; extra <code>start</code>/<code>draw</code> не пишутся; лендинг/виджет без opt-in; гость/403</li>
+    <li><code>SchoolLeadsPageLengthFullAccessFeatureTest.php</code> — §5.1.4 доступ: гость не 200/500; без <code>schoolLeads.view</code> → 403; viewer сохраняет и видит N после reload; admin AJAX + non-AJAX JSON 200; PUT/PATCH/DELETE → 404/405</li>
     <li><code>SchoolLeadsTableColumnsNonAjaxSafetyNetFeatureTest.php</code> — [P1] non-AJAX POST: успех JSON 200 + запись в БД (не пустой 200); без <code>columns</code> → 302 + session errors; гость/403</li>
     <li><code>SchoolLeadsTableColumnsFullAccessFeatureTest.php</code> — гость/403/200 на page/data/update; DELETE URL → 405 для guest/viewer/admin</li>
     <li><code>SchoolLeadsAuthorizationTest.php</code> — middleware маршрутов, права в конфиге</li>

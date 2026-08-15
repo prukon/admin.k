@@ -12,6 +12,7 @@ use App\Models\Role;
 use App\Models\SchoolLead;
 use App\Models\Team;
 use App\Models\User;
+use App\Models\UserTableSetting;
 use App\Services\PartnerContext;
 use Illuminate\Http\Request;
 use App\Models\UserField;
@@ -102,6 +103,11 @@ class UserController extends AdminBaseController
         $canViewUserComment = $currentUser?->can('users.comment') ?? false;
         $canManageUserDiscount = $currentUser?->can('users.discount.manage') ?? false;
         $studentRoleId = (int) (Role::query()->where('name', 'user')->value('id') ?? 0);
+        $authUserId = Auth::id();
+        $usersPageLength = UserTableSetting::pageLengthForUser(
+            $authUserId !== null ? (int) $authUserId : null,
+            'users_index'
+        );
 
         // 6) Отдаём на view
         return view('admin.user', compact(
@@ -115,7 +121,8 @@ class UserController extends AdminBaseController
             'canViewUserSex',
             'canViewUserComment',
             'canManageUserDiscount',
-            'studentRoleId'
+            'studentRoleId',
+            'usersPageLength'
         ) + $this->usersSectionViewData('users'));
     }
 
