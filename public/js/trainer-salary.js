@@ -547,4 +547,6 @@
     }
 
     bindTableEvents();
+
+    window.__reloadTrainerSalaryReport = fetchReport;
 })();

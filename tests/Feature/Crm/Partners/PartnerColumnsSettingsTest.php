@@ -177,6 +177,24 @@ class PartnerColumnsSettingsTest extends CrmTestCase
             ->assertJsonValidationErrors(['columns']);
     }
 
+    public function test_user_can_hide_platform_commission_column_and_reload_keeps_it_hidden(): void
+    {
+        $this->postJson(route('admin.partner.columns-settings.save'), [
+            'columns' => [
+                'title' => true,
+                'platform_commission_all' => false,
+                'platform_commission_month_0' => true,
+            ],
+        ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->getJson(route('admin.partner.columns-settings.get'))
+            ->assertOk()
+            ->assertJsonPath('platform_commission_all', false)
+            ->assertJsonPath('platform_commission_month_0', true);
+    }
+
     private function grantPartnerView(): void
     {
         DB::table('permission_role')->insertOrIgnore([

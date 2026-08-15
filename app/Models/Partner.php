@@ -9,6 +9,7 @@ use App\Models\Traits\Filterable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use App\Services\PartnerWidgetService;
+use App\Services\Trainers\TrainerTypeCatalog;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use RuntimeException;
 
@@ -63,6 +64,7 @@ class Partner extends Model
             self::assignBasePermissionsForPartner((int) $partner->id);
             LessonOccurrenceStatusesSeeder::ensureForPartner((int) $partner->id);
             app(PartnerWidgetService::class)->ensureForPartner((int) $partner->id);
+            app(TrainerTypeCatalog::class)->ensureSystemType((int) $partner->id);
         });
     }
 

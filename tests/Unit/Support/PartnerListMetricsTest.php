@@ -21,7 +21,7 @@ final class PartnerListMetricsTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-08-13 21:00:00', 'Europe/Moscow'));
 
         $this->assertSame(
-            [0 => 'август', 1 => 'июль', 2 => 'июнь'],
+            [0 => 'Август', 1 => 'Июль', 2 => 'Июнь'],
             PartnerListMetrics::monthColumnLabels()
         );
     }
@@ -31,7 +31,7 @@ final class PartnerListMetricsTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2027-01-05 10:00:00', 'Europe/Moscow'));
 
         $this->assertSame(
-            [0 => 'январь', 1 => 'декабрь', 2 => 'ноябрь'],
+            [0 => 'Январь', 1 => 'Декабрь', 2 => 'Ноябрь'],
             PartnerListMetrics::monthColumnLabels()
         );
     }
@@ -59,9 +59,13 @@ final class PartnerListMetricsTest extends TestCase
         $this->assertSame('active_users_count', PartnerListMetrics::orderByExpression('active_users_count'));
         $this->assertSame('signed_contracts_count', PartnerListMetrics::orderByExpression('signed_contracts_count'));
         $this->assertSame('turnover_all_cents', PartnerListMetrics::orderByExpression('turnover_all'));
+        $this->assertSame('platform_commission_all_cents', PartnerListMetrics::orderByExpression('platform_commission_all'));
         $this->assertSame('turnover_month_0_cents', PartnerListMetrics::orderByExpression('turnover_month_0'));
+        $this->assertSame('platform_commission_month_0_cents', PartnerListMetrics::orderByExpression('platform_commission_month_0'));
         $this->assertSame('turnover_month_1_cents', PartnerListMetrics::orderByExpression('turnover_month_1'));
+        $this->assertSame('platform_commission_month_1_cents', PartnerListMetrics::orderByExpression('platform_commission_month_1'));
         $this->assertSame('turnover_month_2_cents', PartnerListMetrics::orderByExpression('turnover_month_2'));
+        $this->assertSame('platform_commission_month_2_cents', PartnerListMetrics::orderByExpression('platform_commission_month_2'));
         $this->assertNull(PartnerListMetrics::orderByExpression('title'));
     }
 }

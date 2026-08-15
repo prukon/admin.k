@@ -117,7 +117,7 @@
                                            data-column-key="active_users_count"
                                            id="colPartnerActiveUsers"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerActiveUsers">Кол-во активных пользователей</label>
+                                    <label class="form-check-label" for="colPartnerActiveUsers">Акт. польз.</label>
                                 </div>
 
                                 <div class="form-check">
@@ -126,7 +126,7 @@
                                            data-column-key="signed_contracts_count"
                                            id="colPartnerSignedContracts"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerSignedContracts">Кол-во договоров</label>
+                                    <label class="form-check-label" for="colPartnerSignedContracts">Договоров</label>
                                 </div>
 
                                 <div class="form-check">
@@ -135,7 +135,16 @@
                                            data-column-key="turnover_all"
                                            id="colPartnerTurnoverAll"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerTurnoverAll">Оборот за всё время</label>
+                                    <label class="form-check-label" for="colPartnerTurnoverAll">За всё время</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="platform_commission_all"
+                                           id="colPartnerPlatformCommissionAll"
+                                           checked>
+                                    <label class="form-check-label" for="colPartnerPlatformCommissionAll">% за всё время</label>
                                 </div>
 
                                 <div class="form-check">
@@ -144,7 +153,16 @@
                                            data-column-key="turnover_month_0"
                                            id="colPartnerTurnoverMonth0"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerTurnoverMonth0">Оборот за {{ $partnerMetricMonthLabels[0] }}</label>
+                                    <label class="form-check-label" for="colPartnerTurnoverMonth0">{{ $partnerMetricMonthLabels[0] }}</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="platform_commission_month_0"
+                                           id="colPartnerPlatformCommissionMonth0"
+                                           checked>
+                                    <label class="form-check-label" for="colPartnerPlatformCommissionMonth0">% {{ $partnerMetricMonthLabels[0] }}</label>
                                 </div>
 
                                 <div class="form-check">
@@ -153,7 +171,16 @@
                                            data-column-key="turnover_month_1"
                                            id="colPartnerTurnoverMonth1"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerTurnoverMonth1">Оборот за {{ $partnerMetricMonthLabels[1] }}</label>
+                                    <label class="form-check-label" for="colPartnerTurnoverMonth1">{{ $partnerMetricMonthLabels[1] }}</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="platform_commission_month_1"
+                                           id="colPartnerPlatformCommissionMonth1"
+                                           checked>
+                                    <label class="form-check-label" for="colPartnerPlatformCommissionMonth1">% {{ $partnerMetricMonthLabels[1] }}</label>
                                 </div>
 
                                 <div class="form-check">
@@ -162,7 +189,16 @@
                                            data-column-key="turnover_month_2"
                                            id="colPartnerTurnoverMonth2"
                                            checked>
-                                    <label class="form-check-label" for="colPartnerTurnoverMonth2">Оборот за {{ $partnerMetricMonthLabels[2] }}</label>
+                                    <label class="form-check-label" for="colPartnerTurnoverMonth2">{{ $partnerMetricMonthLabels[2] }}</label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input column-toggle"
+                                           type="checkbox"
+                                           data-column-key="platform_commission_month_2"
+                                           id="colPartnerPlatformCommissionMonth2"
+                                           checked>
+                                    <label class="form-check-label" for="colPartnerPlatformCommissionMonth2">% {{ $partnerMetricMonthLabels[2] }}</label>
                                 </div>
 
                                 <div class="form-check">
@@ -218,12 +254,16 @@
                     <th>E-mail</th>
                     <th>Телефон</th>
                     <th>Статус</th>
-                    <th>Кол-во активных пользователей</th>
-                    <th>Кол-во договоров</th>
-                    <th>Оборот за всё время</th>
-                    <th>Оборот за {{ $partnerMetricMonthLabels[0] }}</th>
-                    <th>Оборот за {{ $partnerMetricMonthLabels[1] }}</th>
-                    <th>Оборот за {{ $partnerMetricMonthLabels[2] }}</th>
+                    <th>Акт. польз.</th>
+                    <th>Договоров</th>
+                    <th>За всё время</th>
+                    <th>% за всё время</th>
+                    <th>{{ $partnerMetricMonthLabels[0] }}</th>
+                    <th>% {{ $partnerMetricMonthLabels[0] }}</th>
+                    <th>{{ $partnerMetricMonthLabels[1] }}</th>
+                    <th>% {{ $partnerMetricMonthLabels[1] }}</th>
+                    <th>{{ $partnerMetricMonthLabels[2] }}</th>
+                    <th>% {{ $partnerMetricMonthLabels[2] }}</th>
                     <th>Действия</th>
                 </tr>
                 </thead>
@@ -285,9 +325,13 @@
                         active_users_count: true,
                         signed_contracts_count: true,
                         turnover_all: true,
+                        platform_commission_all: true,
                         turnover_month_0: true,
+                        platform_commission_month_0: true,
                         turnover_month_1: true,
+                        platform_commission_month_1: true,
                         turnover_month_2: true,
+                        platform_commission_month_2: true,
                         actions: true,
                     },
                     urls: {
@@ -345,9 +389,13 @@
                     { key: 'active_users_count', type: 'count', data: 'active_users_count', name: 'active_users_count' },
                     { key: 'signed_contracts_count', type: 'count', data: 'signed_contracts_count', name: 'signed_contracts_count' },
                     { key: 'turnover_all', type: 'money', data: 'turnover_all', name: 'turnover_all', className: 'dt-col-count text-nowrap' },
+                    { key: 'platform_commission_all', type: 'money', data: 'platform_commission_all', name: 'platform_commission_all', className: 'dt-col-count text-nowrap' },
                     { key: 'turnover_month_0', type: 'money', data: 'turnover_month_0', name: 'turnover_month_0', className: 'dt-col-count text-nowrap' },
+                    { key: 'platform_commission_month_0', type: 'money', data: 'platform_commission_month_0', name: 'platform_commission_month_0', className: 'dt-col-count text-nowrap' },
                     { key: 'turnover_month_1', type: 'money', data: 'turnover_month_1', name: 'turnover_month_1', className: 'dt-col-count text-nowrap' },
+                    { key: 'platform_commission_month_1', type: 'money', data: 'platform_commission_month_1', name: 'platform_commission_month_1', className: 'dt-col-count text-nowrap' },
                     { key: 'turnover_month_2', type: 'money', data: 'turnover_month_2', name: 'turnover_month_2', className: 'dt-col-count text-nowrap' },
+                    { key: 'platform_commission_month_2', type: 'money', data: 'platform_commission_month_2', name: 'platform_commission_month_2', className: 'dt-col-count text-nowrap' },
                     {
                         key: 'actions',
                         type: 'actions',

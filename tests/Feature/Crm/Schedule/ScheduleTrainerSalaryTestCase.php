@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\User;
+use App\Models\TrainerProfile;
+use App\Services\Trainers\TrainerTypeCatalog;
 use Illuminate\Support\Facades\DB;
 
 abstract class ScheduleTrainerSalaryTestCase extends ScheduleJournalTestCase
@@ -70,5 +72,22 @@ abstract class ScheduleTrainerSalaryTestCase extends ScheduleJournalTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    protected function setTrainerTypeRates(
+        TrainerProfile $trainer,
+        int|string $rateRubles,
+        int|string $premiumRubles = 0,
+    ): void {
+        $catalog = app(TrainerTypeCatalog::class);
+        $type = $catalog->ensureProfileHasType($trainer->fresh(['trainerType']));
+        $catalog->update($type, [
+            'name' => $type->name,
+            'sort_order' => (int) $type->sort_order,
+            'is_enabled' => true,
+            'rate_per_training' => $rateRubles,
+            'base_premium' => $premiumRubles,
+        ]);
+        $trainer->refresh();
     }
 }

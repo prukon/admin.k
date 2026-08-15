@@ -28,6 +28,17 @@
                                     </span>
                                     <span class="payments-report-toolbar-label d-none d-sm-inline">Добавить</span>
                                 </button>
+                                @if($showTrainerTypes ?? false)
+                                    <button type="button"
+                                            class="payments-report-toolbar-action d-inline-flex align-items-center gap-2"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#trainerTypesModal">
+                                        <span class="payments-report-toolbar-icon-wrap" aria-hidden="true">
+                                            <i class="fas fa-user-tag payments-report-toolbar-icon"></i>
+                                        </span>
+                                        <span class="payments-report-toolbar-label d-none d-sm-inline">Типы</span>
+                                    </button>
+                                @endif
 
                                 <button class="payments-report-toolbar-action payments-report-filters-toggle d-inline-flex align-items-center gap-2"
                                         type="button"
@@ -241,17 +252,29 @@
                                     <div class="invalid-feedback d-block" data-error-for="sort_order"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6 js-trainer-type-fields {{ ($showTrainerTypes ?? false) ? '' : 'd-none' }}">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-create-type">Тип тренера*</label>
+                                    <select class="form-select" name="trainer_type_id" id="trainer-create-type"
+                                            @disabled(!($showTrainerTypes ?? false))>
+                                        @foreach(($trainerTypeOptions ?? collect()) as $type)
+                                            <option value="{{ $type->id }}" @selected($type->is_system)>{{ $type->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback d-block" data-error-for="trainer_type_id"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 js-trainer-classic-salary-fields {{ ($showTrainerTypes ?? false) ? 'd-none' : '' }}">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-default-base-salary">Оклад по умолчанию</label>
-                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-create-default-base-salary" value="0" min="0" step="0.01" />
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-create-default-base-salary" value="0" min="0" step="0.01" @disabled($showTrainerTypes ?? false) />
                                     <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6 js-trainer-classic-salary-fields {{ ($showTrainerTypes ?? false) ? 'd-none' : '' }}">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-create-default-rate">Ставка за тренировку</label>
-                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-create-default-rate" value="0" min="0" step="0.01" />
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-create-default-rate" value="0" min="0" step="0.01" @disabled($showTrainerTypes ?? false) />
                                     <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>
@@ -374,17 +397,29 @@
                                     <div class="invalid-feedback d-block" data-error-for="is_enabled"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6 js-trainer-type-fields {{ ($showTrainerTypes ?? false) ? '' : 'd-none' }}">
+                                <div class="mb-3">
+                                    <label class="form-label" for="trainer-edit-type">Тип тренера*</label>
+                                    <select class="form-select" name="trainer_type_id" id="trainer-edit-type"
+                                            @disabled(!($showTrainerTypes ?? false))>
+                                        @foreach(($trainerTypeOptions ?? collect()) as $type)
+                                            <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="invalid-feedback d-block" data-error-for="trainer_type_id"></div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 js-trainer-classic-salary-fields {{ ($showTrainerTypes ?? false) ? 'd-none' : '' }}">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-edit-default-base-salary">Оклад по умолчанию</label>
-                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-edit-default-base-salary" min="0" step="0.01" />
+                                    <input type="number" class="form-control" name="default_base_salary" id="trainer-edit-default-base-salary" min="0" step="0.01" @disabled($showTrainerTypes ?? false) />
                                     <div class="invalid-feedback d-block" data-error-for="default_base_salary"></div>
                                 </div>
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6 js-trainer-classic-salary-fields {{ ($showTrainerTypes ?? false) ? 'd-none' : '' }}">
                                 <div class="mb-3">
                                     <label class="form-label" for="trainer-edit-default-rate">Ставка за тренировку</label>
-                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-edit-default-rate" min="0" step="0.01" />
+                                    <input type="number" class="form-control" name="default_rate_per_training" id="trainer-edit-default-rate" min="0" step="0.01" @disabled($showTrainerTypes ?? false) />
                                     <div class="invalid-feedback d-block" data-error-for="default_rate_per_training"></div>
                                 </div>
                             </div>
@@ -437,6 +472,9 @@
     </div>
 
     @include('includes.modal.editAvatar')
+    @if($showTrainerTypes ?? false)
+        @include('admin.trainers._trainer_types_modal')
+    @endif
     </div>
 @endsection
 
@@ -448,12 +486,48 @@
             storeUrl: @json(route('admin.trainers.store')),
             dataUrl: @json(route('admin.trainers.data')),
             canChangePassword: @json($canChangeTrainerPassword ?? false),
+            showTrainerTypes: @json((bool) ($showTrainerTypes ?? false)),
         };
     </script>
+    @if($showTrainerTypes ?? false)
+        @include('admin.trainers._trainer_types_assets')
+    @endif
     <script>
         $(document).ready(function () {
             const defaultAvatar = window.__trainerPageConfig.defaultAvatar;
             const defaultFilterStatus = 'active';
+
+            window.__onTrainerTypesChanged = function (types) {
+                const list = Array.isArray(types) ? types : [];
+                const enabled = list.filter((t) => Number(t.is_enabled) === 1);
+                document.querySelectorAll('select[name="trainer_type_id"]').forEach((select) => {
+                    if (select.disabled) {
+                        return;
+                    }
+                    const current = select.value;
+                    const currentType = list.find((t) => String(t.id) === String(current));
+                    select.innerHTML = '';
+                    enabled.forEach((type) => {
+                        const opt = document.createElement('option');
+                        opt.value = String(type.id);
+                        opt.textContent = type.name;
+                        if (Number(type.is_system) === 1 && !current) {
+                            opt.selected = true;
+                        }
+                        if (String(type.id) === String(current)) {
+                            opt.selected = true;
+                        }
+                        select.appendChild(opt);
+                    });
+                    if (current && currentType && Number(currentType.is_enabled) !== 1) {
+                        const opt = document.createElement('option');
+                        opt.value = String(currentType.id);
+                        opt.textContent = currentType.name;
+                        opt.selected = true;
+                        select.appendChild(opt);
+                    }
+                });
+            };
 
             function trainersFilterParams() {
                 return {
@@ -921,6 +995,16 @@
                 const rateEl = editForm.querySelector('[name="default_rate_per_training"]');
                 if (rateEl) {
                     rateEl.value = data.default_rate_per_training ?? '0';
+                }
+                const typeEl = editForm.querySelector('[name="trainer_type_id"]');
+                if (typeEl && data.trainer_type_id) {
+                    if (![...typeEl.options].some((opt) => String(opt.value) === String(data.trainer_type_id))) {
+                        const opt = document.createElement('option');
+                        opt.value = String(data.trainer_type_id);
+                        opt.textContent = data.trainer_type_name || ('Тип #' + data.trainer_type_id);
+                        typeEl.appendChild(opt);
+                    }
+                    typeEl.value = String(data.trainer_type_id);
                 }
                 setTeamIdsCheckboxes(editForm, data.team_ids || []);
                 applyTrainerEditAvatar(data);

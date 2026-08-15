@@ -25,6 +25,7 @@ class TrainerProfile extends Model
         'sort_order' => 'int',
         'default_base_salary_cents' => 'integer',
         'default_rate_per_training_cents' => 'integer',
+        'trainer_type_id' => 'int',
     ];
 
     public function partner(): BelongsTo
@@ -35,6 +36,11 @@ class TrainerProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function trainerType(): BelongsTo
+    {
+        return $this->belongsTo(TrainerType::class, 'trainer_type_id');
     }
 
     public function teams(): BelongsToMany

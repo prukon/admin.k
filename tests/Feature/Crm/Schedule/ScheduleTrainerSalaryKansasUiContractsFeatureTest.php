@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Schedule;
 
 use App\Models\Team;
-use App\Models\TrainerSalaryKansasDraftTrainer;
 use App\Models\TrainerSalaryKansasPeriodSetting;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
@@ -34,19 +33,9 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $studentB = $this->makeStudent($team->id);
         $this->createVisitedScheduleEntry($studentA->id, $trainerA->id, '2026-05-04');
         $this->createVisitedScheduleEntry($studentB->id, $trainerB->id, '2026-05-05');
+        $this->setTrainerTypeRates($trainerA, 1000);
 
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
-
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainerA), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainerB), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
 
         $before = collect(
             $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->json('rows')
@@ -94,18 +83,9 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             null,
             [$trainerA->id, $trainerB->id],
         );
+        $this->setTrainerTypeRates($trainerA, 1000);
 
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainerA), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainerB), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainerA), [
             'year' => 2026,
             'month' => 5,
@@ -178,7 +158,7 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $response->assertJsonPath('row.bonuses', '50.00');
     }
 
-    public function test_first_open_shows_zero_x_and_profile_default_rate(): void
+    public function test_first_open_shows_zero_x_and_system_type_rates(): void
     {
         $trainer = $this->makeTrainerProfile('Дефолт оклад');
         $trainer->update(['default_rate_per_training_cents' => 50000]);
@@ -192,7 +172,8 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertStringContainsString('data-field="premium_increment"', $html);
         $this->assertStringContainsString('value="0.00"', $html);
         $this->assertStringContainsString('Дефолт оклад', $html);
-        $this->assertStringContainsString('data-field="rate_per_training"', $html);
+        $this->assertStringNotContainsString('data-field="rate_per_training"', $html);
+        $this->assertStringContainsString('Типы тренеров', $html);
 
         $row = collect(
             $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
@@ -201,7 +182,7 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         )->firstWhere('trainer_profile_id', $trainer->id);
 
         $this->assertNotNull($row);
-        $this->assertSame('500.00', $row['rate_per_training']);
+        $this->assertSame('0.00', $row['rate_per_training']);
         $this->assertSame('0.00', $row['base_premium']);
         $this->assertSame('0.00', $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
             ->json('draft_view_data.premium_increment'));
@@ -265,14 +246,14 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             $cursor = $pos + mb_strlen($needle);
         }
 
-        $this->assertStringContainsString('data-field="rate_per_training"', $html);
-        $this->assertStringContainsString('data-field="base_premium"', $html);
         $this->assertStringContainsString('data-field="premium_increment"', $html);
         $this->assertStringContainsString('data-field="base_avg_students"', $html);
-        $this->assertStringContainsString('data-error-for="rate_per_training"', $html);
-        $this->assertStringContainsString('data-error-for="base_premium"', $html);
         $this->assertStringContainsString('data-error-for="premium_increment"', $html);
         $this->assertStringContainsString('data-error-for="base_avg_students"', $html);
+        $this->assertStringNotContainsString('data-field="rate_per_training"', $html);
+        $this->assertStringNotContainsString('data-field="base_premium"', $html);
+        $this->assertStringNotContainsString('data-error-for="rate_per_training"', $html);
+        $this->assertStringNotContainsString('data-error-for="base_premium"', $html);
         $this->assertStringContainsString('data-error-for="team_id"', $html);
         $this->assertStringContainsString('data-save-trainer-id="'.$trainer->id.'"', $html);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $html);
@@ -471,21 +452,26 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             ->patch(route('schedule.trainer-salary.draft.update', $trainer), [
                 'year' => 2026,
                 'month' => 5,
-                'rate_per_training' => 777,
+                'premium_increment' => 777,
             ]);
 
         $this->assertNotSame(500, $response->getStatusCode());
         $this->assertNotSame(302, $response->getStatusCode(), 'Autosave Канзаса отвечает JSON, не redirect');
         $response->assertOk();
         $response->assertJsonPath('message', 'Черновик сохранён');
-        $response->assertJsonPath('row.rate_per_training', '777.00');
+        $this->assertStringContainsString('value="777.00"', (string) $response->json('table_html'));
         $this->assertNotSame('', trim((string) $response->getContent()));
 
-        $settings = TrainerSalaryKansasDraftTrainer::query()
-            ->whereHas('draftLine', fn ($q) => $q->where('trainer_profile_id', $trainer->id))
+        $periodId = (int) TrainerSalaryPeriod::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('year', 2026)
+            ->where('month', 5)
+            ->value('id');
+        $settings = TrainerSalaryKansasPeriodSetting::query()
+            ->where('trainer_salary_period_id', $periodId)
             ->first();
         $this->assertNotNull($settings);
-        $this->assertSame(77700, (int) $settings->rate_per_training_cents);
+        $this->assertSame(77700, (int) $settings->premium_increment_cents);
     }
 
     public function test_non_ajax_form_one_creates_snapshot_and_returns_json_not_empty_200(): void
@@ -509,6 +495,34 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             'scheme_code' => 'kansas',
             'version' => 1,
         ]);
+    }
+
+    public function test_kansas_draft_patch_rejects_rate_and_premium_and_does_not_save_x(): void
+    {
+        $trainer = $this->makeTrainerProfile('Readonly из таблицы');
+        $this->setTrainerTypeRates($trainer, 400, 50);
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
+
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'rate_per_training' => 999,
+            'base_premium' => 888,
+            'premium_increment' => 10,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['rate_per_training', 'base_premium']);
+
+        $row = collect(
+            $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+                ->assertOk()
+                ->json('rows')
+        )->firstWhere('trainer_profile_id', $trainer->id);
+
+        $this->assertSame('400.00', $row['rate_per_training']);
+        $this->assertSame('50.00', $row['base_premium']);
+        $this->assertSame('0.00', $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->json('draft_view_data.premium_increment'));
     }
 
     public function test_validation_errors_are_returned_per_field(): void
@@ -589,10 +603,10 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             'year' => 2026,
             'month' => 5,
             'bonuses' => 999,
-            'rate_per_training' => 10,
+            'premium_increment' => 10,
         ]);
 
-        $response->assertOk()->assertJsonPath('row.rate_per_training', '10.00');
+        $response->assertOk()->assertJsonPath('row.rate_per_training', '0.00');
         $this->assertArrayNotHasKey('bonuses', $response->json('row'));
     }
 

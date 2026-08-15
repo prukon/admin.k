@@ -648,6 +648,20 @@ Route::middleware(['auth', '2fa'])->group(function () {
             ->name('admin.trainers.destroy');
     });
 
+    Route::get('admin/trainer-types', [\App\Http\Controllers\Admin\TrainerTypeController::class, 'index'])
+        ->name('admin.trainer-types.index');
+    Route::get('admin/trainer-types/{trainerType}', [\App\Http\Controllers\Admin\TrainerTypeController::class, 'show'])
+        ->whereNumber('trainerType')
+        ->name('admin.trainer-types.show');
+    Route::post('admin/trainer-types', [\App\Http\Controllers\Admin\TrainerTypeController::class, 'store'])
+        ->name('admin.trainer-types.store');
+    Route::put('admin/trainer-types/{trainerType}', [\App\Http\Controllers\Admin\TrainerTypeController::class, 'update'])
+        ->whereNumber('trainerType')
+        ->name('admin.trainer-types.update');
+    Route::delete('admin/trainer-types/{trainerType}', [\App\Http\Controllers\Admin\TrainerTypeController::class, 'destroy'])
+        ->whereNumber('trainerType')
+        ->name('admin.trainer-types.destroy');
+
     // Администраторы и кастомные роли (staff users)
     Route::middleware(['can:users.view', 'can:users.role.update'])->group(function () {
         Route::get('admin/administrators', [\App\Http\Controllers\Admin\RoleStaffUserController::class, 'administratorsIndex'])->name('admin.administrators.index');

@@ -11,8 +11,10 @@ use App\Models\User;
 use App\Models\Team;
 use App\Services\PartnerContext;
 use App\Services\TeamTrainerSyncService;
+use App\Services\Trainers\TrainerTypeCatalog;
 use App\Services\Users\ClientWelcomeCredentialsService;
 use App\Support\Money;
+use App\Support\TrainerTypeAccess;
 use App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -31,6 +33,7 @@ class TrainerController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly TeamTrainerSyncService $teamTrainerSync,
         private readonly ClientWelcomeCredentialsService $welcomeCredentialsService,
+        private readonly TrainerTypeCatalog $trainerTypes,
     ) {
         parent::__construct($partnerContext);
     }
@@ -45,7 +48,18 @@ class TrainerController extends AdminBaseController
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        return view('admin.trainers.index', compact('teamOptions') + $this->usersSectionViewData('trainers'));
+        $showTrainerTypes = TrainerTypeAccess::partnerHasKansas($partnerId);
+        $canManageTrainerTypes = TrainerTypeAccess::canManageCatalog();
+        $trainerTypeOptions = $showTrainerTypes
+            ? $this->trainerTypes->typesForPartner($partnerId, true)
+            : collect();
+
+        return view('admin.trainers.index', compact(
+            'teamOptions',
+            'showTrainerTypes',
+            'canManageTrainerTypes',
+            'trainerTypeOptions',
+        ) + $this->usersSectionViewData('trainers'));
     }
 
     public function data(Request $request)
@@ -221,6 +235,7 @@ class TrainerController extends AdminBaseController
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'default_base_salary_cents' => $this->salaryCentsFromRubles($data['default_base_salary'] ?? null),
             'default_rate_per_training_cents' => $this->salaryCentsFromRubles($data['default_rate_per_training'] ?? null),
+            'trainer_type_id' => $this->resolvedTrainerTypeId($partnerId, $data['trainer_type_id'] ?? null),
         ];
 
         $enabled = (bool) ($data['is_enabled'] ?? true);
@@ -250,7 +265,7 @@ class TrainerController extends AdminBaseController
 
                 $this->teamTrainerSync->syncTeamsForTrainer($profile, $teamIds);
 
-                return $profile->load(['user', 'teams']);
+                return $profile->load(['user', 'teams', 'trainerType']);
             });
         } catch (\Throwable $e) {
             return response()->json([
@@ -304,7 +319,7 @@ class TrainerController extends AdminBaseController
             abort(404);
         }
 
-        $trainerProfile->load(['user', 'teams']);
+        $trainerProfile->load(['user', 'teams', 'trainerType']);
 
         return response()->json($this->trainerPayload($trainerProfile));
     }
@@ -342,19 +357,29 @@ class TrainerController extends AdminBaseController
             $userData['password'] = $data['password'];
         }
 
+        $previousTypeId = (int) ($trainerProfile->trainer_type_id ?? 0);
+        $kansas = TrainerTypeAccess::partnerHasKansas($partnerId);
+
         $profileData = [
             'description' => $data['description'] ?? null,
             'is_enabled' => $enabled,
             'sort_order' => (int) ($data['sort_order'] ?? 0),
-            'default_base_salary_cents' => $this->salaryCentsFromRubles($data['default_base_salary'] ?? null),
-            'default_rate_per_training_cents' => $this->salaryCentsFromRubles($data['default_rate_per_training'] ?? null),
         ];
+
+        if ($kansas && ! empty($data['trainer_type_id'])) {
+            $profileData['trainer_type_id'] = (int) $data['trainer_type_id'];
+        }
+
+        if (! $kansas) {
+            $profileData['default_base_salary_cents'] = $this->salaryCentsFromRubles($data['default_base_salary'] ?? null);
+            $profileData['default_rate_per_training_cents'] = $this->salaryCentsFromRubles($data['default_rate_per_training'] ?? null);
+        }
 
         $teamIds = $data['team_ids'] ?? [];
         $trainerRoleId = $this->trainerRoleId();
 
         try {
-            DB::transaction(function () use ($request, $user, $trainerProfile, $userData, $profileData, $trainerRoleId, $teamIds) {
+            DB::transaction(function () use ($request, $user, $trainerProfile, $userData, $profileData, $trainerRoleId, $teamIds, $kansas, $previousTypeId) {
                 if ((int) $user->role_id !== $trainerRoleId) {
                     $userData['role_id'] = $trainerRoleId;
                 }
@@ -372,6 +397,10 @@ class TrainerController extends AdminBaseController
                 }
 
                 $this->teamTrainerSync->syncTeamsForTrainer($trainerProfile, $teamIds);
+
+                if ($kansas && (int) $trainerProfile->trainer_type_id !== $previousTypeId) {
+                    $this->trainerTypes->recomputeKansasDraftsForProfile($trainerProfile);
+                }
             });
         } catch (\Throwable $e) {
             report($e);
@@ -449,6 +478,8 @@ class TrainerController extends AdminBaseController
             'sort_order' => (int) $profile->sort_order,
             'default_base_salary' => Money::fromCents((int) ($profile->default_base_salary_cents ?? 0)),
             'default_rate_per_training' => Money::fromCents((int) ($profile->default_rate_per_training_cents ?? 0)),
+            'trainer_type_id' => (int) ($profile->trainer_type_id ?? 0),
+            'trainer_type_name' => $profile->trainerType?->name,
             'avatar_url' => $this->avatarUrl($user),
             'image' => $user?->image,
             'image_crop' => $user?->image_crop,
@@ -526,6 +557,15 @@ class TrainerController extends AdminBaseController
     private function salaryCentsFromRubles(mixed $value): int
     {
         return Money::toCents($value) ?? 0;
+    }
+
+    private function resolvedTrainerTypeId(int $partnerId, mixed $requestedTypeId): int
+    {
+        if (TrainerTypeAccess::partnerHasKansas($partnerId) && (int) $requestedTypeId > 0) {
+            return (int) $requestedTypeId;
+        }
+
+        return (int) $this->trainerTypes->ensureSystemType($partnerId)->id;
     }
 
     private function deleteUserAvatarFiles(User $user): void

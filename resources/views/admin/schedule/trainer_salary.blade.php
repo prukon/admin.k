@@ -29,7 +29,15 @@
                     <div class="invalid-feedback d-none" id="trainer-salary-error-month"></div>
                 </div>
                 @if($canManageTrainerSalary ?? false)
-                    <div class="ms-md-auto">
+                    <div class="ms-md-auto d-flex flex-wrap gap-2">
+                        @if($can_manage_trainer_types ?? false)
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#trainerTypesModal">
+                                Типы тренеров
+                            </button>
+                        @endif
                         <button type="button"
                                 class="btn btn-outline-primary"
                                 id="trainer-salary-form-all-btn">
@@ -50,3 +58,6 @@
         </div>
     </div>
 </div>
+@if($can_manage_trainer_types ?? false)
+    @include('admin.trainers._trainer_types_modal')
+@endif

@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ValidatesTrainerTypeId;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateTrainerRequest extends FormRequest
 {
+    use ValidatesTrainerTypeId;
+
     public function authorize(): bool
     {
         return $this->user()?->can('trainers.view') ?? false;
@@ -55,12 +58,14 @@ class UpdateTrainerRequest extends FormRequest
         }
 
         $this->nullifyEmptySalaryFields(['default_base_salary', 'default_rate_per_training']);
+        $this->prepareTrainerTypeIdForValidation();
     }
 
     public function rules(): array
     {
         $userId = $this->route('trainerProfile')?->user_id;
         $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
+        $currentTypeId = (int) ($this->route('trainerProfile')?->trainer_type_id ?? 0);
 
         return [
             'lastname' => ['required', 'string', 'max:25'],
@@ -94,6 +99,7 @@ class UpdateTrainerRequest extends FormRequest
                     }
                 }),
             ],
+            'trainer_type_id' => $this->trainerTypeIdRules($currentTypeId > 0 ? $currentTypeId : null),
         ];
     }
 
@@ -114,6 +120,7 @@ class UpdateTrainerRequest extends FormRequest
             'remove_avatar' => 'удаление аватара',
             'team_ids' => 'группы',
             'team_ids.*' => 'группа',
+            'trainer_type_id' => 'тип тренера',
         ];
     }
 
@@ -133,7 +140,7 @@ class UpdateTrainerRequest extends FormRequest
             'default_base_salary.min' => 'Оклад не может быть отрицательным.',
             'default_rate_per_training.numeric' => 'Ставка должна быть числом (рубли, можно с копейками).',
             'default_rate_per_training.min' => 'Ставка не может быть отрицательной.',
-        ];
+        ] + $this->trainerTypeIdMessages();
     }
 
     private function normalizeRuPhone(?string $value): ?string

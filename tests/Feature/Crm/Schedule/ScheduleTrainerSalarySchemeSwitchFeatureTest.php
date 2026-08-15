@@ -26,7 +26,7 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
     {
         $this->useClassicSchemeOnly();
         $trainer = $this->makeTrainerProfile('Схема страница');
-        $trainer->update(['default_rate_per_training_cents' => 50000]);
+        $this->setTrainerTypeRates($trainer, 500);
 
         $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
             ->assertOk()
@@ -51,8 +51,15 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
             ->getContent();
 
         $this->assertStringContainsString('value="0.00"', $html);
-        $this->assertStringContainsString('value="500.00"', $html);
         $this->assertStringNotContainsString('value="999.00"', $html);
+
+        $row = collect(
+            $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+                ->assertOk()
+                ->json('rows')
+        )->firstWhere('trainer_profile_id', $trainer->id);
+        $this->assertNotNull($row);
+        $this->assertSame('500.00', $row['rate_per_training']);
         $this->assertSame('kansas', $this->periodScheme(2026, 5));
     }
 

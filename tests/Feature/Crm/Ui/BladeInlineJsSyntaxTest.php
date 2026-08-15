@@ -245,43 +245,97 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('active_users_count: true', $content);
         $this->assertStringContainsString('signed_contracts_count: true', $content);
         $this->assertStringContainsString('turnover_all: true', $content);
+        $this->assertStringContainsString('platform_commission_all: true', $content);
         $this->assertStringContainsString('turnover_month_0: true', $content);
+        $this->assertStringContainsString('platform_commission_month_0: true', $content);
         $this->assertStringContainsString('turnover_month_1: true', $content);
+        $this->assertStringContainsString('platform_commission_month_1: true', $content);
         $this->assertStringContainsString('turnover_month_2: true', $content);
+        $this->assertStringContainsString('platform_commission_month_2: true', $content);
 
         $this->assertStringContainsString("key: 'active_users_count', type: 'count'", $content);
         $this->assertStringContainsString("key: 'signed_contracts_count', type: 'count'", $content);
         $this->assertStringContainsString("key: 'turnover_all', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'platform_commission_all', type: 'money'", $content);
         $this->assertStringContainsString("key: 'turnover_month_0', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'platform_commission_month_0', type: 'money'", $content);
         $this->assertStringContainsString("key: 'turnover_month_1', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'platform_commission_month_1', type: 'money'", $content);
         $this->assertStringContainsString("key: 'turnover_month_2', type: 'money'", $content);
+        $this->assertStringContainsString("key: 'platform_commission_month_2', type: 'money'", $content);
 
-        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[0] }}', $content);
-        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[1] }}', $content);
-        $this->assertStringContainsString('Оборот за {{ $partnerMetricMonthLabels[2] }}', $content);
+        $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[0] }}', $content);
+        $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[1] }}', $content);
+        $this->assertStringContainsString('% {{ $partnerMetricMonthLabels[2] }}', $content);
+        $this->assertStringContainsString('% за всё время', $content);
         $this->assertStringNotContainsString("key: 'август'", $content);
         $this->assertStringNotContainsString('Оборот за август', $content);
+        $this->assertStringNotContainsString('Кол-во активных пользователей', $content);
+        $this->assertStringNotContainsString('Кол-во договоров', $content);
+        $this->assertStringNotContainsString('Оборот за всё время', $content);
+        $this->assertStringNotContainsString('Оборот за {{', $content);
+
+        $createPos = strpos($content, "KidsCrmDataTable.create('#partners-table'");
+        $this->assertNotFalse($createPos);
+        $columnsPos = strpos($content, 'columns: [', $createPos);
+        $this->assertNotFalse($columnsPos);
+        $actionsKeyPos = strpos($content, "key: 'actions'", $columnsPos);
+        $this->assertNotFalse($actionsKeyPos);
+        $columnsChunk = substr($content, $columnsPos, $actionsKeyPos - $columnsPos);
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'platform_commission_all'"),
+            strpos($columnsChunk, "key: 'turnover_all'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'turnover_month_0'"),
+            strpos($columnsChunk, "key: 'platform_commission_all'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'platform_commission_month_0'"),
+            strpos($columnsChunk, "key: 'turnover_month_0'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'turnover_month_1'"),
+            strpos($columnsChunk, "key: 'platform_commission_month_0'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'platform_commission_month_1'"),
+            strpos($columnsChunk, "key: 'turnover_month_1'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'turnover_month_2'"),
+            strpos($columnsChunk, "key: 'platform_commission_month_1'")
+        );
+        $this->assertLessThan(
+            strpos($columnsChunk, "key: 'platform_commission_month_2'"),
+            strpos($columnsChunk, "key: 'turnover_month_2'")
+        );
 
         $resetPos = strpos($content, "$('#filter-reset').on('click'");
         $this->assertNotFalse($resetPos);
         $resetChunk = substr($content, (int) $resetPos, 400);
         $this->assertStringContainsString('defaultFilterStatus', $resetChunk);
         $this->assertStringNotContainsString("$('#filter-status').val('');", $resetChunk);
+        $this->assertStringNotContainsString('column-toggle', $resetChunk);
+        $this->assertStringNotContainsString("prop('checked'", $resetChunk);
 
         $theadPos = strpos($content, '<th>Статус</th>');
-        $usersPos = strpos($content, '<th>Кол-во активных пользователей</th>');
-        $contractsPos = strpos($content, '<th>Кол-во договоров</th>');
-        $turnoverPos = strpos($content, '<th>Оборот за всё время</th>');
+        $usersPos = strpos($content, '<th>Акт. польз.</th>');
+        $contractsPos = strpos($content, '<th>Договоров</th>');
+        $turnoverPos = strpos($content, '<th>За всё время</th>');
+        $commissionAllPos = strpos($content, '<th>% за всё время</th>');
         $actionsPos = strpos($content, '<th>Действия</th>');
         $this->assertNotFalse($theadPos);
         $this->assertNotFalse($usersPos);
         $this->assertNotFalse($contractsPos);
         $this->assertNotFalse($turnoverPos);
+        $this->assertNotFalse($commissionAllPos);
         $this->assertNotFalse($actionsPos);
         $this->assertLessThan($usersPos, $theadPos);
         $this->assertLessThan($contractsPos, $usersPos);
         $this->assertLessThan($turnoverPos, $contractsPos);
-        $this->assertLessThan($actionsPos, $turnoverPos);
+        $this->assertLessThan($commissionAllPos, $turnoverPos);
+        $this->assertLessThan($actionsPos, $commissionAllPos);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1], 'В admin/partners/tabs/partners.blade.php нет inline <script>');
@@ -2931,6 +2985,81 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 'Таблица Канзаса не должна содержать inline <script> — логика в trainer-salary.js'
             );
         }
+    }
+
+    /**
+     * P1: типы тренера Канзаса — hotfix public/js/trainer-types.js и два JS-пути
+     * (карточка тренера обновляет селекты, ЗП перезагружает таблицу только после save).
+     */
+    public function test_trainer_types_js_contract_is_valid_javascript(): void
+    {
+        $path = public_path('js/trainer-types.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }", $content);
+        $this->assertStringContainsString("'Content-Type': 'application/json'", $content);
+        $this->assertStringContainsString("form.querySelector('[data-error-for=\"' + key + '\"]')", $content);
+        $this->assertStringContainsString("if (res.status === 422)", $content);
+        $this->assertStringContainsString('showFieldErrors(data.errors || {})', $content);
+        $this->assertStringContainsString("rate_per_training: '0.00'", $content);
+        $this->assertStringContainsString("base_premium: '0.00'", $content);
+        $this->assertStringContainsString("sort_order: 10", $content);
+        $this->assertStringContainsString("loadList('open')", $content);
+        $this->assertStringContainsString("await loadList('saved')", $content);
+        $this->assertStringContainsString("reason = reason || 'open'", $content);
+        $this->assertStringContainsString('window.__onTrainerTypesChanged(types, reason)', $content);
+        $this->assertStringContainsString('if (!canManage) return', $content);
+        $this->assertStringContainsString('enabled.disabled = !!type?.is_system', $content);
+        $this->assertStringContainsString("type?.rate_per_training ?? '0.00'", $content);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in {$path}:\n".implode("\n", $output)
+        );
+
+        $trainersIndex = resource_path('views/admin/trainers/index.blade.php');
+        $trainersJs = (string) file_get_contents($trainersIndex);
+        $this->assertStringContainsString('window.__onTrainerTypesChanged = function (types)', $trainersJs);
+        $this->assertStringContainsString('if (select.disabled)', $trainersJs);
+        $this->assertStringContainsString('Number(t.is_enabled) === 1', $trainersJs);
+        $this->assertStringContainsString('Number(currentType.is_enabled) !== 1', $trainersJs);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $trainersIndex,
+            'window.__onTrainerTypesChanged',
+            'blade-js-trainer-types-selects'
+        );
+
+        $salaryIndex = resource_path('views/admin/schedule/index.blade.php');
+        $salaryJs = (string) file_get_contents($salaryIndex);
+        $this->assertStringContainsString("window.__onTrainerTypesChanged = function (types, reason)", $salaryJs);
+        $this->assertStringContainsString("if (reason === 'open')", $salaryJs);
+        $this->assertStringContainsString('window.__reloadTrainerSalaryReport()', $salaryJs);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $salaryIndex,
+            'window.__onTrainerTypesChanged',
+            'blade-js-trainer-types-salary-reload'
+        );
+
+        $assets = resource_path('views/admin/trainers/_trainer_types_assets.blade.php');
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $assets,
+            '__trainerTypesConfig',
+            'blade-js-trainer-types-config'
+        );
+
+        $modal = (string) file_get_contents(resource_path('views/admin/trainers/_trainer_types_modal.blade.php'));
+        $this->assertStringNotContainsString('<script', $modal);
+        $this->assertStringContainsString('data-error-for="name"', $modal);
+        $this->assertStringContainsString('data-error-for="rate_per_training"', $modal);
+        $this->assertStringContainsString('data-error-for="base_premium"', $modal);
+        $this->assertStringContainsString('class="modal-dialog"', $modal);
+        $this->assertStringNotContainsString('modal-xl', $modal);
+        $this->assertStringNotContainsString('modal-fullscreen', $modal);
     }
 
     /**

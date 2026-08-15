@@ -12,41 +12,49 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Метрики строк списка /admin/partners: активные ученики, подписанные договоры, оборот.
+ * Метрики строк списка /admin/partners: активные ученики, договоры, оборот, комиссия платформы.
  */
 final class PartnerListMetrics
 {
     public const COLUMN_ACTIVE_USERS = 'active_users_count';
     public const COLUMN_SIGNED_CONTRACTS = 'signed_contracts_count';
     public const COLUMN_TURNOVER_ALL = 'turnover_all';
+    public const COLUMN_PLATFORM_COMMISSION_ALL = 'platform_commission_all';
     public const COLUMN_TURNOVER_MONTH_0 = 'turnover_month_0';
+    public const COLUMN_PLATFORM_COMMISSION_MONTH_0 = 'platform_commission_month_0';
     public const COLUMN_TURNOVER_MONTH_1 = 'turnover_month_1';
+    public const COLUMN_PLATFORM_COMMISSION_MONTH_1 = 'platform_commission_month_1';
     public const COLUMN_TURNOVER_MONTH_2 = 'turnover_month_2';
+    public const COLUMN_PLATFORM_COMMISSION_MONTH_2 = 'platform_commission_month_2';
 
     /** @var list<string> */
     public const JSON_KEYS = [
         self::COLUMN_ACTIVE_USERS,
         self::COLUMN_SIGNED_CONTRACTS,
         self::COLUMN_TURNOVER_ALL,
+        self::COLUMN_PLATFORM_COMMISSION_ALL,
         self::COLUMN_TURNOVER_MONTH_0,
+        self::COLUMN_PLATFORM_COMMISSION_MONTH_0,
         self::COLUMN_TURNOVER_MONTH_1,
+        self::COLUMN_PLATFORM_COMMISSION_MONTH_1,
         self::COLUMN_TURNOVER_MONTH_2,
+        self::COLUMN_PLATFORM_COMMISSION_MONTH_2,
     ];
 
-    /** @var array<int, string> именительный падеж, строчные — для «Оборот за …» */
+    /** @var array<int, string> именительный падеж, с заглавной — заголовки колонок */
     private const MONTH_NAMES = [
-        1  => 'январь',
-        2  => 'февраль',
-        3  => 'март',
-        4  => 'апрель',
-        5  => 'май',
-        6  => 'июнь',
-        7  => 'июль',
-        8  => 'август',
-        9  => 'сентябрь',
-        10 => 'октябрь',
-        11 => 'ноябрь',
-        12 => 'декабрь',
+        1  => 'Январь',
+        2  => 'Февраль',
+        3  => 'Март',
+        4  => 'Апрель',
+        5  => 'Май',
+        6  => 'Июнь',
+        7  => 'Июль',
+        8  => 'Август',
+        9  => 'Сентябрь',
+        10 => 'Октябрь',
+        11 => 'Ноябрь',
+        12 => 'Декабрь',
     ];
 
     /**
@@ -109,18 +117,53 @@ final class PartnerListMetrics
             )
             ->groupBy('users.partner_id');
 
+        $dealPaymentsSub = DB::table('payments')
+            ->join('users', 'users.id', '=', 'payments.user_id')
+            ->whereNotNull('users.partner_id')
+            ->whereNotNull('payments.deal_id')
+            ->whereRaw("TRIM(CAST(payments.deal_id AS CHAR)) <> ''")
+            ->groupBy('users.partner_id', 'payments.deal_id')
+            ->selectRaw('users.partner_id as partner_id, payments.deal_id as deal_id, MIN(payments.operation_date) as operation_date');
+
+        $commissionSub = DB::table('tinkoff_payouts')
+            ->joinSub($dealPaymentsSub, 'partner_deal_payments', function ($join) {
+                $join->on('partner_deal_payments.deal_id', '=', 'tinkoff_payouts.deal_id')
+                    ->on('partner_deal_payments.partner_id', '=', 'tinkoff_payouts.partner_id');
+            })
+            ->where('tinkoff_payouts.status', '<>', 'REJECTED')
+            ->whereNotNull('tinkoff_payouts.deal_id')
+            ->whereRaw("TRIM(CAST(tinkoff_payouts.deal_id AS CHAR)) <> ''")
+            ->selectRaw(
+                'tinkoff_payouts.partner_id as partner_id,
+                 SUM(COALESCE(tinkoff_payouts.platform_fee, 0)) as platform_commission_all_cents,
+                 SUM(CASE WHEN partner_deal_payments.operation_date >= ? AND partner_deal_payments.operation_date < ? THEN COALESCE(tinkoff_payouts.platform_fee, 0) ELSE 0 END) as platform_commission_month_0_cents,
+                 SUM(CASE WHEN partner_deal_payments.operation_date >= ? AND partner_deal_payments.operation_date < ? THEN COALESCE(tinkoff_payouts.platform_fee, 0) ELSE 0 END) as platform_commission_month_1_cents,
+                 SUM(CASE WHEN partner_deal_payments.operation_date >= ? AND partner_deal_payments.operation_date < ? THEN COALESCE(tinkoff_payouts.platform_fee, 0) ELSE 0 END) as platform_commission_month_2_cents',
+                [
+                    $windows[0]['start'], $windows[0]['end'],
+                    $windows[1]['start'], $windows[1]['end'],
+                    $windows[2]['start'], $windows[2]['end'],
+                ]
+            )
+            ->groupBy('tinkoff_payouts.partner_id');
+
         return $query
             ->select('partners.*')
             ->leftJoinSub($activeUsersSub, 'partner_active_users', 'partner_active_users.partner_id', '=', 'partners.id')
             ->leftJoinSub($signedContractsSub, 'partner_signed_contracts', 'partner_signed_contracts.school_id', '=', 'partners.id')
             ->leftJoinSub($paymentsSub, 'partner_turnover', 'partner_turnover.partner_id', '=', 'partners.id')
+            ->leftJoinSub($commissionSub, 'partner_platform_commission', 'partner_platform_commission.partner_id', '=', 'partners.id')
             ->addSelect([
                 DB::raw('COALESCE(partner_active_users.active_users_count, 0) as active_users_count'),
                 DB::raw('COALESCE(partner_signed_contracts.signed_contracts_count, 0) as signed_contracts_count'),
                 DB::raw('COALESCE(partner_turnover.turnover_all_cents, 0) as turnover_all_cents'),
+                DB::raw('COALESCE(partner_platform_commission.platform_commission_all_cents, 0) as platform_commission_all_cents'),
                 DB::raw('COALESCE(partner_turnover.turnover_month_0_cents, 0) as turnover_month_0_cents'),
+                DB::raw('COALESCE(partner_platform_commission.platform_commission_month_0_cents, 0) as platform_commission_month_0_cents'),
                 DB::raw('COALESCE(partner_turnover.turnover_month_1_cents, 0) as turnover_month_1_cents'),
+                DB::raw('COALESCE(partner_platform_commission.platform_commission_month_1_cents, 0) as platform_commission_month_1_cents'),
                 DB::raw('COALESCE(partner_turnover.turnover_month_2_cents, 0) as turnover_month_2_cents'),
+                DB::raw('COALESCE(partner_platform_commission.platform_commission_month_2_cents, 0) as platform_commission_month_2_cents'),
             ]);
     }
 
@@ -133,9 +176,13 @@ final class PartnerListMetrics
             self::COLUMN_ACTIVE_USERS => 'active_users_count',
             self::COLUMN_SIGNED_CONTRACTS => 'signed_contracts_count',
             self::COLUMN_TURNOVER_ALL => 'turnover_all_cents',
+            self::COLUMN_PLATFORM_COMMISSION_ALL => 'platform_commission_all_cents',
             self::COLUMN_TURNOVER_MONTH_0 => 'turnover_month_0_cents',
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_0 => 'platform_commission_month_0_cents',
             self::COLUMN_TURNOVER_MONTH_1 => 'turnover_month_1_cents',
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_1 => 'platform_commission_month_1_cents',
             self::COLUMN_TURNOVER_MONTH_2 => 'turnover_month_2_cents',
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_2 => 'platform_commission_month_2_cents',
             default => null,
         };
     }
@@ -151,9 +198,13 @@ final class PartnerListMetrics
             self::COLUMN_ACTIVE_USERS => (int) ($partner->active_users_count ?? 0),
             self::COLUMN_SIGNED_CONTRACTS => (int) ($partner->signed_contracts_count ?? 0),
             self::COLUMN_TURNOVER_ALL => self::centsToRubles((int) ($partner->turnover_all_cents ?? 0)),
+            self::COLUMN_PLATFORM_COMMISSION_ALL => self::centsToRubles((int) ($partner->platform_commission_all_cents ?? 0)),
             self::COLUMN_TURNOVER_MONTH_0 => self::centsToRubles((int) ($partner->turnover_month_0_cents ?? 0)),
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_0 => self::centsToRubles((int) ($partner->platform_commission_month_0_cents ?? 0)),
             self::COLUMN_TURNOVER_MONTH_1 => self::centsToRubles((int) ($partner->turnover_month_1_cents ?? 0)),
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_1 => self::centsToRubles((int) ($partner->platform_commission_month_1_cents ?? 0)),
             self::COLUMN_TURNOVER_MONTH_2 => self::centsToRubles((int) ($partner->turnover_month_2_cents ?? 0)),
+            self::COLUMN_PLATFORM_COMMISSION_MONTH_2 => self::centsToRubles((int) ($partner->platform_commission_month_2_cents ?? 0)),
         ];
     }
 

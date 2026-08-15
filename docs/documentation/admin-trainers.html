@@ -47,7 +47,11 @@
       </tr>
       <tr>
         <td><code>trainer_profiles</code></td>
-        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, <code>default_base_salary_cents</code>, <code>default_rate_per_training_cents</code> (в HTTP/JSON — <code>default_base_salary</code> / <code>default_rate_per_training</code> в рублях; см. <a href="/docs/documentation/money">money</a>), soft delete.</td>
+        <td>Профиль тренера: <code>partner_id</code>, <code>user_id</code> (unique), <code>trainer_type_id</code> (FK на <code>trainer_types</code>, обязателен в приложении), <code>description</code>, <code>is_enabled</code>, <code>sort_order</code>, <code>default_base_salary_cents</code>, <code>default_rate_per_training_cents</code> (classic; HTTP — рубли, см. <a href="/docs/documentation/money">money</a>), soft delete.</td>
+      </tr>
+      <tr>
+        <td><code>trainer_types</code></td>
+        <td>Партнёрские типы тренера для схемы Канзас (имя, порядок, активность, оклад за тренировку, базовая премия). UI и CRUD только при <code>kansas</code>. Не входят в «Справочники». См. <a href="#trainer-types">§6.3</a> и <a href="/doc#trainer-types-kansas-index">анонс на /doc</a>.</td>
       </tr>
       <tr>
         <td><code>team_trainer</code></td>
@@ -56,7 +60,7 @@
     </tbody>
   </table>
 
-  <p class="small">Миграции: <code>2026_05_20_140000_refactor_trainers_to_trainer_profiles.php</code>, <code>2026_05_20_150000_create_team_trainer_table.php</code>.</p>
+  <p class="small">Миграции: <code>2026_05_20_140000_refactor_trainers_to_trainer_profiles.php</code>, <code>2026_05_20_150000_create_team_trainer_table.php</code>, <code>2026_08_15_140000_create_trainer_types_table.php</code>.</p>
 
   <div class="warn">
     <b>Не путать:</b> у ученика группы хранятся в pivot <code>team_user</code> (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>). Привязка тренера к группам — только через <code>team_trainer</code>; у тренера <code>users.team_id</code> при сохранении сбрасывается в <code>null</code>.
@@ -64,8 +68,9 @@
 
   <h2>2) Доступ и маршруты</h2>
   <div class="note">
-    Все маршруты раздела в <code>routes/web.php</code> обёрнуты в <code>middleware('can:trainers.view')</code>.
-    Без <code>trainers.view</code> страница и JSON-операции отвечают <b>403</b>.
+    Маршруты <code>/admin/trainers*</code> в <code>routes/web.php</code> обёрнуты в <code>middleware('can:trainers.view')</code>.
+    Без <code>trainers.view</code> страница тренеров и JSON карточки отвечают <b>403</b>.
+    Маршруты <code>/admin/trainer-types*</code> — <strong>вне</strong> этой группы: сотрудник ЗП без <code>trainers.view</code> может вести типы при Канзасе и <code>schedule.trainerSalary.manage</code> (см. <a href="#trainer-types">§6.3</a>).
     Отдельного пункта «Тренеры» в сайдбаре нет: вход в раздел — <code>/admin/users</code> («Пользователи»), вкладка «Тренеры» видна при <code>trainers.view</code> (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
   </div>
 
@@ -79,6 +84,11 @@
       <tr><td>POST</td><td><code>/admin/trainers</code></td><td><code>admin.trainers.store</code></td><td>Создание user + profile + опционально <code>team_ids</code>; опционально welcome-письмо (§<a href="#trainer-welcome-credentials">6.2</a>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.update</code></td><td>Обновление user + profile + <code>team_ids</code></td></tr>
       <tr><td>DELETE</td><td><code>/admin/trainers/{trainerProfile}</code></td><td><code>admin.trainers.destroy</code></td><td>Soft delete профиля и пользователя</td></tr>
+      <tr><td>GET</td><td><code>/admin/trainer-types</code></td><td><code>admin.trainer-types.index</code></td><td>JSON списка типов (Канзас; не <code>can:trainers.view</code>)</td></tr>
+      <tr><td>POST</td><td><code>/admin/trainer-types</code></td><td><code>admin.trainer-types.store</code></td><td>Создать тип (manage + Канзас)</td></tr>
+      <tr><td>GET</td><td><code>/admin/trainer-types/{trainerType}</code></td><td><code>admin.trainer-types.show</code></td><td>JSON одного типа</td></tr>
+      <tr><td>PUT</td><td><code>/admin/trainer-types/{trainerType}</code></td><td><code>admin.trainer-types.update</code></td><td>Обновить тип (manage + Канзас)</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/trainer-types/{trainerType}</code></td><td><code>admin.trainer-types.destroy</code></td><td>Удалить несистемный неиспользуемый тип</td></tr>
     </tbody>
   </table>
 
@@ -92,7 +102,11 @@
     <tbody>
       <tr>
         <td><code>trainers.view</code></td>
-        <td>Раздел «Тренеры», CRUD, выбор тренера в модалках групп, чекбоксы групп у пользователя с ролью trainer, фильтр «Тренер» в отчётах (UI).</td>
+        <td>Раздел «Тренеры», CRUD, выбор тренера в модалках групп, чекбоксы групп у пользователя с ролью trainer, фильтр «Тренер» в отчётах (UI). При Канзасе — селект типа на карточке и кнопка «Типы» (список; CRUD сумм — только при <code>schedule.trainerSalary.manage</code>).</td>
+      </tr>
+      <tr>
+        <td><code>schedule.trainerSalary.manage</code> + Канзас</td>
+        <td>CRUD типов и сумм (<code>/admin/trainer-types</code>). Сотрудник ЗП без <code>trainers.view</code> может вести справочник с вкладки ЗП. Подробнее — <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a>.</td>
       </tr>
       <tr>
         <td><code>reports.view</code></td>
@@ -140,19 +154,25 @@
 
   <h2>6) UI страницы <code>/admin/trainers</code></h2>
   <ul>
-    <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку», статус, действия.</li>
-    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>); поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>).</li>
+    <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку» (поля профиля <code>default_*</code>, в Канзасе на карточке не редактируются), статус, действия. При Канзасе в тулбаре кнопка «Типы».</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>). Classic: поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>). Канзас: обязателен селект <code>trainer_type_id</code>; поля classic скрыты и disabled; сохранение карточки <code>default_*</code> не затирает.</li>
     <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
   <h3 id="trainer-salary-defaults">6.1) Оклад и ставка по умолчанию (ЗП тренеров)</h3>
   <p>
-    Поля профиля используются при <strong>первом</strong> создании строки черновика за месяц на вкладке
-    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a> (<code>/schedule/trainer-salary</code>).
-    Схема <code>classic</code> копирует оклад и ставку; <code>kansas</code> копирует только
-    <code>default_rate_per_training_cents</code> в оклад за тренировку (оклад classic в Канзасе не используется).
-    Изменение в карточке тренера не перезаписывает уже существующий черновик за прошлые/текущие месяцы.
+    Схема <code>classic</code>: поля профиля <code>default_base_salary_cents</code> / <code>default_rate_per_training_cents</code>
+    копируются в черновик при первом появлении тренера в месяце.
+    Изменение в карточке не перезаписывает уже существующий черновик classic.
+  </p>
+  <p>
+    Схема <code>kansas</code>: оклад за тренировку и базовая премия берутся из <strong>типа тренера</strong>
+    (<code>trainer_types</code>), не из полей профиля. Человек всегда равен своему типу; черновики Канзаса
+    переписываются при смене сумм типа и при смене типа у человека. Слепки не пересчитываются.
+    Сохранение карточки в Канзасе не затирает classic <code>default_*</code>.
+    См. <a href="#trainer-types">§6.3</a>, <a href="/docs/documentation/schedule-trainer-salary#kansas">ЗП §12</a>
+    и <a href="/doc#trainer-types-kansas-index">анонс на /doc</a>.
   </p>
   <p>Права на расчёт ЗП — отдельные: схема <code>schedule.trainerSalary.scheme.classic</code> или <code>schedule.trainerSalary.scheme.kansas</code> (включает superadmin) плюс <code>schedule.trainerSalary.view</code> / <code>manage</code> (не <code>trainers.view</code>).</p>
 
@@ -167,6 +187,33 @@
       <li>Право: <code>trainers.view</code> (как у всего раздела).</li>
     </ul>
   </div>
+
+  <h3 id="trainer-types">6.3) Типы тренера (Канзас)</h3>
+  <div class="note">
+    Партнёрский справочник шаблонов оплаты. UI только если у партнёра включена схема <code>kansas</code>
+    (<code>TrainerTypeAccess::partnerHasKansas</code> = активная схема партнёра <code>code === kansas</code>;
+    superadmin без выданной схемы → classic fallback → типов нет).
+    Не входит в «Справочники». Анонс: <a href="/doc#trainer-types-kansas-index">/doc</a>.
+    Модалка стандартной ширины Bootstrap (<code>modal-dialog</code>, не на весь экран)
+    на <code>/admin/trainers</code> (кнопка «Типы» при Канзасе) и на вкладке ЗП
+    (кнопка «Типы тренеров» только при <code>schedule.trainerSalary.manage</code>).
+  </div>
+  <table>
+    <thead><tr><th>Что</th><th>Детали</th></tr></thead>
+    <tbody>
+      <tr><td>Таблица</td><td><code>trainer_types</code>: <code>partner_id</code>, <code>name</code> (unique per partner), <code>sort_order</code>, <code>is_enabled</code>, <code>is_system</code>, <code>rate_per_training_cents</code>, <code>base_premium_cents</code></td></tr>
+      <tr><td>Системный тип</td><td>Ровно один на партнёра, имя по умолчанию «Главный тренер» (можно переименовать). Нельзя удалить и отключить. Создаётся при создании партнёра и миграцией для существующих. Назначается всем тренерам.</td></tr>
+      <tr><td>Профиль</td><td><code>trainer_profiles.trainer_type_id</code>. При Канзасе селект обязателен. Classic поле скрыто, тип всё равно проставляется системный.</td></tr>
+      <tr><td>Права</td><td>Список/просмотр и назначение на карточке: <code>trainers.view</code> (или <code>schedule.trainerSalary.view</code> для GET списка). CRUD и суммы: <code>schedule.trainerSalary.manage</code>. Сотрудник ЗП без <code>trainers.view</code> может вести справочник. Без Канзаса endpoint’ы <b>403</b>.</td></tr>
+      <tr><td>Маршруты</td><td><code>GET/POST /admin/trainer-types</code>, <code>GET/PUT/DELETE /admin/trainer-types/{trainerType}</code> (<code>admin.trainer-types.*</code>). Чужой партнёр — 404.</td></tr>
+    </tbody>
+  </table>
+  <p>Несистемный тип удаляется, только если на него никто не назначен (включая soft-deleted профили) — иначе 422 <code>errors.name</code>.</p>
+  <p>
+    CRUD модалки (<code>/admin/trainer-types</code>) при успехе всегда JSON (<code>message</code> + <code>trainer_type</code>), в том числе без <code>X-Requested-With</code> — не пустой 200 и не redirect.
+    Ошибка валидации: AJAX → 422 <code>errors[field]</code>; non-AJAX → 302 и ошибки сессии под полями.
+    Карточка тренера: non-AJAX create/update → 302 на <code>/admin/trainers</code>; AJAX → JSON 200/422.
+  </p>
 
   <h2 id="schedule-journal-trainer">7) Тренеры в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
@@ -215,6 +262,10 @@
   <h2>10) Связанные файлы</h2>
   <ul class="small">
     <li><code>app/Http/Controllers/Admin/TrainerController.php</code></li>
+    <li><code>app/Models/TrainerType.php</code>, <code>app/Services/Trainers/TrainerTypeCatalog.php</code></li>
+    <li><code>app/Http/Controllers/Admin/TrainerTypeController.php</code></li>
+    <li><code>app/Http/Requests/Admin/StoreTrainerTypeRequest.php</code>, <code>UpdateTrainerTypeRequest.php</code></li>
+    <li><code>resources/views/admin/trainers/_trainer_types_modal.blade.php</code>, <code>public/js/trainer-types.js</code></li>
     <li><code>app/Services/TrainerProfileSyncService.php</code>, <code>TeamTrainerSyncService.php</code></li>
     <li><code>app/Models/TrainerProfile.php</code></li>
     <li><code>app/Http/Requests/Admin/StoreTrainerRequest.php</code>, <code>UpdateTrainerRequest.php</code></li>
@@ -229,7 +280,10 @@
   <h2>11) Автотесты (Feature)</h2>
   <div class="note">
     <ul>
-      <li><code>tests/Feature/Crm/Trainers/TrainersFeatureTest.php</code> — CRUD, права, валидация, sync роли</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerTypesFeatureTest.php</code> — типы Канзаса: системный тип, права, CRUD, 403/401/404, <code>can_delete</code>, уникальность имени, черновики vs слепки</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerTypesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX JSON CRUD типов, 302 карточки тренера без типа, AJAX 200/422</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerTypesUiContractsFeatureTest.php</code> — первое открытие: selected системного типа, disabled classic-полей, кнопка/модалка, readonly ставки в ЗП</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_trainer_types_js_contract_is_valid_javascript</code> — <code>node --check</code>, 422 под полями, дефолты 0.00, два JS-пути (селекты на карточке / reload ЗП только после save)</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>

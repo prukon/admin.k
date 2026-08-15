@@ -16,6 +16,7 @@ use App\Models\TrainerSalaryKansasSnapshotTrainer;
 use App\Models\TrainerSalaryPeriod;
 use App\Models\TrainerSalarySnapshot;
 use App\Services\Schedule\TrainerSalary\TrainerSalaryScheme;
+use App\Services\Trainers\TrainerTypeCatalog;
 use App\Support\Money;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +29,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     public function __construct(
         private readonly KansasAttendanceAggregator $attendanceAggregator,
         private readonly KansasTrainerSalaryCalculator $calculator,
+        private readonly TrainerTypeCatalog $trainerTypes,
     ) {
     }
 
@@ -69,8 +71,8 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     public function draftRules(): array
     {
         return [
-            'rate_per_training' => ['sometimes', 'required', 'numeric', 'min:0', 'max:99999999'],
-            'base_premium' => ['sometimes', 'required', 'numeric', 'min:0', 'max:99999999'],
+            'rate_per_training' => ['prohibited'],
+            'base_premium' => ['prohibited'],
             'premium_increment' => ['sometimes', 'required', 'numeric', 'min:0', 'max:99999999'],
             'team_id' => ['required_with:base_avg_students', 'integer', 'min:0'],
             'base_avg_students' => [
@@ -97,10 +99,8 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     public function draftMessages(): array
     {
         return [
-            'rate_per_training.numeric' => 'Оклад за тренировку должен быть числом (рубли, можно с копейками).',
-            'rate_per_training.min' => 'Оклад за тренировку не может быть отрицательным.',
-            'base_premium.numeric' => 'Базовая премия должна быть числом (рубли, можно с копейками).',
-            'base_premium.min' => 'Базовая премия не может быть отрицательной.',
+            'rate_per_training.prohibited' => 'Оклад за тренировку задаётся в типе тренера.',
+            'base_premium.prohibited' => 'Базовая премия задаётся в типе тренера.',
             'premium_increment.numeric' => 'Базовая надбавка должна быть числом (рубли, можно с копейками).',
             'premium_increment.min' => 'Базовая надбавка не может быть отрицательной.',
             'base_avg_students.numeric' => 'Базовое среднее должно быть числом с не более чем одной десятой.',
@@ -114,7 +114,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
 
     public function draftFieldKeys(): array
     {
-        return ['rate_per_training', 'base_premium', 'premium_increment', 'team_id', 'base_avg_students'];
+        return ['premium_increment', 'team_id', 'base_avg_students'];
     }
 
     public function draftInputRequiresAllTrainersRecompute(array $data): bool
@@ -209,11 +209,13 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
 
     public function createDraftLine(TrainerSalaryPeriod $period, TrainerProfile $profile): TrainerSalaryDraftLine
     {
+        $rates = $this->trainerTypes->ratesForProfile($profile);
+
         return new TrainerSalaryDraftLine([
             'trainer_salary_period_id' => $period->id,
             'trainer_profile_id' => $profile->id,
             'base_salary_cents' => 0,
-            'rate_per_training_cents' => (int) ($profile->default_rate_per_training_cents ?? 0),
+            'rate_per_training_cents' => $rates['rate_per_training_cents'],
             'trainings_count' => 0,
             'trainings_amount_cents' => 0,
             'bonuses_cents' => 0,
@@ -226,17 +228,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     public function applyDraftInput(TrainerSalaryDraftLine $draft, array $data): void
     {
         $this->persistDraftLine($draft);
-        $settings = $this->ensureTrainerSettings($draft);
-
-        if (array_key_exists('rate_per_training', $data)) {
-            $rateCents = Money::toCentsOrFail($data['rate_per_training']);
-            $settings->rate_per_training_cents = $rateCents;
-            $draft->rate_per_training_cents = $rateCents;
-        }
-        if (array_key_exists('base_premium', $data)) {
-            $settings->base_premium_cents = Money::toCentsOrFail($data['base_premium']);
-        }
-        $settings->save();
+        $this->ensureTrainerSettings($draft);
 
         if (array_key_exists('premium_increment', $data)) {
             $period = $this->periodOf($draft);
@@ -541,15 +533,50 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
             ->where('trainer_salary_draft_line_id', $draft->id)
             ->first();
 
+        $rates = $this->typeRatesForDraft($draft);
+
         if ($existing !== null) {
+            $existing->rate_per_training_cents = $rates['rate_per_training_cents'];
+            $existing->base_premium_cents = $rates['base_premium_cents'];
+            if ($existing->isDirty()) {
+                $existing->save();
+            }
+            $draft->rate_per_training_cents = $rates['rate_per_training_cents'];
+
             return $existing;
         }
 
-        return TrainerSalaryKansasDraftTrainer::query()->create([
+        $created = TrainerSalaryKansasDraftTrainer::query()->create([
             'trainer_salary_draft_line_id' => $draft->id,
-            'rate_per_training_cents' => (int) ($draft->rate_per_training_cents ?? 0),
-            'base_premium_cents' => 0,
+            'rate_per_training_cents' => $rates['rate_per_training_cents'],
+            'base_premium_cents' => $rates['base_premium_cents'],
         ]);
+        $draft->rate_per_training_cents = $rates['rate_per_training_cents'];
+
+        return $created;
+    }
+
+    /**
+     * @return array{rate_per_training_cents: int, base_premium_cents: int}
+     */
+    private function typeRatesForDraft(TrainerSalaryDraftLine $draft): array
+    {
+        $profile = $draft->relationLoaded('trainerProfile')
+            ? $draft->trainerProfile
+            : $draft->trainerProfile()->first();
+
+        if ($profile === null) {
+            $profile = TrainerProfile::query()->find($draft->trainer_profile_id);
+        }
+
+        if ($profile === null) {
+            return [
+                'rate_per_training_cents' => 0,
+                'base_premium_cents' => 0,
+            ];
+        }
+
+        return $this->trainerTypes->ratesForProfile($profile);
     }
 
     private function ensurePeriodSettings(TrainerSalaryPeriod $period): TrainerSalaryKansasPeriodSetting

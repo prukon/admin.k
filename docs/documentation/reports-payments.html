@@ -141,7 +141,12 @@ net_to_partner   = gross - commission_total</pre>
       Заполняется <b>всегда</b> (даже если выплаты ещё не было), рассчитывается по правилам <code>tinkoff_commission_rules</code>.
       <br>В <b>hover</b> показывается расшифровка: “Эквайринг” и “Выплата”.</li>
     <li><b>Комиссия платформы</b> (<code>platform_commission</code>):
-      комиссия платформы, заполняется <b>всегда</b>, рассчитывается по правилам <code>tinkoff_commission_rules</code>.</li>
+      комиссия платформы, заполняется <b>всегда</b>, рассчитывается по правилам <code>tinkoff_commission_rules</code>
+      <b>на момент запроса</b> (текущая ставка). Это <b>не</b> исторический снимок:
+      смена % в правилах пересчитает старые строки этого отчёта.
+      Список <code>/admin/partners</code> колонки «% …» считает иначе — сумма
+      <code>tinkoff_payouts.platform_fee</code> на момент создания выплаты
+      (<a href="/doc#admin-partners-list-metrics">анонс</a>).</li>
   </ul>
 
   <div class="note">

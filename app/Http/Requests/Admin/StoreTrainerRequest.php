@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Http\Requests\Concerns\ValidatesSendWelcomeEmail;
+use App\Http\Requests\Concerns\ValidatesTrainerTypeId;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -10,6 +11,7 @@ use Illuminate\Validation\Rule;
 class StoreTrainerRequest extends FormRequest
 {
     use ValidatesSendWelcomeEmail;
+    use ValidatesTrainerTypeId;
 
     public function authorize(): bool
     {
@@ -46,6 +48,7 @@ class StoreTrainerRequest extends FormRequest
         }
 
         $this->nullifyEmptySalaryFields(['default_base_salary', 'default_rate_per_training']);
+        $this->prepareTrainerTypeIdForValidation();
         $this->prepareSendWelcomeEmailForValidation();
     }
 
@@ -74,6 +77,7 @@ class StoreTrainerRequest extends FormRequest
                     }
                 }),
             ],
+            'trainer_type_id' => $this->trainerTypeIdRules(),
         ], $this->sendWelcomeEmailRules());
     }
 
@@ -100,7 +104,7 @@ class StoreTrainerRequest extends FormRequest
             'avatar' => 'аватар',
             'team_ids' => 'группы',
             'team_ids.*' => 'группа',
-        ], $this->sendWelcomeEmailAttributes());
+        ], $this->sendWelcomeEmailAttributes(), $this->trainerTypeIdAttributes());
     }
 
     public function messages(): array
@@ -119,7 +123,7 @@ class StoreTrainerRequest extends FormRequest
             'default_base_salary.min' => 'Оклад не может быть отрицательным.',
             'default_rate_per_training.numeric' => 'Ставка должна быть числом (рубли, можно с копейками).',
             'default_rate_per_training.min' => 'Ставка не может быть отрицательной.',
-        ];
+        ] + $this->trainerTypeIdMessages();
     }
 
     private function normalizeRuPhone(?string $value): ?string

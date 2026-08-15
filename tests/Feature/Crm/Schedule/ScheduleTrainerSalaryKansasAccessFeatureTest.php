@@ -211,11 +211,10 @@ final class ScheduleTrainerSalaryKansasAccessFeatureTest extends ScheduleTrainer
         $patch = $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,
             'month' => 5,
-            'rate_per_training' => 900,
+            'premium_increment' => 900,
         ]);
         $patch->assertOk()
             ->assertJsonPath('message', 'Черновик сохранён')
-            ->assertJsonPath('row.rate_per_training', '900.00')
             ->assertJsonPath('reload_table', true);
         $this->assertNotSame('', trim((string) $patch->getContent()));
         $this->assertIsString($patch->json('table_html'));

@@ -408,7 +408,9 @@
   </div>
   <div class="note">
     “Общая сумма” в LTV — это <code>sum(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code> (копейки; в UI/JSON — рубли) по тем же фильтрам (и по текущему партнёру), что и таблица.
-    <b>Не путать</b> с колонками оборота в списке <code>/admin/partners</code>: там сумма всех платежей учеников <em>этой</em> строки партнёра без фильтров LTV (группа / локация / активность) и без scope <code>current_partner</code> —
+    <b>Не путать</b> с колонками оборота и комиссии платформы в списке <code>/admin/partners</code>:
+    оборот там — сумма всех платежей учеников <em>этой</em> строки партнёра без фильтров LTV и без scope <code>current_partner</code>;
+    «% …» — сумма снимка <code>tinkoff_payouts.platform_fee</code> (T‑Bank), не LTV и не пересчёт по текущим правилам.
     <a href="/docs/documentation/account-partner-organization#partners-index-metrics">account-partner-organization §3.1.1</a>,
     <a href="/doc#admin-partners-list-metrics">анонс на /doc</a>.
     Фильтр локации — §2.1: <code>payments.location_id</code> (опциональный снимок при create); тот же параметр в <code>ltv/data</code>, <code>ltv/total</code> и <code>ltv/{user}/payments</code>.

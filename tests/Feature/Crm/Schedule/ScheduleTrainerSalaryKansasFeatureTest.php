@@ -68,17 +68,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
             ->assertOk();
 
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
-
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
-            'year' => 2026,
-            'month' => 5,
-            'base_premium' => 800,
-        ])->assertOk();
+        $this->setTrainerTypeRates($trainer, 1000, 800);
 
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,
@@ -180,16 +170,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
 
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
 
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
-            'year' => 2026,
-            'month' => 5,
-            'rate_per_training' => 1000,
-        ])->assertOk();
-        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
-            'year' => 2026,
-            'month' => 5,
-            'base_premium' => 100,
-        ])->assertOk();
+        $this->setTrainerTypeRates($trainer, 1000, 100);
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,
             'month' => 5,

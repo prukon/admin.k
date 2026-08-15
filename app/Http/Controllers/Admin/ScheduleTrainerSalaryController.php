@@ -12,6 +12,7 @@ use App\Models\TrainerProfile;
 use App\Services\PartnerContext;
 use App\Services\Schedule\TrainerSalaryService;
 use App\Support\TrainerSalaryAccess;
+use App\Support\TrainerTypeAccess;
 use Illuminate\Http\JsonResponse;
 
 class ScheduleTrainerSalaryController extends AdminBaseController
@@ -170,6 +171,9 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             'table_view' => $scheme->draftTableView(),
             'rows' => $report['rows'],
             'can_manage' => $canManage,
+            'show_trainer_types' => $scheme->code() === \App\Services\Schedule\TrainerSalary\Schemes\Kansas\KansasTrainerSalaryScheme::CODE,
+            'can_manage_trainer_types' => TrainerTypeAccess::canManageCatalog(),
+            'canManageTrainerTypes' => TrainerTypeAccess::canManageCatalog(),
             'table_html' => view($scheme->draftTableView(), $viewData)->render(),
         ];
     }

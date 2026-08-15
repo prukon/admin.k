@@ -54,7 +54,7 @@
       <tr><td><code>schedule.trainerSalary.scheme.kansas</code></td><td>Включение схемы «Канзас» партнёру. Скрытое, не в базовых ролях. Выдаёт superadmin. Миграция <code>2026_08_14_231500_add_trainer_salary_scheme_kansas.php</code> право создаёт, <b>никому не выдаёт</b></td></tr>
       <tr><td><code>schedule.trainerSalary.scheme.classic</code></td><td>Включение схемы «Классическая» партнёру (сотрудники школы). Скрытое (<code>is_visible=0</code>), не в базовых ролях. Выдаёт superadmin. Superadmin сам модуль видит и без этой выдачи (как с остальными правами, <code>Gate::before</code>)</td></tr>
       <tr><td><code>schedule.trainerSalary.view</code></td><td>Вкладки «ЗП тренеров» и «Листы ЗП», просмотр черновика, <code>GET …/data</code> — только если у партнёра включена схема</td></tr>
-      <tr><td><code>schedule.trainerSalary.manage</code></td><td>Редактирование черновика (PATCH), «Расчет» / «Сформировать всех» (POST)</td></tr>
+      <tr><td><code>schedule.trainerSalary.manage</code></td><td>Редактирование черновика (PATCH), «Расчет» / «Сформировать всех» (POST). При Канзасе — CRUD <a href="/docs/documentation/admin-trainers#trainer-types">типов тренера</a> (кнопка «Типы тренеров»)</td></tr>
     </tbody>
   </table>
   <p>
@@ -144,24 +144,23 @@
 
   <h2>3) Справочник: оклад и ставка по умолчанию</h2>
   <p>
-    В карточке тренера (<a href="/docs/documentation/admin-trainers">/admin/trainers</a>) в БД:
+    Схема <code>classic</code> — карточка тренера:
     <code>default_base_salary_cents</code>, <code>default_rate_per_training_cents</code>
     (<code>trainer_profiles</code>; канон — <a href="/docs/documentation/money">money</a>).
-    В HTTP/JSON формах — <code>default_base_salary</code> / <code>default_rate_per_training</code> в рублях
-    (<code>Money::toCents</code> / <code>fromCents</code> / <code>formatRub</code>).
+    При первом появлении тренера в черновике classic копирует оба значения в <code>trainer_salary_draft_lines</code>.
   </p>
   <p>
-    При первом появлении тренера в черновике за месяц:
-    classic копирует оба значения в <code>trainer_salary_draft_lines</code>;
-    kansas копирует только ставку в оклад за тренировку (<code>rate_per_training_cents</code>),
-    оклад classic и бонусы в Канзасе не используются (итого тренера = сумма групп).
-    Дальнейшее изменение в черновике <strong>не меняет</strong> справочник в карточке тренера.
+    Схема <code>kansas</code> — <a href="/docs/documentation/admin-trainers#trainer-types">тип тренера</a>:
+    оклад за тренировку и базовая премия живут в <code>trainer_types</code>, на человеке — только <code>trainer_type_id</code>.
+    Черновик всегда равен актуальному типу (в таблице ЗП эти две суммы readonly).
+    Слепки не пересчитываются. Поля профиля <code>default_*</code> Канзас не читает.
   </p>
 
   <h2>4) Таблицы и модели</h2>
   <table>
     <thead><tr><th>Таблица</th><th>Назначение</th></tr></thead>
     <tbody>
+      <tr><td><code>trainer_types</code></td><td>Типы тренера партнёра (Канзас): оклад за тренировку и базовая премия. На человеке — <code>trainer_profiles.trainer_type_id</code>. См. <a href="/docs/documentation/admin-trainers#trainer-types">admin-trainers §6.3</a></td></tr>
       <tr><td><code>trainer_salary_periods</code></td><td>Месяц партнёра: unique (<code>partner_id</code>, <code>year</code>, <code>month</code>), <code>scheme_code</code> (схема черновика этого месяца)</td></tr>
       <tr><td><code>trainer_salary_draft_lines</code></td><td>Черновик на тренера за период: unique (<code>trainer_salary_period_id</code>, <code>trainer_profile_id</code>)</td></tr>
       <tr><td><code>trainer_salary_snapshots</code></td><td>Слепки: <code>version</code> на тренера в периоде, <code>scheme_code</code>, опционально <code>batch_id</code> (UUID при «всех»), <code>formed_at</code>, <code>formed_by_user_id</code></td></tr>
@@ -214,7 +213,8 @@
     <li>При <code>manage</code>: autosave черновика по <code>change</code> полей (debounce 400 мс) → <code>PATCH …/draft/{id}</code>; ошибки 422 — под соответствующим полем (<code>data-error-for</code>). Classic обновляет одну строку из JSON <code>row</code>. Kansas всегда отвечает <code>reload_table: true</code> + полный <code>table_html</code> (X и базовое среднее общие; иначе в DOM обновился бы только один тренер). Для «Баз. среднее» клиент дополнительно шлёт <code>team_id</code> из <code>data-team-id</code> строки группы.</li>
     <li>Кнопка в строке у <strong>обеих</strong> схем — «Расчет» → <code>POST …/snapshots/{id}</code>; под именем тренера — подсказка «Слепок vN · дата · кто сформировал».</li>
     <li>«Сформировать всех» — confirm, затем <code>POST …/snapshots</code>; создаёт слепок для каждого активного тренера с одним <code>batch_id</code>.</li>
-    <li>Без <code>manage</code>: поля readonly, колонки «Расчет» нет, кнопки «Сформировать всех» нет.</li>
+    <li>При Канзасе и <code>manage</code>: кнопка «Типы тренеров» открывает ту же модалку, что на <code>/admin/trainers</code> (hotfix <code>public/js/trainer-types.js</code>). После сохранения типа таблица ЗП пересобирается; простое открытие модалки (<code>reason === 'open'</code>) таблицу не трогает.</li>
+    <li>Без <code>manage</code>: поля readonly, колонки «Расчет» нет, кнопок «Сформировать всех» и «Типы тренеров» нет.</li>
   </ul>
 
   <h2>9) Бэкенд</h2>
@@ -244,11 +244,15 @@
     <code>ScheduleTrainerSalaryAccessFeatureTest</code> (гость, 403/200 по правам, 403 без схемы у сотрудника, superadmin без схемы → 200 classic fallback, kansas при выданном праве),
     <code>ScheduleTrainerSalaryKansasAccessFeatureTest</code> (все endpoint’ы Канзаса: гость 302/401, без view 403, view+manage без схемы 403, view без manage — GET 200 / PATCH 403, manager smoke 200 + JSON <code>message</code>/<code>reload_table</code>, вкладки SA без схемы, вкладки скрыты у сотрудника без схемы),
     <code>ScheduleTrainerSalarySchemeSwitchFeatureTest</code> (месяц без слепка: GET страницы и <code>/data</code>, PATCH без предварительного GET, non-AJAX, группы из визитов classic, повторное открытие не сбрасывает X; после «Расчет» / «Сформировать всех» classic остаётся; гость и сотрудник без схемы не переключают период),
-    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code> (UX: смена X/базы пересобирает <code>table_html</code> для всех тренеров; classic не шлёт <code>reload_table</code>; дефолт X=0 и оклад из профиля; смена месяца не копирует X; view-only без input; non-AJAX PATCH/POST — JSON 200 и запись в БД; <code>errors</code> по полям 422; изоляция партнёра; readonly лист),
+    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code> (UX: смена X/базы пересобирает <code>table_html</code> для всех тренеров; classic не шлёт <code>reload_table</code>; дефолт X=0 и оклад/премия из типа тренера; смена месяца не копирует X; view-only без input; non-AJAX PATCH/POST — JSON 200 и запись в БД; <code>errors</code> по полям 422; изоляция партнёра; readonly лист),
     <code>TrainerSalarySchemeClassicPermissionCatalogFeatureTest</code> / <code>TrainerSalarySchemeKansasPermissionCatalogFeatureTest</code> (каталог скрытых прав),
     <code>ScheduleTrainerSalaryKansasFeatureTest</code> (формула, общие поля, два слота в день, слепок, не считаются disabled / не «Посетил» / без pivot / перекрытый статус),
+    <code>TrainerTypesFeatureTest</code> (системный тип, права, CRUD, 403/401/404, <code>can_delete</code>, черновики vs слепки),
+    <code>TrainerTypesNonAjaxSafetyNetFeatureTest</code> (CRUD типов без X-Requested-With → JSON не пустой 200; карточка тренера Канзаса без типа → 302 <code>trainer_type_id</code>),
+    <code>TrainerTypesUiContractsFeatureTest</code> (первое открытие: selected системного типа, hidden/disabled classic-полей, кнопка типов только при manage на ЗП, readonly оклад/премия),
     <code>KansasTrainerSalaryCalculatorTest</code> (пример 41 000 ₽, пол премии),
     <code>BladeInlineJsSyntaxTest::test_trainer_salary_js_kansas_reload_contract_is_valid_javascript</code> (<code>node --check</code>, <code>reload_table</code> + <code>extra.team_id</code> + hotfix <code>asset('js/trainer-salary.js')</code>),
+    <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code> (<code>public/js/trainer-types.js</code>, дефолты 0.00, <code>reason === 'open'</code> не пересобирает таблицу ЗП),
     <code>ScheduleTrainerSalarySheetsFeatureTest</code> — см. <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
     Базовый кейс: <code>ScheduleTrainerSalaryTestCase</code> extends <code>ScheduleJournalTestCase</code>.
   </p>
@@ -259,7 +263,10 @@
 
   <h2 id="kansas">12) Схема «Канзас» (<code>kansas</code>)</h2>
   <p>
-    Входные поля черновика за месяц: оклад за тренировку и базовая премия — <strong>на тренера</strong>;
+    В таблице на строке тренера <strong>показываются</strong> оклад за тренировку и базовая премия —
+    они берутся из <a href="/docs/documentation/admin-trainers#trainer-types">типа тренера</a> и в ячейках ЗП readonly
+    (править в модалке «Типы тренеров»). Человек всегда равен актуальному типу: черновик переписывается,
+    слепки не меняются. Редактируемые поля месяца:
     X (базовая надбавка к премии) — <strong>одно значение на школу</strong> (блок над таблицей);
     базовое среднее учеников — <strong>на группу</strong>, общее для всех тренеров этой группы.
   </p>
@@ -274,9 +281,9 @@
     (клиент берёт <code>data-team-id</code> строки группы).
   </p>
   <p class="small">Поля PATCH Канзаса (рубли в HTTP, в БД <code>*_cents</code> / десятые):
-    <code>rate_per_training</code>, <code>base_premium</code> — на тренера;
     <code>premium_increment</code> (X) — на школу за месяц;
     <code>base_avg_students</code> + <code>team_id</code> — на группу.
+    <code>rate_per_training</code> и <code>base_premium</code> в PATCH <strong>запрещены</strong> (422): задаются в типе тренера.
     Оклад classic / бонусы / вычеты в UI Канзаса нет (<code>base_salary_cents = 0</code> в строке ядра).
   </p>
   <p>
@@ -312,7 +319,7 @@ trainer_total = sum(group_totals)</code></pre>
     Клиент: вкладка грузит hotfix <code>public/js/trainer-salary.js</code> и <code>public/css/trainer-salary.css</code> (не Vite-бандл).
     Успешный PATCH/POST Канзаса возвращает <code>reload_table: true</code> и полный <code>table_html</code> —
     иначе смена X или базового среднего обновила бы только строку тренера, с которого ушёл запрос.
-    При первом открытии месяца X = 0, оклад — из <code>trainer_profiles.default_rate_per_training_cents</code>;
+    При первом открытии месяца X = 0, оклад за тренировку и базовая премия — из типа тренера (системный тип «Главный тренер», суммы с нуля, пока их не задали);
     другой месяц не наследует X и базы.
     Смена classic ↔ kansas без слепка — <a href="#scheme-switch">§1.3</a>.
   </p>
@@ -321,7 +328,8 @@ trainer_total = sum(group_totals)</code></pre>
     <a href="/docs/documentation/schedule-journal">Журнал расписания</a> ·
     <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a> ·
     <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a> ·
-    <a href="/docs/documentation/admin-trainers">Тренеры</a>
+    <a href="/docs/documentation/admin-trainers#trainer-types">Типы тренера</a> ·
+    <a href="/doc#trainer-types-kansas-index">анонс на /doc</a>
   </p>
 </div>
 </body>

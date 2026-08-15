@@ -111,8 +111,11 @@
   <h3 id="partners-index-metrics">3.1.1) Колонки метрик в списке <code>/admin/partners</code></h3>
   <p class="small">Анонс на главной документации: <a href="/doc#admin-partners-list-metrics">/doc#admin-partners-list-metrics</a>.</p>
   <div class="note">
-    Порядок thead (13 колонок): № → Сортировка → Наименование → E-mail → Телефон → Статус →
-    шесть метрик → Действия. Метрики стоят после «Статус», перед «Действия».
+    Порядок thead (17 колонок): № → Сортировка → Наименование → E-mail → Телефон → Статус →
+    «Акт. польз.» → «Договоров» → «За всё время» → «% за всё время» →
+    месяц → «% {месяц}» × три месяца → Действия.
+    Оборот и комиссия платформы <b>чередуются</b>. «% …» в UI — сумма в рублях, не ставка.
+    Те же подписи в чекбоксах toolbar «Колонки».
     Список — <b>все</b> партнёры платформы (не <code>current_partner</code>); агрегаты изолированы по строке
     (<code>users.partner_id</code> / <code>contracts.school_id</code>).
     Видимость — toolbar «Колонки», ключи в <code>user_table_settings.table_key = partners_index</code>,
@@ -120,19 +123,23 @@
     Фильтр статуса по умолчанию в UI: <code>status=active</code> (только <code>partners.is_enabled=1</code>);
     пустой <code>status</code> в запросе — все партнёры. Поиск <code>title</code> — название / email / телефон / id.
     <br><br>
-    Ключи месяцев стабильные (<code>turnover_month_0/1/2</code>), подписи «Оборот за август» считаются на дату запроса
+    Ключи месяцев стабильные (<code>turnover_month_0/1/2</code>, <code>platform_commission_month_0/1/2</code>),
+    подписи «Август» / «% Август» считаются на дату запроса
     (текущий / прошлый / позапрошлый месяц, timezone <code>Europe/Moscow</code>,
     <code>PartnerListMetrics::monthColumnLabels()</code>).
-    В сентябре заголовки сами становятся «сентябрь / август / июль»; ключи колонок и <code>user_table_settings</code> не меняются.
+    В сентябре заголовки сами становятся «Сентябрь / % Сентябрь / Август / % Август / Июль / % Июль»; ключи колонок и <code>user_table_settings</code> не меняются.
     Если у пользователя сохранены <b>старые</b> настройки без новых ключей, клиент подставляет дефолт <code>true</code>
     из JS (<code>KidsCrmDataTable</code> merge: ключ отсутствует в ответе GET → <code>defaults</code>), новые колонки не скрываются.
     Агрегаты: <code>App\Support\PartnerListMetrics</code> (leftJoin подзапросов после фильтров, <code>recordsFiltered</code> считается до join),
     JSON DataTables <code>GET /admin/partners/data</code>. Сортировка по метрикам — <code>orderByExpression()</code>.
-    Неактивные и soft-deleted ученики не входят в «Кол-во активных пользователей», но их платежи входят в оборот
-    (join платежей идёт через <code>DB::table('users')</code> без <code>whereNull(deleted_at)</code>).
+    Неактивные и soft-deleted ученики не входят в «Акт. польз.», но их платежи входят в оборот
+    и в комиссию платформы (join идёт через <code>DB::table('users')</code> без <code>whereNull(deleted_at)</code>).
     Договоры в статусах кроме <code>signed</code> не считаются.
     Оборот месяца — полуинтервал <code>[startOfMonth, nextMonth)</code> по <code>operation_date</code>: 1-е 00:00 текущего месяца входит, 1-е следующего — нет.
     Нулевые <code>summ_cents</code> не входят в сумму. Копейки в JSON — рубли с дробью (1050 коп. → <code>10.5</code>).
+    Комиссия платформы — снимок <code>tinkoff_payouts.platform_fee</code> на момент создания выплаты; текущий % в правилах не пересчитывает прошлое.
+    В ячейке «% …» — рубли, не ставка. База уже, чем у оборота (только T‑Bank с выплатой).
+    Отчёт «Платежи» считает комиссию платформы по текущим правилам — это другой контракт.
     Оборот <b>не</b> равен отчёту LTV: нет фильтров группы / локации / активности ученика и нет scope текущего партнёра
     (см. <a href="/docs/documentation/reports-admin#ltv-vs-partners-turnover">reports-admin §4</a>).
   </div>
@@ -141,33 +148,39 @@
     <tbody>
       <tr>
         <td><code>active_users_count</code></td>
-        <td>Кол-во активных пользователей</td>
+        <td>Акт. польз.</td>
         <td><code>count</code></td>
         <td>Ученики (<code>roles.name = user</code>, <code>users.role_id</code>), <code>users.partner_id</code>, <code>is_enabled = 1</code>, <code>deleted_at IS NULL</code>. Админы и тренеры не входят.</td>
       </tr>
       <tr>
         <td><code>signed_contracts_count</code></td>
-        <td>Кол-во договоров</td>
+        <td>Договоров</td>
         <td><code>count</code></td>
         <td>Число записей <code>contracts</code> со <code>status = signed</code> и <code>school_id = partners.id</code> (документы, не уникальные ученики).</td>
       </tr>
       <tr>
         <td><code>turnover_all</code></td>
-        <td>Оборот за всё время</td>
+        <td>За всё время</td>
         <td><code>money</code></td>
         <td><code>SUM(payments.summ_cents)</code> при <code>summ_cents &gt; 0</code>, через <code>payments.user_id → users.partner_id</code>. В JSON — рубли (float).</td>
       </tr>
       <tr>
-        <td><code>turnover_month_0</code> … <code>_2</code></td>
-        <td>Оборот за {текущий / прошлый / позапрошлый месяц}</td>
+        <td><code>platform_commission_all</code></td>
+        <td>% за всё время</td>
         <td><code>money</code></td>
-        <td>Та же сумма, полуинтервал по <code>payments.operation_date</code> (дата платежа, не <code>payment_month</code> абонемента).</td>
+        <td>Сумма в рублях (не ставка). Снимок <code>tinkoff_payouts.platform_fee</code> на момент создания выплаты, не текущий % из правил. Связка: <code>deal_id</code> + <code>partner_id</code>, период по <code>payments.operation_date</code>. <code>REJECTED</code> не входит; прочие статусы входят. Нет выплаты / не T‑Bank → 0.</td>
+      </tr>
+      <tr>
+        <td><code>turnover_month_0</code> / <code>platform_commission_month_0</code> … <code>_2</code></td>
+        <td>Август / % Август (текущий, прошлый, позапрошлый)</td>
+        <td><code>money</code></td>
+        <td>Те же суммы, полуинтервал по <code>payments.operation_date</code> (не <code>payment_month</code>, не <code>tinkoff_payouts.completed_at</code>). В thead колонки чередуются: оборот месяца, затем комиссия этого месяца.</td>
       </tr>
     </tbody>
   </table>
   <p>Доступ к HTML и JSON тот же, что у раздела (§3.4): гость GET index → <b>302</b>, JSON data/columns-settings → <b>401</b>; без <code>partner.view</code> → <b>403</b>.
   Валидация DataTables: <code>PartnerDataTableRequest</code> (<code>attributes</code> + <code>messages</code>); 422 отдаёт <code>errors</code> с ключами полей (<code>title</code> / <code>status</code> / <code>length</code> и т.д.).</p>
-  <p class="small">Тесты: <code>PartnersListMetricsFeatureTest</code> (гость 302/401, 403, 200, 422 <code>errors[status|title|length]</code>, порядок thead, дефолтные тумблеры, январские заголовки, старые column-settings не прячут новые колонки, границы месяца, неактивный ученик в обороте, копейки, отсутствие дублей строк), <code>PartnersDataTableFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>, <code>tests/Unit/Support/PartnerListMetricsTest.php</code>.</p>
+    <p class="small">Тесты: <code>PartnersListMetricsFeatureTest</code> (гость 302/401, 403, 200, 422 <code>errors[status|title|length|draw]</code>, SetPartner без организации, superadmin, non-AJAX 422/302 не пустой 200, порядок thead = JS columns = чекбоксы «Колонки», короткие заголовки в th и labels, дефолт фильтра active / негатив inactive, дефолтные тумблеры, январские заголовки, старые column-settings без ключа → клиентский true / сохранённый false не навязывается, сброс фильтра не трогает колонки, границы месяца, неактивный ученик в обороте, копейки, отсутствие дублей строк, комиссия по <code>operation_date</code> а не <code>completed_at</code>, <code>REJECTED</code> исключён / <code>INITIATED|CHECKED|CREDIT_CHECKING</code> входят, Robokassa без выплаты → комиссия 0, снимок не пересчитывается при смене правила), <code>PartnerColumnsSettingsTest</code>, <code>PartnersDataTableFeatureTest</code>, <code>BladeInlineJsSyntaxTest::test_partners_list_metrics_inline_script_contract_and_valid_javascript</code>, <code>tests/Unit/Support/PartnerListMetricsTest.php</code>.</p>
 
   <h3>3.2) Эндпоинты (право <code>partner.view</code>)</h3>
   <table>

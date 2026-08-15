@@ -5,6 +5,8 @@ namespace Tests\Feature\Crm\Partners;
 use App\Models\Contract;
 use App\Models\Partner;
 use App\Models\Payment;
+use App\Models\TinkoffCommissionRule;
+use App\Models\TinkoffPayout;
 use App\Models\User;
 use App\Models\UserTableSetting;
 use App\Support\PartnerListMetrics;
@@ -14,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Метрики списка /admin/partners: активные ученики, подписанные договоры, оборот.
+ * Метрики списка /admin/partners: активные ученики, подписанные договоры, оборот, комиссия платформы.
  *
  * @see /docs/documentation/account-partner-organization.html §3.1.1
  */
@@ -191,6 +193,165 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
             ->assertJson(['success' => true]);
     }
 
+    public function test_user_without_organization_is_logged_out_from_metrics_page(): void
+    {
+        $actor = User::factory()->create(['partner_id' => null]);
+        $this->actingAs($actor);
+        $this->flushSession();
+
+        $response = $this->from('/admin')->get(route('admin.partner.index'));
+
+        $response->assertStatus(302);
+        $this->assertGuest();
+        $response->assertSessionHasErrors(['email' => 'Ваша организация недоступна.']);
+    }
+
+    public function test_user_without_organization_cannot_load_metrics_json_endpoints(): void
+    {
+        $actor = User::factory()->create(['partner_id' => null]);
+        $this->actingAs($actor);
+        $this->flushSession();
+
+        $data = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+        ]));
+        $this->assertContains($data->status(), [302, 401]);
+        $this->assertNotSame(200, $data->status());
+        $this->assertNotSame(500, $data->status());
+
+        $this->actingAs($actor);
+        $this->flushSession();
+        $getCols = $this->getJson(route('admin.partner.columns-settings.get'));
+        $this->assertContains($getCols->status(), [302, 401]);
+        $this->assertNotSame(200, $getCols->status());
+
+        $this->actingAs($actor);
+        $this->flushSession();
+        $saveCols = $this->postJson(route('admin.partner.columns-settings.save'), [
+            'columns' => ['platform_commission_all' => true],
+        ]);
+        $this->assertContains($saveCols->status(), [302, 401]);
+        $this->assertNotSame(200, $saveCols->status());
+    }
+
+    public function test_superadmin_can_open_metrics_without_partner_view_permission(): void
+    {
+        $this->asSuperadmin();
+        $this->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $this->get(route('admin.partner.index'))
+            ->assertOk()
+            ->assertSee('% за всё время', false)
+            ->assertSee("key: 'platform_commission_all'", false);
+
+        $json = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 10,
+            'status' => 'active',
+        ]))->assertOk()->json();
+
+        $this->assertArrayHasKey('data', $json);
+        if ($json['data'] !== []) {
+            $this->assertArrayHasKey('platform_commission_all', $json['data'][0]);
+        }
+    }
+
+    public function test_invalid_draw_returns_422_with_draw_field_error(): void
+    {
+        $this->getJson(route('admin.partner.data', [
+            'draw' => 'abc',
+        ]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['draw']);
+    }
+
+    public function test_non_ajax_invalid_status_does_not_return_empty_200(): void
+    {
+        $response = $this->from(route('admin.partner.index'))
+            ->get(route('admin.partner.data', [
+                'draw' => 1,
+                'status' => 'unknown',
+            ]));
+
+        $this->assertNotSame(500, $response->status());
+        $this->assertFalse(
+            $response->status() === 200 && trim((string) $response->getContent()) === '',
+            'Невалидный status не должен давать пустой 200'
+        );
+
+        if ($response->status() === 302) {
+            $response->assertSessionHasErrors(['status']);
+        } else {
+            $response->assertStatus(422)->assertJsonValidationErrors(['status']);
+        }
+    }
+
+    public function test_non_ajax_columns_settings_without_columns_does_not_return_empty_200(): void
+    {
+        $response = $this->from(route('admin.partner.index'))
+            ->post(route('admin.partner.columns-settings.save'), []);
+
+        $this->assertNotSame(500, $response->status());
+        $this->assertFalse(
+            $response->status() === 200 && trim((string) $response->getContent()) === '',
+            'POST columns-settings без columns не должен давать пустой 200'
+        );
+
+        if ($response->status() === 302) {
+            $response->assertSessionHasErrors(['columns']);
+        } else {
+            $response->assertStatus(422)->assertJsonValidationErrors(['columns']);
+        }
+    }
+
+    public function test_columns_settings_save_platform_commission_keys_and_reload(): void
+    {
+        $this->postJson(route('admin.partner.columns-settings.save'), [
+            'columns' => [
+                'platform_commission_all' => false,
+                'platform_commission_month_0' => 'true',
+                'platform_commission_month_1' => 0,
+                'platform_commission_month_2' => 1,
+            ],
+        ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->getJson(route('admin.partner.columns-settings.get'))
+            ->assertOk()
+            ->assertJsonPath('platform_commission_all', false)
+            ->assertJsonPath('platform_commission_month_0', true)
+            ->assertJsonPath('platform_commission_month_1', false)
+            ->assertJsonPath('platform_commission_month_2', true);
+    }
+
+    public function test_saved_hidden_platform_commission_is_not_forced_visible_on_reload(): void
+    {
+        UserTableSetting::updateOrCreate(
+            ['user_id' => $this->user->id, 'table_key' => 'partners_index'],
+            ['columns' => [
+                'title' => true,
+                'platform_commission_all' => false,
+            ]]
+        );
+
+        $saved = $this->getJson(route('admin.partner.columns-settings.get'))
+            ->assertOk()
+            ->json();
+
+        $this->assertFalse($saved['platform_commission_all']);
+        $this->assertArrayHasKey('platform_commission_all', $saved);
+
+        $dtJs = (string) file_get_contents(resource_path('js/kids-datatable.js'));
+        $this->assertStringContainsString('Object.prototype.hasOwnProperty.call(response, key)', $dtJs);
+    }
+
     // --- Blade / UX ---
 
     public function test_index_renders_metric_columns_with_dynamic_month_headers(): void
@@ -199,16 +360,22 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Кол-во активных пользователей', $html);
-        $this->assertStringContainsString('Кол-во договоров', $html);
-        $this->assertStringContainsString('Оборот за всё время', $html);
-        $this->assertStringContainsString('Оборот за август', $html);
-        $this->assertStringContainsString('Оборот за июль', $html);
-        $this->assertStringContainsString('Оборот за июнь', $html);
+        $this->assertStringContainsString('Акт. польз.', $html);
+        $this->assertStringContainsString('Договоров', $html);
+        $this->assertStringContainsString('За всё время', $html);
+        $this->assertStringContainsString('Август', $html);
+        $this->assertStringContainsString('Июль', $html);
+        $this->assertStringContainsString('Июнь', $html);
         $this->assertStringContainsString("key: 'active_users_count', type: 'count'", $html);
         $this->assertStringContainsString("key: 'signed_contracts_count', type: 'count'", $html);
         $this->assertStringContainsString("key: 'turnover_all', type: 'money'", $html);
+        $this->assertStringContainsString("key: 'platform_commission_all', type: 'money'", $html);
         $this->assertStringContainsString("key: 'turnover_month_0', type: 'money'", $html);
+        $this->assertStringContainsString("key: 'platform_commission_month_0', type: 'money'", $html);
+        $this->assertStringContainsString('% за всё время', $html);
+        $this->assertStringContainsString('% Август', $html);
+        $this->assertStringContainsString('% Июль', $html);
+        $this->assertStringContainsString('% Июнь', $html);
         $this->assertStringContainsString('data-column-key="active_users_count"', $html);
         $this->assertStringContainsString('option value="active" selected', $html);
     }
@@ -219,37 +386,49 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
 
         $tablePos = strpos($html, 'id="partners-table"');
         $this->assertNotFalse($tablePos);
-        $theadSnippet = substr($html, $tablePos, 2500);
+        $theadSnippet = substr($html, $tablePos, 4000);
 
         $statusPos = strpos($theadSnippet, '<th>Статус</th>');
-        $usersPos = strpos($theadSnippet, '<th>Кол-во активных пользователей</th>');
-        $contractsPos = strpos($theadSnippet, '<th>Кол-во договоров</th>');
-        $allPos = strpos($theadSnippet, '<th>Оборот за всё время</th>');
-        $augPos = strpos($theadSnippet, '<th>Оборот за август</th>');
-        $julPos = strpos($theadSnippet, '<th>Оборот за июль</th>');
-        $junPos = strpos($theadSnippet, '<th>Оборот за июнь</th>');
+        $usersPos = strpos($theadSnippet, '<th>Акт. польз.</th>');
+        $contractsPos = strpos($theadSnippet, '<th>Договоров</th>');
+        $allPos = strpos($theadSnippet, '<th>За всё время</th>');
+        $commissionAllPos = strpos($theadSnippet, '<th>% за всё время</th>');
+        $augPos = strpos($theadSnippet, '<th>Август</th>');
+        $commissionAugPos = strpos($theadSnippet, '<th>% Август</th>');
+        $julPos = strpos($theadSnippet, '<th>Июль</th>');
+        $commissionJulPos = strpos($theadSnippet, '<th>% Июль</th>');
+        $junPos = strpos($theadSnippet, '<th>Июнь</th>');
+        $commissionJunPos = strpos($theadSnippet, '<th>% Июнь</th>');
         $actionsPos = strpos($theadSnippet, '<th>Действия</th>');
 
         $this->assertNotFalse($statusPos);
         $this->assertNotFalse($usersPos);
         $this->assertNotFalse($contractsPos);
         $this->assertNotFalse($allPos);
+        $this->assertNotFalse($commissionAllPos);
         $this->assertNotFalse($augPos);
+        $this->assertNotFalse($commissionAugPos);
         $this->assertNotFalse($julPos);
+        $this->assertNotFalse($commissionJulPos);
         $this->assertNotFalse($junPos);
+        $this->assertNotFalse($commissionJunPos);
         $this->assertNotFalse($actionsPos);
         $this->assertLessThan($usersPos, $statusPos);
         $this->assertLessThan($contractsPos, $usersPos);
         $this->assertLessThan($allPos, $contractsPos);
-        $this->assertLessThan($augPos, $allPos);
-        $this->assertLessThan($julPos, $augPos);
-        $this->assertLessThan($junPos, $julPos);
-        $this->assertLessThan($actionsPos, $junPos);
+        $this->assertLessThan($commissionAllPos, $allPos);
+        $this->assertLessThan($augPos, $commissionAllPos);
+        $this->assertLessThan($commissionAugPos, $augPos);
+        $this->assertLessThan($julPos, $commissionAugPos);
+        $this->assertLessThan($commissionJulPos, $julPos);
+        $this->assertLessThan($junPos, $commissionJulPos);
+        $this->assertLessThan($commissionJunPos, $junPos);
+        $this->assertLessThan($actionsPos, $commissionJunPos);
 
         preg_match('/<thead>(.*?)<\/thead>/s', $theadSnippet, $theadMatch);
         $this->assertNotEmpty($theadMatch[1] ?? null);
         preg_match_all('/<th\b/i', $theadMatch[1], $thMatch);
-        $this->assertCount(13, $thMatch[0], 'thead и JS columns должны совпадать по числу колонок');
+        $this->assertCount(17, $thMatch[0], 'thead и JS columns должны совпадать по числу колонок');
     }
 
     public function test_index_metric_column_toggles_are_checked_by_default(): void
@@ -260,12 +439,16 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
             'active_users_count',
             'signed_contracts_count',
             'turnover_all',
+            'platform_commission_all',
             'turnover_month_0',
+            'platform_commission_month_0',
             'turnover_month_1',
+            'platform_commission_month_1',
             'turnover_month_2',
+            'platform_commission_month_2',
         ] as $key) {
             $this->assertMatchesRegularExpression(
-                '/data-column-key="'.preg_quote($key, '/').'"[\s\S]{0,120}?checked/',
+                '/data-column-key="'.preg_quote($key, '/').'"[\s\S]{0,200}?checked/',
                 $html,
                 "Тумблер колонки {$key} должен быть включён при первом открытии"
             );
@@ -278,13 +461,16 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
 
         $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('Оборот за январь', $html);
-        $this->assertStringContainsString('Оборот за декабрь', $html);
-        $this->assertStringContainsString('Оборот за ноябрь', $html);
-        $this->assertStringNotContainsString('Оборот за август', $html);
-        $this->assertStringNotContainsString('Оборот за июль', $html);
-        $this->assertStringNotContainsString('Оборот за июнь', $html);
-        $this->assertStringContainsString("key: 'turnover_month_0'", $html);
+        $this->assertStringContainsString('Январь', $html);
+        $this->assertStringContainsString('Декабрь', $html);
+        $this->assertStringContainsString('Ноябрь', $html);
+        $this->assertStringNotContainsString('Август', $html);
+        $this->assertStringNotContainsString('Июль', $html);
+        $this->assertStringNotContainsString('Июнь', $html);
+        $this->assertStringContainsString('% Январь', $html);
+        $this->assertStringContainsString('% Декабрь', $html);
+        $this->assertStringContainsString('% Ноябрь', $html);
+        $this->assertStringContainsString("key: 'platform_commission_month_0'", $html);
     }
 
     public function test_old_saved_column_settings_without_metric_keys_leave_defaults_to_client(): void
@@ -300,10 +486,12 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
 
         $this->assertArrayNotHasKey('active_users_count', $saved);
         $this->assertArrayNotHasKey('turnover_all', $saved);
+        $this->assertArrayNotHasKey('platform_commission_all', $saved);
 
         $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
         $this->assertStringContainsString('active_users_count: true', $html);
         $this->assertStringContainsString('turnover_all: true', $html);
+        $this->assertStringContainsString('platform_commission_all: true', $html);
 
         $dtJs = (string) file_get_contents(resource_path('js/kids-datatable.js'));
         $this->assertStringContainsString('Object.prototype.hasOwnProperty.call(response, key)', $dtJs);
@@ -323,6 +511,117 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
         $this->assertStringContainsString("e.preventDefault();", $html);
     }
 
+    public function test_index_inactive_filter_option_is_not_selected_on_first_open(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression(
+            '/<option value="active" selected>/',
+            $html
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<option value="inactive"[^>]*selected/',
+            $html
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<option value=""[^>]*selected/',
+            $html
+        );
+    }
+
+    public function test_index_does_not_render_old_long_metric_titles(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('Кол-во активных пользователей', $html);
+        $this->assertStringNotContainsString('Кол-во договоров', $html);
+        $this->assertStringNotContainsString('Оборот за всё время', $html);
+        $this->assertStringNotContainsString('Оборот за август', $html);
+        $this->assertStringNotContainsString('Комиссии сервиса за', $html);
+    }
+
+    public function test_index_thead_order_matches_js_columns_so_headers_are_not_shifted(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+
+        $thLabels = $this->partnersTheadLabels($html);
+        $jsKeys = $this->partnersJsColumnKeys($html);
+        $toggleKeys = $this->partnersColumnToggleKeys($html);
+
+        $this->assertSame([
+            '№',
+            'Сортировка',
+            'Наименование',
+            'E-mail',
+            'Телефон',
+            'Статус',
+            'Акт. польз.',
+            'Договоров',
+            'За всё время',
+            '% за всё время',
+            'Август',
+            '% Август',
+            'Июль',
+            '% Июль',
+            'Июнь',
+            '% Июнь',
+            'Действия',
+        ], $thLabels);
+
+        $this->assertSame([
+            'order_by',
+            'title',
+            'email',
+            'phone',
+            'status_label',
+            'active_users_count',
+            'signed_contracts_count',
+            'turnover_all',
+            'platform_commission_all',
+            'turnover_month_0',
+            'platform_commission_month_0',
+            'turnover_month_1',
+            'platform_commission_month_1',
+            'turnover_month_2',
+            'platform_commission_month_2',
+            'actions',
+        ], $jsKeys);
+
+        $this->assertCount(count($jsKeys) + 1, $thLabels, '№ (rownum) + JS keys = thead');
+        $this->assertSame($jsKeys, $toggleKeys, 'Чекбоксы «Колонки» в том же порядке, что DataTable columns');
+    }
+
+    public function test_index_column_toggle_labels_match_table_headers(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+        $labelsByKey = $this->partnersColumnToggleLabels($html);
+
+        $this->assertSame('Акт. польз.', $labelsByKey['active_users_count'] ?? null);
+        $this->assertSame('Договоров', $labelsByKey['signed_contracts_count'] ?? null);
+        $this->assertSame('За всё время', $labelsByKey['turnover_all'] ?? null);
+        $this->assertSame('% за всё время', $labelsByKey['platform_commission_all'] ?? null);
+        $this->assertSame('Август', $labelsByKey['turnover_month_0'] ?? null);
+        $this->assertSame('% Август', $labelsByKey['platform_commission_month_0'] ?? null);
+        $this->assertSame('Июль', $labelsByKey['turnover_month_1'] ?? null);
+        $this->assertSame('% Июль', $labelsByKey['platform_commission_month_1'] ?? null);
+        $this->assertSame('Июнь', $labelsByKey['turnover_month_2'] ?? null);
+        $this->assertSame('% Июнь', $labelsByKey['platform_commission_month_2'] ?? null);
+    }
+
+    public function test_filter_reset_js_does_not_uncheck_metric_columns(): void
+    {
+        $html = $this->get(route('admin.partner.index'))->assertOk()->getContent();
+
+        $resetPos = strpos($html, "$('#filter-reset').on('click'");
+        $this->assertNotFalse($resetPos);
+        $resetChunk = substr($html, $resetPos, 450);
+
+        $this->assertStringContainsString("$('#filter-title').val('')", $resetChunk);
+        $this->assertStringContainsString('defaultFilterStatus', $resetChunk);
+        $this->assertStringNotContainsString('column-toggle', $resetChunk);
+        $this->assertStringNotContainsString('platform_commission_all', $resetChunk);
+    }
+
     // --- Данные / границы ---
 
     public function test_data_returns_zero_metrics_when_partner_has_no_students_contracts_or_payments(): void
@@ -337,9 +636,13 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
         $this->assertSame(0, $row['active_users_count']);
         $this->assertSame(0, $row['signed_contracts_count']);
         $this->assertEquals(0, $row['turnover_all']);
+        $this->assertEquals(0, $row['platform_commission_all']);
         $this->assertEquals(0, $row['turnover_month_0']);
+        $this->assertEquals(0, $row['platform_commission_month_0']);
         $this->assertEquals(0, $row['turnover_month_1']);
+        $this->assertEquals(0, $row['platform_commission_month_1']);
         $this->assertEquals(0, $row['turnover_month_2']);
+        $this->assertEquals(0, $row['platform_commission_month_2']);
     }
 
     public function test_data_counts_only_enabled_students_and_signed_contracts(): void
@@ -708,6 +1011,403 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
         $this->assertSame(['Metrics users many', 'Metrics users few'], $titles);
     }
 
+    public function test_platform_commission_uses_payout_snapshot_by_payment_operation_date(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics platform fee partner',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 20000, '2026-08-10 12:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 15000, '2026-07-20 09:00:00', 'INITIATED');
+        $this->createPlatformFeePayout($partner, $student, 8000, '2026-06-02 00:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 4000, '2026-05-15 11:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 99900, '2026-08-11 10:00:00', 'REJECTED');
+
+        $foreignStudent = User::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+        $this->createPlatformFeePayout($this->foreignPartner, $foreignStudent, 500000, '2026-08-05 08:00:00', 'COMPLETED');
+
+        Payment::factory()->forUser($student)->create([
+            'summ_cents' => 100000,
+            'operation_date' => '2026-08-12 10:00:00',
+            'deal_id' => null,
+        ]);
+
+        $row = $this->fetchPartnerRow($partner);
+
+        $this->assertEquals(470, $row['platform_commission_all']);
+        $this->assertEquals(200, $row['platform_commission_month_0']);
+        $this->assertEquals(150, $row['platform_commission_month_1']);
+        $this->assertEquals(80, $row['platform_commission_month_2']);
+    }
+
+    public function test_changing_commission_rule_does_not_recalculate_old_platform_fee_snapshot(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics snapshot rule partner',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        TinkoffCommissionRule::factory()->create([
+            'partner_id' => $partner->id,
+            'method' => null,
+            'is_enabled' => true,
+            'platform_percent' => 2.00,
+            'platform_min_fixed' => 0,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 2000, '2026-08-10 12:00:00', 'COMPLETED');
+
+        TinkoffCommissionRule::query()
+            ->where('partner_id', $partner->id)
+            ->update(['platform_percent' => 9.99]);
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(20, $row['platform_commission_all']);
+        $this->assertEquals(20, $row['platform_commission_month_0']);
+    }
+
+    public function test_platform_commission_without_matching_payment_is_zero(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics orphan payout partner',
+            'is_enabled' => true,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $partner->id,
+            'deal_id' => 'orphan-deal-' . uniqid('', true),
+            'amount' => 1,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'platform_fee' => 77700,
+            'source' => 'manual',
+        ]);
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(0, $row['platform_commission_all']);
+        $this->assertEquals(0, $row['platform_commission_month_0']);
+    }
+
+    public function test_data_sort_by_platform_commission_all_desc(): void
+    {
+        $low = Partner::factory()->create([
+            'title' => 'Metrics fee sort low',
+            'is_enabled' => true,
+            'order_by' => 1,
+        ]);
+        $high = Partner::factory()->create([
+            'title' => 'Metrics fee sort high',
+            'is_enabled' => true,
+            'order_by' => 2,
+        ]);
+
+        $studentRoleId = $this->roleId('user');
+        $lowStudent = User::factory()->create([
+            'partner_id' => $low->id,
+            'role_id' => $studentRoleId,
+            'is_enabled' => true,
+        ]);
+        $highStudent = User::factory()->create([
+            'partner_id' => $high->id,
+            'role_id' => $studentRoleId,
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($low, $lowStudent, 1000, '2026-08-01 00:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($high, $highStudent, 9000, '2026-08-01 00:00:00', 'COMPLETED');
+
+        $response = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+            'title' => 'Metrics fee sort',
+            'order' => [['column' => 9, 'dir' => 'desc']],
+            'columns' => $this->metricColumnsLayout(),
+        ]));
+
+        $response->assertOk();
+        $titles = array_column($response->json('data'), 'title');
+        $this->assertSame(['Metrics fee sort high', 'Metrics fee sort low'], $titles);
+    }
+
+    public function test_platform_commission_follows_payment_date_not_payout_completed_at(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee by payment date',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $payout = $this->createPlatformFeePayout($partner, $student, 33000, '2026-08-10 12:00:00', 'COMPLETED');
+        $payout->forceFill([
+            'completed_at' => '2026-09-15 10:00:00',
+            'created_at' => '2026-09-15 10:00:00',
+        ])->save();
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(330, $row['platform_commission_month_0']);
+        $this->assertEquals(330, $row['platform_commission_all']);
+        $this->assertEquals(0, $row['platform_commission_month_1']);
+    }
+
+    public function test_platform_commission_on_month_boundary_belongs_to_correct_month(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee boundary',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 1000, '2026-08-01 00:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 2000, '2026-08-31 23:59:59', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 4000, '2026-09-01 00:00:00', 'COMPLETED');
+        $this->createPlatformFeePayout($partner, $student, 8000, '2026-07-31 23:59:59', 'COMPLETED');
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(30, $row['platform_commission_month_0']);
+        $this->assertEquals(80, $row['platform_commission_month_1']);
+        $this->assertEquals(150, $row['platform_commission_all']);
+    }
+
+    public function test_platform_commission_kopecks_are_ruble_fraction(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee kopecks',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 1050, '2026-08-10 12:00:00', 'COMPLETED');
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(10.5, $row['platform_commission_all']);
+        $this->assertEquals(10.5, $row['platform_commission_month_0']);
+    }
+
+    public function test_checked_and_credit_checking_payouts_count_in_platform_commission(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee extra statuses',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 1100, '2026-08-10 12:00:00', 'CHECKED');
+        $this->createPlatformFeePayout($partner, $student, 2200, '2026-08-11 12:00:00', 'CREDIT_CHECKING');
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(33, $row['platform_commission_all']);
+        $this->assertEquals(33, $row['platform_commission_month_0']);
+    }
+
+    public function test_rejected_then_completed_payout_on_same_deal_counts_only_completed_fee(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee rejected then completed',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $dealId = 'metrics-deal-retry-' . uniqid('', true);
+        Payment::factory()->forUser($student)->create([
+            'summ_cents' => 100000,
+            'operation_date' => '2026-08-10 12:00:00',
+            'deal_id' => $dealId,
+        ]);
+
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $partner->id,
+            'deal_id' => $dealId,
+            'amount' => 1,
+            'is_final' => true,
+            'status' => 'REJECTED',
+            'platform_fee' => 99900,
+            'source' => 'manual',
+        ]);
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $partner->id,
+            'deal_id' => $dealId,
+            'amount' => 1,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'platform_fee' => 2500,
+            'source' => 'manual',
+        ]);
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(25, $row['platform_commission_all']);
+        $this->assertEquals(25, $row['platform_commission_month_0']);
+    }
+
+    public function test_robokassa_payment_adds_turnover_but_zero_platform_commission(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics robokassa no fee',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        Payment::factory()->forUser($student)->create([
+            'summ_cents' => 500000,
+            'operation_date' => '2026-08-10 12:00:00',
+            'deal_id' => null,
+        ]);
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(5000, $row['turnover_all']);
+        $this->assertEquals(5000, $row['turnover_month_0']);
+        $this->assertEquals(0, $row['platform_commission_all']);
+        $this->assertEquals(0, $row['platform_commission_month_0']);
+    }
+
+    public function test_platform_commission_ignores_payment_month_like_turnover(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee ignores payment month',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $dealId = 'metrics-deal-paymonth-' . uniqid('', true);
+        Payment::factory()->forUser($student)->create([
+            'summ_cents' => 100000,
+            'operation_date' => '2026-08-10 12:00:00',
+            'payment_month' => '2026-07-01',
+            'deal_id' => $dealId,
+        ]);
+        TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $partner->id,
+            'deal_id' => $dealId,
+            'amount' => 1,
+            'is_final' => true,
+            'status' => 'COMPLETED',
+            'platform_fee' => 4400,
+            'source' => 'manual',
+        ]);
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertEquals(44, $row['platform_commission_month_0']);
+        $this->assertEquals(0, $row['platform_commission_month_1']);
+    }
+
+    public function test_soft_deleted_student_payout_still_counts_in_platform_commission(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics fee deleted student',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        $this->createPlatformFeePayout($partner, $student, 1800, '2026-08-10 12:00:00', 'COMPLETED');
+        $student->delete();
+
+        $row = $this->fetchPartnerRow($partner);
+        $this->assertSame(0, $row['active_users_count']);
+        $this->assertEquals(18, $row['platform_commission_all']);
+        $this->assertEquals(18, $row['platform_commission_month_0']);
+    }
+
+    public function test_partner_row_is_not_duplicated_when_many_payouts_exist(): void
+    {
+        $partner = Partner::factory()->create([
+            'title' => 'Metrics no-dup fee partner',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $partner->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+
+        for ($i = 0; $i < 8; $i++) {
+            $this->createPlatformFeePayout($partner, $student, 1000, '2026-08-10 12:00:00', 'COMPLETED');
+        }
+
+        $json = $this->getJson(route('admin.partner.data', [
+            'draw' => 1,
+            'start' => 0,
+            'length' => 50,
+            'status' => 'active',
+            'title' => 'Metrics no-dup fee partner',
+        ]))->assertOk()->json();
+
+        $ids = array_column($json['data'], 'id');
+        $this->assertSame(1, count(array_keys($ids, $partner->id, true)));
+        $this->assertSame(1, $json['recordsFiltered']);
+        $row = collect($json['data'])->firstWhere('id', $partner->id);
+        $this->assertEquals(80, $row['platform_commission_all']);
+    }
+
+    public function test_metrics_list_shows_other_partners_commission_not_only_current_partner(): void
+    {
+        $other = Partner::factory()->create([
+            'title' => 'Metrics other club fee',
+            'is_enabled' => true,
+        ]);
+        $student = User::factory()->create([
+            'partner_id' => $other->id,
+            'role_id' => $this->roleId('user'),
+            'is_enabled' => true,
+        ]);
+        $this->createPlatformFeePayout($other, $student, 7700, '2026-08-10 12:00:00', 'COMPLETED');
+
+        $row = $this->fetchPartnerRow($other);
+        $this->assertEquals(77, $row['platform_commission_all']);
+        $this->assertNotSame($this->partner->id, $other->id);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -756,11 +1456,122 @@ final class PartnersListMetricsFeatureTest extends CrmTestCase
             ['name' => PartnerListMetrics::COLUMN_ACTIVE_USERS],
             ['name' => PartnerListMetrics::COLUMN_SIGNED_CONTRACTS],
             ['name' => PartnerListMetrics::COLUMN_TURNOVER_ALL],
+            ['name' => PartnerListMetrics::COLUMN_PLATFORM_COMMISSION_ALL],
             ['name' => PartnerListMetrics::COLUMN_TURNOVER_MONTH_0],
+            ['name' => PartnerListMetrics::COLUMN_PLATFORM_COMMISSION_MONTH_0],
             ['name' => PartnerListMetrics::COLUMN_TURNOVER_MONTH_1],
+            ['name' => PartnerListMetrics::COLUMN_PLATFORM_COMMISSION_MONTH_1],
             ['name' => PartnerListMetrics::COLUMN_TURNOVER_MONTH_2],
+            ['name' => PartnerListMetrics::COLUMN_PLATFORM_COMMISSION_MONTH_2],
             ['name' => 'actions'],
         ];
+    }
+
+    private function createPlatformFeePayout(
+        Partner $partner,
+        User $student,
+        int $platformFeeCents,
+        string $operationDate,
+        string $status,
+    ): TinkoffPayout {
+        $dealId = 'metrics-deal-' . uniqid('', true);
+
+        Payment::factory()->forUser($student)->create([
+            'summ_cents' => 100000,
+            'operation_date' => $operationDate,
+            'deal_id' => $dealId,
+        ]);
+
+        return TinkoffPayout::create([
+            'payment_id' => null,
+            'partner_id' => $partner->id,
+            'deal_id' => $dealId,
+            'amount' => 1,
+            'is_final' => true,
+            'status' => $status,
+            'platform_fee' => $platformFeeCents,
+            'source' => 'manual',
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function partnersTheadLabels(string $html): array
+    {
+        $tablePos = strpos($html, 'id="partners-table"');
+        $this->assertNotFalse($tablePos);
+        $theadStart = strpos($html, '<thead>', $tablePos);
+        $theadEnd = strpos($html, '</thead>', (int) $theadStart);
+        $this->assertNotFalse($theadStart);
+        $this->assertNotFalse($theadEnd);
+        $thead = substr($html, $theadStart, $theadEnd - $theadStart);
+
+        preg_match_all('/<th\b[^>]*>(.*?)<\/th>/s', $thead, $matches);
+
+        return array_values(array_map(
+            static fn (string $inner): string => trim(html_entity_decode(strip_tags($inner))),
+            $matches[1]
+        ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function partnersJsColumnKeys(string $html): array
+    {
+        $createPos = strpos($html, "KidsCrmDataTable.create('#partners-table'");
+        $this->assertNotFalse($createPos);
+        $columnsPos = strpos($html, 'columns: [', $createPos);
+        $this->assertNotFalse($columnsPos);
+        $actionsPos = strpos($html, "key: 'actions'", $columnsPos);
+        $this->assertNotFalse($actionsPos);
+        $chunk = substr($html, $columnsPos, ($actionsPos + 40) - $columnsPos);
+
+        preg_match_all("/key:\s*'([^']+)'/", $chunk, $matches);
+
+        return array_values($matches[1]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function partnersColumnToggleKeys(string $html): array
+    {
+        preg_match_all('/data-column-key="([^"]+)"/', $this->partnersColumnsMenuHtml($html), $matches);
+
+        return array_values($matches[1]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function partnersColumnToggleLabels(string $html): array
+    {
+        preg_match_all(
+            '/data-column-key="([^"]+)"[^>]*>\s*<label[^>]*>(.*?)<\/label>/s',
+            $this->partnersColumnsMenuHtml($html),
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        $out = [];
+        foreach ($matches as $match) {
+            $out[$match[1]] = trim(html_entity_decode(strip_tags($match[2])));
+        }
+
+        return $out;
+    }
+
+    private function partnersColumnsMenuHtml(string $html): string
+    {
+        $start = strpos($html, 'id="partnersColumnsDropdown"');
+        $end = strpos($html, 'id="partnersReportFiltersCollapse"');
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+
+        return substr($html, $start, $end - $start);
     }
 
     private function grantPartnerView(): void

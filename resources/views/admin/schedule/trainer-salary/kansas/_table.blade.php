@@ -37,10 +37,10 @@
         <th class="trainer-salary-corner" scope="col">
             <span class="trainer-salary-corner-label">Тренер / группа</span>
         </th>
-        <th class="trainer-salary-col trainer-salary-col--money" scope="col" title="Оклад за тренировку">
+        <th class="trainer-salary-col trainer-salary-col--money" scope="col" title="Оклад за тренировку. Задаётся в типе тренера.">
             <span class="trainer-salary-th-label">Оклад<br>за трен.</span>
         </th>
-        <th class="trainer-salary-col trainer-salary-col--money" scope="col">
+        <th class="trainer-salary-col trainer-salary-col--money" scope="col" title="Базовая премия за тренировку. Задаётся в типе тренера.">
             <span class="trainer-salary-th-label">Базовая<br>премия</span>
         </th>
         <th class="trainer-salary-col trainer-salary-col--count" scope="col" title="Базовое среднее учеников">
@@ -94,30 +94,10 @@
                 @endif
             </th>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                @if($canManage ?? false)
-                    <input type="number"
-                           class="form-control form-control-sm trainer-salary-input text-end"
-                           data-field="rate_per_training"
-                           min="0"
-                           step="0.01"
-                           value="{{ $inputRubles($row['rate_per_training']) }}">
-                    <div class="invalid-feedback d-none" data-error-for="rate_per_training"></div>
-                @else
-                    <span class="trainer-salary-readonly trainer-salary-value">{{ $formatMoneyRubles($row['rate_per_training']) }}</span>
-                @endif
+                <span class="trainer-salary-readonly trainer-salary-value">{{ $formatMoneyRubles($row['rate_per_training']) }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
-                @if($canManage ?? false)
-                    <input type="number"
-                           class="form-control form-control-sm trainer-salary-input text-end"
-                           data-field="base_premium"
-                           min="0"
-                           step="0.01"
-                           value="{{ $inputRubles($row['base_premium']) }}">
-                    <div class="invalid-feedback d-none" data-error-for="base_premium"></div>
-                @else
-                    <span class="trainer-salary-readonly trainer-salary-value">{{ $formatMoneyRubles($row['base_premium']) }}</span>
-                @endif
+                <span class="trainer-salary-readonly trainer-salary-value">{{ $formatMoneyRubles($row['base_premium']) }}</span>
             </td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body" colspan="6"></td>
             <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--total text-end">

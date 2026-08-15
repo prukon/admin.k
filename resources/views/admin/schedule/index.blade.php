@@ -58,6 +58,19 @@
         {{-- Hotfix до следующей Vite-сборки: актуальный trainer-salary.js (схема kansas) --}}
         <link rel="stylesheet" href="{{ asset('css/trainer-salary.css') }}?v={{ @filemtime(public_path('css/trainer-salary.css')) ?: time() }}">
         <script src="{{ asset('js/trainer-salary.js') }}?v={{ @filemtime(public_path('js/trainer-salary.js')) ?: time() }}"></script>
+        @if($can_manage_trainer_types ?? false)
+            @include('admin.trainers._trainer_types_assets')
+            <script>
+                window.__onTrainerTypesChanged = function (types, reason) {
+                    if (reason === 'open') {
+                        return;
+                    }
+                    if (typeof window.__reloadTrainerSalaryReport === 'function') {
+                        window.__reloadTrainerSalaryReport();
+                    }
+                };
+            </script>
+        @endif
     @elseif(($activeTab ?? '') === 'trainer-salary-sheets')
         @vite(['resources/js/trainer-salary-sheets.js'])
     @endif

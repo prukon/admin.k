@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TrainerProfile;
 use App\Models\User;
+use App\Services\Trainers\TrainerTypeCatalog;
 
 class TrainerProfileSyncService
 {
@@ -42,12 +43,20 @@ class TrainerProfileSyncService
                 'is_enabled' => (bool) ($user->is_enabled ?? true),
             ]);
 
+            if (! $profile->trainer_type_id) {
+                $type = app(TrainerTypeCatalog::class)->ensureSystemType($partnerId);
+                $profile->forceFill(['trainer_type_id' => $type->id])->save();
+            }
+
             return;
         }
+
+        $type = app(TrainerTypeCatalog::class)->ensureSystemType($partnerId);
 
         TrainerProfile::create([
             'user_id' => $user->id,
             'partner_id' => $partnerId,
+            'trainer_type_id' => $type->id,
             'description' => null,
             'is_enabled' => (bool) ($user->is_enabled ?? true),
             'sort_order' => 0,

@@ -41,9 +41,10 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('reloadPartnersTable', false)
             ->assertSee('>№<', false)
-            ->assertSee('Кол-во активных пользователей', false)
-            ->assertSee('Кол-во договоров', false)
-            ->assertSee('Оборот за всё время', false)
+            ->assertSee('Акт. польз.', false)
+            ->assertSee('Договоров', false)
+            ->assertSee('За всё время', false)
+            ->assertSee('% за всё время', false)
             ->assertSee('option value="active" selected', false);
     }
 
@@ -79,9 +80,13 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
             'active_users_count',
             'signed_contracts_count',
             'turnover_all',
+            'platform_commission_all',
             'turnover_month_0',
+            'platform_commission_month_0',
             'turnover_month_1',
+            'platform_commission_month_1',
             'turnover_month_2',
+            'platform_commission_month_2',
         ], array_keys($row));
         $this->assertSame('Неактивен', $row['status_label']);
         $this->assertSame(0, $row['is_enabled']);
@@ -411,9 +416,13 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
                 ['name' => 'active_users_count'],
                 ['name' => 'signed_contracts_count'],
                 ['name' => 'turnover_all'],
+                ['name' => 'platform_commission_all'],
                 ['name' => 'turnover_month_0'],
+                ['name' => 'platform_commission_month_0'],
                 ['name' => 'turnover_month_1'],
+                ['name' => 'platform_commission_month_1'],
                 ['name' => 'turnover_month_2'],
+                ['name' => 'platform_commission_month_2'],
                 ['name' => 'actions'],
             ],
             'draw' => 1,
@@ -433,6 +442,7 @@ final class PartnersDataTableFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('status_label', $row);
         $this->assertArrayHasKey('active_users_count', $row);
         $this->assertArrayHasKey('turnover_all', $row);
+        $this->assertArrayHasKey('platform_commission_all', $row);
     }
 
     public function test_data_validates_invalid_status_returns_422(): void

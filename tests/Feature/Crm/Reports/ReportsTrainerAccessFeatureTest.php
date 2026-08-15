@@ -42,7 +42,7 @@ final class ReportsTrainerAccessFeatureTest extends CrmTestCase
             'name' => 'Тренер',
         ]);
 
-        return TrainerProfile::query()->create([
+        return TrainerProfile::factory()->create([
             'partner_id' => $this->partner->id,
             'user_id' => $user->id,
             'is_enabled' => true,
