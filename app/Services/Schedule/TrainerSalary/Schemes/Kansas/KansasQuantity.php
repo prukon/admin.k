@@ -67,6 +67,14 @@ final class KansasQuantity
     }
 
     /**
+     * Целая часть десятых для ячейки (16.5 → 16). Расчёт и БД не трогает.
+     */
+    public static function formatTenthsAsInt(int $tenths): string
+    {
+        return (string) intdiv($tenths, 10);
+    }
+
+    /**
      * round(sum / count, 1) как tenths: round(sum * 10 / count) half-up.
      */
     public static function averageToTenths(int $sum, int $count): int

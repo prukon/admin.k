@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Trainers;
 
+use App\Models\Team;
 use App\Models\TrainerType;
 use Tests\Feature\Crm\Schedule\ScheduleTrainerSalaryTestCase;
 
@@ -172,6 +173,9 @@ final class TrainerTypesUiContractsFeatureTest extends ScheduleTrainerSalaryTest
         $this->grantTrainerSalaryManage();
         $trainer = $this->makeTrainerProfile('Readonly ставки');
         $this->setTrainerTypeRates($trainer, 400, 50);
+        $team = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа readonly']);
+        $student = $this->makeStudent($team->id);
+        $this->createVisitedScheduleEntry($student->id, $trainer->id, '2026-05-07');
 
         $page = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
             ->assertOk()

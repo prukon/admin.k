@@ -14,9 +14,11 @@
         <div class="card-body p-3 p-md-4">
             <div class="trainer-salary-header mb-3 mb-md-4">
                 <h1 class="h5 mb-1 fw-semibold text-body trainer-salary-title">ЗП тренеров</h1>
-                <p class="text-muted small mb-0 trainer-salary-subtitle">
-                    {{ $draft_subtitle ?? 'Черновик за календарный месяц. Кол-во тренировок — как в отчёте «Нагрузка тренеров» (итог по строке).' }}
-                </p>
+                @if(filled($draft_subtitle ?? null))
+                    <p class="text-muted small mb-0 trainer-salary-subtitle">
+                        {{ $draft_subtitle }}
+                    </p>
+                @endif
             </div>
 
             <div class="trainer-salary-filters mb-3 mb-md-4 d-flex flex-wrap align-items-end gap-3">
@@ -30,6 +32,15 @@
                 </div>
                 @if($canManageTrainerSalary ?? false)
                     <div class="ms-md-auto d-flex flex-wrap gap-2">
+                        @if(($scheme_code ?? '') === 'kansas')
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    id="trainer-salary-kansas-month-settings-btn"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#trainerSalaryKansasMonthSettingsModal">
+                                Настройки месяца
+                            </button>
+                        @endif
                         @if($can_manage_trainer_types ?? false)
                             <button type="button"
                                     class="btn btn-outline-secondary"
@@ -58,6 +69,12 @@
         </div>
     </div>
 </div>
+@if(($scheme_code ?? '') === 'kansas' && ($canManageTrainerSalary ?? false))
+    @include('admin.schedule.trainer-salary.kansas._month_settings_modal', array_merge([
+        'canManage' => $canManageTrainerSalary ?? false,
+        'draft_view_data' => $draft_view_data ?? [],
+    ], $draft_view_data ?? []))
+@endif
 @if($can_manage_trainer_types ?? false)
     @include('admin.trainers._trainer_types_modal')
 @endif

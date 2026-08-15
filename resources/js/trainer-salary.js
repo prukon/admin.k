@@ -15,6 +15,8 @@
 
     var monthEl = document.getElementById('trainer-salary-month');
     var tableHost = document.getElementById('trainer-salary-table-host');
+    var monthSettingsHost = document.getElementById('trainer-salary-kansas-month-settings-host');
+    var monthSettingsBtn = document.getElementById('trainer-salary-kansas-month-settings-btn');
     var flashEl = document.getElementById('trainer-salary-flash');
     var formAllBtn = document.getElementById('trainer-salary-form-all-btn');
     var errorMonthEl = document.getElementById('trainer-salary-error-month');
@@ -184,10 +186,10 @@
     }
 
     function clearHostFieldErrors() {
-        if (!tableHost) {
-            return;
+        if (tableHost) {
+            clearFieldErrors(tableHost.querySelector('.trainer-salary-kansas-x'));
         }
-        clearFieldErrors(tableHost.querySelector('.trainer-salary-kansas-x'));
+        clearFieldErrors(monthSettingsHost);
     }
 
     function showErrorsIn(root, errors) {
@@ -216,10 +218,12 @@
     }
 
     function showHostFieldErrors(errors) {
-        if (!tableHost) {
-            return;
+        if (tableHost) {
+            showErrorsIn(tableHost.querySelector('.trainer-salary-kansas-x'), errors);
         }
-        showErrorsIn(tableHost.querySelector('.trainer-salary-kansas-x'), errors);
+        if (monthSettingsHost) {
+            showErrorsIn(monthSettingsHost.querySelector('.trainer-salary-kansas-x'), errors);
+        }
     }
 
     function fetchReport() {
@@ -273,8 +277,13 @@
                 clearMonthError();
                 var data = result.body || {};
                 if (typeof data.table_html === 'string') {
-                    tableHost.innerHTML = data.table_html;
-                    bindTableEvents();
+                    applyTableHtml(data.table_html);
+                }
+                if (typeof data.month_settings_html === 'string') {
+                    applyMonthSettingsHtml(data.month_settings_html);
+                }
+                if (monthSettingsBtn) {
+                    monthSettingsBtn.classList.toggle('d-none', data.scheme_code !== 'kansas' || !canManage);
                 }
             })
             .catch(function (err) {
@@ -300,16 +309,45 @@
         }, delayMs);
     }
 
+    function applyMonthSettingsHtml(html) {
+        if (!monthSettingsHost || typeof html !== 'string') {
+            return false;
+        }
+        if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.dispose === 'function') {
+            window.KidsCrmTooltip.dispose(monthSettingsHost, { scopes: ['hint'] });
+        }
+        monthSettingsHost.innerHTML = html;
+        var titleRoot = monthSettingsHost.querySelector('[data-modal-title]');
+        var titleEl = document.getElementById('trainerSalaryKansasMonthSettingsModalLabel');
+        if (titleRoot && titleEl) {
+            var nextTitle = titleRoot.getAttribute('data-modal-title');
+            if (nextTitle) {
+                titleEl.textContent = nextTitle;
+            }
+        }
+        bindMonthSettingsEvents();
+        if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function') {
+            window.KidsCrmTooltip.init(monthSettingsHost, { scopes: ['hint'] });
+        }
+        return true;
+    }
+
     function applyTableHtml(html) {
         if (!tableHost || typeof html !== 'string') {
             return false;
         }
+        if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.dispose === 'function') {
+            window.KidsCrmTooltip.dispose(tableHost, { scopes: ['hint'] });
+        }
         tableHost.innerHTML = html;
         bindTableEvents();
+        if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function') {
+            window.KidsCrmTooltip.init(tableHost, { scopes: ['hint'] });
+        }
         return true;
     }
 
-    function saveDraft(trainerId, field, value, extra) {
+    function saveDraft(trainerId, field, value, extra, errorRoot) {
         if (!canManage) {
             return;
         }
@@ -355,14 +393,20 @@
                     });
                 })
                 .then(function (result) {
-                    var tr = tableHost.querySelector('tr[data-trainer-id="' + trainerId + '"]');
+                    var tr = tableHost ? tableHost.querySelector('tr[data-trainer-id="' + trainerId + '"]') : null;
                     clearRowErrors(tr);
                     clearHostFieldErrors();
+                    if (errorRoot) {
+                        clearFieldErrors(errorRoot);
+                    }
 
                     if (!result.ok) {
                         if (result.status === 422 && result.body && result.body.errors) {
                             showRowErrors(tr, result.body.errors);
                             showHostFieldErrors(result.body.errors);
+                            if (errorRoot) {
+                                showErrorsIn(errorRoot, result.body.errors);
+                            }
                         }
                         return;
                     }
@@ -493,12 +537,12 @@
             });
     }
 
-    function bindTableEvents() {
-        if (!tableHost || !canManage) {
+    function bindDraftInputs(root) {
+        if (!root || !canManage) {
             return;
         }
 
-        tableHost.querySelectorAll('.trainer-salary-input').forEach(function (input) {
+        root.querySelectorAll('.trainer-salary-input').forEach(function (input) {
             input.addEventListener('change', function () {
                 var field = input.getAttribute('data-field');
                 if (!field) {
@@ -515,16 +559,36 @@
                     trainerId = xHost ? xHost.getAttribute('data-save-trainer-id') : null;
                 }
                 if (!trainerId) {
+                    var settingsHost = input.closest('[data-save-trainer-id]');
+                    trainerId = settingsHost ? settingsHost.getAttribute('data-save-trainer-id') : null;
+                }
+                if (!trainerId) {
                     return;
                 }
 
                 var extra = {};
-                if (tr && tr.getAttribute('data-team-id') !== null && field === 'base_avg_students') {
-                    extra.team_id = tr.getAttribute('data-team-id');
+                var teamHost = input.closest('[data-team-id]');
+                if (teamHost && field === 'base_avg_students') {
+                    extra.team_id = teamHost.getAttribute('data-team-id');
                 }
-                saveDraft(trainerId, field, input.value, extra);
+                var errorRoot = input.closest('.trainer-salary-kansas-month-group')
+                    || input.closest('.trainer-salary-kansas-x')
+                    || tr;
+                saveDraft(trainerId, field, input.value, extra, errorRoot);
             });
         });
+    }
+
+    function bindMonthSettingsEvents() {
+        bindDraftInputs(monthSettingsHost);
+    }
+
+    function bindTableEvents() {
+        if (!tableHost || !canManage) {
+            return;
+        }
+
+        bindDraftInputs(tableHost);
 
         tableHost.querySelectorAll('.trainer-salary-form-one-btn').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -547,6 +611,10 @@
     }
 
     bindTableEvents();
+    bindMonthSettingsEvents();
+    if (window.KidsCrmTooltip && typeof window.KidsCrmTooltip.init === 'function' && monthSettingsHost) {
+        window.KidsCrmTooltip.init(monthSettingsHost, { scopes: ['hint'] });
+    }
 
     window.__reloadTrainerSalaryReport = fetchReport;
 })();

@@ -188,7 +188,7 @@ final class ScheduleTrainerSalaryAccessFeatureTest extends ScheduleTrainerSalary
         $html = (string) $this->get(route('schedule.trainer-salary'))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('базовая надбавка к премии', $html);
+        $this->assertStringContainsString('Базовая надбавка к премии', $html);
         $this->assertStringContainsString('data-scheme-code="kansas"', $html);
         $this->assertStringNotContainsString('как в отчёте «Нагрузка тренеров»', $html);
     }

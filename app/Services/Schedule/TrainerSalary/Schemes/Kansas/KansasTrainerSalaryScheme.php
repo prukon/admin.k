@@ -18,6 +18,7 @@ use App\Models\TrainerSalarySnapshot;
 use App\Services\Schedule\TrainerSalary\TrainerSalaryScheme;
 use App\Services\Trainers\TrainerTypeCatalog;
 use App\Support\Money;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
@@ -45,7 +46,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
 
     public function draftSubtitle(): string
     {
-        return 'Черновик за календарный месяц. Тренировка — занятие (слот + дата) с хотя бы одним «Посетил» у этого тренера. Средние до десятых входят в расчёт.';
+        return '';
     }
 
     public function draftTableView(): string
@@ -61,10 +62,46 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     public function draftViewData(TrainerSalaryPeriod $period): array
     {
         $incrementCents = $this->premiumIncrementCents($period);
+        $baselines = $this->baselinesByTeam($period);
+
+        $teams = Team::query()
+            ->where('partner_id', (int) $period->partner_id)
+            ->where('is_enabled', true)
+            ->orderBy('title')
+            ->orderBy('id')
+            ->get(['id', 'title']);
+
+        $monthGroups = [];
+        foreach ($teams as $team) {
+            $teamId = (int) $team->id;
+            $tenths = $baselines[$teamId] ?? 0;
+            $monthGroups[] = [
+                'team_id' => $teamId,
+                'team_title' => (string) $team->title,
+                'base_avg_students' => KansasQuantity::formatTenths($tenths),
+                'base_avg_students_int' => KansasQuantity::formatTenthsAsInt($tenths),
+            ];
+        }
+
+        $saveTrainerId = (int) TrainerSalaryDraftLine::query()
+            ->where('trainer_salary_period_id', $period->id)
+            ->orderBy('id')
+            ->value('trainer_profile_id');
+
+        $monthLabel = mb_ucfirst(
+            Carbon::createFromDate((int) $period->year, (int) $period->month, 1)
+                ->locale('ru')
+                ->translatedFormat('F Y'),
+            'UTF-8',
+        );
 
         return [
             'premium_increment' => $this->formatMoney($incrementCents),
+            'premium_increment_int' => $this->formatMoneyAsInt($incrementCents),
             'premium_increment_display' => $this->formatSheetMoney($incrementCents),
+            'month_groups' => $monthGroups,
+            'save_trainer_id' => $saveTrainerId,
+            'month_settings_title' => 'Настройки базовых значений за '.$monthLabel,
         ];
     }
 
@@ -378,6 +415,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
         return [
             'trainer_profile_id' => (int) $draft->trainer_profile_id,
             'trainer_name' => $trainerName,
+            'trainer_type_name' => $this->trainerTypeNameFromProfile($this->profileOfDraft($draft)),
             'rate_per_training' => $this->formatMoney((int) $settings->rate_per_training_cents),
             'base_premium' => $this->formatMoney((int) $settings->base_premium_cents),
             'trainings_count' => (int) $draft->trainings_count,
@@ -405,6 +443,11 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
         return [
             'trainer_profile_id' => (int) $snapshot->trainer_profile_id,
             'trainer_name' => $trainerName,
+            'trainer_type_name' => $this->trainerTypeNameFromProfile(
+                $snapshot->relationLoaded('trainerProfile')
+                    ? $snapshot->trainerProfile
+                    : $snapshot->trainerProfile()->with('trainerType')->first()
+            ),
             'rate_per_training' => $this->formatSheetMoney($rateCents),
             'base_premium' => $this->formatSheetMoney($premiumCents),
             'premium_increment' => $this->formatSheetMoney($incrementCents),
@@ -487,12 +530,19 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
             ? fn (int $cents) => $this->formatSheetMoney($cents)
             : fn (int $cents) => $this->formatMoney($cents);
 
+        $baseAvgTenths = (int) $group->base_avg_tenths;
+        $factAvgTenths = (int) $group->fact_avg_tenths;
+        $diffTenths = (int) $group->diff_tenths;
+
         return [
             'team_id' => (int) $group->team_id,
             'team_title' => (string) $group->team_title,
-            'base_avg_students' => KansasQuantity::formatTenths((int) $group->base_avg_tenths),
-            'fact_avg_students' => KansasQuantity::formatTenths((int) $group->fact_avg_tenths),
-            'diff_students' => KansasQuantity::formatTenths((int) $group->diff_tenths),
+            'base_avg_students' => KansasQuantity::formatTenths($baseAvgTenths),
+            'base_avg_students_int' => KansasQuantity::formatTenthsAsInt($baseAvgTenths),
+            'fact_avg_students' => KansasQuantity::formatTenths($factAvgTenths),
+            'fact_avg_students_int' => KansasQuantity::formatTenthsAsInt($factAvgTenths),
+            'diff_students' => KansasQuantity::formatTenths($diffTenths),
+            'diff_students_int' => KansasQuantity::formatTenthsAsInt($diffTenths),
             'premium' => $format((int) $group->premium_cents),
             'pay_per_training' => $format((int) $group->pay_per_training_cents),
             'trainings_count' => (int) $group->trainings_count,
@@ -505,12 +555,19 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
      */
     private function snapshotGroupPayload(TrainerSalaryKansasSnapshotGroup $group): array
     {
+        $baseAvgTenths = (int) $group->base_avg_tenths;
+        $factAvgTenths = (int) $group->fact_avg_tenths;
+        $diffTenths = (int) $group->diff_tenths;
+
         return [
             'team_id' => (int) $group->team_id,
             'team_title' => (string) $group->team_title,
-            'base_avg_students' => KansasQuantity::formatTenths((int) $group->base_avg_tenths),
-            'fact_avg_students' => KansasQuantity::formatTenths((int) $group->fact_avg_tenths),
-            'diff_students' => KansasQuantity::formatTenths((int) $group->diff_tenths),
+            'base_avg_students' => KansasQuantity::formatTenths($baseAvgTenths),
+            'base_avg_students_int' => KansasQuantity::formatTenthsAsInt($baseAvgTenths),
+            'fact_avg_students' => KansasQuantity::formatTenths($factAvgTenths),
+            'fact_avg_students_int' => KansasQuantity::formatTenthsAsInt($factAvgTenths),
+            'diff_students' => KansasQuantity::formatTenths($diffTenths),
+            'diff_students_int' => KansasQuantity::formatTenthsAsInt($diffTenths),
             'premium' => $this->formatSheetMoney((int) $group->premium_cents),
             'pay_per_training' => $this->formatSheetMoney((int) $group->pay_per_training_cents),
             'trainings_count' => (int) $group->trainings_count,
@@ -561,14 +618,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
      */
     private function typeRatesForDraft(TrainerSalaryDraftLine $draft): array
     {
-        $profile = $draft->relationLoaded('trainerProfile')
-            ? $draft->trainerProfile
-            : $draft->trainerProfile()->first();
-
-        if ($profile === null) {
-            $profile = TrainerProfile::query()->find($draft->trainer_profile_id);
-        }
-
+        $profile = $this->profileOfDraft($draft);
         if ($profile === null) {
             return [
                 'rate_per_training_cents' => 0,
@@ -577,6 +627,30 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
         }
 
         return $this->trainerTypes->ratesForProfile($profile);
+    }
+
+    private function profileOfDraft(TrainerSalaryDraftLine $draft): ?TrainerProfile
+    {
+        $profile = $draft->relationLoaded('trainerProfile')
+            ? $draft->trainerProfile
+            : $draft->trainerProfile()->first();
+
+        if ($profile === null) {
+            $profile = TrainerProfile::query()->find($draft->trainer_profile_id);
+        }
+
+        return $profile;
+    }
+
+    private function trainerTypeNameFromProfile(?TrainerProfile $profile): string
+    {
+        if ($profile === null) {
+            return '';
+        }
+
+        $type = $this->trainerTypes->ensureProfileHasType($profile);
+
+        return trim((string) ($type->name ?? ''));
     }
 
     private function ensurePeriodSettings(TrainerSalaryPeriod $period): TrainerSalaryKansasPeriodSetting
@@ -650,6 +724,11 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
     private function formatMoney(int $cents): string
     {
         return $cents < 0 ? '-' . Money::fromCents(-$cents) : Money::fromCents($cents);
+    }
+
+    private function formatMoneyAsInt(int $cents): string
+    {
+        return (string) intdiv($cents, 100);
     }
 
     private function formatSheetMoney(int $cents): string

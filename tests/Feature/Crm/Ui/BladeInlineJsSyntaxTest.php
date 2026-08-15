@@ -2951,10 +2951,62 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
             $this->assertStringContainsString('function applyTableHtml(html)', $content);
             $this->assertStringContainsString('result.body.reload_table && applyTableHtml(result.body.table_html)', $content);
-            $this->assertStringContainsString("extra.team_id = tr.getAttribute('data-team-id')", $content);
+            $this->assertStringContainsString("extra.team_id = teamHost.getAttribute('data-team-id')", $content);
             $this->assertStringContainsString("input.getAttribute('data-save-trainer-id')", $content);
             $this->assertStringContainsString("input.closest('.trainer-salary-kansas-x')", $content);
+            $this->assertStringContainsString("input.closest('.trainer-salary-kansas-month-group')", $content);
+            $this->assertStringContainsString("input.closest('[data-save-trainer-id]')", $content);
             $this->assertStringContainsString("field === 'base_avg_students'", $content);
+            $this->assertStringContainsString('function applyMonthSettingsHtml(html)', $content);
+            $this->assertStringContainsString("typeof data.month_settings_html === 'string'", $content);
+            $this->assertStringContainsString('applyMonthSettingsHtml(data.month_settings_html)', $content);
+            $this->assertStringContainsString('bindMonthSettingsEvents()', $content);
+            $this->assertStringContainsString("getElementById('trainer-salary-kansas-month-settings-btn')", $content);
+            $this->assertStringNotContainsString('monthSettingsBtn.addEventListener', $content);
+
+            $this->assertSame(
+                1,
+                preg_match('/function fetchReport\(\) \{[\s\S]*?\n    function scheduleFetch/', $content, $fetchMatch),
+                'Не найден fetchReport — смена месяца должна пересобирать модалку настроек'
+            );
+            $this->assertStringContainsString(
+                'applyMonthSettingsHtml(data.month_settings_html)',
+                $fetchMatch[0],
+                'Смена месяца (GET …/data) должна подменять тело модалки настроек'
+            );
+
+            $this->assertSame(
+                1,
+                preg_match('/function saveDraft\([\s\S]*?\n    function formOne/', $content, $saveMatch),
+                'Не найден saveDraft'
+            );
+            $this->assertStringNotContainsString(
+                'applyMonthSettingsHtml',
+                $saveMatch[0],
+                'PATCH не должен затирать поля открытой модалки настроек месяца'
+            );
+
+            $this->assertSame(
+                1,
+                preg_match('/function formOne\([\s\S]*?\n    function formAll/', $content, $formOneMatch),
+                'Не найден formOne'
+            );
+            $this->assertStringNotContainsString(
+                'applyMonthSettingsHtml',
+                $formOneMatch[0],
+                '«Расчет» не должен затирать поля открытой модалки настроек месяца'
+            );
+
+            $this->assertSame(
+                1,
+                preg_match('/function formAll\(\) \{[\s\S]*?\n    function bindDraftInputs/', $content, $formAllMatch),
+                'Не найден formAll'
+            );
+            $this->assertStringNotContainsString(
+                'applyMonthSettingsHtml',
+                $formAllMatch[0],
+                '«Сформировать всех» не должен затирать поля открытой модалки настроек месяца'
+            );
             $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
             $this->assertStringContainsString("'Accept': 'application/json'", $content);
             $this->assertStringContainsString('showRowErrors(tr, result.body.errors)', $content);
@@ -2963,6 +3015,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $this->assertStringContainsString('bindTableEvents()', $content);
             $this->assertStringContainsString("monthEl.addEventListener('change'", $content);
             $this->assertStringContainsString('if (!canManage)', $content);
+            $this->assertStringContainsString("KidsCrmTooltip.dispose(tableHost, { scopes: ['hint'] })", $content);
+            $this->assertStringContainsString("KidsCrmTooltip.init(tableHost, { scopes: ['hint'] })", $content);
+            $this->assertStringContainsString("KidsCrmTooltip.dispose(monthSettingsHost, { scopes: ['hint'] })", $content);
+            $this->assertStringContainsString("KidsCrmTooltip.init(monthSettingsHost, { scopes: ['hint'] })", $content);
+            $this->assertStringContainsString('data-modal-title', $content);
 
             $output = [];
             $exitCode = 0;
@@ -2975,8 +3032,12 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         foreach ([
+            resource_path('views/admin/schedule/trainer_salary.blade.php'),
             resource_path('views/admin/schedule/trainer-salary/kansas/_table.blade.php'),
             resource_path('views/admin/schedule/trainer-salary/kansas/_sheet_detail_table.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/kansas/_avg_cell.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/kansas/_month_settings_body.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/kansas/_month_settings_modal.blade.php'),
         ] as $blade) {
             $this->assertFileExists($blade);
             $this->assertStringNotContainsString(
@@ -2985,6 +3046,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 'Таблица Канзаса не должна содержать inline <script> — логика в trainer-salary.js'
             );
         }
+
+        $avgCell = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_avg_cell.blade.php'));
+        $this->assertStringContainsString('data-kids-tooltip-hint', $avgCell);
+        $this->assertStringNotContainsString('partials.ui.tooltip-hint', $avgCell);
+        $this->assertStringNotContainsString('fa-info-circle', $avgCell);
     }
 
     /**

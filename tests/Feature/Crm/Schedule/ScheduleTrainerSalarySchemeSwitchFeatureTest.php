@@ -44,13 +44,16 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
         $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
             ->assertOk()
             ->assertSee('data-scheme-code="kansas"', false)
-            ->assertSee('базовая надбавка к премии', false)
+            ->assertSee('Базовая надбавка к премии', false)
             ->assertSee('data-field="premium_increment"', false)
+            ->assertSee('Настройки месяца', false)
+            ->assertSee('Настройки базовых значений за', false)
             ->assertDontSee('как в отчёте «Нагрузка тренеров»', false)
             ->assertDontSee('data-field="bonuses"', false)
             ->getContent();
 
-        $this->assertStringContainsString('value="0.00"', $html);
+        $this->assertStringContainsString('value="0"', $html);
+        $this->assertStringNotContainsString('value="0.00"', $html);
         $this->assertStringNotContainsString('value="999.00"', $html);
 
         $row = collect(
@@ -83,9 +86,10 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
 
         $html = (string) $response->json('table_html');
         $this->assertStringContainsString('Группа Истока', $html);
-        $this->assertStringContainsString('data-field="base_avg_students"', $html);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $html);
+        $this->assertStringNotContainsString('data-field="base_avg_students"', $html);
         $this->assertStringNotContainsString('Нет тренировок с визитами', $html);
+        $this->assertStringContainsString('data-field="base_avg_students"', (string) $response->json('month_settings_html'));
 
         $row = collect($response->json('rows'))->firstWhere('trainer_profile_id', $trainer->id);
         $this->assertNotNull($row);
@@ -119,7 +123,8 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
             ->assertJsonPath('message', 'Черновик сохранён')
             ->assertJsonPath('reload_table', true);
         $this->assertArrayNotHasKey('bonuses', $ok->json('row'));
-        $this->assertStringContainsString('value="80.00"', (string) $ok->json('table_html'));
+        $this->assertStringContainsString('value="80"', (string) $ok->json('month_settings_html'));
+        $this->assertStringContainsString('title="80.00"', (string) $ok->json('month_settings_html'));
         $this->assertSame('kansas', $this->periodScheme(2026, 5));
     }
 
@@ -176,7 +181,8 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
             ->assertOk()
             ->assertJsonPath('scheme_code', 'kansas')
             ->assertJsonPath('draft_view_data.premium_increment', '90.00');
-        $this->assertStringContainsString('value="90.00"', (string) $again->json('table_html'));
+        $this->assertStringContainsString('value="90"', (string) $again->json('month_settings_html'));
+        $this->assertStringContainsString('title="90.00"', (string) $again->json('month_settings_html'));
 
         $june = $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 6]))
             ->assertOk()
@@ -209,7 +215,7 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
         $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
             ->assertOk()
             ->assertSee('data-scheme-code="classic"', false)
-            ->assertDontSee('базовая надбавка к премии', false)
+            ->assertDontSee('Базовая надбавка к премии', false)
             ->getContent();
         $this->assertStringContainsString('data-field="bonuses"', $html);
         $this->assertStringNotContainsString('data-field="premium_increment"', $html);

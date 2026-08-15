@@ -60,7 +60,7 @@
   <h2>3) Типы листов</h2>
   <ul>
     <li><strong>Полный лист</strong> — все слепки с одним <code>batch_id</code> (кнопка «Сформировать всех»). В списке — одна строка на пакет.</li>
-    <li><strong>По тренеру</strong> — слепок без <code>batch_id</code> (кнопка «Расчет» в строке на вкладке ЗП); в списке — отдельные строки с версией vN.</li>
+    <li><strong>По тренеру</strong> — слепок без <code>batch_id</code> (кнопка «Расчет» на вкладке ЗП: classic — в строке, Канзас — в подвале блока); в списке — отдельные строки с версией vN.</li>
   </ul>
   <p>Колонка «Сумма итого» — сумма <code>total</code> (рубли в UI из <code>total_cents</code>) по всем строкам листа. Ссылки «Открыть» ведут на batch или snapshot show.</p>
 
@@ -70,7 +70,7 @@
     <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>. Таблица рисуется по <code>scheme_code</code> слепка:
       classic — <code>trainer-salary/classic/_sheet_detail_table.blade.php</code>,
       kansas — <code>trainer-salary/kansas/_sheet_detail_table.blade.php</code>
-      (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы и X).
+      (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы, тип в скобках, X в шапке слепка, подпись <code>Итого:</code>, без кнопки «Расчет»).
       Смена текущей схемы партнёра карточку уже сформированного слепка не меняет.</li>
     <li>Бейдж «Актуальная» — последняя <code>version</code> тренера за выбранный месяц.</li>
     <li>Бейдж «Последний пакет» — последний полный <code>batch_id</code> за месяц.</li>

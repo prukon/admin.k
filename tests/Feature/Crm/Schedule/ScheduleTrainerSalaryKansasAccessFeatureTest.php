@@ -30,6 +30,7 @@ final class ScheduleTrainerSalaryKansasAccessFeatureTest extends ScheduleTrainer
         $this->get(route('schedule.trainer-salary-sheets.snapshot.show', ['snapshot' => 1]))->assertRedirect();
         $this->get(route('schedule.trainer-salary-sheets.batch.show', ['batchId' => 'x']))->assertRedirect();
 
+        $this->get(route('schedule.trainer-salary.data'))->assertRedirect();
         $this->getJson(route('schedule.trainer-salary.data'))->assertUnauthorized();
         $this->getJson(route('schedule.trainer-salary-sheets.data'))->assertUnauthorized();
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
@@ -150,6 +151,12 @@ final class ScheduleTrainerSalaryKansasAccessFeatureTest extends ScheduleTrainer
             'rate_per_training' => 100,
         ])->assertForbidden();
 
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'premium_increment' => 10,
+        ])->assertForbidden();
+
         $this->postJson(route('schedule.trainer-salary.snapshots.form-one', $trainer), [
             'year' => 2026,
             'month' => 5,
@@ -189,12 +196,13 @@ final class ScheduleTrainerSalaryKansasAccessFeatureTest extends ScheduleTrainer
             ->assertSee('trainer-salary-app', false)
             ->assertSee('data-scheme-code="kansas"', false);
 
-        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+        $data = $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
             ->assertOk()
             ->assertJsonPath('scheme_code', 'kansas')
             ->assertJsonPath('can_manage', true)
             ->assertJsonPath('year', 2026)
             ->assertJsonPath('month', 5)
+            ->assertJsonPath('draft_subtitle', '')
             ->assertJsonStructure([
                 'year',
                 'month',
@@ -203,10 +211,18 @@ final class ScheduleTrainerSalaryKansasAccessFeatureTest extends ScheduleTrainer
                 'date_to',
                 'scheme_code',
                 'draft_subtitle',
+                'draft_view_data' => [
+                    'premium_increment',
+                    'month_groups',
+                    'save_trainer_id',
+                    'month_settings_title',
+                ],
                 'table_html',
+                'month_settings_html',
                 'rows',
                 'can_manage',
             ]);
+        $this->assertNotSame('', trim((string) $data->json('month_settings_html')));
 
         $patch = $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,

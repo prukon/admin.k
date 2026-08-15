@@ -85,4 +85,13 @@ final class KansasTrainerSalaryCalculatorTest extends TestCase
             'zero' => [0, 0],
         ];
     }
+
+    public function test_format_tenths_as_int_drops_fraction_for_display_only(): void
+    {
+        $this->assertSame('16', KansasQuantity::formatTenthsAsInt(160));
+        $this->assertSame('16', KansasQuantity::formatTenthsAsInt(165));
+        $this->assertSame('-2', KansasQuantity::formatTenthsAsInt(-25));
+        $this->assertSame('0', KansasQuantity::formatTenthsAsInt(0));
+        $this->assertSame('16.5', KansasQuantity::formatTenths(165));
+    }
 }

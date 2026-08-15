@@ -58,7 +58,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $this->assertSame(2, $row['groups'][0]['trainings_count']);
         $this->assertSame('1.0', $row['groups'][0]['fact_avg_students']);
         $this->assertStringContainsString('Группа Канзас', $response->json('table_html'));
-        $this->assertStringContainsString('premium_increment', $response->json('table_html'));
+        $this->assertStringContainsString('premium_increment', $response->json('month_settings_html'));
     }
 
     public function test_formula_and_shared_inputs_match_scaled_worked_example(): void
@@ -106,8 +106,11 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
 
         $groups = collect($row['groups'])->keyBy('team_title');
         $this->assertSame('14.0', $groups['Группа A']['fact_avg_students']);
+        $this->assertSame('14', $groups['Группа A']['fact_avg_students_int']);
         $this->assertSame('16.0', $groups['Группа A']['base_avg_students']);
+        $this->assertSame('16', $groups['Группа A']['base_avg_students_int']);
         $this->assertSame('-2.0', $groups['Группа A']['diff_students']);
+        $this->assertSame('-2', $groups['Группа A']['diff_students_int']);
         $this->assertSame('600.00', $groups['Группа A']['premium']);
         $this->assertSame('1600.00', $groups['Группа A']['pay_per_training']);
         $this->assertSame('3200.00', $groups['Группа A']['group_total']);
@@ -151,7 +154,9 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $rowA = $rows->firstWhere('trainer_profile_id', $trainerA->id);
         $rowB = $rows->firstWhere('trainer_profile_id', $trainerB->id);
         $this->assertSame('16.5', $rowA['groups'][0]['base_avg_students']);
+        $this->assertSame('16', $rowA['groups'][0]['base_avg_students_int']);
         $this->assertSame('16.5', $rowB['groups'][0]['base_avg_students']);
+        $this->assertSame('16', $rowB['groups'][0]['base_avg_students_int']);
 
         $baseline = TrainerSalaryKansasGroupBaseline::query()
             ->whereHas('period', fn ($q) => $q->where('partner_id', $this->partner->id)->where('year', 2026)->where('month', 5))

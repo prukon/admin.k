@@ -66,6 +66,7 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
             $payload['reload_table'] = true;
             $payload['table_html'] = $page['table_html'];
+            $payload['month_settings_html'] = $page['month_settings_html'];
         }
 
         return response()->json($payload);
@@ -98,6 +99,7 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
             $payload['reload_table'] = true;
             $payload['table_html'] = $page['table_html'];
+            $payload['month_settings_html'] = $page['month_settings_html'];
         }
 
         return response()->json($payload);
@@ -129,6 +131,7 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             $page = $this->composeDraftPage($partnerId, $year, $month, $canManage);
             $payload['reload_table'] = true;
             $payload['table_html'] = $page['table_html'];
+            $payload['month_settings_html'] = $page['month_settings_html'];
         }
 
         return response()->json($payload);
@@ -159,6 +162,8 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             'canManage' => $canManage,
         ], $draftViewData);
 
+        $isKansas = $scheme->code() === \App\Services\Schedule\TrainerSalary\Schemes\Kansas\KansasTrainerSalaryScheme::CODE;
+
         return [
             'year' => $report['year'],
             'month' => $report['month'],
@@ -171,10 +176,13 @@ class ScheduleTrainerSalaryController extends AdminBaseController
             'table_view' => $scheme->draftTableView(),
             'rows' => $report['rows'],
             'can_manage' => $canManage,
-            'show_trainer_types' => $scheme->code() === \App\Services\Schedule\TrainerSalary\Schemes\Kansas\KansasTrainerSalaryScheme::CODE,
+            'show_trainer_types' => $isKansas,
             'can_manage_trainer_types' => TrainerTypeAccess::canManageCatalog(),
             'canManageTrainerTypes' => TrainerTypeAccess::canManageCatalog(),
             'table_html' => view($scheme->draftTableView(), $viewData)->render(),
+            'month_settings_html' => ($isKansas && $canManage)
+                ? view('admin.schedule.trainer-salary.kansas._month_settings_body', $viewData)->render()
+                : '',
         ];
     }
 }

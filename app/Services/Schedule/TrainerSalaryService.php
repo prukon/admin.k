@@ -57,6 +57,7 @@ final class TrainerSalaryService
 
         $trainers = $this->activeTrainersForPartner($partnerId);
         $draftByTrainer = TrainerSalaryDraftLine::query()
+            ->with(['trainerProfile.trainerType'])
             ->where('trainer_salary_period_id', $period->id)
             ->get()
             ->keyBy('trainer_profile_id');
@@ -367,7 +368,7 @@ final class TrainerSalaryService
     private function activeTrainersForPartner(int $partnerId): array
     {
         return TrainerProfile::query()
-            ->with('user')
+            ->with(['user', 'trainerType'])
             ->where('partner_id', $partnerId)
             ->where('is_enabled', true)
             ->whereHas('user', fn ($q) => $q->where('is_enabled', true))
