@@ -506,6 +506,12 @@ Route::middleware(['auth', '2fa'])->group(function () {
             Route::post('/admin/lesson-packages/assignments/{assignment}/public-pay-link', [LessonPackageController::class, 'issueAssignmentPublicPayLink'])
                 ->whereNumber('assignment')
                 ->name('admin.lesson-packages.assignments.public-pay-link');
+            Route::get('/admin/lesson-packages/assignments/{assignment}/sms-preview', [LessonPackageController::class, 'assignmentSmsPreview'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.sms-preview');
+            Route::post('/admin/lesson-packages/assignments/{assignment}/send-sms', [LessonPackageController::class, 'sendAssignmentPaySms'])
+                ->whereNumber('assignment')
+                ->name('admin.lesson-packages.assignments.send-sms');
             Route::post('/admin/lesson-packages/assignments/{assignment}/manual-paid', [LessonPackageController::class, 'setAssignmentManualPaid'])
                 ->middleware('can:lessonPackages.manualPaid.manage')
                 ->whereNumber('assignment')
@@ -1110,24 +1116,18 @@ Route::middleware(['auth', '2fa'])->group(function () {
         });
     });
 
-    //Сообщения (ЧАТ)  (feature test -)
+    Route::get('/chat/api/reverb-status', [ChatApiController::class, 'reverbStatus'])->name('chat.api.reverb-status');
+
     Route::middleware('can:messages.view')->group(function () {
-        // Страница чата
         Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
-        // API для фронта (ПРЯМЫЕ URL)
-        Route::get('/chat/api/threads', [ChatApiController::class, 'threads']);
-        Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread');
-        Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread');
-        // ВАЖНО: отправка сообщения → storeMessage (а не storeThread)
-        Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread');
-        // Создание 1-на-1 или группы
-        Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread']);
-        // Живой поиск пользователей для модалок
-        Route::get('/chat/api/users', [ChatApiController::class, 'users']);
-        Route::get('/chat/api/threads/{thread}/members', [ChatApiController::class, 'members']);
-        Route::post('/chat/api/threads/{thread}/members', [ChatApiController::class, 'addMembers']);
-        Route::post('/chat/api/threads/{thread}/typing', [ChatApiController::class, 'typing']);
-        Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead']);
+        Route::get('/chat/api/threads', [ChatApiController::class, 'threads'])->name('chat.api.threads.index');
+        Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread'])->name('chat.api.threads.store');
+        Route::get('/chat/api/unread', [ChatApiController::class, 'unread'])->name('chat.api.unread');
+        Route::get('/chat/api/users', [ChatApiController::class, 'users'])->name('chat.api.users');
+        Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread')->name('chat.api.threads.show');
+        Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread')->name('chat.api.threads.messages.index');
+        Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');
+        Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead'])->whereNumber('thread')->name('chat.api.threads.read');
     });
 
     //Кошелек партнера
@@ -1287,6 +1287,9 @@ Route::middleware(['throttle:ulp-public-pay'])->group(function () {
     Route::get('/pay/ulp/{token}', [PublicLessonPackagePayController::class, 'show'])
         ->where('token', '[a-f0-9]{64}')
         ->name('ulp.public.pay');
+    Route::get('/p/{code}', [PublicLessonPackagePayController::class, 'showShort'])
+        ->where('code', '[A-Za-z0-9]{8,12}')
+        ->name('ulp.public.pay.short');
     Route::get('/pay/ulp/{token}/qr/json', [PublicLessonPackagePayController::class, 'qrJson'])
         ->where('token', '[a-f0-9]{64}')
         ->name('ulp.public.pay.qr.json');

@@ -244,7 +244,9 @@ final class InAppNotificationsUiContractsFeatureTest extends InAppNotificationsT
         $this->assertStringNotContainsString('name="action_url"', $compose);
         $this->assertStringContainsString("['insert', ['link']]", $compose);
 
-        $this->assertStringContainsString('item.page_url', $echo);
+        $this->assertStringContainsString("typeof window.Echo.private === 'function'", $echo);
+        $this->assertStringContainsString("enabledTransports: ['ws', 'wss']", $echo);
+        $this->assertStringNotContainsString("wsPath: '/app'", $echo);
         $this->assertStringContainsString("category === 'update' || category === 'important'", $echo);
         $this->assertStringNotContainsString('open_url', $echo);
         $this->assertStringNotContainsString('js-in-app-bell-mark-read', $echo);

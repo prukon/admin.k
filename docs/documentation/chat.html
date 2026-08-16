@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: чат CRM (Сообщения)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>Чат CRM (Сообщения)</h1>
+  <div class="small">Файл: <code>/docs/documentation/chat.html</code> · кабинет: <code>/chat</code>
+    · анонс: <a href="/doc#chat-index">/doc</a></div>
+
+  <div class="ok">
+    <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы. Текст без вложений.
+    Пункт «Чат» в сайдбаре, бейдж <code>badge-info</code> — число непрочитанных (скрыт при 0).
+    Realtime — тот же Reverb, что у колокольчика. Если сокет недоступен, страница
+    чата подтягивает новые сообщения опросом раз в 1 секунду; на остальных страницах
+    бейдж — раз в 12 секунд.
+  </div>
+
+  <div class="warn">
+    <b>Не путать</b> с колокольчиком in-app уведомлений
+    (<a href="/docs/documentation/in-app-notifications">in-app-notifications</a>)
+    и с email «Установка цен → Уведомления».
+    Групповые чаты в этой версии <b>нет</b> (отложено).
+  </div>
+
+  <h2 id="permissions">1) Права</h2>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Видимость в матрице</th><th>Базовые роли</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>messages.view</code></td>
+        <td><code>is_visible=1</code>, группа <code>mainMenu</code></td>
+        <td><code>user</code>, <code>admin</code>, <code>trainer</code></td>
+        <td>Пункт «Чат», страница <code>/chat</code>, все API чата</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Без права — 403 на страницу и API. Гость — редирект на логин / 401 на JSON.
+    Superadmin проходит через <code>Gate::before</code>.
+    Существующим школам право выдано миграцией
+    <code>2026_08_16_220000_enable_chat_messages_view_for_base_roles</code>.</p>
+
+  <h2 id="ux">2) Как это выглядит</h2>
+  <ol>
+    <li>Сайдбар: «Чат» (иконка конверта). Бейдж <code>js-chat-unread-count</code> с классом
+      <code>badge badge-info</code> (не красный), скрыт при 0, иначе точное число непрочитанных.
+      Живое обновление: сокет <code>inbox.bump</code> / <code>thread.read</code>.
+      Если WebSocket не <code>connected</code>: на странице чата — опрос inbox и открытого диалога
+      раз в 1 секунду (<code>KidsCrmChatRefreshInbox</code>); на остальных страницах —
+      <code>GET /chat/api/unread</code> раз в 12 секунд. Без перезагрузки страницы.
+      Если открыт тот же диалог, бейдж не вспыхивает (из <code>unread_total</code> вычитается unread этого треда).</li>
+    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по имени и превью.</li>
+    <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).</li>
+    <li>Клик по контакту открывает существующий 1-на-1 или создаёт новый. Повторный клик по тому же человеку не плодит диалоги.</li>
+    <li>Справа — переписка. Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
+      (сокет <code>thread.read</code>; если сокет не <code>connected</code> — опрос <code>is_read</code> раз в 1 секунду на странице чата). Ошибки валидации — под полем
+      (<code>#msgBodyError</code>, в модалке <code>#contactsError</code>).</li>
+    <li>История вверх: прокрутка к верху догружает более старые сообщения.</li>
+  </ol>
+
+  <h2 id="routes">3) Маршруты</h2>
+  <p>Страница и API чата: группа <code>auth</code> + <code>2fa</code> + <code>can:messages.view</code>.
+    <code>GET /chat/api/reverb-status</code> — только <code>auth</code> + <code>2fa</code>, без
+    <code>messages.view</code>; доступ по Form Request только у superadmin.</p>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URI</th><th>Имя</th><th>Ответ</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/chat</code></td><td><code>chat.index</code></td><td>HTML страницы</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.index</code></td><td>JSON <code>threads</code> + <code>unread_total</code></td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201/200 JSON, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы, <code>?q=</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code></td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td>только superadmin; JSON <code>listening</code>, <code>host</code>, <code>port</code>, <code>driver</code></td></tr>
+    </tbody>
+  </table>
+  <p>Чужой тред (не участник) — 403. Пользователь другой школы в <code>user_id</code> — 422,
+    <code>errors.user_id</code>: «Нельзя добавить пользователя другой организации.»
+    Пустое сообщение — 422 <code>errors.body</code> (AJAX) или 302 с <code>errors.body</code> в сессии (нативный POST).
+    Нативный POST/PATCH без <code>X-Requested-With</code> не отдаёт сырой JSON 200/201 — редирект на страницу чата, запись в БД создана.</p>
+
+  <h2 id="data">4) Данные и код</h2>
+  <ol>
+    <li>Таблицы пакета messenger без смены схемы: <code>threads</code>, <code>messages</code>, <code>participants</code> (soft deletes).</li>
+    <li>Модели: <code>App\Models\ChatThread</code>, <code>ChatMessage</code>, <code>ChatParticipant</code>.</li>
+    <li>Логика: <code>App\Services\Chat\ChatService</code>. Контроллер тонкий:
+      <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>.</li>
+    <li>Контакты: <code>users.partner_id = current_partner</code>, <code>is_enabled=1</code>, без себя.
+      В карточке <code>team_title</code> — группы ученика через <code>UserTeamQuery</code>
+      (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).</li>
+    <li>1-на-1: тред ровно с двумя участниками (я + собеседник). Повторный POST возвращает тот же <code>thread_id</code>
+      (блокировка пары пользователей). Список диалогов показывает один тред на <code>peer_id</code>, даже если в БД остались старые дубли.</li>
+  </ol>
+
+  <h2 id="realtime">5) Realtime</h2>
+  <ol>
+    <li>Каналы (как раньше): <code>thread.{id}</code>, <code>inbox.{userId}</code>, плюс общий <code>user.{id}</code> колокольчика.</li>
+    <li>События: <code>message.created</code>, <code>inbox.bump</code> (в т.ч. <code>unread_total</code> для бейджа сайдбара),
+      <code>thread.read</code>.</li>
+    <li>Клиент Echo поднимается в <code>includes/in_app_notifications/echo.blade.php</code>
+      (без лишнего <code>wsPath: '/app'</code>: pusher-js сам собирает <code>/app/{key}</code>).
+      Бейдж сайдбара слушает inbox в <code>includes/chat/echo.blade.php</code>.
+      Страница чата — <code>public/js/chat.js</code> (без Vite / <code>npm run build</code>).
+      Если Reverb недоступен, HTTP чата не падает (событие пишется в лог).
+      На странице чата опрос и событие <code>inbox.bump</code> обновляют бейдж меню и превью списка одним тиком
+      (<code>KidsCrmChatRefreshInbox</code> / <code>KidsCrmChatOnInboxBump</code>).
+      Если открыт тот же диалог, бейдж сайдбара не вспыхивает: из <code>unread_total</code> вычитается unread этого треда.
+      Если сокет не <code>connected</code>, страница чата опрашивает inbox и открытый диалог раз в 1 секунду;
+      на остальных страницах бейдж — раз в 12 секунд.
+      Открытие диалога (GET show) сразу отдаёт <code>unread_total</code>; страница чата ставит его в бейдж меню без ожидания сокета.
+      Superadmin видит поверх всех окон бейдж Reverb (процесс на хосте/порту
+      <code>broadcasting.connections.reverb.options</code>, на тесте <code>:6008</code>,
+      и состояние Echo); иконка копирует оба значения в буфер.</li>
+  </ol>
+
+  <h2 id="tests">6) Тесты</h2>
+  <ul>
+    <li><code>ChatAccessFeatureTest</code> — гость (редирект / 401 JSON), без <code>messages.view</code> 403 на каждый endpoint и HTML-страницу, со правом без 500; каналы <code>inbox.{id}</code> / <code>thread.{id}</code> только свои.</li>
+    <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
+    <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id.</li>
+    <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
+    <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
+    <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1, чужой тред 403 (включая PATCH read), 422 под полями.</li>
+    <li><code>ChatMessagesViewPermissionCatalogFeatureTest</code> — каталог права и автовыдача.</li>
+    <li><code>PartnerBasePermissionsTest</code> — <code>messages.view</code> в базовых ролях.</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда) и echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>).</li>
+    <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code> и эта страница не противоречат UX (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>).</li>
+  </ul>
+  <pre><code>php artisan test --env=testing --filter Chat</code></pre>
+</div>
+</body>
+</html>

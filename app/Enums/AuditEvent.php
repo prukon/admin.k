@@ -66,6 +66,7 @@ enum AuditEvent: string
     case UserLessonPackageDeleted = 'user_lesson_package.deleted';
     case UserLessonPackageManualPaid = 'user_lesson_package.manual_paid';
     case UserLessonPackagePublicPayLinkIssued = 'user_lesson_package.public_pay_link_issued';
+    case UserLessonPackagePaySmsSent = 'user_lesson_package.pay_sms_sent';
     case UserLessonPackageAutoProlonged = 'user_lesson_package.auto_prolonged';
     case UserLessonPackageAutoProlongFailed = 'user_lesson_package.auto_prolong_failed';
 
@@ -204,6 +205,7 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted => 'Удаление назначения абонемента',
             self::UserLessonPackageManualPaid => 'Ручная отметка оплаты назначения',
             self::UserLessonPackagePublicPayLinkIssued => 'Выдача ссылки на оплату назначения',
+            self::UserLessonPackagePaySmsSent => 'Отправка SMS со ссылкой на оплату назначения',
             self::UserLessonPackageAutoProlonged => 'Автопролонгация назначения абонемента',
             self::UserLessonPackageAutoProlongFailed => 'Ошибка автопролонгации назначения абонемента',
 
@@ -373,6 +375,7 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted,
             self::UserLessonPackageManualPaid,
             self::UserLessonPackagePublicPayLinkIssued,
+            self::UserLessonPackagePaySmsSent,
             self::UserLessonPackageAutoProlonged,
             self::UserLessonPackageAutoProlongFailed => 'user_lesson_package',
 
@@ -505,6 +508,7 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted,
             self::UserLessonPackageManualPaid,
             self::UserLessonPackagePublicPayLinkIssued,
+            self::UserLessonPackagePaySmsSent,
             self::UserLessonPackageAutoProlonged,
             self::UserLessonPackageAutoProlongFailed => 93,
 
@@ -634,6 +638,7 @@ enum AuditEvent: string
             self::UserLessonPackageDeleted => 933,
             self::UserLessonPackageManualPaid => 934,
             self::UserLessonPackagePublicPayLinkIssued => 935,
+            self::UserLessonPackagePaySmsSent => 938,
             self::UserLessonPackageAutoProlonged => 936,
             self::UserLessonPackageAutoProlongFailed => 937,
 
@@ -894,6 +899,7 @@ enum AuditEvent: string
             933 => self::UserLessonPackageDeleted,
             934 => self::UserLessonPackageManualPaid,
             935 => self::UserLessonPackagePublicPayLinkIssued,
+            938 => self::UserLessonPackagePaySmsSent,
             936 => self::UserLessonPackageAutoProlonged,
             937 => self::UserLessonPackageAutoProlongFailed,
 

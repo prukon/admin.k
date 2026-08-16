@@ -17,6 +17,24 @@ final class PublicLessonPackagePayController extends Controller
             abort(404);
         }
 
+        return $this->renderShow($request, $link, $service);
+    }
+
+    public function showShort(Request $request, string $code, UserLessonPackagePublicPayService $service)
+    {
+        $link = UserLessonPackagePublicPayLink::query()->where('short_code', $code)->first();
+        if (! $link) {
+            abort(404);
+        }
+
+        return $this->renderShow($request, $link, $service);
+    }
+
+    private function renderShow(
+        Request $request,
+        UserLessonPackagePublicPayLink $link,
+        UserLessonPackagePublicPayService $service,
+    ) {
         $result = $service->resolvePublicShow($link, $request);
 
         return match ($result['kind']) {
@@ -40,7 +58,7 @@ final class PublicLessonPackagePayController extends Controller
                 'paymentId' => $result['paymentId'],
                 'amountRubFormatted' => $result['amountRubFormatted'],
                 'successUrl' => $result['successUrl'],
-                'token' => $token,
+                'token' => (string) $link->token,
                 'isMobileClient' => $result['isMobileClient'],
                 'serviceProviderTeamTitle' => $result['serviceProviderTeamTitle'],
                 'serviceProviderLabel' => $result['serviceProviderLabel'],

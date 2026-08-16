@@ -25,6 +25,7 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
     }
 
     private function grantPermission(string $permissionName): void
@@ -164,12 +165,24 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
             ->assertOk();
 
         $url = (string) $issue->json('url');
-        $this->assertStringContainsString('/pay/ulp/', $url);
+        $this->assertStringContainsString('/p/', $url);
+        $this->assertStringNotContainsString('/pay/ulp/', $url);
 
-        $token = substr($url, strrpos($url, '/') + 1);
-        $this->assertSame(64, strlen($token));
+        $code = substr($url, strrpos($url, '/') + 1);
+        $this->assertSame(10, strlen($code));
 
-        $this->get(route('ulp.public.pay', ['token' => $token]))
+        $link = UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->first();
+        $this->assertNotNull($link);
+        $this->assertSame($code, (string) $link->short_code);
+        $this->assertSame(64, strlen((string) $link->token));
+
+        $this->get(route('ulp.public.pay.short', ['code' => $code]))
+            ->assertOk()
+            ->assertSee('Оплата через СБП', false);
+
+        $this->get(route('ulp.public.pay', ['token' => $link->token]))
             ->assertOk()
             ->assertSee('Оплата через СБП', false);
 
@@ -177,6 +190,45 @@ final class LessonPackagePublicPayFeatureTest extends CrmTestCase
             'user_lesson_package_id' => $ulp->id,
             'tinkoff_payment_id' => '7700994411',
         ]);
+    }
+
+    public function test_unknown_short_code_returns_404(): void
+    {
+        $this->get(route('ulp.public.pay.short', ['code' => 'abcdefghjk']))
+            ->assertNotFound();
+    }
+
+    public function test_issue_public_pay_link_fills_missing_short_code_without_rotating_token(): void
+    {
+        $this->grantPermission('lessonPackages.view');
+        $this->grantPermission('setPrices.packageAssignments.view');
+        $this->seedTbankForPartner();
+        $this->attachStudentToTeam();
+        $ulp = $this->createUnpaidAssignment();
+
+        $token = bin2hex(random_bytes(32));
+        UserLessonPackagePublicPayLink::query()->create([
+            'user_lesson_package_id' => $ulp->id,
+            'partner_id' => $this->partner->id,
+            'token' => $token,
+            'short_code' => null,
+            'expires_at' => now()->addDays(10),
+        ]);
+
+        $issue = $this->postJson(route('admin.lesson-packages.assignments.public-pay-link', ['assignment' => $ulp->id]))
+            ->assertOk();
+
+        $url = (string) $issue->json('url');
+        $this->assertStringContainsString('/p/', $url);
+        $this->assertStringNotContainsString('/pay/ulp/', $url);
+
+        $link = UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->first();
+        $this->assertNotNull($link);
+        $this->assertSame($token, (string) $link->token);
+        $this->assertSame(10, strlen((string) $link->short_code));
+        $this->assertStringEndsWith('/p/'.$link->short_code, $url);
     }
 
     public function test_public_pay_qr_state_returns_confirmed_when_assignment_already_paid(): void

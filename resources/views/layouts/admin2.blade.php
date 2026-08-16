@@ -470,6 +470,8 @@
     @yield('scripts')
 
     @include('includes.in_app_notifications.echo')
+    @include('includes.chat.echo')
+    @include('includes.chat.reverb_status')
 
     @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
         <script>

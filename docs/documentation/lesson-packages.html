@@ -36,6 +36,11 @@
     (категория аудита <code>user_lesson_package</code>, отдельно от шаблонов <code>lesson_package</code>
     и календаря <code>schedule</code>). Подробно — <a href="#assignments-history">§assignments-history</a>.
     <br><br>
+    <b>SMS со ссылкой на оплату (2026‑08):</b> колонка «Отправка СМС», модалка, 70 ₽ с баланса
+    (debit → sms.ru → при ошибке refund). Кнопка при нехватке средств без native
+    <code>disabled</code>. Анонс — <a href="/doc#assignments-pay-sms-index">/doc</a>,
+    подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a>.
+    <br><br>
     <b>Автопролонгация фикса (2026‑08):</b> флаг на классическом <code>fixed</code> из назначений;
     при обнулении остатка — новый цикл + раскладка (или снятие флага при ошибке).
     Подробно — <a href="#auto-prolong">§auto-prolong</a>.
@@ -793,6 +798,9 @@
       Ссылка открывает модалку <code>#ulpAssignmentLessonsModal</code> в стиле журнала (<code>schedule-modal-content cell-edit-modal</code>,
       <code>GET …/assignments/{id}/lessons</code>)</li>
     <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
+    <li>Отправка СМС (кнопка «Отправить» при той же доступности ссылки; при балансе кабинета &lt; 70 ₽ кнопка визуально неактивна,
+      hover через <code>KidsCrmTooltip</code> hint: «Недостаточно средств. Пополните баланс кабинета»).
+      Подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a></li>
     <li>Абонемент (название шаблона)</li>
     <li>Тип абонемента (фиксированный / гибкий / разовое занятие; при автопролонге — бейдж
       «Автопролонг» / «Автопролонг · продолжен» / «Автопролонг · из №…», см. <a href="#auto-prolong">§auto-prolong</a>)</li>
@@ -807,7 +815,7 @@
     <li><code>GET /admin/lesson-packages/assignments/columns-settings</code> — <code>admin.lesson-packages.assignments.columns-settings.get</code></li>
     <li><code>POST /admin/lesson-packages/assignments/columns-settings</code> — body <code>{ "columns": { "student": true, … } }</code></li>
   </ul>
-  <p>Ключи колонок: <code>student</code>, <code>fee</code>, <code>paid</code>, <code>balance</code>, <code>lessons</code>, <code>pay_link</code>, <code>package_name</code>, <code>type_label</code>, <code>actions</code>. Скрытая служебная колонка <code>id</code> без переключателя.</p>
+  <p>Ключи колонок: <code>student</code>, <code>fee</code>, <code>paid</code>, <code>balance</code>, <code>lessons</code>, <code>pay_link</code>, <code>sms_send</code>, <code>package_name</code>, <code>type_label</code>, <code>actions</code>. Скрытая служебная колонка <code>id</code> без переключателя.</p>
   <p class="small">При создании назначения поле «Группа» обязательно, если у партнёра ≥2 активных юр. лиц (<code>PartnerLegalEntityMode::isMultiEntity</code>); список групп — <code>GET …/assignments/teams-for-user?user_id=</code>. Маршрутизация оплаты — <a href="/docs/documentation/payments#payments-payable-team">payments §2.3</a>.</p>
 
   <h3>Модалки и контракты API</h3>
@@ -892,7 +900,46 @@
         <td>Ссылка на оплату</td>
         <td>Кнопка «Скопировать ссылку на оплату» в строке таблицы (<code>.js-ulp-copy-pay-link</code>, AJAX <code>fetch</code>)</td>
         <td><code>POST …/assignments/{id}/public-pay-link</code></td>
-        <td>JSON <code>{ url }</code> — абсолютный HTTPS URL <code>/pay/ulp/{token}</code> + audit <code>user_lesson_package.public_pay_link_issued</code>. Право <code>lessonPackages.view</code>; гость → 302/401/403; без права → 403; чужой партнёр → 404. Init T‑Bank <b>не</b> при выдаче ссылки — при первом <code>GET /pay/ulp/{token}</code>. Публичная QR-страница: группа + «Поставщик услуг», сумма через <code>Money::formatRub</code> (копейки только если ≠ 0) — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, §<a href="/docs/documentation/payments#payment-checkout-service-provider">3.1.2</a>.</td>
+        <td>JSON <code>{ url }</code> — абсолютный HTTPS URL <code>/p/{short_code}</code> (короткая ссылка; длинный <code>/pay/ulp/{token}</code> остаётся рабочим) + audit <code>user_lesson_package.public_pay_link_issued</code>. Право <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>; гость → 302/401/403; без права → 403; чужой партнёр → 404. Init T‑Bank <b>не</b> при выдаче ссылки — при первом открытии QR (<code>GET /p/{code}</code> или <code>GET /pay/ulp/{token}</code>). Публичная QR-страница: группа + «Поставщик услуг», сумма через <code>Money::formatRub</code> (копейки только если ≠ 0) — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>, §<a href="/docs/documentation/payments#payment-checkout-service-provider">3.1.2</a>.</td>
+      </tr>
+      <tr>
+        <td>Превью SMS</td>
+        <td>Кнопка «Отправить» в колонке «Отправка СМС» открывает модалку <code>#ulpSmsSendModal</code></td>
+        <td><code>GET …/assignments/{id}/sms-preview</code></td>
+        <td>JSON: <code>phone</code> (11 цифр с 7), <code>phone_display</code>, <code>phone_locked</code>,
+          <code>phone_source</code> (<code>parent</code> / <code>student</code> / null), <code>message</code>,
+          <code>fee</code>, <code>fee_label</code>, <code>pay_url</code>.
+          Телефон: <code>parents.phone</code>, иначе <code>users.phone</code>, иначе пусто.
+          Если номер есть — поле readonly. Нет ссылки на оплату / T‑Bank / уже оплачено / сумма &lt; 10 ₽ →
+          <code>422</code> <code>errors.sms</code>.
+          AJAX (<code>Accept: application/json</code> / <code>X-Requested-With</code>): JSON 200 или 422.
+          Без AJAX успех — тот же JSON 200 (как public-pay-link); ошибка — 302 + session <code>errors.sms</code>
+          (не пустой 200, не 500).
+          Превью вызывает <code>ensureFreshLink</code> без audit выдачи ссылки.</td>
+      </tr>
+      <tr>
+        <td>Отправка SMS</td>
+        <td>Кнопки «Отправить» / «Отмена» в модалке</td>
+        <td><code>POST …/assignments/{id}/send-sms</code></td>
+        <td>Request: <code>SendUserLessonPackagePaySmsRequest</code> (<code>phone</code> nullable).
+          JSON <code>{ success, message, phone_saved }</code>.
+          Списание 70 ₽ (<code>config/billing.php</code> <code>sms_send_fee</code>, env
+          <code>BILLING_SMS_SEND_FEE</code>, по умолчанию 70) с
+          <code>partners.wallet_balance_cents</code>. Порядок в сервисе: debit кошелька →
+          <code>SmsRuService::send</code> → при ошибке шлюза credit-возврат
+          (<code>provider=refund</code>), баланс как до попытки; телефон ученика и audit
+          пишутся <b>только</b> после успеха sms.ru. Повторная отправка снова 70 ₽.
+          Недостаточно средств → <code>422</code> <code>errors.wallet</code>.
+          Нет/некорректный телефон → <code>422</code> <code>errors.phone</code> (ошибка под полем).
+          Если поле было пустым, введённый номер пишется в <code>users.phone</code> ученика
+          (не в <code>parents.phone</code>); занятый номер → <code>422</code> unique.
+          Существующий номер не меняется.
+          Audit <code>user_lesson_package.pay_sms_sent</code>.
+          AJAX: 200 JSON или 422 <code>errors[field]</code> (<code>phone</code> / <code>wallet</code> / <code>sms</code>).
+          Без <code>X-Requested-With</code>: успех — JSON 200 и запись в БД (списание кошелька), как public-pay-link;
+          валидация — 302 + session errors под тем же полем (не пустой 200).
+          Гость → 302/401/403; без <code>lessonPackages.view</code> или без
+          <code>setPrices.packageAssignments.view</code> → 403; чужой партнёр → 404.</td>
       </tr>
       <tr>
         <td>DataTables</td>
@@ -904,15 +951,117 @@
           <code>period</code>, <code>fee</code>, <code>effective_is_paid</code>, <code>balance</code>,
           <code>has_lessons</code>, <code>last_lesson_date</code>, <code>last_lesson_date_label</code>,
           <code>last_lesson_status_title</code>, <code>last_lesson_is_past</code>
-          (<a href="#assignments-past-lessons">§assignments-past-lessons</a>), автопролонг-бейдж.</td>
+          (<a href="#assignments-past-lessons">§assignments-past-lessons</a>), автопролонг-бейдж,
+          <code>pay_link_available</code>, <code>sms_send_available</code>, <code>sms_wallet_ok</code>.</td>
       </tr>
     </tbody>
   </table>
-  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show / destroy / public-pay-link / lessons
+  <p>Изоляция партнёра: назначение чужого партнёра → <code>404</code> на show / destroy / public-pay-link / sms-preview / send-sms / lessons
     (проверка в контроллере через <code>assertAssignmentBelongsToCurrentPartner</code>, user с <code>withTrashed</code>).
     На <code>PUT</code> update — <code>403</code>, если чужой партнёр
     (<code>UpdateUserLessonPackageAssignmentRequest::authorize</code>, тоже <code>withTrashed</code>).
     Soft-deleted ученик <b>того же</b> партнёра — не повод для 403/404.</p>
+
+  <h3 id="assignments-pay-sms">Отправка SMS со ссылкой на оплату</h3>
+  <div class="note">
+    <b>С 2026‑08.</b> На вкладке назначений колонка «Отправка СМС» (ключ <code>sms_send</code>)
+    сразу после «Ссылка на оплату». Анонс — <a href="/doc#assignments-pay-sms-index">/doc</a>.
+    Публичная ссылка в тексте SMS — та же короткая, что §<a href="/docs/documentation/payments#ulp-public-pay">payments 3.4.1</a>
+    (<code>/p/{short_code}</code>). Init T‑Bank при отправке SMS <b>не</b> вызывается.
+    Текст: <code>Оплатите абонемент {сумма} руб: {ссылка}</code> — до 99 999 ₽ это
+    <b>1 Unicode SMS</b> (≤70 символов; анонс <a href="/doc#ulp-short-pay-link-index">/doc</a>).
+  </div>
+
+  <h4>Правила кнопки в таблице</h4>
+  <table>
+    <thead><tr><th>Условие</th><th>Ячейка</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Ссылка недоступна (нет T‑Bank / уже оплачено / сумма &lt; 10 ₽)</td>
+        <td>«—», кнопки нет. JSON: <code>sms_send_available = pay_link_available = false</code></td>
+      </tr>
+      <tr>
+        <td>Ссылка доступна, баланс ≥ 70 ₽ (ровно 70 ₽ — ок)</td>
+        <td>Кнопка «Отправить» (<code>.js-ulp-send-sms</code>), без <code>aria-disabled</code></td>
+      </tr>
+      <tr>
+        <td>Ссылка доступна, баланс &lt; 70 ₽</td>
+        <td>Та же кнопка, визуально неактивна: <code>aria-disabled="true"</code>,
+          <code>is-visually-disabled</code>, <code>data-kids-tooltip-hint</code>,
+          <code>title="Недостаточно средств. Пополните баланс кабинета"</code>.
+          Native <code>disabled</code> <b>не</b> ставим — иначе hover не работает.
+          Клик с <code>aria-disabled="true"</code> модалку не открывает.
+          JSON: <code>sms_send_available=true</code>, <code>sms_wallet_ok=false</code></td>
+      </tr>
+      <tr>
+        <td>Нет телефона у родителя и ученика</td>
+        <td>Кнопку в таблице <b>не</b> дисейблим (флаги как при наличии номера).
+          Модалка открывается с пустым полем</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="small">Рендер ячейки — JS <code>ulpSmsSendRender</code> по флагам строки DataTables,
+    не статичный HTML. Один обработчик: клик <code>.js-ulp-send-sms</code> →
+    <code>openSmsModal</code> (сначала <code>resetSmsModal</code>, затем GET preview).</p>
+
+  <h4>Модалка <code>#ulpSmsSendModal</code></h4>
+  <ul>
+    <li>Стандартная ширина Bootstrap (<code>modal-dialog modal-dialog-centered</code>, не <code>modal-xl</code> / fullscreen).</li>
+    <li>Порядок: номер → превью текста → напоминание о тарифе → «Отмена» / «Отправить».</li>
+    <li>Номер: <code>parents.phone</code> → иначе <code>users.phone</code> → иначе пусто.
+      Если номер есть — поле <code>readonly</code> (менять нельзя, POST с другим номером сервер игнорирует).
+      Если пусто — ввод; «Отправить» в модалке <code>disabled</code>, пока номер неполный
+      (маска / ≥ 11 цифр). Disabled: серый текст/фон (<code>#6c757d</code> / <code>#e9ecef</code>),
+      не белое на белом из глобального <code>.btn-primary</code>.</li>
+    <li>Текст SMS фиксирован:
+      <code>Оплатите абонемент {сумма} руб: {ссылка}</code>
+      (сумма — целые рубли без пробела тысяч, без названия абонемента).
+      Кириллица → Unicode: 70 символов = 1 сегмент; до 99 999 ₽ на домене проекта — <b>1 Unicode SMS</b>.</li>
+    <li>Напоминание: «Отправка сообщений платная, 70 руб. за сообщение. Сумма будет списана с баланса.»
+      (70 подставляется из <code>fee_label</code> превью).</li>
+    <li>Повторное открытие сбрасывает форму (<code>resetSmsModal</code>: снимает readonly/busy, чистит номер),
+      затем заполняет ответ превью — состояние предыдущего назначения не протекает.</li>
+    <li>После успеха: тост, <code>dtApi.reload({ keepPage: true })</code> без F5.</li>
+  </ul>
+
+  <h4>Биллинг и кошелёк</h4>
+  <ul>
+    <li>Тариф: <code>config('billing.sms_send_fee')</code> ← <code>BILLING_SMS_SEND_FEE</code>, по умолчанию <b>70.00</b> ₽.
+      В БД списываются копейки через <code>Money::toCentsOrFail</code> (70 ₽ → 7000).</li>
+    <li><code>UserLessonPackagePaySmsService::send</code>: lock партнёра → debit
+      <code>partners.wallet_balance_cents</code> + строка <code>partner_wallet_transactions</code>
+      (<code>type=debit</code>, <code>provider=manual</code>, <code>status=succeeded</code>,
+      <code>meta.reason=ulp_pay_sms</code>) → <code>SmsRuService::send</code>.</li>
+    <li>Ошибка шлюза (не <code>true</code>): исходный debit помечается <code>failed</code>,
+      создаётся compensating <code>type=credit</code>, <code>provider=refund</code>,
+      <code>meta.reason=ulp_pay_sms_refund</code>; баланс возвращается.
+      Телефон и audit <b>не</b> пишутся. Ответ — <code>422</code> <code>errors.sms</code>.</li>
+    <li>Недостаточно средств до отправки — <code>422</code> <code>errors.wallet</code>, sms.ru не вызывается.</li>
+    <li>Повторная успешная отправка списывает снова.</li>
+    <li>Пустой номер при успехе сохраняется в <code>users.phone</code> ученика (мутатор → E.164 <code>+7…</code>),
+      не в <code>parents.phone</code>. Занятый номер → <code>422</code> unique под <code>phone</code>.</li>
+  </ul>
+
+  <h4>Ошибки в UI</h4>
+  <ul>
+    <li><code>errors.phone</code> — под полем номера (<code>#ulp-sms-phone-error</code>, <code>is-invalid</code>).</li>
+    <li><code>errors.wallet</code> / <code>errors.sms</code> — алерт модалки (<code>#ulp-sms-modal-alert</code>).</li>
+    <li>AJAX: 200 JSON или 422 с <code>errors[field]</code>. Без <code>X-Requested-With</code>:
+      успех — JSON 200 и запись в БД (как public-pay-link); валидация — 302 + session errors
+      (не пустой 200).</li>
+  </ul>
+
+  <h4>Превью и ссылка</h4>
+  <p>GET preview вызывает <code>UserLessonPackagePublicPayService::ensureFreshLink</code>
+    (при необходимости создаёт/ротирует токен). Audit
+    <code>user_lesson_package.public_pay_link_issued</code> при превью <b>не</b> пишется
+    (в отличие от кнопки «Скопировать»). Нет ссылки / T‑Bank / оплачено / сумма &lt; 10 ₽ →
+    <code>422</code> <code>errors.sms</code>.</p>
+
+  <h4>Доступ</h4>
+  <p>Оба права: <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>
+    (middleware группы + <code>authorize</code> / FormRequest). Без любого — 403; гость — 302/401/403;
+    чужой партнёр — 404. Superadmin проходит Gate.</p>
 
   <h3 id="assignments-history">История изменений назначений (аудит)</h3>
   <div class="note">
@@ -966,6 +1115,12 @@
         <td><code>info</code></td>
       </tr>
       <tr>
+        <td><code>user_lesson_package.pay_sms_sent</code></td>
+        <td>Отправка SMS со ссылкой на оплату назначения</td>
+        <td>Успешный <code>POST …/send-sms</code> (после успешного sms.ru; при ошибке шлюза лог не пишется, баланс возвращён)</td>
+        <td><code>info</code></td>
+      </tr>
+      <tr>
         <td><code>user_lesson_package.auto_prolonged</code></td>
         <td>Автопролонгация назначения абонемента</td>
         <td>Успешный системный цикл <code>FixedLessonPackageAutoProlongService</code>
@@ -988,13 +1143,14 @@
     <li><b>Контекст записи:</b> <code>AuditLogger</code> + <code>AuditContext</code> —
       <code>partner_id</code>, <code>author_id</code>, <code>user_id</code> (ученик),
       <code>target_*</code> (модель <code>UserLessonPackage</code>, label вида «Фамилия Имя — Название абонемента»).</li>
-    <li><b>Legacy:</b> type <code>93</code>, action <code>931</code>…<code>935</code> — только для реестра/backfill, в runtime не используются.</li>
+    <li><b>Legacy:</b> type <code>93</code>, action <code>931</code>…<code>938</code> — только для реестра/backfill, в runtime не используются.</li>
     <li><b>Доступ:</b> <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>; без любого из них — 403; гость — 302/401.</li>
   </ul>
 
   <h3>Код</h3>
   <ul>
-    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsLogs</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>assignmentLessons</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>setAssignmentManualPaid</code>, <code>issueAssignmentPublicPayLink</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
+    <li>Контроллер: <code>App\Http\Controllers\Admin\LessonPackageController</code> — методы <code>assignments</code>, <code>assignmentsLogs</code>, <code>assignmentsData</code>, <code>assignmentsColumnsSettingsGet/Save</code>, <code>storeAssignment</code>, <code>showAssignment</code>, <code>assignmentLessons</code>, <code>updateAssignment</code>, <code>destroyAssignment</code>, <code>setAssignmentManualPaid</code>, <code>issueAssignmentPublicPayLink</code>, <code>assignmentSmsPreview</code>, <code>sendAssignmentPaySms</code>, <code>assignmentUsersSearch</code>, <code>assignmentTeamsForUser</code>.</li>
+    <li>SMS: сервис <code>UserLessonPackagePaySmsService</code>, Request <code>SendUserLessonPackagePaySmsRequest</code> (<code>errors.phone</code> / из сервиса ещё <code>wallet</code>, <code>sms</code>), тариф <code>config/billing.php</code> <code>sms_send_fee</code>.</li>
     <li>События: <code>App\Enums\AuditEvent</code> — <code>UserLessonPackage*</code>, категория <code>user_lesson_package</code>.</li>
     <li>Смена периода: <code>UserLessonPackageCalendarPeriodService::updateEndsAt</code>, Request <code>UpdateUserLessonPackageAssignmentRequest</code>.</li>
     <li>Фильтры списка: <code>applyAssignmentListFilters()</code>, <code>resolveAssignmentUserStatusFilter()</code> в том же контроллере.</li>
@@ -1040,7 +1196,15 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX PUT: успех → <code>302</code> + flash + обновление ULP/UTSS; валидация → <code>302</code> + session <code>errors.ends_at</code> (не пустой 200)</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAjaxContractFeatureTest.php</code> — AJAX show/update: структура JSON, успех + sync UTSS, граница «= последнее занятие», <code>422</code> под полем, prohibited без периода</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php</code> — [P2] страница → show → update <code>ends_at</code> → show/data без F5</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача public-pay-link, Init при открытии <code>/pay/ulp/{token}</code>, expired/404.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача короткого <code>/p/{code}</code>, совместимость <code>/pay/ulp/{token}</code>, backfill <code>short_code</code> без ротации token, Init при открытии, expired/404.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsLengthFeatureTest.php</code> — SMS ≤70 символов (1 Unicode-сегмент) при суммах до 99 999 ₽, разных short_code, copy-link, ротации по expiry/fee, backfill без смены token.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php</code> — бизнес-правила: превью parent/student/empty, отправка + списание 70 ₽ + audit, сохранение <code>users.phone</code>, не перезаписывать существующий, повтор, 422 wallet/phone/sms, 404 чужой, guest.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAccessFeatureTest.php</code> — доступ JSON и web: guest → 302/401/403; без <code>lessonPackages.view</code> / без <code>setPrices.packageAssignments.view</code> → 403; с правами / admin / superadmin → 200/422 (не 500, не пустой 200); чужой → 404.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAjaxContractFeatureTest.php</code> — AJAX JSON: структура preview/send, 422 <code>errors.sms</code>/<code>phone</code>/<code>wallet</code> (нет ссылки, оплачено, сумма &lt; 10 ₽, невалидный номер, шлюз).</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php</code> — без X-Requested-With: успех POST → JSON 200 + списание (как public-pay-link); валидация → 302 + session errors под полем; guest / без права не списывают.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php</code> — разметка (порядок колонок/полей, disabled «Отправить» в модалке, стандартная ширина); флаги DataTables: ссылка+кошелёк / нехватка средств / нет телефона / нет ссылки / оплачено / граница 10 ₽.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php</code> — [P2] страница → preview → send → <code>…/data</code> без отдельного F5.</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript</code>: <code>node --check</code> + UX-контракт (<code>aria-disabled</code> вместо native <code>disabled</code>, reset при повторном открытии, <code>errors.phone</code> под полем).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма через <code>Money::formatRub</code>, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php</code> — снимок скидки на назначениях, DataTable tooltip, bind-actions, show/update AJAX.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
@@ -1063,6 +1227,14 @@ php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAss
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtAjaxContractFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentEndsAtWorkflowFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsLengthFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAccessFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php
+php artisan test --env=testing --filter=test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript
 php artisan test --env=testing --filter=test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code></pre>
 </div>
 </body>

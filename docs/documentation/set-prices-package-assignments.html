@@ -70,7 +70,7 @@
         <td>Видна; страница <code>200</code></td>
       </tr>
       <tr>
-        <td>CRUD / data / logs / columns / teams-for-user / show / update / destroy / public-pay-link / manual-paid*</td>
+        <td>CRUD / data / logs / columns / teams-for-user / show / update / destroy / public-pay-link / sms-preview / send-sms / manual-paid*</td>
         <td><b>403</b> (nested middleware <code>can:setPrices.packageAssignments.view</code>)</td>
         <td>Ожидаемые <code>200</code> / <code>302</code> / <code>422</code> / <code>404</code></td>
       </tr>
@@ -107,6 +107,7 @@
     <a href="/docs/documentation/lesson-packages#assignments-deleted-users">§assignments-deleted-users</a>.
     Группа маршрутов: <code>can:lessonPackages.view</code> → внутри <code>can:setPrices.packageAssignments.view</code>
     (кроме <code>users-search</code>).
+    SMS со ссылкой на оплату — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>.
   </div>
   <ul>
     <li>Страница / DataTable / columns / logs / teams-for-user / store / show / update / destroy / public-pay-link — оба права.</li>
@@ -121,7 +122,7 @@
     <li><code>PackageAssignmentsNonAjaxSafetyNetFeatureTest</code> — store/update без X-Requested-With → 302 + БД</li>
     <li><code>PackageAssignmentsAjaxContractFeatureTest</code> — JSON-контракт модалки</li>
     <li><code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code> — фильтр «Удаленные», бейдж, show/update soft-deleted</li>
-    <li><code>LessonPackageAssignmentsPastLessonsFilterFeatureTest</code> — фильтр «Прошедшие», <code>last_lesson_is_past</code></li>
+    <li><code>LessonPackageAssignmentPaySmsAccessFeatureTest</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>UiContracts</code> / <code>Workflow</code> / <code>PaySmsFeatureTest</code> — колонка «Отправка СМС»</li>
     <li><code>DashboardPackageAssignmentsAccessFeatureTest</code> — <code>packageAssignments.view</code> консоль не открывает</li>
     <li><code>DashboardLessonPackagesFeatureTest</code> — суммы, селект группы, <code>data-ulp-team-id</code></li>
     <li><code>DashboardLessonPackagesTeamFilterFeatureTest</code> — фильтр абонементов селектом группы, JS без сезонов, доступ</li>

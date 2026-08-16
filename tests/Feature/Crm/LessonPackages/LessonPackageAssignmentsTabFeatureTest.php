@@ -218,6 +218,8 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
             ->assertSee('columnsDropdownUlpAssignments', false)
             ->assertSee('ulp-column-toggle', false)
             ->assertSee('ulp-assignments-table', false)
+            ->assertSee('Отправка СМС', false)
+            ->assertSee('ulpSmsSendModal', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertSee('assignments\/columns-settings', false);
     }
@@ -343,6 +345,8 @@ final class LessonPackageAssignmentsTabFeatureTest extends CrmTestCase
         $this->assertArrayHasKey('package_name', $row);
         $this->assertArrayHasKey('type_label', $row);
         $this->assertArrayHasKey('pay_link_available', $row);
+        $this->assertArrayHasKey('sms_send_available', $row);
+        $this->assertArrayHasKey('sms_wallet_ok', $row);
     }
 
     public function test_assignments_data_applies_all_list_filters_including_location(): void

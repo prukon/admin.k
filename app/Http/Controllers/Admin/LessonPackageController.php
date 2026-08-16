@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\SendUserLessonPackagePaySmsRequest;
 use App\Http\Requests\Admin\SetManualUserLessonPackagePaidRequest;
 use App\Http\Requests\Admin\StoreLessonPackageRequest;
 use App\Http\Requests\Admin\StoreUserLessonPackageRequest;
@@ -25,6 +26,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\LessonPackages\SchoolCalendarAssignmentEligibilityService;
 use App\Services\PartnerContext;
 use App\Services\TeamLocationAvailabilityService;
+use App\Services\LessonPackages\UserLessonPackagePaySmsService;
 use App\Services\Payments\UserLessonPackagePublicPayService;
 use App\Services\SchoolScheduleViewSettingsService;
 use App\Services\TeamScheduleCalendarService;
@@ -764,6 +766,8 @@ final class LessonPackageController extends AdminBaseController
             ->get();
 
         $ulpPublicPayTbankReady = $this->ulpAssignmentPublicPayTbankReady($partnerId);
+        $partner = Partner::query()->find($partnerId);
+        $smsWalletOk = app(UserLessonPackagePaySmsService::class)->partnerCanAfford($partner);
         $lastLessons = $this->lastLessonsByAssignmentIds(
             $partnerId,
             $rows->pluck('id')->map(static fn ($id) => (int) $id)->all()
@@ -773,6 +777,7 @@ final class LessonPackageController extends AdminBaseController
             fn (UserLessonPackage $a) => $this->assignmentDataTableRow(
                 $a,
                 $ulpPublicPayTbankReady,
+                $smsWalletOk,
                 $lastLessons[(int) $a->id] ?? null
             )
         )->values()->all();
@@ -800,6 +805,7 @@ final class LessonPackageController extends AdminBaseController
     private function assignmentDataTableRow(
         UserLessonPackage $a,
         bool $ulpPublicPayTbankReady,
+        bool $smsWalletOk = true,
         ?array $lastLesson = null,
     ): array {
         $user = $a->user;
@@ -853,6 +859,8 @@ final class LessonPackageController extends AdminBaseController
             'balance' => $a->lessons_remaining.' / '.$a->lessons_total,
             'type_label' => $typeLabel,
             'pay_link_available' => $payLinkAvailable,
+            'sms_send_available' => $payLinkAvailable,
+            'sms_wallet_ok' => $smsWalletOk,
             'auto_prolong_enabled' => (bool) $a->auto_prolong_enabled,
             'auto_prolong_badge' => $a->showsAutoProlongBadge(),
             'auto_prolong_badge_label' => $a->showsAutoProlongBadge() ? $a->autoProlongBadgeLabel() : null,
@@ -1107,7 +1115,53 @@ final class LessonPackageController extends AdminBaseController
         );
 
         return response()->json([
-            'url' => route('ulp.public.pay', ['token' => $link->token], true),
+            'url' => $service->publicShareUrl($link),
+        ]);
+    }
+
+    public function assignmentSmsPreview(
+        UserLessonPackage $assignment,
+        UserLessonPackagePaySmsService $smsService,
+    ): JsonResponse {
+        $this->authorize('lessonPackages.view');
+        $this->authorize('setPrices.packageAssignments.view');
+        $this->assertAssignmentBelongsToCurrentPartner($assignment);
+
+        $payload = $smsService->preview($assignment, (int) $this->requirePartnerId());
+
+        return response()->json($payload);
+    }
+
+    public function sendAssignmentPaySms(
+        SendUserLessonPackagePaySmsRequest $request,
+        UserLessonPackage $assignment,
+        UserLessonPackagePaySmsService $smsService,
+    ): JsonResponse {
+        $this->assertAssignmentBelongsToCurrentPartner($assignment);
+
+        $result = $smsService->send(
+            $assignment,
+            (int) $this->requirePartnerId(),
+            $request->normalizedPhoneDigits(),
+            (int) Auth::id(),
+        );
+
+        $feeLabel = Money::formatRub((int) $result['fee_cents']).' руб.';
+        $description = 'Отправлено SMS со ссылкой на оплату. С баланса списано '.$feeLabel.'.';
+        if ($result['phone_saved']) {
+            $description .= ' Телефон сохранён в учётке ученика.';
+        }
+
+        $this->recordUserLessonPackageAudit(
+            AuditEvent::UserLessonPackagePaySmsSent,
+            $assignment,
+            $description,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'SMS отправлено. С баланса списано '.$feeLabel.'.',
+            'phone_saved' => $result['phone_saved'],
         ]);
     }
 

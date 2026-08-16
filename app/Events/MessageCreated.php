@@ -1,37 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
+use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow; // NOW!
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class MessageCreated implements ShouldBroadcastNow
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
 
-public int $threadId;
-public array $payload;
+    /**
+     * @param  array<string, mixed>  $messagePayload
+     */
+    public function __construct(
+        public int $threadId,
+        public array $messagePayload,
+    ) {}
 
-    public function __construct(int $threadId, array $messagePayload)
-    {
-        $this->threadId = $threadId;
-        $this->payload  = ['message' => $messagePayload];
-    }
-
+    /**
+     * @return list<PrivateChannel>
+     */
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('thread.' . $this->threadId)];
+        return [new PrivateChannel('thread.'.$this->threadId)];
     }
 
     public function broadcastAs(): string
     {
-        return 'message.created'; // <-- под твой JS
+        return 'message.created';
     }
 
+    /**
+     * @return array{message: array<string, mixed>}
+     */
     public function broadcastWith(): array
     {
-        return $this->payload; // { message: {...} }
+        return ['message' => $this->messagePayload];
     }
 }

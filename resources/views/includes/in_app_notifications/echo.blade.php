@@ -3,22 +3,22 @@
     <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
     <script>
         (function () {
-            if (window.Echo) {
+            var EchoLib = typeof Echo === 'function' ? Echo : window.Echo;
+            if (window.Echo && typeof window.Echo.private === 'function') {
                 return;
             }
             window.Pusher = window.Pusher || Pusher;
-            var reverbKey = @json(config('reverb.apps.0.key') ?? config('broadcasting.connections.reverb.key') ?? env('REVERB_APP_KEY'));
+            var reverbKey = @json(config('broadcasting.connections.reverb.key') ?: env('REVERB_APP_KEY'));
             var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            window.Echo = new Echo({
+            window.Echo = new EchoLib({
                 broadcaster: 'reverb',
                 key: reverbKey,
                 wsHost: window.location.hostname,
                 wsPort: 443,
                 wssPort: 443,
                 forceTLS: true,
-                enabledTransports: ['wss'],
-                wsPath: '/app',
-                encrypted: true,
+                enabledTransports: ['ws', 'wss'],
+                disableStats: true,
                 authEndpoint: '/broadcasting/auth',
                 auth: {
                     headers: {

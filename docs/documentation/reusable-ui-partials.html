@@ -130,7 +130,12 @@
       </tr>
       <tr>
         <td><code>bindDataTable(tableElement)</code></td>
-        <td>Подписка на <code>draw.dt</code> + init (после <code>requestAnimationFrame</code>, чтобы корректно определить обрезку текста). Вызывается автоматически из <code>KidsCrmDataTable.create</code>.</td>
+        <td>Подписка на <code>draw.dt</code> + init scopes <code>text</code>, <code>list</code>, <code>manualPaid</code>
+          (после <code>requestAnimationFrame</code>, чтобы корректно определить обрезку текста).
+          Scope <code>hint</code> сюда <b>не</b> входит — он инициализируется глобально на
+          <code>DOMContentLoaded</code>. Для динамических ячеек с hint либо native <code>title</code>,
+          либо явный <code>init(..., { scopes: ['hint'] })</code> после draw (как на юр. лица / группах).
+          Вызывается автоматически из <code>KidsCrmDataTable.create</code>.</td>
       </tr>
       <tr>
         <td><code>escapeHtml(text)</code></td>
@@ -160,13 +165,19 @@
   <p class="small">Исключение из правила «tooltip только при обрезке»: элементы с <code>js-dt-cell-ellipsis-tooltip</code>, но <b>без</b> класса <code>dt-cell-ellipsis</code> (например иконка договора в <code>/admin/users</code>) — tooltip с явным <code>data-bs-toggle="tooltip"</code> и <code>title</code> включается всегда.</p>
 
   <h3 id="tooltip-hint-datatable">2.1) Подсказки hint в ячейках DataTables</h3>
-  <p>Для иконок <code>i</code> рядом с бейджами (не ellipsis) — класс <code>kids-tooltip-hint</code>, атрибут <code>title</code> с текстом подсказки. После каждого <code>draw.dt</code> таблицы вызывать <code>KidsCrmTooltip.init(document, { scopes: ['hint'] })</code> (или узел контейнера таблицы).</p>
+  <p>Для иконок <code>i</code> рядом с бейджами (не ellipsis) — класс <code>kids-tooltip-hint</code>
+    <b>или</b> атрибут <code>data-kids-tooltip-hint</code> вместе с <code>data-bs-toggle="tooltip"</code>
+    (селектор scope <code>hint</code>: <code>[data-kids-tooltip-hint][data-bs-toggle="tooltip"]</code>),
+    атрибут <code>title</code> с текстом. После каждого <code>draw.dt</code> таблицы, если hint должен быть
+    Bootstrap-tooltip, вызывать <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code>
+    (глобальный init на DOMContentLoaded динамические ячейки DataTables не подхватывает).
+    Native <code>title</code> при этом всё равно даёт системный hover.</p>
   <table>
     <thead><tr><th>Страница</th><th>Колонка / контекст</th><th>Текст подсказки</th></tr></thead>
     <tbody>
       <tr><td><code>/admin/legal-entities</code></td><td>«Регистрация в банке» = Нет</td><td>«Обратитесь к администратору платформы»</td></tr>
       <tr><td><code>/admin/teams</code></td><td>«Юр. лицо», <code>legal_entity_fallback</code></td><td>Без явной привязки в multi-entity — «—» (оплата T‑Bank недоступна). При явной привязке — <code>displayTitle()</code> без иконки fallback.</td></tr>
-      <tr><td><code>/schedule</code></td><td>Колонка оплаты месяца (галочка)</td><td>Жёлтая при частичной оплате начислений: «Оплачено: …» / «Не оплачено: …». Зелёная при 2+ оплаченных начислениях в «Все группы»: «Все группы оплачены». Одна оплаченная строка — без ховера. См. <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a></td></tr>
+      <tr><td><code>/admin/lesson-packages/assignments</code></td><td>Колонка «Отправка СМС»: кнопка визуально неактивна при балансе &lt; 70 ₽ (<code>aria-disabled</code>, <b>без</b> native <code>disabled</code>, иначе hover не работает)</td><td>«Недостаточно средств. Пополните баланс кабинета» (<code>title</code> + <code>data-kids-tooltip-hint</code>)</td></tr>
     </tbody>
   </table>
 

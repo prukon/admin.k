@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Events;
 
+use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -9,20 +12,24 @@ use Illuminate\Queue\SerializesModels;
 
 class InboxBump implements ShouldBroadcastNow
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
 
-public int $userId;
-public array $payload;
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function __construct(
+        public int $userId,
+        public array $payload,
+    ) {}
 
-    public function __construct(int $userId, array $payload)
-    {
-        $this->userId  = $userId;
-        $this->payload = $payload;
-    }
-
+    /**
+     * @return list<PrivateChannel>
+     */
     public function broadcastOn(): array
     {
-        return [ new PrivateChannel('inbox.' . $this->userId) ];
+        return [new PrivateChannel('inbox.'.$this->userId)];
     }
 
     public function broadcastAs(): string
@@ -30,6 +37,9 @@ public array $payload;
         return 'inbox.bump';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function broadcastWith(): array
     {
         return $this->payload;

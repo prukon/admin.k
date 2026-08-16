@@ -52,7 +52,7 @@ return [
 
             // КУДА коннектится браузер (публичный домен через nginx)
             'options' => [
-                'host'   => env('REVERB_CLIENT_HOST', 'test.xn--f1ahbpis.online'),
+                'host'   => env('REVERB_CLIENT_HOST', 'test.kidscrm.online'),
                 'port'   => env('REVERB_CLIENT_PORT', 443),
                 'scheme' => env('REVERB_CLIENT_SCHEME', 'https'),
                 'useTLS' => env('REVERB_CLIENT_SCHEME', 'https') === 'https',

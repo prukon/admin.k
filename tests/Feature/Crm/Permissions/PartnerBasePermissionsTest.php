@@ -75,6 +75,9 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertContains('inAppNotifications.view', $userPerms);
         $this->assertContains('inAppNotifications.view', $adminPerms);
         $this->assertContains('inAppNotifications.view', $trainerPerms);
+        $this->assertContains('messages.view', $userPerms);
+        $this->assertContains('messages.view', $adminPerms);
+        $this->assertContains('messages.view', $trainerPerms);
     }
 
     public function test_new_partner_does_not_assign_package_assignments_view_to_base_roles(): void

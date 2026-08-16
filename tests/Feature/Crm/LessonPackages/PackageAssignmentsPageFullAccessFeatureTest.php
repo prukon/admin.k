@@ -195,6 +195,20 @@ final class PackageAssignmentsPageFullAccessFeatureTest extends CrmTestCase
                 // без T‑Bank → 422 (не 500)
                 'expect' => [422],
             ],
+            [
+                'method' => 'GET',
+                'url' => route('admin.lesson-packages.assignments.sms-preview', [
+                    'assignment' => $this->assignment->id,
+                ]),
+                'expect' => [422],
+            ],
+            [
+                'method' => 'POST',
+                'url' => route('admin.lesson-packages.assignments.send-sms', [
+                    'assignment' => $this->assignment->id,
+                ]),
+                'expect' => [422],
+            ],
         ];
     }
 
@@ -296,6 +310,7 @@ final class PackageAssignmentsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('Назначить абонемент', false)
             ->assertSee('ulpAssignmentCreateModal', false)
             ->assertSee('ulpAssignmentEditModal', false)
+            ->assertSee('ulpSmsSendModal', false)
             ->assertSee('historyModal', false)
             ->assertSee('KidsCrmDataTable.create', false)
             ->assertViewHas('activeTab', 'assignments');

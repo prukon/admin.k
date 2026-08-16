@@ -34,6 +34,7 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
     }
 
     private function grantPermission(string $permissionName): void
@@ -167,7 +168,12 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
         )->assertOk();
 
         $url = (string) $issue->json('url');
-        $token = substr($url, strrpos($url, '/') + 1);
+        $this->assertStringContainsString('/p/', $url);
+        $this->assertStringNotContainsString('/pay/ulp/', $url);
+
+        $token = (string) UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $assignment->id)
+            ->value('token');
         $this->assertSame(64, strlen($token));
 
         return $token;
@@ -231,10 +237,16 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
         });
 
         $oldToken = $this->issuePublicPayToken($ulp);
+        $oldCode = (string) UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->value('short_code');
+        $this->assertSame(10, strlen($oldCode));
 
         $this->get(route('ulp.public.pay', ['token' => $oldToken]))
             ->assertOk()
             ->assertSee('6 500', false);
+        $this->get(route('ulp.public.pay.short', ['code' => $oldCode]))
+            ->assertOk();
 
         $this->putJson(
             route('admin.lesson-packages.assignments.update', ['assignment' => $ulp->id]),
@@ -243,11 +255,20 @@ final class LessonPackagePublicPayFeeInvalidationFeatureTest extends CrmTestCase
         )->assertOk()->assertJsonPath('public_pay_url_rotated', true);
 
         $newToken = $this->currentPublicPayToken($ulp);
+        $newCode = (string) UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $ulp->id)
+            ->value('short_code');
         $this->assertNotSame($oldToken, $newToken);
+        $this->assertNotSame($oldCode, $newCode);
+        $this->assertSame(10, strlen($newCode));
 
         $this->get(route('ulp.public.pay', ['token' => $oldToken]))->assertNotFound();
+        $this->get(route('ulp.public.pay.short', ['code' => $oldCode]))->assertNotFound();
 
         $this->get(route('ulp.public.pay', ['token' => $newToken]))
+            ->assertOk()
+            ->assertSee('6 000', false);
+        $this->get(route('ulp.public.pay.short', ['code' => $newCode]))
             ->assertOk()
             ->assertSee('6 000', false);
 

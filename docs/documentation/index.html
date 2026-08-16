@@ -28,6 +28,115 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="ulp-short-pay-link-index">Короткая ссылка на оплату абонемента (2026‑08)</h2>
+  <div class="note">
+    «Скопировать ссылку на оплату» и SMS отдают короткий URL
+    <code>https://{домен}/p/{short_code}</code> (ровно 10 символов, без <code>0/O/1/I/l</code>).
+    Старый длинный <code>/pay/ulp/{token}</code> (64 hex) по-прежнему открывает ту же QR-страницу,
+    но в буфер и в SMS больше не попадает. QR-запросы внутри страницы остаются на
+    <code>/pay/ulp/{token}/qr/*</code>.
+    <br>
+    Если у уже выданной ссылки не было короткого кода — он дописывается, токен не меняется
+    (закладки на длинный URL живы). Смена суммы в админке выпускает новый token и новый
+    short_code: оба старых адреса → 404. Init T‑Bank по-прежнему только при первом открытии QR,
+    не при копировании и не при SMS.
+    <br>
+    Текст SMS:
+    <code>Оплатите абонемент {сумма} руб: {ссылка}</code>
+    — один пробел после «абонемент», сумма целыми рублями без пробела тысяч и без названия
+    абонемента. Кириллица = Unicode: <b>70 символов = 1 SMS</b>. При сумме до 99 999 ₽
+    на домене проекта это ровно один сегмент (на 99 999 ₽ — 70 символов).
+    Подробно — <a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>,
+    SMS — <a href="/doc#assignments-pay-sms-index">анонс ниже</a> /
+    <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>.
+  </div>
+
+  <h2 id="assignments-pay-sms-index">Назначения: SMS со ссылкой на оплату (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Назначение абонементов»</b> (<code>/admin/lesson-packages/assignments</code>)
+    колонка <b>«Отправка СМС»</b> сразу после «Ссылка на оплату».
+    <br><br>
+    1) <b>Кнопка в таблице.</b> «Отправить» только если ссылка на оплату доступна
+    (T‑Bank готов, назначение не оплачено, сумма ≥ 10 ₽) — тот же критерий, что у «Скопировать».
+    Иначе «—». Нет телефона кнопку <b>не</b> дисейблим.
+    Баланс кабинета &lt; 70 ₽ (<code>billing.sms_send_fee</code>) — кнопка визуально неактивна
+    (<code>aria-disabled</code>, класс <code>is-visually-disabled</code>, <b>без</b> native
+    <code>disabled</code>, иначе не сработает hover). Подсказка в <code>title</code>:
+    «Недостаточно средств. Пополните баланс кабинета».
+    <br>
+    2) <b>Модалка</b> <code>#ulpSmsSendModal</code> (стандартная ширина Bootstrap, не на весь экран):
+    номер → превью текста → напоминание «70 руб. за сообщение» → «Отмена» / «Отправить».
+    Номер: телефон родителя, иначе ученика, иначе пустое поле.
+    Если номер уже есть — <code>readonly</code>. Если пусто — ввод; «Отправить» в модалке
+    активно только при валидном номере. Введённый номер при успехе пишется в
+    <code>users.phone</code> ученика (не в карточку родителя). Существующий номер не перезаписывается.
+    Текст SMS фиксирован:
+    <code>Оплатите абонемент {сумма} руб: {ссылка}</code>
+    (ссылка — короткий public-pay <code>/p/{short_code}</code>, без названия абонемента;
+    до 99 999 ₽ — <b>1 SMS</b>, см. <a href="/doc#ulp-short-pay-link-index">анонс короткой ссылки</a>).
+    <br>
+    3) <b>Списание.</b> 70 ₽ с <code>partners.wallet_balance_cents</code> (повтор — снова 70 ₽).
+    В коде: сначала debit, затем sms.ru; ошибка шлюза → credit-возврат, баланс как до попытки.
+    Для оператора итог: платит только успешная отправка. Audit
+    <code>user_lesson_package.pay_sms_sent</code> только после успеха.
+    Ошибки: <code>errors.phone</code> под полем, <code>wallet</code> / <code>sms</code> в алерте модалки.
+    Права — оба: <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>.
+    Подробно — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>.
+  </div>
+
+  <h2 id="chat-index">Чат CRM «Сообщения» (2026‑08)</h2>
+  <div class="note">
+    Внутренние личные диалоги 1-на-1 внутри текущей школы: пункт <b>«Чат»</b> в сайдбаре
+    (иконка конверта, <code>fa-message</code>), страница <code>/chat</code>.
+    Текст без вложений и без групповых чатов (группы отложены).
+    Не путать с колокольчиком
+    (<a href="/doc#in-app-notifications-index">in-app</a>)
+    и с email «Установка цен → Уведомления».
+    <br><br>
+    1) <b>Право.</b> <code>messages.view</code> видно в матрице (группа <code>mainMenu</code>),
+    в базовых ролях <code>user</code> / <code>admin</code> / <code>trainer</code>.
+    Без права — 403 на страницу и API, пункта в меню нет. Гость — редирект / 401 JSON.
+    Superadmin — через <code>Gate::before</code>.
+    <br>
+    2) <b>Страница.</b> Слева список диалогов (непрочитанные сверху). Кнопка <b>«Контакты»</b>
+    открывает модалку стандартной ширины Bootstrap (не на весь экран, список до 60vh / 520px).
+    Писать можно включённым пользователям текущей школы, не себе и не отключённым.
+    Повторный диалог с тем же человеком не создаёт второй тред.
+    Композер (поле и «Отправить») <b>disabled</b>, пока не выбран диалог.
+    У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после.
+    Ошибки — под полями: <code>errors.body</code>, <code>errors.user_id</code>.
+    <br>
+    3) <b>Бейдж сайдбара.</b> Класс <code>badge badge-info</code> (как у «Учетная запись»),
+    не красный. Скрыт при 0, иначе точное число непрочитанных.
+    Если вы уже в этом диалоге, новое сообщение <b>не вспыхивает</b> цифрой в меню:
+    страница чата вычитает unread открытого треда из <code>unread_total</code>
+    (<code>KidsCrmChatOnInboxBump</code> / <code>applyInboxBump</code>).
+    В другом диалоге и на остальных страницах каунтер показывается сразу.
+    Открытие диалога (GET show) сразу отдаёт актуальный <code>unread_total</code> в бейдж.
+    <br>
+    4) <b>Realtime.</b> Тот же Reverb, что у колокольчика. Клиент Echo —
+    <code>includes/in_app_notifications/echo.blade.php</code>, <b>без</b> <code>wsPath: '/app'</code>
+    (иначе handshake уходит на <code>/app/app/{key}</code> и сокет <code>failed</code>).
+    Nginx теста: <code>location /app</code> → <code>127.0.0.1:6008</code>.
+    Каналы: <code>thread.{id}</code>, <code>inbox.{userId}</code> (чужой — 403).
+    Если процесс Reverb недоступен, HTTP чата не падает (событие в лог).
+    Сокет не <code>connected</code>: на <code>/chat</code> опрос inbox и открытого диалога
+    раз в <b>1 секунду</b>; на остальных страницах бейдж — <code>/chat/api/unread</code>
+    раз в <b>12 секунд</b>.
+    <br>
+    5) <b>Оверлей Reverb</b> только у superadmin (поверх всех окон, <code>z-index: 20000</code>):
+    процесс (хост/порт из <code>broadcasting.connections.reverb</code>, на тесте <code>:6008</code>)
+    и состояние Echo. Иконка копирует оба значения. API
+    <code>GET /chat/api/reverb-status</code> — вне <code>can:messages.view</code>, только superadmin.
+    <br>
+    6) <b>Native POST/PATCH</b> без <code>X-Requested-With</code> — 302 на <code>/chat</code>,
+    запись в БД есть (не сырой JSON 200/201).
+    <br><br>
+    Подробно: <a href="/docs/documentation/chat">chat</a>.
+    Тесты: <code>Chat*FeatureTest</code>, в т.ч. <code>ChatUnreadSidebarFlashUxFeatureTest</code>
+    (вспышка бейджа), <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
   <h2 id="cabinet-attach-team-in-app-body-index">Колокольчик: текст с родителем и без (2026‑08)</h2>
   <div class="note">
     Тело автособытия «ученик добавил группу в ЛК» (колокольчик admin/trainer школы,
@@ -1756,6 +1865,7 @@
     <code>created</code>, <code>updated</code> (только при непустом diff), <code>deleted</code>
     (<code>level=security</code>; при 422 лог не пишется), <code>manual_paid</code>,
     <code>public_pay_link_issued</code> (выдача ссылки и перевыпуск при смене суммы),
+    <code>pay_sms_sent</code> (отправка SMS со ссылкой, 70 ₽ с баланса),
     <code>auto_prolonged</code> / <code>auto_prolong_failed</code> (системная автопролонгация фикса,
     см. <a href="/docs/documentation/lesson-packages#auto-prolong">§auto-prolong</a>).
     Привязки к календарю (<code>schedule.*</code>) в эту модалку <b>не</b> входят.
@@ -1993,6 +2103,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, оверлей статуса для superadmin, без вложений и без групп — <a href="/doc#chat-index">анонс</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -2016,7 +2127,7 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>

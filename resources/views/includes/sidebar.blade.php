@@ -154,15 +154,14 @@
         </li>
         @endcan
 
-        {{--Сообщения (Чат)--}}
-        {{-- @can('messages.view')
+        @can('messages.view')
             <li class="nav-item">
-                <a href="/chat" class="nav-link">
+                <a href="{{ route('chat.index') }}" class="nav-link">
                     <i class="nav-icon fa-solid fa-message"></i>
-                              <p>Сообщения</p>
+                    <p>Чат<span class="badge badge-info right js-chat-unread-count"@if(($chatUnreadCount ?? 0) <= 0) style="display:none"@endif>{{ (int) ($chatUnreadCount ?? 0) }}</span></p>
                 </a>
             </li>
-        @endcan --}}
+        @endcan
 
         {{--Блог--}}
         @can('blog.view')

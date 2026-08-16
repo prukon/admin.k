@@ -27,6 +27,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'setting prices payment notifications tab' => ['admin/SettingPrices/payment-notifications.blade.php'];
         yield 'in-app notifications compose' => ['admin/in_app_notifications/compose.blade.php'];
         yield 'in-app notifications bell echo' => ['includes/in_app_notifications/echo.blade.php'];
+        yield 'chat unread badge echo' => ['includes/chat/echo.blade.php'];
+        yield 'chat reverb status overlay' => ['includes/chat/reverb_status.blade.php'];
         yield 'in-app notifications inbox highlight' => ['admin/in_app_notifications/index.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
@@ -407,6 +409,78 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString(
             '@if(($unsignedContractsCount ?? 0) > 0)<span class="badge badge-info right">{{ $unsignedContractsCount }}</span>@endif',
             $content
+        );
+        $this->assertStringContainsString('js-chat-unread-count', $content);
+        $this->assertStringContainsString('Чат', $content);
+        $this->assertStringContainsString("route('chat.index')", $content);
+        $this->assertStringContainsString('@can(\'messages.view\')', $content);
+    }
+
+    public function test_chat_js_module_has_valid_javascript_and_field_errors(): void
+    {
+        $path = public_path('js/chat.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("Accept': 'application/json'", $content);
+        $this->assertStringContainsString('errors', $content);
+        $this->assertStringContainsString('msgBodyError', $content);
+        $this->assertStringContainsString('contactsError', $content);
+        $this->assertStringContainsString('user_id', $content);
+        $this->assertStringContainsString('preventDefault', $content);
+        $this->assertStringContainsString('bootstrap.Modal', $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('fetch(', $content);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'body')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'user_id')", $content);
+        $this->assertStringContainsString('setComposerEnabled(true)', $content);
+        $this->assertStringContainsString('startDialogBusy', $content);
+        $this->assertStringContainsString('Number(t.peer_id) !== Number(patch.peer_id)', $content);
+        $this->assertStringContainsString("contactsSearch').value = ''", $content);
+        $this->assertStringContainsString('bootstrap.Modal.getOrCreateInstance', $content);
+        $this->assertStringContainsString('ticksHtml', $content);
+        $this->assertStringContainsString('checks-read', $content);
+        $this->assertStringContainsString('syncMineReadStatus', $content);
+        $this->assertStringContainsString('if (!window.Echo) return', $content);
+        $this->assertStringNotContainsString('$.ajax', $content);
+        $this->assertStringContainsString('function applyInboxBump(', $content);
+        $this->assertStringContainsString('Number(e.unread_total) - Number(e.unread_count || 0)', $content);
+        $this->assertStringContainsString('KidsCrmChatOnInboxBump = applyInboxBump', $content);
+        $this->assertStringContainsString('markThreadRead(threadId)', $content);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in public/js/chat.js:\n".implode("\n", $output)
+        );
+    }
+
+    public function test_chat_echo_inbox_bump_defers_to_open_dialog_and_is_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/chat/echo.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $start = strpos($content, "channel.listen('.inbox.bump'");
+        $end = strpos($content, "channel.listen('.thread.read'");
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+        $listener = substr($content, $start, $end - $start);
+        $this->assertStringContainsString('KidsCrmChatOnInboxBump', $listener);
+        $this->assertStringContainsString('return;', $listener);
+        $this->assertLessThan(
+            strpos($listener, 'applyUnread(payload.unread_total)'),
+            strpos($listener, 'KidsCrmChatOnInboxBump')
+        );
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'KidsCrmChatOnInboxBump',
+            'blade-js-chat-echo-inbox'
         );
     }
 
@@ -1682,6 +1756,122 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $this->assertTrue($endsAtScriptFound, 'В assignments.blade.php не найден script с period_editable / ends_at');
+    }
+
+    /**
+     * P1: колонка «Отправка СМС» — node --check и UX-контракт (hover при нехватке средств,
+     * reset модалки при повторном открытии, errors.phone под полем).
+     */
+    public function test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/lessonPackages/tabs/assignments.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function ulpSmsSendRender(data, type, row)', $content);
+        $this->assertStringContainsString("$(document).on('click', '.js-ulp-send-sms'", $content);
+        $this->assertStringContainsString('function openSmsModal(assignmentId)', $content);
+        $this->assertStringContainsString('function resetSmsModal()', $content);
+        $this->assertStringContainsString('function fillSmsModal(payload)', $content);
+        $this->assertStringContainsString("assignmentsBase + '/' + encodeURIComponent(String(assignmentId)) + '/sms-preview'", $content);
+        $this->assertStringContainsString("assignmentsBase + '/' + encodeURIComponent(String(smsAssignmentId)) + '/send-sms'", $content);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+
+        $renderStart = strpos($content, 'function ulpSmsSendRender(data, type, row)');
+        $this->assertNotFalse($renderStart);
+        $renderFn = substr($content, $renderStart, (int) strpos(substr($content, $renderStart), 'function ulpLessonsRender'));
+        $this->assertStringContainsString("if (!row.sms_send_available)", $renderFn);
+        $this->assertStringContainsString("return '<span class=\"text-muted small\">—</span>'", $renderFn);
+
+        $walletOffStart = strpos($renderFn, 'if (!row.sms_wallet_ok)');
+        $this->assertNotFalse($walletOffStart);
+        $walletOff = substr($renderFn, $walletOffStart, 900);
+        $this->assertStringContainsString('aria-disabled="true"', $walletOff);
+        $this->assertStringContainsString('is-visually-disabled', $walletOff);
+        $this->assertStringContainsString('data-kids-tooltip-hint="1"', $walletOff);
+        $this->assertStringContainsString('Недостаточно средств. Пополните баланс кабинета', $walletOff);
+        $this->assertStringContainsString('js-ulp-send-sms', $walletOff);
+        $this->assertDoesNotMatchRegularExpression(
+            '/(?<![a-z-])disabled(?:=|\s|>)/',
+            $walletOff,
+            'Кнопка при нехватке средств не должна получать native disabled — иначе hover-подсказка не работает'
+        );
+
+        $walletOnStart = strpos($renderFn, "return '<button type=\"button\" class=\"btn btn-sm btn-outline-primary ulp-sms-send-btn js-ulp-send-sms\"");
+        $this->assertNotFalse($walletOnStart);
+        $walletOn = substr($renderFn, $walletOnStart, 280);
+        $this->assertStringContainsString('js-ulp-send-sms', $walletOn);
+        $this->assertStringNotContainsString('aria-disabled', $walletOn);
+        $this->assertStringNotContainsString('is-visually-disabled', $walletOn);
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $walletOn);
+
+        $this->assertSame(
+            1,
+            substr_count($content, "$(document).on('click', '.js-ulp-send-sms'"),
+            'Должен быть один обработчик открытия модалки SMS — дубликат часто ломает aria-disabled'
+        );
+
+        $clickStart = strpos($content, "$(document).on('click', '.js-ulp-send-sms'");
+        $this->assertNotFalse($clickStart);
+        $clickChunk = substr($content, $clickStart, 520);
+        $this->assertStringContainsString('e.preventDefault()', $clickChunk);
+        $this->assertStringContainsString("btn.getAttribute('aria-disabled') === 'true'", $clickChunk);
+        $this->assertStringContainsString('openSmsModal(id)', $clickChunk);
+        $this->assertStringNotContainsString('btn.disabled', $clickChunk);
+        $this->assertStringNotContainsString('btn.prop(\'disabled\'', $clickChunk);
+
+        $openStart = strpos($content, 'async function openSmsModal(assignmentId)');
+        $this->assertNotFalse($openStart);
+        $openChunk = substr($content, $openStart, 900);
+        $resetPos = strpos($openChunk, 'resetSmsModal()');
+        $fetchPos = strpos($openChunk, '/sms-preview');
+        $this->assertNotFalse($resetPos);
+        $this->assertNotFalse($fetchPos);
+        $this->assertTrue(
+            $resetPos < $fetchPos,
+            'Повторное открытие модалки должно сначала сбросить форму, иначе останется readonly/busy прошлого назначения'
+        );
+
+        $resetStart = strpos($content, 'function resetSmsModal()');
+        $this->assertNotFalse($resetStart);
+        $resetChunk = substr($content, $resetStart, 900);
+        $this->assertStringContainsString('smsPhoneLocked = false', $resetChunk);
+        $this->assertStringContainsString('smsSendBtn.disabled = true', $resetChunk);
+        $this->assertStringContainsString("smsSendBtn.removeAttribute('data-busy')", $resetChunk);
+        $this->assertStringContainsString('smsPhoneInput.readOnly = false', $resetChunk);
+        $this->assertStringContainsString("smsPhoneInput.removeAttribute('readonly')", $resetChunk);
+
+        $fillStart = strpos($content, 'function fillSmsModal(payload)');
+        $this->assertNotFalse($fillStart);
+        $fillChunk = substr($content, $fillStart, 1800);
+        $this->assertStringContainsString('smsPhoneLocked = !!payload.phone_locked', $fillChunk);
+        $this->assertStringContainsString('smsPhoneInput.readOnly = smsPhoneLocked', $fillChunk);
+        $this->assertStringContainsString("smsPhoneInput.setAttribute('readonly', 'readonly')", $fillChunk);
+        $this->assertStringContainsString("smsPhoneInput.removeAttribute('readonly')", $fillChunk);
+        $this->assertStringContainsString('syncSmsSendEnabled()', $fillChunk);
+
+        $sendStart = strpos($content, 'smsSendBtn?.addEventListener(\'click\'');
+        $this->assertNotFalse($sendStart);
+        $sendChunk = substr($content, $sendStart, 3200);
+        $this->assertStringContainsString('if (!smsPhoneLocked)', $sendChunk);
+        $this->assertStringContainsString('body.phone =', $sendChunk);
+        $this->assertStringContainsString('if (errors.phone)', $sendChunk);
+        $this->assertStringContainsString('setSmsPhoneError', $sendChunk);
+        $this->assertStringContainsString('errors.wallet', $sendChunk);
+        $this->assertStringContainsString('errors.sms', $sendChunk);
+        $this->assertStringContainsString('setSmsAlert', $sendChunk);
+        $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $sendChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function ulpSmsSendRender',
+            'blade-js-ulp-sms-render'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function openSmsModal',
+            'blade-js-ulp-sms-modal'
+        );
     }
 
     /**

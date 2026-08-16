@@ -568,7 +568,7 @@
     <li>При старте оплаты создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> с <code>payable_id</code>.</li>
     <li>При успешном webhook (Robokassa ResultURL, T‑Bank уведомление) в транзакции: <code>payables</code> и intent переводятся в оплаченные, создаётся <code>payments</code> (без автоматического <code>location_id</code> из карточки ученика), для строки <code>user_lesson_packages</code> выставляется <code>is_paid=true</code>.</li>
     <li>При успешном возврате (джобы <code>RobokassaProcessRefundJob</code>, <code>TinkoffProcessRefundJob</code> для соответствующего payable) для этой же строки <code>user_lesson_packages</code> сбрасывается <code>is_paid=false</code>.</li>
-    <li><b>Публичная ссылка СБП</b> (без кабинета): админ выдаёт URL через <code>public-pay-link</code>; родитель открывает <code>/pay/ulp/{token}</code> — см. §<a href="#ulp-public-pay">3.4.1</a>.</li>
+    <li><b>Публичная ссылка СБП</b> (без кабинета): админ выдаёт короткий URL через <code>public-pay-link</code>; родитель открывает <code>/p/{short_code}</code> (старые закладки <code>/pay/ulp/{token}</code> тоже работают) — см. §<a href="#ulp-public-pay">3.4.1</a>.</li>
   </ol>
 
   <h4 id="ulp-public-pay">3.4.1 Публичная ссылка на оплату абонемента (T‑Bank СБП, без авторизации)</h4>
@@ -576,14 +576,25 @@
     <b>Назначение:</b> родитель или ученик оплачивает назначенный абонемент по HTTPS-ссылке из CRM, без входа в кабинет. Только <b>T‑Bank СБП</b> (QR / переход на НСПК); Робокасса и оплата картой на этой странице недоступны.
     <br><b>Выдача ссылки:</b> вкладка «Назначение абонементов» → кнопка «Скопировать ссылку на оплату» → <code>POST /admin/lesson-packages/assignments/{assignment}/public-pay-link</code>
     (<code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>).
-    Ответ JSON <code>{ url }</code> — абсолютный URL вида <code>/pay/ulp/{token}</code>.
-    <b>Init T‑Bank не выполняется</b> при выдаче ссылки — только ротация токена в <code>user_lesson_package_public_pay_links</code>.
+    Ответ JSON <code>{ url }</code> — абсолютный короткий URL вида <code>/p/{short_code}</code>
+    (10 символов из алфавита без <code>0/O/1/I/l</code>; колонка <code>short_code</code>, unique, collation <code>ascii_bin</code>).
+    Длинный <code>/pay/ulp/{token}</code> (64 hex) остаётся рабочим, но в «Скопировать ссылку» и SMS не отдаётся.
+    Если у существующей записи <code>short_code</code> пустой — код заполняется <b>без</b> смены <code>token</code> (старые закладки живы).
+    <b>Init T‑Bank не выполняется</b> при выдаче ссылки — только запись/ротация в <code>user_lesson_package_public_pay_links</code>.
     Успешная выдача/перевыпуск пишет audit <code>user_lesson_package.public_pay_link_issued</code>
     (модалка «История» на вкладке назначений —
     <a href="/docs/documentation/lesson-packages#assignments-history">lesson-packages §assignments-history</a>).
     Право назначений — <a href="/docs/documentation/set-prices-package-assignments">set-prices-package-assignments</a>.
-    <br><b>Открытие страницы:</b> <code>GET /pay/ulp/{token}</code> → <code>PublicLessonPackagePayController::show</code> → <code>UserLessonPackagePublicPayService::resolvePublicShow()</code>. При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
-    <br>Подробнее про вкладку назначений — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § «Назначение абонементов»</a>.
+    <br><b>Открытие страницы:</b> <code>GET /p/{code}</code> (<code>showShort</code>) или <code>GET /pay/ulp/{token}</code> (<code>show</code>) → <code>UserLessonPackagePublicPayService::resolvePublicShow()</code>.
+    QR AJAX остаётся на <code>/pay/ulp/{token}/qr/*</code> (в шаблон передаётся 64-hex <code>token</code>).
+    При успехе — шаблон <code>payment/ulp-public-pay.blade.php</code> (<code>kind=qr</code>); иначе статусные view (<code>paid</code>, <code>expired</code>, <code>config</code>, <code>error</code>) без блока «Поставщик услуг».
+    <b>SMS со ссылкой:</b> колонка «Отправить» на той же вкладке шлёт короткий URL в SMS
+    текстом <code>Оплатите абонемент {сумма} руб: {ссылка}</code> (до 99 999 ₽ — 1 Unicode SMS;
+    тариф 70 ₽ с баланса кабинета) —
+    <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>,
+    анонс <a href="/doc#assignments-pay-sms-index">/doc</a>.
+    Preview SMS вызывает <code>ensureFreshLink</code> без audit выдачи ссылки.
+    Подробнее про вкладку назначений — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § «Назначение абонементов»</a>.
   </div>
 
   <h5>Маршруты (публичные, throttle <code>ulp-public-pay</code>)</h5>
@@ -592,9 +603,16 @@
     <tbody>
       <tr>
         <td><code>GET</code></td>
+        <td><code>/p/{code}</code></td>
+        <td><code>ulp.public.pay.short</code></td>
+        <td>200 HTML (та же QR-страница или статус); Init T‑Bank при первом открытии QR. Неизвестный код → 404</td>
+        <td>Не требуется (гость OK)</td>
+      </tr>
+      <tr>
+        <td><code>GET</code></td>
         <td><code>/pay/ulp/{token}</code></td>
         <td><code>ulp.public.pay</code></td>
-        <td>200 HTML (QR-страница или статус); Init T‑Bank при первом открытии QR</td>
+        <td>200 HTML (QR-страница или статус); Init T‑Bank при первом открытии QR. Старый длинный URL, совместимость</td>
         <td>Не требуется (гость OK)</td>
       </tr>
       <tr>
@@ -620,7 +638,7 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Токен — 64 hex-символа. Неизвестный токен → <b>404</b>. Истёкший срок (<code>expires_at</code>) → страница «Ссылка недействительна». T‑Bank не настроен → «Оплата недоступна». Сумма вне диапазона СБП (10 ₽ … 1 000 000 ₽) → <code>error</code>.</p>
+  <p class="small">Короткий код — 10 символов (<code>[A-Za-z0-9]{8,12}</code> в маршруте). Внутренний токен — 64 hex. Неизвестный код/токен → <b>404</b>. Истёкший срок (<code>expires_at</code>) → страница «Ссылка недействительна». T‑Bank не настроен → «Оплата недоступна». Сумма вне диапазона СБП (10 ₽ … 1 000 000 ₽) → <code>error</code>. TTL ссылки — 30 дней; при ротации меняются и <code>token</code>, и <code>short_code</code>.</p>
 
   <h5>Блок «Группа» и «Поставщик услуг» на QR-странице (2026‑07)</h5>
   <p>После строки «К оплате: … ₽» — summary-блок (partial <code>service-provider</code>):</p>
@@ -636,9 +654,10 @@
   <ol>
     <li>При первом открытии QR-страницы (если нет активного <code>tinkoff_payment_id</code> или банк вернул финальный неуспех) создаются <code>payables.type=lesson_package_fee</code>, <code>payment_intents</code> (<code>provider=tbank</code>, <code>payment_method=sbp_qr</code>, <code>meta.ulp_public_pay</code>), вызывается T‑Bank <code>Init</code> (метод <code>sbp</code>).</li>
     <li>В <code>DATA</code> Init: <code>user_lesson_package_id</code>, <code>team_id</code>, <code>ulp_public_pay=1</code> — как у оплаты из кабинета.</li>
-    <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого <code>GET /pay/ulp/{token}</code>).</li>
+    <li>QR/payload/state endpoint'ы работают только после Init (обычно сразу после первого открытия QR-страницы по <code>/p/{code}</code> или <code>/pay/ulp/{token}</code>).</li>
     <li>Webhook и пометка <code>user_lesson_packages.is_paid</code> — общий pipeline T‑Bank (§3.3 «Оплата через T‑Bank»).</li>
-    <li><b>Смена суммы:</b> источник истины — <code>user_lesson_packages.fee_amount_cents</code> (в запросе админки — <code>fee_amount</code> рубли). При изменении цены в админке (<code>PUT …/assignments/{id}</code>) активный T‑Bank-платёж по ссылке отменяется (<code>/v2/Cancel</code>), связанные <code>payables</code>/<code>payment_intents</code> переводятся в <code>cancelled</code>, привязка на ссылке сбрасывается. При следующем открытии <code>/pay/ulp/{token}</code> создаётся новый Init на актуальную сумму; если страница уже была открыта и сумма в БД не совпадает с суммой в payable — переиспользование платежа также блокируется (тот же сброс и новый Init). Токен ссылки при этом не меняется.</li>
+    <li><b>Смена суммы в админке:</b> источник истины — <code>user_lesson_packages.fee_amount_cents</code> (в запросе — <code>fee_amount</code> рубли). При <code>PUT …/assignments/{id}</code> активный T‑Bank-платёж отменяется (<code>/v2/Cancel</code>), payables/intents → <code>cancelled</code>, привязка на ссылке сбрасывается, выпускаются <b>новый token и новый short_code</b>. Старые <code>/p/{code}</code> и <code>/pay/ulp/{token}</code> → <b>404</b>; в JSON ответа update может быть <code>public_pay_url_rotated</code> и новый короткий URL. Нужно снова скопировать ссылку / отправить SMS.</li>
+    <li><b>Расхождение суммы без смены ссылки:</b> если страница уже открыта, а сумма в БД не совпадает с payable (без админского reset) — платёж сбрасывается и при следующем открытии того же URL делается новый Init. <code>token</code> / <code>short_code</code> в этом случае не меняются.</li>
   </ol>
 
   <h5>Доступ: admin endpoint выдачи ссылки</h5>
@@ -667,7 +686,8 @@
   <h5>Feature-тесты</h5>
   <ul class="small">
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI (группа, поставщик, сумма через <code>Money::formatRub</code>), публичные endpoint'ы (guest OK), JSON-контракты QR, доступы <code>public-pay-link</code></li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача ссылки, Init при открытии, expired/404</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача короткого <code>/p/{code}</code>, совместимость длинного URL, expired/404</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php</code> (и Length / Access / AjaxContract / NonAjaxSafetyNet / UiContracts / Workflow) — SMS с короткой ссылкой; Length — 1 Unicode-сегмент до 99 999 ₽</li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>payment/ulp-public-pay.blade.php</code></li>
   </ul>
 
@@ -797,7 +817,7 @@
   </div>
   <ul>
     <li><b>Факт оплаты</b>: webhook <code>/webhooks/tinkoff/payments</code> (как у карточной оплаты T‑Bank); страница QR дополнительно опрашивает <code>GetState</code> для подсказки пользователю и редиректа после <code>CONFIRMED</code>.</li>
-    <li><b>Публичная оплата абонемента</b>: отдельная страница <code>GET /pay/ulp/{token}</code> (§<a href="#ulp-public-pay">3.4.1</a>) — только СБП, без редиректа через <code>payment.tinkoff.sbp</code>; Init при первом открытии страницы.</li>
+    <li><b>Публичная оплата абонемента</b>: страница <code>GET /p/{code}</code> (и совместимый <code>GET /pay/ulp/{token}</code>) (§<a href="#ulp-public-pay">3.4.1</a>) — только СБП, без редиректа через <code>payment.tinkoff.sbp</code>; Init при первом открытии страницы.</li>
     <li><b>Отдельный маршрут</b> <code>POST …/payments/tinkoff/qr-init</code> (<code>TinkoffQrController::init</code>) выполняет только <code>Init</code> и запись в <code>tinkoff_payments</code> <b>без</b> создания <code>payables</code>/<code>payment_intents</code>; в текущих шаблонах витрины оплаты используется сценарий через <code>payment.tinkoff.sbp</code>, а не <code>qr-init</code>.</li>
   </ul>
 

@@ -19,6 +19,7 @@ use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class UserLessonPackagePublicPayService
@@ -26,6 +27,11 @@ final class UserLessonPackagePublicPayService
     private const LINK_TTL_DAYS = 30;
 
     private const INIT_TTL_DAYS = 30;
+
+    private const SHORT_CODE_LENGTH = 10;
+
+    /** Без 0/O/1/I/l — проще прочитать в SMS. */
+    private const SHORT_CODE_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
     public function __construct(
         private readonly UserLessonPackageFeePaymentResolver $feeResolver,
@@ -80,22 +86,43 @@ final class UserLessonPackagePublicPayService
         if ($needsRotation) {
             $link->partner_id = $partnerId;
             $link->token = bin2hex(random_bytes(32));
+            $link->short_code = $this->generateUniqueShortCode();
             $link->expires_at = now()->addDays(self::LINK_TTL_DAYS);
             $link->tinkoff_payment_id = null;
             $link->payment_intent_id = null;
             $link->payable_id = null;
             $link->save();
-        } elseif ((int) $link->partner_id !== $partnerId) {
-            $link->partner_id = $partnerId;
-            $link->save();
+        } else {
+            $dirty = false;
+            if ((int) $link->partner_id !== $partnerId) {
+                $link->partner_id = $partnerId;
+                $dirty = true;
+            }
+            if (trim((string) ($link->short_code ?? '')) === '') {
+                $link->short_code = $this->generateUniqueShortCode();
+                $dirty = true;
+            }
+            if ($dirty) {
+                $link->save();
+            }
         }
 
         return $link->fresh() ?? $link;
     }
 
+    public function publicShareUrl(UserLessonPackagePublicPayLink $link): string
+    {
+        $code = trim((string) ($link->short_code ?? ''));
+        if ($code !== '') {
+            return route('ulp.public.pay.short', ['code' => $code], true);
+        }
+
+        return route('ulp.public.pay', ['token' => $link->token], true);
+    }
+
     /**
-     * При смене fee_amount: отменяет активный T‑Bank-платёж и выпускает новый token.
-     * Старая ссылка /pay/ulp/{token} перестаёт работать — нужно скопировать новую.
+     * При смене fee_amount: отменяет активный T‑Bank-платёж и выпускает новый token + short_code.
+     * Старые /pay/ulp/{token} и /p/{code} перестают работать — нужно скопировать новую ссылку.
      */
     public function resetPublicPayAfterFeeChange(UserLessonPackage $ulp): ?string
     {
@@ -117,13 +144,35 @@ final class UserLessonPackagePublicPayService
         }
 
         $link->token = bin2hex(random_bytes(32));
+        $link->short_code = $this->generateUniqueShortCode();
         $link->expires_at = now()->addDays(self::LINK_TTL_DAYS);
         $link->tinkoff_payment_id = null;
         $link->payment_intent_id = null;
         $link->payable_id = null;
         $link->save();
 
-        return route('ulp.public.pay', ['token' => $link->token], true);
+        return $this->publicShareUrl($link);
+    }
+
+    private function generateUniqueShortCode(): string
+    {
+        $alphabet = self::SHORT_CODE_ALPHABET;
+        $max = strlen($alphabet) - 1;
+
+        for ($attempt = 0; $attempt < 16; $attempt++) {
+            $code = '';
+            for ($i = 0; $i < self::SHORT_CODE_LENGTH; $i++) {
+                $code .= $alphabet[random_int(0, $max)];
+            }
+            $taken = UserLessonPackagePublicPayLink::query()
+                ->where('short_code', $code)
+                ->exists();
+            if (! $taken) {
+                return $code;
+            }
+        }
+
+        throw new RuntimeException('Не удалось выделить уникальный короткий код ссылки на оплату.');
     }
 
     /**

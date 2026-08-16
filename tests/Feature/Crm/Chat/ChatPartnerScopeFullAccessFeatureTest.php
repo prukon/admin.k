@@ -1,42 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature\Crm\Chat;
 
+use App\Models\ChatThread;
 use App\Models\User;
-use Cmgmyr\Messenger\Models\Message;
-use Cmgmyr\Messenger\Models\Participant;
-use Cmgmyr\Messenger\Models\Thread;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Tests\Feature\Crm\CrmTestCase;
 
 /**
- * Чат: страница и API, partner-scope (STRICT_CURRENT) на users/storeThread/addMembers,
- * доступ по messages.view.
+ * Чат 1-на-1: страница и API, partner-scope, дедуп диалога, непрочитанные, ошибки под полями.
  */
-final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
+final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config(['broadcasting.default' => 'null']);
-
-        $this->withSession([
-            'current_partner' => $this->partner->id,
-            '2fa:passed'      => true,
-        ]);
-
-        $this->grantMessagesView($this->user);
-    }
-
     public function test_guest_cannot_access_chat_page_and_api(): void
     {
         Auth::logout();
 
         $this->get(route('chat.index'))->assertRedirect();
-
-        $this->getJson('/chat/api/users')->assertUnauthorized();
+        $this->getJson(route('chat.api.users'))->assertUnauthorized();
     }
 
     public function test_user_without_messages_view_gets_403_on_page_and_api(): void
@@ -45,64 +27,48 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
         $this->actingAs($denied);
 
         $this->get(route('chat.index'))->assertForbidden();
-        $this->getJson('/chat/api/users')->assertForbidden();
-        $this->getJson('/chat/api/threads')->assertForbidden();
+        $this->getJson(route('chat.api.users'))->assertForbidden();
+        $this->getJson(route('chat.api.threads.index'))->assertForbidden();
     }
 
-    public function test_user_with_messages_view_page_and_all_api_endpoints_return_success(): void
+    public function test_user_with_messages_view_page_and_api_endpoints_return_success(): void
     {
-        $actor = $this->createUserWithoutPermission('messages.view', $this->partner);
-        $this->grantMessagesView($actor);
-        $this->actingAs($actor);
-
-        $peer = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => $this->roleId('user'),
-            'name'       => 'ChatPeer_' . uniqid('', true),
-        ]);
+        $peer = $this->makePeer();
 
         $this->get(route('chat.index'))->assertOk();
+        $this->getJson(route('chat.api.users'))->assertOk();
+        $this->getJson(route('chat.api.threads.index'))->assertOk()->assertJsonStructure(['threads', 'unread_total']);
+        $this->getJson(route('chat.api.unread'))->assertOk()->assertJsonStructure(['unread_total']);
 
-        $this->getJson('/chat/api/users')->assertOk();
-        $this->getJson('/chat/api/threads')->assertOk();
-
-        $create = $this->postJson('/chat/api/threads', [
-            'type'    => 'private',
-            'members' => [$peer->id],
-        ])->assertCreated()->assertJsonStructure(['thread_id']);
+        $create = $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->assertJsonStructure(['thread_id', 'thread']);
 
         $threadId = (int) $create->json('thread_id');
 
-        $this->getJson("/chat/api/threads/{$threadId}")->assertOk()->assertJsonStructure(['thread', 'messages']);
-        $this->getJson("/chat/api/threads/{$threadId}/messages")->assertOk();
-        $this->getJson("/chat/api/threads/{$threadId}/members")->assertOk()->assertJsonPath('thread_id', $threadId);
+        $this->getJson(route('chat.api.threads.show', $threadId))
+            ->assertOk()
+            ->assertJsonStructure(['thread', 'messages']);
+        $this->getJson(route('chat.api.threads.messages.index', $threadId))->assertOk();
 
-        $this->postJson("/chat/api/threads/{$threadId}/messages", [
+        $this->postJson(route('chat.api.threads.messages.store', $threadId), [
             'body' => 'Scope test message',
         ])->assertCreated();
 
-        $this->postJson("/chat/api/threads/{$threadId}/typing", [
-            'is_typing' => true,
-        ])->assertOk();
-
-        $this->patchJson("/chat/api/threads/{$threadId}/read")->assertOk();
+        $this->patchJson(route('chat.api.threads.read', $threadId))->assertOk();
     }
 
     public function test_chat_users_returns_only_users_of_current_partner(): void
     {
-        $local = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => $this->roleId('user'),
-            'name'       => 'ChatLocalUser_' . uniqid('', true),
-        ]);
+        $local = $this->makePeer('ChatLocalUser_');
 
         User::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'role_id'    => $this->roleId('user'),
-            'name'       => 'ChatForeignUser_' . uniqid('', true),
+            'role_id' => $this->roleId('user'),
+            'name' => 'ChatForeignUser_'.uniqid('', true),
         ]);
 
-        $ids = collect($this->getJson('/chat/api/users')->json())
+        $ids = collect($this->getJson(route('chat.api.users'))->json())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -117,14 +83,13 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
         $this->user->partner_id = null;
         $this->user->save();
         $this->actingAs($this->user);
-        $this->grantMessagesView($this->user);
 
         User::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'role_id'    => $this->roleId('user'),
+            'role_id' => $this->roleId('user'),
         ]);
 
-        $ids = collect($this->getJson('/chat/api/users')->json())
+        $ids = collect($this->getJson(route('chat.api.users'))->json())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -132,41 +97,54 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
         $this->assertNotContains((int) $this->foreignUser->id, $ids);
     }
 
-    public function test_store_thread_with_foreign_member_returns_403(): void
+    public function test_store_thread_with_foreign_member_returns_422_under_user_id(): void
     {
-        $this->postJson('/chat/api/threads', [
-            'type'    => 'private',
-            'members' => [$this->foreignUser->id],
+        $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $this->foreignUser->id,
         ])
-            ->assertForbidden()
-            ->assertJson([
-                'success' => false,
-                'message' => 'Нельзя добавить пользователя другой организации.',
-            ]);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_id'])
+            ->assertJsonPath('errors.user_id.0', 'Нельзя добавить пользователя другой организации.');
     }
 
-    public function test_add_members_with_foreign_user_returns_403(): void
+    public function test_store_thread_with_self_returns_422_under_user_id(): void
     {
-        $peer = User::factory()->create([
-            'partner_id' => $this->partner->id,
-            'role_id'    => $this->roleId('user'),
-        ]);
-
-        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
-
-        $this->postJson("/chat/api/threads/{$thread->id}/members", [
-            'members' => [$this->foreignUser->id],
+        $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $this->user->id,
         ])
-            ->assertForbidden()
-            ->assertJson([
-                'success' => false,
-                'message' => 'Нельзя добавить пользователя другой организации.',
-            ]);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_id']);
+    }
 
-        $this->assertDatabaseMissing('participants', [
-            'thread_id' => $thread->id,
-            'user_id'   => $this->foreignUser->id,
-        ]);
+    public function test_empty_message_returns_422_under_body(): void
+    {
+        $peer = $this->makePeer();
+        $threadId = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        $this->postJson(route('chat.api.threads.messages.store', $threadId), [
+            'body' => '   ',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['body']);
+    }
+
+    public function test_private_thread_is_reused_for_same_pair(): void
+    {
+        $peer = $this->makePeer();
+
+        $first = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        $second = $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertOk();
+
+        $this->assertSame($first, (int) $second->json('thread_id'));
+        $this->assertFalse((bool) $second->json('created'));
+        $this->assertSame(1, ChatThread::query()->count());
     }
 
     public function test_cannot_access_thread_where_user_is_not_participant(): void
@@ -175,32 +153,33 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
             $this->foreignUser->id,
             User::factory()->create([
                 'partner_id' => $this->foreignPartner->id,
-                'role_id'    => $this->roleId('user'),
+                'role_id' => $this->roleId('user'),
             ])->id,
         ]);
 
-        $this->getJson("/chat/api/threads/{$foreignOnlyThread->id}")->assertForbidden();
-        $this->getJson("/chat/api/threads/{$foreignOnlyThread->id}/messages")->assertForbidden();
-        $this->postJson("/chat/api/threads/{$foreignOnlyThread->id}/messages", [
+        $this->getJson(route('chat.api.threads.show', $foreignOnlyThread->id))->assertForbidden();
+        $this->getJson(route('chat.api.threads.messages.index', $foreignOnlyThread->id))->assertForbidden();
+        $this->postJson(route('chat.api.threads.messages.store', $foreignOnlyThread->id), [
             'body' => 'hack',
         ])->assertForbidden();
+        $this->patchJson(route('chat.api.threads.read', $foreignOnlyThread->id))->assertForbidden();
     }
 
     public function test_users_search_with_q_filters_within_current_partner(): void
     {
-        $unique = 'UniqueLocalChat_' . uniqid('', true);
+        $unique = 'UniqueLocalChat_'.uniqid('', true);
         User::factory()->create([
             'partner_id' => $this->partner->id,
-            'role_id'    => $this->roleId('user'),
-            'name'       => $unique,
+            'role_id' => $this->roleId('user'),
+            'name' => $unique,
         ]);
         User::factory()->create([
             'partner_id' => $this->foreignPartner->id,
-            'role_id'    => $this->roleId('user'),
-            'name'       => $unique . '_foreign',
+            'role_id' => $this->roleId('user'),
+            'name' => $unique.'_foreign',
         ]);
 
-        $names = collect($this->getJson('/chat/api/users', ['q' => $unique])->json())
+        $names = collect($this->getJson(route('chat.api.users'), ['q' => $unique])->json())
             ->pluck('name')
             ->all();
 
@@ -212,36 +191,64 @@ final class ChatPartnerScopeFullAccessFeatureTest extends CrmTestCase
         );
     }
 
-    private function createThreadForUsers(array $userIds, string $subject = 'Test thread'): Thread
+    public function test_message_creates_unread_for_peer_and_mark_read_clears_it(): void
     {
-        $thread = Thread::create(['subject' => $subject]);
+        $peer = $this->makePeer();
+        $threadId = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
 
-        foreach (array_unique($userIds) as $userId) {
-            Participant::create([
-                'thread_id' => $thread->id,
-                'user_id'   => (int) $userId,
-                'last_read' => now(),
-            ]);
-        }
+        $this->postJson(route('chat.api.threads.messages.store', $threadId), [
+            'body' => 'Hello peer',
+        ])->assertCreated();
 
-        Message::create([
-            'thread_id' => $thread->id,
-            'user_id'   => (int) $userIds[0],
-            'body'      => 'seed',
+        $this->actingAs($peer)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
         ]);
 
-        return $thread;
+        $this->getJson(route('chat.api.unread'))
+            ->assertOk()
+            ->assertJsonPath('unread_total', 1);
+
+        $list = $this->getJson(route('chat.api.threads.index'))->assertOk()->json('threads');
+        $row = collect($list)->firstWhere('id', $threadId);
+        $this->assertNotNull($row);
+        $this->assertSame(1, (int) $row['unread_count']);
+        $this->assertSame((int) $this->user->id, (int) $row['peer_id']);
+
+        $this->patchJson(route('chat.api.threads.read', $threadId))->assertOk()->assertJsonPath('unread_total', 0);
+        $this->getJson(route('chat.api.unread'))->assertJsonPath('unread_total', 0);
     }
 
-    private function grantMessagesView(User $user): void
+    public function test_chat_page_contains_contacts_modal_and_field_error_slots(): void
     {
-        DB::table('permission_role')->insertOrIgnore([
-            'partner_id'    => $this->partner->id,
-            'role_id'       => $user->role_id,
-            'permission_id' => $this->permissionId('messages.view'),
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
+        $html = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="contactsModal"', $html);
+        $this->assertStringContainsString('id="msgBodyError"', $html);
+        $this->assertStringContainsString('id="contactsError"', $html);
+        $this->assertStringContainsString('js/chat.js', $html);
+        $this->assertStringNotContainsString('Создать группу', $html);
     }
 
+    public function test_sidebar_shows_messages_item_and_unread_badge(): void
+    {
+        $peer = $this->makePeer();
+        $threadId = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->json('thread_id');
+        $this->postJson(route('chat.api.threads.messages.store', $threadId), [
+            'body' => 'Ping',
+        ]);
+
+        $this->actingAs($peer)->withSession([
+            'current_partner' => $this->partner->id,
+            '2fa:passed' => true,
+        ]);
+
+        $html = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('js-chat-unread-count', $html);
+        $this->assertStringContainsString('Чат', $html);
+        $this->assertStringContainsString('Контакты', $html);
+    }
 }

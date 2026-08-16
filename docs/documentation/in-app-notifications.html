@@ -142,7 +142,10 @@
     <li>Выключенный пользователь в снимок не попадает.</li>
     <li>Обычный пользователь видит уведомление, только если он в снимке.</li>
     <li>Superadmin в ленте видит сообщения <b>текущей школы</b> (session <code>current_partner</code>) плюс глобальные (<code>is_global=1</code>), даже если его не было в снимке. Чужую школу не видит, пока не переключит партнёра.</li>
-    <li>Realtime: Reverb, канал <code>user.{id}</code>, событие <code>in-app-notification.bell</code>. Кто офлайн — увидит каунтер из БД при следующем заходе.</li>
+    <li>Realtime: тот же Reverb, что у чата. Клиент Echo в
+      <code>includes/in_app_notifications/echo.blade.php</code>
+      (<b>без</b> <code>wsPath: '/app'</code>). Канал <code>user.{id}</code>,
+      событие <code>in-app-notification.bell</code>. Кто офлайн — увидит каунтер из БД при следующем заходе.</li>
   </ol>
   <p>Форма для админа школы — позже (<code>inAppNotifications.manage</code>). Ручная рассылка по-прежнему только superadmin.</p>
 

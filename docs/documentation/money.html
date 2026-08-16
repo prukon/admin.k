@@ -124,6 +124,9 @@
   <ul>
     <li>Источник суммы месяца: <code>users_prices.price_cents</code>.</li>
     <li>Источник суммы абонемента: <code>user_lesson_packages.fee_amount_cents</code>.</li>
+    <li>Тариф SMS со ссылкой на оплату: <code>config/billing.php</code> <code>sms_send_fee</code> (рубли, по умолчанию 70) →
+      списание <code>partners.wallet_balance_cents</code> копейками через <code>Money::toCentsOrFail</code>
+      (<a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>).</li>
     <li>Ledger: <code>payables.amount_cents</code> → <code>payment_intents.out_sum_cents</code> → webhook → <code>payments.summ_cents</code>.</li>
     <li>T‑Bank Init получает копейки напрямую из <code>amount_cents</code> (без повторного <code>× 100</code> из рублей).</li>
     <li>Отчёт «Платежи»: комиссии и нетто считаются от <code>payments.summ_cents</code>
@@ -148,7 +151,7 @@
   <ul>
     <li><a href="/docs/documentation/payments">payments</a> — payables / intents / users_prices / ULP pay</li>
     <li><a href="/docs/documentation/admin-users#user-percent-discount">admin-users §2.6</a> — персональная скидка ученика (анонс <a href="/doc#user-percent-discount-index">/doc</a>)</li>
-    <li><a href="/docs/documentation/lesson-packages">lesson-packages</a> — шаблоны <code>price_cents</code>, назначения <code>fee_amount</code> (HTTP) / <code>fee_amount_cents</code> (БД)</li>
+    <li><a href="/docs/documentation/lesson-packages">lesson-packages</a> — шаблоны <code>price_cents</code>, назначения <code>fee_amount</code> (HTTP) / <code>fee_amount_cents</code> (БД), SMS 70 ₽ с кошелька</li>
     <li><a href="/docs/documentation/postpay">postpay</a> — пересчёт <code>users_prices.price_cents</code></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users">setting-prices-monthly-users</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments">setting-prices-custom-payments</a></li>

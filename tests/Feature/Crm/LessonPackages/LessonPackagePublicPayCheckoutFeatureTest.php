@@ -22,6 +22,7 @@ use Tests\Feature\Crm\CrmTestCase;
  * контракты endpoint'ов и контроль доступа.
  *
  * Публичные endpoint'ы (без auth):
+ * - GET /p/{code}
  * - GET /pay/ulp/{token}
  * - GET /pay/ulp/{token}/qr/json
  * - GET /pay/ulp/{token}/qr/payload
@@ -40,6 +41,7 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
         ]);
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
     }
 
     private function grantPermission(string $permissionName): void
@@ -167,7 +169,12 @@ final class LessonPackagePublicPayCheckoutFeatureTest extends CrmTestCase
         )->assertOk();
 
         $url = (string) $issue->json('url');
-        $token = substr($url, strrpos($url, '/') + 1);
+        $this->assertStringContainsString('/p/', $url);
+        $this->assertStringNotContainsString('/pay/ulp/', $url);
+
+        $token = (string) UserLessonPackagePublicPayLink::query()
+            ->where('user_lesson_package_id', $assignment->id)
+            ->value('token');
         $this->assertSame(64, strlen($token));
 
         return $token;

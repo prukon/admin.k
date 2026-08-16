@@ -17,6 +17,7 @@ return [
             'users.sex',
             'paying.classes',
             'inAppNotifications.view',
+            'messages.view',
             'setPrices.cabinetSeasons.view',
             // 'setPrices.customPayments.view',
             // 'setPrices.packageAssignments.view',
@@ -37,6 +38,7 @@ return [
             'account.user.phone.update',
             'account.partner.view',
             'inAppNotifications.view',
+            'messages.view',
         ],
         'admin' => [
             'dashboard.view',
@@ -95,6 +97,7 @@ return [
             'account.user.email.update',
             'account.user.phone.update',
             'inAppNotifications.view',
+            'messages.view',
             'users.name.update',
             'users.birthdate.update',
             'users.group.update',

@@ -88,6 +88,29 @@
         font-weight: 400 !important;
         user-select: none;
     }
+    .ulp-sms-send-btn.is-visually-disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+    .ulp-sms-send-btn.is-visually-disabled:hover,
+    .ulp-sms-send-btn.is-visually-disabled:focus {
+        opacity: 0.65;
+    }
+    /* Глобальный .btn-primary: белый фон !important + :disabled color #fff → белое на белом */
+    #ulpSmsSendModal #ulp-sms-send-btn:disabled,
+    #ulpSmsSendModal #ulp-sms-send-btn.disabled,
+    #ulpSmsSendModal #ulp-sms-send-btn:disabled:hover,
+    #ulpSmsSendModal #ulp-sms-send-btn.disabled:hover,
+    #ulpSmsSendModal #ulp-sms-send-btn:disabled:focus,
+    #ulpSmsSendModal #ulp-sms-send-btn.disabled:focus {
+        opacity: 1;
+        pointer-events: none;
+        color: #6c757d !important;
+        background-color: #e9ecef !important;
+        border-color: #ced4da !important;
+        box-shadow: none !important;
+        cursor: not-allowed;
+    }
 </style>
 
 <div class="tab-content">
@@ -177,6 +200,10 @@
                                 <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPayLink" data-column-key="pay_link" checked>
                                     <label class="form-check-label" for="ulpColPayLink">Ссылка на оплату</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColSmsSend" data-column-key="sms_send" checked>
+                                    <label class="form-check-label" for="ulpColSmsSend">Отправка СМС</label>
                                 </div>
                                 <div class="form-check">
                                     <input class="form-check-input ulp-column-toggle" type="checkbox" id="ulpColPackage" data-column-key="package_name" checked>
@@ -295,6 +322,9 @@
 
     <div id="ulp-copy-pay-toast" class="alert alert-success py-2 px-3 small d-none mt-2 mb-0" role="status">
         Ссылка скопирована
+    </div>
+    <div id="ulp-sms-sent-toast" class="alert alert-success py-2 px-3 small d-none mt-2 mb-0" role="status">
+        SMS отправлено
     </div>
 
     @if (session('success'))
@@ -426,6 +456,7 @@
                 <th class="text-center text-nowrap" style="width: 1%">Остаток</th>
                 <th class="text-start text-nowrap">Занятия</th>
                 <th class="text-start text-nowrap" style="width: 1%">Ссылка на оплату</th>
+                <th class="text-start text-nowrap" style="width: 1%">Отправка СМС</th>
                 <th>Абонемент</th>
                 <th class="text-center text-nowrap" style="width: 1%">Тип абонемента</th>
                 <th class="text-start text-nowrap" style="width: 1%">Действия</th>
@@ -577,6 +608,44 @@
                         <button type="button" class="btn btn-primary" id="ulp-pay-link-copy-btn">
                             <i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="ulpSmsSendModal" tabindex="-1" aria-labelledby="ulpSmsSendModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="ulpSmsSendModalLabel">Отправка СМС</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="ulp-sms-modal-alert" class="alert alert-danger py-2 px-3 small d-none" role="alert"></div>
+                        <div id="ulp-sms-modal-loading" class="text-muted small">Загрузка…</div>
+                        <div id="ulp-sms-modal-content" class="d-none">
+                            <div class="mb-3">
+                                <label class="form-label" for="ulp-sms-phone">Номер</label>
+                                @include('includes.fields.phone-input', [
+                                    'name' => 'ulp_sms_phone',
+                                    'id' => 'ulp-sms-phone',
+                                    'value' => '',
+                                    'unmask' => true,
+                                ])
+                                <div class="invalid-feedback d-block" id="ulp-sms-phone-error"></div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-label">Текст сообщения</div>
+                                <div id="ulp-sms-message-preview" class="form-control bg-light" style="min-height: 4.5rem; white-space: pre-wrap;"></div>
+                            </div>
+                            <p id="ulp-sms-fee-note" class="small text-muted mb-0">
+                                Отправка сообщений платная, 70 руб. за сообщение. Сумма будет списана с баланса.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-primary" id="ulp-sms-send-btn" disabled>Отправить</button>
                     </div>
                 </div>
             </div>
@@ -921,6 +990,33 @@
                         + '<i class="fas fa-copy me-1" aria-hidden="true"></i>Скопировать</button>';
                 }
 
+                function ulpSmsSendRender(data, type, row) {
+                    if (type !== 'display') {
+                        return row.sms_send_available ? 1 : 0;
+                    }
+
+                    if (!row.sms_send_available) {
+                        return '<span class="text-muted small">—</span>';
+                    }
+
+                    var idAttr = window.KidsCrmTooltip.escapeHtml(String(row.id));
+                    if (!row.sms_wallet_ok) {
+                        return '<button type="button" class="btn btn-sm btn-outline-primary ulp-sms-send-btn is-visually-disabled js-ulp-send-sms" '
+                            + 'data-assignment-id="' + idAttr + '" '
+                            + 'aria-disabled="true" '
+                            + 'tabindex="0" '
+                            + 'data-kids-tooltip-hint="1" '
+                            + 'data-bs-toggle="tooltip" '
+                            + 'data-bs-placement="top" '
+                            + 'data-bs-custom-class="ulp-assignment-paid-tooltip" '
+                            + 'title="Недостаточно средств. Пополните баланс кабинета">'
+                            + 'Отправить</button>';
+                    }
+
+                    return '<button type="button" class="btn btn-sm btn-outline-primary ulp-sms-send-btn js-ulp-send-sms" '
+                        + 'data-assignment-id="' + idAttr + '">Отправить</button>';
+                }
+
                 function ulpLessonsRender(data, type, row) {
                     if (type !== 'display' && type !== 'filter') {
                         return row.last_lesson_date || '';
@@ -953,6 +1049,7 @@
                             balance: true,
                             lessons: true,
                             pay_link: true,
+                            sms_send: true,
                             package_name: true,
                             type_label: true,
                             actions: true
@@ -1041,6 +1138,16 @@
                             searchable: false,
                             className: 'text-start text-nowrap',
                             render: ulpPayLinkRender,
+                        },
+                        {
+                            key: 'sms_send',
+                            type: 'text',
+                            data: 'sms_send_available',
+                            name: 'sms_send',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-start text-nowrap',
+                            render: ulpSmsSendRender,
                         },
                         {
                             key: 'package_name',
@@ -1703,6 +1810,205 @@
                     } finally {
                         btn.prop('disabled', false);
                         btn.html(prevHtml);
+                    }
+                });
+
+                const smsModalEl = document.getElementById('ulpSmsSendModal');
+                const smsModal = (smsModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal)
+                    ? bootstrap.Modal.getOrCreateInstance(smsModalEl)
+                    : null;
+                const smsAlert = document.getElementById('ulp-sms-modal-alert');
+                const smsLoading = document.getElementById('ulp-sms-modal-loading');
+                const smsContent = document.getElementById('ulp-sms-modal-content');
+                const smsPhoneInput = document.getElementById('ulp-sms-phone');
+                const smsPhoneError = document.getElementById('ulp-sms-phone-error');
+                const smsPreview = document.getElementById('ulp-sms-message-preview');
+                const smsFeeNote = document.getElementById('ulp-sms-fee-note');
+                const smsSendBtn = document.getElementById('ulp-sms-send-btn');
+                const smsSentToast = document.getElementById('ulp-sms-sent-toast');
+                let smsAssignmentId = null;
+                let smsPhoneLocked = false;
+
+                function showSmsSentToast() {
+                    if (!smsSentToast) return;
+                    smsSentToast.classList.remove('d-none');
+                    clearTimeout(smsSentToast._t);
+                    smsSentToast._t = setTimeout(function () {
+                        smsSentToast.classList.add('d-none');
+                    }, 3200);
+                }
+
+                function setSmsAlert(text) {
+                    if (!smsAlert) return;
+                    const msg = String(text || '').trim();
+                    smsAlert.textContent = msg;
+                    smsAlert.classList.toggle('d-none', msg === '');
+                }
+
+                function setSmsPhoneError(text) {
+                    if (!smsPhoneError) return;
+                    smsPhoneError.textContent = String(text || '');
+                    if (smsPhoneInput) {
+                        smsPhoneInput.classList.toggle('is-invalid', !!text);
+                    }
+                }
+
+                function smsPhoneIsComplete() {
+                    if (!smsPhoneInput) {
+                        return false;
+                    }
+                    if (window.PhoneInputMask && typeof window.PhoneInputMask.isComplete === 'function') {
+                        return !!window.PhoneInputMask.isComplete(smsPhoneInput);
+                    }
+                    return String(smsPhoneInput.value || '').replace(/\D+/g, '').length >= 11;
+                }
+
+                function syncSmsSendEnabled() {
+                    if (!smsSendBtn) return;
+                    smsSendBtn.disabled = !smsPhoneIsComplete();
+                }
+
+                function resetSmsModal() {
+                    smsAssignmentId = null;
+                    smsPhoneLocked = false;
+                    setSmsAlert('');
+                    setSmsPhoneError('');
+                    if (smsLoading) smsLoading.classList.remove('d-none');
+                    if (smsContent) smsContent.classList.add('d-none');
+                    if (smsPreview) smsPreview.textContent = '';
+                    if (smsSendBtn) {
+                        smsSendBtn.disabled = true;
+                        smsSendBtn.removeAttribute('data-busy');
+                    }
+                    if (smsPhoneInput) {
+                        smsPhoneInput.readOnly = false;
+                        smsPhoneInput.removeAttribute('readonly');
+                        if (window.PhoneInputMask && typeof window.PhoneInputMask.setValue === 'function') {
+                            window.PhoneInputMask.setValue(smsPhoneInput, '');
+                        } else {
+                            smsPhoneInput.value = '';
+                        }
+                    }
+                }
+
+                function fillSmsModal(payload) {
+                    smsPhoneLocked = !!payload.phone_locked;
+                    if (smsPreview) {
+                        smsPreview.textContent = payload.message || '';
+                    }
+                    if (smsFeeNote && payload.fee_label) {
+                        smsFeeNote.textContent = 'Отправка сообщений платная, '
+                            + String(payload.fee_label)
+                            + ' за сообщение. Сумма будет списана с баланса.';
+                    }
+                    if (smsPhoneInput) {
+                        const display = payload.phone_display || payload.phone || '';
+                        if (window.PhoneInputMask && typeof window.PhoneInputMask.setValue === 'function') {
+                            window.PhoneInputMask.setValue(smsPhoneInput, display);
+                        } else {
+                            smsPhoneInput.value = display;
+                        }
+                        smsPhoneInput.readOnly = smsPhoneLocked;
+                        if (smsPhoneLocked) {
+                            smsPhoneInput.setAttribute('readonly', 'readonly');
+                        } else {
+                            smsPhoneInput.removeAttribute('readonly');
+                        }
+                    }
+                    if (smsLoading) smsLoading.classList.add('d-none');
+                    if (smsContent) smsContent.classList.remove('d-none');
+                    syncSmsSendEnabled();
+                }
+
+                async function openSmsModal(assignmentId) {
+                    if (!smsModal || !assignmentId) {
+                        return;
+                    }
+                    resetSmsModal();
+                    smsAssignmentId = assignmentId;
+                    smsModal.show();
+                    try {
+                        const { ok, status, payload } = await fetchJson(
+                            assignmentsBase + '/' + encodeURIComponent(String(assignmentId)) + '/sms-preview',
+                            { method: 'GET' }
+                        );
+                        if (!ok) {
+                            if (smsLoading) smsLoading.classList.add('d-none');
+                            setSmsAlert((payload && payload.message)
+                                || (payload && payload.errors && payload.errors.sms && payload.errors.sms[0])
+                                || ('Не удалось загрузить превью (' + status + ')'));
+                            return;
+                        }
+                        fillSmsModal(payload);
+                    } catch (err) {
+                        if (smsLoading) smsLoading.classList.add('d-none');
+                        setSmsAlert('Не удалось загрузить превью. Проверьте соединение и попробуйте снова.');
+                    }
+                }
+
+                $(document).on('click', '.js-ulp-send-sms', function (e) {
+                    e.preventDefault();
+                    const btn = e.currentTarget;
+                    if (!btn || btn.getAttribute('aria-disabled') === 'true') {
+                        return;
+                    }
+                    const id = btn.getAttribute('data-assignment-id');
+                    openSmsModal(id);
+                });
+
+                smsPhoneInput?.addEventListener('input', function () {
+                    setSmsPhoneError('');
+                    syncSmsSendEnabled();
+                });
+                smsPhoneInput?.addEventListener('keyup', syncSmsSendEnabled);
+                smsPhoneInput?.addEventListener('blur', syncSmsSendEnabled);
+
+                smsSendBtn?.addEventListener('click', async function () {
+                    if (!smsAssignmentId || smsSendBtn.disabled || smsSendBtn.getAttribute('data-busy') === '1') {
+                        return;
+                    }
+                    if (!smsPhoneIsComplete()) {
+                        setSmsPhoneError('Укажите номер телефона.');
+                        return;
+                    }
+                    setSmsAlert('');
+                    setSmsPhoneError('');
+                    smsSendBtn.setAttribute('data-busy', '1');
+                    smsSendBtn.disabled = true;
+                    const body = {};
+                    if (!smsPhoneLocked) {
+                        body.phone = (window.PhoneInputMask && typeof window.PhoneInputMask.digits === 'function')
+                            ? window.PhoneInputMask.digits(smsPhoneInput)
+                            : String(smsPhoneInput.value || '');
+                    }
+                    try {
+                        const { ok, status, payload } = await fetchJson(
+                            assignmentsBase + '/' + encodeURIComponent(String(smsAssignmentId)) + '/send-sms',
+                            { method: 'POST', body: JSON.stringify(body) }
+                        );
+                        if (!ok) {
+                            const errors = (payload && payload.errors) ? payload.errors : {};
+                            if (errors.phone) {
+                                setSmsPhoneError(Array.isArray(errors.phone) ? errors.phone[0] : String(errors.phone));
+                            }
+                            const general = (errors.sms && (Array.isArray(errors.sms) ? errors.sms[0] : String(errors.sms)))
+                                || (errors.wallet && (Array.isArray(errors.wallet) ? errors.wallet[0] : String(errors.wallet)))
+                                || (payload && payload.message)
+                                || ('Не удалось отправить SMS (' + status + ')');
+                            if (!errors.phone || errors.sms || errors.wallet) {
+                                setSmsAlert(general);
+                            }
+                            smsSendBtn.removeAttribute('data-busy');
+                            syncSmsSendEnabled();
+                            return;
+                        }
+                        smsModal?.hide();
+                        showSmsSentToast();
+                        dtApi.reload({ keepPage: true });
+                    } catch (err) {
+                        setSmsAlert('Не удалось отправить SMS. Проверьте соединение и попробуйте снова.');
+                        smsSendBtn.removeAttribute('data-busy');
+                        syncSmsSendEnabled();
                     }
                 });
             });

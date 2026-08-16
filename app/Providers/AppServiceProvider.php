@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Chat\ChatService;
 use App\Services\InAppNotifications\InAppNotificationInbox;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentContextService;
@@ -227,11 +228,17 @@ class AppServiceProvider extends ServiceProvider
                     ->count();
             }
 
+            $chatUnreadCount = 0;
+            if (auth()->user()?->can('messages.view')) {
+                $chatUnreadCount = app(ChatService::class)->unreadTotal((int) auth()->id());
+            }
+
             $view->with([
                 'allTeamsCount' => $teamsCount,
                 'allUsersCount' => $usersCount,
                 'newSchoolLeadsCount' => $newSchoolLeadsCount,
                 'unsignedContractsCount' => $this->unsignedContractsCountForCurrentUser(),
+                'chatUnreadCount' => $chatUnreadCount,
             ]);
         });
 
