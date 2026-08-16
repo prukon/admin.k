@@ -577,6 +577,7 @@
 
             var dtApi = KidsCrmDataTable.create('#ltv-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: {
                         user_name: true,
                         team_title: true,
@@ -594,6 +595,7 @@
                     csrfToken: '{{ csrf_token() }}'
                 },
                 dataTable: {
+                    pageLength: @json((int) ($ltvPageLength ?? 10)),
                     ajax: {
                         url: @json(route('reports.ltv.data')),
                         type: 'GET',

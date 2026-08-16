@@ -43,8 +43,8 @@
     <li><code>GET /admin/tinkoff/payouts/total</code> — JSON: сумма выплат по текущим фильтрам (<code>{ total_formatted, total_raw }</code>).</li>
     <li><code>GET /admin/tinkoff/payouts/partners-search</code> — Select2: поиск партнёров (только <code>superadmin</code>), ответ <code>{ results: [{id,text}] }</code>.</li>
     <li><code>GET /admin/tinkoff/payouts/payers-search</code> — Select2: поиск плательщиков (users) в рамках партнёра, ответ <code>{ results: [{id,text}] }</code>. Поддерживает <code>partner_id</code> для superadmin.</li>
-    <li><code>GET /admin/tinkoff/payouts/columns-settings</code> — JSON: сохранённые видимые колонки таблицы (per user, ключ <code>tinkoff_payouts_index</code>, контроллер <code>TinkoffPayoutTableSettingsController</code>).</li>
-    <li><code>POST /admin/tinkoff/payouts/columns-settings</code> — тело JSON <code>{"columns":{"column_key":true|false,...}}</code> → <code>{"success":true}</code> (контроллер <code>TinkoffPayoutTableSettingsController</code>).</li>
+    <li><code>GET /admin/tinkoff/payouts/columns-settings</code> — JSON: сохранённые видимые колонки таблицы (per user, ключ <code>tinkoff_payouts_index</code>, контроллер <code>TinkoffPayoutTableSettingsController</code>). Ключа <code>page_length</code> в ответе нет.</li>
+    <li><code>POST /admin/tinkoff/payouts/columns-settings</code> — тело <code>{"columns":{"column_key":true|false,...}}</code> и/или <code>{"page_length":10|20|50|100}</code> → <code>{"success":true}</code>. Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code>. Пустой POST → 422 <code>errors.columns</code>.</li>
     <li><code>GET /admin/tinkoff/payouts/{id}</code> — карточка выплаты (<code>id</code> — число).</li>
     <li><code>POST /tinkoff/payouts/{deal}/pay-now</code> и <code>POST /tinkoff/payouts/{deal}/delay</code> — ручной запуск и отложенная выплата по <code>deal_id</code> (тот же permission).</li>
   </ul>
@@ -70,7 +70,9 @@
   <h3 id="payouts-table-columns">4.1) Таблица выплат (DataTables)</h3>
   <div class="note">
     Таблица — <code>KidsCrmDataTable.create('#payouts-table', …)</code> (см. <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>).
-    Настройки видимости колонок — per user, ключ <code>tinkoff_payouts_index</code> (<code>TinkoffPayoutTableSettingsController</code>).
+    Настройки видимости колонок и «Показать N» — per user, ключ <code>tinkoff_payouts_index</code>
+    (<code>TinkoffPayoutTableSettingsController</code>, <code>persistPageLength: true</code>, поле <code>page_length</code>).
+    Номер страницы не сохраняется. GET колонок ключа <code>page_length</code> не отдаёт.
   </div>
   <ul>
     <li><b>Колонка «Партнёр»</b> — название клуба в CRM: <code>partners.title</code> по <code>tinkoff_payouts.partner_id</code>. Это не юр. лицо.</li>
@@ -101,7 +103,7 @@
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsLegalEntityColumnFeatureTest.php</code> — колонка «Организация» в разметке и DataTables: <code>organization_name</code>, fallback <code>title</code>, «—» без снимка; контракт <code>columns-settings</code> с ключом <code>legal_entity_organization</code> (AJAX и non-AJAX).</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankAdminPayoutsAjaxFeatureTest.php</code> — endpoint <code>/total</code>, фильтр <code>payer_id</code>, Select2 endpoints <code>partners-search</code>/<code>payers-search</code>.</li>
     <li><code>tests/Feature/Crm/Payments/TBank/Payouts/TbankPayoutsPageFeatureTest.php</code>, <code>TbankPayoutsSectionFullAccessFeatureTest.php</code> — полный доступ к разделу, в т.ч. ключ <code>legal_entity_organization</code> в defaults колонок.</li>
-    <li>Ручные действия <code>pay-now</code> / <code>delay</code> — <code>TbankPayoutManualTest.php</code> и см. <a href="/docs/documentation/tbank#tests">tbank.html → тесты</a>.</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> / <code>ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — персональный «Показать N» на <code>/admin/tinkoff/payouts</code> (<code>table_key = tinkoff_payouts_index</code>).</li>
   </ul>
   <div class="note">
     <b>Карточка выплаты</b> <code>/admin/tinkoff/payouts/{id}</code> строку «Организация» по снимку <b>не показывает</b> (на момент документирования — только список и карточка платежа T‑Bank).

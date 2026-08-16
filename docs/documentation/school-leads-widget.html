@@ -160,7 +160,7 @@
     <tbody>
       <tr><td>GET</td><td><code>/admin/school-leads</code></td><td><code>can:schoolLeads.view</code></td><td>HTML: список (DataTables), toolbar со счётчиками, панель фильтров, меню колонок</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON для DataTables (см. §5.2)</td></tr>
-      <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>JSON видимости: объект ключ → bool. Нет строки / <code>columns</code> не массив → <code>[]</code>. Без записи в БД. Ключа <code>page_length</code> в ответе нет (§5.1.3)</td></tr>
+      <tr><td>GET</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>JSON видимости: объект ключ → bool. Нет строки / <code>columns</code> не массив → <code>[]</code>. Без записи в БД. Ключа <code>page_length</code> в ответе нет (§5.1.4)</td></tr>
       <tr><td>POST</td><td><code>/admin/school-leads/columns-settings</code></td><td><code>can:schoolLeads.view</code></td><td>Сохранение видимости и/или «Показать N»: <code>columns</code> — объект ключ → bool (не индексы) и/или <code>page_length</code> ∈ {10,20,50,100}. AJAX/JSON и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД. Без <code>columns</code> и без <code>page_length</code>: AJAX → <b>422</b> <code>errors.columns</code>; non-AJAX → <b>302</b> + session errors. Невалидный <code>page_length</code>: AJAX → <b>422</b> <code>errors.page_length</code>; non-AJAX → <b>302</b>. Гость → 302/401; без <code>schoolLeads.view</code> → 403. PUT/PATCH/DELETE на этот URI → 404/405</td></tr>
       <tr><td>GET</td><td><code>/admin/school-leads/logs-data</code></td><td><code>can:schoolLeads.view</code></td><td>JSON модалки «История изменений» (категория <code>school_lead</code>)</td></tr>
       <tr><td>PUT</td><td><code>/admin/school-leads/{schoolLead}</code></td><td><code>can:schoolLeads.view</code></td><td>Обновление заявки: статус, комментарий, ФИО родителя/ученика, дата рождения, группа, флаги особенностей, <code>parent_id</code> / <code>parent_match_confirmed</code> (§5.5.5); при <code>districts.view</code> / <code>locations.view</code> — <code>district_id</code> / <code>location_id</code>. Заявка с <code>user_id</code>: можно менять только <code>school_lead_status_id</code>; любые другие поля → <b>422</b> (AJAX) / redirect с ошибками (non-AJAX). AJAX (<code>X-Requested-With</code> / <code>Accept: application/json</code>) → JSON; иначе → <b>302</b> на <code>/admin/school-leads</code></td></tr>
@@ -196,7 +196,7 @@
       </ul>
     </li>
     <li><b>Колонки</b> (dropdown) — видимость колонок таблицы; настройки сохраняются на пользователя через API columns-settings (<code>user_table_settings.school_leads_index</code>, объект ключ → bool, не индексы). Порядок по умолчанию: № → ФИО ребенка → ФИО родителя → Статус → Объект → Секция → Телефон родителя → далее остальные (§5.5.3). Колонки «Действия» нет. Число <code>&lt;th&gt;</code> всегда совпадает с активными DataTable <code>columns</code> (условные «Объект»/«Договор»/«Район» выпадают и из thead, и через <code>when</code>).</li>
-    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; «Показать N» запоминается на админа (§5.1.3); редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
+    <li><b>Таблица</b> — <code>KidsCrmDataTable.create('#leads-table', …)</code> (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>): server-side DataTables, поиск, сортировка, пагинация; «Показать N» запоминается на пользователя с <code>schoolLeads.view</code> (§5.1.4); редактирование — по клику на ФИО родителя (§5.5.2); удаление заявок из UI/API <b>недоступно</b> (скрывать из вида — статусом с выключенным «Отображать» / снятием из фильтра); договор — в колонке «Договор» (§5.6–5.8). Колонка «Статус» — <code>type: 'inline-select'</code> с кастомным рендером <code>renderLeadStatusInlineSelect</code> (§5.5.1): цветные бейджи и выпадающее меню выбора статуса без нативного <code>&lt;select&gt;</code>. В <code>/admin/partner-leads</code> — другой <code>inline-select</code> с фиксированным enum (не путать).</li>
     <li><b>Колонка «Имя»</b> (ФИО родителя из заявки) — <code>type: 'link'</code>, класс <code>edit-lead</code>; клик открывает модалку «Редактирование лида» (§5.5.2): без клиента — полное редактирование; с клиентом — поля read-only, <b>кроме статуса</b> (§5.5.4). См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
   <p class="small">Ключи колонок в настройках: <code>name</code>, <code>status</code>, <code>contract</code> (при <code>users.view</code> и/или <code>contracts.view</code>), <code>phone</code>, <code>parent_email</code>, <code>child_full_name</code>, <code>child_birthday</code>, <code>district</code> (при <code>districts.view</code>), <code>location</code> (при <code>locations.view</code>), <code>team_title</code>, <code>child_flags</code>, <code>utm</code>, <code>page_url</code>, <code>comment</code>. Обзор иерархии — <a href="/docs/documentation/directories-hierarchy">directories-hierarchy</a>.</p>
@@ -270,8 +270,9 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li><b>UI</b> — кнопка «История» (иконка <code>fa-clock-rotate-left</code>) в toolbar → <code>GET /admin/school-leads/logs-data</code> (<code>route('logs.data.school-lead')</code>), модалка <code>includes.logModal</code>.</li>
   </ul>
 
-  <h3 id="school-leads-page-length">5.1.4) «Показать N» — персонально на админа</h3>
-  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на вкладке «Заявки» сохраняется в
+  <h3 id="school-leads-page-length">5.1.4) «Показать N» — персонально на пользователя</h3>
+  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на вкладке «Заявки» сохраняется
+    на текущего пользователя с правом <code>schoolLeads.view</code> в
     <code>user_table_settings.page_length</code> для <code>table_key = school_leads_index</code>
     (та же строка, что видимость колонок). Номер страницы (<code>start</code>) не хранится.</p>
   <ul>
@@ -291,17 +292,17 @@ KidsCrmFilterMultiselectSelect2.init($('#sl-filter-status'), {
     <li><b>GET columns-settings</b> не отдаёт <code>page_length</code> — контракт видимости колонок
       <code>{ ключ: bool }</code> / <code>[]</code> не менялся. Сохранение колонок не сбрасывает
       <code>page_length</code>.</li>
-    <li>Другие админские таблицы на <code>KidsCrmDataTable</code> это <b>не</b> включают, пока нет
-      <code>persistPageLength: true</code> и поддержки <code>page_length</code> в их columns-settings.
-      На <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a> уже включено
-      (<code>table_key = users_index</code>).</li>
+    <li>Лендинг и виджет заявок без opt-in. Полный список страниц с <code>persistPageLength: true</code>
+      (ученики, отчёты, выплаты T‑Bank) — <a href="/doc#datatable-page-length-index">/doc</a>.
+      Остальные админские таблицы на пресете не пишут N, пока нет
+      <code>persistPageLength: true</code> и поддержки <code>page_length</code> в их columns-settings.</li>
   </ul>
   <p class="small">Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие страницы держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется, лендинг/виджет без opt-in),
     <code>SchoolLeadsPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
-    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>.
-    Анонс — <a href="/doc#school-leads-page-length-index">/doc</a>.</p>
+    <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
+    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.</p>
 
   <h3>5.2) Параметры <code>GET /admin/school-leads/data</code></h3>
   <table>

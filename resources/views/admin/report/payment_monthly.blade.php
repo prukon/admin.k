@@ -575,6 +575,7 @@
 
             var dtApi = KidsCrmDataTable.create('#payments-monthly-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: {
                         month_title: true,
                         payments_count: true,
@@ -588,6 +589,7 @@
                     csrfToken: '{{ csrf_token() }}'
                 },
                 dataTable: {
+                    pageLength: @json((int) ($paymentsMonthlyPageLength ?? 10)),
                     ajax: {
                         url: @json(route('reports.payments.monthly.data')),
                         type: 'GET',

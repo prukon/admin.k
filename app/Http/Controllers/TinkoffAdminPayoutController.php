@@ -13,6 +13,7 @@ use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutUpdateScheduleRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsDataTableRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2PartnersSearchRequest;
 use App\Http\Requests\Tinkoff\Admin\TinkoffPayoutsSelect2UsersSearchRequest;
+use App\Models\UserTableSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,10 @@ class TinkoffAdminPayoutController extends Controller
             'toolbarTotals'
         ), [
             'activeTab' => 'payouts',
+            'payoutsPageLength' => UserTableSetting::pageLengthForUser(
+                auth()->id() !== null ? (int) auth()->id() : null,
+                'tinkoff_payouts_index'
+            ),
         ]));
     }
 

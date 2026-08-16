@@ -444,14 +444,21 @@ dataTable: {
     <li>Ошибка 422: текст <code>errors.page_length</code> под <code>.dataTables_length</code> (<code>.kids-dt-page-length-error</code>).</li>
     <li>Сейчас включено на
       <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
-      (<code>table_key = school_leads_index</code>) и
+      (<code>school_leads_index</code>),
       <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
-      (<code>table_key = users_index</code>). Номер страницы не сохраняется.</li>
+      (<code>users_index</code>),
+      <a href="/docs/documentation/reports-payments">/admin/reports/payments</a>
+      (<code>reports_payments</code>),
+      <a href="/docs/documentation/reports-admin#reports-page-length">monthly / LTV / payment-intents / fiscal-receipts</a>
+      и <a href="/docs/documentation/tbank-admin-payouts">/admin/tinkoff/payouts</a>
+      (<code>tinkoff_payouts_index</code>). Номер страницы не сохраняется.
+      Задолженности и исходящие письма — без opt-in.</li>
   </ul>
   <p class="small">Тесты: <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
     (тело POST: только <code>page_length</code>, gate <code>persistPageLength !== true</code>),
-    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>
-    (<code>node --check</code> на двух blade + исходнике пресета).</p>
+    <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>
+    (<code>node --check</code> на opted-in blade + исходнике пресета),
+    <code>ReportsAndPayoutsPageLengthFeatureTest</code>.</p>
 
   <h3>Эталонные страницы</h3>
   <ul>

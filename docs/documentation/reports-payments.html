@@ -97,10 +97,13 @@
     <li><b>Ключ таблицы</b>: <code>table_key = reports_payments</code></li>
     <li><b>API</b>:
       <ul>
-        <li><code>GET /admin/reports/payments/columns-settings</code> — получить настройки</li>
-        <li><code>POST /admin/reports/payments/columns-settings</code> — сохранить настройки (<code>columns: {key: true/false}</code>)</li>
+        <li><code>GET /admin/reports/payments/columns-settings</code> — получить настройки колонок (без ключа <code>page_length</code>)</li>
+        <li><code>POST /admin/reports/payments/columns-settings</code> — сохранить колонки (<code>columns: {key: true/false}</code>) и/или «Показать N» (<code>page_length</code> ∈ {10,20,50,100}). Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code></li>
       </ul>
     </li>
+    <li><b>«Показать N»</b> — персонально на пользователя с <code>reports.view</code>: PHP передаёт <code>$paymentsPageLength</code>,
+      <code>persistPageLength: true</code>. Сохранение колонок не сбрасывает N и наоборот.
+      Подробно — <a href="/docs/documentation/reports-admin#reports-page-length">reports-admin §1.1</a>.</li>
     <li>Все эти маршруты (включая страницу и DataTables) находятся в группе с middleware <code>can:reports.view</code> — без права <code>reports.view</code> ответ <b>403</b>.</li>
   </ul>
 
@@ -277,7 +280,8 @@ net_to_partner   = gross - commission_total</pre>
     <br><code>tests/Feature/Crm/Reports/PaymentReportLocationFeatureTest.php</code> (колонка/фильтр локации, <code>locations.view</code>),
     <br><code>tests/Feature/Crm/Payments/PaymentLedgerLocationTest.php</code> (запись <code>payments.location_id</code> при оплате),
     <br><code>tests/Feature/Crm/Reports/PaymentReportTbankHistoryTest.php</code>,
-    <br><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> (фильтр по тренеру).
+    <br><code>tests/Feature/Crm/Reports/PaymentReportTrainerFilterFeatureTest.php</code> (фильтр по тренеру),
+    <br><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> («Показать N»).
     Сценарии возврата T‑Bank и отмены отложенной выплаты (в т.ч. колонка <code>refund_action</code>): см. раздел 5.1 и
     <a href="/docs/documentation/tbank-refunds-payout-cancel">tbank-refunds-payout-cancel.html</a>.
   </div>

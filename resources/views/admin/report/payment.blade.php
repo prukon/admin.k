@@ -1297,6 +1297,7 @@ columns.push(
 
             var dtApi = KidsCrmDataTable.create('#payments-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: defaultColumnsVisibility,
                     urls: {
                         get: '/admin/reports/payments/columns-settings',
@@ -1322,6 +1323,7 @@ columns.push(
                     afterApplyVisibleColumns: paymentsAfterApplyVisibleColumns
                 },
                 dataTable: {
+                    pageLength: @json((int) ($paymentsPageLength ?? 10)),
                     ajax: {
                         url: "{{ route('payments.getPayments') }}",
                         data: function (d) {

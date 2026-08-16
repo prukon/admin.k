@@ -28,51 +28,82 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
-  <h2 id="users-page-length-index">Ученики: запоминать «Показать N» для админа (2026‑08)</h2>
+  <h2 id="datatable-page-length-index">DataTables: запоминать «Показать N» на пользователя (2026‑08)</h2>
   <div class="note">
-    На <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
-    селект «Показать 10 / 20 / 50 / 100» сохраняется так же, как на заявках:
-    <code>user_table_settings.page_length</code>, <code>table_key = users_index</code>.
-    Номер страницы не пишем.
+    Селект «Показать 10 / 20 / 50 / 100» запоминается <b>на текущего пользователя</b>
+    (у кого есть право на страницу), в той же строке <code>user_table_settings</code>,
+    что и видимость колонок: поле <code>page_length</code>.
+    Номер страницы (<code>start</code>) <b>не</b> пишем.
     <br><br>
-    PHP подставляет <code>usersPageLength</code> при открытии списка.
-    Смена селекта → <code>POST /admin/users/columns-settings</code> с <code>page_length</code>
-    (колонки не затираются). GET колонок по-прежнему <code>{ ключ: bool }</code> / <code>[]</code>.
+    1) <b>Где включено</b> (opt-in <code>persistPageLength: true</code>, свой <code>table_key</code>):
+    <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
+    (<code>school_leads_index</code>, право <code>schoolLeads.view</code>);
+    <a href="/docs/documentation/admin-users#users-page-length">/admin/users</a>
+    (<code>users_index</code>, <code>users.view</code>);
+    <a href="/docs/documentation/reports-payments">/admin/reports/payments</a>
+    (<code>reports_payments</code>),
+    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/payments/monthly</a>
+    (<code>reports_payments_monthly</code>),
+    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/ltv</a>
+    (<code>reports_ltv</code>) — право <code>reports.view</code>;
+    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/payment-intents</a>
+    (<code>reports_payment_intents</code>, <code>reports.payment.intents.view</code>);
+    <a href="/docs/documentation/reports-admin#reports-page-length">/admin/reports/fiscal-receipts</a>
+    (<code>reports_fiscal_receipts</code>, <code>reports.fiscal.receipts.view</code>);
+    <a href="/docs/documentation/tbank-admin-payouts">/admin/tinkoff/payouts</a>
+    (<code>tinkoff_payouts_index</code>, <code>tbank.payouts.manage</code>).
     <br>
-    Тесты: <code>UsersPageLengthFeatureTest</code>,
-    <code>UsersPageLengthFullAccessFeatureTest</code>,
-    <code>UserTableSettingsControllerTest</code> (колонки без регрессии),
-    <code>BladeInlineJsSyntaxTest</code> (POST только <code>page_length</code>, без номера страницы).
-    Подробно — <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>,
-    заявки — <a href="#school-leads-page-length-index">анонс заявок</a>.
-  </div>
-
-  <h2 id="school-leads-page-length-index">Заявки: запоминать «Показать N» для админа (2026‑08)</h2>
-  <div class="note">
-    На <a href="/docs/documentation/school-leads-widget#school-leads-page-length">/admin/school-leads</a>
-    селект DataTables «Показать 10 / 20 / 50 / 100» сохраняется на пользователя,
-    как видимость колонок — в <code>user_table_settings</code>
-    (<code>table_key = school_leads_index</code>, поле <code>page_length</code>).
-    Номер страницы не пишем.
+    2) <b>Старт таблицы.</b> PHP читает сохранённое значение и передаёт в Blade
+    (<code>$leadsPageLength</code>, <code>$usersPageLength</code>,
+    <code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>,
+    <code>$ltvPageLength</code>, <code>$paymentIntentsPageLength</code>,
+    <code>$fiscalReceiptsPageLength</code>, <code>$payoutsPageLength</code>).
+    Пресет получает <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
+    Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>
+    (<code>UserTableSetting::resolvePageLength</code>).
+    Настройка чужого пользователя (даже того же партнёра) не подставляется;
+    у каждой таблицы свой ключ (N на «Все платежи» не меняет monthly/LTV).
+    <br>
+    3) <b>Смена селекта.</b> <code>KidsCrmDataTable</code> шлёт POST на тот же
+    <code>…/columns-settings</code> только с <code>page_length</code> (без <code>columns</code> и без <code>start</code>).
+    Скрытые колонки не вспыхивают. «Применить» фильтры делает <code>dtApi.reload</code>,
+    таблицу не пересоздаёт — N не сбрасывается.
+    <br>
+    4) <b>Ошибки и safety-net.</b> AJAX: успех <b>200</b> <code>{success: true}</code>;
+    невалидное N → <b>422</b> <code>errors.page_length</code>
+    («Можно показать 10, 20, 50 или 100 записей.»), текст под блоком «Показать N».
+    Пустой POST: AJAX → 422 по <code>columns</code>; non-AJAX → 302.
+    Non-AJAX успех → JSON 200 + запись в БД (не пустой 200 и не redirect);
+    non-AJAX ошибка → <b>302</b> + session <code>errors[field]</code>.
+    Гость → 302/401; без права страницы → 403. PUT/PATCH/DELETE на URI настроек → 404/405.
+    <br>
+    5) <b>GET колонок не менялся:</b> объект <code>{ ключ: bool }</code> или <code>[]</code>,
+    ключа <code>page_length</code> в JSON нет. Сохранение колонок не затирает N и наоборот.
+    <br>
+    6) <b>Где не включено.</b> Задолженности, исходящие письма, лендинг/виджет заявок,
+    остальные админские таблицы на пресете — пока нет <code>persistPageLength: true</code>.
+    Вложенные таблицы LTV и «Платежи по месяцам» (<code>$('#…').DataTable</code>, не пресет)
+    всегда <code>pageLength: 10</code> и N основной таблицы не подхватывают.
     <br><br>
-    1) <b>Старт таблицы.</b> PHP читает <code>page_length</code> при открытии вкладки «Заявки»
-    и передаёт <code>dataTable.pageLength</code> — первый AJAX сразу с нужным <code>length</code>.
-    Нет записи или значение не из <code>10/20/50/100</code> → <b>10</b>.
-    <br>
-    2) <b>Смена селекта.</b> <code>KidsCrmDataTable</code> с <code>persistPageLength: true</code>
-    шлёт <code>POST /admin/school-leads/columns-settings</code> с <code>page_length</code> (без <code>columns</code>).
-    Ошибка валидации → <b>422</b> <code>errors.page_length</code>, текст под блоком «Показать N».
-    <br>
-    3) <b>GET колонок не менялся:</b> по-прежнему объект <code>{ ключ: bool }</code> или <code>[]</code>,
-    ключа <code>page_length</code> в JSON нет. Сохранение колонок не затирает <code>page_length</code> и наоборот.
-    <br>
-    Тесты: <code>SchoolLeadsPageLengthFeatureTest</code>,
-    <code>SchoolLeadsPageLengthFullAccessFeatureTest</code>,
-    <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>
-    (POST только <code>page_length</code>, без <code>columns</code>/<code>start</code>),
-    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>.
-    Подробно — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.
+    Подробно:
+    <a href="/docs/documentation/reusable-ui-partials#persist-page-length">reusable-ui-partials § persistPageLength</a>,
+    <a href="/docs/documentation/school-leads-widget#school-leads-page-length">заявки §5.1.4</a>,
+    <a href="/docs/documentation/admin-users#users-page-length">ученики §2.0</a>,
+    <a href="/docs/documentation/reports-admin#reports-page-length">отчёты §1.1</a>,
+    <a href="/docs/documentation/tbank-admin-payouts">выплаты T‑Bank</a>.
+    Тесты: <code>SchoolLeadsPageLengthFeatureTest</code> / <code>FullAccess</code>,
+    <code>UsersPageLengthFeatureTest</code> / <code>FullAccess</code>,
+    <code>ReportsAndPayoutsPageLengthFeatureTest</code> / <code>FullAccess</code>,
+    <code>BladeInlineJsSyntaxTest</code>
+    (POST только <code>page_length</code>; opt-in только перечисленные blade;
+    детализация LTV/monthly = 10; фильтры → <code>reload</code>, не второй <code>create</code>).
   </div>
+  <p id="reports-page-length-index" class="small">Отчёты и выплаты T‑Bank — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
+    и <a href="/docs/documentation/reports-admin#reports-page-length">reports-admin §1.1</a>.</p>
+  <p id="users-page-length-index" class="small">Ученики (<code>/admin/users</code>) — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
+    и <a href="/docs/documentation/admin-users#users-page-length">admin-users §2.0</a>.</p>
+  <p id="school-leads-page-length-index" class="small">Заявки (<code>/admin/school-leads</code>) — в <a href="#datatable-page-length-index">анонсе «Показать N»</a>
+    и <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
 
   <h2 id="trainer-salary-kansas-month-settings-index">Канзас: модалка «Настройки месяца» и таблица черновика (2026‑08)</h2>
   <div class="note">
@@ -1856,14 +1887,14 @@
     <li><a href="/docs/documentation/audit-my-logs">Аудит CRM (my_logs): AuditEvent, AuditLogger, колонки event/level</a></li>
     <li><a href="/docs/documentation/settings-logs">Настройки → Логи: вкладка журнала, фильтры, доступ, SUPERADMIN_ALL_OR_FILTER</a></li>
     <li><a href="/docs/documentation/tbank">T‑Bank (мультирасчёты): глобальный терминал, комиссии, автовыплата per метод, карточка платежа (организация, timeline), workflow</a></li>
-    <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», карточка, изоляция по партнёру)</a></li>
+    <li><a href="/docs/documentation/tbank-admin-payouts">T‑Bank: админка выплат (список, DataTables, колонка «Организация», <b>«Показать N»</b> / <code>page_length</code>, карточка, изоляция по партнёру)</a></li>
     <li><a href="/docs/documentation/tbank-refunds-payout-cancel">T‑Bank: возврат в отчёте «Платежи» и отмена отложенной выплаты</a></li>
     <li><a href="/docs/documentation/tbank#sbp-qr-ui">T‑Bank: СБП (QR) в интерфейсе — GetQr/Data, страница <code>/tinkoff/qr/…</code>, доступы</a></li>
     <li><a href="/docs/documentation/queues-monitoring">Очереди в админке: мониторинг, доступы, queue.log, restart worker</a></li>
     <li><a href="/docs/documentation/tbank#payout-settings">T‑Bank: интервал джобы отложенных выплат, автовыплаты в правилах комиссий, защита от дублей</a></li>
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
-    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
-    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
+    <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
+    <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/pay/ulp/{token}</code>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
@@ -1887,8 +1918,8 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
-    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
     <li><a href="/docs/documentation/tests-standards">Требования к единообразию Feature‑тестов (партнёр, авторизация, права, <b>фикстуры юр. лиц T‑Bank/CloudKassir</b>)</a></li>
@@ -1896,7 +1927,7 @@
 
   <h2>Переиспользование UI</h2>
   <ul>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
   </ul>
 </div>
 </body>

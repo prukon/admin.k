@@ -71,11 +71,12 @@
   <ul>
     <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>parents.full_name_genitive</code> и <b>не</b> по <code>users.full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
     <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>parent_phone</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
-    <li><b>«Показать N»</b> — персонально на админа (§<a href="#users-page-length">2.0</a>).</li>
+    <li><b>«Показать N»</b> — персонально на пользователя с <code>users.view</code> (§<a href="#users-page-length">2.0</a>).</li>
   </ul>
 
-  <h3 id="users-page-length">2.0) «Показать N» — персонально на админа</h3>
-  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на <code>/admin/users</code> сохраняется в
+  <h3 id="users-page-length">2.0) «Показать N» — персонально на пользователя</h3>
+  <p>Селект DataTables «Показать 10 / 20 / 50 / 100» на <code>/admin/users</code> сохраняется
+    на текущего пользователя с правом <code>users.view</code> в
     <code>user_table_settings.page_length</code> для <code>table_key = users_index</code>
     (та же строка, что видимость колонок). Номер страницы (<code>start</code>) не хранится.</p>
   <ul>
@@ -86,7 +87,8 @@
     <li><b>Смена селекта.</b> Пресет шлёт <code>POST /admin/users/columns-settings</code> только с
       <code>page_length</code>. Request: <code>UserTableSettingsSaveRequest</code>.
       Ключи <code>sex</code> / <code>comment</code> по-прежнему отфильтровываются без соответствующих прав
-      (только когда в запросе есть <code>columns</code>).</li>
+      (только когда в запросе есть <code>columns</code>).
+      AJAX и non-AJAX успех → <b>200</b> <code>{success: true}</code> + запись в БД.</li>
     <li><b>Ошибки.</b> Невалидное значение: AJAX → <b>422</b> <code>errors.page_length</code>
       («Можно показать 10, 20, 50 или 100 записей.»), текст под <code>.dataTables_length</code>.
       Non-AJAX → <b>302</b> + session errors. Пустой POST по-прежнему 422/302 по <code>columns</code>.</li>
@@ -96,8 +98,8 @@
   <p class="small">Тесты: <code>UsersPageLengthFeatureTest</code> (HTTP 200/403/422/302, UX: повторное открытие держит N, скрытие колонок не сбрасывает N, <code>start</code> не пишется),
     <code>UsersPageLengthFullAccessFeatureTest</code> (гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405),
     <code>BladeInlineJsSyntaxTest::test_kids_datatable_page_length_persist_posts_only_page_length_not_page_number</code>,
-    <code>BladeInlineJsSyntaxTest::test_only_school_leads_and_users_blades_opt_in_to_page_length_persist</code>.
-    Анонс — <a href="/doc#users-page-length-index">/doc</a>.
+    <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>.
+    Анонс — <a href="/doc#datatable-page-length-index">/doc</a>.
     Тот же механизм на заявках — <a href="/docs/documentation/school-leads-widget#school-leads-page-length">school-leads-widget §5.1.4</a>.</p>
 
   <h3>Индексы колонок DataTables</h3>

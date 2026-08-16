@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Models\Location;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -75,6 +76,10 @@ class PaymentMonthlyReportController extends AdminBaseController
             'canViewTrainers'    => $canViewTrainers,
             'canViewLocations'   => $canViewLocations,
             'activeLocations'    => $activeLocations,
+            'paymentsMonthlyPageLength' => UserTableSetting::pageLengthForUser(
+                Auth::id() !== null ? (int) Auth::id() : null,
+                self::TABLE_KEY
+            ),
         ]);
     }
 
@@ -291,21 +296,13 @@ class PaymentMonthlyReportController extends AdminBaseController
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
         $this->requirePartnerId();
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
-
-        $normalized = [];
-        foreach ((array) $data['columns'] as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
-            }
-            $normalized[(string) $key] = $bool;
+        $payload = $request->persistPayload();
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -313,9 +310,7 @@ class PaymentMonthlyReportController extends AdminBaseController
                 'user_id' => (int) Auth::id(),
                 'table_key' => self::TABLE_KEY,
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

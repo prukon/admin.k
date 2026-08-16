@@ -583,6 +583,7 @@
 
             const dtApi = KidsCrmDataTable.create('#payouts-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: {
                         payment: true,
                         id: true,
@@ -612,6 +613,7 @@
                     csrfToken: '{{ csrf_token() }}',
                 },
                 dataTable: {
+                    pageLength: @json((int) ($payoutsPageLength ?? 10)),
                     order: [[1, 'desc']],
                     ajax: {
                         url: '/admin/tinkoff/payouts/data',

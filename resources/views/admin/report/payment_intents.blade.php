@@ -573,6 +573,7 @@
 
             var dtApi = KidsCrmDataTable.create('#payment-intents-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: {
                         id: true,
                         provider_inv_id: true,
@@ -601,6 +602,7 @@
                     csrfToken: '{{ csrf_token() }}'
                 },
                 dataTable: {
+                    pageLength: @json((int) ($paymentIntentsPageLength ?? 10)),
                     ajax: {
                     url: "{{ route('reports.payment-intents.data') }}",
                     data: function (d) {

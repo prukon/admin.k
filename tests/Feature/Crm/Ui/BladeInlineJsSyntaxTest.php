@@ -927,9 +927,10 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
-     * P1: opt-in только заявки и ученики. Иначе «Показать N» начнёт писать в чужие columns-settings.
+     * P1: persistPageLength только на согласованных таблицах.
+     * Иначе «Показать N» начнёт писать в чужие columns-settings.
      */
-    public function test_only_school_leads_and_users_blades_opt_in_to_page_length_persist(): void
+    public function test_only_opted_in_blades_enable_page_length_persist(): void
     {
         $hits = [];
         $iterator = new \RecursiveIteratorIterator(
@@ -957,34 +958,166 @@ final class BladeInlineJsSyntaxTest extends TestCase
         sort($hits);
 
         $this->assertSame([
+            'admin/partners/tabs/payouts.blade.php',
+            'admin/report/fiscal_receipts.blade.php',
+            'admin/report/ltv.blade.php',
+            'admin/report/payment.blade.php',
+            'admin/report/payment_intents.blade.php',
+            'admin/report/payment_monthly.blade.php',
             'admin/school-leads/tabs/leads.blade.php',
             'admin/user.blade.php',
         ], $hits);
 
-        $leads = (string) file_get_contents(resource_path('views/admin/school-leads/tabs/leads.blade.php'));
-        $leadsCreate = strpos($leads, "KidsCrmDataTable.create('#leads-table'");
-        $this->assertNotFalse($leadsCreate);
-        $leadsChunk = substr($leads, $leadsCreate, 1800);
-        $this->assertStringContainsString('persistPageLength: true', $leadsChunk);
-        $this->assertStringContainsString('pageLength: @json((int) ($leadsPageLength ?? 10))', $leadsChunk);
+        $optIns = [
+            "KidsCrmDataTable.create('#leads-table'" => [
+                'file' => resource_path('views/admin/school-leads/tabs/leads.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($leadsPageLength ?? 10))',
+                'prefix' => 'blade-js-school-leads-page-length',
+            ],
+            "KidsCrmDataTable.create('#users-table'" => [
+                'file' => resource_path('views/admin/user.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($usersPageLength ?? 10))',
+                'prefix' => 'blade-js-users-page-length',
+            ],
+            "KidsCrmDataTable.create('#payments-table'" => [
+                'file' => resource_path('views/admin/report/payment.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($paymentsPageLength ?? 10))',
+                'prefix' => 'blade-js-payments-page-length',
+            ],
+            "KidsCrmDataTable.create('#payments-monthly-table'" => [
+                'file' => resource_path('views/admin/report/payment_monthly.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($paymentsMonthlyPageLength ?? 10))',
+                'prefix' => 'blade-js-payments-monthly-page-length',
+            ],
+            "KidsCrmDataTable.create('#ltv-table'" => [
+                'file' => resource_path('views/admin/report/ltv.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($ltvPageLength ?? 10))',
+                'prefix' => 'blade-js-ltv-page-length',
+            ],
+            "KidsCrmDataTable.create('#payment-intents-table'" => [
+                'file' => resource_path('views/admin/report/payment_intents.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($paymentIntentsPageLength ?? 10))',
+                'prefix' => 'blade-js-payment-intents-page-length',
+            ],
+            "KidsCrmDataTable.create('#fiscal-receipts-table'" => [
+                'file' => resource_path('views/admin/report/fiscal_receipts.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($fiscalReceiptsPageLength ?? 10))',
+                'prefix' => 'blade-js-fiscal-receipts-page-length',
+            ],
+            "KidsCrmDataTable.create('#payouts-table'" => [
+                'file' => resource_path('views/admin/partners/tabs/payouts.blade.php'),
+                'pageLength' => 'pageLength: @json((int) ($payoutsPageLength ?? 10))',
+                'prefix' => 'blade-js-payouts-page-length',
+            ],
+        ];
 
-        $users = (string) file_get_contents(resource_path('views/admin/user.blade.php'));
-        $usersCreate = strpos($users, "KidsCrmDataTable.create('#users-table'");
-        $this->assertNotFalse($usersCreate);
-        $usersChunk = substr($users, $usersCreate, 1800);
-        $this->assertStringContainsString('persistPageLength: true', $usersChunk);
-        $this->assertStringContainsString('pageLength: @json((int) ($usersPageLength ?? 10))', $usersChunk);
+        foreach ($optIns as $createNeedle => $meta) {
+            $contents = (string) file_get_contents($meta['file']);
+            $createPos = strpos($contents, $createNeedle);
+            $this->assertNotFalse($createPos, $createNeedle);
+            $chunk = substr($contents, $createPos, 4500);
+            $this->assertStringContainsString('persistPageLength: true', $chunk);
+            $this->assertStringContainsString($meta['pageLength'], $chunk);
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $meta['file'],
+                $createNeedle,
+                $meta['prefix']
+            );
+        }
+    }
+
+    /**
+     * P1: вложенные таблицы LTV/monthly — отдельный DataTable, не пресет.
+     * UX-баг: если туда попадёт сохранённый N основной таблицы, детализация «прыгнет» на 50/100.
+     */
+    public function test_monthly_and_ltv_detail_tables_hardcode_ten_and_do_not_persist(): void
+    {
+        $monthly = (string) file_get_contents(resource_path('views/admin/report/payment_monthly.blade.php'));
+        $monthlyFn = strpos($monthly, 'function initMonthlyPaymentsDetailTable');
+        $this->assertNotFalse($monthlyFn);
+        $monthlyCreate = strpos($monthly, "KidsCrmDataTable.create('#payments-monthly-table'");
+        $this->assertNotFalse($monthlyCreate);
+        $monthlyDetail = substr($monthly, $monthlyFn, $monthlyCreate - $monthlyFn);
+        $this->assertStringContainsString('pageLength: 10', $monthlyDetail);
+        $this->assertStringNotContainsString('persistPageLength', $monthlyDetail);
+        $this->assertStringNotContainsString('$paymentsMonthlyPageLength', $monthlyDetail);
+
+        $ltv = (string) file_get_contents(resource_path('views/admin/report/ltv.blade.php'));
+        $ltvFn = strpos($ltv, 'function initLtvUserPaymentsDetailTable');
+        $this->assertNotFalse($ltvFn);
+        $ltvCreate = strpos($ltv, "KidsCrmDataTable.create('#ltv-table'");
+        $this->assertNotFalse($ltvCreate);
+        $ltvDetail = substr($ltv, $ltvFn, $ltvCreate - $ltvFn);
+        $this->assertStringContainsString('pageLength: 10', $ltvDetail);
+        $this->assertStringNotContainsString('persistPageLength', $ltvDetail);
+        $this->assertStringNotContainsString('$ltvPageLength', $ltvDetail);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
-            resource_path('views/admin/school-leads/tabs/leads.blade.php'),
-            "KidsCrmDataTable.create('#leads-table'",
-            'blade-js-school-leads-page-length'
+            resource_path('views/admin/report/payment_monthly.blade.php'),
+            'function initMonthlyPaymentsDetailTable',
+            'blade-js-monthly-detail-page-length'
         );
         $this->assertInlineScriptsContainingHaveValidJavascript(
-            resource_path('views/admin/user.blade.php'),
-            "KidsCrmDataTable.create('#users-table'",
-            'blade-js-users-page-length'
+            resource_path('views/admin/report/ltv.blade.php'),
+            'function initLtvUserPaymentsDetailTable',
+            'blade-js-ltv-detail-page-length'
         );
+    }
+
+    /**
+     * P1: «Применить» / сброс фильтров перезагружает таблицу, не пересоздаёт её.
+     * Иначе сохранённый «Показать N» сбросится на дефолт DataTables.
+     */
+    public function test_report_and_payout_filter_submit_reloads_without_recreating_datatable(): void
+    {
+        $cases = [
+            resource_path('views/admin/report/payment.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payments-table'",
+                'submit' => '$payFiltersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload();',
+            ],
+            resource_path('views/admin/report/payment_monthly.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payments-monthly-table'",
+                'submit' => '$payMonthlyFiltersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+            resource_path('views/admin/report/ltv.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#ltv-table'",
+                'submit' => '$ltvFiltersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+            resource_path('views/admin/report/payment_intents.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payment-intents-table'",
+                'submit' => '$form.on(\'submit\'',
+                'reload' => 'dtApi.reload();',
+            ],
+            resource_path('views/admin/report/fiscal_receipts.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#fiscal-receipts-table'",
+                'submit' => '$form.on(\'submit\'',
+                'reload' => 'dtApi.reload();',
+            ],
+            resource_path('views/admin/partners/tabs/payouts.blade.php') => [
+                'create' => "KidsCrmDataTable.create('#payouts-table'",
+                'submit' => '$filtersForm.on(\'submit\'',
+                'reload' => 'dtApi.reload({ keepPage: true });',
+            ],
+        ];
+
+        foreach ($cases as $path => $meta) {
+            $content = (string) file_get_contents($path);
+            $this->assertSame(1, substr_count($content, $meta['create']), $path);
+            $submitPos = strpos($content, $meta['submit']);
+            $this->assertNotFalse($submitPos, $path);
+            $chunk = substr($content, $submitPos, 900);
+            $this->assertStringContainsString('e.preventDefault()', $chunk, $path);
+            $this->assertStringContainsString($meta['reload'], $chunk, $path);
+            $this->assertStringNotContainsString('KidsCrmDataTable.create', $chunk, $path);
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                $meta['submit'],
+                'blade-js-filter-reload-'.basename($path)
+            );
+        }
     }
 
     /**

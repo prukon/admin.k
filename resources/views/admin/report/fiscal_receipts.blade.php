@@ -506,6 +506,7 @@
 
             var dtApi = KidsCrmDataTable.create('#fiscal-receipts-table', {
                 columnsSettings: {
+                    persistPageLength: true,
                     defaults: {
                         partner: true,
                         payment_intent_id: true,
@@ -524,6 +525,7 @@
                     csrfToken: '{{ csrf_token() }}'
                 },
                 dataTable: {
+                    pageLength: @json((int) ($fiscalReceiptsPageLength ?? 10)),
                     ajax: {
                         url: "{{ route('reports.fiscal-receipts.data') }}",
                         data: function (d) {

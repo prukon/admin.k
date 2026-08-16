@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentIntentsUsersSelect2SearchRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 use App\Models\Partner;
@@ -46,6 +47,10 @@ class PaymentIntentReportController extends AdminBaseController
             'piFilterPartner' => $piFilterPartner,
             'piCanFilterPartner' => $canFilterPartner,
             'piFilterUser' => $piFilterUser,
+            'paymentIntentsPageLength' => UserTableSetting::pageLengthForUser(
+                Auth::id() !== null ? (int) Auth::id() : null,
+                'reports_payment_intents'
+            ),
         ]);
     }
 
@@ -216,26 +221,15 @@ class PaymentIntentReportController extends AdminBaseController
     }
 
     /**
-     * Сохранить настройки колонок для текущего пользователя.
-     * Ожидает: columns: { provider_inv_id: true, partner: false, ... }
+     * Сохранить настройки колонок и/или «Показать N» для текущего пользователя.
      */
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
         $userId = Auth::id();
+        $payload = $request->persistPayload();
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
-
-        $rawColumns = $data['columns'];
-        $normalized = [];
-
-        foreach ($rawColumns as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
-            }
-            $normalized[$key] = $bool;
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -243,9 +237,7 @@ class PaymentIntentReportController extends AdminBaseController
                 'user_id' => $userId,
                 'table_key' => 'reports_payment_intents',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin\Report;
 
 use App\Http\Controllers\AdminBaseController;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 use App\Models\FiscalReceipt;
 use App\Models\Partner;
@@ -38,6 +39,10 @@ class FiscalReceiptReportController extends AdminBaseController
             'frFilterPartner' => $frFilterPartner,
             'frCanFilterPartner' => $canFilterPartner,
             'frHasActiveFilters' => $this->fiscalReceiptsHasActiveFilters($filters, $canFilterPartner),
+            'fiscalReceiptsPageLength' => UserTableSetting::pageLengthForUser(
+                Auth::id() !== null ? (int) Auth::id() : null,
+                'reports_fiscal_receipts'
+            ),
         ]);
     }
 
@@ -135,16 +140,11 @@ class FiscalReceiptReportController extends AdminBaseController
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
-        $validated = $request->validate([
-            'columns' => 'required|array',
-        ]);
-
-        $normalized = [];
-        foreach ($validated['columns'] as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            $normalized[$key] = $bool === true;
+        $payload = $request->persistPayload();
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::query()->updateOrCreate(
@@ -152,9 +152,7 @@ class FiscalReceiptReportController extends AdminBaseController
                 'user_id' => (int) Auth::id(),
                 'table_key' => 'reports_fiscal_receipts',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

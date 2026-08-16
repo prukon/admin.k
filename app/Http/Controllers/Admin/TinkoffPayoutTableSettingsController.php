@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Models\UserTableSetting;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TinkoffPayoutTableSettingsController extends Controller
@@ -34,35 +34,27 @@ class TinkoffPayoutTableSettingsController extends Controller
         return response()->json($columns);
     }
 
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
         $userId = Auth::id();
+        $payload = $request->persistPayload();
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
-
-        $rawColumns = $data['columns'];
-        $normalized = [];
-
-        foreach ($rawColumns as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
-            }
-            $normalized[$key] = $bool;
+        if (array_key_exists('columns', $payload) && is_array($payload['columns'])) {
+            $normalized = $payload['columns'];
+            unset($normalized['bank_fee']);
+            $payload['columns'] = $normalized;
         }
 
-        unset($normalized['bank_fee']);
+        if ($payload === []) {
+            return response()->json(['success' => true]);
+        }
 
         UserTableSetting::updateOrCreate(
             [
                 'user_id' => $userId,
                 'table_key' => self::TABLE_KEY,
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

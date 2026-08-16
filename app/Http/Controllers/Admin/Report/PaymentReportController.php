@@ -26,6 +26,7 @@ use App\Services\PartnerContext;
 use App\Services\TeamUserSyncService;
 use App\Support\UserTeamQuery;
 use App\Support\Payments\PaymentTeamTitleDisplay;
+use App\Http\Requests\Admin\ColumnsSettingsWithPageLengthSaveRequest;
 use App\Http\Requests\Admin\Report\PaymentsReportSelect2SearchRequest;
 
 
@@ -88,6 +89,10 @@ class PaymentReportController extends AdminBaseController
                 'canViewTrainers' => $canViewTrainers,
                 'canViewLocations' => $canViewLocations,
                 'activeLocations' => $activeLocations,
+                'paymentsPageLength' => UserTableSetting::pageLengthForUser(
+                    Auth::id() !== null ? (int) Auth::id() : null,
+                    'reports_payments'
+                ),
             ]
         );
     }
@@ -1839,10 +1844,9 @@ SQL;
     }
 
     /**
-     * Сохранить настройки колонок для текущего пользователя.
-     * Ожидает: columns: { user_name: true, team_title: false, ... }
+     * Сохранить настройки колонок и/или «Показать N» для текущего пользователя.
      */
-    public function saveColumnsSettings(Request $request)
+    public function saveColumnsSettings(ColumnsSettingsWithPageLengthSaveRequest $request)
     {
         $userId = Auth::id();
         /** @var \App\Models\User|null $authUser */
@@ -1852,43 +1856,40 @@ SQL;
         $canPayoutColumn = $authUser?->can('reports.payments.payout_amount.column.view') ?? false;
         $canViewLocations = $authUser?->can('locations.view') ?? false;
 
-        $data = $request->validate([
-            'columns' => 'required|array',
-        ]);
+        $payload = $request->persistPayload();
 
-        $rawColumns = $data['columns'];
-        $normalized = [];
+        if (array_key_exists('columns', $payload) && is_array($payload['columns'])) {
+            $normalized = $payload['columns'];
 
-        foreach ($rawColumns as $key => $value) {
-            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-            if ($bool === null) {
-                $bool = false;
+            if (! $canViewLocations) {
+                unset($normalized['location']);
             }
-            $normalized[$key] = $bool;
-        }
 
-        if (! $canViewLocations) {
-            unset($normalized['location']);
-        }
-
-        if (! $canAdditional) {
-            foreach (['bank_commission_acquiring', 'bank_commission_payout', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
-                $normalized[$k] = false;
+            if (! $canAdditional) {
+                foreach (['bank_commission_acquiring', 'bank_commission_payout', 'platform_commission', 'net_to_partner', 'refund_status'] as $k) {
+                    $normalized[$k] = false;
+                }
             }
+
+            if (! $canCommissionTotal) {
+                $normalized['commission_total'] = false;
+            }
+
+            if (! $canPayoutColumn) {
+                $normalized['payout_amount'] = false;
+            }
+
+            unset($normalized['bank_commission_total']);
+
+            if ($canAdditional) {
+                unset($normalized['commission_total']);
+            }
+
+            $payload['columns'] = $normalized;
         }
 
-        if (! $canCommissionTotal) {
-            $normalized['commission_total'] = false;
-        }
-
-        if (! $canPayoutColumn) {
-            $normalized['payout_amount'] = false;
-        }
-
-        unset($normalized['bank_commission_total']);
-
-        if ($canAdditional) {
-            unset($normalized['commission_total']);
+        if ($payload === []) {
+            return response()->json(['success' => true]);
         }
 
         UserTableSetting::updateOrCreate(
@@ -1896,9 +1897,7 @@ SQL;
                 'user_id' => $userId,
                 'table_key' => 'reports_payments',
             ],
-            [
-                'columns' => $normalized,
-            ]
+            $payload
         );
 
         return response()->json(['success' => true]);

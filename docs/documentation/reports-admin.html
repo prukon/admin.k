@@ -32,6 +32,7 @@
       <li>применение фильтров <b>без перезагрузки страницы</b>: <code>preventDefault()</code> → <code>dtApi.reload({ keepPage: true })</code> (пресет <code>KidsCrmDataTable</code>)</li>
       <li>“Общая сумма” обновляется через отдельный endpoint <code>…/total</code> и меняется <b>с анимацией</b></li>
       <li>настройки колонок сохраняются <b>для текущего пользователя</b> в <code>user_table_settings</code> (если отчёт поддерживает “Колонки”)</li>
+      <li>с 2026‑08 на opted-in таблицах ещё и «Показать N» (<code>page_length</code>) — §<a href="#reports-page-length">1.1</a>; номер страницы не пишем</li>
     </ul>
     С <b>2026‑06</b> основные таблицы отчётов переведены на пресет <code>KidsCrmDataTable.create</code>
     (<a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>):
@@ -39,6 +40,37 @@
     tooltip'ы через <code>KidsCrmTooltip</code> (глобально в <code>layouts/admin2.blade.php</code>).
     Модалка «История изменений» (<code>includes/logModal.blade.php</code>) на вкладках отчётов тоже использует
     <code>KidsCrmDataTable.create('#logsTable', …)</code> (без <code>columns-settings</code>, ленивая инициализация при открытии модалки).
+  </div>
+
+  <h2 id="reports-page-length">1.1) «Показать N» — персонально на пользователя</h2>
+  <div class="note">
+    Селект DataTables «Показать 10 / 20 / 50 / 100» на основных таблицах отчётов сохраняется
+    на текущего пользователя (у кого есть право на страницу) в
+    <code>user_table_settings.page_length</code> (та же строка, что видимость колонок).
+    Номер страницы (<code>start</code>) не хранится.
+    Request: <code>ColumnsSettingsWithPageLengthSaveRequest</code>
+    (<code>columns</code> required_without <code>page_length</code>; <code>page_length</code> ∈ {10,20,50,100}).
+    <ul>
+      <li><b>Старт.</b> Контроллер читает <code>page_length</code> и передаёт в Blade
+        (<code>$paymentsPageLength</code>, <code>$paymentsMonthlyPageLength</code>, <code>$ltvPageLength</code>,
+        <code>$paymentIntentsPageLength</code>, <code>$fiscalReceiptsPageLength</code>).
+        <code>KidsCrmDataTable.create</code> получает <code>dataTable.pageLength</code> и
+        <code>columnsSettings.persistPageLength: true</code>. Нет записи / не из набора → <b>10</b>.</li>
+      <li><b>Смена селекта.</b> POST на тот же <code>…/columns-settings</code> только с <code>page_length</code>
+        (колонки не затираются). AJAX → 200 <code>{success:true}</code> или 422 <code>errors.page_length</code>;
+        non-AJAX успех → JSON 200; non-AJAX ошибка → 302 + session errors.</li>
+      <li><b>GET columns-settings</b> по-прежнему только <code>{ ключ: bool }</code> / <code>[]</code>, без ключа <code>page_length</code>.</li>
+      <li>Вложенные таблицы LTV и «Платежи по месяцам» (<code>$('#…').DataTable</code>, не пресет) <b>не</b> сохраняют N
+        и остаются на 10, даже если у основной таблицы сохранено 50/100.
+        Задолженности и исходящие письма — без <code>persistPageLength</code> и без <code>page_length</code> в save.
+        Выплаты T‑Bank — тот же механизм, ключ <code>tinkoff_payouts_index</code>, Blade
+        <code>$payoutsPageLength</code> (см. <a href="/docs/documentation/tbank-admin-payouts">tbank-admin-payouts</a>).</li>
+    </ul>
+    Тесты: <code>ReportsAndPayoutsPageLengthFeatureTest</code>,
+    <code>ReportsAndPayoutsPageLengthFullAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_only_opted_in_blades_enable_page_length_persist</code>,
+    <code>BladeInlineJsSyntaxTest::test_monthly_and_ltv_detail_tables_hardcode_ten_and_do_not_persist</code>,
+    <code>BladeInlineJsSyntaxTest::test_report_and_payout_filter_submit_reloads_without_recreating_datatable</code>.
   </div>
 
   <h2>2) Права доступа (middleware can:…)</h2>
@@ -392,6 +424,7 @@
         <li><code>GET /admin/reports/ltv/columns-settings</code> (<code>reports.ltv.columns-settings.get</code>)</li>
         <li><code>POST /admin/reports/ltv/columns-settings</code> (<code>reports.ltv.columns-settings.save</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_ltv</code></li>
+        <li>«Показать N»: <code>page_length</code> в той же строке; вложенная таблица платежей ученика не сохраняет N (§1.1)</li>
         <li>Ключи: <code>user_name</code>, <code>team_title</code>, <code>total_price</code>, <code>payment_count</code>, <code>first_payment_date</code>, <code>last_payment_date</code>, <code>is_enabled</code></li>
       </ul>
     </li>
@@ -432,6 +465,7 @@
         <li><code>GET /admin/reports/payments/monthly/columns-settings</code> (<code>reports.payments.monthly.columns-settings.get</code>)</li>
         <li><code>POST /admin/reports/payments/monthly/columns-settings</code> (<code>reports.payments.monthly.columns-settings.save</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_payments_monthly</code></li>
+        <li>«Показать N»: <code>page_length</code> основной таблицы; детализация месяца не сохраняет N (§1.1)</li>
         <li>Ключи: <code>month_title</code>, <code>payments_count</code>, <code>total_sum</code></li>
       </ul>
     </li>
@@ -467,6 +501,7 @@
         <li><code>GET /admin/reports/payment-intents/columns-settings</code></li>
         <li><code>POST /admin/reports/payment-intents/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_payment_intents</code></li>
+        <li>«Показать N»: <code>page_length</code> (§1.1), POST без <code>columns</code> не затирает колонки</li>
         <li>Ключи dropdown «Колонки»: <code>id</code>, <code>provider_inv_id</code>, <code>partner</code>, <code>user</code>, <code>provider</code>, <code>payment_method_webhook_label</code>, <code>status</code>, <code>out_sum</code>, <code>payment_date</code>, <code>created_at</code>, <code>paid_at</code>, <code>client_device_type</code>, <code>client_os</code>, <code>client_browser</code>, <code>client_user_agent</code>, <code>client_ip</code>, <code>client_referrer</code>, <code>meta</code></li>
       </ul>
     </li>
@@ -532,6 +567,7 @@
         <li><code>GET /admin/reports/fiscal-receipts/columns-settings</code></li>
         <li><code>POST /admin/reports/fiscal-receipts/columns-settings</code> (<code>columns: {key: true/false}</code>)</li>
         <li>Хранение: <code>user_table_settings.table_key = reports_fiscal_receipts</code></li>
+        <li>«Показать N»: <code>page_length</code> (§1.1)</li>
       </ul>
     </li>
     <li><b>Select2</b>: <code>GET /admin/reports/fiscal-receipts/partners-search</code> → <code>{ results: [{id,text}] }</code></li>
@@ -662,9 +698,15 @@
       <tr><td>Исходящие письма</td><td><code>reports_outgoing_emails</code></td><td><code>OutgoingEmailReportController</code></td></tr>
     </tbody>
   </table>
-  <p class="small">Формат API единый: GET возвращает JSON-объект <code>{ column_key: bool, … }</code> (пустой объект, если настроек нет);
-    POST принимает <code>{ columns: { … } }</code>, валидирует <code>columns</code> как массив, отвечает <code>{ success: true }</code>.
-    Подробнее о пресете UI: <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>.</p>
+  <p class="small">GET везде возвращает JSON-объект <code>{ column_key: bool, … }</code> (пустой объект, если настроек нет)
+    и ключа <code>page_length</code> не отдаёт.
+    POST на opted-in таблицах (payments / monthly / LTV / intents / fiscal) принимает
+    <code>{ columns: { … } }</code> и/или <code>{ page_length: 10|20|50|100 }</code>
+    (<code>ColumnsSettingsWithPageLengthSaveRequest</code>), отвечает <code>{ success: true }</code>.
+    Задолженности и исходящие письма: POST только <code>columns</code> (обычный <code>Request</code>),
+    <code>page_length</code> не пишется. Пустой POST по-прежнему 422/302 по <code>columns</code>.
+    Подробнее о пресете UI: <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>,
+    «Показать N» — <a href="#reports-page-length">§1.1</a>.</p>
 
   <h2>10) Автотесты</h2>
   <div class="note">
@@ -675,7 +717,8 @@
   <ul>
     <li><code>tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php</code> — <b>фильтр «Партнер»</b> в emails / fiscal / payment-intents: UI SA vs admin, soft-scope, isolation (игнор чужого <code>partner_id</code>), partners-search + 422, show foreign</li>
     <li><code>tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code> — <b>фильтр <code>status</code></b> во всех четырёх отчётах (Платежи, monthly, LTV, debts): логика active/inactive/all, UI, детализация; контроль доступа (guest / без <code>reports.view</code> / admin / superadmin); smoke 200 для всех вариантов <code>status</code>. Назначение абонементов — отдельный файл <code>LessonPackageAssignmentsUserStatusFilterFeatureTest.php</code> (см. <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages</a>).</li>
-    <li><code>tests/Feature/Crm/Reports/ReportsKidsCrmDataTableFeatureTest.php</code> — <b>KidsCrmDataTable</b> для debt/LTV/monthly: UI, columns-settings, детализация с <code>draw</code> и legacy JSON, полный доступ 200; smoke emails/fiscal/payment-intents</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php</code> — §1.1 персональный page_length на payments / monthly / LTV / intents / fiscal / payouts; UX повторного открытия и открытия с фильтрами; вложенные LTV/monthly остаются на 10 после сохранения N; N одной таблицы не течёт в другую; 422/302 по полям; гость/403; debts/emails без opt-in</li>
+    <li><code>tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code> — гость / без права / viewer / admin; PUT/PATCH/DELETE → 404/405</li>
     <li><code>tests/Feature/Crm/Reports/ReportsLocationFilterFeatureTest.php</code> — фильтр <code>filter_location_id</code> и доступ (monthly, LTV, debts)</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailReportTest.php</code> — permission, totals/data с partner_id, columns-settings, show (modal partial, HTML iframe), listener</li>
     <li><code>tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php</code> — guest/403/smoke всех endpoint'ов (в т.ч. partners-search), UI фильтра/колонки partner, datetime/link, foreign log 403 для admin, data без AJAX 404</li>
@@ -697,7 +740,8 @@
   <pre><code>php artisan test --env=testing tests/Feature/Crm/Reports/ReportsPartnerFilterFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/OutgoingEmailsPageFullAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/Reports/FiscalReceiptsPageFullAccessFeatureTest.php
-php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php</code></pre>
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsUserStatusFilterFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFeatureTest.php tests/Feature/Crm/Reports/ReportsAndPayoutsPageLengthFullAccessFeatureTest.php</code></pre>
   <p class="small"><a href="/doc">← К оглавлению</a> · <a href="/docs/documentation/reusable-ui-partials">UI: KidsCrmDataTable</a> · <a href="/docs/documentation/reports-payments">Отчёт «Платежи»</a></p>
 </div>
 </body>
