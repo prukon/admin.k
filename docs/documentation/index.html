@@ -59,10 +59,10 @@
     1) <b>Кнопка в таблице.</b> «Отправить» только если ссылка на оплату доступна
     (T‑Bank готов, назначение не оплачено, сумма ≥ 10 ₽) — тот же критерий, что у «Скопировать».
     Иначе «—». Нет телефона кнопку <b>не</b> дисейблим.
-    Баланс кабинета &lt; 70 ₽ (<code>billing.sms_send_fee</code>) — кнопка визуально неактивна
-    (<code>aria-disabled</code>, класс <code>is-visually-disabled</code>, <b>без</b> native
-    <code>disabled</code>, иначе не сработает hover). Подсказка в <code>title</code>:
-    «Недостаточно средств. Пополните баланс кабинета».
+    Баланс кабинета &lt; 70 ₽ (<code>billing.sms_send_fee</code>) — native
+    <code>disabled</code>, серый вид. Ховер — <code>KidsCrmTooltip</code> hint
+    (обёртка <code>kids-tooltip-hint</code>, как <code>partials.ui.tooltip-hint</code>;
+    init после <code>draw.dt</code>). Текст: «Недостаточно средств. Пополните баланс кабинета».
     <br>
     2) <b>Модалка</b> <code>#ulpSmsSendModal</code> (стандартная ширина Bootstrap, не на весь экран):
     номер → превью текста → напоминание «70 руб. за сообщение» → «Отмена» / «Отправить».

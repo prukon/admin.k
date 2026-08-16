@@ -177,7 +177,7 @@
     <tbody>
       <tr><td><code>/admin/legal-entities</code></td><td>«Регистрация в банке» = Нет</td><td>«Обратитесь к администратору платформы»</td></tr>
       <tr><td><code>/admin/teams</code></td><td>«Юр. лицо», <code>legal_entity_fallback</code></td><td>Без явной привязки в multi-entity — «—» (оплата T‑Bank недоступна). При явной привязке — <code>displayTitle()</code> без иконки fallback.</td></tr>
-      <tr><td><code>/admin/lesson-packages/assignments</code></td><td>Колонка «Отправка СМС»: кнопка визуально неактивна при балансе &lt; 70 ₽ (<code>aria-disabled</code>, <b>без</b> native <code>disabled</code>, иначе hover не работает)</td><td>«Недостаточно средств. Пополните баланс кабинета» (<code>title</code> + <code>data-kids-tooltip-hint</code>)</td></tr>
+      <tr><td><code>/admin/lesson-packages/assignments</code></td><td>Колонка «Отправка СМС»: при балансе &lt; 70 ₽ native <code>disabled</code> (серая), ховер на обёртке <code>kids-tooltip-hint</code> (как <code>partials.ui.tooltip-hint</code>); после <code>draw.dt</code> — <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code></td><td>«Недостаточно средств. Пополните баланс кабинета»</td></tr>
     </tbody>
   </table>
 

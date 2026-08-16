@@ -88,13 +88,16 @@
         font-weight: 400 !important;
         user-select: none;
     }
-    .ulp-sms-send-btn.is-visually-disabled {
-        opacity: 0.65;
+    #ulp-assignments-table .ulp-sms-send-btn:disabled,
+    #ulp-assignments-table .ulp-sms-send-btn:disabled:hover,
+    #ulp-assignments-table .ulp-sms-send-btn:disabled:focus {
+        opacity: 1;
+        pointer-events: none;
+        color: #6c757d !important;
+        background-color: #e9ecef !important;
+        border-color: #ced4da !important;
+        box-shadow: none !important;
         cursor: not-allowed;
-    }
-    .ulp-sms-send-btn.is-visually-disabled:hover,
-    .ulp-sms-send-btn.is-visually-disabled:focus {
-        opacity: 0.65;
     }
     /* Глобальный .btn-primary: белый фон !important + :disabled color #fff → белое на белом */
     #ulpSmsSendModal #ulp-sms-send-btn:disabled,
@@ -1001,16 +1004,17 @@
 
                     var idAttr = window.KidsCrmTooltip.escapeHtml(String(row.id));
                     if (!row.sms_wallet_ok) {
-                        return '<button type="button" class="btn btn-sm btn-outline-primary ulp-sms-send-btn is-visually-disabled js-ulp-send-sms" '
-                            + 'data-assignment-id="' + idAttr + '" '
-                            + 'aria-disabled="true" '
-                            + 'tabindex="0" '
+                        var hint = window.KidsCrmTooltip.escapeHtml('Недостаточно средств. Пополните баланс кабинета');
+                        return '<span class="kids-tooltip-hint d-inline-block" tabindex="0" '
                             + 'data-kids-tooltip-hint="1" '
                             + 'data-bs-toggle="tooltip" '
                             + 'data-bs-placement="top" '
                             + 'data-bs-custom-class="ulp-assignment-paid-tooltip" '
-                            + 'title="Недостаточно средств. Пополните баланс кабинета">'
-                            + 'Отправить</button>';
+                            + 'title="' + hint + '" '
+                            + 'aria-label="' + hint + '">'
+                            + '<button type="button" class="btn btn-sm btn-outline-primary ulp-sms-send-btn" disabled>'
+                            + 'Отправить</button>'
+                            + '</span>';
                     }
 
                     return '<button type="button" class="btn btn-sm btn-outline-primary ulp-sms-send-btn js-ulp-send-sms" '
@@ -1183,6 +1187,19 @@
                         },
                     ],
                 });
+
+                function initUlpSmsWalletHints() {
+                    if (!window.KidsCrmTooltip) {
+                        return;
+                    }
+                    requestAnimationFrame(function () {
+                        window.KidsCrmTooltip.init(dtApi.table.table().body(), { scopes: ['hint'] });
+                    });
+                }
+                $(dtApi.table.table().node())
+                    .off('draw.dt.ulpSmsWalletHint')
+                    .on('draw.dt.ulpSmsWalletHint', initUlpSmsWalletHints);
+                initUlpSmsWalletHints();
 
                 $ulpFiltersForm.on('submit', function (e) {
                     e.preventDefault();
@@ -1949,7 +1966,7 @@
                 $(document).on('click', '.js-ulp-send-sms', function (e) {
                     e.preventDefault();
                     const btn = e.currentTarget;
-                    if (!btn || btn.getAttribute('aria-disabled') === 'true') {
+                    if (!btn || btn.disabled) {
                         return;
                     }
                     const id = btn.getAttribute('data-assignment-id');

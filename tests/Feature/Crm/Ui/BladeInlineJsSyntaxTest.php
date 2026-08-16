@@ -1759,7 +1759,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
-     * P1: колонка «Отправка СМС» — node --check и UX-контракт (hover при нехватке средств,
+     * P1: колонка «Отправка СМС» — node --check и UX-контракт (native disabled + kids-tooltip-hint,
      * reset модалки при повторном открытии, errors.phone под полем).
      */
     public function test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript(): void
@@ -1785,40 +1785,42 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
         $walletOffStart = strpos($renderFn, 'if (!row.sms_wallet_ok)');
         $this->assertNotFalse($walletOffStart);
-        $walletOff = substr($renderFn, $walletOffStart, 900);
-        $this->assertStringContainsString('aria-disabled="true"', $walletOff);
-        $this->assertStringContainsString('is-visually-disabled', $walletOff);
-        $this->assertStringContainsString('data-kids-tooltip-hint="1"', $walletOff);
-        $this->assertStringContainsString('Недостаточно средств. Пополните баланс кабинета', $walletOff);
-        $this->assertStringContainsString('js-ulp-send-sms', $walletOff);
-        $this->assertDoesNotMatchRegularExpression(
-            '/(?<![a-z-])disabled(?:=|\s|>)/',
-            $walletOff,
-            'Кнопка при нехватке средств не должна получать native disabled — иначе hover-подсказка не работает'
-        );
-
         $walletOnStart = strpos($renderFn, "return '<button type=\"button\" class=\"btn btn-sm btn-outline-primary ulp-sms-send-btn js-ulp-send-sms\"");
         $this->assertNotFalse($walletOnStart);
+        $this->assertTrue($walletOffStart < $walletOnStart);
+        $walletOff = substr($renderFn, $walletOffStart, $walletOnStart - $walletOffStart);
+        $this->assertStringContainsString('kids-tooltip-hint', $walletOff);
+        $this->assertStringContainsString('data-kids-tooltip-hint="1"', $walletOff);
+        $this->assertStringContainsString('data-bs-toggle="tooltip"', $walletOff);
+        $this->assertStringContainsString('data-bs-custom-class="ulp-assignment-paid-tooltip"', $walletOff);
+        $this->assertStringContainsString('Недостаточно средств. Пополните баланс кабинета', $walletOff);
+        $this->assertStringContainsString('disabled', $walletOff);
+        $this->assertStringNotContainsString('aria-disabled', $walletOff);
+        $this->assertStringNotContainsString('is-visually-disabled', $walletOff);
+        $this->assertStringNotContainsString('js-ulp-send-sms', $walletOff);
+
         $walletOn = substr($renderFn, $walletOnStart, 280);
         $this->assertStringContainsString('js-ulp-send-sms', $walletOn);
         $this->assertStringNotContainsString('aria-disabled', $walletOn);
         $this->assertStringNotContainsString('is-visually-disabled', $walletOn);
         $this->assertStringNotContainsString('data-kids-tooltip-hint', $walletOn);
+        $this->assertStringNotContainsString(' disabled', $walletOn);
 
         $this->assertSame(
             1,
             substr_count($content, "$(document).on('click', '.js-ulp-send-sms'"),
-            'Должен быть один обработчик открытия модалки SMS — дубликат часто ломает aria-disabled'
+            'Должен быть один обработчик открытия модалки SMS'
         );
+        $this->assertStringContainsString("KidsCrmTooltip.init(dtApi.table.table().body(), { scopes: ['hint'] })", $content);
+        $this->assertStringContainsString('draw.dt.ulpSmsWalletHint', $content);
 
         $clickStart = strpos($content, "$(document).on('click', '.js-ulp-send-sms'");
         $this->assertNotFalse($clickStart);
         $clickChunk = substr($content, $clickStart, 520);
         $this->assertStringContainsString('e.preventDefault()', $clickChunk);
-        $this->assertStringContainsString("btn.getAttribute('aria-disabled') === 'true'", $clickChunk);
+        $this->assertStringContainsString('btn.disabled', $clickChunk);
         $this->assertStringContainsString('openSmsModal(id)', $clickChunk);
-        $this->assertStringNotContainsString('btn.disabled', $clickChunk);
-        $this->assertStringNotContainsString('btn.prop(\'disabled\'', $clickChunk);
+        $this->assertStringNotContainsString('aria-disabled', $clickChunk);
 
         $openStart = strpos($content, 'async function openSmsModal(assignmentId)');
         $this->assertNotFalse($openStart);

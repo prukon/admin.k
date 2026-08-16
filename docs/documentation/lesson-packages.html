@@ -37,8 +37,9 @@
     и календаря <code>schedule</code>). Подробно — <a href="#assignments-history">§assignments-history</a>.
     <br><br>
     <b>SMS со ссылкой на оплату (2026‑08):</b> колонка «Отправка СМС», модалка, 70 ₽ с баланса
-    (debit → sms.ru → при ошибке refund). Кнопка при нехватке средств без native
-    <code>disabled</code>. Анонс — <a href="/doc#assignments-pay-sms-index">/doc</a>,
+    (debit → sms.ru → при ошибке refund). При нехватке средств — native
+    <code>disabled</code> + ховер <code>KidsCrmTooltip</code> hint на обёртке.
+    Анонс — <a href="/doc#assignments-pay-sms-index">/doc</a>,
     подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a>.
     <br><br>
     <b>Автопролонгация фикса (2026‑08):</b> флаг на классическом <code>fixed</code> из назначений;
@@ -798,8 +799,9 @@
       Ссылка открывает модалку <code>#ulpAssignmentLessonsModal</code> в стиле журнала (<code>schedule-modal-content cell-edit-modal</code>,
       <code>GET …/assignments/{id}/lessons</code>)</li>
     <li>Ссылка на оплату (кнопка «Скопировать», если T‑Bank настроен и абонемент не оплачен, сумма ≥ 10 ₽)</li>
-    <li>Отправка СМС (кнопка «Отправить» при той же доступности ссылки; при балансе кабинета &lt; 70 ₽ кнопка визуально неактивна,
-      hover через <code>KidsCrmTooltip</code> hint: «Недостаточно средств. Пополните баланс кабинета»).
+    <li>Отправка СМС (кнопка «Отправить» при той же доступности ссылки; при балансе кабинета &lt; 70 ₽ —
+      native <code>disabled</code>, серая; ховер через <code>KidsCrmTooltip</code> hint на обёртке:
+      «Недостаточно средств. Пополните баланс кабинета»).
       Подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a></li>
     <li>Абонемент (название шаблона)</li>
     <li>Тип абонемента (фиксированный / гибкий / разовое занятие; при автопролонге — бейдж
@@ -986,11 +988,12 @@
       </tr>
       <tr>
         <td>Ссылка доступна, баланс &lt; 70 ₽</td>
-        <td>Та же кнопка, визуально неактивна: <code>aria-disabled="true"</code>,
-          <code>is-visually-disabled</code>, <code>data-kids-tooltip-hint</code>,
-          <code>title="Недостаточно средств. Пополните баланс кабинета"</code>.
-          Native <code>disabled</code> <b>не</b> ставим — иначе hover не работает.
-          Клик с <code>aria-disabled="true"</code> модалку не открывает.
+        <td>Та же кнопка, native <code>disabled</code>, серый фон/текст (не «полупрозрачный primary»).
+          Ховер на обёртке <code>span.kids-tooltip-hint</code> (те же атрибуты, что
+          <code>partials.ui.tooltip-hint</code>: <code>data-kids-tooltip-hint</code>,
+          <code>data-bs-toggle="tooltip"</code>, <code>ulp-assignment-paid-tooltip</code>).
+          Класса <code>js-ulp-send-sms</code> на disabled-кнопке нет — клик модалку не открывает.
+          После <code>draw.dt</code> — <code>KidsCrmTooltip.init(..., { scopes: ['hint'] })</code>.
           JSON: <code>sms_send_available=true</code>, <code>sms_wallet_ok=false</code></td>
       </tr>
       <tr>
@@ -1204,7 +1207,7 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php</code> — без X-Requested-With: успех POST → JSON 200 + списание (как public-pay-link); валидация → 302 + session errors под полем; guest / без права не списывают.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php</code> — разметка (порядок колонок/полей, disabled «Отправить» в модалке, стандартная ширина); флаги DataTables: ссылка+кошелёк / нехватка средств / нет телефона / нет ссылки / оплачено / граница 10 ₽.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php</code> — [P2] страница → preview → send → <code>…/data</code> без отдельного F5.</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript</code>: <code>node --check</code> + UX-контракт (<code>aria-disabled</code> вместо native <code>disabled</code>, reset при повторном открытии, <code>errors.phone</code> под полем).</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript</code>: <code>node --check</code> + UX-контракт (native <code>disabled</code> + обёртка <code>kids-tooltip-hint</code> + <code>init</code> hint после draw, reset при повторном открытии, <code>errors.phone</code> под полем).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма через <code>Money::formatRub</code>, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php</code> — снимок скидки на назначениях, DataTable tooltip, bind-actions, show/update AJAX.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
