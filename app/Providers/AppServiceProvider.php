@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\InAppNotifications\InAppNotificationInbox;
 use App\Services\PartnerContext;
 use App\Services\Users\FamilyStudentContextService;
 use App\Services\Users\CabinetTeamAttachService;
@@ -137,6 +138,7 @@ class AppServiceProvider extends ServiceProvider
             $showFamilyStudentSwitcher = false;
             $sidebarPanelIdentity = ['name' => '', 'email' => ''];
             $cabinetTeamAttach = null;
+            $inAppNotificationBell = null;
 
             if (Auth::check()) {
                 $actor = Auth::user();
@@ -150,6 +152,24 @@ class AppServiceProvider extends ServiceProvider
                     $cabinetTeamAttach = app(CabinetTeamAttachService::class)
                         ->sidebarContext($actor);
                 }
+
+                if (Gate::allows('inAppNotifications.view')) {
+                    try {
+                        $inbox = app(InAppNotificationInbox::class);
+                        $limit = (int) config('in_app_notifications.dropdown_limit', 3);
+                        $inAppNotificationBell = [
+                            'unread_count' => $inbox->unreadCount($actor),
+                            'items' => $inbox->latestItems($actor, $limit),
+                            'current_partner_id' => app(PartnerContext::class)->partnerId(),
+                            'is_superadmin' => app(PartnerContext::class)->isSuperAdmin($actor),
+                        ];
+                    } catch (\Throwable $e) {
+                        Log::error('in-app notification bell composer failed', [
+                            'user_id' => $actor->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
             }
 
             $view->with([
@@ -161,6 +181,7 @@ class AppServiceProvider extends ServiceProvider
                 'showFamilyStudentSwitcher' => $showFamilyStudentSwitcher,
                 'sidebarPanelIdentity' => $sidebarPanelIdentity,
                 'cabinetTeamAttach' => $cabinetTeamAttach,
+                'inAppNotificationBell' => $inAppNotificationBell,
             ]);
         });
 

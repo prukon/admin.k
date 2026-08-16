@@ -583,6 +583,10 @@ class SettingController extends AdminBaseController
                 'label' => 'Выплаты T-Bank',
                 'patterns' => ['TinkoffRunScheduledPayoutsJob', 'TinkoffPollPayoutStatesJob'],
             ],
+            'in_app_notifications' => [
+                'label' => 'Уведомления CRM',
+                'patterns' => ['FanOutInAppNotificationJob'],
+            ],
             'smoke' => [
                 'label' => 'Тех. проверка очереди',
                 'patterns' => ['QueueSmokeTestJob'],

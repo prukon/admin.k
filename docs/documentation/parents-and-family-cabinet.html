@@ -289,6 +289,11 @@ users (role=user) — ученик, вход в CRM
     UI скрыт, если у активного ученика нет групп или у групп нет <code>location_id</code>.
     Семейный режим: attach — активный ребёнок из session; поле «Группы» на учётной записи —
     команды залогиненного профиля.
+    После успешного attach админы и тренеры школы получают in-app уведомление
+    (колокольчик, 30 суток; с родителем — «Родитель / Ребёнок / Добавлена группа», иначе «{ФИО} добавил группу») —
+    <a href="/doc#cabinet-attach-team-in-app-index">анонс события</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст</a>,
+    <a href="/docs/documentation/in-app-notifications#events">in-app-notifications §5.1</a>.
     См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>,
     <a href="/doc#cabinet-attach-team-index">анонс /doc</a>,
     <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
@@ -297,6 +302,7 @@ users (role=user) — ученик, вход в CRM
     <code>CabinetTeamAttachFullAccessFeatureTest</code>,
     <code>CabinetTeamAttachNonAjaxSafetyNetFeatureTest</code>,
     <code>CabinetTeamAttachMarkupFeatureTest</code>,
+    <code>CabinetTeamAttachInAppNotification*FeatureTest</code>,
     <code>AccountUserEditPageFeatureTest</code>.</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>

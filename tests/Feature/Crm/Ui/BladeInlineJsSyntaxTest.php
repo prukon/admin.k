@@ -25,6 +25,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'setting prices monthly tab' => ['admin/SettingPrices/monthly.blade.php'];
         yield 'setting prices custom payments tab' => ['admin/SettingPrices/custom-payments.blade.php'];
         yield 'setting prices payment notifications tab' => ['admin/SettingPrices/payment-notifications.blade.php'];
+        yield 'in-app notifications compose' => ['admin/in_app_notifications/compose.blade.php'];
+        yield 'in-app notifications bell echo' => ['includes/in_app_notifications/echo.blade.php'];
+        yield 'in-app notifications inbox highlight' => ['admin/in_app_notifications/index.blade.php'];
         yield 'dashboard cabinet team switcher' => ['dashboard.blade.php'];
         yield 'districts index modals' => ['admin/districts/index.blade.php'];
         yield 'sport types index modals' => ['admin/sport-types/index.blade.php'];
@@ -102,6 +105,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('fetch(', $submitChunk);
         $this->assertStringContainsString('window.location.reload()', $submitChunk);
         $this->assertStringContainsString('team_id', $submitChunk);
+        $this->assertSame(1, substr_count($content, "form.addEventListener('submit'"));
+        $this->assertStringNotContainsString('inAppNotifications.bell', $content);
+        $this->assertStringNotContainsString('js-in-app-bell', $content);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1], 'В cabinet_attach_team_modal нет inline <script>');
@@ -3390,6 +3396,56 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $path,
             'KidsCrmUserDiscount',
             'blade-js-discount-helper'
+        );
+    }
+
+    public function test_in_app_notifications_compose_and_bell_js_contracts_and_valid_javascript(): void
+    {
+        $composePath = resource_path('views/admin/in_app_notifications/compose.blade.php');
+        $echoPath = resource_path('views/includes/in_app_notifications/echo.blade.php');
+        $indexPath = resource_path('views/admin/in_app_notifications/index.blade.php');
+        $this->assertFileExists($composePath);
+        $this->assertFileExists($echoPath);
+        $this->assertFileExists($indexPath);
+
+        $compose = (string) file_get_contents($composePath);
+        $echo = (string) file_get_contents($echoPath);
+        $index = (string) file_get_contents($indexPath);
+
+        $this->assertStringContainsString('inAppNotificationComposeForm', $compose);
+        $this->assertStringContainsString('reloadRoles', $compose);
+        $this->assertStringContainsString('fetch(', $compose);
+        $this->assertStringContainsString('X-Requested-With', $compose);
+        $this->assertStringContainsString("partnersWrap.style.display = checked ? 'none' : ''", $compose);
+        $this->assertStringContainsString("ttlPreset.value === 'custom'", $compose);
+        $this->assertStringContainsString("selected.indexOf(String(role.id)) !== -1", $compose);
+        $this->assertStringContainsString("\$body.val(\$body.summernote('code'))", $compose);
+        $this->assertStringContainsString("['insert', ['link']]", $compose);
+        $this->assertStringNotContainsString('preventDefault', $compose);
+
+        $this->assertStringContainsString('item.page_url', $echo);
+        $this->assertStringContainsString("category === 'update' || category === 'important'", $echo);
+        $this->assertStringNotContainsString("category === 'normal'", $echo);
+        $this->assertStringNotContainsString('open_url', $echo);
+        $this->assertStringNotContainsString('js-in-app-bell-mark-read', $echo);
+
+        $this->assertStringContainsString('scrollIntoView', $index);
+        $this->assertStringContainsString("behavior: 'smooth'", $index);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $composePath,
+            'inAppNotificationComposeForm',
+            'blade-js-in-app-compose'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $echoPath,
+            'in-app-notification.bell',
+            'blade-js-in-app-echo'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $indexPath,
+            'scrollIntoView',
+            'blade-js-in-app-index'
         );
     }
 

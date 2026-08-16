@@ -41,6 +41,9 @@
     абонементы по <code>user_lesson_packages.team_id</code> (без <code>team_id</code> при селекте скрываются).
     Отдельно (сайдбар layout <code>admin2</code>, шапка <code>/cabinet</code>, учётная запись): при
     <code>account.user.team.update</code> — добавление группы (§<a href="#cabinet-attach-team">7.1</a>).
+    В той же шапке <code>admin2</code> (перед «Выйти») — колокольчик in-app уведомлений при
+    <code>inAppNotifications.view</code>; это не блок оплат консоли —
+    <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
     Анонс фильтра абонементов и <code>team_id</code> из журнала — <a href="/doc#cabinet-ulp-team-filter">/doc</a>.
   </div>
 
@@ -318,7 +321,15 @@
     без уже назначенных; soft-deleted и <code>is_enabled=0</code> не попадают; при 2+ объектах — <code>optgroup</code>.
     Только attach (<code>TeamUserSyncService::attachTeamForStudent</code>); снять/заменить нельзя.
     Без групп или без объектов у групп — сайдбар/карандаш/модалка не рендерятся.
-    Аудит: <code>user.account_updated</code>.
+    Аудит: <code>user.account_updated</code>. После успешного attach — колокольчик admin/trainer
+    этой школы (<code>source=event</code>, 30 суток, без ссылки на карточку;
+    с родителем — «Родитель / Ребёнок / Добавлена группа», иначе «{ФИО} добавил группу» —
+    <a href="/doc#cabinet-attach-team-in-app-body-index">/doc</a>);
+    Native POST без AJAX тоже создаёт уведомление (не только JSON-ветка).
+    Сбой уведомления группу не откатывает.
+    См. <a href="/docs/documentation/in-app-notifications#events">in-app-notifications §5.1</a>,
+    анонс события <a href="/doc#cabinet-attach-team-in-app-index">/doc</a>,
+    текст <a href="/doc#cabinet-attach-team-in-app-body-index">/doc</a>.
   </div>
   <table>
     <thead><tr><th>Канал</th><th>Поведение</th></tr></thead>
@@ -341,7 +352,8 @@
       </tr>
     </tbody>
   </table>
-  <p class="small">Код: <code>CabinetTeamAttachService</code>, <code>CabinetTeamController</code>,
+  <p class="small">Код: <code>CabinetTeamAttachService</code>, <code>CabinetTeamAttachedNotifier</code>,
+    <code>CabinetTeamController</code>,
     <code>AttachCabinetTeamRequest</code>, view composers в <code>AppServiceProvider</code>
     (<code>layouts.admin2</code>, <code>dashboard</code>, <code>account.index</code> → <code>cabinetTeamAttach</code>).
     Тесты:
@@ -349,6 +361,7 @@
     <code>CabinetTeamAttachFullAccessFeatureTest</code>,
     <code>CabinetTeamAttachNonAjaxSafetyNetFeatureTest</code>,
     <code>CabinetTeamAttachMarkupFeatureTest</code>,
+    <code>CabinetTeamAttachInAppNotification*FeatureTest</code>,
     <code>AccountUserEditPageFeatureTest</code> (карандаш / lock на учётной записи),
     <code>BladeInlineJsSyntaxTest::test_cabinet_attach_team_modal_ajax_contract_and_valid_javascript</code>,
     <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>.
@@ -372,6 +385,7 @@
       <li><code>tests/Feature/Crm/Payments/FamilyStudentPaymentMarkupFeatureTest.php</code> — selected переключателя, payload сезонов, @can «Оплатить», витрина «Плательщик»</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardAuthorizationTest.php</code> — middleware, доступ к <code>/cabinet</code></li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardTeamPivotFeatureTest.php</code> — pivot в AJAX</li>
+      <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachInAppNotification*FeatureTest.php</code> — колокольчик после attach: доступ, AJAX, native POST, UX ленты/колокольчика</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFeatureTest.php</code> — attach / валидация / семейный контекст</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachFullAccessFeatureTest.php</code> — гость / 403 / 200 / кнопка на других страницах</li>
       <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + pivot</li>

@@ -266,6 +266,8 @@
                     @endforeach
                 @endisset
 
+                @include('includes.in_app_notifications.bell')
+
                 <li class="nav-item d-flex align-items-center">
                     <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"
                         data-bs-target="#logoutModal">Выйти
@@ -467,6 +469,7 @@
 
     @yield('scripts')
 
+    @include('includes.in_app_notifications.echo')
 
     @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
         <script>

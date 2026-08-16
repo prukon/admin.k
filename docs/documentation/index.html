@@ -28,6 +28,119 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="cabinet-attach-team-in-app-body-index">Колокольчик: текст с родителем и без (2026‑08)</h2>
+  <div class="note">
+    Тело автособытия «ученик добавил группу в ЛК» (колокольчик admin/trainer школы,
+    <a href="/doc#cabinet-attach-team-in-app-index">анонс события</a>).
+    Email не шлётся. Ссылки на карточку ученика в тексте <b>нет</b>.
+    <br><br>
+    1) <b>Родитель указан.</b> У ученика есть <code>users.parent_id</code> и непустое ФИО
+    из карточки <code>parents</code> (то же, что колонка «Родитель»: фамилия + имя + отчество).
+    Три строки в одном <code>&lt;p&gt;</code> через <code>&lt;br&gt;</code>:
+    <br>
+    <code>Родитель: Иванов Иван</code><br>
+    <code>Ребёнок: Комарова Ярослав.</code><br>
+    <code>Добавлена группа «Штурм» (объект «Стадион «Исток»»).</code>
+    <br>
+    ФИО ребёнка — как в карточке ученика (фамилия + имя). Название группы и объекта
+    оборачиваются в «ёлочки», даже если в имени объекта уже есть кавычки.
+    <br>
+    2) <b>Родителя нет.</b> Нет <code>parent_id</code>, карточка не найдена (в т.ч. soft-delete)
+    или ФИО родителя пустое — старый формат одной строкой:
+    <br>
+    <code>Комарова Ярослав добавил группу «Штурм» (объект «Стадион «Исток»»).</code>
+    <br>
+    3) <b>Семейный кабинет.</b> Родитель и ребёнок — у <b>активного</b> ученика, которому повесили группу,
+    не у логина, который нажал «Добавить». <code>created_by</code> — кто нажал.
+    <br>
+    4) <b>Экранирование.</b> ФИО, название группы и объекта проходят через <code>e()</code>,
+    затем sanitizer тела (<code>&lt;p&gt;</code> / <code>&lt;br&gt;</code> разрешены).
+    Пустое ФИО ученика → <code>Ученик #{id}</code>; пустой объект → <code>Объект #{id}</code>
+    или «объект не указан».
+    <br><br>
+    Код: <code>CabinetTeamAttachedNotifier::buildBody</code>.
+    Подробно —
+    <a href="/docs/documentation/in-app-notifications#events">in-app-notifications §5.1</a>.
+    Тесты: <code>CabinetTeamAttachInAppNotificationFeatureTest</code>
+    (семья, пустое ФИО родителя, XSS),
+    <code>CabinetTeamAttachInAppNotificationUiContractsFeatureTest</code>
+    (три строки в ленте).
+  </div>
+
+  <h2 id="cabinet-attach-team-in-app-index">ЛК: колокольчик admin/trainer, когда ученик добавил группу (2026‑08)</h2>
+  <div class="note">
+    После успешного добавления группы в личном кабинете админы и тренеры <b>этой же школы</b>
+    получают сообщение в колокольчик CRM. Email («Установка цен → Уведомления») не шлётся.
+    Ручная рассылка колокольчика по-прежнему только у superadmin; это отдельное
+    <b>автособытие</b> (<code>source=event</code>), не форма «Создать».
+    <br><br>
+    1) <b>Когда.</b> Ученик (роль <code>user</code>) с правом <code>account.user.team.update</code>
+    успешно сделал <code>POST /cabinet/teams/attach</code> — и AJAX 200, и native POST 302.
+    Гость / 403 / 422 (<code>errors.team_id</code>) уведомление <b>не</b> создают.
+    Админ и тренер сами себе группу из ЛК добавить не могут (сервис только для <code>user</code>) —
+    их POST тоже без события.
+    <br>
+    2) <b>Кому.</b> Включённые (<code>is_enabled=1</code>) сотрудники школы ученика
+    с системными ролями <code>admin</code> и <code>trainer</code>.
+    Ученики, кастомные роли, выключенные, админы/тренеры другой школы — нет.
+    Superadmin видит карточку, когда в session выбрана эта школа (как у обычных рассылок),
+    даже если его не было в снимке получателей. Сотрудник, заведённый <b>после</b> fan-out,
+    старое сообщение не видит.
+    <br>
+    3) <b>Текст.</b> Заголовок «Ученик добавил группу». Тип <code>normal</code> (плашки «Обычное» нет).
+    Срок жизни 30 суток. Ссылки на карточку ученика нет.
+    Формат тела (с родителем — три строки «Родитель / Ребёнок / Добавлена группа»,
+    без родителя или с пустым ФИО — «{ФИО} добавил группу») —
+    <a href="/doc#cabinet-attach-team-in-app-body-index">анонс текста</a>.
+    Семейный кабинет: текст про <b>активного ребёнка</b>;
+    <code>created_by</code> — кто нажал «Добавить» (логин в ЛК).
+    <br>
+    4) <b>Очередь.</b> После транзакции attach пишется <code>pending</code> и ставится
+    <code>FanOutInAppNotificationJob</code> (очередь <code>default</code>).
+    Пока воркер не отработал, в ленте и колокольчике сообщения нет («Пока тихо»).
+    Сбой рассылки группу <b>не</b> откатывает (лог <code>[CabinetTeamAttachedNotifier] failed</code>).
+    Аудит «Создание in-app уведомления» для автособытия не пишется
+    (остаётся <code>user.account_updated</code> от attach).
+    <br>
+    5) <b>Конфиг.</b> <code>config/in_app_notifications.php</code> →
+    <code>events.cabinet_team_attached</code>
+    (title, <code>role_names</code> admin/trainer, category normal, ttl 30d).
+    Код: <code>CabinetTeamAttachedNotifier</code>,
+    <code>InAppNotificationDispatcher::dispatchEvent</code>,
+    вызов из <code>CabinetTeamAttachService</code> после commit.
+    <br><br>
+    Подробно —
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст тела</a>,
+    <a href="/docs/documentation/in-app-notifications#events">in-app-notifications §5.1</a>,
+    <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>,
+    <a href="/doc#cabinet-attach-team-index">анонс attach</a>.
+    Тесты: <code>CabinetTeamAttachInAppNotification*FeatureTest</code>
+    (доступ, AJAX, native POST, UX ленты/колокольчика).
+  </div>
+
+  <h2 id="in-app-notifications-index">In-app уведомления CRM (колокольчик) (2026‑08)</h2>
+  <div class="note">
+    Лента сообщений <b>внутри кабинета</b> — не вкладка «Установка цен → Уведомления» (это email по неоплаченным месяцам)
+    и не чат. Колокольчик справа в шапке <code>admin2</code> (перед «Выйти»): точный каунтер непрочитанных,
+    выпадашка из <b>3</b> последних, «Показать все» → <code>/in-app-notifications</code>.
+    Клик по пункту открывает ленту с подсветкой карточки и сразу помечает это уведомление прочитанным;
+    простое открытие ленты все сообщения прочитанными <b>не</b> делает.
+    Ссылки задаются <b>внутри текста</b> (редактор при создании); отдельного поля URL нет.
+    Плашки «Важное» / «Обновление» есть в выпадашке и на ленте, «Обычное» не показывается.
+    Дата — «13 августа 2026» (Москва). Превью в выпадашке — 60 символов.
+    <br><br>
+    Типы: Обновление / Важное / Обычное. Срок жизни: 1 / 7 / 30 суток, своя дата, «пока не прочитают».
+    <b>Ручную</b> рассылку составляет только superadmin (школы + роли; кастомные роли — если выбрана одна школа).
+    Отдельно — автособытие «ученик добавил группу в ЛК» → колокольчик admin/trainer этой школы
+    (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>,
+    <code>source=event</code>).
+    Сотрудник, заведённый после отправки, старое сообщение не видит. Superadmin в ленте видит
+    текущую школу + глобальные. Realtime — тот же Reverb, что и чат (канал <code>user.{id}</code>).
+    Право <code>inAppNotifications.view</code> — в базовых ролях; <code>.manage</code> скрытое, в v1 форму админу школы не открывает.
+    Подробно: <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
+  </div>
+
   <h2 id="datatable-page-length-index">DataTables: запоминать «Показать N» на пользователя (2026‑08)</h2>
   <div class="note">
     Селект «Показать 10 / 20 / 50 / 100» запоминается <b>на текущего пользователя</b>
@@ -686,6 +799,10 @@
     AJAX → 200 JSON <code>{ success, message, teams_label }</code> или 422 <code>errors.team_id</code>
     (вывод под select); non-AJAX → 302 <code>back()</code> + flash <code>status</code>.
     Успех на клиенте — <code>location.reload()</code>. Аудит: <code>user.account_updated</code>.
+    После успешного attach (AJAX и native POST) — колокольчик admin/trainer этой школы:
+    <a href="/doc#cabinet-attach-team-in-app-index">анонс события</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>,
+    <a href="/docs/documentation/in-app-notifications#events">in-app-notifications §5.1</a>.
     <br>
     8) <b>View composers:</b> <code>layouts.admin2</code> (сайдбар/модалка) +
     <code>dashboard</code> / <code>account.index</code> (карандаш в content до layout).
@@ -696,7 +813,7 @@
     <a href="/docs/documentation/student-team-membership">student-team-membership</a>,
     права — <a href="/docs/documentation/partners-permissions#optional-admin-permissions">partners-permissions §7</a>,
     <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
-    Тесты: <code>CabinetTeamAttach*FeatureTest</code>,
+    Тесты: <code>CabinetTeamAttach*FeatureTest</code> (в т.ч. in-app уведомление),
     <code>AccountUserEditPageFeatureTest</code> (карандаш / lock-текст),
     JS-контракт в <code>BladeInlineJsSyntaxTest</code>.
   </div>
@@ -1436,6 +1553,8 @@
     3) <b><code>setPrices.paymentNotifications.manage</code></b> — вкладка
     <code>/admin/setting-prices/notifications</code> (конструктор email-правил по неоплаченным
     <code>users_prices</code>). Невидимое, не в базовых ролях; миграция только в каталог.
+    Это <b>не</b> колокольчик in-app (<a href="/doc#in-app-notifications-index">анонс</a>,
+    <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>).
     Подробно —
     <a href="/docs/documentation/setting-prices-payment-notifications#permissions">setting-prices-payment-notifications §1</a>.
   </div>
@@ -1873,6 +1992,7 @@
     <li><a href="/docs/documentation/money">Деньги: канон копеек (<code>*_cents</code>), <code>App\Support\Money</code>, округление, <b>скидки % вариант А</b> и персональная скидка ученика</a></li>
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
+    <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -1911,8 +2031,8 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1), семейный контекст, <code>dashboard.view</code></a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>

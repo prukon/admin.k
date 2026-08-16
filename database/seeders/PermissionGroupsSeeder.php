@@ -131,6 +131,15 @@ class PermissionGroupsSeeder extends Seeder
                 'updated_at'  => $now,
             ],
             [
+                'slug'        => 'inAppNotifications',
+                'name'        => 'Уведомления CRM',
+                'description' => 'Колокольчик и лента in-app уведомлений (не email «Установка цен → Уведомления»)',
+                'is_visible'  => 1,
+                'sort_order'  => 36,
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ],
+            [
                 'slug'        => 'misc',
                 'name'        => 'Разное',
                 'description' => null,

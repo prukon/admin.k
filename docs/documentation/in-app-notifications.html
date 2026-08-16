@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документация: in-app уведомления CRM</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 26px; margin: 0 0 8px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    h3 { font-size: 15px; margin-top: 18px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #0b1020; color: #e6e6e6; padding: 12px; border-radius: 8px; overflow: auto; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 12px; border-radius: 8px; }
+    .warn { background: #fffbeb; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; }
+    ul, ol { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+    th, td { border: 1px solid #e5e7eb; padding: 10px; vertical-align: top; text-align: left; }
+    th { background: #f9fafb; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p class="small"><a href="/doc">← Документация</a></p>
+  <h1>In-app уведомления CRM (колокольчик)</h1>
+  <div class="small">Файл: <code>/docs/documentation/in-app-notifications.html</code> ·
+    кабинет: <code>/in-app-notifications</code> · анонсы:
+    <a href="/doc#cabinet-attach-team-in-app-index">автособытие attach</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>,
+    <a href="/doc#in-app-notifications-index">колокольчик</a></div>
+
+  <div class="ok">
+    <b>Кратко.</b> Лента сообщений внутри кабинета: колокольчик в шапке <code>layouts.admin2</code>
+    (перед «Выйти»), выпадашка из <b>3</b> последних, страница всех уведомлений.
+    <b>Ручную</b> рассылку составляет только <b>superadmin</b>. Плюс автособытие:
+    ученик добавил группу в ЛК → колокольчик admin/trainer школы
+    (<a href="/doc#cabinet-attach-team-in-app-index">/doc</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст</a>,
+    §<a href="#events">5.1</a>).
+    Ссылки живут <b>внутри текста</b> сообщения.
+    Клик по пункту колокольчика открывает ленту и сразу помечает это уведомление прочитанным.
+  </div>
+
+  <div class="warn">
+    <b>Не путать</b> с вкладкой «Установка цен → Уведомления»
+    (<a href="/docs/documentation/setting-prices-payment-notifications">email по неоплаченным <code>users_prices</code></a>)
+    и с чатом. Префикс в коде и БД: <code>in_app_*</code> / <code>inAppNotifications.*</code>.
+  </div>
+
+  <h2 id="permissions">1) Права</h2>
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>Видимость в матрице</th><th>Базовые роли</th><th>Что даёт</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>inAppNotifications.view</code></td>
+        <td><code>is_visible=1</code></td>
+        <td><code>user</code>, <code>admin</code>, <code>trainer</code></td>
+        <td>Колокольчик, выпадашка, страница ленты, прочтение</td>
+      </tr>
+      <tr>
+        <td><code>inAppNotifications.manage</code></td>
+        <td><code>is_visible=0</code> (в матрице видит только superadmin)</td>
+        <td>не выдаётся</td>
+        <td>Зарезервировано под форму админа школы. В v1 UI формы у админа школы <b>нет</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Группа матрицы: <code>inAppNotifications</code> («Уведомления CRM»).
+    Форму создания в v1 открывает только <b>superadmin</b>
+    (<code>PartnerContext::isSuperAdmin</code>), даже если кому-то выдадут <code>manage</code> — будет 403.
+    Без <code>view</code> — 403 на все маршруты раздела; гость — редирект на логин.</p>
+
+  <h2 id="ux">2) Как это выглядит в кабинете</h2>
+  <h3>2.1 Колокольчик</h3>
+  <ul>
+    <li>Иконка в шапке <code>admin2</code>, справа, перед «Выйти». Есть на всех страницах этого layout (в том числе <code>/cabinet</code>).</li>
+    <li>Красный каунтер — <b>точное</b> число непрочитанных (не «9+»). Если непрочитанных нет — каунтер скрыт.</li>
+    <li>Выпадашка: заголовок «Уведомления», <b>3</b> самых новых (<code>created_at DESC, id DESC</code>), внизу «Показать все» → <code>/in-app-notifications</code>.</li>
+    <li>Превью текста — до 60 символов. Дата — по Москве, вид «13 августа 2026» (без времени).</li>
+    <li>Плашки «Важное» (бордо) и «Обновление» (голубой) — те же, что на странице ленты. Плашка «Обычное» <b>не показывается</b>.</li>
+    <li>Пункт выпадашки — ссылка на ленту <code>/in-app-notifications?n={id}</code>. Отдельного поля URL у уведомления нет: клик <b>не</b> уводит с сайта на внешний адрес.</li>
+  </ul>
+
+  <h3>2.2 Страница ленты <code>/in-app-notifications</code></h3>
+  <ul>
+    <li>Тулбар в стиле кабинета: заголовок, счётчик непрочитанных, «Прочитать все» (если есть непрочитанные), «Создать» — только у superadmin.</li>
+    <li>Карточки: непрочитанные с жёлтой полоской слева. Фильтров нет. Пагинация по 20.</li>
+    <li>Простое открытие ленты <b>не</b> помечает все прочитанными. Помечается конкретное сообщение, если в URL есть <code>?n={id}</code> (клик из колокольчика) или если нажали «Отметить прочитанным» / «Прочитать все».</li>
+    <li>При <code>?n={id}</code> карточка подсвечивается и прокручивается в центр. Если id чужой или просроченный — страница 200, без подсветки и без записи о прочтении (не 500).</li>
+    <li>Пустая лента: «Пока тихо».</li>
+  </ul>
+
+  <h3>2.3 Ссылки в тексте</h3>
+  <ul>
+    <li>В форме создания отдельного поля «Ссылка» нет. Переход задаётся в тексте: выделить фрагмент → иконка цепочки в редакторе (Summernote: жирный, курсив, списки, ссылка).</li>
+    <li>Разрешены теги <code>p, br, a, strong, b, em, i, u, ul, ol, li</code>.</li>
+    <li><code>href</code>: внутренний путь <code>/...</code> (не <code>//</code>) или <code>http</code>/<code>https</code>. Внутренняя ссылка открывается в той же вкладке CRM; внешняя — в новой (<code>target=_blank</code>, <code>rel=noopener noreferrer</code>).</li>
+    <li><code>javascript:</code>, <code>data:</code>, <code>&lt;script&gt;</code> и прочий HTML отбрасываются и при сохранении, и при показе. Колонка <code>action_url</code> в таблице осталась, в v1 всегда <code>null</code>.</li>
+  </ul>
+
+  <h2 id="routes">3) Маршруты</h2>
+  <p>Группа <code>auth</code> + <code>2fa</code> + <code>can:inAppNotifications.view</code>.</p>
+  <table>
+    <thead>
+      <tr><th>Метод</th><th>URI</th><th>Имя</th><th>Доступ / ответ</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>GET</td><td><code>/in-app-notifications</code></td><td><code>inAppNotifications.index</code></td><td>view, HTML ленты; <code>?n=</code> помечает прочитанным</td></tr>
+      <tr><td>GET</td><td><code>/in-app-notifications/bell</code></td><td><code>inAppNotifications.bell</code></td><td>view, JSON: <code>unread_count</code> + 3 <code>items</code> с <code>page_url</code></td></tr>
+      <tr><td>POST</td><td><code>/in-app-notifications/read-all</code></td><td><code>inAppNotifications.readAll</code></td><td>view; JSON при AJAX, иначе 302 на ленту</td></tr>
+      <tr><td>POST</td><td><code>/in-app-notifications/{id}/read</code></td><td><code>inAppNotifications.read</code></td><td>view, только видимые; иначе 404. JSON или 302</td></tr>
+      <tr><td>GET</td><td><code>/in-app-notifications/{id}/open</code></td><td><code>inAppNotifications.open</code></td><td>view: прочитать + редирект на ленту <code>?n={id}</code></td></tr>
+      <tr><td>GET</td><td><code>/in-app-notifications/compose</code></td><td><code>inAppNotifications.compose</code></td><td>view + superadmin, иначе 403</td></tr>
+      <tr><td>GET</td><td><code>/in-app-notifications/compose/roles</code></td><td><code>inAppNotifications.compose.roles</code></td><td>superadmin, JSON ролей под выбранные школы</td></tr>
+      <tr><td>POST</td><td><code>/in-app-notifications</code></td><td><code>inAppNotifications.store</code></td><td>superadmin, обычная форма → 302 на ленту; JSON-валидация → 422 <code>errors[field]</code></td></tr>
+    </tbody>
+  </table>
+  <p>Форма создания — native POST (JS только синхронизирует Summernote и подгружает роли через <code>fetch</code>, без <code>preventDefault</code> на submit).</p>
+
+  <h2 id="compose">4) Рассылка (superadmin)</h2>
+  <ol>
+    <li>Поля: заголовок, HTML-текст, тип (Обновление / Важное / Обычное), школы или «Все школы», роли, срок жизни.</li>
+    <li>Дефолты первого открытия: тип «Обычное», срок «7 суток», «Все школы» выключено, блок школ виден, своя дата скрыта, пока не выбран TTL «Своя дата».</li>
+    <li>При нескольких школах / «все школы» в ролях только системные <code>user</code> / <code>admin</code> / <code>trainer</code>.
+      Кастомные роли (через <code>partner_role</code>) — только если выбрана <b>одна</b> школа. Смена школ в форме перезапрашивает список ролей и <b>сохраняет уже выбранные</b> id, если они ещё допустимы.</li>
+    <li>Срок жизни: 1 / 7 / 30 суток, своя дата (конец дня <code>Europe/Moscow</code>), «пока не прочитают» (<code>expires_at = null</code>). Просроченные скрыты из ленты, строки в БД остаются.</li>
+    <li>Контроллер пишет сообщение (<code>status=pending</code>) и ставит <code>FanOutInAppNotificationJob</code> в очередь <code>default</code>. Аудит: <code>in_app_notification.created</code> («Создание in-app уведомления»).</li>
+  </ol>
+
+  <h2 id="audience">5) Кто видит сообщение</h2>
+  <ol>
+    <li>Воркер резолвит пользователей: <code>is_enabled=1</code>, выбранные роли и школы, <b>не</b> роль superadmin. Пишет снимок в <code>in_app_notification_recipients</code>, статус <code>dispatched</code>.</li>
+    <li>Кто заведён <b>после</b> отправки — старое сообщение не видит.</li>
+    <li>Выключенный пользователь в снимок не попадает.</li>
+    <li>Обычный пользователь видит уведомление, только если он в снимке.</li>
+    <li>Superadmin в ленте видит сообщения <b>текущей школы</b> (session <code>current_partner</code>) плюс глобальные (<code>is_global=1</code>), даже если его не было в снимке. Чужую школу не видит, пока не переключит партнёра.</li>
+    <li>Realtime: Reverb, канал <code>user.{id}</code>, событие <code>in-app-notification.bell</code>. Кто офлайн — увидит каунтер из БД при следующем заходе.</li>
+  </ol>
+  <p>Форма для админа школы — позже (<code>inAppNotifications.manage</code>). Ручная рассылка по-прежнему только superadmin.</p>
+
+  <h2 id="events">5.1) Автособытия</h2>
+  <div class="ok">
+    Первое автособытие: ученик (роль <code>user</code>) успешно добавил группу в ЛК
+    (<code>POST /cabinet/teams/attach</code>, AJAX 200 и native POST 302). Колокольчик, не email.
+    Анонсы: <a href="/doc#cabinet-attach-team-in-app-index">событие</a>,
+    <a href="/doc#cabinet-attach-team-in-app-body-index">текст тела</a>.
+  </div>
+  <ol>
+    <li>После транзакции attach <code>CabinetTeamAttachedNotifier</code> создаёт сообщение
+      <code>source = event</code> через <code>InAppNotificationDispatcher::dispatchEvent</code>
+      и ставит тот же <code>FanOutInAppNotificationJob</code> (очередь <code>default</code>).
+      Пока job не выполнен, статус <code>pending</code> — в ленте и колокольчике пусто.</li>
+    <li>Школа — <code>partner_id</code> ученика, которому повесили группу (семейный режим — активный ребёнок).
+      Админы/тренеры другой школы не получают. Гость / 403 / 422 событие не создают.</li>
+    <li>Роли: системные <code>admin</code> и <code>trainer</code> этой школы (<code>is_enabled=1</code>).
+      Кастомные роли и ученики — нет. Выключенный сотрудник в снимок не попадает.
+      Superadmin видит, когда выбрана эта школа. Кто заведён после fan-out — не видит.</li>
+    <li>Тип <code>normal</code> (плашки нет), срок жизни 30 суток, <code>created_by</code> — автор действия в ЛК.
+      Аудит ручной рассылки (<code>in_app_notification.created</code>) не пишется.</li>
+    <li>Текст: без ссылки на карточку. Тело собирает <code>CabinetTeamAttachedNotifier::buildBody</code>
+      (потом sanitizer: <code>p</code> / <code>br</code> разрешены).
+      <ul>
+        <li>Есть <code>users.parent_id</code> и непустое ФИО карточки <code>parents</code>
+          (фамилия + имя + отчество, как колонка «Родитель») — три строки:<br>
+          <code>Родитель: Иванов Иван</code><br>
+          <code>Ребёнок: Комарова Ярослав.</code><br>
+          <code>Добавлена группа «Штурм» (объект «Стадион «Исток»»).</code>
+          ФИО ребёнка — фамилия + имя ученика.</li>
+        <li>Нет родителя, soft-deleted карточка или пустое ФИО родителя —
+          <code>{ФИО} добавил группу «…» (объект «…»).</code></li>
+        <li>Семейный кабинет: родитель и ребёнок активного ученика; <code>created_by</code> — кто нажал.</li>
+        <li>Пустое ФИО ученика → <code>Ученик #{id}</code>; пустой объект → <code>Объект #{id}</code>
+          или «объект не указан». Имена экранируются (<code>e()</code>).</li>
+      </ul>
+    </li>
+    <li>Сбой уведомления attach <b>не</b> откатывает: группа уже сохранена, ошибка в лог
+      <code>[CabinetTeamAttachedNotifier] failed</code>.</li>
+  </ol>
+  <p>Конфиг: <code>config/in_app_notifications.php</code> → <code>events.cabinet_team_attached</code>.
+    Подробности attach — <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</p>
+
+  <h2 id="data">6) Модель данных и конфиг</h2>
+  <ol>
+    <li><code>in_app_notifications</code> — тип (<code>update</code> / <code>important</code> / <code>normal</code>),
+      <code>source</code> (<code>manual</code> / <code>event</code>), HTML-текст, <code>is_global</code>,
+      <code>audience_role_ids</code>, <code>expires_at</code>, статус рассылки. <code>action_url</code> не заполняется.</li>
+    <li><code>in_app_notification_partners</code> — школы, если не глобальное.</li>
+    <li><code>in_app_notification_recipients</code> — снимок получателей в момент job.</li>
+    <li><code>in_app_notification_reads</code> — прочитанность в разрезе пользователя (и для superadmin).</li>
+  </ol>
+  <p><code>config/in_app_notifications.php</code>: <code>dropdown_limit = 3</code>,
+    <code>dropdown_preview_limit = 60</code>, <code>index_per_page = 20</code>,
+    <code>events.cabinet_team_attached</code>.</p>
+
+  <h2 id="tests">7) Тесты</h2>
+  <ul>
+    <li><code>tests/Feature/Crm/InAppNotifications/InAppNotificationsFeatureTest.php</code> — аудитория, TTL, XSS-ссылки, compose</li>
+    <li><code>InAppNotificationsAccessFeatureTest</code> — гость, 403, trainer/user, manage ≠ compose, чужое 404</li>
+    <li><code>InAppNotificationsAjaxContractFeatureTest</code> — JSON колокольчика/прочтения/ролей, 422 по полям, «последние 3»</li>
+    <li><code>InAppNotificationsNonAjaxSafetyNetFeatureTest</code> — обычный POST 302, <code>action_url</code> игнорируется</li>
+    <li><code>InAppNotificationsUiContractsFeatureTest</code> — плашки, даты, клик с <code>?n=</code>, дефолты формы, JS-контракт</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>node --check</code> compose / echo / highlight на ленте</li>
+    <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachInAppNotification*FeatureTest.php</code> —
+      автособытие attach: ядро (admin/trainer, изоляция, семья, пустое ФИО родителя, XSS), доступ (гость/403/422 без уведомления),
+      AJAX (errors[team_id], очередь, pending не в колокольчике), native POST 302 + уведомление,
+      UX ленты (ФИО без ссылки; с родителем — три строки, без плашки «Обычное», SSR колокольчика, <code>?n=</code>, просрочка)</li>
+    <li><code>InAppNotificationsPermissionCatalogFeatureTest</code>, <code>PartnerBasePermissionsTest</code>, <code>PermissionGroupsReorganizationFeatureTest</code></li>
+  </ul>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/InAppNotifications tests/Feature/Crm/Cabinet --filter=CabinetTeamAttachInAppNotification tests/Feature/Crm/Permissions/InAppNotificationsPermissionCatalogFeatureTest.php</code></pre>
+
+  <p class="small"><a href="/docs/documentation">К списку разделов</a> ·
+    не путать с <a href="/docs/documentation/setting-prices-payment-notifications">email-уведомлениями об оплате</a></p>
+</div>
+</body>
+</html>

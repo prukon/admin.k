@@ -151,6 +151,9 @@ enum AuditEvent: string
     case PartnerUpdatedBySuperadmin = 'partner.updated_by_superadmin';
     case PartnerDeleted = 'partner.deleted';
 
+    // --- in-app notifications ---
+    case InAppNotificationCreated = 'in_app_notification.created';
+
     public function label(): string
     {
         return match ($this) {
@@ -273,6 +276,8 @@ enum AuditEvent: string
             self::PartnerCreated => 'Создание партнера суперадмином',
             self::PartnerUpdatedBySuperadmin => 'Изменение партнера суперадмином',
             self::PartnerDeleted => 'Удаление партнера',
+
+            self::InAppNotificationCreated => 'Создание in-app уведомления',
         };
     }
 
@@ -438,6 +443,8 @@ enum AuditEvent: string
             self::PartnerCreated,
             self::PartnerUpdatedBySuperadmin,
             self::PartnerDeleted => 'partner',
+
+            self::InAppNotificationCreated => 'in_app_notification',
         };
     }
 
@@ -548,6 +555,8 @@ enum AuditEvent: string
             self::PartnerCreated,
             self::PartnerUpdatedBySuperadmin,
             self::PartnerDeleted => 80,
+
+            self::InAppNotificationCreated => 94,
 
             self::ContractCreated,
             self::ContractSignRequestCreated,
@@ -683,6 +692,8 @@ enum AuditEvent: string
             self::PartnerCreated => 81,
             self::PartnerUpdatedBySuperadmin => 82,
             self::PartnerDeleted => 83,
+
+            self::InAppNotificationCreated => 940,
 
             self::ContractCreated => 500,
             self::ContractSignRequestCreated => 510,

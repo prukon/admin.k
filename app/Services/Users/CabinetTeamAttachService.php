@@ -7,6 +7,7 @@ use App\Models\Team;
 use App\Models\User;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
+use App\Services\InAppNotifications\CabinetTeamAttachedNotifier;
 use App\Services\TeamUserSyncService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class CabinetTeamAttachService
         private readonly FamilyStudentContextService $familyContext,
         private readonly TeamUserSyncService $teamUserSync,
         private readonly AuditLogger $auditLogger,
+        private readonly CabinetTeamAttachedNotifier $cabinetTeamAttachedNotifier,
     ) {}
 
     /**
@@ -101,6 +103,11 @@ class CabinetTeamAttachService
         });
 
         $student->unsetRelation('teams');
+
+        $team = Team::query()->with('location:id,name')->find($teamId);
+        if ($team instanceof Team) {
+            $this->cabinetTeamAttachedNotifier->notify($actor, $student, $team);
+        }
 
         return $student;
     }

@@ -435,43 +435,41 @@
 @endsection
 
 @push('scripts')
-    <!-- 1) pusher-js -->
-    <script src="https://cdn.jsdelivr.net/npm/pusher-js@8.4.0/dist/web/pusher.min.js"></script>
-    <!-- 2) laravel-echo (>=1.16) -->
-    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
-
-    <!-- 3) Инициализация Echo под Reverb -->
     <script>
-        window.Pusher = window.Pusher || Pusher;
-        if (window.Pusher) window.Pusher.logToConsole = true;
+        if (!window.Echo) {
+            window.Pusher = window.Pusher || Pusher;
+            if (window.Pusher) window.Pusher.logToConsole = true;
 
-        const REVERB_KEY =
-                @json(config('reverb.apps.0.key') ??
-                      config('broadcasting.connections.reverb.key') ??
-                      env('REVERB_APP_KEY'));
+            const REVERB_KEY =
+                    @json(config('reverb.apps.0.key') ??
+                          config('broadcasting.connections.reverb.key') ??
+                          env('REVERB_APP_KEY'));
 
-        const WS_HOST = window.location.hostname;
+            const WS_HOST = window.location.hostname;
 
-        window.Echo = new Echo({
-            broadcaster: 'reverb',
-            key: REVERB_KEY,
-            wsHost: WS_HOST,
-            wsPort: 443,
-            wssPort: 443,
-            forceTLS: true,
-            enabledTransports: ['wss'],
-            wsPath: '/app',
-            encrypted: true,
-            authEndpoint: '/broadcasting/auth',
-            auth: {headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content}}
-        });
+            window.Echo = new Echo({
+                broadcaster: 'reverb',
+                key: REVERB_KEY,
+                wsHost: WS_HOST,
+                wsPort: 443,
+                wssPort: 443,
+                forceTLS: true,
+                enabledTransports: ['wss'],
+                wsPath: '/app',
+                encrypted: true,
+                authEndpoint: '/broadcasting/auth',
+                auth: {headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content}}
+            });
+        }
 
         try {
-            const p = window.Echo.connector.pusher;
-            p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
-            p.connection.bind('error', err => console.error('[WS error]', err));
-            p.connection.bind('connected', () => console.log('[WS] connected'));
-            p.connection.bind('disconnected', () => console.log('[WS] disconnected'));
+            if (window.Echo && window.Echo.connector && window.Echo.connector.pusher) {
+                const p = window.Echo.connector.pusher;
+                p.connection.bind('state_change', s => console.log('[WS state]', s.previous, '→', s.current));
+                p.connection.bind('error', err => console.error('[WS error]', err));
+                p.connection.bind('connected', () => console.log('[WS] connected'));
+                p.connection.bind('disconnected', () => console.log('[WS] disconnected'));
+            }
         } catch (e) {
             console.warn('[Echo] diag error:', e);
         }

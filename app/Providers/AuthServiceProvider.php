@@ -583,5 +583,13 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('viewing.all.logs', function (User $user) {
             return $user->hasPermission('viewing.all.logs');
         });
+
+        Gate::define('inAppNotifications.view', function (User $user) {
+            return $user->hasPermission('inAppNotifications.view');
+        });
+
+        Gate::define('inAppNotifications.manage', function (User $user) {
+            return $user->hasPermission('inAppNotifications.manage');
+        });
     }
 }

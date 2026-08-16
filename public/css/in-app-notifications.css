@@ -1,0 +1,256 @@
+/* Лента in-app уведомлений: цвета системы (#f3a12b, #8e1c13, #4e4e4e) + акцент чата #2eaadc */
+
+.ian-page {
+    --ian-yellow: #f3a12b;
+    --ian-red: #8e1c13;
+    --ian-grey: #4e4e4e;
+    --ian-cyan: #2eaadc;
+    --ian-cream: #fff8ee;
+    --ian-muted: #6c757d;
+}
+
+.ian-unread-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #7a4a08;
+    background: #fff3e0;
+    border: 1px solid rgba(243, 161, 43, 0.45);
+    white-space: nowrap;
+}
+
+.ian-unread-pill.is-zero {
+    color: var(--ian-muted);
+    background: #f4f6f8;
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.ian-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.ian-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.ian-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+}
+
+.ian-card.is-unread {
+    background: linear-gradient(180deg, var(--ian-cream) 0%, #fff 72%);
+    border-color: rgba(243, 161, 43, 0.28);
+}
+
+.ian-card.is-unread::before {
+    background: var(--ian-yellow);
+}
+
+.ian-card.is-read {
+    background: #fff;
+}
+
+.ian-card.is-focused {
+    border-color: rgba(46, 170, 220, 0.55);
+    box-shadow: 0 0 0 3px rgba(46, 170, 220, 0.18), 0 8px 24px rgba(46, 170, 220, 0.08);
+    animation: ian-focus-pulse 1.4s ease-out 1;
+}
+
+.ian-card-inner {
+    padding: 1rem 1.15rem 1.05rem 1.25rem;
+}
+
+.ian-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.45rem;
+}
+
+.ian-card-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: #212529;
+    line-height: 1.35;
+}
+
+.ian-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.55rem;
+    margin-bottom: 0.65rem;
+    color: var(--ian-muted);
+    font-size: 0.8rem;
+}
+
+.ian-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    line-height: 1.4;
+}
+
+.ian-badge--update {
+    color: #0d5f7c;
+    background: #e7f6fb;
+}
+
+.ian-badge--important {
+    color: #fff;
+    background: var(--ian-red);
+}
+
+.ian-badge--normal {
+    color: var(--ian-grey);
+    background: #f0f1f3;
+}
+
+.ian-dot {
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+}
+
+.ian-unread-label {
+    color: #b36b08;
+    font-weight: 650;
+}
+
+.ian-card-body {
+    color: var(--ian-grey);
+    font-size: 0.95rem;
+    line-height: 1.55;
+}
+
+.ian-card-body p {
+    margin: 0 0 0.55rem;
+}
+
+.ian-card-body p:last-child {
+    margin-bottom: 0;
+}
+
+.ian-card-body ul,
+.ian-card-body ol {
+    margin: 0.25rem 0 0.55rem;
+    padding-left: 1.2rem;
+}
+
+.ian-card-body a {
+    color: var(--ian-cyan);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(46, 170, 220, 0.35);
+}
+
+.ian-card-body a:hover {
+    color: #1d8bb8;
+    border-bottom-color: currentColor;
+}
+
+.ian-card-actions {
+    margin-top: 0.85rem;
+}
+
+.ian-mark-read {
+    border: 0;
+    background: transparent;
+    color: var(--ian-cyan);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0;
+}
+
+.ian-mark-read:hover {
+    color: #1d8bb8;
+    text-decoration: underline;
+}
+
+.ian-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3.25rem 1.25rem;
+    background: #fff;
+    border: 1px dashed rgba(0, 0, 0, 0.12);
+    border-radius: 0.75rem;
+    color: var(--ian-muted);
+}
+
+.ian-empty-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff3e0;
+    color: var(--ian-yellow);
+    font-size: 1.35rem;
+    margin-bottom: 0.9rem;
+}
+
+.ian-empty-title {
+    font-weight: 650;
+    color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.ian-compose-hint {
+    color: var(--ian-muted);
+}
+
+.ian-compose .note-editor.note-frame {
+    border-radius: 0.5rem;
+    border-color: var(--bs-border-color, #dee2e6);
+}
+
+.ian-compose .note-editor.note-frame.is-invalid {
+    border-color: var(--bs-form-invalid-border-color, #dc3545);
+}
+
+@keyframes ian-focus-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(46, 170, 220, 0.35); }
+    70% { box-shadow: 0 0 0 12px rgba(46, 170, 220, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 170, 220, 0); }
+}
+
+@media (max-width: 575.98px) {
+    .ian-card-inner {
+        padding: 0.9rem 0.95rem 0.95rem 1.05rem;
+    }
+
+    .ian-card-title {
+        font-size: 1rem;
+    }
+}

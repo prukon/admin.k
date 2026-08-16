@@ -152,6 +152,10 @@ class PermissionSeeder extends Seeder
 
             // group_slug misc
             ['name' => 'paying.classes',                 'description' => 'Оплата учебных занятий',                         'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 100],
+
+            // group_slug inAppNotifications
+            ['name' => 'inAppNotifications.view',        'description' => 'Колокольчик и лента уведомлений',                'group_slug' => 'inAppNotifications', 'is_visible' => 1, 'sort_order' => 10],
+            ['name' => 'inAppNotifications.manage',      'description' => 'Создание уведомлений (админ школы, позже)',      'group_slug' => 'inAppNotifications', 'is_visible' => 0, 'sort_order' => 20],
             // ['name' => 'change_history',                 'description' => 'Просмотр истории изменений',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 180],
             // ['name' => 'manage_roles',                   'description' => 'Управление ролями',                              'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 190],
             // ['name' => 'setting_payment_systems',        'description' => 'Настройка платежных систем',                     'group_slug' => 'misc',     'is_visible' => 0, 'sort_order' => 200],

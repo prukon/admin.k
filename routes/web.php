@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AccountDocumentsController;
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\InAppNotificationComposeController;
+use App\Http\Controllers\Admin\InAppNotificationController;
 use App\Http\Controllers\Admin\LessonOccurrenceStatusController;
 use App\Http\Controllers\Admin\LessonPackageController;
 use App\Http\Controllers\Admin\PartnerController;
@@ -217,6 +219,27 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/cabinet/teams/attach', [\App\Http\Controllers\User\CabinetTeamController::class, 'attach'])
         ->middleware('can:account.user.team.update')
         ->name('cabinet.teams.attach');
+
+    Route::middleware('can:inAppNotifications.view')->group(function () {
+        Route::get('/in-app-notifications', [InAppNotificationController::class, 'index'])
+            ->name('inAppNotifications.index');
+        Route::get('/in-app-notifications/bell', [InAppNotificationController::class, 'bell'])
+            ->name('inAppNotifications.bell');
+        Route::post('/in-app-notifications/read-all', [InAppNotificationController::class, 'markAllRead'])
+            ->name('inAppNotifications.readAll');
+        Route::get('/in-app-notifications/compose', [InAppNotificationComposeController::class, 'create'])
+            ->name('inAppNotifications.compose');
+        Route::get('/in-app-notifications/compose/roles', [InAppNotificationComposeController::class, 'roles'])
+            ->name('inAppNotifications.compose.roles');
+        Route::post('/in-app-notifications', [InAppNotificationComposeController::class, 'store'])
+            ->name('inAppNotifications.store');
+        Route::post('/in-app-notifications/{notification}/read', [InAppNotificationController::class, 'markRead'])
+            ->whereNumber('notification')
+            ->name('inAppNotifications.read');
+        Route::get('/in-app-notifications/{notification}/open', [InAppNotificationController::class, 'open'])
+            ->whereNumber('notification')
+            ->name('inAppNotifications.open');
+    });
 
     //Консоль (feature test +)
     Route::middleware(['can:dashboard.view'])->group(function () {
