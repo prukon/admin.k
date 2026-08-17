@@ -175,9 +175,8 @@ final class ScheduleJournalMonthService
     }
 
     /**
-     * Fixed-назначения ученика для колонки раскладки в журнале.
-     *
-     * @return list<array{
+     * @param  list<int>  $userIds
+     * @return array<int, list<array{
      *     id: int,
      *     name: string,
      *     lessons_total: int,
@@ -186,51 +185,81 @@ final class ScheduleJournalMonthService
      *     team_id: int|null,
      *     placeable: bool,
      *     disabled_reason: string|null
-     * }>
+     * }>>
      */
-    public function fixedAssignmentsForUser(int $partnerId, int $userId): array
+    public function fixedAssignmentsByUser(int $partnerId, array $userIds): array
     {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        $result = [];
+        foreach ($userIds as $userId) {
+            $result[$userId] = [];
+        }
+
+        if ($userIds === []) {
+            return $result;
+        }
+
         $assignments = UserLessonPackage::query()
-            ->with(['lessonPackage:id,name,schedule_type,partner_id'])
-            ->where('user_id', $userId)
+            ->with([
+                'lessonPackage:id,name,schedule_type,partner_id',
+                'userTeamScheduleSlots:id,user_lesson_package_id',
+            ])
+            ->whereIn('user_id', $userIds)
             ->whereHas('lessonPackage', function ($q) use ($partnerId) {
                 $q->where('partner_id', $partnerId)->where('schedule_type', 'fixed');
             })
             ->orderByDesc('id')
             ->get();
 
-        $result = [];
         foreach ($assignments as $ulp) {
-            $placeable = $ulp->isJournalPlaceable();
-
-            $disabledReason = null;
-            if ($ulp->isLaidOutInSchedule()) {
-                $disabledReason = 'Абонемент уже разложен в расписание';
-            } elseif ((int) $ulp->lessons_total < 1) {
-                $disabledReason = 'Не задан объём занятий';
-            }
-
-            $billingMonth = $ulp->billing_month !== null
-                ? $ulp->billing_month->format('Y-m-d')
-                : null;
-
-            $result[] = [
-                'id' => (int) $ulp->id,
-                'name' => (string) ($ulp->lessonPackage?->name ?? 'Абонемент'),
-                'lessons_total' => (int) $ulp->lessons_total,
-                'lessons_remaining' => (int) $ulp->lessons_remaining,
-                'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
-                'team_id' => $ulp->team_id !== null ? (int) $ulp->team_id : null,
-                'placeable' => $placeable,
-                'disabled_reason' => $disabledReason,
-                'from_setting_prices' => $ulp->isFromSettingPrices(),
-                'billing_month' => $billingMonth,
-                'starts_at' => $ulp->starts_at !== null ? $ulp->starts_at->format('Y-m-d') : null,
-                'ends_at' => $ulp->ends_at !== null ? $ulp->ends_at->format('Y-m-d') : null,
-            ];
+            $result[(int) $ulp->user_id][] = $this->mapFixedAssignmentRow($ulp);
         }
 
         return $result;
+    }
+
+    /**
+     * Fixed-назначения ученика для колонки раскладки в журнале.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function fixedAssignmentsForUser(int $partnerId, int $userId): array
+    {
+        return $this->fixedAssignmentsByUser($partnerId, [$userId])[$userId] ?? [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapFixedAssignmentRow(UserLessonPackage $ulp): array
+    {
+        $placeable = $ulp->isJournalPlaceable();
+
+        $disabledReason = null;
+        if ($ulp->isLaidOutInSchedule()) {
+            $disabledReason = 'Абонемент уже разложен в расписание';
+        } elseif ((int) $ulp->lessons_total < 1) {
+            $disabledReason = 'Не задан объём занятий';
+        }
+
+        $billingMonth = $ulp->billing_month !== null
+            ? $ulp->billing_month->format('Y-m-d')
+            : null;
+
+        return [
+            'id' => (int) $ulp->id,
+            'name' => (string) ($ulp->lessonPackage?->name ?? 'Абонемент'),
+            'lessons_total' => (int) $ulp->lessons_total,
+            'lessons_remaining' => (int) $ulp->lessons_remaining,
+            'fee_amount_cents' => (int) ($ulp->fee_amount_cents ?? 0),
+            'team_id' => $ulp->team_id !== null ? (int) $ulp->team_id : null,
+            'placeable' => $placeable,
+            'disabled_reason' => $disabledReason,
+            'from_setting_prices' => $ulp->isFromSettingPrices(),
+            'billing_month' => $billingMonth,
+            'starts_at' => $ulp->starts_at !== null ? $ulp->starts_at->format('Y-m-d') : null,
+            'ends_at' => $ulp->ends_at !== null ? $ulp->ends_at->format('Y-m-d') : null,
+        ];
     }
 
     /**

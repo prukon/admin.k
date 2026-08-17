@@ -72,6 +72,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
       <tr><td>22</td><td><code>DevTbankHistorySeeder</code></td><td>история T‑Bank / выплат / чеков (см. §4)</td></tr>
       <tr><td>23</td><td><code>DevPaymentSystemsSeeder</code></td><td>Robokassa для партнёров 1–2, глобальный T‑Bank (<code>test_mode=1</code>)</td></tr>
       <tr><td>24</td><td><code>DevIstokMenuSeeder</code></td><td>демо «Школа футбола Исток» (partner id=1), меню, 5 групп с явными связями</td></tr>
+      <tr><td>25</td><td><code>DevBulkStudentsAndJournalSeeder</code></td><td>добивает активных учеников партнёра 1 до <b>1000</b>; журнал <b>текущего месяца</b>: 10–20 «Посетил» на слот×дату + часть «Запись»/«Не посетил». Без родителей, цен, ULP. В <code>APP_ENV=testing</code> пропускается</td></tr>
     </tbody>
   </table>
   <div class="note">
@@ -89,6 +90,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
     <li>Оплаченные цепочки идут через <code>PayableFactory::paidMonthlyWithAllRelations()</code> с явным <code>meta.team_id</code> (не только primary-группа).</li>
     <li>~72% строк <code>users_prices</code> получают <code>lesson_package_id</code> (flexible/fixed/no_schedule или postpay); дополнительно сидятся неоплаченные postpay текущего месяца и <code>team_prices</code> с пакетом; unpaid postpay пересчитываются через <code>PostpayUsersPriceSync</code>.</li>
     <li><code>DevScheduleJournalSeeder</code> (после назначений) пишет события статусов на UTSS — цветные ячейки в <code>/schedule</code>.</li>
+    <li><code>DevBulkStudentsAndJournalSeeder</code> (после «Исток») добивает учеников партнёра 1 до 1000 и наполняет журнал текущего месяца: на каждую тренировку (слот×дата) 10–20 «Посетил» плюс часть «Запись»/«Не посетил»; родители/цены/ULP не создаются. Повторный прогон идемпотентен. В phpunit (<code>APP_ENV=testing</code>) пропускается.</li>
   </ul>
   <p>Инвариант начислений — <a href="/docs/documentation/payments#users-prices-by-team">payments §2.1</a>.</p>
 
@@ -143,7 +145,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
 
   <h2 id="tests">9) Автотесты</h2>
   <ul>
-    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — guard <code>SEED_DEV_DATA</code>, целостность цепочки (юр. лица, справочники, комиссии, payment systems, history, права admin), уникальность <code>users_prices</code> и multi-team в <code>DevUsersSeeder</code>/<code>DevPricesSeeder</code>.</li>
+    <li><code>tests/Feature/Database/DevSeedStackFeatureTest.php</code> — guard <code>SEED_DEV_DATA</code>, целостность цепочки (юр. лица, справочники, комиссии, payment systems, history, права admin), уникальность <code>users_prices</code> и multi-team в <code>DevUsersSeeder</code>/<code>DevPricesSeeder</code>. <code>DevBulkStudentsAndJournalSeeder</code> в этот тест не входит (в <code>testing</code> сидер сам выходит).</li>
     <li>HTTP-разделы справочников — <code>SportTypes*FeatureTest</code>, <code>Districts*FeatureTest</code>, <code>LegalEntities*FeatureTest</code> (см. <a href="/docs/documentation/tests-standards">tests-standards</a>).</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Database/DevSeedStackFeatureTest.php</code></pre>
@@ -154,6 +156,7 @@ php artisan db:seed --class=Database\\Seeders\\DevPartnerLegalEntitiesSeeder</co
     <li><code>DevPricesSeeder</code> при повторном <code>db:seed</code> без <code>migrate:fresh</code> может дублировать начисления (сидер не идемпотентен) — используйте fresh или точечные сидеры. Внутри одного fresh-прогона дублей по <code>(user_id, team_id, new_month)</code> нет: слоты берутся из уникального пула.</li>
     <li>На test-стенде без cron безопасны dev-выплаты в статусах COMPLETED/REJECTED; INITIATED в dev-истории не создаются намеренно.</li>
     <li>Feature-тесты dev-сидеров сбрасывают <code>AUTO_INCREMENT</code> таблицы <code>partners</code> между кейсами (MySQL + транзакционный rollback).</li>
+    <li><code>DevBulkStudentsAndJournalSeeder</code> работает только с партнёром id=1 и текущим календарным месяцем. Повторный прогон не создаёт учеников сверх 1000 и не дополняет тренировку, если на ней уже ≥10 «Посетил».</li>
   </ul>
 </div>
 </body>

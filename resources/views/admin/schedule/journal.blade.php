@@ -7,6 +7,9 @@
                         <option value="{{ $y }}" @if($year == $y) selected @endif>{{ $y }}</option>
                     @endfor
                 </select>
+                @error('year')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
             </div>
             <div class="col-auto wrap-filter-month">
                 <select id="filter-month" class="form-select schedule-filter-month">
@@ -21,6 +24,9 @@
                         <option value="{{ $mKey }}" @if($month == $mKey) selected @endif>{{ $mName }}</option>
                     @endforeach
                 </select>
+                @error('month')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
             </div>
             <div class="col-auto wrap-filter-team">
                 <select id="filter-team" class="form-select schedule-filter-team">
@@ -31,6 +37,9 @@
                                 @if($team_id == $team->id) selected @endif>{{ $team->title }}</option>
                     @endforeach
                 </select>
+                @error('team')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
             </div>
 
             <div class="col-auto wrap-filter-fullscreen">
@@ -40,14 +49,36 @@
             </div>
 
             <div class="col wrap-filter-search">
-                <input type="text" id="table-search" class="form-control table-search" placeholder="Поиск">
+                <form method="get" action="{{ route('schedule.index') }}" class="d-flex gap-2">
+                    <input type="hidden" name="year" value="{{ $year }}">
+                    <input type="hidden" name="month" value="{{ $month }}">
+                    <input type="hidden" name="team" value="{{ $team_id }}">
+                    @if(request('fullscreen') == '1')
+                        <input type="hidden" name="fullscreen" value="1">
+                    @endif
+                    <input type="text"
+                           id="table-search"
+                           name="q"
+                           value="{{ $searchQ ?? '' }}"
+                           class="form-control table-search"
+                           placeholder="Поиск"
+                           autocomplete="off">
+                    <button type="submit" class="btn btn-outline-secondary">Найти</button>
+                </form>
+                @error('q')
+                    <div class="text-danger small mt-1">{{ $message }}</div>
+                @enderror
             </div>
             <div class="wrap-icon btn btn-history-modal" data-bs-toggle="modal" data-bs-target="#historyModal">
                 <i class="fa-solid fa-clock-rotate-left logs "></i>
             </div>
         </div>
 
-        <div class="table-responsive schedule-table-container">
+        <div id="schedule-journal-stage" aria-busy="true">
+            <div class="schedule-journal-preloader" aria-hidden="true">
+                <div class="spinner-border text-secondary" role="status" aria-label="Загрузка"></div>
+            </div>
+            <div class="table-responsive schedule-table-container">
             <table id="schedule-table" class="table table-bordered schedule-table">
                 <thead>
                 <tr>
@@ -153,7 +184,7 @@
                         $postpayHintHover = implode("\n", array_values(array_filter($postpayHintHovers, static fn ($v) => $v !== '')));
                     @endphp
                     <tr data-user-id="{{ $user->id }}">
-                        <td class="text-center align-middle sticky-col-1 number-line">{{ $index + 1 }}</td>
+                        <td class="text-center align-middle sticky-col-1 number-line">{{ ($users->firstItem() ?? 1) + $index }}</td>
                         <td class="schedule-user-name sticky-col-2">
                             <div>{{ $user?->full_name ?: 'Без имени' }}</div>
                             @if($team_id === 'all' && $user->teams->isNotEmpty())
@@ -361,6 +392,15 @@
                 @endforeach
                 </tbody>
             </table>
+            </div>
+            @if(isset($users) && method_exists($users, 'lastPage') && $users->lastPage() > 1)
+                <div class="schedule-journal-pagination d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+                    <div class="text-muted small">
+                        Показаны {{ $users->firstItem() }}–{{ $users->lastItem() }} из {{ $users->total() }} учеников
+                    </div>
+                    {{ $users->onEachSide(1)->links() }}
+                </div>
+            @endif
         </div>
     </div>
 

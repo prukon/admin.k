@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\AuditEvent;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Admin\DestroyScheduleJournalOccurrenceRequest;
+use App\Http\Requests\Admin\GetScheduleJournalIndexRequest;
 use App\Http\Requests\Admin\GetScheduleCellContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalAbonementContextRequest;
 use App\Http\Requests\Admin\GetScheduleJournalEmptyCellContextRequest;
@@ -57,6 +58,8 @@ class ScheduleController extends AdminBaseController
 {
     use BuildsLogTable;
 
+    public const JOURNAL_STUDENTS_PER_PAGE = 100;
+
     public function __construct(
         PartnerContext $partnerContext,
         private readonly AuditLogger $auditLogger,
@@ -76,7 +79,7 @@ class ScheduleController extends AdminBaseController
         parent::__construct($partnerContext);
     }
 
-    public function index(Request $request)
+    public function index(GetScheduleJournalIndexRequest $request)
     {
         $partnerId = $this->requirePartnerId();
 
@@ -88,14 +91,18 @@ class ScheduleController extends AdminBaseController
             ->get();
         $availableStatuses = $statusesForDisplay->where('is_active', true)->values();
 
-        $year = $request->get('year', date('Y'));
-        $month = $request->get('month', date('m'));
-        $team_id = $request->get('team', 'all');
+        $data = $request->validated();
+        $year = (int) ($data['year'] ?? date('Y'));
+        $month = str_pad((string) ($data['month'] ?? date('m')), 2, '0', STR_PAD_LEFT);
+        $team_id = (string) ($data['team'] ?? 'all');
+        $searchQ = trim((string) ($data['q'] ?? ''));
 
-        $startOfMonth = Carbon::createFromDate((int) $year, (int) $month, 1);
+        $startOfMonth = Carbon::createFromDate($year, (int) $month, 1);
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        $usersQuery = User::where('partner_id', $partnerId)
+        $usersQuery = User::query()
+            ->select(['id', 'name', 'lastname', 'partner_id', 'role_id', 'is_enabled'])
+            ->where('partner_id', $partnerId)
             ->where('is_enabled', 1)
             ->withSystemRoleUser();
 
@@ -103,12 +110,27 @@ class ScheduleController extends AdminBaseController
             $usersQuery->filterByStudentTeam($partnerId, $team_id);
         }
 
+        if ($searchQ !== '') {
+            $like = '%'.$searchQ.'%';
+            $usersQuery->where(function ($q) use ($like) {
+                $q->where('lastname', 'like', $like)
+                    ->orWhere('name', 'like', $like)
+                    ->orWhereRaw(
+                        "CONCAT(IFNULL(lastname, ''), ' ', IFNULL(name, '')) LIKE ?",
+                        [$like]
+                    );
+            });
+        }
+
         $users = $usersQuery
             ->with(['teams' => fn ($q) => $q->where('teams.partner_id', $partnerId)])
             ->orderBy('lastname')
-            ->get();
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(self::JOURNAL_STUDENTS_PER_PAGE)
+            ->withQueryString();
 
-        $userIds = $users->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $userIds = $users->getCollection()->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $journalOccurrences = $this->journalMonthService->occurrencesByUserDate(
             $partnerId,
@@ -118,13 +140,7 @@ class ScheduleController extends AdminBaseController
             $team_id,
         );
 
-        $journalAssignments = [];
-        foreach ($users as $user) {
-            $journalAssignments[(int) $user->id] = $this->journalMonthService->fixedAssignmentsForUser(
-                $partnerId,
-                (int) $user->id
-            );
-        }
+        $journalAssignments = $this->journalMonthService->fixedAssignmentsByUser($partnerId, $userIds);
 
         $monthFirst = $startOfMonth->format('Y-m-d');
         $postpayByUser = $this->postpayJournal->postpayAbonementHintsByUser($userIds, $monthFirst, (string) $team_id);
@@ -174,6 +190,7 @@ class ScheduleController extends AdminBaseController
             'year',
             'month',
             'team_id',
+            'searchQ',
             'users',
             'journalOccurrences',
             'journalAssignments',

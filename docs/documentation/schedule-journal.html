@@ -166,7 +166,7 @@
   <h3>Реализация</h3>
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
-    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>).</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>) и ФИО. Список учеников пагинируется (<code>JOURNAL_STUDENTS_PER_PAGE = 100</code>), занятия и абонементы грузятся только для текущей страницы.</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>
   <p>
@@ -359,8 +359,16 @@
       гибкий на лимите без <code>lessonPackages.view</code>.</li>
     <li>Модалки «Настройки статусов» / «Личное расписание» <strong>нет</strong>.</li>
     <li>Полноэкранный режим, поиск (DataTables), логи журнала, модалка «Управление группами» (<code>sync-teams</code>).</li>
+    <li>При загрузке вкладки «Журнал» таблица и пагинация скрыты локальным прелоадером
+      <code>#schedule-journal-stage</code> / <code>.schedule-journal-preloader</code>
+      (пагинация — <code>.schedule-journal-pagination</code>).
+      Снятие: <code>revealScheduleJournalTable()</code> сразу после <code>DataTable()</code>
+      (hotfix <code>public/js/schedule-journal.js</code>).
+      CSS оверлея — inline в <code>@push('styles')</code> в <code>&lt;head&gt;</code>
+      вместе с <code>schedule.css</code> и hotfix <code>schedule-journal-cells.css</code>.</li>
   </ul>
-  <p>Шаблон: <code>journal.blade.php</code>; скрипты: <code>resources/js/schedule.js</code> (Vite, только вкладка журнала).</p>
+  <p>Шаблон: <code>journal.blade.php</code>; скрипты: hotfix <code>public/js/schedule-journal.js</code>
+    (источник <code>resources/js/schedule.js</code>, только вкладка журнала).</p>
 
   <h3 id="cell-hover-ui">5.1) Ховер ячейки, колонка постоплаты, контекст UI</h3>
   <div class="ok">
@@ -1148,7 +1156,8 @@
         (см. <a href="/docs/documentation/postpay#tests">postpay § тесты</a>)</li>
       <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка →
         update / destroy → данные видны без F5</li>
-      <li><code>ScheduleJournalStudentFilterFeatureTest</code> / <code>ScheduleJournalTeamPivotFeatureTest</code></li>
+      <li><code>ScheduleJournalStudentFilterFeatureTest</code> / <code>ScheduleJournalTeamPivotFeatureTest</code>
+        (в т.ч. пагинация 100 строк и поиск <code>q</code>)</li>
       <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> —
         <code>node --check</code> на <code>resources/js/schedule.js</code>
         (update/delete/place-flexible/empty-cell place без <code>reload</code>;

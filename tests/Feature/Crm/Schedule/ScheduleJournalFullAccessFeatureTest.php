@@ -32,6 +32,8 @@ final class ScheduleJournalFullAccessFeatureTest extends ScheduleJournalTestCase
             ->assertSee('id="flexiblePlaceModal"', false)
             ->assertSee('id="flexiblePlaceForm"', false)
             ->assertSee('id="btn-add-flexible-lesson"', false)
+            ->assertSee('id="schedule-journal-stage"', false)
+            ->assertSee('schedule-journal-preloader', false)
             ->assertSee('id="cell-trainer-wrap"', false)
             ->assertSee('id="cell-trainer-profile-ids"', false)
             ->assertSee('SCHEDULE_VISITED_STATUS_ID', false)

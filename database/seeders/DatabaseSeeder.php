@@ -46,6 +46,7 @@ class DatabaseSeeder extends Seeder
                 DevTbankHistorySeeder::class, // история T‑Bank / выплат / чеков (dev)
                 DevPaymentSystemsSeeder::class,
                 DevIstokMenuSeeder::class, // демо-партнёр «Исток», команды, меню (dev)
+                DevBulkStudentsAndJournalSeeder::class, // 1000 учеников Истока + журнал текущего месяца
             ]);
         }
     } 

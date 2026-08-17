@@ -40,10 +40,81 @@
     @include('partials.select2.generic-multiselect')
 @endif
 
-@push('scripts')
+@push('styles')
     @vite(['resources/css/schedule.css'])
     {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
     <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}">
+    @if(($activeTab ?? 'journal') === 'journal')
+        <style>
+            #schedule-journal-stage {
+                position: relative;
+            }
+            #schedule-journal-stage:not(.is-ready) {
+                min-height: 12rem;
+                height: 12rem;
+                overflow: hidden;
+            }
+            #schedule-journal-stage:not(.is-ready) #schedule-table,
+            #schedule-journal-stage:not(.is-ready) .dataTables_wrapper {
+                visibility: hidden;
+            }
+            /* d-flex в Bootstrap — display:flex !important */
+            #schedule-journal-stage:not(.is-ready) .schedule-journal-pagination {
+                display: none !important;
+            }
+            .schedule-journal-preloader {
+                position: absolute;
+                inset: 0;
+                z-index: 20;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #f4f6f9;
+                pointer-events: none;
+            }
+            #schedule-journal-stage.is-ready .schedule-journal-preloader {
+                display: none;
+            }
+            .schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader {
+                background: #fff;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready {
+                display: flex;
+                flex-direction: column;
+                height: calc(100% - 50px);
+                min-height: 0;
+                overflow: hidden;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-table-container {
+                flex: 1 1 auto;
+                min-height: 0;
+                height: auto;
+                overflow: auto;
+            }
+        </style>
+        <noscript>
+            <style>
+                #schedule-journal-stage:not(.is-ready) {
+                    height: auto;
+                    min-height: 0;
+                    overflow: visible;
+                }
+                #schedule-journal-stage:not(.is-ready) #schedule-table,
+                #schedule-journal-stage:not(.is-ready) .dataTables_wrapper {
+                    visibility: visible;
+                }
+                #schedule-journal-stage:not(.is-ready) .schedule-journal-pagination {
+                    display: flex !important;
+                }
+                .schedule-journal-preloader {
+                    display: none !important;
+                }
+            </style>
+        </noscript>
+    @endif
+@endpush
+
+@push('scripts')
     @if(($activeTab ?? 'journal') === 'journal')
         @include('partials.ui.discount-percent-badge-styles')
         <script>

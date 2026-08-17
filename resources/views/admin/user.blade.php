@@ -7,8 +7,11 @@
     $canViewUserComment = $canViewUserComment ?? (auth()->user() && auth()->user()->can('users.comment'));
 @endphp
 
-@section('content')
+@push('styles')
     @vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])
+@endpush
+
+@section('content')
 
     <div class="main-content text-start">
         <h4 class="pt-3 pb-3 text-start">Пользователи</h4>

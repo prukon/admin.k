@@ -16,19 +16,35 @@ document.addEventListener('DOMContentLoaded', function () {
     for (var i = 0; i < numDays; i++) {
         dtColumns.push({orderable: false});
     }
-    var table = $('#schedule-table').DataTable({
-        paging: false,
-        info: false,
-        ordering: true,
-        order: [],
-        columns: dtColumns,
-        dom: 'lrtip',
-        language: {
-            search: "Поиск:",
-            zeroRecords: "Ничего не найдено",
-            infoEmpty: "",
+    function revealScheduleJournalTable() {
+        var stage = document.getElementById('schedule-journal-stage');
+        if (!stage || stage.classList.contains('is-ready')) {
+            return;
         }
-    });
+        stage.classList.add('is-ready');
+        stage.setAttribute('aria-busy', 'false');
+    }
+
+    var table;
+    try {
+        table = $('#schedule-table').DataTable({
+            paging: false,
+            info: false,
+            ordering: true,
+            order: [],
+            columns: dtColumns,
+            dom: 'lrtip',
+            language: {
+                search: "Поиск:",
+                zeroRecords: "Ничего не найдено",
+                infoEmpty: "",
+            }
+        });
+        revealScheduleJournalTable();
+    } catch (err) {
+        revealScheduleJournalTable();
+        throw err;
+    }
 
     if (window.KidsCrmTooltip) {
         var scheduleTableEl = document.getElementById('schedule-table');
@@ -175,6 +191,7 @@ document.addEventListener('DOMContentLoaded', function () {
         newUrl.searchParams.set('year', $('#filter-year').val());
         newUrl.searchParams.set('month', $('#filter-month').val());
         newUrl.searchParams.set('team', $('#filter-team').val());
+        newUrl.searchParams.delete('page');
         if ($('.schedule-fullscreen-wrapper').hasClass('fullscreen')) {
             newUrl.searchParams.set('fullscreen', '1');
         } else {

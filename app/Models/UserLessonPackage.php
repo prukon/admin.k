@@ -166,7 +166,7 @@ class UserLessonPackage extends Model
     public function isLaidOutInSchedule(): bool
     {
         if ($this->isMonthlyFlexibleFromSettingPrices()) {
-            return $this->userTeamScheduleSlots()->exists();
+            return $this->hasUtssRows();
         }
 
         if ($this->starts_at !== null) {
@@ -175,6 +175,15 @@ class UserLessonPackage extends Model
 
         if (! $this->isFromSettingPrices() && $this->ends_at !== null) {
             return true;
+        }
+
+        return $this->hasUtssRows();
+    }
+
+    private function hasUtssRows(): bool
+    {
+        if ($this->relationLoaded('userTeamScheduleSlots')) {
+            return $this->userTeamScheduleSlots->isNotEmpty();
         }
 
         return $this->userTeamScheduleSlots()->exists();

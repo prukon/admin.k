@@ -3,6 +3,25 @@ body.no-scroll {
     overflow: hidden !important;
 }
 
+.schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader {
+    background: #fff;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 50px);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-table-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow: auto;
+}
+
 /* Более конкретные селекторы для избежания конфликтов */
 .schedule-table-container .schedule-table th,
 .schedule-table-container .schedule-table td {

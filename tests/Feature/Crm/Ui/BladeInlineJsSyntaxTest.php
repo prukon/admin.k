@@ -674,6 +674,95 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * Общего компонента прелоадера нет: он ломал AdminLTE. Остался только журнал.
+     */
+    public function test_kids_table_preloader_component_and_datatable_bind_contract(): void
+    {
+        $this->assertFileDoesNotExist(resource_path('views/components/ui/table-preloader.blade.php'));
+
+        $jsPath = resource_path('js/kids-datatable.js');
+        $this->assertFileExists($jsPath);
+        $js = (string) file_get_contents($jsPath);
+        $this->assertStringNotContainsString('KidsCrmTablePreloader', $js);
+        $this->assertStringNotContainsString('bindTablePreloader', $js);
+        $this->assertStringNotContainsString('__bindsTablePreloader', $js);
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+        );
+    }
+
+    /**
+     * Журнал: локальный прелоадер #schedule-journal-stage, без общего компонента.
+     * Снятие: revealScheduleJournalTable() сразу после DataTable() (SSR-таблица).
+     */
+    public function test_schedule_journal_table_preloader_contract(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $journal = (string) file_get_contents($blade);
+        $this->assertStringContainsString('id="schedule-journal-stage"', $journal);
+        $this->assertStringContainsString('schedule-journal-preloader', $journal);
+        $this->assertStringContainsString('schedule-journal-pagination', $journal);
+        $this->assertStringNotContainsString('<x-ui.table-preloader', $journal);
+        $this->assertStringNotContainsString('kids-table-preloader', $journal);
+        $this->assertStringNotContainsString('Загрузка расписания', $journal);
+        $stagePos = strpos($journal, 'id="schedule-journal-stage"');
+        $pagerPos = strpos($journal, 'schedule-journal-pagination');
+        $this->assertNotFalse($stagePos);
+        $this->assertNotFalse($pagerPos);
+        $this->assertGreaterThan($stagePos, $pagerPos);
+
+        $index = resource_path('views/admin/schedule/index.blade.php');
+        $indexContent = (string) file_get_contents($index);
+        $stylesPos = strpos($indexContent, "@push('styles')");
+        $scriptsPos = strpos($indexContent, "@push('scripts')");
+        $this->assertNotFalse($stylesPos);
+        $this->assertNotFalse($scriptsPos);
+        $stylesChunk = substr($indexContent, $stylesPos, $scriptsPos - $stylesPos);
+        $this->assertStringContainsString("@vite(['resources/css/schedule.css'])", $stylesChunk);
+        $this->assertStringContainsString("asset('css/schedule-journal-cells.css')", $stylesChunk);
+        $this->assertStringContainsString('#schedule-journal-stage:not(.is-ready)', $stylesChunk);
+        $this->assertStringContainsString('.schedule-journal-preloader', $stylesChunk);
+        $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader', $stylesChunk);
+        $this->assertStringNotContainsString('kids-table-preloader', $stylesChunk);
+        $this->assertStringNotContainsString("@vite(['resources/css/schedule.css'])", substr($indexContent, $scriptsPos));
+
+        $css = (string) file_get_contents(resource_path('css/schedule.css'));
+        $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader', $css);
+        $this->assertStringNotContainsString('.kids-table-preloader', $css);
+
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+            $this->assertStringContainsString('function revealScheduleJournalTable()', $js);
+            $this->assertStringContainsString('$(\'#schedule-table\').DataTable({', $js);
+            $this->assertStringNotContainsString('KidsCrmTablePreloader', $js);
+            $revealPos = strpos($js, 'revealScheduleJournalTable()');
+            $dtPos = strpos($js, '$(\'#schedule-table\').DataTable({');
+            $this->assertNotFalse($revealPos);
+            $this->assertNotFalse($dtPos);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
+    }
+
+    /**
      * P1: колонка оплаты месяца в журнале — серверный HTML + tooltip-hint, без legacy userPrices.
      * Смена фильтра группы в hotfix-копии schedule-journal.js тоже полный GET.
      */
@@ -2870,6 +2959,38 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $usersTableScriptFound,
             'В admin/user.blade.php не найден script с users-table и parent_phone'
         );
+    }
+
+    /**
+     * /admin/users: без table-preloader (он раздувал AdminLTE на всю ширину экрана).
+     * CSS тулбара — в @push('styles') / head, не в середине content.
+     */
+    public function test_admin_users_table_preloader_contract(): void
+    {
+        $path = resource_path('views/admin/user.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringNotContainsString('<x-ui.table-preloader', $content);
+        $this->assertStringNotContainsString('users-table-stage', $content);
+        $this->assertStringNotContainsString('kids-table-preloader', $content);
+        $this->assertStringContainsString('<div class="table-responsive">', $content);
+        $this->assertStringContainsString('id="users-table"', $content);
+        $this->assertStringContainsString("KidsCrmDataTable.create('#users-table'", $content);
+
+        $this->assertStringContainsString("@push('styles')", $content);
+        $pushPos = strpos($content, "@push('styles')");
+        $sectionPos = strpos($content, "@section('content')");
+        $this->assertNotFalse($pushPos);
+        $this->assertNotFalse($sectionPos);
+        $this->assertLessThan($sectionPos, $pushPos);
+        $stylesChunk = substr($content, $pushPos, $sectionPos - $pushPos);
+        $this->assertStringContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])", $stylesChunk);
+        $this->assertStringNotContainsString("@vite(['resources/css/admin-list-toolbar.css', 'resources/css/user.css'])", substr($content, $sectionPos));
+
+        $css = (string) file_get_contents(resource_path('css/user.css'));
+        $this->assertStringNotContainsString('#users-table-stage:not(.is-ready)', $css);
+        $this->assertStringNotContainsString('.users-table-preloader', $css);
     }
 
     /**
