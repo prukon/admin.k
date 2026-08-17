@@ -84,7 +84,9 @@
       (кабинет <code>admin2</code> и лендинг). Файл Kit удалён, в layout нет
       <code>&lt;script src="…/fontawesome.js"&gt;</code>.</li>
     <li>В partial: <code>preload</code> solid woff2 <b>до</b> CSS, плюс v4-shims / v4-font-face / v5-font-face
-      (старые <code>fas</code> и font-family AdminLTE). В partial нет <code>&lt;script&gt;</code>.</li>
+      (старые <code>fas</code> и font-family AdminLTE). В partial нет <code>&lt;script&gt;</code>.
+      URL CSS и woff2 с <code>?v=filemtime</code>: путь тот же, что у старого FA5,
+      без версии браузер держит кэш и рисует квадратики вместо иконок (пока не Ctrl+F5).</li>
     <li>Слот <code>.nav-sidebar &gt; .nav-item .nav-icon</code>:
       <code>display: inline-block; width/min-width: 1.6rem; text-align: center; flex-shrink: 0</code>
       с первого кадра. У AdminLTE ширина уже была, но на inline-<code>&lt;i&gt;</code> она не действует,
@@ -114,7 +116,7 @@
       </tr>
       <tr>
         <td><code>resources/views/includes/fontawesome.blade.php</code></td>
-        <td>Preload woff2 + локальные CSS FA 6.5.1. Без Kit и без <code>&lt;script&gt;</code>.</td>
+        <td>Preload woff2 + локальные CSS FA 6.5.1, ссылки с <code>?v=filemtime</code>. Без Kit и без <code>&lt;script&gt;</code>.</td>
       </tr>
       <tr>
         <td><code>resources/views/includes/layout_wide_toggle.blade.php</code></td>
@@ -186,7 +188,8 @@
       пункт «Консоль» скрыт через <code>@can</code>; mutating POST/PATCH/DELETE на <code>/cabinet</code> и лендинге не 500;
       non-AJAX POST <code>/cabinet</code> не пустой 200 без layout; лендинг <b>не</b> получает admin-gutter / слот <code>.nav-icon</code>.</li>
     <li><code>FontAwesomeSelfHostedFeatureTest</code> — локальный FA 6.5.1 + woff2, Kit-файл удалён,
-      preload до CSS, тот же набор на консоли / списке / лендинге (гость), без <code>ka-f.fontawesome.com</code>.</li>
+      preload до CSS, <code>?v=filemtime</code> на CSS и woff2,
+      тот же набор на консоли / списке / лендинге (гость), без <code>ka-f.fontawesome.com</code>.</li>
     <li><code>BladeInlineJsSyntaxTest</code> — <code>admin2</code> и <code>landingPage</code> в data-provider
       (<code>node --check</code>); отдельный контракт: нет Kit, partial без <code>&lt;script&gt;</code>,
       <code>showModalQueued</code> валиден.</li>

@@ -29,6 +29,7 @@ final class AdminLayoutSidebarDocumentationContractTest extends TestCase
         $this->assertStringContainsString('admin-list-toolbar.css', $chunk);
         $this->assertStringContainsString('Font Awesome Free 6.5.1', $chunk);
         $this->assertStringContainsString('includes/fontawesome', $chunk);
+        $this->assertStringContainsString('filemtime', $chunk);
         $this->assertStringContainsString('ka-f.fontawesome.com', $chunk);
         $this->assertStringContainsString('AdminSidebarLayoutStabilityFeatureTest', $chunk);
         $this->assertStringContainsString('users.layout_wide', $chunk);
@@ -51,6 +52,7 @@ final class AdminLayoutSidebarDocumentationContractTest extends TestCase
         $this->assertStringContainsString('admin-list-toolbar.css', $html);
         $this->assertStringContainsString('Font Awesome Free 6.5.1', $html);
         $this->assertStringContainsString('fa-solid-900.woff2', $html);
+        $this->assertStringContainsString('filemtime', $html);
         $this->assertStringContainsString('public/plugins/overlayScrollbars/', $html);
         $this->assertStringContainsString('не</b> подключаем', $html);
         $this->assertStringContainsString('Vite', $html);

@@ -44,6 +44,8 @@ final class FontAwesomeSelfHostedFeatureTest extends CrmTestCase
     {
         $this->assertStringContainsString('plugins/fontawesome-free/css/all.min.css', $html, $page);
         $this->assertStringContainsString('fa-solid-900.woff2', $html, $page);
+        $this->assertMatchesRegularExpression('#fontawesome-free/css/all\.min\.css\?v=\d+#', $html, $page.': CSS без cache-bust');
+        $this->assertMatchesRegularExpression('#fa-solid-900\.woff2\?v=\d+#', $html, $page.': woff2 без cache-bust');
         $this->assertStringNotContainsString('ka-f.fontawesome.com', $html, $page);
         $this->assertStringNotContainsString('js/fontawesome/fontawesome.js', $html, $page);
         $this->assertStringNotContainsString('FontAwesomeKitConfig', $html, $page);
@@ -85,6 +87,8 @@ final class FontAwesomeSelfHostedFeatureTest extends CrmTestCase
         $partial = (string) file_get_contents(resource_path('views/includes/fontawesome.blade.php'));
         $this->assertStringContainsString('plugins/fontawesome-free/css/all.min.css', $partial);
         $this->assertStringContainsString('fa-solid-900.woff2', $partial);
+        $this->assertStringContainsString('filemtime', $partial);
+        $this->assertStringContainsString('?v=', $partial);
         $this->assertStringContainsString('rel="preload"', $partial);
         $this->assertStringNotContainsString('fontawesome.js', $partial);
         $this->assertStringNotContainsString('ka-f.fontawesome.com', $partial);
