@@ -165,11 +165,74 @@ final class LessonPackageAssignmentPaySmsAjaxContractFeatureTest extends CrmTest
         $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
 
         $this->mock(SmsRuService::class, function ($mock): void {
-            $mock->shouldReceive('send')->once()->andReturn('API error');
+            $mock->shouldReceive('send')->once()->andReturn('API error: Недостаточно средств на счете [202]');
         });
 
         $this->postJson($this->smsSendUrl($ctx['assignment']->id), [], $this->smsAjaxHeaders())
             ->assertStatus(422)
+            ->assertJsonValidationErrors(['sms'])
+            ->assertJsonMissingValidationErrors(['phone', 'wallet'])
+            ->assertJsonPath('errors.sms.0', 'Не удалось отправить SMS: Недостаточно средств на счете');
+    }
+
+    public function test_send_returns_422_sms_with_operator_message_for_status_204(): void
+    {
+        $this->seedTbankForSmsPartner();
+        Partner::query()->whereKey($this->partner->id)->update(['wallet_balance_cents' => 20000]);
+        $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
+
+        $this->mock(SmsRuService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andReturn(
+                'SMS error: Вы не подключили данного оператора на данном отправителе. [204]'
+            );
+        });
+
+        $response = $this->postJson($this->smsSendUrl($ctx['assignment']->id), [], $this->smsAjaxHeaders());
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['sms'])
+            ->assertJsonMissingValidationErrors(['phone', 'wallet'])
+            ->assertJsonPath('errors.sms.0', SmsRuService::USER_ERROR_OPERATOR_NOT_CONNECTED);
+        $this->assertStringNotContainsString(
+            'Попробуйте позже',
+            (string) $response->json('errors.sms.0')
+        );
+    }
+
+    public function test_send_returns_422_sms_gateway_unavailable_on_http_error(): void
+    {
+        $this->seedTbankForSmsPartner();
+        Partner::query()->whereKey($this->partner->id)->update(['wallet_balance_cents' => 20000]);
+        $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
+
+        $this->mock(SmsRuService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andReturn('HTTP error: 502');
+        });
+
+        $this->postJson($this->smsSendUrl($ctx['assignment']->id), [], $this->smsAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sms'])
+            ->assertJsonPath('errors.sms.0', SmsRuService::USER_ERROR_GATEWAY_UNAVAILABLE);
+    }
+
+    public function test_send_returns_generic_sms_error_when_gateway_reason_is_unknown(): void
+    {
+        $this->seedTbankForSmsPartner();
+        Partner::query()->whereKey($this->partner->id)->update(['wallet_balance_cents' => 20000]);
+        $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
+
+        $this->mock(SmsRuService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andReturn('API error');
+        });
+
+        $response = $this->postJson($this->smsSendUrl($ctx['assignment']->id), [], $this->smsAjaxHeaders())
+            ->assertStatus(422)
             ->assertJsonValidationErrors(['sms']);
+
+        $this->assertSame(SmsRuService::USER_ERROR_GENERIC, $response->json('errors.sms.0'));
+        $this->assertStringNotContainsString(
+            'оператор этого номера не подключён',
+            (string) $response->json('errors.sms.0')
+        );
     }
 }

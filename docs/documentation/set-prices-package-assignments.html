@@ -107,7 +107,8 @@
     <a href="/docs/documentation/lesson-packages#assignments-deleted-users">§assignments-deleted-users</a>.
     Группа маршрутов: <code>can:lessonPackages.view</code> → внутри <code>can:setPrices.packageAssignments.view</code>
     (кроме <code>users-search</code>).
-    SMS со ссылкой на оплату — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>.
+    SMS со ссылкой на оплату — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>,
+    причина ошибки шлюза в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">/doc</a>.
   </div>
   <ul>
     <li>Страница / DataTable / columns / logs / teams-for-user / store / show / update / destroy / public-pay-link — оба права.</li>
@@ -122,7 +123,7 @@
     <li><code>PackageAssignmentsNonAjaxSafetyNetFeatureTest</code> — store/update без X-Requested-With → 302 + БД</li>
     <li><code>PackageAssignmentsAjaxContractFeatureTest</code> — JSON-контракт модалки</li>
     <li><code>LessonPackageAssignmentsDeletedUsersFilterFeatureTest</code> — фильтр «Удаленные», бейдж, show/update soft-deleted</li>
-    <li><code>LessonPackageAssignmentPaySmsAccessFeatureTest</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>UiContracts</code> / <code>Workflow</code> / <code>PaySmsFeatureTest</code> — колонка «Отправка СМС»</li>
+    <li><code>LessonPackageAssignmentPaySmsAccessFeatureTest</code> / <code>AjaxContract</code> / <code>GatewayError</code> / <code>NonAjaxSafetyNet</code> / <code>UiContracts</code> / <code>Workflow</code> / <code>PaySmsFeatureTest</code> — колонка «Отправка СМС»</li>
     <li><code>DashboardPackageAssignmentsAccessFeatureTest</code> — <code>packageAssignments.view</code> консоль не открывает</li>
     <li><code>DashboardLessonPackagesFeatureTest</code> — суммы, селект группы, <code>data-ulp-team-id</code></li>
     <li><code>DashboardLessonPackagesTeamFilterFeatureTest</code> — фильтр абонементов селектом группы, JS без сезонов, доступ</li>

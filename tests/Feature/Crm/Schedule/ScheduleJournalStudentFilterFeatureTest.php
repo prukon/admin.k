@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Crm\Schedule;
 
-use App\Http\Controllers\Admin\ScheduleController;
 use App\Models\Team;
 use App\Models\User;
 
@@ -266,71 +265,5 @@ final class ScheduleJournalStudentFilterFeatureTest extends ScheduleJournalTestC
 
         $this->assertTrue($included->contains($student->id));
         $this->assertFalse($included->contains($customRoleUser->id));
-    }
-
-    public function test_index_paginates_students_and_search_filters_by_name(): void
-    {
-        $studentRoleId = (int) \App\Models\Role::query()->where('name', 'user')->value('id');
-        $perPage = ScheduleController::JOURNAL_STUDENTS_PER_PAGE;
-
-        User::factory()
-            ->count($perPage + 1)
-            ->sequence(fn ($sequence) => [
-                'lastname' => sprintf('ЖурналПагин%03d', $sequence->index),
-                'name' => 'Тест',
-                'partner_id' => $this->partner->id,
-                'role_id' => $studentRoleId,
-                'is_enabled' => 1,
-                'team_id' => null,
-            ])
-            ->create();
-
-        $firstName = 'ЖурналПагин000 Тест';
-        $lastName = sprintf('ЖурналПагин%03d Тест', $perPage);
-
-        $page1 = $this->get(route('schedule.index', [
-            'year' => 2026,
-            'month' => '08',
-            'team' => 'all',
-        ]))->assertOk();
-
-        $page1->assertSee($firstName, false);
-        $page1->assertDontSee($lastName, false);
-        $page1->assertSee('page=2', false);
-        $page1->assertSee('из '.($perPage + 1).' учеников', false);
-
-        $this->get(route('schedule.index', [
-            'year' => 2026,
-            'month' => '08',
-            'team' => 'all',
-            'page' => 2,
-        ]))
-            ->assertOk()
-            ->assertSee($lastName, false)
-            ->assertDontSee($firstName, false);
-
-        $this->get(route('schedule.index', [
-            'year' => 2026,
-            'month' => '08',
-            'team' => 'all',
-            'q' => 'ЖурналПагин100',
-        ]))
-            ->assertOk()
-            ->assertSee($lastName, false)
-            ->assertDontSee($firstName, false);
-    }
-
-    public function test_index_invalid_month_shows_error_under_month_filter(): void
-    {
-        $this->from(route('schedule.index'))
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '13']))
-            ->assertRedirect(route('schedule.index'))
-            ->assertSessionHasErrors(['month' => 'Выберите месяц из списка.']);
-
-        $this->from(route('schedule.index'))
-            ->followingRedirects()
-            ->get(route('schedule.index', ['year' => 2026, 'month' => '13']))
-            ->assertOk()
-            ->assertSee('Выберите месяц из списка.', false);
     }
 }

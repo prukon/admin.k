@@ -220,6 +220,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         ->middleware('can:account.user.team.update')
         ->name('cabinet.teams.attach');
 
+    Route::post('/cabinet/layout-wide', [\App\Http\Controllers\User\LayoutPreferenceController::class, 'update'])
+        ->name('cabinet.layout-wide.update');
+
     Route::middleware('can:inAppNotifications.view')->group(function () {
         Route::get('/in-app-notifications', [InAppNotificationController::class, 'index'])
             ->name('inAppNotifications.index');

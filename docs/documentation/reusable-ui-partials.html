@@ -44,7 +44,8 @@
 
   <h3>CSS</h3>
   <ul>
-    <li><code>resources/css/admin-list-toolbar.css</code> — классы <code>payments-report-toolbar</code>, <code>payments-report-surface</code>, <code>payments-report-filters-toggle</code>, <code>payments-report-columns-menu</code> и др.</li>
+    <li><code>resources/css/admin-list-toolbar.css</code> — классы <code>payments-report-toolbar</code>, <code>payments-report-surface</code>, <code>payments-report-filters-toggle</code>, <code>payments-report-columns-menu</code> и др.
+      Резерв под скроллбар окна кабинета (<code>html { scrollbar-gutter }</code>) здесь <b>больше нет</b> — глобально в layout <code>admin2</code>, см. <a href="/docs/documentation/admin-layout-sidebar">admin-layout-sidebar</a>.</li>
     <li>Подключение на странице: <code>@vite(['resources/css/admin-list-toolbar.css'])</code>.</li>
   </ul>
 
@@ -197,6 +198,18 @@
   <h2 id="kidscrm-datatable">3) DataTables: пресет <code>KidsCrmDataTable</code></h2>
   <p>Файл: <code>resources/js/kids-datatable.js</code>. Документация в коде: <code>partials/datatables/kids-datatable.blade.php</code>.</p>
   <p>Объединяет: декларативные колонки, ширины (<code>datatables-columns.css</code>), tooltip'ы, настройки видимости колонок (<code>columns-settings</code>).</p>
+  <div class="note">
+    Общего прелоадера таблицы (<code>&lt;x-ui.table-preloader&gt;</code>, <code>KidsCrmTablePreloader</code>,
+    <code>bindTablePreloader</code>) <b>нет</b>. Обёртка <code>KidsCrmDataTable.create</code> на parse-time
+    Vite-модуля не ставила <code>is-ready</code>; лишний stage ломал ширину AdminLTE.
+    Журнал <code>/schedule</code> держит <b>локальный</b> оверлей — см.
+    <a href="/docs/documentation/schedule-journal#journal-table-preloader">schedule-journal §2.3</a>,
+    анонс — <a href="/doc#journal-table-preloader-index">/doc</a>.
+    Список учеников — без stage.
+    Тесты: <code>BladeInlineJsSyntaxTest::test_kids_table_preloader_component_and_datatable_bind_contract</code>,
+    <code>AdminUsersTablePreloaderRegressionFeatureTest</code>,
+    <code>ScheduleJournalTablePreloaderFeatureTest</code>.
+  </div>
 
   <h3>Пример</h3>
   <pre><code>const dtApi = KidsCrmDataTable.create('#locations-table', {

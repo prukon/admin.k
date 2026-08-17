@@ -18,6 +18,7 @@ final class UlpPaySmsDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('id="ulp-short-pay-link-index"', $html);
         $this->assertStringContainsString('id="assignments-pay-sms-index"', $html);
+        $this->assertStringContainsString('id="assignments-pay-sms-gateway-error-index"', $html);
         $this->assertStringContainsString('Оплатите абонемент {сумма} руб: {ссылка}', $html);
         $this->assertStringContainsString('/p/{short_code}', $html);
         $this->assertStringContainsString('1 SMS', $html);
@@ -25,6 +26,23 @@ final class UlpPaySmsDocumentationContractTest extends TestCase
             'Оплатите абонемент «{название}» на сумму {сумма} руб.: {ссылка}',
             $html
         );
+    }
+
+    public function test_doc_index_announces_sms_gateway_reason_in_modal_without_contradictions(): void
+    {
+        $html = $this->docFile('index.html');
+        $start = strpos($html, 'id="assignments-pay-sms-gateway-error-index"');
+        $this->assertNotFalse($start);
+        $chunk = substr($html, $start, 2800);
+
+        $this->assertStringContainsString('errors.sms', $chunk);
+        $this->assertStringContainsString('оператор этого номера не подключён', $chunk);
+        $this->assertStringContainsString('SMSRU_FROM', $chunk);
+        $this->assertStringContainsString('partners.sms_name', $chunk);
+        $this->assertStringContainsString('Автоповтора без имени отправителя CRM <b>не</b> делает', $chunk);
+        $this->assertStringContainsString('2FA', $chunk);
+        $this->assertStringContainsString('#ulpSmsSendModal', $chunk);
+        $this->assertStringContainsString('/docs/documentation/lesson-packages#assignments-pay-sms', $chunk);
     }
 
     public function test_lesson_packages_and_payments_docs_match_short_sms_contract(): void
@@ -43,8 +61,12 @@ final class UlpPaySmsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Оплатите абонемент {сумма} руб: {ссылка}', $lessonPackages);
         $this->assertStringContainsString('без пробела тысяч', $lessonPackages);
         $this->assertStringContainsString('1 Unicode SMS', $lessonPackages);
+        $this->assertStringContainsString('userFacingErrorMessage', $lessonPackages);
+        $this->assertStringContainsString('оператор не подключён к отправителю', $lessonPackages);
+        $this->assertStringContainsString('LessonPackageAssignmentPaySmsGatewayErrorFeatureTest', $lessonPackages);
         $this->assertStringContainsString('/pay/ulp/{token}', $payments);
         $this->assertStringContainsString('в «Скопировать ссылку» и SMS не отдаётся', $payments);
+        $this->assertStringContainsString('/doc#assignments-pay-sms-gateway-error-index', $payments);
     }
 
     private function docFile(string $name): string

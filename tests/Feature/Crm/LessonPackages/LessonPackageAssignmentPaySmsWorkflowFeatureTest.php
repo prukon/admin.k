@@ -63,4 +63,35 @@ final class LessonPackageAssignmentPaySmsWorkflowFeatureTest extends CrmTestCase
         $this->partner->refresh();
         $this->assertSame(13000, (int) $this->partner->wallet_balance_cents);
     }
+
+    public function test_manager_sees_sms_ru_reason_after_failed_send_and_wallet_stays_without_reload(): void
+    {
+        $this->seedTbankForSmsPartner();
+        Partner::query()->whereKey($this->partner->id)->update(['wallet_balance_cents' => 20000]);
+        $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
+
+        $page = $this->get(route('admin.lesson-packages.assignments'));
+        $page->assertOk();
+        $this->assertNotSame('', trim((string) $page->getContent()));
+        $page->assertSee('ulp-sms-modal-alert', false);
+
+        $this->mock(SmsRuService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andReturn(
+                'SMS error: Вы не подключили данного оператора на данном отправителе. [204]'
+            );
+        });
+
+        $send = $this->postJson($this->smsSendUrl($ctx['assignment']->id), [], $this->smsAjaxHeaders());
+        $this->assertNotSame(500, $send->getStatusCode());
+        $send->assertStatus(422)
+            ->assertJsonPath('errors.sms.0', SmsRuService::USER_ERROR_OPERATOR_NOT_CONNECTED);
+        $this->assertStringNotContainsString('Попробуйте позже', (string) $send->json('errors.sms.0'));
+
+        $row = $this->smsAssignmentDataRow($ctx['assignment']->id);
+        $this->assertTrue((bool) $row['sms_send_available']);
+        $this->assertTrue((bool) $row['sms_wallet_ok']);
+
+        $this->partner->refresh();
+        $this->assertSame(20000, (int) $this->partner->wallet_balance_cents);
+    }
 }

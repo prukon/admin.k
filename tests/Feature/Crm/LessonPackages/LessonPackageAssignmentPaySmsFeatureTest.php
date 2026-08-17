@@ -417,7 +417,8 @@ final class LessonPackageAssignmentPaySmsFeatureTest extends CrmTestCase
             $this->ajaxHeaders()
         )
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['sms']);
+            ->assertJsonValidationErrors(['sms'])
+            ->assertJsonPath('errors.sms.0', 'Не удалось отправить SMS: fail');
 
         $this->partner->refresh();
         $this->assertSame(20000, (int) $this->partner->wallet_balance_cents);

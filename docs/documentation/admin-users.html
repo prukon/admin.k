@@ -70,6 +70,14 @@
   <h2>2) Список учеников (DataTables)</h2>
   <ul>
     <li><b>Фильтры</b> (кнопка «Применить»): <code>name</code> — ищет по ФИО ученика, ФИО родителя в <code>parents</code> (<code>whereHas parentProfile</code> по <code>lastname</code>/<code>firstname</code>/<code>middlename</code>, <b>не</b> по <code>parents.full_name_genitive</code> и <b>не</b> по <code>users.full_name_genitive</code>), телефону родителя (<code>parents.phone</code>), email, телефону ученика, дате рождения; <code>team_id</code> (<code>none</code> = без группы); <code>status</code> (<code>active</code> / <code>inactive</code>); при <code>contracts.view</code> — <code>contract</code> (§<a href="#user-contract-column">2.3</a>).</li>
+    <li><b>Таблица без прелоадера.</b> Список — <code>.table-responsive</code> + <code>#users-table</code> + <code>KidsCrmDataTable.create('#users-table')</code>.
+      Общего <code>&lt;x-ui.table-preloader&gt;</code> / <code>#users-table-stage</code> <b>нет</b>: обёртка ломала ширину AdminLTE
+      (тулбар <code>justify-content-between</code> разъезжался) и оставляла вечный спиннер
+      (Vite <code>kids-datatable.js</code> — <code>type=module</code>, parse-time wrap <code>create()</code> не срабатывал).
+      CSS тулбара — в <code>@push('styles')</code> до <code>@section('content')</code>
+      (<code>admin-list-toolbar.css</code> + <code>user.css</code>).
+      Локальный прелоадер есть только у журнала — <a href="/docs/documentation/schedule-journal#journal-table-preloader">schedule-journal §2.3</a>,
+      анонс — <a href="/doc#journal-table-preloader-index">/doc</a>.</li>
     <li><b>Колонки</b> настраиваются через «Колонки» в toolbar; настройки per user в <code>user_table_settings</code> (ключи <code>parent</code>, <code>parent_phone</code>, <code>contract</code> и др.). Колонка «Договор» — только при <code>contracts.view</code> (§<a href="#user-contract-column">2.3</a>).</li>
     <li><b>«Показать N»</b> — персонально на пользователя с <code>users.view</code> (§<a href="#users-page-length">2.0</a>).</li>
   </ul>
@@ -1336,6 +1344,7 @@
       <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportPreviewDiffFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a> / preview-diff §<a href="#user-import-preview-diff">8.5</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersTablePreloaderRegressionFeatureTest.php</code> — список без table-preloader: guest/403/200, тулбар снаружи таблицы, AdminLTE <code>.wrapper</code> не размазан, PUT/PATCH/DELETE → 404/405</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPhoneColumnFeatureTest.php</code> — колонка <code>parent_phone</code> / «Телефон ученика»: Blade-порядок, JSON, поиск, сортировка, guest/403/200, изоляция партнёра, columns-settings 422</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentCrudFeatureTest.php</code> — создание по ФИО, смена ФИО, отвязка, роль не <code>user</code>, shared FIO у siblings</li>

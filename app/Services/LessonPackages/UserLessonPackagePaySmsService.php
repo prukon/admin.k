@@ -131,7 +131,9 @@ final class UserLessonPackagePaySmsService
         if ($smsResult !== true) {
             $this->refundPartner($partner, $feeCents, $actorId, $walletTxId, (int) $assignment->id);
             throw ValidationException::withMessages([
-                'sms' => 'Не удалось отправить SMS. Попробуйте позже.',
+                'sms' => SmsRuService::userFacingErrorMessage(
+                    is_string($smsResult) ? $smsResult : 'Unknown error'
+                ),
             ]);
         }
 

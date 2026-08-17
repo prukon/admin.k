@@ -28,6 +28,184 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="admin-sidebar-stability-index">Кабинет: сайдбар без прыжка при смене пункта меню (2026‑08)</h2>
+  <div class="note">
+    В layout <code>admin2</code> левое меню прыгало при переходе между страницами:
+    у коротких и длинных экранов появлялся/пропадал вертикальный скролл окна
+    (центрированный кабинет <code>max-width: 1280px</code>, сайдбар <code>position: fixed; left: auto</code>),
+    а AdminLTE на <code>window.load</code> включал <code>overflow-y: auto</code> у <code>.sidebar</code>
+    (до этого пункты жили с <code>overflow-y: initial</code> и скроллом <code>none</code> → по hover <code>thin</code>).
+    <br><br>
+    1) <code>html { scrollbar-gutter: stable; }</code> в <code>&lt;head&gt;</code> <code>admin2</code>
+    (с первого кадра) и в <code>resources/css/style.css</code>. Без поддержки свойства —
+    <code>overflow-y: scroll</code> на <code>html</code>.
+    <br>
+    2) У <code>.sidebar</code> сразу <code>overflow-y: auto</code>, <code>scrollbar-gutter: stable</code>
+    и постоянный тонкий скролл (<code>scrollbar-width: thin</code> / webkit <code>0.5rem</code>).
+    <br>
+    3) OverlayScrollbars в layout не подключаем (файлы в <code>public/plugins</code> могут лежать,
+    AdminLTE их не грузит) — иначе плагин оборачивает меню после load.
+    <br>
+    4) Тот же gutter убран из <code>admin-list-toolbar.css</code>: он работал не на всех страницах кабинета.
+    <br>
+    5) Иконки меню больше не с Kit/CDN <code>ka-f.fontawesome.com</code>.
+    На сервере Font Awesome Free 6.5.1 (<code>plugins/fontawesome-free</code>, woff2),
+    partial <code>includes/fontawesome</code>, preload solid-шрифта,
+    слот <code>.nav-icon</code> с <code>inline-block</code> и шириной 1.6rem.
+    <br>
+    6) Ширина кабинета: кнопка в шапке справа переключает <code>.wrapper</code>
+    с 1280px на всю ширину окна. Значение в <code>users.layout_wide</code>
+    (конкретный юзер), на мобильном кнопка скрыта, лендинг не меняется.
+    <br>
+    Подробно — <a href="/docs/documentation/admin-layout-sidebar">admin-layout-sidebar</a>.
+    Тесты — <code>AdminSidebarLayoutStabilityFeatureTest</code>
+    (консоль и /admin/users с одним gutter, гость/403, <code>@can</code> «Консоль»,
+    POST /cabinet не пустой 200, лендинг без admin-слота),
+    <code>FontAwesomeSelfHostedFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (admin2 / landing + нет Kit).
+  </div>
+
+  <h2 id="reverb-status-overlay-index">Оверлей статуса Reverb (superadmin) (2026‑08)</h2>
+  <div class="note">
+    Superadmin на страницах CRM (лейаут <code>admin2</code>) видит бейдж <b>Reverb</b>
+    поверх всех окон (<code>z-index: 20000</code>): две строки — <b>процесс</b> и <b>сокет</b>.
+    У admin / trainer / user и на логине бейджа нет. Это диагностика realtime чата и колокольчика,
+    не отдельный продукт для школы.
+    <br><br>
+    1) <b>Процесс.</b> PHP проверяет TCP на внутреннем
+    <code>broadcasting.connections.reverb.options</code>
+    (<code>REVERB_SERVER_HOST</code> / <code>REVERB_SERVER_PORT</code>):
+    тест <code>127.0.0.1:6008</code>, прод <code>127.0.0.1:6009</code>.
+    Публичный клиентский хост (<code>REVERB_CLIENT_HOST</code>, :443) <b>не</b> смотрим:
+    иначе nginx «живой», а <code>reverb:start</code> мёртв — и оверлей врёт «up».
+    API: <code>GET /chat/api/reverb-status</code> (<code>auth</code> + <code>2fa</code>,
+    <b>без</b> <code>messages.view</code>; Form Request — только superadmin).
+    JSON: <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>.
+    Гость — редирект / 401. Остальные роли — 403. POST/PATCH/DELETE — 405.
+    <br>
+    2) <b>Сокет.</b> Состояние Laravel Echo (pusher-js) на
+    <code>wss://{домен}/app/{key}</code>. Клиент
+    <code>includes/in_app_notifications/echo.blade.php</code>,
+    <b>без</b> <code>wsPath: '/app'</code> (иначе handshake на <code>/app/app/{key}</code>
+    и сокет <code>failed</code>). Echo поднимается <b>до</b> оверлея в лейауте,
+    оверлей вешает <code>state_change</code>.
+    <br>
+    3) <b>Что считать нормой.</b> Зелёный (<code>is-ok</code>) только если процесс
+    <code>up</code> и сокет <code>connected</code>.
+    Процесс down + сокет <code>connecting</code> — не здорово (<code>is-warn</code> / точки
+    bad+warn). Иконка копирует обе строки в буфер.
+    Если процесс недоступен, HTTP чата и колокольчика не падает (событие в лог,
+    опрос 1с на <code>/chat</code> / 12с на остальных страницах).
+    <br>
+    4) <b>Nginx / Hestia.</b> Прокси <code>location /app</code> — сниппет
+    <code>nginx.ssl.conf_reverb</code> в
+    <code>/home/prukon/conf/web/{домен}/</code> (тест → <code>:6008</code>, прод → <code>:6009</code>).
+    Шаблон домена сам делает <code>include nginx.ssl.conf_*</code>; rebuild Hestia основной
+    <code>nginx.ssl.conf</code> перезаписывает, сниппет <b>не</b> трогает.
+    В сниппете нужен <code>proxy_pass_header Upgrade</code>: в шаблоне стоит
+    <code>proxy_hide_header Upgrade</code>. Proxy-template <code>laravel-reverb</code>
+    в выпадающем списке Hestia — старый кастом с зашитым <code>:6008</code>, на проде
+    не выбирать; рабочий шаблон — <code>default</code> + сниппет.
+    После правки сниппета: <code>nginx -t</code> и reload.
+    <br>
+    5) <b>Процесс на сервере.</b> systemd <code>reverb.service</code> (тест, :6008) и
+    <code>reverb-prod.service</code> (прод, :6009).
+    <code>WorkingDirectory</code> — корень Laravel
+    (<code>…/test.kidscrm.online/public_html</code> /
+    <code>…/kidscrm.online/public_html</code>), не старый каталог домена.
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#reverb-overlay">chat §оверлей</a>,
+    чат — <a href="/doc#chat-index">анонс чата</a>,
+    колокольчик — <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
+    Тесты: <code>ChatReverbOverlayFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (оверлей + Echo без <code>wsPath</code>),
+    <code>ChatAjaxContractFeatureTest</code> (HTTP чата при мёртвом Reverb).
+  </div>
+
+  <h2 id="journal-table-preloader-index">Журнал: локальный прелоадер таблицы (2026‑08)</h2>
+  <div class="note">
+    На вкладке <b>«Журнал»</b> (<code>GET /schedule</code>) таблица сначала закрыта
+    серым оверлеем со спиннером (пейджер — тоже, если страниц больше одной).
+    Фильтры года / месяца / группы и поиск остаются на месте.
+    Когда DataTables поднял SSR-таблицу — оверлей снимается. Отдельного API нет.
+    <br><br>
+    1) <b>Где есть.</b> Только вкладка журнала. «Нагрузка тренеров», «ЗП тренеров»,
+    «Листы ЗП», «Статусы занятий» — без этого оверлея.
+    <code>/admin/users</code> — обычный <code>.table-responsive</code> + <code>#users-table</code>
+    + <code>KidsCrmDataTable.create</code>, без stage.
+    <br>
+    2) <b>Первый кадр.</b> <code>#schedule-journal-stage</code> с <code>aria-busy="true"</code>,
+    класса <code>is-ready</code> нет. Внутри: <code>.schedule-journal-preloader</code>
+    (Bootstrap <code>spinner-border text-secondary</code>, без текста «Загрузка расписания»),
+    <code>#schedule-table</code> и пейджер <code>.schedule-journal-pagination</code>.
+    Смена года/месяца/группы, «Найти», <code>fullscreen=1</code> — полный GET, снова первый кадр.
+    <br>
+    3) <b>CSS в <code>&lt;head&gt;</code>.</b> Inline в <code>@push('styles')</code>
+    (<code>index.blade.php</code>, только <code>activeTab === journal</code>), вместе с
+    <code>schedule.css</code>. Пока нет <code>is-ready</code>: высота <code>12rem</code>,
+    таблица <code>visibility: hidden</code>, пейджер <code>display: none !important</code>,
+    оверлей <code>position: absolute; inset: 0; background: #f4f6f9</code>.
+    Полноэкран — фон оверлея белый (дубль в <code>schedule.css</code>).
+    <code>&lt;noscript&gt;</code> показывает таблицу без спиннера.
+    <br>
+    4) <b>Снятие.</b> Страница грузит hotfix <code>public/js/schedule-journal.js</code>
+    (не Vite <code>resources/js/schedule.js</code>; обе копии должны совпадать).
+    <code>revealScheduleJournalTable()</code> сразу после
+    <code>$('#schedule-table').DataTable({…})</code> и в <code>catch</code>.
+    Не <code>draw.dt</code> и не обёртка <code>KidsCrmDataTable.create</code>
+    (журнал — HTML с сервера, не AJAX DataTables).
+    <br>
+    5) <b>Почему не общий компонент.</b> <code>&lt;x-ui.table-preloader&gt;</code> /
+    <code>KidsCrmTablePreloader</code> / <code>bindTablePreloader</code> <b>нет</b>.
+    Обёртка <code>create()</code> на parse-time Vite-модуля (<code>type=module</code>)
+    не ставила <code>is-ready</code> — вечный спиннер на учениках.
+    Лишний stage ломал ширину AdminLTE: тулбар
+    <code>justify-content-between</code> разъезжался на весь экран.
+    <br>
+    Право <code>schedule.view</code>. Гость 302/401, без права 403.
+    Подробно — <a href="/docs/documentation/schedule-journal#journal-table-preloader">schedule-journal §2.3</a>,
+    ученики — <a href="/docs/documentation/admin-users">admin-users</a>,
+    DataTable — <a href="/docs/documentation/reusable-ui-partials#kidscrm-datatable">reusable-ui-partials §3</a>.
+    Тесты: <code>ScheduleJournalTablePreloaderFeatureTest</code>,
+    <code>ScheduleJournalTablePreloaderFullAccessFeatureTest</code>,
+    <code>AdminUsersTablePreloaderRegressionFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (journal + users + нет bind в <code>kids-datatable.js</code>).
+  </div>
+
+  <h2 id="assignments-pay-sms-gateway-error-index">Назначения: причина ошибки SMS в модалке (2026‑08)</h2>
+  <div class="note">
+    Если sms.ru не принял SMS со ссылкой на оплату абонемента, модалка
+    <code>#ulpSmsSendModal</code> на
+    <code>/admin/lesson-packages/assignments</code> показывает <b>причину шлюза</b>
+    в алерте (<code>errors.sms</code>), а не одну общую фразу «Попробуйте позже».
+    Списание 70 ₽ по-прежнему откатывается (debit → credit-возврат),
+    телефон и audit <code>user_lesson_package.pay_sms_sent</code> не пишутся.
+    <br><br>
+    1) <b>Код 204.</b> Текст:
+    «Не удалось отправить SMS: оператор этого номера не подключён к имени отправителя.
+    Подайте заявку в кабинете sms.ru в разделе «Отправители».»
+    Имя отправителя — env <code>SMSRU_FROM</code> (на проде <code>kidscrm</code>),
+    <b>не</b> поле партнёра «Название для SMS/выписок»
+    (<code>partners.sms_name</code> — для Т‑Банка / выписок).
+    На такие номера SMS начнёт ходить только после заявки в кабинете sms.ru.
+    Автоповтора без имени отправителя CRM <b>не</b> делает.
+    <br>
+    2) <b>Другие ответы.</b> Есть <code>status_text</code> sms.ru —
+    «Не удалось отправить SMS: {текст}».
+    HTTP/таймаут — «шлюз sms.ru недоступен. Попробуйте позже».
+    Пустой api_id или неизвестная ошибка — общая «Попробуйте позже»
+    (это запасной текст, не ответ на 204).
+    <br>
+    3) <b>Где видно.</b> AJAX: алерт <code>#ulp-sms-modal-alert</code> из
+    <code>errors.sms[0]</code> (JS не подменяет хардкодом).
+    Повторное открытие модалки сначала чистит алерт.
+    Телефон — под полем, нехватка баланса — <code>errors.wallet</code> в том же алерте.
+    Только эта модалка назначений: коды 2FA и смена телефона текст не меняли.
+    <br>
+    Подробно — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>.
+    Колонка «Отправка СМС» — <a href="/doc#assignments-pay-sms-index">анонс ниже</a>.
+  </div>
+
   <h2 id="ulp-short-pay-link-index">Короткая ссылка на оплату абонемента (2026‑08)</h2>
   <div class="note">
     «Скопировать ссылку на оплату» и SMS отдают короткий URL
@@ -80,6 +258,8 @@
     Для оператора итог: платит только успешная отправка. Audit
     <code>user_lesson_package.pay_sms_sent</code> только после успеха.
     Ошибки: <code>errors.phone</code> под полем, <code>wallet</code> / <code>sms</code> в алерте модалки.
+    Причина отказа sms.ru в алерте — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс выше</a>
+    (не общая «Попробуйте позже» на код 204).
     Права — оба: <code>lessonPackages.view</code> + <code>setPrices.packageAssignments.view</code>.
     Подробно — <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>.
   </div>
@@ -117,24 +297,27 @@
     4) <b>Realtime.</b> Тот же Reverb, что у колокольчика. Клиент Echo —
     <code>includes/in_app_notifications/echo.blade.php</code>, <b>без</b> <code>wsPath: '/app'</code>
     (иначе handshake уходит на <code>/app/app/{key}</code> и сокет <code>failed</code>).
-    Nginx теста: <code>location /app</code> → <code>127.0.0.1:6008</code>.
+    Nginx: <code>location /app</code> → внутренний порт Reverb (тест <code>:6008</code>,
+    прод <code>:6009</code>) через сниппет <code>nginx.ssl.conf_reverb</code>, не через
+    proxy-template <code>laravel-reverb</code>.
     Каналы: <code>thread.{id}</code>, <code>inbox.{userId}</code> (чужой — 403).
     Если процесс Reverb недоступен, HTTP чата не падает (событие в лог).
     Сокет не <code>connected</code>: на <code>/chat</code> опрос inbox и открытого диалога
     раз в <b>1 секунду</b>; на остальных страницах бейдж — <code>/chat/api/unread</code>
     раз в <b>12 секунд</b>.
     <br>
-    5) <b>Оверлей Reverb</b> только у superadmin (поверх всех окон, <code>z-index: 20000</code>):
-    процесс (хост/порт из <code>broadcasting.connections.reverb</code>, на тесте <code>:6008</code>)
-    и состояние Echo. Иконка копирует оба значения. API
-    <code>GET /chat/api/reverb-status</code> — вне <code>can:messages.view</code>, только superadmin.
+    5) <b>Оверлей Reverb</b> только у superadmin. Отдельный анонс:
+    <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>
+    (процесс на внутреннем порте, сокет Echo, сниппет nginx, без <code>wsPath</code>).
+    API <code>GET /chat/api/reverb-status</code> — вне <code>can:messages.view</code>, только superadmin.
     <br>
     6) <b>Native POST/PATCH</b> без <code>X-Requested-With</code> — 302 на <code>/chat</code>,
     запись в БД есть (не сырой JSON 200/201).
     <br><br>
     Подробно: <a href="/docs/documentation/chat">chat</a>.
     Тесты: <code>Chat*FeatureTest</code>, в т.ч. <code>ChatUnreadSidebarFlashUxFeatureTest</code>
-    (вспышка бейджа), <code>BladeInlineJsSyntaxTest</code>.
+    (вспышка бейджа), <code>ChatReverbOverlayFeatureTest</code> (оверлей / status API),
+    <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
   <h2 id="cabinet-attach-team-in-app-body-index">Колокольчик: текст с родителем и без (2026‑08)</h2>
@@ -625,6 +808,53 @@
     <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.
     Тесты: <code>ScheduleJournalMonthlyPaymentStatusFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code> (колонка + фильтр группы).
+  </div>
+
+  <h2 id="journal-pagination-index">Журнал: пагинация 100 и поиск <code>q</code> (2026‑08)</h2>
+  <div class="note">
+    <code>GET /schedule</code> больше не рисует всех учеников школы за месяц.
+    Раньше таблица «ученики × дни» при ~1000 учениках (dev-seed партнёра 1)
+    исчерпывала memory limit. Список режется на сервере:
+    <code>JOURNAL_STUDENTS_PER_PAGE = 100</code>.
+    <br><br>
+    1) <b>Выборка, не «все подряд».</b> Сначала круг журнала: свой партнёр,
+    <code>is_enabled = 1</code>, системная роль <code>user</code>; затем год / месяц /
+    группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code>.
+    Страница — 100 строк <b>этой</b> выборки. Занятия, fixed/flexible ULP,
+    постоплата и галочка оплаты месяца грузятся только для id текущей страницы
+    (<code>fixedAssignmentsByUser()</code>, без N+1 по ученику).
+    <br>
+    2) <b>Пейджер.</b> Блок <code>.schedule-journal-pagination</code>
+    («Показаны N–M из K учеников» + ссылки) только если страниц больше одной.
+    При 100 и меньше блока нет. Номера строк — сквозные
+    (<code>firstItem + index</code>: на стр. 2 первая строка = 101).
+    Ссылки пейджера сохраняют query string (<code>year</code> / <code>month</code> /
+    <code>team</code> / <code>q</code>).
+    <br>
+    3) <b>Поиск «Найти»</b> — серверный GET <code>q</code> (фамилия, имя, склейка ФИО;
+    max 191, trim). Форма <b>без</b> hidden <code>page</code>: поиск со 2-й страницы
+    открывает 1-ю страницу совпадений, а не пустую <code>page=2</code>.
+    Скрытые поля держат год / месяц / группу (и <code>fullscreen=1</code>, если уже в URL).
+    <b>Не путать</b> с keyup DataTables: он по-прежнему фильтрует только текущую страницу
+    (<code>paging: false</code>).
+    <br>
+    4) <b>Смена года / месяца / группы</b> — полный GET
+    (<code>window.location.href</code>). Обе копии JS
+    (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>)
+    делают <code>searchParams.delete('page')</code> и <b>не</b> удаляют <code>q</code>.
+    <br>
+    5) <b>Доступ и ошибки.</b> Право <code>schedule.view</code>; отдельного JSON-списка учеников нет
+    (это HTML-страница). Невалидный HTML GET → <b>302</b> + текст под полем
+    (<code>errors.year|month|team|q|page</code>); JSON → <b>422</b> с теми же ключами.
+    Пустой <code>team</code> → <code>all</code>. Гость 302/401, без права 403,
+    без партнёра — logout и «Ваша организация недоступна.» под Email.
+    <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.
+    <br><br>
+    Документ: <a href="/docs/documentation/schedule-journal#journal-pagination">schedule-journal §2.2</a>,
+    объём тестовых данных — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
+    Тесты: <code>ScheduleJournalPaginationFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>.
+    Локальный прелоадер таблицы — <a href="/doc#journal-table-preloader-index">анонс выше</a>.
   </div>
 
   <h2 id="user-percent-discount-index">Персональная скидка ученика % (2026‑08)</h2>
@@ -2103,7 +2333,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, оверлей статуса для superadmin, без вложений и без групп — <a href="/doc#chat-index">анонс</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, <b>оверлей статуса Reverb</b> для superadmin (<a href="/doc#reverb-status-overlay-index">анонс</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), без вложений и без групп — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -2127,9 +2357,9 @@
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
     <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
-    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
+    <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code> и <code>kansas</code>, <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
@@ -2149,7 +2379,7 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
@@ -2158,7 +2388,8 @@
 
   <h2>Переиспользование UI</h2>
   <ul>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
+    <li><a href="/docs/documentation/admin-layout-sidebar"><strong>Кабинет: стабильный сайдбар</strong>: <code>scrollbar-gutter: stable</code> в <code>admin2</code> / <code>style.css</code>, overflow сайдбара с первого кадра, без OverlayScrollbars; <b>локальный FA 6.5.1</b> вместо Kit/CDN, слот <code>.nav-icon</code> — <a href="/doc#admin-sidebar-stability-index">анонс</a></a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»; <b>общего table-preloader нет</b> — <a href="/doc#journal-table-preloader-index">анонс</a>), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
   </ul>
 </div>
 </body>

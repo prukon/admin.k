@@ -59,6 +59,7 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
 
             'is_enabled' => 1,
+            'layout_wide' => false,
 
             'start_date' => $this->faker->optional()->date(),
             'birthday'   => $this->faker->optional()->date(),

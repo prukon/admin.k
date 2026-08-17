@@ -1,9 +1,6 @@
 /* Общий тулбар списков и отчётов: карточка, кнопки, фильтры, итог */
 
-/* Не сдвигаем sidebar/контент при появлении вертикального скролла (раскрытие фильтров и т.п.) */
-html {
-    scrollbar-gutter: stable;
-}
+/* Резерв под скроллбар окна кабинета — глобально в layouts/admin2.blade.php и style.css */
 
 .payments-report-surface {
     background: var(--bs-body-bg, #fff);

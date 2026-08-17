@@ -30,7 +30,8 @@
   <p class="small"><a href="/doc">← Документация</a></p>
   <h1>Чат CRM (Сообщения)</h1>
   <div class="small">Файл: <code>/docs/documentation/chat.html</code> · кабинет: <code>/chat</code>
-    · анонс: <a href="/doc#chat-index">/doc</a></div>
+    · анонс чата: <a href="/doc#chat-index">/doc#chat-index</a>
+    · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы. Текст без вложений.
@@ -139,9 +140,30 @@
       Если сокет не <code>connected</code>, страница чата опрашивает inbox и открытый диалог раз в 1 секунду;
       на остальных страницах бейдж — раз в 12 секунд.
       Открытие диалога (GET show) сразу отдаёт <code>unread_total</code>; страница чата ставит его в бейдж меню без ожидания сокета.
-      Superadmin видит поверх всех окон бейдж Reverb (процесс на хосте/порту
-      <code>broadcasting.connections.reverb.options</code>, на тесте <code>:6008</code>,
-      и состояние Echo); иконка копирует оба значения в буфер.</li>
+      Superadmin видит поверх всех окон бейдж Reverb: процесс — TCP-проверка внутреннего
+      <code>broadcasting.connections.reverb.options</code> (тест <code>127.0.0.1:6008</code>,
+      прод <code>127.0.0.1:6009</code>), сокет — состояние Echo через nginx
+      <code>location /app</code> (сниппет <code>nginx.ssl.conf_reverb</code>, не proxy-template
+      <code>laravel-reverb</code>). Процесс down и сокет <code>connecting</code> — не «всё ок»
+      (оверлей <code>is-warn</code> / <code>is-bad</code>, не <code>is-ok</code>).
+      Иконка копирует оба значения в буфер.
+      Отдельный анонс: <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>.</li>
+  </ol>
+
+  <h2 id="reverb-overlay">5.1) Оверлей статуса Reverb</h2>
+  <ol>
+    <li>Только роль <code>superadmin</code> (не <code>@can messages.view</code>). Include
+      <code>includes/chat/reverb_status.blade.php</code> в лейауте <code>admin2</code>
+      после Echo. На логине и у admin/trainer/user бейджа нет.</li>
+    <li>Процесс: TCP на <code>broadcasting.connections.reverb.options</code>
+      (тест <code>127.0.0.1:6008</code>, прод <code>127.0.0.1:6009</code>), не на публичный :443.</li>
+    <li>Сокет: Echo. Nginx <code>location /app</code> — сниппет <code>nginx.ssl.conf_reverb</code>,
+      не proxy-template <code>laravel-reverb</code>. Клиент без <code>wsPath: '/app'</code>.</li>
+    <li>Зелёный только при процессе <code>up</code> и сокете <code>connected</code>.
+      Down + <code>connecting</code> — не «всё ок».</li>
+    <li><code>GET /chat/api/reverb-status</code>: JSON <code>listening</code> / <code>ok</code> /
+      <code>host</code> / <code>port</code> / <code>driver</code>. Гость 302/401, не-superadmin 403,
+      мутации 405.</li>
   </ol>
 
   <h2 id="tests">6) Тесты</h2>
@@ -150,11 +172,12 @@
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
+    <li><code>ChatReverbOverlayFeatureTest</code> — <code>GET /chat/api/reverb-status</code> (гость / без superadmin / JSON-структура / внутренний порт, не client host), оверлей на dashboard и <code>/chat</code>, Echo без <code>wsPath</code>, UX: процесс down + сокет connecting ≠ <code>is-ok</code>.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1, чужой тред 403 (включая PATCH read), 422 под полями.</li>
     <li><code>ChatMessagesViewPermissionCatalogFeatureTest</code> — каталог права и автовыдача.</li>
     <li><code>PartnerBasePermissionsTest</code> — <code>messages.view</code> в базовых ролях.</li>
-    <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда) и echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>).</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда), echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>), оверлей Reverb и Echo-клиент (без <code>wsPath</code>).</li>
     <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code> и эта страница не противоречат UX (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>).</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter Chat</code></pre>

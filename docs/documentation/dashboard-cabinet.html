@@ -39,7 +39,9 @@
     есть видимые назначенные абонементы (права <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>).
     Фильтрация на клиенте: сезоны по <code>users_prices.team_id</code>,
     абонементы по <code>user_lesson_packages.team_id</code> (без <code>team_id</code> при селекте скрываются).
-    Отдельно (сайдбар layout <code>admin2</code>, шапка <code>/cabinet</code>, учётная запись): при
+    Сайдбар layout <code>admin2</code> при смене пункта меню не сдвигает колонку
+    (gutter / overflow / локальный FA) — <a href="/docs/documentation/admin-layout-sidebar">admin-layout-sidebar</a>.
+    Отдельно (сайдбар, шапка <code>/cabinet</code>, учётная запись): при
     <code>account.user.team.update</code> — добавление группы (§<a href="#cabinet-attach-team">7.1</a>).
     В той же шапке <code>admin2</code> (перед «Выйти») — колокольчик in-app уведомлений при
     <code>inAppNotifications.view</code>; это не блок оплат консоли —
@@ -405,7 +407,8 @@ php artisan test --env=testing --filter=cabinet_attach_team_modal</code></pre>
     <a href="/docs/documentation/setting-prices-custom-payments">Доп. платежи</a> ·
     <a href="/docs/documentation/student-team-membership">Ученик ↔ группы</a> ·
     <a href="/docs/documentation/parents-and-family-cabinet">Семейный кабинет</a> ·
-    <a href="/docs/documentation/payments">Оплаты</a>
+    <a href="/docs/documentation/payments">Оплаты</a> ·
+    <a href="/docs/documentation/admin-layout-sidebar">Стабильный сайдбар</a>
   </p>
 </div>
 </body>

@@ -94,6 +94,11 @@ final class LessonPackageAssignmentPaySmsUiContractsFeatureTest extends CrmTestC
 
         $this->assertStringContainsString('Отправка сообщений платная, 70 руб. за сообщение', $modalChunk);
         $this->assertStringContainsString('ulp-sms-phone-error', $modalChunk);
+        $this->assertMatchesRegularExpression(
+            '/id="ulp-sms-modal-alert"[^>]*\bd-none\b[^>]*><\/div>/',
+            $modalChunk,
+            'Алерт ошибки шлюза при первом открытии должен быть скрыт и пустым'
+        );
         $this->assertStringContainsString('@can', file_get_contents(
             resource_path('views/admin/lessonPackages/tabs/assignments.blade.php')
         ) ?: '');

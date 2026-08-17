@@ -68,11 +68,43 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'account settings tabs shell' => ['account/index.blade.php'];
         yield 'cabinet attach team modal' => ['includes/modal/cabinet_attach_team_modal.blade.php'];
         yield 'user percent discount js helper' => ['partials/ui/discount-percent-js.blade.php'];
+        yield 'admin2 layout leftover inline scripts' => ['layouts/admin2.blade.php'];
+        yield 'landing layout leftover inline scripts' => ['layouts/landingPage.blade.php'];
+        yield 'cabinet layout wide toggle' => ['includes/layout_wide_toggle.blade.php'];
     }
 
     /**
      * P1: модалка «Добавить группу» в ЛК — AJAX-контракт (preventDefault, fetch, errors.team_id, reload).
      */
+    public function test_admin_and_landing_layouts_do_not_embed_fontawesome_kit_and_inline_scripts_are_valid(): void
+    {
+        foreach (['layouts/admin2.blade.php', 'layouts/landingPage.blade.php'] as $relative) {
+            $path = resource_path('views/'.$relative);
+            $this->assertFileExists($path);
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString("@include('includes.fontawesome')", $content, $relative);
+            $this->assertStringNotContainsString('js/fontawesome/fontawesome.js', $content, $relative);
+            $this->assertStringNotContainsString('FontAwesomeKitConfig', $content, $relative);
+            $this->assertStringNotContainsString('ka-f.fontawesome.com', $content, $relative);
+        }
+
+        $partial = (string) file_get_contents(resource_path('views/includes/fontawesome.blade.php'));
+        $this->assertStringNotContainsString('<script', $partial);
+        $this->assertStringContainsString('plugins/fontawesome-free/css/all.min.css', $partial);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/layouts/admin2.blade.php'),
+            'showModalQueued',
+            'blade-js-admin2-modals'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            resource_path('views/layouts/landingPage.blade.php'),
+            'showModalQueued',
+            'blade-js-landing-modals'
+        );
+    }
+
     public function test_cabinet_attach_team_modal_ajax_contract_and_valid_javascript(): void
     {
         $path = resource_path('views/includes/modal/cabinet_attach_team_modal.blade.php');
@@ -485,6 +517,55 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: оверлей Reverb + Echo-клиент — синтаксис и UX-контракт
+     * (процесс/сокет раздельно, connecting ≠ connected, без wsPath: '/app').
+     */
+    public function test_reverb_overlay_and_echo_client_contracts_are_valid_javascript(): void
+    {
+        $overlayPath = resource_path('views/includes/chat/reverb_status.blade.php');
+        $echoPath = resource_path('views/includes/in_app_notifications/echo.blade.php');
+        $this->assertFileExists($overlayPath);
+        $this->assertFileExists($echoPath);
+
+        $overlay = (string) file_get_contents($overlayPath);
+        $echo = (string) file_get_contents($echoPath);
+
+        $this->assertStringContainsString("credentials: 'same-origin'", $overlay);
+        $this->assertStringContainsString("'Accept': 'application/json'", $overlay);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $overlay);
+        $this->assertStringContainsString('setInterval(refreshProcess, 3000)', $overlay);
+        $this->assertStringContainsString('setInterval(paint, 1000)', $overlay);
+        $this->assertStringContainsString("connection.bind('state_change'", $overlay);
+        $this->assertStringContainsString("state === 'connecting' || state === 'initialized'", $overlay);
+        $this->assertStringContainsString("listening && sockKind === 'ok'", $overlay);
+        $this->assertStringContainsString("listening || sockKind === 'warn'", $overlay);
+        $this->assertStringContainsString('navigator.clipboard.writeText', $overlay);
+        $this->assertStringContainsString("процесс: '", $overlay);
+        $this->assertStringContainsString("сокет: '", $overlay);
+        $this->assertStringNotContainsString('@can(', $overlay);
+        $this->assertStringNotContainsString('messages.view', $overlay);
+
+        $this->assertStringContainsString("broadcaster: 'reverb'", $echo);
+        $this->assertStringContainsString('wsHost: window.location.hostname', $echo);
+        $this->assertStringContainsString('forceTLS: true', $echo);
+        $this->assertStringContainsString('wssPort: 443', $echo);
+        $this->assertStringContainsString("enabledTransports: ['ws', 'wss']", $echo);
+        $this->assertStringNotContainsString("wsPath: '/app'", $echo);
+        $this->assertStringNotContainsString('wsPath: "/app"', $echo);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $overlayPath,
+            'function refreshProcess()',
+            'blade-js-reverb-overlay'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $echoPath,
+            "broadcaster: 'reverb'",
+            'blade-js-reverb-echo-client'
+        );
+    }
+
+    /**
      * P1: Vite-модуль журнала /schedule — AJAX place-fixed + update (не inline blade).
      * node --check + контракт обработчиков (preventDefault, Accept JSON).
      */
@@ -737,29 +818,23 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('.schedule-fullscreen-wrapper.fullscreen .schedule-journal-preloader', $css);
         $this->assertStringNotContainsString('.kids-table-preloader', $css);
 
-        foreach ([
-            resource_path('js/schedule.js'),
-            public_path('js/schedule-journal.js'),
-        ] as $jsPath) {
-            $this->assertFileExists($jsPath);
-            $js = (string) file_get_contents($jsPath);
-            $this->assertStringContainsString('function revealScheduleJournalTable()', $js);
-            $this->assertStringContainsString('$(\'#schedule-table\').DataTable({', $js);
-            $this->assertStringNotContainsString('KidsCrmTablePreloader', $js);
-            $revealPos = strpos($js, 'revealScheduleJournalTable()');
-            $dtPos = strpos($js, '$(\'#schedule-table\').DataTable({');
-            $this->assertNotFalse($revealPos);
-            $this->assertNotFalse($dtPos);
+        $this->assertStringContainsString('height: 12rem', $stylesChunk);
+        $this->assertStringContainsString('overflow: hidden', $stylesChunk);
+        $this->assertStringContainsString('visibility: hidden', $stylesChunk);
+        $this->assertStringContainsString('display: none !important', $stylesChunk);
+        $this->assertStringContainsString('background: #f4f6f9', $stylesChunk);
+        $this->assertStringContainsString('<noscript>', $stylesChunk);
+        $this->assertStringContainsString('asset(\'js/schedule-journal.js\')', $indexContent);
 
-            $output = [];
-            $exitCode = 0;
-            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
-            $this->assertSame(
-                0,
-                $exitCode,
-                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
-            );
-        }
+        $sourceJs = (string) file_get_contents(resource_path('js/schedule.js'));
+        $hotfixJs = (string) file_get_contents(public_path('js/schedule-journal.js'));
+        $this->assertScheduleJournalRevealAfterDataTableContract($sourceJs, resource_path('js/schedule.js'));
+        $this->assertScheduleJournalRevealAfterDataTableContract($hotfixJs, public_path('js/schedule-journal.js'));
+        $this->assertSame(
+            $this->scheduleJournalRevealSnippet($sourceJs),
+            $this->scheduleJournalRevealSnippet($hotfixJs),
+            'hotfix public/js/schedule-journal.js должен снимать прелоадер так же, как resources/js/schedule.js'
+        );
     }
 
     /**
@@ -804,6 +879,83 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $js);
             $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
             $this->assertStringNotContainsString('data-journal-payment-status', $js);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
+    }
+
+    /**
+     * P1: пагинация журнала — GET-поиск без hidden page; смена года/месяца/группы
+     * в обеих копиях JS сбрасывает page и не трогает q. journal.blade.php без inline <script>.
+     */
+    public function test_schedule_journal_pagination_and_search_js_contract(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $journal = (string) file_get_contents($blade);
+
+        $this->assertStringNotContainsString('<script', $journal);
+        $this->assertStringContainsString('<form method="get" action="{{ route(\'schedule.index\') }}"', $journal);
+        $this->assertStringContainsString('<input type="hidden" name="year" value="{{ $year }}">', $journal);
+        $this->assertStringContainsString('<input type="hidden" name="month" value="{{ $month }}">', $journal);
+        $this->assertStringContainsString('<input type="hidden" name="team" value="{{ $team_id }}">', $journal);
+        $this->assertStringNotContainsString('name="page"', $journal);
+        $this->assertStringContainsString('id="table-search"', $journal);
+        $this->assertStringContainsString('name="q"', $journal);
+        $this->assertStringContainsString('value="{{ $searchQ ?? \'\' }}"', $journal);
+        $this->assertStringContainsString('Найти', $journal);
+        $this->assertStringContainsString("@error('year')", $journal);
+        $this->assertStringContainsString("@error('month')", $journal);
+        $this->assertStringContainsString("@error('team')", $journal);
+        $this->assertStringContainsString("@error('q')", $journal);
+        $this->assertStringContainsString('$users->lastPage() > 1', $journal);
+        $this->assertStringContainsString('schedule-journal-pagination', $journal);
+        $this->assertStringContainsString('($users->firstItem() ?? 1) + $index', $journal);
+
+        $yearPos = strpos($journal, 'id="filter-year"');
+        $monthPos = strpos($journal, 'id="filter-month"');
+        $teamPos = strpos($journal, 'id="filter-team"');
+        $searchPos = strpos($journal, 'id="table-search"');
+        $this->assertNotFalse($yearPos);
+        $this->assertNotFalse($monthPos);
+        $this->assertNotFalse($teamPos);
+        $this->assertNotFalse($searchPos);
+        $this->assertLessThan($monthPos, $yearPos);
+        $this->assertLessThan($teamPos, $monthPos);
+        $this->assertLessThan($searchPos, $teamPos);
+
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+
+            $this->assertStringContainsString(
+                "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'",
+                $js
+            );
+            $setTeam = "newUrl.searchParams.set('team', $('#filter-team').val())";
+            $deletePage = "newUrl.searchParams.delete('page')";
+            $this->assertStringContainsString($setTeam, $js);
+            $this->assertStringContainsString($deletePage, $js);
+            $this->assertGreaterThan(
+                strpos($js, $setTeam),
+                strpos($js, $deletePage),
+                "{$jsPath}: delete('page') должен идти после set('team') при смене фильтра"
+            );
+            $this->assertStringNotContainsString("newUrl.searchParams.delete('q')", $js);
+            $this->assertStringContainsString('paging: false', $js);
+            $this->assertStringContainsString("$('#table-search').on('keyup'", $js);
+            $this->assertStringContainsString('table.search(this.value).draw()', $js);
+            $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
 
             $output = [];
             $exitCode = 0;
@@ -1849,7 +2001,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
     /**
      * P1: колонка «Отправка СМС» — node --check и UX-контракт (native disabled + kids-tooltip-hint,
-     * reset модалки при повторном открытии, errors.phone под полем).
+     * reset модалки при повторном открытии, errors.phone под полем, errors.sms в алерте без «Попробуйте позже»).
      */
     public function test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript(): void
     {
@@ -1931,6 +2083,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("smsSendBtn.removeAttribute('data-busy')", $resetChunk);
         $this->assertStringContainsString('smsPhoneInput.readOnly = false', $resetChunk);
         $this->assertStringContainsString("smsPhoneInput.removeAttribute('readonly')", $resetChunk);
+        $this->assertStringContainsString("setSmsAlert('')", $resetChunk);
+        $this->assertStringContainsString("setSmsPhoneError('')", $resetChunk);
 
         $fillStart = strpos($content, 'function fillSmsModal(payload)');
         $this->assertNotFalse($fillStart);
@@ -1952,6 +2106,29 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('errors.sms', $sendChunk);
         $this->assertStringContainsString('setSmsAlert', $sendChunk);
         $this->assertStringContainsString('dtApi.reload({ keepPage: true })', $sendChunk);
+
+        $smsErrPos = strpos($sendChunk, 'errors.sms');
+        $walletErrPos = strpos($sendChunk, 'errors.wallet');
+        $payloadMsgPos = strpos($sendChunk, 'payload && payload.message');
+        $statusFallbackPos = strpos($sendChunk, "Не удалось отправить SMS (' + status + ')");
+        $this->assertNotFalse($smsErrPos);
+        $this->assertNotFalse($walletErrPos);
+        $this->assertNotFalse($payloadMsgPos);
+        $this->assertNotFalse($statusFallbackPos);
+        $this->assertTrue(
+            $smsErrPos < $walletErrPos && $walletErrPos < $payloadMsgPos && $payloadMsgPos < $statusFallbackPos,
+            'Алерт модалки должен брать errors.sms (причина шлюза), а не общий fallback по HTTP-статусу'
+        );
+        $this->assertStringContainsString('setSmsAlert(general)', $sendChunk);
+        $this->assertStringNotContainsString(
+            'Не удалось отправить SMS. Попробуйте позже.',
+            $sendChunk,
+            'JS не должен подменять errors.sms общей «Попробуйте позже» — это текст с сервера'
+        );
+        $catchPos = strpos($sendChunk, '} catch (err)');
+        $this->assertNotFalse($catchPos);
+        $catchChunk = substr($sendChunk, $catchPos);
+        $this->assertStringContainsString('Проверьте соединение', $catchChunk);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
@@ -2977,6 +3154,18 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('<div class="table-responsive">', $content);
         $this->assertStringContainsString('id="users-table"', $content);
         $this->assertStringContainsString("KidsCrmDataTable.create('#users-table'", $content);
+        $createPos = strpos($content, "KidsCrmDataTable.create('#users-table'");
+        $this->assertNotFalse($createPos);
+        $createNearby = substr($content, max(0, $createPos - 400), 900);
+        $this->assertStringNotContainsString('bindTablePreloader', $createNearby);
+        $this->assertStringNotContainsString('KidsCrmTablePreloader', $createNearby);
+        $this->assertStringNotContainsString('__bindsTablePreloader', $createNearby);
+
+        $toolbarPos = strpos($content, 'payments-report-toolbar');
+        $tablePos = strpos($content, 'id="users-table"');
+        $this->assertNotFalse($toolbarPos);
+        $this->assertNotFalse($tablePos);
+        $this->assertLessThan($tablePos, $toolbarPos);
 
         $this->assertStringContainsString("@push('styles')", $content);
         $pushPos = strpos($content, "@push('styles')");
@@ -3947,5 +4136,55 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         return $script;
+    }
+
+    /**
+     * UX-баг: оверлей ждал draw.dt или обёртку KidsCrmDataTable.create на parse-time
+     * Vite-модуля → is-ready не ставился, спиннер крутился бесконечно.
+     * Журнал SSR: reveal сразу после DataTable({...}) и в catch, в обеих копиях JS.
+     */
+    private function assertScheduleJournalRevealAfterDataTableContract(string $js, string $path): void
+    {
+        $this->assertStringContainsString('function revealScheduleJournalTable()', $js, $path);
+        $this->assertStringContainsString("stage.classList.add('is-ready')", $js, $path);
+        $this->assertStringContainsString("stage.setAttribute('aria-busy', 'false')", $js, $path);
+        $this->assertStringContainsString('$(\'#schedule-table\').DataTable({', $js, $path);
+        $this->assertStringNotContainsString('KidsCrmTablePreloader', $js, $path);
+        $this->assertStringNotContainsString('bindTablePreloader', $js, $path);
+        $this->assertStringNotContainsString('KidsCrmDataTable.create(\'#schedule-table\'', $js, $path);
+        $this->assertStringNotContainsString('draw.dt', $js, $path);
+
+        $dtPos = strpos($js, '$(\'#schedule-table\').DataTable({');
+        $this->assertNotFalse($dtPos, $path);
+        $afterDt = substr($js, $dtPos);
+        $this->assertMatchesRegularExpression(
+            '/\$\(\'#schedule-table\'\)\.DataTable\(\{[\s\S]*?\}\);\s*revealScheduleJournalTable\(\);/',
+            $afterDt,
+            $path.': revealScheduleJournalTable() должен вызываться сразу после DataTable(), а не только объявляться выше'
+        );
+        $this->assertMatchesRegularExpression(
+            '/catch\s*\(\s*err\s*\)\s*\{\s*revealScheduleJournalTable\(\);/',
+            $js,
+            $path.': catch тоже снимает прелоадер, иначе при ошибке DataTable спиннер бесконечный'
+        );
+
+        $output = [];
+        $exitCode = 0;
+        exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+        $this->assertSame(
+            0,
+            $exitCode,
+            "JS syntax error in {$path}:\n".implode("\n", $output)
+        );
+    }
+
+    private function scheduleJournalRevealSnippet(string $js): string
+    {
+        $start = strpos($js, 'function revealScheduleJournalTable()');
+        $this->assertNotFalse($start);
+        $throwPos = strpos($js, 'throw err;', $start);
+        $this->assertNotFalse($throwPos);
+
+        return substr($js, $start, $throwPos + strlen('throw err;') - $start);
     }
 }

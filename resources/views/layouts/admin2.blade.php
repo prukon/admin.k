@@ -19,9 +19,7 @@
     {{-- bootstrap --}}
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
-    {{-- Fontawesome --}}
-    <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
-    <link rel="stylesheet" href="{{ asset('plugins/fontawesome-free/css/all.min.css') }}">
+    @include('includes.fontawesome')
 
 
     {{-- Datapicker --}}
@@ -47,8 +45,7 @@
     <!-- Theme style -->
     <link rel="stylesheet" href="{{ asset('dist/css/adminlte.min.css') }}">
 
-    <!-- overlayScrollbars -->
-    <link rel="stylesheet" href="{{ asset('plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
+    {{-- OverlayScrollbars JS/CSS не подключаем: плагин оборачивает .sidebar после load и сдвигает пункты меню. --}}
 
     <!-- Daterange picker -->
     <link rel="stylesheet" href="{{ asset('plugins/daterangepicker/daterangepicker.css') }}">
@@ -112,6 +109,46 @@
 
         .content-wrapper {
             height: auto !important;
+        }
+
+        /* Кабинет: не сдвигаем сайдбар при появлении/исчезновении вертикального скролла окна.
+           Правило в <head>, чтобы сработало с первого кадра (Vite CSS может прийти позже). */
+        html {
+            scrollbar-gutter: stable;
+        }
+
+        @supports not (scrollbar-gutter: stable) {
+            html {
+                overflow-y: scroll;
+            }
+        }
+
+        /* AdminLTE ставит overflow-y: auto только на window.load — до этого пункты прыгают.
+           Ширину внутреннего скролла фиксируем сразу, без смены none → thin по hover. */
+        .layout-fixed .main-sidebar .sidebar {
+            overflow-y: auto;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+        }
+
+        .layout-fixed .main-sidebar .sidebar::-webkit-scrollbar {
+            width: 0.5rem;
+            height: 0.5rem;
+        }
+
+        /* Слот иконки до загрузки webfont: иначе <i> inline и width из AdminLTE не действует. */
+        .nav-sidebar > .nav-item .nav-icon {
+            display: inline-block;
+            width: 1.6rem;
+            min-width: 1.6rem;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* Ширина кабинета: класс на body с первого кадра (не ждём Vite). */
+        .layout-wide .wrapper {
+            max-width: none;
+            width: 100%;
         }
     </style>
 
@@ -188,7 +225,7 @@
 
 </head>
 
-<body class="hold-transition sidebar-mini layout-fixed">
+<body class="hold-transition sidebar-mini layout-fixed{{ auth()->user()?->layout_wide ? ' layout-wide' : '' }}">
     <div class="wrapper">
 
         <!-- Preloader -->
@@ -267,6 +304,8 @@
                 @endisset
 
                 @include('includes.in_app_notifications.bell')
+
+                @include('includes.layout_wide_toggle')
 
                 <li class="nav-item d-flex align-items-center">
                     <button type="button" class="btn btn-primary logout confirm-logout-modal" data-bs-toggle="modal"

@@ -8,6 +8,46 @@ use Illuminate\Support\Facades\Log;
 
 class SmsRuService
 {
+    public const USER_ERROR_GENERIC = 'Не удалось отправить SMS. Попробуйте позже.';
+
+    public const USER_ERROR_OPERATOR_NOT_CONNECTED = 'Не удалось отправить SMS: оператор этого номера не подключён к имени отправителя. Подайте заявку в кабинете sms.ru в разделе «Отправители».';
+
+    public const USER_ERROR_GATEWAY_UNAVAILABLE = 'Не удалось отправить SMS: шлюз sms.ru недоступен. Попробуйте позже.';
+
+    /**
+     * Текст для оператора CRM по сырому ответу send() (не true).
+     */
+    public static function userFacingErrorMessage(string $gatewayResult): string
+    {
+        $raw = trim($gatewayResult);
+        if ($raw === '' || $raw === 'Empty api_id' || $raw === 'Empty phone') {
+            return self::USER_ERROR_GENERIC;
+        }
+
+        if (str_starts_with($raw, 'HTTP exception') || str_starts_with($raw, 'HTTP error')) {
+            return self::USER_ERROR_GATEWAY_UNAVAILABLE;
+        }
+
+        if (preg_match('/\[204\]/', $raw) === 1
+            || str_contains($raw, 'не подключили данного оператора')) {
+            return self::USER_ERROR_OPERATOR_NOT_CONNECTED;
+        }
+
+        $text = preg_replace('/^(SMS error|API error):\s*/u', '', $raw) ?? $raw;
+        $text = preg_replace('/\s*\[\d+\]\s*$/', '', $text) ?? $text;
+        $text = trim(str_replace('*', '', $text));
+
+        if ($text === '' || $text === 'Unknown error' || $text === 'API error' || $text === 'SMS error') {
+            return self::USER_ERROR_GENERIC;
+        }
+
+        if (str_starts_with($text, 'Не удалось отправить SMS')) {
+            return $text;
+        }
+
+        return 'Не удалось отправить SMS: '.$text;
+    }
+
     /**
      * Отправка SMS через sms.ru
      * Возвращает true при успехе, либо строку-описание ошибки.
@@ -75,7 +115,9 @@ class SmsRuService
         $global = $json['status'] ?? null;
         if ($global !== 'OK') {
             $text = $json['status_text'] ?? 'Unknown error';
-            return "API error: {$text}";
+            $code = $json['status_code'] ?? null;
+
+            return $this->encodeFailure('API error', (string) $text, is_numeric($code) ? (int) $code : null);
         }
 
         // Если вернулась детализация по номеру
@@ -84,14 +126,26 @@ class SmsRuService
             if (is_array($perNumber)) {
                 $numStatus = $perNumber['status'] ?? null; // 'OK' / 'ERROR'
                 $numText   = $perNumber['status_text'] ?? '';
+                $numCode   = $perNumber['status_code'] ?? null;
                 // Можно сохранить sms_id: $perNumber['sms_id'] ?? null;
                 if ($numStatus !== 'OK') {
-                    return "SMS error: {$numText}";
+                    return $this->encodeFailure(
+                        'SMS error',
+                        (string) $numText,
+                        is_numeric($numCode) ? (int) $numCode : null
+                    );
                 }
             }
         }
 
         return true;
+    }
+
+    private function encodeFailure(string $kind, string $text, ?int $code): string
+    {
+        $suffix = $code !== null ? " [{$code}]" : '';
+
+        return $kind.': '.$text.$suffix;
     }
 
     private function maskPhone(?string $phone): string

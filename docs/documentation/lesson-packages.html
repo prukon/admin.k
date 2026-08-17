@@ -39,7 +39,9 @@
     <b>SMS со ссылкой на оплату (2026‑08):</b> колонка «Отправка СМС», модалка, 70 ₽ с баланса
     (debit → sms.ru → при ошибке refund). При нехватке средств — native
     <code>disabled</code> + ховер <code>KidsCrmTooltip</code> hint на обёртке.
-    Анонс — <a href="/doc#assignments-pay-sms-index">/doc</a>,
+    Отказ шлюза — причина в алерте модалки, не общая «Попробуйте позже»
+    (<a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>).
+    Анонс колонки — <a href="/doc#assignments-pay-sms-index">/doc</a>,
     подробно — <a href="#assignments-pay-sms">§assignments-pay-sms</a>.
     <br><br>
     <b>Автопролонгация фикса (2026‑08):</b> флаг на классическом <code>fixed</code> из назначений;
@@ -930,7 +932,13 @@
           <code>partners.wallet_balance_cents</code>. Порядок в сервисе: debit кошелька →
           <code>SmsRuService::send</code> → при ошибке шлюза credit-возврат
           (<code>provider=refund</code>), баланс как до попытки; телефон ученика и audit
-          пишутся <b>только</b> после успеха sms.ru. Повторная отправка снова 70 ₽.
+          пишутся <b>только</b> после успеха sms.ru.
+          <code>errors.sms</code> — причина sms.ru (не общая «Попробуйте позже»):
+          код 204 → оператор номера не подключён к имени отправителя
+          (кабинет sms.ru → «Отправители»);
+          иной <code>status_text</code> → «Не удалось отправить SMS: {текст}»;
+          HTTP/пустой api_id → общая/«шлюз недоступен».
+          Повторная отправка снова 70 ₽.
           Недостаточно средств → <code>422</code> <code>errors.wallet</code>.
           Нет/некорректный телефон → <code>422</code> <code>errors.phone</code> (ошибка под полем).
           Если поле было пустым, введённый номер пишется в <code>users.phone</code> ученика
@@ -1022,7 +1030,7 @@
       Кириллица → Unicode: 70 символов = 1 сегмент; до 99 999 ₽ на домене проекта — <b>1 Unicode SMS</b>.</li>
     <li>Напоминание: «Отправка сообщений платная, 70 руб. за сообщение. Сумма будет списана с баланса.»
       (70 подставляется из <code>fee_label</code> превью).</li>
-    <li>Повторное открытие сбрасывает форму (<code>resetSmsModal</code>: снимает readonly/busy, чистит номер),
+    <li>Повторное открытие сбрасывает форму (<code>resetSmsModal</code>: снимает readonly/busy, чистит номер и алерт шлюза),
       затем заполняет ответ превью — состояние предыдущего назначения не протекает.</li>
     <li>После успеха: тост, <code>dtApi.reload({ keepPage: true })</code> без F5.</li>
   </ul>
@@ -1038,7 +1046,9 @@
     <li>Ошибка шлюза (не <code>true</code>): исходный debit помечается <code>failed</code>,
       создаётся compensating <code>type=credit</code>, <code>provider=refund</code>,
       <code>meta.reason=ulp_pay_sms_refund</code>; баланс возвращается.
-      Телефон и audit <b>не</b> пишутся. Ответ — <code>422</code> <code>errors.sms</code>.</li>
+      Телефон и audit <b>не</b> пишутся. Ответ — <code>422</code> <code>errors.sms</code>
+      с текстом <code>SmsRuService::userFacingErrorMessage</code>
+      (204 — оператор не подключён к отправителю; иначе <code>status_text</code> sms.ru).</li>
     <li>Недостаточно средств до отправки — <code>422</code> <code>errors.wallet</code>, sms.ru не вызывается.</li>
     <li>Повторная успешная отправка списывает снова.</li>
     <li>Пустой номер при успехе сохраняется в <code>users.phone</code> ученика (мутатор → E.164 <code>+7…</code>),
@@ -1048,7 +1058,11 @@
   <h4>Ошибки в UI</h4>
   <ul>
     <li><code>errors.phone</code> — под полем номера (<code>#ulp-sms-phone-error</code>, <code>is-invalid</code>).</li>
-    <li><code>errors.wallet</code> / <code>errors.sms</code> — алерт модалки (<code>#ulp-sms-modal-alert</code>).</li>
+    <li><code>errors.wallet</code> / <code>errors.sms</code> — алерт модалки (<code>#ulp-sms-modal-alert</code>).
+      При первом открытии алерт пустой и <code>d-none</code>. Повторное открытие вызывает
+      <code>resetSmsModal</code> (чистит алерт), затем GET preview.
+      Для шлюза JS берёт <code>errors.sms[0]</code> в алерт (не хардкод «Попробуйте позже»);
+      сеть/исключение fetch — «Проверьте соединение».</li>
     <li>AJAX: 200 JSON или 422 с <code>errors[field]</code>. Без <code>X-Requested-With</code>:
       успех — JSON 200 и запись в БД (как public-pay-link); валидация — 302 + session errors
       (не пустой 200).</li>
@@ -1203,11 +1217,13 @@
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsLengthFeatureTest.php</code> — SMS ≤70 символов (1 Unicode-сегмент) при суммах до 99 999 ₽, разных short_code, copy-link, ротации по expiry/fee, backfill без смены token.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php</code> — бизнес-правила: превью parent/student/empty, отправка + списание 70 ₽ + audit, сохранение <code>users.phone</code>, не перезаписывать существующий, повтор, 422 wallet/phone/sms, 404 чужой, guest.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAccessFeatureTest.php</code> — доступ JSON и web: guest → 302/401/403; без <code>lessonPackages.view</code> / без <code>setPrices.packageAssignments.view</code> → 403; с правами / admin / superadmin → 200/422 (не 500, не пустой 200); чужой → 404.</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAjaxContractFeatureTest.php</code> — AJAX JSON: структура preview/send, 422 <code>errors.sms</code>/<code>phone</code>/<code>wallet</code> (нет ссылки, оплачено, сумма &lt; 10 ₽, невалидный номер, шлюз).</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php</code> — без X-Requested-With: успех POST → JSON 200 + списание (как public-pay-link); валидация → 302 + session errors под полем; guest / без права не списывают.</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php</code> — разметка (порядок колонок/полей, disabled «Отправить» в модалке, стандартная ширина); флаги DataTables: ссылка+кошелёк / нехватка средств / нет телефона / нет ссылки / оплачено / граница 10 ₽.</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php</code> — [P2] страница → preview → send → <code>…/data</code> без отдельного F5.</li>
-    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript</code>: <code>node --check</code> + UX-контракт (native <code>disabled</code> + обёртка <code>kids-tooltip-hint</code> + <code>init</code> hint после draw, reset при повторном открытии, <code>errors.phone</code> под полем).</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAjaxContractFeatureTest.php</code> — AJAX JSON: структура preview/send, 422 <code>errors.sms</code>/<code>phone</code>/<code>wallet</code> (нет ссылки, оплачено, сумма &lt; 10 ₽, невалидный номер, шлюз с текстом причины / 204 без «Попробуйте позже» / HTTP недоступен / неизвестная ошибка → generic).</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsGatewayErrorFeatureTest.php</code> — UX-баг проброса причины sms.ru: <code>Http::fake</code> 204 → 422 <code>errors.sms</code> с текстом про оператора (не «Попробуйте позже»), не 500 и не пустой 200; status_text; HTTP 502; пустой api_id → generic; успех без <code>errors</code>; нет телефона → <code>errors.phone</code> без вызова шлюза; refund + нет audit; без права → 403.</li>
+    <li><code>tests/Unit/Services/SmsRuServiceUserFacingErrorTest.php</code> — маппинг сырого ответа sms.ru в текст для модалки.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php</code> — без X-Requested-With: успех POST → JSON 200 + списание (как public-pay-link); валидация → 302 + session errors под полем (в т.ч. 204 → session <code>errors.sms</code> с причиной, не пустой 200); guest / без права не списывают.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php</code> — разметка (порядок колонок/полей, disabled «Отправить» в модалке, стандартная ширина, алерт шлюза пустой/<code>d-none</code> при первом открытии); флаги DataTables: ссылка+кошелёк / нехватка средств / нет телефона / нет ссылки / оплачено / граница 10 ₽.</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php</code> — [P2] страница → preview → send → <code>…/data</code> без отдельного F5; ошибка 204 → причина в JSON, кошелёк и кнопка без reload.</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript</code>: <code>node --check</code> + UX-контракт (native <code>disabled</code> + обёртка <code>kids-tooltip-hint</code> + <code>init</code> hint после draw, reset при повторном открытии чистит алерт, <code>errors.phone</code> под полем, <code>errors.sms</code> в алерте раньше fallback, без хардкода «Попробуйте позже»).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — публичная QR-страница: группа, «Поставщик услуг», сумма через <code>Money::formatRub</code>, endpoint'ы <code>/pay/ulp/*</code>, доступы <code>public-pay-link</code> (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>).</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageUserPercentDiscountFeatureTest.php</code> — снимок скидки на назначениях, DataTable tooltip, bind-actions, show/update AJAX.</li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentsManageFeatureTest.php</code> — бизнес-правила fee/manual paid/delete.</li>
@@ -1234,9 +1250,12 @@ php artisan test --env=testing tests/Feature/Crm/LessonPackages/LessonPackageAss
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsLengthFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAccessFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsAjaxContractFeatureTest.php \
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsGatewayErrorFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest.php \
   tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsUiContractsFeatureTest.php \
-  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php
+  tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsWorkflowFeatureTest.php \
+  tests/Unit/Services/SmsRuServiceUserFacingErrorTest.php \
+  tests/Unit/Documentation/UlpPaySmsDocumentationContractTest.php
 php artisan test --env=testing --filter=test_lesson_package_assignment_pay_sms_inline_script_is_valid_javascript
 php artisan test --env=testing --filter=test_lesson_package_assignment_ends_at_modal_inline_script_is_valid_javascript</code></pre>
 </div>

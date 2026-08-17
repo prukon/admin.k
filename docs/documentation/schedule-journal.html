@@ -28,7 +28,7 @@
 <div class="wrap">
   <p><a href="/doc">← К списку разделов</a></p>
   <h1>Журнал расписания: <code>/schedule</code></h1>
-  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a>, <a href="/doc#journal-monthly-payment-check">галочка оплаты месяца</a></div>
+  <div class="small">Файл: <code>/docs/documentation/schedule-journal.html</code> · вкладка «Журнал»: <code>GET /schedule</code> (<code>schedule.index</code>) · см. также <a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров</a>, <a href="/docs/documentation/school-schedule-calendar">Календарь школы</a>, <a href="/doc#journal-monthly-payment-check">галочка оплаты месяца</a>, <a href="#journal-pagination">пагинация §2.2</a>, <a href="#journal-table-preloader">прелоадер §2.3</a> (<a href="/doc#journal-table-preloader-index">анонс /doc</a>)</div>
 
   <div class="ok">
     <strong>Мультитренеры при «Посетил» (2026‑08).</strong>
@@ -53,6 +53,16 @@
     зелёная (ховер «Все группы оплачены» при 2+ начислениях).
     Фильтр группы — зелёная только у оплаченной. Подробно — <a href="#payment-column">§5.2</a>;
     анонс — <a href="/doc#journal-monthly-payment-check">/doc</a>.
+  </div>
+
+  <div class="ok">
+    <strong>Пагинация списка и поиск <code>q</code> (2026‑08).</strong>
+    Таблица журнала — по 100 учеников текущей выборки (фильтры + ФИО), не все сразу.
+    Занятия и абонементы грузятся только для страницы. «Найти» — серверный GET без
+    hidden <code>page</code>; смена года/месяца/группы сбрасывает страницу и сохраняет
+    <code>q</code>. Keyup DataTables фильтрует только текущую страницу.
+    Подробно — <a href="#journal-pagination">§2.2</a>;
+    анонс — <a href="/doc#journal-pagination-index">/doc</a>.
   </div>
 
   <div class="warn">
@@ -112,7 +122,7 @@
       <tr><th>Метод</th><th>URL</th><th>Имя</th><th>Назначение</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: ученики × дни месяца; ячейки из <code>user_team_schedule_slots</code> (+ актуальный статус)</td></tr>
+      <tr><td>GET</td><td><code>/schedule</code></td><td><code>schedule.index</code></td><td>HTML: ученики × дни месяца (страница по 100, поиск <code>q</code> — §2.2); ячейки из <code>user_team_schedule_slots</code> (+ актуальный статус)</td></tr>
       <tr><td>GET</td><td><code>/schedule/cell-context</code></td><td><code>schedule.cell-context</code></td><td>JSON: занятия ученика на дату (список), выбранное <code>utss_id</code>, тренеры</td></tr>
       <tr><td>POST</td><td><code>/schedule/update</code></td><td><code>schedule.update</code></td><td>Статус конкретного занятия (<code>utss_id</code> + дата) через <code>UserLessonOccurrenceStatusService</code>; тренер/комментарий на событии статуса</td></tr>
       <tr><td>DELETE</td><td><code>/schedule/occurrence/{utss}</code></td><td><code>schedule.occurrence.destroy</code></td><td>Аннуляция занятия в журнале (events + UTSS); AJAX без reload</td></tr>
@@ -166,7 +176,7 @@
   <h3>Реализация</h3>
   <ul>
     <li>Scope модели <code>User::scopeWithSystemRoleUser()</code> — <code>whereHas('role')</code> с <code>name = user</code> и <code>is_sistem = true</code>.</li>
-    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>) и ФИО. Список учеников пагинируется (<code>JOURNAL_STUDENTS_PER_PAGE = 100</code>), занятия и абонементы грузятся только для текущей страницы.</li>
+    <li><code>ScheduleController::index()</code> — <code>partner_id</code> + <code>is_enabled = 1</code> + <code>withSystemRoleUser()</code>; затем фильтры год / месяц / группа (<code>all</code> / <code>none</code> / id) и поиск <code>q</code> — по pivot <code>team_user</code> (<code>User::filterByStudentTeam</code>) и ФИО. Список учеников пагинируется, занятия и абонементы грузятся только для текущей страницы — см. <a href="#journal-pagination">§2.2</a>.</li>
     <li>API: <code>findScheduleStudentForPartner()</code> и <code>assertScheduleStudent()</code> — те же условия; иначе <b>404</b>.</li>
   </ul>
   <p>
@@ -188,6 +198,74 @@
       <tr><td>Активный ученик с системной ролью <code>user</code> своего партнёра</td><td><b>200</b> при <code>schedule.view</code> и валидных данных</td></tr>
     </tbody>
   </table>
+
+  <h2 id="journal-pagination">2.2) Пагинация списка и поиск <code>q</code></h2>
+  <p>
+    Без пагинации таблица журнала рендерит всех учеников × дни месяца и упирается в memory limit
+    (OOM на <code>GET /schedule</code> при ~1000 учениках). Список режется на сервере:
+    <code>ScheduleController::JOURNAL_STUDENTS_PER_PAGE = 100</code>.
+    Занятия, fixed/flexible ULP и галочка оплаты месяца грузятся <b>только для id текущей страницы</b>
+    (<code>fixedAssignmentsByUser()</code>, не N+1 <code>fixedAssignmentsForUser()</code>).
+  </p>
+  <table>
+    <thead>
+      <tr><th>Правило</th><th>Поведение</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Больше 100 учеников в выборке</td><td>Пейджер <code>.schedule-journal-pagination</code> («Показаны N–M из K учеников» + Laravel links). Номера строк — <code>$users-&gt;firstItem() + $index</code> (на стр. 2 первая строка = 101).</td></tr>
+      <tr><td>100 и меньше</td><td>Пейджера нет: не навязываем блок «из N учеников» и не рисуем <code>page=2</code>.</td></tr>
+      <tr><td>Поиск</td><td>GET-форма «Найти», поле <code>q</code> (фамилия / имя / склейка ФИО, max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team</code> (и <code>fullscreen=1</code>, если уже в URL). <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений, а не пустую page=2.</td></tr>
+      <tr><td>Смена года / месяца / группы</td><td>Полный GET (<code>window.location.href</code>). Обе копии JS (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>) делают <code>searchParams.delete('page')</code> после <code>set('team')</code> и <b>не</b> удаляют <code>q</code>.</td></tr>
+      <tr><td>DataTables keyup</td><td>Клиентский фильтр только текущей страницы (<code>paging: false</code>). Серверный поиск — кнопка «Найти».</td></tr>
+      <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|q|page</code>. Пустой <code>team</code> → <code>all</code>. <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.</td></tr>
+    </tbody>
+  </table>
+  <p class="small">
+    Изоляция партнёра та же, что в §2.1. Без <code>current_partner</code> — logout и ошибка под Email
+    «Ваша организация недоступна.».
+    Тесты: <code>ScheduleJournalPaginationFeatureTest</code>
+    (HTTP 200/403/401/302/405/422, UX-баг «все ученики на стр. 1», форма поиска без <code>page</code>,
+    пейджер только при &gt;100, пакетная загрузка ULP),
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>
+    (<code>node --check</code> обеих копий JS + контракт сброса <code>page</code>).
+  </p>
+
+  <h2 id="journal-table-preloader">2.3) Локальный прелоадер таблицы журнала</h2>
+  <div class="ok">
+    Только вкладка «Журнал» на <code>GET /schedule</code>. Общего компонента
+    <code>&lt;x-ui.table-preloader&gt;</code> / <code>KidsCrmTablePreloader</code> <b>нет</b>
+    (извлечение ломало AdminLTE на <code>/admin/users</code> и на журнале: страница «размазана» на всю ширину,
+    спиннер не снимался). <code>/admin/users</code> — обычный <code>.table-responsive</code> + <code>#users-table</code>.
+    Анонс — <a href="/doc#journal-table-preloader-index">/doc</a>.
+  </div>
+  <ul>
+    <li><b>Разметка</b> (<code>journal.blade.php</code>): фильтры года/месяца/группы и поиск <b>снаружи</b>
+      <code>#schedule-journal-stage</code>. Внутри stage — оверлей <code>.schedule-journal-preloader</code>
+      (Bootstrap <code>spinner-border text-secondary</code>, без текста «Загрузка расписания»),
+      <code>#schedule-table</code> и пейджер <code>.schedule-journal-pagination</code>.
+      Первый кадр: <code>aria-busy="true"</code>, класса <code>is-ready</code> нет.</li>
+    <li><b>CSS в head</b> (<code>@push('styles')</code> в <code>index.blade.php</code>, только при
+      <code>activeTab === journal</code>): пока нет <code>is-ready</code> — <code>height: 12rem</code>,
+      таблица <code>visibility: hidden</code>, пейджер <code>display: none !important</code>,
+      оверлей <code>position: absolute; inset: 0; background: #f4f6f9</code>.
+      Полноэкран: фон оверлея белый. <code>&lt;noscript&gt;</code> показывает таблицу без спиннера.</li>
+    <li><b>Снятие</b> в обеих копиях JS (<code>resources/js/schedule.js</code> и hotfix
+      <code>public/js/schedule-journal.js</code>, сайт грузит hotfix):
+      <code>revealScheduleJournalTable()</code> <b>сразу после</b>
+      <code>$('#schedule-table').DataTable({…})</code> и в <code>catch</code>.
+      Не <code>draw.dt</code> и не обёртка <code>KidsCrmDataTable.create</code> (таблица журнала — SSR, не AJAX DataTables).</li>
+    <li><b>Не журнал</b> (нагрузка тренеров и др. вкладки) — разметки и CSS stage нет.</li>
+  </ul>
+  <p class="small">
+    Тесты: <code>ScheduleJournalTablePreloaderFeatureTest</code> (первый кадр HTML, каждый GET-триггер фильтров/поиска/fullscreen,
+    негатив на нагрузке тренеров и на <code>/admin/users</code>),
+    <code>ScheduleJournalTablePreloaderFullAccessFeatureTest</code> (гость 302/401, без права 403, viewer/admin 200, 405),
+    <code>AdminUsersTablePreloaderRegressionFeatureTest</code> (layout без stage),
+    <code>BladeInlineJsSyntaxTest::test_schedule_journal_table_preloader_contract</code>
+    (reveal после DataTable в обеих копиях JS, <code>node --check</code>),
+    <code>BladeInlineJsSyntaxTest::test_kids_table_preloader_component_and_datatable_bind_contract</code>,
+    <code>BladeInlineJsSyntaxTest::test_admin_users_table_preloader_contract</code>.
+  </p>
 
   <h2 id="data-model">3) Данные: единый контур занятий</h2>
 
@@ -302,7 +380,7 @@
       <tr><th>Вкладка</th><th>URL</th><th>Право</th><th>Содержание</th></tr>
     </thead>
     <tbody>
-      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Таблица учеников × дни месяца</td></tr>
+      <tr><td>Журнал расписания</td><td><code>/schedule</code></td><td><code>schedule.view</code></td><td>Таблица учеников × дни месяца; страница по 100, поиск <code>q</code> (§2.2)</td></tr>
       <tr><td>Нагрузка тренеров</td><td><code>/schedule/trainer-workload</code></td><td><code>schedule.view</code></td><td><a href="/docs/documentation/schedule-trainer-workload">Нагрузка</a></td></tr>
       <tr><td>Статусы занятий</td><td><code>/schedule/occurrence-statuses</code></td><td><code>lessonOccurrenceStatuses.manage</code></td><td>CRUD справочника: toolbar / DataTable / история (см. <a href="#occurrence-statuses">§8</a>)</td></tr>
       <tr><td>ЗП тренеров</td><td><code>/schedule/trainer-salary</code></td><td><code>schedule.trainerSalary.view</code> + схема партнёра</td><td><a href="/docs/documentation/schedule-trainer-salary">ЗП</a></td></tr>
@@ -313,7 +391,8 @@
 
   <h2>5) UI вкладки «Журнал расписания»</h2>
   <ul>
-    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id) — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>.</li>
+    <li>Фильтры: год, месяц, группа (<code>all</code> / <code>none</code> / id) — см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>;
+      серверный поиск <code>q</code> («Найти») и пейджер — <a href="#journal-pagination">§2.2</a>.</li>
     <li>Ячейка дня: цвет/иконка актуального статуса; без статуса — серая <code>fa-circle</code> (занятие всё равно видно).
       Ховер и колонка абонементов — см. <a href="#cell-hover-ui">§5.1</a>.
       Колонка оплаты месяца (зелёная / жёлтая галочка) — <a href="#payment-column">§5.2</a>.</li>
@@ -358,12 +437,16 @@
       гибкий с остатком → постоплата → empty-cell (в т.ч. гибкий на лимите) →
       гибкий на лимите без <code>lessonPackages.view</code>.</li>
     <li>Модалки «Настройки статусов» / «Личное расписание» <strong>нет</strong>.</li>
-    <li>Полноэкранный режим, поиск (DataTables), логи журнала, модалка «Управление группами» (<code>sync-teams</code>).</li>
+    <li>Полноэкранный режим, логи журнала, модалка «Управление группами» (<code>sync-teams</code>).
+      Поиск: кнопка «Найти» — серверный GET <code>q</code> (вся выборка, без hidden <code>page</code>);
+      keyup в том же поле — клиентский фильтр DataTables только текущей страницы
+      (<code>paging: false</code>). Не один и тот же механизм.</li>
     <li>При загрузке вкладки «Журнал» таблица и пагинация скрыты локальным прелоадером
+      (см. <a href="#journal-table-preloader">§2.3</a>):
       <code>#schedule-journal-stage</code> / <code>.schedule-journal-preloader</code>
       (пагинация — <code>.schedule-journal-pagination</code>).
       Снятие: <code>revealScheduleJournalTable()</code> сразу после <code>DataTable()</code>
-      (hotfix <code>public/js/schedule-journal.js</code>).
+      в <code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>.
       CSS оверлея — inline в <code>@push('styles')</code> в <code>&lt;head&gt;</code>
       вместе с <code>schedule.css</code> и hotfix <code>schedule-journal-cells.css</code>.</li>
   </ul>
@@ -1156,8 +1239,22 @@
         (см. <a href="/docs/documentation/postpay#tests">postpay § тесты</a>)</li>
       <li><code>ScheduleJournalWorkflowFeatureTest</code> — [P2] HTTP E2E: страница → модалка →
         update / destroy → данные видны без F5</li>
+      <li><code>ScheduleJournalPaginationFeatureTest</code> —
+        пагинация 100, поиск <code>q</code>, UX-баг «все ученики на стр. 1»,
+        200/403/401/302/405/422 <code>errors[field]</code>, GET-форма без hidden <code>page</code></li>
+      <li><code>ScheduleJournalTablePreloaderFeatureTest</code> /
+        <code>ScheduleJournalTablePreloaderFullAccessFeatureTest</code> —
+        локальный прелоадер журнала §<a href="#journal-table-preloader">2.3</a>: первый кадр без <code>is-ready</code>,
+        фильтры снаружи stage, CSS в head, каждый GET-триггер (год/месяц/группа/поиск/fullscreen),
+        негатив на «Нагрузка тренеров» и <code>/admin/users</code>, guest/403/200/405</li>
+      <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_table_preloader_contract</code> —
+        <code>node --check</code>, <code>revealScheduleJournalTable()</code> сразу после <code>DataTable()</code>
+        и в <code>catch</code> в обеих копиях JS (не <code>draw.dt</code>)</li>
+      <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code> —
+        <code>node --check</code> <code>schedule.js</code> / <code>schedule-journal.js</code>,
+        <code>delete('page')</code> в обеих копиях, форма поиска без <code>page</code></li>
       <li><code>ScheduleJournalStudentFilterFeatureTest</code> / <code>ScheduleJournalTeamPivotFeatureTest</code>
-        (в т.ч. пагинация 100 строк и поиск <code>q</code>)</li>
+        (роль ученика / pivot групп)</li>
       <li><code>BladeInlineJsSyntaxTest::test_schedule_journal_vite_module_ajax_handlers…</code> —
         <code>node --check</code> на <code>resources/js/schedule.js</code>
         (update/delete/place-flexible/empty-cell place без <code>reload</code>;
@@ -1173,7 +1270,7 @@
       <li><code>ScheduleTrainerWorkload*FeatureTest</code></li>
     </ul>
   </div>
-  <pre><code>php artisan test --env=testing --filter='ScheduleJournal|ScheduleStatuses|LessonOccurrenceStatuses|PostpayJournal|BladeInlineJsSyntaxTest::test_schedule_journal'</code></pre>
+  <pre><code>php artisan test --env=testing --filter='ScheduleJournal|ScheduleStatuses|LessonOccurrenceStatuses|PostpayJournal|AdminUsersTablePreloader|BladeInlineJsSyntaxTest::test_schedule_journal|BladeInlineJsSyntaxTest::test_kids_table_preloader|BladeInlineJsSyntaxTest::test_admin_users_table_preloader'</code></pre>
 
   <p class="small">
     <a href="/doc">← К оглавлению</a> ·

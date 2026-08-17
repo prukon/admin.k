@@ -38,6 +38,7 @@ class User extends Authenticatable
         'is_individual_traits' => 'boolean',
         'is_on_medical_register' => 'boolean',
         'is_with_disability' => 'boolean',
+        'layout_wide' => 'boolean',
 
         //2FA
         'two_factor_enabled' => 'boolean',

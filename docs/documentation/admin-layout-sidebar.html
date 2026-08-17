@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Кабинет: стабильный сайдбар</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.55; color: #111; margin: 0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 24px; margin: 0 0 12px; }
+    h2 { font-size: 17px; margin-top: 22px; }
+    h3 { font-size: 15px; margin-top: 16px; }
+    a { color: #0b5fff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: ui-monospace, Menlo, Monaco, Consolas, monospace; }
+    .note { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 14px; border-radius: 8px; margin: 14px 0; }
+    ul { margin: 8px 0 8px 20px; }
+    .small { color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/doc">← К списку разделов</a></p>
+  <h1>Кабинет: стабильный сайдбар</h1>
+  <div class="small">Файл: <code>/docs/documentation/admin-layout-sidebar.html</code> · layout: <code>resources/views/layouts/admin2.blade.php</code> · анонс: <a href="/doc#admin-sidebar-stability-index">/doc</a></div>
+
+  <div class="note">
+    <b>Кратко.</b> Кабинет — обычный MPA: при клике в левом меню страница перезагружается целиком.
+    Сайдбар прыгал по двум причинам: у коротких и длинных страниц то появляется, то пропадает вертикальный скролл окна
+    (центрированная колонка <code>.wrapper { max-width: 1280px }</code> в <code>style.css</code>
+    + <code>.layout-fixed .main-sidebar { left: auto }</code>),
+    и AdminLTE на <code>window.load</code> ставит <code>overflow-y: auto</code> на <code>.sidebar</code>
+    (до этого <code>overflow-y: initial</code>, скролл <code>none</code>, по hover — <code>thin</code>).
+    Отдельно иконки пунктов приезжали с CDN Kit после текста — меню дёргалось второй раз.
+  </div>
+
+  <h2>1) Где действует и где нет</h2>
+  <ul>
+    <li><b>Действует</b> на всех страницах layout <code>admin2</code>: консоль <code>/cabinet</code>,
+      списки с тулбаром (<code>/admin/users</code> и др.), журнал, настройки.
+      Правила в <code>&lt;head&gt;</code> layout, поэтому gutter одинаковый и на странице <b>без</b>
+      <code>admin-list-toolbar.css</code>, и на странице <b>с</b> тулбаром.</li>
+    <li><b>Не действует</b> на лендинге (<code>layouts/landingPage.blade.php</code>):
+      нет <code>html { scrollbar-gutter: stable }</code>, нет слота <code>.nav-icon</code>,
+      нет селекторов <code>.layout-fixed .main-sidebar</code>.</li>
+    <li>Лендинг <b>использует тот же</b> partial иконок <code>includes.fontawesome</code>
+      (локальный FA 6, без Kit). Это не «admin-gutter на публичной витрине».</li>
+    <li>Нового permission нет. Страницы кабинета по-прежнему требуют свои права
+      (<code>dashboard.view</code>, <code>users.view</code>, …).
+      Эту страницу документации видит роль с <code>documentations.view</code>
+      (<code>/doc</code>, <code>/docs/documentation/admin-layout-sidebar</code>).</li>
+  </ul>
+
+  <h2>2) Скролл и колонка</h2>
+  <ul>
+    <li><code>html { scrollbar-gutter: stable; }</code> в <code>&lt;head&gt;</code> layout <code>admin2</code>
+      (с первого кадра, не ждём Vite) и дубль в <code>resources/css/style.css</code>.
+      Браузеры без <code>scrollbar-gutter</code> — <code>html { overflow-y: scroll; }</code>.</li>
+    <li>У <code>.layout-fixed .main-sidebar .sidebar</code> сразу <code>overflow-y: auto</code>,
+      <code>scrollbar-gutter: stable</code> и постоянный <code>scrollbar-width: thin</code>
+      (webkit <code>width/height: 0.5rem</code>), без смены ширины по hover.</li>
+    <li>Плагин OverlayScrollbars <b>не</b> подключаем в layout (ни CSS, ни JS).
+      Файлы могут лежать в <code>public/plugins/overlayScrollbars/</code> — AdminLTE их не грузит.
+      Иначе плагин оборачивает <code>.sidebar</code> после <code>window.load</code> и сдвигает пункты.</li>
+    <li>Тот же <code>scrollbar-gutter</code> убран из <code>admin-list-toolbar.css</code> —
+      он был только на страницах с тулбаром, поэтому при переходе «список ↔ консоль» колонка прыгала.</li>
+  </ul>
+
+  <h2>3) Иконки меню — локальный Font Awesome 6</h2>
+  <p>
+    Раньше иконки сайдбара рисовал <b>Font Awesome Kit</b>
+    (<code>public/js/fontawesome/fontawesome.js</code> → CDN <code>ka-f.fontawesome.com</code>, версия 6.5.1).
+    Текст пунктов был сразу, глифы приезжали после запроса на CDN.
+    Старый локальный FA5 в <code>plugins/fontawesome-free</code> классы <code>fa-solid</code> не понимал, woff2 не было.
+  </p>
+  <ul>
+    <li>На сервере <b>Font Awesome Free 6.5.1</b>:
+      <code>public/plugins/fontawesome-free/css/all.min.css</code> +
+      <code>webfonts/fa-solid-900.woff2</code> (и regular/brands).
+      Подключение — partial <code>includes/fontawesome.blade.php</code>
+      (кабинет <code>admin2</code> и лендинг). Файл Kit удалён, в layout нет
+      <code>&lt;script src="…/fontawesome.js"&gt;</code>.</li>
+    <li>В partial: <code>preload</code> solid woff2 <b>до</b> CSS, плюс v4-shims / v4-font-face / v5-font-face
+      (старые <code>fas</code> и font-family AdminLTE). В partial нет <code>&lt;script&gt;</code>.</li>
+    <li>Слот <code>.nav-sidebar &gt; .nav-item .nav-icon</code>:
+      <code>display: inline-block; width/min-width: 1.6rem; text-align: center; flex-shrink: 0</code>
+      с первого кадра. У AdminLTE ширина уже была, но на inline-<code>&lt;i&gt;</code> она не действует,
+      пока FA не поставит <code>inline-block</code>.</li>
+  </ul>
+
+  <h2>4) Файлы</h2>
+  <table>
+    <thead>
+      <tr><th>Файл</th><th>Роль</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>resources/views/layouts/admin2.blade.php</code></td>
+        <td>Inline CSS gutter / overflow / слот иконки / <code>.layout-wide .wrapper</code> в <code>&lt;head&gt;</code>;
+          <code>@include('includes.fontawesome')</code>; OverlayScrollbars не линкуем;
+          кнопка ширины — <code>@include('includes.layout_wide_toggle')</code>.</td>
+      </tr>
+      <tr>
+        <td><code>resources/css/style.css</code></td>
+        <td>Дубль тех же правил + <code>.wrapper { max-width: 1280px }</code>
+          и <code>.layout-fixed .main-sidebar { left: auto }</code>. Подключается через Vite.</td>
+      </tr>
+      <tr>
+        <td><code>resources/css/admin-list-toolbar.css</code></td>
+        <td>Стили тулбара списков. <code>html { scrollbar-gutter }</code> здесь больше нет.</td>
+      </tr>
+      <tr>
+        <td><code>resources/views/includes/fontawesome.blade.php</code></td>
+        <td>Preload woff2 + локальные CSS FA 6.5.1. Без Kit и без <code>&lt;script&gt;</code>.</td>
+      </tr>
+      <tr>
+        <td><code>resources/views/includes/layout_wide_toggle.blade.php</code></td>
+        <td>Кнопка ширины в шапке; AJAX на <code>users.layout_wide</code>; скрыта на мобильном.</td>
+      </tr>
+      <tr>
+        <td><code>public/plugins/fontawesome-free/</code></td>
+        <td>Статические css + webfonts. Vite-сборка для иконок не нужна.</td>
+      </tr>
+      <tr>
+        <td><code>resources/views/layouts/landingPage.blade.php</code></td>
+        <td>Тот же FA-partial. Без admin-gutter и без слота <code>.nav-icon</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5) Vite и ассеты</h2>
+  <p>
+    Стабильность сайдбара не зависит от <code>npm run build</code>: gutter и слот иконки живут в inline
+    <code>&lt;style&gt;</code> layout, шрифты — в <code>public/plugins/fontawesome-free</code>.
+    Дубль в <code>style.css</code> нужен, когда Vite CSS уже загружен; до него хватает правил из <code>&lt;head&gt;</code>.
+  </p>
+
+  <h2>6) Чего это не убирает</h2>
+  <p>
+    Полной «заморозки» DOM сайдбара как в SPA нет: HTML меню каждый раз новый.
+    Остаётся лёгкая вспышка активной ссылки и перерисовка страницы.
+    Горизонтальный прыжок колонки, подпрыгивание пунктов после load и позднее появление иконок — цель этих правил.
+  </p>
+
+  <h2>7) Ширина кабинета (на всю ширину экрана)</h2>
+  <div class="note">
+    По умолчанию колонка кабинета ограничена <code>.wrapper { max-width: 1280px }</code>.
+    В шапке справа (после колокольчика, перед «Выйти») есть кнопка, которая снимает ограничение
+    на ширину окна. Настройка хранится у конкретного пользователя в <code>users.layout_wide</code>,
+    не в браузере и не у партнёра. На мобильном кнопка скрыта (<code>d-none d-md-flex</code>).
+    Лендинг не затрагивается.
+  </div>
+  <ul>
+    <li>Класс <code>layout-wide</code> ставится на <code>body</code> сразу из Blade
+      (без вспышки 1280px). CSS дублируется в <code>&lt;head&gt;</code> layout и в
+      <code>resources/css/style.css</code>, чтобы не зависеть от <code>npm run build</code>.</li>
+    <li>Кнопка: partial <code>includes/layout_wide_toggle.blade.php</code>.
+      Иконки <code>fa-expand-alt</code> / <code>fa-compress-alt</code>.</li>
+    <li>Сохранение: <code>POST /cabinet/layout-wide</code>
+      (<code>cabinet.layout-wide.update</code>), auth + 2fa, без отдельного permission.
+      Request <code>UpdateLayoutWideRequest</code>: поле <code>layout_wide</code>,
+      ошибки JSON под ключом <code>errors.layout_wide</code> и выводятся под кнопкой.</li>
+    <li>После переключения фронт шлёт <code>resize</code> и вызывает
+      <code>DataTable.columns.adjust()</code>, чтобы таблицы не остались узкими.</li>
+    <li>Нативный POST без AJAX — redirect назад + flash <code>status</code>, не сырой JSON 200.</li>
+  </ul>
+
+  <h2>8) Связанные разделы</h2>
+  <ul>
+    <li><a href="/docs/documentation/dashboard-cabinet">Консоль (/cabinet)</a> — содержимое правой колонки, не CSS сайдбара.</li>
+    <li><a href="/docs/documentation/reusable-ui-partials">Переиспользование UI</a> — тулбар списков без window-gutter.</li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет</a> — пункты сайдбара (переключатель ребёнка, «Группа»).</li>
+  </ul>
+
+  <h2>9) Тесты</h2>
+  <ul>
+    <li><code>CabinetLayoutWideFeatureTest</code> — сохранение <code>users.layout_wide</code> у текущего юзера,
+      422 с текстом под <code>layout_wide</code>, класс на cabinet / нет на лендинге,
+      кнопка скрыта на мобильном, non-AJAX redirect, гость не сохраняет.</li>
+    <li><code>AdminSidebarLayoutStabilityFeatureTest</code> — HTTP: admin 200 с gutter на <b>консоли</b>
+      (в blade нет <code>admin-list-toolbar.css</code>, в HTML нет <code>payments-report-toolbar</code>)
+      и на <b>/admin/users</b> (тулбар есть); гость → редирект/401, без <code>dashboard.view</code> → 403;
+      пункт «Консоль» скрыт через <code>@can</code>; mutating POST/PATCH/DELETE на <code>/cabinet</code> и лендинге не 500;
+      non-AJAX POST <code>/cabinet</code> не пустой 200 без layout; лендинг <b>не</b> получает admin-gutter / слот <code>.nav-icon</code>.</li>
+    <li><code>FontAwesomeSelfHostedFeatureTest</code> — локальный FA 6.5.1 + woff2, Kit-файл удалён,
+      preload до CSS, тот же набор на консоли / списке / лендинге (гость), без <code>ka-f.fontawesome.com</code>.</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>admin2</code> и <code>landingPage</code> в data-provider
+      (<code>node --check</code>); отдельный контракт: нет Kit, partial без <code>&lt;script&gt;</code>,
+      <code>showModalQueued</code> валиден.</li>
+  </ul>
+</div>
+</body>
+</html>

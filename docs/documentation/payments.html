@@ -592,7 +592,8 @@
     текстом <code>Оплатите абонемент {сумма} руб: {ссылка}</code> (до 99 999 ₽ — 1 Unicode SMS;
     тариф 70 ₽ с баланса кабинета) —
     <a href="/docs/documentation/lesson-packages#assignments-pay-sms">lesson-packages §assignments-pay-sms</a>,
-    анонс <a href="/doc#assignments-pay-sms-index">/doc</a>.
+    анонс колонки <a href="/doc#assignments-pay-sms-index">/doc</a>,
+    причина отказа sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>.
     Preview SMS вызывает <code>ensureFreshLink</code> без audit выдачи ссылки.
     Подробнее про вкладку назначений — <a href="/docs/documentation/lesson-packages#assignments-tab">lesson-packages § «Назначение абонементов»</a>.
   </div>
@@ -687,7 +688,7 @@
   <ul class="small">
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI (группа, поставщик, сумма через <code>Money::formatRub</code>), публичные endpoint'ы (guest OK), JSON-контракты QR, доступы <code>public-pay-link</code></li>
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayFeatureTest.php</code> — выдача короткого <code>/p/{code}</code>, совместимость длинного URL, expired/404</li>
-    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php</code> (и Length / Access / AjaxContract / NonAjaxSafetyNet / UiContracts / Workflow) — SMS с короткой ссылкой; Length — 1 Unicode-сегмент до 99 999 ₽</li>
+    <li><code>tests/Feature/Crm/LessonPackages/LessonPackageAssignmentPaySmsFeatureTest.php</code> (и Length / Access / AjaxContract / GatewayError / NonAjaxSafetyNet / UiContracts / Workflow) — SMS с короткой ссылкой; Length — 1 Unicode-сегмент до 99 999 ₽; GatewayError — причина sms.ru в <code>errors.sms</code></li>
     <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>payment/ulp-public-pay.blade.php</code></li>
   </ul>
 

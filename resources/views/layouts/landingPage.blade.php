@@ -59,8 +59,7 @@
     <script src="{{ asset('js/jquery/jquery-3.7.1.min.js') }}"></script>
     {{--JQuery-UI--}}
     <script src="{{ asset('js/jquery/jquery-ui.min.js') }}"></script>
-    {{--Fontawesome--}}
-    <script src="{{ asset('js/fontawesome/fontawesome.js') }}"></script>
+    @include('includes.fontawesome')
     {{--bootstrap--}}
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 

@@ -156,6 +156,38 @@ final class LessonPackageAssignmentPaySmsNonAjaxSafetyNetFeatureTest extends Crm
         }
     }
 
+    public function test_non_ajax_send_when_sms_ru_rejects_operator_redirects_with_sms_reason_not_empty_200(): void
+    {
+        $this->seedTbankForSmsPartner();
+        Partner::query()->whereKey($this->partner->id)->update(['wallet_balance_cents' => 20000]);
+        $ctx = $this->seedSmsAssignment(['student_phone' => '+79001112233']);
+
+        $this->mock(SmsRuService::class, function ($mock): void {
+            $mock->shouldReceive('send')->once()->andReturn(
+                'SMS error: Вы не подключили данного оператора на данном отправителе. [204]'
+            );
+        });
+
+        $response = $this->from(route('admin.lesson-packages.assignments'))
+            ->post($this->smsSendUrl($ctx['assignment']->id), [
+                '_token' => csrf_token(),
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Ошибка шлюза не должна маскироваться пустым/успешным 200');
+        $response->assertStatus(302);
+        $response->assertRedirect(route('admin.lesson-packages.assignments'));
+        $response->assertSessionHasErrors(['sms']);
+        $this->assertSame(
+            SmsRuService::USER_ERROR_OPERATOR_NOT_CONNECTED,
+            session('errors')->first('sms')
+        );
+        $this->assertStringNotContainsString('Попробуйте позже', (string) session('errors')->first('sms'));
+
+        $this->partner->refresh();
+        $this->assertSame(20000, (int) $this->partner->wallet_balance_cents);
+    }
+
     public function test_guest_non_ajax_send_is_denied_and_does_not_charge(): void
     {
         $this->seedTbankForSmsPartner();
