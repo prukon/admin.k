@@ -295,6 +295,50 @@ class ChatService
             ->all();
     }
 
+    /**
+     * Карточка собеседника для модалки шапки диалога.
+     *
+     * @return array<string, mixed>
+     */
+    public function userCard(User $peer, int $partnerId): array
+    {
+        $peer->loadMissing('parentProfile');
+
+        $teamTitle = (string) (User::query()
+            ->from('users')
+            ->where('users.id', (int) $peer->id)
+            ->selectRaw(UserTeamQuery::sqlStudentTeamTitlesSubquery($partnerId).' as team_title')
+            ->value('team_title') ?? '');
+
+        $fullName = trim((string) $peer->full_name);
+        if ($fullName === '') {
+            $fullName = trim((string) ($peer->name ?? ''));
+        }
+
+        $isOnline = $peer->isOnline();
+        $lastSeenLabel = '-';
+        if ($isOnline) {
+            $lastSeenLabel = 'онлайн';
+        } elseif ($peer->last_seen_at) {
+            $lastSeenLabel = $peer->last_seen_at
+                ->timezone((string) config('app.timezone'))
+                ->format('d.m.Y H:i');
+        }
+
+        return [
+            'id' => (int) $peer->id,
+            'avatar' => $this->avatarUrl($peer->image_crop ?? null),
+            'full_name' => $fullName,
+            'phone' => trim((string) ($peer->phone ?? '')),
+            'parent_full_name' => (string) ($peer->parent_full_name ?: ''),
+            'parent_phone' => trim((string) ($peer->parentProfile?->phone ?? '')),
+            'is_online' => $isOnline,
+            'last_seen_at' => $peer->last_seen_at?->toDateTimeString(),
+            'last_seen_label' => $lastSeenLabel,
+            'team_title' => $teamTitle,
+        ];
+    }
+
     public function avatarUrl(?string $imageCrop): string
     {
         if ($imageCrop === null || $imageCrop === '') {

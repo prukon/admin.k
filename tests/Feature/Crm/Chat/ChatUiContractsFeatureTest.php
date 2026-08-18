@@ -42,6 +42,16 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="contactsSearch"', $modal);
         $this->assertStringContainsString('id="contactsError"', $modal);
         $this->assertStringContainsString('id="msgBodyError"', $page);
+        $this->assertStringContainsString('id="threadPeerHit"', $page);
+        $this->assertStringContainsString('id="peerCardModal"', $html);
+        $this->assertStringContainsString('id="peerCardError"', $html);
+        $this->assertStringContainsString('id="peerCardBody"', $html);
+        $peerModalStart = strpos($html, 'id="peerCardModal"');
+        $this->assertNotFalse($peerModalStart);
+        $peerModal = substr($html, $peerModalStart, 900);
+        $this->assertStringNotContainsString('modal-xl', $peerModal);
+        $this->assertStringNotContainsString('modal-fullscreen', $peerModal);
+        $this->assertStringContainsString('class="modal-dialog"', $peerModal);
         $this->assertStringContainsString('js/chat.js', $html);
         $this->assertStringContainsString('chat-online-dot', $html);
         $this->assertStringContainsString('contact-online-dot', $html);
@@ -196,6 +206,12 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('contact-online-dot', $js);
         $this->assertStringContainsString('contact-parent', $js);
         $this->assertStringContainsString('parent_full_name', $js);
+        $this->assertStringContainsString('function openPeerCard(', $js);
+        $this->assertStringContainsString('threadPeerHit', $js);
+        $this->assertStringContainsString('peerCardModal', $js);
+        $this->assertStringContainsString('last_seen_label', $js);
+        $this->assertStringContainsString("href=\"' + escapeHtml(href)", $js);
+        $this->assertStringContainsString("urls.users + '/' + encodeURIComponent", $js);
     }
 
     public function test_echo_badge_script_hides_zero_and_ignores_foreign_thread_read(): void

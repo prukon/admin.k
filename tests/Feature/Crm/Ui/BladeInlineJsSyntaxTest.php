@@ -485,6 +485,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('chat-online-dot', $content);
         $this->assertStringContainsString('contact-online-dot', $content);
         $this->assertStringContainsString('parent_full_name', $content);
+        $this->assertStringContainsString('function openPeerCard(', $content);
+        $this->assertStringContainsString('last_seen_label', $content);
+        $this->assertStringContainsString('threadPeerHit', $content);
 
         $output = [];
         $exitCode = 0;

@@ -30,6 +30,7 @@
 
     let threadsCache = [];
     let currentThreadId = null;
+    let currentPeerId = null;
     let lastMessageId = null;
     let loadingOlder = false;
     let hasOlder = true;
@@ -337,6 +338,8 @@
                     throw new Error('bad-thread-payload');
                 }
                 currentThreadId = res.thread.id;
+                currentPeerId = res.thread.peer_id ? Number(res.thread.peer_id) : null;
+                setHeaderPeerClickable(!!currentPeerId);
                 hasOlder = (res.messages || []).length >= 40;
                 document.getElementById('threadTitle').textContent = res.thread.title || 'Диалог';
                 const av = document.getElementById('threadAvatar');
@@ -640,6 +643,106 @@
         return bootstrap.Modal.getOrCreateInstance(document.getElementById('contactsModal'));
     }
 
+    function peerCardModal() {
+        return bootstrap.Modal.getOrCreateInstance(document.getElementById('peerCardModal'));
+    }
+
+    function showPeerCardError(text) {
+        const el = document.getElementById('peerCardError');
+        if (el) {
+            el.textContent = text || '';
+        }
+    }
+
+    function setHeaderPeerClickable(on) {
+        const hit = document.getElementById('threadPeerHit');
+        if (!hit) {
+            return;
+        }
+        if (on) {
+            hit.classList.remove('is-idle');
+            hit.setAttribute('tabindex', '0');
+            hit.setAttribute('role', 'button');
+        } else {
+            hit.classList.add('is-idle');
+            hit.setAttribute('tabindex', '-1');
+            hit.removeAttribute('role');
+        }
+    }
+
+    function dashText(value) {
+        const s = String(value == null ? '' : value).trim();
+        return s === '' ? '-' : s;
+    }
+
+    function telHref(phone) {
+        const raw = String(phone == null ? '' : phone).trim();
+        if (!raw) {
+            return '';
+        }
+        const cleaned = raw.replace(/[^\d+]/g, '');
+        if (!cleaned || cleaned === '+') {
+            return '';
+        }
+        return 'tel:' + cleaned;
+    }
+
+    function phoneHtml(phone) {
+        const shown = dashText(phone);
+        if (shown === '-') {
+            return escapeHtml('-');
+        }
+        const href = telHref(phone);
+        if (!href) {
+            return escapeHtml(shown);
+        }
+        return '<a href="' + escapeHtml(href) + '">' + escapeHtml(shown) + '</a>';
+    }
+
+    function renderPeerCard(u) {
+        const body = document.getElementById('peerCardBody');
+        if (!body) {
+            return;
+        }
+        u = u || {};
+        body.innerHTML =
+            '<div class="peer-card">' +
+            '<img class="peer-card-avatar" src="' + escapeHtml(u.avatar || '/img/default-avatar.png') + '" alt="">' +
+            '<div class="peer-card-name">' + escapeHtml(dashText(u.full_name)) + '</div>' +
+            '<div class="peer-card-row"><div class="peer-card-label">Телефон</div><div>' + phoneHtml(u.phone) + '</div></div>' +
+            '<div class="peer-card-row"><div class="peer-card-label">Родитель</div><div>' + escapeHtml(dashText(u.parent_full_name)) + '</div></div>' +
+            '<div class="peer-card-row"><div class="peer-card-label">Телефон родителя</div><div>' + phoneHtml(u.parent_phone) + '</div></div>' +
+            '<div class="peer-card-row"><div class="peer-card-label">Последний онлайн</div><div>' + escapeHtml(dashText(u.last_seen_label)) + '</div></div>' +
+            '<div class="peer-card-row"><div class="peer-card-label">Группы</div><div>' + escapeHtml(dashText(u.team_title)) + '</div></div>' +
+            '</div>';
+    }
+
+    function openPeerCard() {
+        if (!currentPeerId) {
+            return;
+        }
+        showPeerCardError('');
+        renderPeerCard({});
+        peerCardModal().show();
+        fetch(urls.users + '/' + encodeURIComponent(String(currentPeerId)), {
+            headers: headers(false),
+            credentials: 'same-origin'
+        })
+            .then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            })
+            .then(function (res) {
+                if (!res.ok) {
+                    showPeerCardError(fieldError(res.data, 'user') || res.data.message || 'Не удалось загрузить карточку.');
+                    return;
+                }
+                renderPeerCard(res.data);
+            })
+            .catch(function () {
+                showPeerCardError('Не удалось загрузить карточку.');
+            });
+    }
+
     function renderContacts(list) {
         const ul = document.getElementById('contactsList');
         ul.innerHTML = '';
@@ -741,6 +844,19 @@
         clearTimeout(contactsDebounce);
         contactsDebounce = setTimeout(function () { loadContacts(q); }, 250);
     });
+
+    const peerHit = document.getElementById('threadPeerHit');
+    if (peerHit) {
+        peerHit.addEventListener('click', function () {
+            openPeerCard();
+        });
+        peerHit.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openPeerCard();
+            }
+        });
+    }
 
     window.KidsCrmChatRefreshInbox = loadThreads;
     window.KidsCrmChatOnInboxBump = applyInboxBump;

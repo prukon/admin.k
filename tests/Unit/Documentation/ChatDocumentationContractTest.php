@@ -70,6 +70,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('parent_full_name', $html);
         $this->assertStringContainsString('2 минут', $html);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
+        $this->assertStringContainsString('peerCardError', $html);
+        $this->assertStringContainsString('chat.api.users.show', $html);
+        $this->assertStringContainsString('last_seen_label', $html);
     }
 
     public function test_doc_catalog_and_controller_title_mention_no_flash_and_no_wspath(): void

@@ -66,6 +66,18 @@
         .contact-sub { font-size: .85rem; color: #6c757d; }
         .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
         .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }
+        .chat-header-peer { min-width: 0; }
+        .chat-header-peer:not(.is-idle) { cursor: pointer; }
+        .chat-header-peer.is-idle { cursor: default; }
+        .peer-card { text-align: left; }
+        .peer-card-avatar {
+            display: block; width: 96px; height: 96px; border-radius: 50%;
+            object-fit: cover; margin: 0 auto 1rem;
+        }
+        .peer-card-name { text-align: center; font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
+        .peer-card-row { display: flex; gap: .75rem; padding: .35rem 0; border-top: 1px solid #f0f2f4; }
+        .peer-card-label { flex: 0 0 42%; color: #6c757d; font-size: .85rem; }
+        .peer-card-row > div:last-child { min-width: 0; word-break: break-word; }
     </style>
 
     <div class="container py-3 chat-page" id="chatApp"
@@ -87,8 +99,10 @@
             <div class="col-12 col-md-8">
                 <div class="card h-100">
                     <div class="card-header d-flex align-items-center gap-2">
-                        <img id="threadAvatar" src="/img/default-avatar.png" alt="" class="chat-avatar" style="display:none;">
-                        <div class="fw-semibold" id="threadTitle">Выберите диалог</div>
+                        <div id="threadPeerHit" class="d-flex align-items-center gap-2 chat-header-peer is-idle">
+                            <img id="threadAvatar" src="/img/default-avatar.png" alt="" class="chat-avatar" style="display:none;">
+                            <div class="fw-semibold" id="threadTitle">Выберите диалог</div>
+                        </div>
                     </div>
                     <div class="card-body dialog-bg p-0 d-flex flex-column" style="height:65vh;">
                         <div id="messagesBox" class="p-3 flex-grow-1 overflow-auto">
@@ -120,6 +134,21 @@
                     <input type="text" id="contactsSearch" class="form-control mb-2" placeholder="Поиск по имени или email" autocomplete="off">
                     <div class="text-danger chat-field-error" id="contactsError"></div>
                     <ul id="contactsList" class="contact-list"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="peerCardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Контакт</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger chat-field-error" id="peerCardError"></div>
+                    <div id="peerCardBody"></div>
                 </div>
             </div>
         </div>

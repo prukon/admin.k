@@ -1128,6 +1128,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread'])->name('chat.api.threads.store');
         Route::get('/chat/api/unread', [ChatApiController::class, 'unread'])->name('chat.api.unread');
         Route::get('/chat/api/users', [ChatApiController::class, 'users'])->name('chat.api.users');
+        Route::get('/chat/api/users/{user}', [ChatApiController::class, 'showUser'])->whereNumber('user')->name('chat.api.users.show');
         Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread')->name('chat.api.threads.show');
         Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread')->name('chat.api.threads.messages.index');
         Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');

@@ -17,7 +17,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     /**
      * @return list<array{0: string, 1: string, 2: array<string, mixed>}>
      */
-    private function protectedEndpoints(int $threadId): array
+    private function protectedEndpoints(int $threadId, int $peerId): array
     {
         return [
             ['GET', 'chat.index', []],
@@ -25,6 +25,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['POST', 'chat.api.threads.store', ['user_id' => 1]],
             ['GET', 'chat.api.unread', []],
             ['GET', 'chat.api.users', []],
+            ['GET', 'chat.api.users.show', ['user' => $peerId]],
             ['GET', 'chat.api.threads.show', ['thread' => $threadId]],
             ['GET', 'chat.api.threads.messages.index', ['thread' => $threadId]],
             ['POST', 'chat.api.threads.messages.store', ['thread' => $threadId, 'body' => 'x']],
@@ -39,7 +40,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
 
         Auth::logout();
 
-        foreach ($this->protectedEndpoints((int) $thread->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
             $response = $this->hit($method, $name, $params);
             $this->assertNotSame(500, $response->getStatusCode(), $name.' не должен отдавать 500 гостю');
             $this->assertTrue(
@@ -57,7 +58,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
 
         Auth::logout();
 
-        foreach ($this->protectedEndpoints((int) $thread->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
             if ($name === 'chat.index') {
                 continue;
             }
@@ -75,7 +76,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
         $denied = $this->createUserWithoutPermission('messages.view', $this->partner);
         $this->actingInPartner($denied);
 
-        foreach ($this->protectedEndpoints((int) $thread->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
             $response = $this->hitJson($method, $name, $params);
             $this->assertSame(
                 403,
@@ -91,6 +92,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
 
         $this->get(route('chat.index'))->assertOk()->assertSee('id="chatApp"', false);
         $this->getJson(route('chat.api.users'))->assertOk();
+        $this->getJson(route('chat.api.users.show', $peer))->assertOk();
         $this->getJson(route('chat.api.threads.index'))->assertOk();
         $this->getJson(route('chat.api.unread'))->assertOk();
 
@@ -212,7 +214,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $url = route($name, $params);
         $payload = $params;
-        unset($payload['thread']);
+        unset($payload['thread'], $payload['user']);
 
         return match (strtoupper($method)) {
             'GET' => $this->get($url),
@@ -229,7 +231,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $url = route($name, $params);
         $payload = $params;
-        unset($payload['thread']);
+        unset($payload['thread'], $payload['user']);
 
         return match (strtoupper($method)) {
             'GET' => $this->getJson($url),

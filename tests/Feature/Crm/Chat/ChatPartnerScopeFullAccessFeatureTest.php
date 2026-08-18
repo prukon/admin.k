@@ -75,6 +75,10 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
 
         $this->assertContains((int) $local->id, $ids);
         $this->assertNotContains((int) $this->foreignUser->id, $ids);
+
+        $this->getJson(route('chat.api.users.show', $local))->assertOk();
+        $this->getJson(route('chat.api.users.show', $this->foreignUser))->assertForbidden();
+        $this->getJson(route('chat.api.users.show', 9_999_999))->assertNotFound();
     }
 
     public function test_superadmin_with_null_partner_id_sees_only_current_partner_users(): void

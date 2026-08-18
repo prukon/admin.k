@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Chat;
 
+use App\Models\ParentProfile;
+use App\Models\Team;
+use App\Services\TeamUserSyncService;
+
 /**
  * P1: JSON-контракт API чата — структура, errors[field], история, прочитанность.
  *
@@ -374,5 +378,76 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertOk()
             ->assertJsonPath('unread_total', 0)
             ->assertJsonMissingPath('threads');
+    }
+
+    public function test_peer_card_returns_profile_fields_and_online_label(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Сидоров',
+            'firstname' => 'Сидор',
+            'middlename' => 'Сидорович',
+            'phone' => '+79001112233',
+        ]);
+        $peer = $this->makePeer('CardPeer_', [
+            'lastname' => 'Иванов',
+            'name' => 'Иван',
+            'phone' => '+79005556677',
+            'parent_id' => $parent->id,
+            'last_seen_at' => now(),
+        ]);
+        $team = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'КарточкаГруппа',
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($peer, [(int) $team->id]);
+
+        $this->getJson(route('chat.api.users.show', $peer))
+            ->assertOk()
+            ->assertJsonStructure([
+                'id', 'avatar', 'full_name', 'phone', 'parent_full_name', 'parent_phone',
+                'is_online', 'last_seen_at', 'last_seen_label', 'team_title',
+            ])
+            ->assertJsonPath('full_name', 'Иванов Иван')
+            ->assertJsonPath('phone', '+79005556677')
+            ->assertJsonPath('parent_full_name', 'Сидоров Сидор Сидорович')
+            ->assertJsonPath('parent_phone', '+79001112233')
+            ->assertJsonPath('is_online', true)
+            ->assertJsonPath('last_seen_label', 'онлайн')
+            ->assertJsonPath('team_title', 'КарточкаГруппа');
+    }
+
+    public function test_peer_card_empty_fields_and_missing_last_seen_use_blank_and_dash(): void
+    {
+        $peer = $this->makePeer('EmptyCard_', [
+            'lastname' => 'Петров',
+            'name' => 'Пётр',
+            'phone' => null,
+            'last_seen_at' => null,
+            'parent_id' => null,
+        ]);
+
+        $this->getJson(route('chat.api.users.show', $peer))
+            ->assertOk()
+            ->assertJsonPath('full_name', 'Петров Пётр')
+            ->assertJsonPath('phone', '')
+            ->assertJsonPath('parent_full_name', '')
+            ->assertJsonPath('parent_phone', '')
+            ->assertJsonPath('is_online', false)
+            ->assertJsonPath('last_seen_label', '-')
+            ->assertJsonPath('team_title', '');
+    }
+
+    public function test_peer_card_offline_last_seen_is_formatted_datetime(): void
+    {
+        $this->travelTo('2026-08-18 12:00:00');
+        $peer = $this->makePeer('SeenCard_', [
+            'last_seen_at' => now()->subMinutes(3),
+        ]);
+
+        $this->getJson(route('chat.api.users.show', $peer))
+            ->assertOk()
+            ->assertJsonPath('is_online', false)
+            ->assertJsonPath('last_seen_label', '18.08.2026 11:57');
     }
 }

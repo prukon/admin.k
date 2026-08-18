@@ -7,11 +7,13 @@ namespace App\Http\Controllers\Chat;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Chat\ChatMessagesIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
+use App\Http\Requests\Chat\ChatUserShowRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Http\Requests\Chat\StoreChatThreadRequest;
 use App\Models\ChatThread;
+use App\Models\User;
 use App\Services\Chat\ChatService;
 use App\Services\Chat\ReverbHealth;
 use App\Services\Chat\UserPresence;
@@ -128,6 +130,13 @@ class ChatApiController extends AdminBaseController
         );
 
         return response()->json($users);
+    }
+
+    public function showUser(ChatUserShowRequest $request, User $user): JsonResponse
+    {
+        return response()->json(
+            $this->chat->userCard($user, $this->requirePartnerId())
+        );
     }
 
     public function markRead(Request $request, ChatThread $thread): JsonResponse|RedirectResponse
