@@ -246,7 +246,7 @@ users (role=user) — ученик, вход в CRM
     <tbody>
       <tr><td>GET</td><td><code>/account-settings/user/edit</code></td><td>200 при <code>account.user.view</code></td></tr>
       <tr><td>PATCH</td><td><code>/account-settings/user</code></td><td>200 JSON <code>success</code></td></tr>
-      <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>200</td></tr>
+      <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>200 JSON <code>{success: true}</code>; UI — toast «Пароль успешно изменен.» (<code>window.showToast</code>), не <code>showSuccessModal</code>. Короткий пароль — 422 <code>errors.password</code>.</td></tr>
       <tr><td>POST / DELETE</td><td><code>/account-settings/user/avatar</code></td><td>200 / 422</td></tr>
     </tbody>
   </table>
@@ -303,7 +303,8 @@ users (role=user) — ученик, вход в CRM
     <code>CabinetTeamAttachNonAjaxSafetyNetFeatureTest</code>,
     <code>CabinetTeamAttachMarkupFeatureTest</code>,
     <code>CabinetTeamAttachInAppNotification*FeatureTest</code>,
-    <code>AccountUserEditPageFeatureTest</code>.</p>
+    <code>AccountUserEditPageFeatureTest</code>,
+    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (свой пароль в ЛК — toast).</p>
 
   <h2 id="family-cabinet">5) Семейный кабинет (переключение детей)</h2>
   <p class="small">Оплата за выбранного ребёнка (витрина, Init, отчёты) — <a href="/doc#family-student-payment-index">анонс на /doc</a>.</p>

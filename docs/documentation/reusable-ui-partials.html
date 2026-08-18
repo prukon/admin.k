@@ -662,6 +662,30 @@ dataTable: {
     <li>Для иконки-подсказки в форме — <code>@include('partials.ui.tooltip-hint', …)</code> (§2).</li>
   </ol>
 
+  <h2 id="kids-main-toast">8) Всплывайка уведомлений <code>#kidsMainToast</code></h2>
+  <div class="note">
+    Общий Bootstrap 5 toast админки (как локальные toast на заявках / ценах): правый нижний угол, поверх модалок (<code>z-index: 1090</code>).
+    Partial: <code>resources/views/partials/ui/main-toast.blade.php</code>.
+    Подключение: <code>@include('partials.ui.main-toast')</code> в <code>layouts/admin2.blade.php</code> — на всех admin-страницах доступен <code>window.showToast(message, type)</code>
+    (<code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code>).
+  </div>
+  <p>
+    Смена пароля в карточке админа / ученика / тренера использует эту всплывайку («Пароль успешно изменен»), а не success-модалку (запасного <code>showSuccessModal</code> нет).
+    Тот же toast — удаление ученика, повторная отправка пароля ученику по почте, CRUD тренера, создание администратора, создание/правка юр. лица, удаление объекта, типы тренера, «Создать клиента» у лида, цены одного ученика и группы справа, создание доп. платежа, создание и удаление кастомной роли, смена своего пароля в ЛК.
+    Заявки школы по-прежнему могут иметь <b>свой</b> локальный <code>#mainToast</code> — «Создать клиента» зовёт <code>window.showToast</code> (общий), не локальный.
+    «Применить» слева (всем группам) по-прежнему <code>showSuccessModal</code>.
+    Анонс — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>, смена пароля в карточке —
+    <a href="/doc#admin-password-change-toast-index">/doc</a>.
+    См. также <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>.
+  </p>
+  <p class="small">
+    Тесты: <code>SuccessToastInsteadOfModalAccessFeatureTest</code> (гость / 403 / 200 + toast на первом открытии),
+    <code>SuccessToastInsteadOfModalAjaxContractFeatureTest</code> (JSON 200/422 <code>errors[field]</code>, 403),
+    <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code> (без AJAX — 302 или непустой JSON, запись в БД),
+    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (скрытый пустой toast, оба JS-пути доп. платежа, лид не берёт локальный toast, негатив вне списка),
+    <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code> (<code>node --check</code>).
+  </p>
+
   <p class="small">
     <strong>Страницы вне пресета</strong> (по состоянию на 2026‑06): журнал расписания <code>/schedule</code> — client-side DataTable в <code>schedule.js</code> (намеренно, без server-side);
     личный отчёт ученика <code>/user/report/payment</code> — legacy inline DataTable. При миграции переводить на <code>KidsCrmDataTable</code> / <code>KidsCrmTooltip</code> по чек-листу §7.

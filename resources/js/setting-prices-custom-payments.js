@@ -292,11 +292,8 @@
                         if (dtApi) {
                             dtApi.reload({ keepPage: true });
                         }
-                        if (typeof window.showSuccessModal === 'function') {
-                            window.showSuccessModal(
-                                'Дополнительный платеж',
-                                'Дополнительный платеж успешно создан.'
-                            );
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('Дополнительный платеж успешно создан.', 'success');
                         } else {
                             toast('Дополнительный платеж успешно создан.', false);
                         }

@@ -848,6 +848,15 @@
                 if (err) err.style.display = 'none';
             }
 
+            const lastAppliedPasswordByUserId = {};
+            const samePasswordMessage = 'Новый пароль совпадает с текущим.';
+
+            function notifyPasswordResult(message, type) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(message, type);
+                }
+            }
+
             function initTrainerPasswordToggle() {
                 const wrap = document.querySelector('#trainerEditModal .wrap-change-password');
                 if (!wrap || wrap.dataset.toggleInit === '1') {
@@ -910,28 +919,33 @@
                     return;
                 }
                 if (err) err.style.display = 'none';
+                if (lastAppliedPasswordByUserId[userId] === newPassword) {
+                    notifyPasswordResult(samePasswordMessage, 'warning');
+                    return;
+                }
 
                 $.ajax({
                     url: `/admin/user/${userId}/update-password`,
                     method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': token },
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json',
+                    },
                     data: { password: newPassword },
                     success: function (response) {
                         if (response.success) {
+                            lastAppliedPasswordByUserId[userId] = newPassword;
                             resetTrainerPasswordUi();
-                            if (typeof showSuccessModal === 'function') {
-                                showSuccessModal('Обновление пароля', 'Пароль успешно обновлен.');
-                            }
+                            notifyPasswordResult('Пароль успешно изменен', 'success');
                         }
                     },
                     error: function (xhr) {
                         const msg = (xhr.responseJSON && xhr.responseJSON.message)
                             || 'Произошла ошибка при сохранении пароля.';
-                        if (typeof showErrorModal === 'function') {
-                            showErrorModal('Ошибка', msg, 1);
-                        } else {
-                            alert(msg);
-                        }
+                        notifyPasswordResult(
+                            msg,
+                            msg === samePasswordMessage ? 'warning' : 'error'
+                        );
                     },
                 });
             });
@@ -952,12 +966,8 @@
                     if (cb) cb.checked = true;
                     syncTrainerCreateWelcomeUi();
                 }
-                if (ok && typeof showSuccessModal === 'function') {
-                    showSuccessModal(
-                        'Создание тренера',
-                        data.message || 'Тренер успешно создан.',
-                        0
-                    );
+                if (ok && typeof window.showToast === 'function') {
+                    window.showToast(data.message || 'Тренер успешно создан.', 'success');
                 }
             });
 
@@ -1021,12 +1031,8 @@
                 }
                 const { ok, status, data } = await postForm(`/admin/trainers/${id}`, editForm, 'PUT');
                 handleSaveResponse(editForm, ok, status, data, { modalId: 'trainerEditModal' });
-                if (ok && typeof showSuccessModal === 'function') {
-                    showSuccessModal(
-                        'Редактирование тренера',
-                        data.message || 'Тренер успешно обновлён.',
-                        0
-                    );
+                if (ok && typeof window.showToast === 'function') {
+                    window.showToast(data.message || 'Тренер успешно обновлён.', 'success');
                 }
             });
 
@@ -1056,12 +1062,8 @@
                             window.__reloadTrainersTable();
                         }
 
-                        if (typeof showSuccessModal === 'function') {
-                            showSuccessModal(
-                                'Удаление тренера',
-                                data.message || 'Тренер успешно удалён.',
-                                0
-                            );
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(data.message || 'Тренер успешно удалён.', 'success');
                         }
                         return;
                     }

@@ -593,7 +593,9 @@
                             if (data.success) {
                                 document.getElementById('change-password-btn').style.display = 'inline-block';
                                 document.querySelector('#change-pass-wrap').style.display = 'none';
-                                showSuccessModal("Изменение пароля", "Пароль успешно изменен.");
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast('Пароль успешно изменен.', 'success');
+                                }
                             }
                         });
                 });

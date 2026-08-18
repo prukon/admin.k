@@ -21,7 +21,7 @@ class ChatService
 {
     public const DEFAULT_AVATAR = '/img/default-avatar.png';
 
-    private const PEER_USER_COLUMNS = 'id,name,image_crop,last_seen_at';
+    public const PEER_USER_COLUMNS = 'id,name,lastname,image_crop,last_seen_at';
 
     public function unreadTotal(int $userId): int
     {
@@ -251,7 +251,7 @@ class ChatService
             $query->leftJoin('roles', 'roles.id', '=', 'users.role_id');
         }
 
-        $selects = ['users.id', 'users.name', 'users.email', 'users.image_crop', 'users.parent_id'];
+        $selects = ['users.id', 'users.name', 'users.lastname', 'users.email', 'users.image_crop', 'users.parent_id'];
         if (Schema::hasColumn('users', 'last_seen_at')) {
             $selects[] = 'users.last_seen_at';
         }
@@ -269,19 +269,25 @@ class ChatService
             $like = '%'.$q.'%';
             $query->where(function ($w) use ($like) {
                 $w->where('users.name', 'like', $like)
-                    ->orWhere('users.email', 'like', $like);
+                    ->orWhere('users.lastname', 'like', $like)
+                    ->orWhere('users.email', 'like', $like)
+                    ->orWhereHas('parentProfile', function ($parentQuery) use ($like) {
+                        $parentQuery->where('lastname', 'like', $like)
+                            ->orWhere('firstname', 'like', $like);
+                    });
             });
         }
 
         return $query
             ->with(['parentProfile:id,lastname,firstname,middlename'])
+            ->orderBy('users.lastname')
             ->orderBy('users.name')
             ->limit(100)
             ->get($selects)
             ->map(function ($user) {
                 return [
                     'id' => (int) $user->id,
-                    'name' => (string) $user->name,
+                    'name' => (string) ($user->full_name ?: $user->name),
                     'email' => $user->email,
                     'avatar' => $this->avatarUrl($user->image_crop ?? null),
                     'role_name' => $user->role_name,
@@ -458,9 +464,7 @@ class ChatService
      */
     private function serializeThreadHeader(ChatThread $thread, int $viewerId): array
     {
-        if (! $thread->relationLoaded('participants')) {
-            $thread->load(['participants.user:'.self::PEER_USER_COLUMNS]);
-        }
+        $thread->load(['participants.user:'.self::PEER_USER_COLUMNS]);
 
         return [
             'id' => (int) $thread->id,
@@ -514,8 +518,9 @@ class ChatService
     private function titleForViewer(ChatThread $thread, int $viewerId): string
     {
         $peer = $this->peerUser($thread, $viewerId);
+        $fullName = trim((string) ($peer?->full_name ?: ''));
 
-        return $peer?->name ?: 'Диалог';
+        return $fullName !== '' ? $fullName : 'Диалог';
     }
 
     private function avatarForViewer(ChatThread $thread, int $viewerId): string

@@ -126,7 +126,7 @@
     <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=0.01</code>, копейки разрешены), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
     <li>Полей «Дата начала» / «Дата окончания» <b>нет</b>.</li>
     <li>Если у ученика ровно одна группа — она подставляется автоматически после <code>teams-for-user</code>.</li>
-    <li>Успех: <code>showSuccessModal('Дополнительный платеж', '…успешно создан.')</code> (не toast).</li>
+    <li>Успех: toast <code>window.showToast('Дополнительный платеж успешно создан.', 'success')</code> (<code>#kidsMainToast</code>, не <code>showSuccessModal</code>). Локальный <code>#priceToast</code> — запасной, если общего toast нет.</li>
     <li>Ошибки 422 — под полями (<code>.custom-payment-field-error</code>).</li>
   </ul>
 
@@ -203,7 +203,8 @@
     <li><code>CustomPaymentsTeamColumnFeatureTest</code> — <code>team_label</code>, заголовки таблицы (Описание, без Период)</li>
     <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete, статус + comment, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела, в т.ч. mutations + <code>manualPaid.manage</code></li>
-    <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки + оба файла <code>setting-prices-custom-payments.js</code> (Vite-источник и <code>public/js</code>)</li>
+    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — оба JS-пути create: toast «Дополнительный платеж успешно создан.», не <code>showSuccessModal</code></li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — manual-paid доп. платежа ↔ отчёт задолженностей</li>
     <li>Payments: <code>PayableTeamPaymentFlowTest</code>, <code>PayableTeamPaymentInitFeatureTest</code>, <code>PaymentAssignmentTeamBackfillTest</code></li>
   </ul>

@@ -25,7 +25,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertCreated()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('created', true)
-            ->assertJsonPath('thread.title', $peer->name)
+            ->assertJsonPath('thread.title', $peer->full_name)
             ->assertJsonPath('thread.peer_id', $peer->id)
             ->assertJsonStructure([
                 'ok',
@@ -363,8 +363,93 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         $this->assertTrue(array_is_list($contacts));
         $row = collect($contacts)->firstWhere('id', $peer->id);
         $this->assertNotNull($row);
-        $this->assertSame($peer->name, $row['name']);
+        $this->assertSame($peer->full_name, $row['name']);
         $this->assertStringContainsString('/img/default-avatar.png', (string) $row['avatar']);
+    }
+
+    public function test_contacts_and_thread_title_use_lastname_then_name(): void
+    {
+        $withFio = $this->makePeer('NamePart_', [
+            'lastname' => 'СмирновЧат',
+            'name' => 'АлексейЧат',
+        ]);
+        $noLast = $this->makePeer('NoLast_', [
+            'lastname' => '',
+            'name' => 'ТолькоИмяЧат_'.uniqid('', true),
+        ]);
+
+        $contacts = collect($this->getJson(route('chat.api.users'))->assertOk()->json());
+        $withRow = $contacts->firstWhere('id', $withFio->id);
+        $noRow = $contacts->firstWhere('id', $noLast->id);
+        $this->assertNotNull($withRow);
+        $this->assertNotNull($noRow);
+        $this->assertSame('СмирновЧат АлексейЧат', $withRow['name']);
+        $this->assertSame($noLast->name, $noRow['name']);
+
+        $created = $this->postJson(route('chat.api.threads.store'), ['user_id' => $withFio->id])
+            ->assertCreated();
+        $created->assertJsonPath('thread.title', 'СмирновЧат АлексейЧат');
+        $withThreadId = (int) $created->json('thread_id');
+
+        $indexWith = collect($this->getJson(route('chat.api.threads.index'))->json('threads'))
+            ->firstWhere('id', $withThreadId);
+        $this->assertNotNull($indexWith);
+        $this->assertSame('СмирновЧат АлексейЧат', $indexWith['title']);
+        $this->getJson(route('chat.api.threads.show', $withThreadId))
+            ->assertOk()
+            ->assertJsonPath('thread.title', 'СмирновЧат АлексейЧат');
+
+        $controller = (string) file_get_contents(app_path('Http/Controllers/Chat/ChatApiController.php'));
+        $this->assertStringNotContainsString(
+            'participants.user:id,name,image_crop,last_seen_at',
+            $controller,
+            'GET show не должен грузить собеседника без lastname: openThread перезаписывает title в списке слева'
+        );
+
+        $threadId = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $noLast->id,
+        ])->assertCreated()->json('thread_id');
+
+        $row = collect($this->getJson(route('chat.api.threads.index'))->json('threads'))
+            ->firstWhere('id', $threadId);
+        $this->assertNotNull($row);
+        $this->assertSame($noLast->name, $row['title']);
+    }
+
+    public function test_contacts_search_matches_user_lastname_and_parent_name(): void
+    {
+        $parentLast = 'РодитФамЧат_'.uniqid('', true);
+        $parentFirst = 'РодитИмяЧат_'.uniqid('', true);
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => $parentLast,
+            'firstname' => $parentFirst,
+            'middlename' => 'ОтчествоНеИщемЧат',
+        ]);
+        $kid = $this->makePeer('KidSearch_', [
+            'lastname' => 'УченФамЧат_'.uniqid('', true),
+            'name' => 'УченИмяЧат',
+            'parent_id' => $parent->id,
+        ]);
+        $other = $this->makePeer('OtherSearch_');
+
+        $byUserLast = collect($this->getJson(route('chat.api.users', ['q' => $kid->lastname]))->assertOk()->json());
+        $this->assertNotNull($byUserLast->firstWhere('id', $kid->id));
+        $this->assertNull($byUserLast->firstWhere('id', $other->id));
+
+        $byParentLast = collect($this->getJson(route('chat.api.users', ['q' => $parentLast]))->assertOk()->json());
+        $this->assertNotNull($byParentLast->firstWhere('id', $kid->id));
+        $this->assertNull($byParentLast->firstWhere('id', $other->id));
+
+        $byParentFirst = collect($this->getJson(route('chat.api.users', ['q' => $parentFirst]))->assertOk()->json());
+        $this->assertNotNull($byParentFirst->firstWhere('id', $kid->id));
+
+        $byMiddle = collect($this->getJson(route('chat.api.users', ['q' => 'ОтчествоНеИщемЧат']))->assertOk()->json());
+        $this->assertNull($byMiddle->firstWhere('id', $kid->id));
+
+        $parent->delete();
+        $afterDelete = collect($this->getJson(route('chat.api.users', ['q' => $parentLast]))->assertOk()->json());
+        $this->assertNull($afterDelete->firstWhere('id', $kid->id));
     }
 
     public function test_empty_inbox_returns_zero_unread_and_empty_thread_list(): void

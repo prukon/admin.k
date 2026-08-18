@@ -17,15 +17,29 @@
             border-radius: 50%; background: #22c55e; border: 2px solid #fff; box-sizing: content-box;
         }
         .chat-li-middle { flex: 1; min-width: 0; }
-        .chat-li-title { font-weight: 600; line-height: 1.2; }
+        .chat-li-body { display: flex; align-items: flex-start; gap: .5rem; min-width: 0; flex: 1; }
+        .chat-li-title {
+            font-weight: 600; line-height: 1.2;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
         .chat-li-preview {
             font-size: .9rem; color: #6c757d; overflow: hidden;
             white-space: nowrap; text-overflow: ellipsis; text-align: left;
+        }
+        .chat-li-meta {
+            flex: 0 0 auto; display: flex; flex-direction: column;
+            align-items: flex-end; gap: .15rem;
         }
         .chat-li-time { font-size: .8rem; color: #6c757d; white-space: nowrap; display: flex; align-items: center; gap: .15rem; }
         .chat-li-time .check { width: 12px; height: 12px; }
         .chat-li-time .check svg { width: 12px; height: 12px; }
         .chat-li-time .check-second { margin-left: -6px; }
+        .chat-li-unread {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem;
+            border-radius: 999px; background: #f3a12b; color: #fff;
+            font-size: .75rem; font-weight: 600; line-height: 1;
+        }
         .dialog-bg { background: url("/img/background-chat.jpg") repeat; background-size: cover; }
         .msg-row { display: flex; width: 100%; margin: .25rem 0; }
         .msg-inner { display: flex; flex-direction: column; width: 100%; }
@@ -49,7 +63,7 @@
         .checks-read { color: #4CAF50; }
         .contact-list { margin: 0; padding: 0; list-style: none; max-height: min(60vh, 520px); overflow: auto; }
         .contact-row {
-            display: flex; align-items: center; gap: .65rem;
+            display: flex; align-items: flex-start; gap: .65rem;
             padding: .4rem .25rem; cursor: pointer; border-radius: 8px;
         }
         .contact-row:hover { background: #f5f7f9; }
@@ -61,8 +75,23 @@
         }
         .contact-online-dot.is-online { background: #22c55e; }
         .contact-online-dot.is-offline { background: #dc3545; }
-        .contact-name { font-weight: 600; }
-        .contact-parent { font-size: .8rem; color: #868e96; font-weight: 400; line-height: 1.25; }
+        .contact-main { flex: 1 1 38%; min-width: 0; }
+        .contact-name {
+            font-weight: 600; line-height: 1.35;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .contact-parent {
+            font-size: .8rem; color: #868e96; font-weight: 400; line-height: 1.25;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .contact-team {
+            flex: 1 1 32%; min-width: 0; text-align: center; line-height: 1.35;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        .contact-role {
+            flex: 0 1 22%; min-width: 4.5rem; text-align: right; line-height: 1.35;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
         .contact-sub { font-size: .85rem; color: #6c757d; }
         .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
         .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }

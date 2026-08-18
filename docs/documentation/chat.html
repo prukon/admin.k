@@ -31,11 +31,14 @@
   <h1>Чат CRM (Сообщения)</h1>
   <div class="small">Файл: <code>/docs/documentation/chat.html</code> · кабинет: <code>/chat</code>
     · анонс чата: <a href="/doc#chat-index">/doc#chat-index</a>
+    · онлайн / карточка: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы. Текст без вложений.
     Пункт «Чат» в сайдбаре, бейдж <code>badge-info</code> — число непрочитанных (скрыт при 0).
+    Онлайн — зелёная точка (в списке диалогов красной нет), галочки только у исходящего,
+    карточка собеседника из шапки открытого диалога.
     Realtime — тот же Reverb, что у колокольчика. Если сокет недоступен, страница
     чата подтягивает новые сообщения опросом раз в 1 секунду; на остальных страницах
     бейдж — раз в 12 секунд.
@@ -58,11 +61,16 @@
         <td><code>messages.view</code></td>
         <td><code>is_visible=1</code>, группа <code>mainMenu</code></td>
         <td><code>user</code>, <code>admin</code>, <code>trainer</code></td>
-        <td>Пункт «Чат», страница <code>/chat</code>, все API чата</td>
+        <td>Пункт «Чат», страница <code>/chat</code>, API <code>/chat/api/*</code> кроме
+          <code>reverb-status</code>. Ping <code>/presence/ping</code> — без этого права
+          (любой залогиненный).</td>
       </tr>
     </tbody>
   </table>
-  <p>Без права — 403 на страницу и API. Гость — редирект на логин / 401 на JSON.
+  <p>Без права — 403 на страницу и API <code>/chat/api/*</code> (кроме
+    <code>reverb-status</code>: он только у superadmin и тоже без <code>messages.view</code>).
+    Гость — редирект на логин / 401 на JSON.
+    Ping <code>/presence/ping</code> без <code>messages.view</code> — 200 JSON.
     Superadmin проходит через <code>Gate::before</code>.
     Существующим школам право выдано миграцией
     <code>2026_08_16_220000_enable_chat_messages_view_for_base_roles</code>.</p>
@@ -76,15 +84,24 @@
       раз в 1 секунду (<code>KidsCrmChatRefreshInbox</code>); на остальных страницах —
       <code>GET /chat/api/unread</code> раз в 12 секунд. Без перезагрузки страницы.
       Если открыт тот же диалог, бейдж не вспыхивает (из <code>unread_total</code> вычитается unread этого треда).</li>
-    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по имени и превью.
-      Справа — время последнего сообщения (сегодня <code>ЧЧ:ММ</code>, иначе дата).
+    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по фамилии и имени собеседника и превью.
+      Заголовок диалога, шапка и <code>GET /chat/api/threads/{id}</code> — <code>users.lastname</code> + <code>users.name</code> (если фамилии нет — только имя).
+      Клиент при открытии диалога перезаписывает title в списке слева из этого ответа, поэтому колонки собеседника те же, что у списка (<code>ChatService::PEER_USER_COLUMNS</code>, с <code>lastname</code>).
+      Справа сверху — время последнего сообщения (сегодня <code>ЧЧ:ММ</code>, иначе дата).
+      Под временем, справа внизу — каунтер непрочитанных (<code>.chat-li-unread</code>, фон <code>#f3a12b</code>); при 0 не показываем.
       Если последнее сообщение исходящее: одна серая галочка слева от времени, пока собеседник не прочитал,
       две зелёные — после прочтения (как в пузыре сообщения).
       Если собеседник онлайн (<code>last_seen_at</code> не старше 2 минут) — зелёная точка справа снизу на аватарке списка.
-      Офлайн в списке точку не рисуем.</li>
+      Офлайн в списке точку не рисуем. Клик по строке открывает диалог (<code>openThread</code>) и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>.</li>
     <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).
       Справа снизу аватарки: зелёная точка если онлайн, красная если офлайн (в том числе если человек ещё ни разу не пинговал после появления <code>last_seen_at</code>).
-      Под именем, если есть карточка родителя, — ФИО родителя серым меньшим шрифтом (<code>parent_full_name</code>); пустую строку не показываем. Ниже — группы ученика.</li>
+      После аватарки три колонки: слева фамилия и имя (<code>users.lastname</code> + <code>users.name</code>, JSON <code>name</code>;
+      без фамилии — только имя), под ним ФИО родителя серым меньшим шрифтом
+      (<code>parent_full_name</code>, <code>.contact-parent</code>) — только если строка непустая;
+      по центру на одной линии с именем — группы ученика (<code>team_title</code>, <code>.contact-team</code>);
+      справа — роль (<code>.contact-role</code>). Пустую строку родителя не показываем.
+      Поиск <code>?q=</code> — по фамилии и имени ученика, email, фамилии и имени родителя
+      (<code>parents.lastname</code> / <code>parents.firstname</code>). Отчество родителя и soft-deleted карточка в поиске не участвуют.</li>
     <li>Клик по контакту открывает существующий 1-на-1 или создаёт новый. Повторный клик по тому же человеку не плодит диалоги.</li>
     <li>Справа — переписка. Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
       (сокет <code>thread.read</code>; если сокет не <code>connected</code> — опрос <code>is_read</code> раз в 1 секунду на странице чата).
@@ -94,6 +111,49 @@
       Пустые поля в карточке — «-». Ошибки — под полями
       (<code>#msgBodyError</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>).</li>
     <li>История вверх: прокрутка к верху догружает более старые сообщения.</li>
+  </ol>
+
+  <h2 id="presence">2.1) Онлайн, галочки исходящего, ФИО родителя, карточка</h2>
+  <p>Анонс на главной: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>.</p>
+  <ol>
+    <li><b>Онлайн.</b> <code>users.last_seen_at</code>, окно 120 секунд (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>,
+      сравнение <code>gte</code>: ровно 2 минуты ещё онлайн). Никогда не пинговал — офлайн.
+      <code>POST /presence/ping</code> (<code>presence.ping</code>): группа <code>auth</code>+<code>2fa</code>,
+      <b>без</b> <code>can:messages.view</code>. JSON <code>{ok: true}</code> и у AJAX, и у нативного POST
+      (heartbeat, не 302 на раздел). Throttle записи в БД — 30 секунд.
+      Клиент: <code>includes/in_app_notifications/echo.blade.php</code>, <code>ping()</code> при загрузке
+      и <code>setInterval(ping, 60000)</code>. Скрипт не содержит <code>route('chat.index')</code>,
+      чтобы HTML dashboard без права чата не тащил URL <code>/chat</code>.</li>
+    <li><b>Список диалогов.</b> Заголовок и шапка — <code>lastname</code>+<code>name</code> (без фамилии — только имя).
+      Время справа сверху — <code>last_message_time</code> (сегодня часы:минуты, иначе
+      <code>ДД.ММ.ГГ</code>), поле <code>last_seen_at</code> в payload списка нет.
+      Каунтер непрочитанных — <code>.chat-li-unread</code> справа внизу под временем, цвет <code>#f3a12b</code>; при 0 не рисуем.
+      <code>peer_is_online</code> → класс <code>chat-online-dot</code>; офлайн — без точки и без
+      <code>is-offline</code>. Галочки (<code>ticksHtml</code>) только если <code>last_message_is_mine</code>:
+      непрочитано — <code>checks-sent</code> (одна серая), прочитано — <code>checks-read</code> + <code>check-second</code>.
+      Входящее: <code>last_message_is_read = null</code>, галочек нет.
+      Клик по строке — <code>openThread</code>, не карточка; после включения композера фокус в <code>#msgInput</code>.</li>
+    <li><b>Контакты.</b> <code>is_online</code> → <code>contact-online-dot is-online</code> / <code>is-offline</code>
+      (ни разу не seen = красная). Три колонки после аватарки, выравнивание по верху:
+      слева <code>.contact-main</code> (имя и под ним <code>.contact-parent</code>),
+      по центру <code>.contact-team</code> (<code>team_title</code>) на одной линии с именем,
+      справа <code>.contact-role</code>. JSON <code>name</code> — фамилия и имя ученика.
+      Поиск <code>?q=</code> по <code>users.lastname</code> / <code>users.name</code> / email /
+      <code>parents.lastname</code> / <code>parents.firstname</code> (soft-deleted родитель не матчится).
+      Строка <code>.contact-parent</code> только при непустом
+      <code>parent_full_name</code>; пустую и пробелы не показываем и не рисуем «-».
+      В JSON контактов нет <code>phone</code> / <code>parent_phone</code> / <code>last_seen_at</code>.
+      Soft-deleted родитель → пустое ФИО. Клик по строке — <code>startDialog</code>.</li>
+    <li><b>Карточка шапки.</b> <code>#threadPeerHit</code> с классом <code>is-idle</code>, пока диалог не открыт;
+      <code>openPeerCard</code> сразу выходит, если нет <code>currentPeerId</code>.
+      <code>GET /chat/api/users/{user}</code>: <code>full_name</code>, <code>phone</code>,
+      <code>parent_full_name</code>, <code>parent_phone</code>, <code>is_online</code>,
+      <code>last_seen_at</code>, <code>last_seen_label</code> («онлайн» / <code>d.m.Y H:i</code> / «-»),
+      <code>team_title</code>. В UI пустое — «-», телефоны с <code>tel:</code>.
+      Своя школа, в том числе отключённый и сам себе — 200; чужой партнёр — 403.
+      Модалка <code>#peerCardModal</code> стандартной ширины, ошибки в <code>#peerCardError</code>.</li>
+    <li><b>Перерисовка.</b> <code>InboxBump</code> отдаёт те же флаги списка, что HTTP inbox.
+      <code>markListOutgoingRead</code> меняет галочки, только если последнее сообщение исходящее.</li>
   </ol>
 
   <h2 id="routes">3) Маршруты</h2>
@@ -111,7 +171,7 @@
       <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201/200 JSON, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
       <tr><td>POST</td><td><code>/presence/ping</code></td><td><code>presence.ping</code></td><td>только <code>auth</code>+<code>2fa</code>, без <code>messages.view</code>; JSON <code>ok</code>; пишет <code>users.last_seen_at</code></td></tr>
-      <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы, <code>?q=</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы; <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя</td></tr>
       <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка собеседника текущей школы; чужой партнёр 403</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code></td></tr>
@@ -126,7 +186,9 @@
     Нативный POST/PATCH без <code>X-Requested-With</code> не отдаёт сырой JSON 200/201 — редирект на страницу чата, запись в БД создана.
     <code>POST /presence/ping</code> доступен любому залогиненному (включая роли без <code>messages.view</code>):
     гость 302/401, JSON <code>ok</code>. Пишет <code>users.last_seen_at</code> не чаще чем раз в 30 секунд
-    (клиент пингует раз в 60 секунд из Echo-include на страницах кабинета).</p>
+    (клиент пингует раз в 60 секунд из Echo-include на страницах кабинета).
+    <code>POST /presence/ping</code> — heartbeat, не форма раздела: и AJAX, и нативный POST отдают JSON <code>{ok: true}</code> 200
+    (не 302). GET/PATCH/DELETE этого URI → 404/405, не пустой 200 и не 500.</p>
 
   <h2 id="data">4) Данные и код</h2>
   <ol>
@@ -139,6 +201,8 @@
       (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
       <code>is_online</code> — <code>users.last_seen_at</code> не старше 2 минут;
       <code>parent_full_name</code> — ФИО из справочника <code>parents</code> (пусто, если карточки нет).
+      Поле <code>name</code> в списке контактов и <code>title</code> диалога — <code>lastname</code>+<code>name</code>
+      (без фамилии — только имя). Поиск контактов <code>?q=</code> ещё по фамилии/имени родителя.
       Онлайн в CRM обновляется ping <code>POST /presence/ping</code>
       (Echo-include на всех страницах кабинета, раз в 60 секунд, запись в БД не чаще чем раз в 30 секунд).
       Карточка шапки: <code>GET /chat/api/users/{id}</code> — <code>full_name</code>, <code>phone</code>,
@@ -191,8 +255,17 @@
 
   <h2 id="tests">6) Тесты</h2>
   <ul>
-    <li><code>ChatPresenceFeatureTest</code> — ping без <code>messages.view</code>, throttle 30с, онлайн ≤2 минут,
-      ФИО родителя в контактах, галочки исходящего и <code>peer_is_online</code> в списке тредов.</li>
+    <li><code>ChatPresenceFeatureTest</code> — ping без <code>messages.view</code>, throttle 30с, онлайн ровно 120с / офлайн 121с,
+      ФИО родителя в контактах, галочки исходящего и <code>peer_is_online</code> в списке тредов,
+      время списка = <code>last_message_time</code> (не <code>last_seen_at</code>),
+      <code>InboxBump</code> несёт галочки/онлайн, soft-delete родителя, карточка отключённого/себя,
+      нативный GET карточки JSON, ping неверным методом → 404/405, карточка неверным методом → 405.</li>
+    <li><code>ChatPresenceUxFeatureTest</code> — UX-баги клиента: список рисует время сообщения (не last seen) и зелёную точку только если онлайн (без красной),
+      галочки только у исходящего, контакты — красная точка офлайн и строка родителя только если ФИО непустое,
+      повторное открытие контактов не оставляет прошлого родителя, карточка «-» / <code>tel:</code>,
+      шапка <code>is-idle</code> не открывает карточку до выбора диалога, клик по списку/контакту открывает диалог (не карточку),
+      <code>thread.read</code> не ставит галочки входящему, <code>inbox.bump</code> не сбрасывает флаги при перерисовке списка;
+      ping на dashboard без <code>messages.view</code>.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
@@ -202,7 +275,10 @@
     <li><code>ChatMessagesViewPermissionCatalogFeatureTest</code> — каталог права и автовыдача.</li>
     <li><code>PartnerBasePermissionsTest</code> — <code>messages.view</code> в базовых ролях.</li>
     <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда), echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>), оверлей Reverb и Echo-клиент (без <code>wsPath</code>).</li>
-    <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code> и эта страница не противоречат UX (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>).</li>
+    <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code>,
+      <code>/doc#chat-presence-index</code> и эта страница не противоречат UX
+      (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>,
+      ping без <code>messages.view</code>, в списке нет красной точки).</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter Chat</code></pre>
 </div>

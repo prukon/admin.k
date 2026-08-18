@@ -73,7 +73,7 @@ class ChatApiController extends AdminBaseController
         $unreadTotal = $this->chat->markRead($thread, $userId);
 
         return response()->json(array_merge(
-            $this->chat->threadPayload($thread->fresh(['participants.user:id,name,image_crop,last_seen_at']), $userId),
+            $this->chat->threadPayload($thread, $userId),
             ['unread_total' => $unreadTotal],
         ));
     }

@@ -739,8 +739,8 @@
 
                                 reloadLocationsTable();
 
-                                if (typeof showSuccessModal === 'function') {
-                                    showSuccessModal('Удаление объекта', 'Объект успешно удалён.', 0);
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast('Объект успешно удалён.', 'success');
                                 }
                             },
                             error: function (xhr) {

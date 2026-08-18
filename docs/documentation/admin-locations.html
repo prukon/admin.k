@@ -124,7 +124,7 @@
     <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).</li>
     <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
     <li><b>Колонка «Администратор»</b> — тип <code>list</code>, тот же паттерн сокращения, что у «Группы».</li>
-    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>).</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>). Удаление из edit: toast «Объект успешно удалён.» (<code>window.showToast</code>), не <code>showSuccessModal</code>.</li>
     <li><b>Колонка «Название»</b> — при <code>locations.manage</code> тип <code>link</code> (<code>js-location-edit</code>, модалка edit); без manage — обычный <code>text</code>. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
@@ -162,6 +162,10 @@
     <li><code>tests/Feature/Crm/Locations/LocationAdminUserFeatureTest.php</code> — CRUD, фильтр, колонка, валидация <code>admin_user_ids</code>, лимит 5, сокращение label, сортировка, cascade</li>
     <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 всех endpoint'ов с M2M-админами, контроль доступа view/manage/guest</li>
     <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
+    <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code>,
+      <code>SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,
+      <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code> —
+      удаление объекта: toast в UI, AJAX JSON «Объект удалён», non-AJAX 302 + запись удалена</li>
     <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district и admin payloads (все endpoint'ы → 200)</li>
     <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code>, <code>LocationTeamPagesAccessFeatureTest.php</code> — sync <code>team_ids</code>, smoke 200</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — сквозной доступ справочников</li>

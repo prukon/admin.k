@@ -28,6 +28,145 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="chat-presence-index">Чат: онлайн, галочки исходящего, карточка собеседника (2026‑08)</h2>
+  <div class="note">
+    В чате видно, кто сейчас в кабинете, прочитано ли последнее исходящее,
+    ФИО родителя в контактах и карточку человека из шапки диалога.
+    Не путать точку онлайна со временем справа в списке и с бейджем непрочитанных
+    (<a href="/doc#chat-index">анонс чата</a>).
+    <br><br>
+    1) <b>Онлайн.</b> Колонка <code>users.last_seen_at</code>. Онлайн, если значение
+    не старше <b>2 минут</b> (ровно 120 секунд ещё онлайн, 121 — уже нет).
+    Клиент шлёт <code>POST /presence/ping</code> с любой страницы кабинета
+    (Echo-include, раз в 60 секунд и при загрузке) — <b>без</b> права
+    <code>messages.view</code>, иначе человек без пункта «Чат» всегда был бы офлайн.
+    На dashboard без чата в HTML есть ping и <b>нет</b> ссылки <code>/chat</code>.
+    Сервер пишет <code>last_seen_at</code> не чаще чем раз в 30 секунд.
+    Ping — heartbeat, не форма раздела: и AJAX, и нативный POST → JSON
+    <code>{ok: true}</code> 200 (не 302). Гость — 302/401. GET/PATCH/DELETE этого URI → 404/405.
+    <br>
+    2) <b>Список диалогов.</b> Справа сверху — время <b>последнего сообщения</b>
+    (<code>last_message_time</code>: сегодня <code>ЧЧ:ММ</code>, иначе дата), не
+    <code>last_seen_at</code>. Под временем справа внизу — каунтер непрочитанных
+    (<code>.chat-li-unread</code>, <code>#f3a12b</code>), скрыт при 0. Заголовок и шапка — фамилия и имя
+    (<code>lastname</code>+<code>name</code>; без фамилии — только имя). Если последнее исходящее: одна серая галочка, пока собеседник
+    не прочитал, две зелёные — после. Входящее последнее — галочек нет.
+    Онлайн — зелёная точка на аватарке. Офлайн в списке точку <b>не</b> рисуем (красной нет).
+    Клик по диалогу слева ставит фокус в поле ввода <code>#msgInput</code>.
+    <br>
+    3) <b>Контакты.</b> Зелёная точка если онлайн, красная если офлайн (в том числе
+    если человек ещё ни разу не пинговал). После аватарки три колонки: слева фамилия и имя
+    (<code>lastname</code>+<code>name</code>, JSON <code>name</code>; без фамилии — только имя),
+    под ним ФИО родителя (<code>parent_full_name</code> из справочника <code>parents</code>,
+    <code>.contact-parent</code>) только если строка непустая: пустого «-» в контактах нет;
+    по центру на одной линии с именем — группа (<code>team_title</code>, <code>.contact-team</code>);
+    справа — роль. Поиск <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя
+    (<code>parents.lastname</code> / <code>parents.firstname</code>). Телефоны в списке контактов не отдаём
+    (они в карточке). Soft-delete родителя → пусто, в поиске такая карточка не матчится.
+    <br>
+    4) <b>Карточка из шапки.</b> Клик по аватарке или имени в шапке <b>открытого</b>
+    диалога (<code>#threadPeerHit</code>), не по строке слева и не по контакту
+    (там открывается диалог). Пока диалог не выбран, шапка <code>is-idle</code> —
+    клик карточку не открывает. Модалка стандартной ширины Bootstrap:
+    аватар, ФИО (<code>lastname</code>+<code>name</code>), телефон ученика (<code>tel:</code>),
+    ФИО и телефон родителя, последний онлайн («онлайн» / дата-время / «-»), группы.
+    Пустые поля карточки — «-».
+    API <code>GET /chat/api/users/{id}</code> — <code>messages.view</code> + своя школа
+    (чужой партнёр 403, нет пользователя 404). Отключённый ученик той же школы — 200
+    (из старого диалога карточку всё ещё можно открыть). POST/PATCH/DELETE → 405.
+    <br>
+    5) <b>Realtime.</b> <code>inbox.bump</code> несёт <code>peer_is_online</code>,
+    <code>last_message_time</code>, <code>last_message_is_mine</code> /
+    <code>last_message_is_read</code>, чтобы перерисовка списка не сбрасывала точку и галочки.
+    <code>thread.read</code> ставит две галочки в списке только если последнее сообщение исходящее.
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#presence">chat §онлайн и карточка</a>,
+    чат — <a href="/doc#chat-index">анонс чата</a>.
+    Тесты: <code>ChatPresenceFeatureTest</code>, <code>ChatPresenceUxFeatureTest</code>
+    (прогон реального <code>chat.js</code>: время сообщения, нет красной в списке,
+    шапка idle, родитель только если ФИО есть),
+    <code>ChatAjaxContractFeatureTest</code> (JSON карточки),
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
+  <h2 id="admin-password-change-toast-index">Смена пароля в карточке: всплывайка, без 422 в консоли (2026‑08)</h2>
+  <div class="note">
+    На проде повтор «Сохранить пароль» в карточке администратора давал
+    <code>POST /admin/user/{id}/update-password</code> → <b>422</b> в консоли
+    («Новый пароль совпадает с текущим.»), без понятного UI: у AJAX не было
+    обработчиков успеха/ошибки, поле не очищалось.
+    <br><br>
+    1) <b>Где.</b> Модалка редактирования на
+    <code>/admin/administrators</code> и <code>/admin/roles/{name}</code>
+    («Сменить пароль»), на <code>/admin/users</code> и <code>/admin/trainers</code>
+    («Изменить пароль»). Эндпоинт тот же:
+    <code>POST /admin/user/{id}/update-password</code>
+    (<code>users.view</code> + <code>users.password.update</code>, throttle 5/мин).
+    Это <b>не</b> welcome-письмо и <b>не</b> «Отправить новый пароль по почте»
+    (там другое право и другой маршрут — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>),
+    и <b>не</b> смена своего пароля в ЛК
+    (<code>PUT /account-settings/user/password</code>).
+    <br>
+    2) <b>Успех.</b> Поле очищается, блок ввода снова скрыт, справа снизу
+    всплывайка «Пароль успешно изменен» — не success-модалка.
+    Общая toast админки: <code>#kidsMainToast</code> /
+    <code>window.showToast(message, type)</code>
+    (partial <code>partials/ui/main-toast</code> в layout <code>admin2</code>,
+    поверх модалки, <code>z-index: 1090</code>).
+    Локальные toast заявок (<code>#mainToast</code>) и цен (<code>#priceToast</code>) не трогали.
+    <br>
+    3) <b>Тот же пароль.</b> Клиент помнит последний успешный пароль <b>по userId</b>
+    (чужая карточка этот skip не наследует)
+    и повторно на сервер <b>не шлёт</b> — warning-всплывайка
+    «Новый пароль совпадает с текущим.»
+    Если запрос всё же ушёл (другой клиент / пароль, который уже стоит в БД):
+    JSON 422 с <code>message</code>, без <code>errors.password</code>.
+    Пустой / короче 8 / длиннее 255 — 422 <code>errors.password</code>.
+    <br>
+    4) <b>Права в UI.</b> Без <code>users.password.update</code> у админов/сотрудников
+    блок смены пароля <b>не рендерится</b>. У ученика и тренера кнопка есть,
+    но disabled (<code>opacity-50 pe-none</code>) с подсказкой.
+    Гость — 302/401, без права — 403, чужой партнёр — 404.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>,
+    ученики — <a href="/docs/documentation/admin-users#user-edit-password">admin-users §4.5.3</a>,
+    тренеры — <a href="/docs/documentation/admin-trainers">admin-trainers §6</a>,
+    toast — <a href="/docs/documentation/reusable-ui-partials#kids-main-toast">reusable-ui-partials §8</a>.
+    Тесты: <code>AdminUserPasswordUpdateAccessFeatureTest</code>,
+    <code>AdminUserPasswordUpdateAjaxContractFeatureTest</code>
+    (если тот же пароль всё же ушёл POST — сервер 422; клиент обычно не шлёт),
+    <code>AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest</code>,
+    <code>AdminUserPasswordUpdateUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (три JS-пути + toast).
+  </div>
+
+  <h2 id="success-toast-instead-of-modal-index">Успех без лишнего «OK»: всплывайка вместо success-модалки (2026‑08)</h2>
+  <div class="note">
+    На проде после create/edit/delete без reload страницы открывалась success-модалка —
+    лишний клик «OK». Для согласованного списка действий успех идёт во всплывайку
+    <code>#kidsMainToast</code> / <code>window.showToast</code> (layout <code>admin2</code>,
+    <code>z-index: 1090</code>), без перезагрузки.
+    <br><br>
+    Список: удаление ученика; CRUD тренера; создание администратора; юр. лицо create/edit;
+    удаление объекта; типы тренера; «Создать клиента» у лида (общий toast, не локальный
+    <code>#mainToast</code>); цена одного ученика и «Применить» справа на вкладке «по месяцам»;
+    создание доп. платежа (оба JS: Vite-источник и <code>public/js</code>); создание роли;
+    свой пароль в ЛК; смена пароля в карточке ученика / тренера (без запасной success-модалки);
+    повторная отправка пароля ученику по почте; удаление кастомной роли (без reload, колонка прав снимается на клиенте).
+    <br>
+    Не в списке (модалка как было): сохранение карточки ученика,
+    «Применить» слева всем группам, CRUD групп/партнёров.
+    <br><br>
+    Подробно — <a href="/docs/documentation/reusable-ui-partials#kids-main-toast">reusable-ui-partials §8</a>.
+    Тесты: <code>SuccessToastInsteadOfModalAccessFeatureTest</code>,
+    <code>SuccessToastInsteadOfModalAjaxContractFeatureTest</code>,
+    <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code>,
+    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code>
+    (в т.ч. UX-баг лишнего OK и негатив «не из списка → модалка»),
+    <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code>.
+  </div>
+
   <h2 id="admin-sidebar-stability-index">Кабинет: сайдбар без прыжка при смене пункта меню (2026‑08)</h2>
   <div class="note">
     В layout <code>admin2</code> левое меню прыгало при переходе между страницами:
@@ -285,11 +424,11 @@
     Повторный диалог с тем же человеком не создаёт второй тред.
     Композер (поле и «Отправить») <b>disabled</b>, пока не выбран диалог.
     У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после
-    (в пузыре и слева от времени последнего исходящего в списке).
-    Клик по аватарке или имени в шапке диалога открывает карточку контакта (телефон, родитель, последний онлайн, группы; пустое — «-»).
-    Онлайн: зелёная точка на аватарке списка и в контактах, если <code>last_seen_at</code> не старше 2 минут
-    (ping <code>/presence/ping</code> раз в минуту с страниц кабинета). В контактах офлайн — красная точка;
-    под именем ученика — ФИО родителя, если оно есть.
+    (в пузыре и слева от времени последнего <b>исходящего</b> в списке; входящее без галочек).
+    Справа в списке — время последнего <b>сообщения</b>, не last seen.
+    Онлайн, ФИО родителя в контактах и карточка из шапки — отдельный анонс
+    <a href="/doc#chat-presence-index">онлайн / карточка</a>
+    (в списке диалогов красной точки нет; ping без <code>messages.view</code>).
     Ошибки — под полями: <code>errors.body</code>, <code>errors.user_id</code>.
     <br>
     3) <b>Бейдж сайдбара.</b> Класс <code>badge badge-info</code> (как у «Учетная запись»),
@@ -323,6 +462,8 @@
     Подробно: <a href="/docs/documentation/chat">chat</a>.
     Тесты: <code>Chat*FeatureTest</code>, в т.ч. <code>ChatUnreadSidebarFlashUxFeatureTest</code>
     (вспышка бейджа), <code>ChatReverbOverlayFeatureTest</code> (оверлей / status API),
+    <code>ChatPresenceFeatureTest</code> / <code>ChatPresenceUxFeatureTest</code>
+    (<a href="/doc#chat-presence-index">онлайн / карточка</a>),
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -2184,7 +2325,8 @@
     копирует его в <code>users.email</code>, генерирует пароль и отправляет welcome-письмо (<code>App\Mail\ClientWelcomeCredentialsMail</code>) —
     <b>без</b> чекбокса <code>send_welcome_email</code> (см. блок выше про ручное «Добавить»).
     В модалке редактирования ученика (<code>/admin/users</code>) — кнопка «Отправить новый пароль по почте» (<code>POST …/send-welcome-credentials</code>):
-    новый пароль, старый инвалидируется; право — <code>users.view</code> (не <code>users.password.update</code>); только роль <code>user</code>.
+    новый пароль, старый инвалидируется; право — <code>users.view</code> (не <code>users.password.update</code>); только роль <code>user</code>;
+    успех — toast <code>window.showToast</code>, не <code>showSuccessModal</code>.
     Письма видны в отчёте <a href="/docs/documentation/reports-admin#reports-outgoing-emails">«Исходящие письма»</a> (<code>LogOutgoingEmail</code>, заголовок <code>X-Partner-Id</code>).
     Подробно — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>,
     workflow из CRM заявок — <a href="/docs/documentation/school-leads-widget#school-lead-welcome-credentials">school-leads-widget §5.7.1</a>.
@@ -2339,7 +2481,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, <b>оверлей статуса Reverb</b> для superadmin (<a href="/doc#reverb-status-overlay-index">анонс</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), без вложений и без групп — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, <b>оверлей статуса Reverb</b> для superadmin (<a href="/doc#reverb-status-overlay-index">анонс</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), без вложений и без групп — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -2377,15 +2519,15 @@
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
-    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
-    <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>)</a></li>
+    <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Ученики в админке (<code>/admin/users</code>): только роль <code>user</code>, <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>
@@ -2395,7 +2537,7 @@
   <h2>Переиспользование UI</h2>
   <ul>
     <li><a href="/docs/documentation/admin-layout-sidebar"><strong>Кабинет: стабильный сайдбар</strong>: <code>scrollbar-gutter: stable</code> в <code>admin2</code> / <code>style.css</code>, overflow сайдбара с первого кадра, без OverlayScrollbars; <b>локальный FA 6.5.1</b> вместо Kit/CDN, слот <code>.nav-icon</code> — <a href="/doc#admin-sidebar-stability-index">анонс</a></a></li>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»; <b>общего table-preloader нет</b> — <a href="/doc#journal-table-preloader-index">анонс</a>), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»; <b>общего table-preloader нет</b> — <a href="/doc#journal-table-preloader-index">анонс</a>), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1), <b>всплывайка <code>#kidsMainToast</code></b> (§8, <a href="/doc#success-toast-instead-of-modal-index">анонс</a>)</a></li>
   </ul>
 </div>
 </body>

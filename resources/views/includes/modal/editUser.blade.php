@@ -679,6 +679,22 @@
             showPassword();
 
 
+            const lastAppliedPasswordByUserId = {};
+            const samePasswordMessage = 'Новый пароль совпадает с текущим.';
+
+            function resetEditUserPasswordUi() {
+                $('#change-password-btn').show();
+                $('#change-pass-wrap').hide();
+                $('#new-password').val('');
+                $('#error-message').hide();
+            }
+
+            function notifyPasswordResult(message, type) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast(message, type);
+                }
+            }
+
             // Показать/скрыть изменение пароля
             $('#change-password-btn').on('click', function () {
                 $('#change-password-btn').hide();
@@ -688,7 +704,6 @@
             // Применение нового пароля
             $('#apply-password-btn').on('click', function () {
                 var userId = $('#edit-user-form').attr('action').split('/').pop();
-                console.log('Применение нового пароля для пользователя с ID:', userId);
                 var newPassword = $('#new-password').val();
                 var token = $('input[name="_token"]').val();
                 var $passwordError = $('#error-message');
@@ -700,46 +715,46 @@
                 }
                 $passwordError.hide();
 
+                if (lastAppliedPasswordByUserId[userId] === newPassword) {
+                    notifyPasswordResult(samePasswordMessage, 'warning');
+                    return;
+                }
+
                 $.ajax({
                     url: `/admin/user/${userId}/update-password`,
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': token
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json',
                     },
                     data: {
                         password: newPassword
                     },
                     success: function (response) {
-                        console.log('Ответ сервера на обновление пароля:', response);
                         if (response.success) {
-                            $('#change-password-btn').show();
-                            $('#change-pass-wrap').hide();
-                            $('#password-change-message').show().delay(3000).fadeOut();
-                            showSuccessModal("Обновление пароля", "Пароль успешно обновлен.");
+                            lastAppliedPasswordByUserId[userId] = newPassword;
+                            resetEditUserPasswordUi();
+                            notifyPasswordResult('Пароль успешно изменен', 'success');
                         }
                     },
                     error: function (response) {
-                        if (typeof eroorRespone === 'function') {
-                            eroorRespone(response);
-                        } else {
-                            let msg = 'Произошла ошибка при сохранении данных.';
-                            if (response.responseJSON?.errors) {
-                                msg = Object.values(response.responseJSON.errors).flat().join('\n');
-                            } else if (response.responseJSON?.message) {
-                                msg = response.responseJSON.message;
-                            }
-                            $('#error-modal-message').text(msg).show();
-                            $('#errorModal').modal('show');
+                        let msg = 'Произошла ошибка при сохранении данных.';
+                        if (response.responseJSON?.errors) {
+                            msg = Object.values(response.responseJSON.errors).flat().join('\n');
+                        } else if (response.responseJSON?.message) {
+                            msg = response.responseJSON.message;
                         }
+                        notifyPasswordResult(
+                            msg,
+                            msg === samePasswordMessage ? 'warning' : 'error'
+                        );
                     }
                 });
             });
 
             // Отмена изменения пароля
             $('#cancel-change-password-btn').on('click', function () {
-                $('#change-password-btn').show();
-                $('#change-pass-wrap').hide();
-                $('#error-message').hide();
+                resetEditUserPasswordUi();
             });
 
             function sendWelcomeCredentialsRequest($btn) {
@@ -756,12 +771,8 @@
                     },
                     success: function (response) {
                         var msg = response.message || 'Пароль отправлен.';
-                        if (typeof showSuccessModal === 'function') {
-                            showSuccessModal('Отправка пароля', msg);
-                        } else if (typeof showToast === 'function') {
-                            showToast(msg, 'success');
-                        } else {
-                            alert(msg);
+                        if (typeof window.showToast === 'function') {
+                            window.showToast(msg, 'success');
                         }
                     },
                     error: function (xhr) {
@@ -1176,7 +1187,9 @@
                                     $('#users-table').DataTable().ajax.reload(null, false);
                                 }
 
-                                showSuccessModal("Удаление пользователя", "Пользователь успешно удален.", 0);
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast('Пользователь успешно удален.', 'success');
+                                }
                             } else {
                                 $('#error-modal-message').text('Произошла ошибка при удалении пользователя.');
                                 $('#errorModal').modal('show');
@@ -1215,6 +1228,10 @@
             $('.js-user-student-team-wrap').removeClass('d-none');
             $form.removeData('role-id');
             editUserRolesCache = [];
+            $('#change-password-btn').show();
+            $('#change-pass-wrap').hide();
+            $('#new-password').val('');
+            $('#error-message').hide();
         });
 
 

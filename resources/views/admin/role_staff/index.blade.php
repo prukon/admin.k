@@ -531,12 +531,8 @@
                     const cb = createForm.querySelector('#role-staff-create-send-welcome-email');
                     if (cb) cb.checked = true;
                     syncRoleStaffCreateWelcomeUi();
-                    if (typeof showSuccessModal === 'function') {
-                        showSuccessModal(
-                            'Создание пользователя',
-                            result.data.message || 'Пользователь создан',
-                            0
-                        );
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(result.data.message || 'Пользователь создан', 'success');
                     }
                     return;
                 }
@@ -606,14 +602,35 @@
             });
 
             if (cfg.canChangePassword) {
+                const lastAppliedPasswordByUserId = {};
+                const samePasswordMessage = 'Новый пароль совпадает с текущим.';
+
+                function resetRoleStaffPasswordUi() {
+                    const changeBtn = document.getElementById('role-staff-change-password-btn');
+                    const passWrap = document.getElementById('role-staff-change-pass-wrap');
+                    const passwordInput = document.getElementById('role-staff-new-password');
+                    const err = document.getElementById('role-staff-password-error-message');
+                    if (changeBtn) changeBtn.style.display = '';
+                    if (passWrap) passWrap.style.display = 'none';
+                    if (passwordInput) passwordInput.value = '';
+                    if (err) err.style.display = 'none';
+                }
+
+                function notifyPasswordResult(message, type) {
+                    if (typeof showToast === 'function') {
+                        showToast(message, type);
+                    }
+                }
+
                 document.getElementById('role-staff-change-password-btn')?.addEventListener('click', function () {
                     this.style.display = 'none';
                     document.getElementById('role-staff-change-pass-wrap').style.display = '';
                 });
                 document.getElementById('role-staff-cancel-change-password-btn')?.addEventListener('click', function () {
-                    document.getElementById('role-staff-change-password-btn').style.display = '';
-                    document.getElementById('role-staff-change-pass-wrap').style.display = 'none';
-                    document.getElementById('role-staff-new-password').value = '';
+                    resetRoleStaffPasswordUi();
+                });
+                document.getElementById('roleStaffEditModal')?.addEventListener('hidden.bs.modal', function () {
+                    resetRoleStaffPasswordUi();
                 });
                 document.getElementById('role-staff-apply-password-btn')?.addEventListener('click', function () {
                     const userId = $('#role-staff-edit-user-id').val();
@@ -624,11 +641,35 @@
                         return;
                     }
                     if (err) err.style.display = 'none';
+                    if (lastAppliedPasswordByUserId[userId] === newPassword) {
+                        notifyPasswordResult(samePasswordMessage, 'warning');
+                        return;
+                    }
                     $.ajax({
                         url: urlFromTemplate(cfg.passwordUpdateUrlTemplate, userId),
                         method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': token },
+                        headers: {
+                            'X-CSRF-TOKEN': token,
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
                         data: { password: newPassword },
+                        success: function (response) {
+                            if (!response || !response.success) {
+                                return;
+                            }
+                            lastAppliedPasswordByUserId[userId] = newPassword;
+                            resetRoleStaffPasswordUi();
+                            notifyPasswordResult('Пароль успешно изменен', 'success');
+                        },
+                        error: function (xhr) {
+                            const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                                || 'Не удалось сохранить пароль.';
+                            notifyPasswordResult(
+                                msg,
+                                msg === samePasswordMessage ? 'warning' : 'error'
+                            );
+                        },
                     });
                 });
             }

@@ -56,7 +56,7 @@ class DocumentationController extends Controller
         'setting-prices-monthly-users' => 'Установка цен: бывшие участники + персональная скидка ученика + sync users_prices↔ULP (billing_month, кнопка «+» в журнале)',
         'setting-prices-payment-notifications' => 'Установка цен → Уведомления: конструктор правил email по users_prices, setPrices.paymentNotifications.manage, cron 10:00 MSK',
         'in-app-notifications' => 'In-app уведомления CRM: колокольчик (3 последних), лента, ссылки в тексте, рассылка superadmin, автособытие attach группы (admin/trainer школы, текст с родителем / без), inAppNotifications.view/manage',
-        'chat' => 'Чат CRM (Сообщения): 1-на-1 внутри школы, бейдж badge-info без вспышки в открытом диалоге, messages.view в базовых ролях, Reverb без wsPath, оверлей статуса процесса/сокета для superadmin, онлайн-точка и галочки исходящего в списке, карточка собеседника из шапки',
+        'chat' => 'Чат CRM (Сообщения): 1-на-1 внутри школы, бейдж badge-info без вспышки в открытом диалоге, messages.view в базовых ролях, Reverb без wsPath, оверлей статуса процесса/сокета для superadmin, онлайн (ping без messages.view), галочки исходящего в списке, карточка собеседника из шапки',
         'set-prices-package-assignments' => 'Право setPrices.packageAssignments.view: вкладка назначений в админке, не в базовых ролях',
         'set-prices-cabinet-packages' => 'Права setPrices.cabinetPackages.*: отображение типов абонементов на консоли, не в базовых ролях',
         'student-team-membership'     => 'Ученик ↔ группы (M:N team_user): pivot, отчёты, ЛК read-only + attach из сайдбара',

@@ -39,6 +39,17 @@ trait GrantsUsersSectionPermissions
         $this->grantRoleUpdate($actor);
     }
 
+    protected function grantPasswordUpdate(User $actor): void
+    {
+        $this->grantPermission($actor, 'users.password.update');
+    }
+
+    protected function grantPasswordChangeAccess(User $actor): void
+    {
+        $this->grantUsersView($actor);
+        $this->grantPasswordUpdate($actor);
+    }
+
     protected function studentRoleId(): int
     {
         return $this->roleId('user');

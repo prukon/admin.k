@@ -532,6 +532,7 @@
     @include('includes.modal.successModal')
     @include('includes.modal.errorModal')
     @include('includes.modal.cabinet_attach_team_modal')
+    @include('partials.ui.main-toast')
 
 
 

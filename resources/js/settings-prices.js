@@ -1090,8 +1090,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 editingMonthlyUserId = null;
                 editingMonthlySnapshot = null;
                 renderUsersRightColumn(lastUsersTeam, usersPrice, lastCanManageManualPaid);
-                if (typeof showSuccessModal === 'function') {
-                    showSuccessModal('Установка цен', 'Изменения сохранены.');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Изменения сохранены.', 'success');
                 }
             },
             error: function (xhr) {
@@ -1399,7 +1399,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         editingMonthlyUserId = null;
                         editingMonthlySnapshot = null;
 
-                        showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.");
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('Цены ученикам в выбранной группе успешно обновлены.', 'success');
+                        }
 
                         // Актуализируем правую колонку для той же группы (бывшие подтянутся с get-team-price).
                         if (lastTeamId) {

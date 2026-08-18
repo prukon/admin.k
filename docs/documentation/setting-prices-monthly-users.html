@@ -165,7 +165,7 @@
     <li><b>Текущие:</b> активные ученики группы → <code>UserPrice::firstOrCreate</code> по <code>(user_id, team_id, new_month)</code>, флаг <code>is_former_member=false</code>.</li>
     <li><b>Бывшие:</b> существующие строки за <b>этот же месяц</b> с <code>price_cents &gt; 0</code>, <code>user_id</code> не в pivot группы; <code>firstOrCreate</code> <b>не</b> вызывается; флаг <code>is_former_member=true</code> и в <code>usersTeam</code>, и в <code>usersPrice</code>.</li>
     <li><b>Порядок:</b> сначала текущие (ФИО), затем бывшие (ФИО).</li>
-    <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша; «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>).</li>
+    <li><b>UI:</b> бейдж «не в группе», поля абонемента/цены disabled+readonly, без карандаша; «Применить» справа не отправляет бывших в payload (сервер всё равно пропускает не-членов через <code>studentBelongsToTeam</code>). Успех карандаша одного ученика («Изменения сохранены.») и «Применить» справа («Цены ученикам в выбранной группе успешно обновлены.») — toast <code>window.showToast</code>, не <code>showSuccessModal</code>. «Применить» слева (всем группам) по-прежнему модалка успеха с reload.</li>
     <li><b>Пустая группа:</b> если текущих нет, но есть бывшие с <code>price_cents &gt; 0</code> за месяц → <code>success: true</code> (раньше было <code>false</code>).</li>
   </ul>
   <div class="warn">
@@ -283,6 +283,7 @@
     <li><code>SettingPricesUsersFormerMembersFeatureTest</code> — <code>data-former-team-ids</code>, read-only год, save reject, история «любой месяц»</li>
     <li><code>SettingPricesUsersFormerMembersAccessFeatureTest</code> — доступ, AJAX/non-AJAX save бывшего → 422</li>
     <li><code>SettingPricesUserPercentDiscountFeatureTest</code> — персональная скидка: apply-all по ученикам, snapshot vs override, JSON года и getTeamPrice, year save AJAX/non-AJAX, страница helpers, постоплата по снимку строки</li>
+    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — карандаш одного ученика и «Применить» справа: <code>window.showToast</code>; «Применить» слева по-прежнему <code>showSuccessModal(..., 1)</code></li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — ручная оплата месяца → исчезновение из отчёта задолженностей</li>
   </ul>
   <pre><code>php artisan test --env=testing \

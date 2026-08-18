@@ -69,8 +69,8 @@
   <ul>
     <li>Колонки: аватар, ФИО, email, телефон, активен, действия.</li>
     <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
-    <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен.</li>
-    <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code>. Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
+    <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен. Успех: toast с <code>message</code> сервера (обычно «Пользователь создан»), не <code>showSuccessModal</code>.</li>
+    <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code> (§<a href="#staff-password-change">3.4</a>). Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
     <li><b>Удаление</b> — soft delete пользователя из модалки редактирования.</li>
     <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
   </ul>
@@ -86,6 +86,22 @@
       <li>Non-AJAX → redirect <code>back()</code> (обычно на index вкладки), запись создана.</li>
       <li>Права: <code>users.view</code> + <code>users.role.update</code>.</li>
     </ul>
+  </div>
+
+  <h3 id="staff-password-change">3.4) Ручная смена пароля (модалка редактирования)</h3>
+  <div class="note">
+    Кнопка «Сменить пароль» видна только при <code>users.password.update</code> (<code>$canChangePassword</code>).
+    Без права блок в разметке <b>не рендерится</b>.
+    При первом открытии карточки поле пароля скрыто (<code>#role-staff-change-pass-wrap</code>, <code>display:none</code>).
+    <ul>
+      <li>Эндпоинт: <code>POST /admin/user/{id}/update-password</code> (<code>admin.user.password.update</code>), throttle 5/мин. Права: <code>users.view</code> + <code>users.password.update</code>.</li>
+      <li>AJAX 200: <code>{ "success": true }</code>. Успех в UI: поле очищается, блок скрывается, всплывайка «Пароль успешно изменен» (<code>window.showToast</code> / <code>#kidsMainToast</code> в layout <code>admin2</code>).</li>
+      <li>Повтор того же пароля <b>не уходит на сервер</b> (клиент помнит последний успешный пароль по <code>userId</code>) — всплывайка «Новый пароль совпадает с текущим.» Без этого повторный клик «Сохранить пароль» давал <code>422</code> в консоли без понятного UI.</li>
+      <li>Если запрос всё же ушёл (другой клиент / тот же текущий пароль): JSON 422, <code>message</code> «Новый пароль совпадает с текущим.» (без <code>errors.password</code>). Слишком короткий / пустой: 422 <code>errors.password</code>.</li>
+      <li>Non-AJAX POST: успех — JSON 200 и запись обновлена (не пустой 200); валидация — 302 + session <code>errors.password</code>.</li>
+      <li>Гость — 302/401; без права — 403; чужой партнёр — 404. GET/PUT/PATCH/DELETE — 404/405, не 500.</li>
+    </ul>
+    Анонс: <a href="/doc#admin-password-change-toast-index">/doc §смена пароля</a>.
   </div>
 
   <h2 id="custom-roles">4) Кастомные роли — <code>/admin/roles/{name}</code></h2>
@@ -154,11 +170,21 @@
       <li><code>RoleStaffCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
       <li><code>RoleStaffCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>
       <li><code>SendWelcomeEmailCreateFullAccessFeatureTest.php</code> — доступ и UI-маркеры чекбокса</li>
+      <li><code>AdminUserPasswordUpdateAccessFeatureTest.php</code> — гость / 403 / 200 / 404 на <code>POST /admin/user/{id}/update-password</code></li>
+      <li><code>AdminUserPasswordUpdateAjaxContractFeatureTest.php</code> — JSON 200/422, <code>errors.password</code>, повтор того же пароля (UX-баг 422)</li>
+      <li><code>AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX успех пишет в БД; валидация 302 + session errors</li>
+      <li><code>AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — всплывайка, скрытый блок при первом открытии, @can, три JS-пути</li>
+      <li><code>BladeInlineJsSyntaxTest::test_admin_password_change_js_paths_show_toast_and_skip_same_password</code> — <code>node --check</code> toast + role_staff / editUser / trainers</li>
+      <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — создание администратора: toast, не success-модалка</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \
   tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php \
-  tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php</code></pre>
+  tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUserPasswordUpdateAccessFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUserPasswordUpdateAjaxContractFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code></pre>
   </div>
 
   <p class="small">

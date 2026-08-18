@@ -55,6 +55,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'club fee payment page' => ['payment/clubFee.blade.php'];
         yield 'ulp public pay page' => ['payment/ulp-public-pay.blade.php'];
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
+        yield 'locations index delete toast ajax' => ['admin/locations/index.blade.php'];
+        yield 'settings roles create toast ajax' => ['admin/setting/rule.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
         yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
@@ -68,6 +70,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'account settings tabs shell' => ['account/index.blade.php'];
         yield 'cabinet attach team modal' => ['includes/modal/cabinet_attach_team_modal.blade.php'];
         yield 'user percent discount js helper' => ['partials/ui/discount-percent-js.blade.php'];
+        yield 'admin main toast partial' => ['partials/ui/main-toast.blade.php'];
         yield 'admin2 layout leftover inline scripts' => ['layouts/admin2.blade.php'];
         yield 'landing layout leftover inline scripts' => ['layouts/landingPage.blade.php'];
         yield 'cabinet layout wide toggle' => ['includes/layout_wide_toggle.blade.php'];
@@ -467,6 +470,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("fieldError(res.data, 'body')", $content);
         $this->assertStringContainsString("fieldError(res.data, 'user_id')", $content);
         $this->assertStringContainsString('setComposerEnabled(true)', $content);
+        $this->assertStringContainsString("getElementById('msgInput').focus()", $content);
         $this->assertStringContainsString('startDialogBusy', $content);
         $this->assertStringContainsString('Number(t.peer_id) !== Number(patch.peer_id)', $content);
         $this->assertStringContainsString("contactsSearch').value = ''", $content);
@@ -486,8 +490,41 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('contact-online-dot', $content);
         $this->assertStringContainsString('parent_full_name', $content);
         $this->assertStringContainsString('function openPeerCard(', $content);
+        $this->assertStringContainsString('if (!currentPeerId)', $content);
+        $this->assertStringContainsString('function dashText(', $content);
+        $this->assertStringContainsString('fmtTime(t.last_message_time)', $content);
+        $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $content);
         $this->assertStringContainsString('last_seen_label', $content);
         $this->assertStringContainsString('threadPeerHit', $content);
+
+        $renderThreadsPos = strpos($content, 'function renderThreads(');
+        $this->assertNotFalse($renderThreadsPos);
+        $renderThreadsChunk = substr(
+            $content,
+            $renderThreadsPos,
+            strpos($content, 'function upsertThread(') - $renderThreadsPos
+        );
+        $this->assertStringNotContainsString('last_seen', $renderThreadsChunk);
+        $this->assertStringNotContainsString('is-offline', $renderThreadsChunk);
+        $this->assertStringContainsString('openThread(t.id)', $renderThreadsChunk);
+        $this->assertStringContainsString('chat-li-unread', $renderThreadsChunk);
+        $this->assertStringNotContainsString('bg-primary', $renderThreadsChunk);
+        $this->assertStringNotContainsString('openPeerCard', $renderThreadsChunk);
+
+        $renderContactsPos = strpos($content, 'function renderContacts(');
+        $this->assertNotFalse($renderContactsPos);
+        $renderContactsChunk = substr(
+            $content,
+            $renderContactsPos,
+            strpos($content, 'function loadContacts(') - $renderContactsPos
+        );
+        $this->assertStringContainsString('is-offline', $renderContactsChunk);
+        $this->assertStringContainsString('contact-main', $renderContactsChunk);
+        $this->assertStringContainsString('contact-team', $renderContactsChunk);
+        $this->assertStringContainsString('contact-role', $renderContactsChunk);
+        $this->assertStringNotContainsString('d-flex justify-content-between', $renderContactsChunk);
+        $this->assertStringContainsString('startDialog(Number(u.id))', $renderContactsChunk);
+        $this->assertStringNotContainsString('openPeerCard', $renderContactsChunk);
 
         $output = [];
         $exitCode = 0;
@@ -563,6 +600,13 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("route('presence.ping')", $echo);
         $this->assertStringContainsString('setInterval(ping, 60000)', $echo);
         $this->assertStringContainsString("method: 'POST'", $echo);
+        $this->assertStringContainsString('credentials: \'same-origin\'', $echo);
+        $pingStart = strpos($echo, 'var presenceUrl');
+        $this->assertNotFalse($pingStart);
+        $pingChunk = substr($echo, $pingStart, 900);
+        $this->assertStringContainsString('function ping()', $pingChunk);
+        $this->assertStringContainsString('ping();', $pingChunk);
+        $this->assertStringNotContainsString("route('chat.index')", $pingChunk);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $overlayPath,
@@ -1098,7 +1142,15 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('loadTeamUsersRightColumn(lastTeamId)', $content);
         $this->assertStringContainsString('clearTeamRowHighlight', $content);
         $this->assertStringNotContainsString(
-            'showSuccessModal("Установка цен в одной группе", "Цены ученикам в выбранной группе успешно обновлены.", 1)',
+            'showSuccessModal("Установка цен в одной группе"',
+            $content
+        );
+        $this->assertStringContainsString(
+            "window.showToast('Цены ученикам в выбранной группе успешно обновлены.', 'success')",
+            $content
+        );
+        $this->assertStringContainsString(
+            "window.showToast('Изменения сохранены.', 'success')",
             $content
         );
         // Постоплата: пересчёт цены, поле визитов, is_postpay в каталоге
@@ -3815,6 +3867,197 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('data-kids-tooltip-hint', $avgCell);
         $this->assertStringNotContainsString('partials.ui.tooltip-hint', $avgCell);
         $this->assertStringNotContainsString('fa-info-circle', $avgCell);
+    }
+
+    /**
+     * P1: смена пароля в админке — три JS-пути (админы / ученики / тренеры)
+     * показывают всплывайку, чистят поле и не шлют повтор того же пароля.
+     * UX-баг на проде: AJAX без success/error, повтор «Применить» → 422 в консоли.
+     */
+    public function test_admin_password_change_js_paths_show_toast_and_skip_same_password(): void
+    {
+        $toastPath = resource_path('views/partials/ui/main-toast.blade.php');
+        $this->assertFileExists($toastPath);
+        $toast = (string) file_get_contents($toastPath);
+        $this->assertStringContainsString('window.showToast = function (message, type)', $toast);
+        $this->assertStringContainsString('id="kidsMainToast"', $toast);
+        $this->assertStringContainsString('bootstrap.Toast.getOrCreateInstance', $toast);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $toastPath,
+            'window.showToast',
+            'blade-js-kids-main-toast'
+        );
+
+        $layout = (string) file_get_contents(resource_path('views/layouts/admin2.blade.php'));
+        $this->assertStringContainsString("@include('partials.ui.main-toast')", $layout);
+
+        $files = [
+            'role-staff' => resource_path('views/admin/role_staff/index.blade.php'),
+            'edit-user'  => resource_path('views/includes/modal/editUser.blade.php'),
+            'trainers'   => resource_path('views/admin/trainers/index.blade.php'),
+        ];
+
+        foreach ($files as $label => $path) {
+            $this->assertFileExists($path, $label);
+            $content = (string) file_get_contents($path);
+
+            $this->assertStringContainsString('lastAppliedPasswordByUserId', $content, $label);
+            $this->assertStringContainsString(
+                "lastAppliedPasswordByUserId[userId] === newPassword",
+                $content,
+                "{$label}: повтор того же пароля не должен уходить на сервер"
+            );
+            $this->assertStringContainsString('Пароль успешно изменен', $content, $label);
+            $this->assertStringContainsString('showToast', $content, $label);
+            $this->assertStringContainsString('success:', $content, $label);
+            $this->assertStringContainsString('error:', $content, $label);
+            $this->assertStringContainsString("'Accept': 'application/json'", $content, $label);
+
+            $this->assertInlineScriptsContainingHaveValidJavascript(
+                $path,
+                'lastAppliedPasswordByUserId',
+                'blade-js-password-update-'.$label
+            );
+        }
+    }
+
+    /**
+     * Успех без reload страницы — toast (#kidsMainToast), не showSuccessModal.
+     */
+    public function test_listed_success_actions_use_toast_instead_of_success_modal(): void
+    {
+        $cases = [
+            'student-delete' => [
+                'path' => resource_path('views/includes/modal/editUser.blade.php'),
+                'toast' => 'Пользователь успешно удален.',
+                'absent' => 'showSuccessModal("Удаление пользователя"',
+            ],
+            'trainer-create' => [
+                'path' => resource_path('views/admin/trainers/index.blade.php'),
+                'toast' => 'Тренер успешно создан.',
+                'absent' => "showSuccessModal(\n                        'Создание тренера'",
+            ],
+            'trainer-edit' => [
+                'path' => resource_path('views/admin/trainers/index.blade.php'),
+                'toast' => 'Тренер успешно обновлён.',
+                'absent' => "showSuccessModal(\n                        'Редактирование тренера'",
+            ],
+            'trainer-delete' => [
+                'path' => resource_path('views/admin/trainers/index.blade.php'),
+                'toast' => 'Тренер успешно удалён.',
+                'absent' => "showSuccessModal(\n                                'Удаление тренера'",
+            ],
+            'admin-create' => [
+                'path' => resource_path('views/admin/role_staff/index.blade.php'),
+                'toast' => 'Пользователь создан',
+                'absent' => "showSuccessModal(\n                            'Создание пользователя'",
+            ],
+            'legal-entity-create' => [
+                'path' => resource_path('views/admin/legal-entities/index.blade.php'),
+                'toast' => 'Юр. лицо создано',
+                'absent' => 'showSuccessModal',
+            ],
+            'legal-entity-edit' => [
+                'path' => resource_path('views/admin/legal-entities/index.blade.php'),
+                'toast' => 'Юр. лицо обновлено',
+                'absent' => 'showSuccessModal',
+            ],
+            'location-delete' => [
+                'path' => resource_path('views/admin/locations/index.blade.php'),
+                'toast' => 'Объект успешно удалён.',
+                'absent' => "showSuccessModal('Удаление объекта'",
+            ],
+            'trainer-type-save' => [
+                'path' => public_path('js/trainer-types.js'),
+                'toast' => 'Тип тренера сохранён',
+                'absent' => "showSuccessModal('Типы тренеров'",
+            ],
+            'trainer-type-delete' => [
+                'path' => public_path('js/trainer-types.js'),
+                'toast' => 'Тип тренера удалён',
+                'absent' => "showSuccessModal('Типы тренеров'",
+            ],
+            'lead-create-client' => [
+                'path' => resource_path('views/admin/school-leads/tabs/leads.blade.php'),
+                'toast' => "window.showToast(message || 'Клиент создан.', 'success')",
+                'absent' => "showSuccessModal('Создание клиента'",
+            ],
+            'custom-payment-create' => [
+                'path' => resource_path('js/setting-prices-custom-payments.js'),
+                'toast' => 'Дополнительный платеж успешно создан.',
+                'absent' => 'window.showSuccessModal',
+            ],
+            'custom-payment-create-public' => [
+                'path' => public_path('js/setting-prices-custom-payments.js'),
+                'toast' => 'Дополнительный платеж успешно создан.',
+                'absent' => 'window.showSuccessModal',
+            ],
+            'create-role' => [
+                'path' => resource_path('views/admin/setting/rule.blade.php'),
+                'toast' => 'Роль успешно создана.',
+                'absent' => 'showSuccessModal("Создание роли"',
+            ],
+            'delete-role' => [
+                'path' => resource_path('views/admin/setting/rule.blade.php'),
+                'toast' => "window.showToast('Роль успешно удалена.', 'success')",
+                'absent' => 'showSuccessModal("Удаление роли"',
+            ],
+            'account-own-password' => [
+                'path' => resource_path('views/account/users.blade.php'),
+                'toast' => 'Пароль успешно изменен.',
+                'absent' => 'showSuccessModal("Изменение пароля"',
+            ],
+            'student-password' => [
+                'path' => resource_path('views/includes/modal/editUser.blade.php'),
+                'toast' => "window.showToast(message, type)",
+                'absent' => "showSuccessModal('Обновление пароля'",
+            ],
+            'trainer-password' => [
+                'path' => resource_path('views/admin/trainers/index.blade.php'),
+                'toast' => "window.showToast(message, type)",
+                'absent' => "showSuccessModal('Обновление пароля'",
+            ],
+            'student-send-password' => [
+                'path' => resource_path('views/includes/modal/editUser.blade.php'),
+                'toast' => "window.showToast(msg, 'success')",
+                'absent' => "showSuccessModal('Отправка пароля'",
+            ],
+            'monthly-one-user' => [
+                'path' => resource_path('js/settings-prices.js'),
+                'toast' => "window.showToast('Изменения сохранены.', 'success')",
+                'absent' => 'showSuccessModal("Редактирование цены"',
+            ],
+            'monthly-right-apply' => [
+                'path' => resource_path('js/settings-prices.js'),
+                'toast' => "window.showToast('Цены ученикам в выбранной группе успешно обновлены.', 'success')",
+                'absent' => 'showSuccessModal("Установка цен в одной группе"',
+            ],
+        ];
+
+        foreach ($cases as $label => $case) {
+            $this->assertFileExists($case['path'], $label);
+            $content = (string) file_get_contents($case['path']);
+            $this->assertStringContainsString('window.showToast', $content, $label);
+            $this->assertStringContainsString($case['toast'], $content, $label);
+            $this->assertStringNotContainsString($case['absent'], $content, $label);
+
+            if (str_ends_with($case['path'], '.blade.php')) {
+                $this->assertInlineScriptsContainingHaveValidJavascript(
+                    $case['path'],
+                    'window.showToast',
+                    'blade-js-success-toast-'.$label
+                );
+            } else {
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($case['path']).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    "JS syntax error in {$case['path']} ({$label}):\n".implode("\n", $output)
+                );
+            }
+        }
     }
 
     /**

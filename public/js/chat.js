@@ -134,7 +134,7 @@
         list.forEach(function (t) {
             const active = String(t.id) === String(currentThreadId) ? ' active' : '';
             const unread = String(t.id) === String(currentThreadId) ? 0 : (t.unread_count || 0);
-            const badge = unread > 0 ? '<span class="badge rounded-pill bg-primary ms-2">' + unread + '</span>' : '';
+            const badge = unread > 0 ? '<span class="chat-li-unread">' + unread + '</span>' : '';
             const onlineDot = t.peer_is_online
                 ? '<span class="chat-online-dot" title="Онлайн"></span>'
                 : '';
@@ -147,12 +147,15 @@
                 '<img class="chat-avatar" src="' + escapeHtml(t.avatar || '/img/default-avatar.png') + '" alt="">' +
                 onlineDot +
                 '</div>' +
+                '<div class="chat-li-body">' +
                 '<div class="chat-li-middle">' +
-                '<div class="d-flex justify-content-between">' +
-                '<div class="chat-li-title">' + escapeHtml(t.title || 'Диалог') + badge + '</div>' +
-                '<div class="chat-li-time">' + ticks + escapeHtml(fmtTime(t.last_message_time)) + '</div>' +
-                '</div>' +
+                '<div class="chat-li-title">' + escapeHtml(t.title || 'Диалог') + '</div>' +
                 '<div class="chat-li-preview">' + escapeHtml(t.last_message || '') + '</div>' +
+                '</div>' +
+                '<div class="chat-li-meta">' +
+                '<div class="chat-li-time">' + ticks + escapeHtml(fmtTime(t.last_message_time)) + '</div>' +
+                badge +
+                '</div>' +
                 '</div>';
             item.addEventListener('click', function () {
                 openThread(t.id);
@@ -346,6 +349,7 @@
                 av.src = res.thread.avatar || '/img/default-avatar.png';
                 av.style.display = '';
                 setComposerEnabled(true);
+                document.getElementById('msgInput').focus();
                 showMsgError('');
 
                 const box = document.getElementById('messagesBox');
@@ -763,14 +767,13 @@
                 '<img class="contact-avatar" src="' + escapeHtml(u.avatar) + '" alt="">' +
                 '<span class="contact-online-dot ' + onlineClass + '"></span>' +
                 '</div>' +
-                '<div class="flex-grow-1">' +
-                '<div class="d-flex justify-content-between gap-2">' +
+                '<div class="contact-main">' +
                 '<div class="contact-name">' + escapeHtml(u.name || '') + '</div>' +
-                '<div class="contact-sub">' + escapeHtml(role) + '</div>' +
-                '</div>' +
                 (parentFio ? '<div class="contact-parent">' + escapeHtml(parentFio) + '</div>' : '') +
-                (team ? '<div class="contact-sub">' + escapeHtml(team) + '</div>' : '') +
-                '</div></div>';
+                '</div>' +
+                '<div class="contact-team contact-sub">' + (team ? escapeHtml(team) : '') + '</div>' +
+                '<div class="contact-role contact-sub">' + escapeHtml(role) + '</div>' +
+                '</div>';
             li.querySelector('.contact-row').addEventListener('click', function () {
                 startDialog(Number(u.id));
             });

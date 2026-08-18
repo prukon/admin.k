@@ -82,7 +82,8 @@
   <h2>5) Ответ API при создании роли</h2>
   <div class="note">
     JSON содержит поля <code>success</code>, <code>role</code> (модель роли) и <code>permission_ids</code> — список идентификаторов permissions, реально назначенных для текущего партнёра.
-    Клиент обновляет таблицу чекбоксов и список ролей в модальном окне <b>без полной перезагрузки страницы</b> (модал успеха без <code>location.reload()</code>).
+    Клиент обновляет таблицу чекбоксов и список ролей в модальном окне <b>без полной перезагрузки страницы</b>. Успех — toast «Роль успешно создана.» (<code>window.showToast</code>), не <code>showSuccessModal</code>.
+    Удаление кастомной роли так же без reload: снимается колонка роли в матрице прав (<code>thead th[data-role-id]</code>) и строка в <code>#rolesTable</code>, затем toast «Роль успешно удалена.».
   </div>
 
   <h2>6) Автотесты</h2>
@@ -93,6 +94,9 @@
     <li><code>/tests/Feature/Crm/RuleControllerTest.php</code> — создание роли, базовые <code>permission_ids</code>, пустой конфиг, неизвестные имена в конфиге и вызов <code>Log::warning</code>, коллизии имён.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code> — 403 без права <code>settings.roles.view</code>, 200 для администратора партнёра на странице и JSON-ручках.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — smoke 200 на все endpoint'ы вкладки (гость, 403 без права, admin, superadmin).</li>
+    <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — создание и удаление роли: toast, без <code>showSuccessModal</code> и без <code>location.reload()</code>.</li>
+    <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,
+      <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code> — JSON 200/422 <code>errors.name</code> / <code>errors.role_id</code>; non-AJAX не пустой 200.</li>
     <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группы <code>permission_groups</code> и маппинг прав после перегруппировки каталога.</li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code></pre>

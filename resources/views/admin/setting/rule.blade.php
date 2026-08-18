@@ -175,7 +175,7 @@
                             <span class="perm-badge ms-2">{{ $permsInGroup->count() }}</span>
                         </th>
                         @foreach($roles->where('name', '!=', 'superadmin') as $role)
-                            <th class="text-center">
+                            <th class="text-center" data-role-id="{{ $role->id }}">
                                 {{ $role->label ?? $role->name }}
                                 @if(auth()->user()?->role?->name === 'superadmin' && !$role->is_visible)
                                     <br><span class="badge bg-warning text-dark ms-2">Невидимое</span>
@@ -359,7 +359,7 @@
                 $('#permission-accordion table.perm-table').each(function () {
                     const $table = $(this);
                     const $theadRow = $table.find('thead tr').first();
-                    const $th = $('<th>').addClass('text-center');
+                    const $th = $('<th>').addClass('text-center').attr('data-role-id', roleId);
                     $th.text(label);
                     if (rulesTabIsSuperadmin && role.is_visible === false) {
                         $th.append($('<br>'));
@@ -416,6 +416,39 @@
                 }
                 $tr.append($delTd);
                 $tbody.append($tr);
+            }
+
+            function removeRoleColumnFromPermissionTables(roleId) {
+                const id = String(roleId);
+                $('#permission-accordion table.perm-table').each(function () {
+                    const $table = $(this);
+                    const $th = $table.find('thead th[data-role-id="' + id + '"]').first();
+                    if (!$th.length) {
+                        return;
+                    }
+                    const colIndex = $th.index();
+                    $th.remove();
+                    $table.find('tbody tr').each(function () {
+                        const $tr = $(this);
+                        const $tdColspan = $tr.find('td[colspan]');
+                        if ($tdColspan.length && $tr.find('.permission-checkbox').length === 0) {
+                            $tdColspan.attr(
+                                'colspan',
+                                String($table.find('thead tr').first().children().length)
+                            );
+                            return;
+                        }
+                        $tr.children().eq(colIndex).remove();
+                    });
+                });
+            }
+
+            function removeRoleFromRolesTable(roleId) {
+                const $tbody = $('#rolesTable tbody');
+                $tbody.find('tr[data-role-id="' + String(roleId) + '"]').remove();
+                $tbody.find('tr').each(function (i) {
+                    $(this).children('td').first().text(String(i + 1));
+                });
             }
 
             // чекбокс: единичное изменение права
@@ -490,7 +523,9 @@
                                         appendRoleToRolesTable(response.role);
                                     }
                                     $('#roleName').val('');
-                                    showSuccessModal("Создание роли", "Роль успешно создана.", 0);
+                                    if (typeof window.showToast === 'function') {
+                                        window.showToast('Роль успешно создана.', 'success');
+                                    }
                                 } else {
                                     $('#error-modal-message').text(response.message || 'Ошибка при создании роли!');
                                     eroorRespone(response);
@@ -523,8 +558,11 @@
                             },
                             success: (response) => {
                                 if (response.success) {
-                                    showSuccessModal("Удаление роли", "Роль успешно удалена.", 0);
-                                    location.reload();
+                                    removeRoleColumnFromPermissionTables(roleId);
+                                    removeRoleFromRolesTable(roleId);
+                                    if (typeof window.showToast === 'function') {
+                                        window.showToast('Роль успешно удалена.', 'success');
+                                    }
                                 } else {
                                     $('#error-modal-message').text(response.message || 'Ошибка при удалении роли!');
                                     eroorRespone(response);

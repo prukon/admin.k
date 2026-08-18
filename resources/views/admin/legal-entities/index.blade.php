@@ -559,12 +559,8 @@
                     }
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityCreateModal'))?.hide();
                     reloadTable();
-                    if (typeof showSuccessModal === 'function') {
-                        showSuccessModal(
-                            'Создание юр. лица',
-                            data.message || 'Юр. лицо создано',
-                            0
-                        );
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Юр. лицо создано', 'success');
                     }
                     return;
                 }
@@ -615,12 +611,8 @@
                 if (ok) {
                     bootstrap.Modal.getInstance(document.getElementById('legalEntityEditModal'))?.hide();
                     reloadTable();
-                    if (typeof showSuccessModal === 'function') {
-                        showSuccessModal(
-                            'Редактирование юр. лица',
-                            data.message || 'Юр. лицо обновлено',
-                            0
-                        );
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Юр. лицо обновлено', 'success');
                     }
                     return;
                 }

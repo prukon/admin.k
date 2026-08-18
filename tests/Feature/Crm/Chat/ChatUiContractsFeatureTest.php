@@ -43,6 +43,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="contactsError"', $modal);
         $this->assertStringContainsString('id="msgBodyError"', $page);
         $this->assertStringContainsString('id="threadPeerHit"', $page);
+        $this->assertStringContainsString('chat-header-peer is-idle', $page);
         $this->assertStringContainsString('id="peerCardModal"', $html);
         $this->assertStringContainsString('id="peerCardError"', $html);
         $this->assertStringContainsString('id="peerCardBody"', $html);
@@ -56,6 +57,12 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('chat-online-dot', $html);
         $this->assertStringContainsString('contact-online-dot', $html);
         $this->assertStringContainsString('contact-parent', $html);
+        $this->assertStringContainsString('contact-main', $html);
+        $this->assertStringContainsString('contact-team', $html);
+        $this->assertStringContainsString('contact-role', $html);
+        $this->assertStringContainsString('align-items: flex-start', $html);
+        $this->assertStringContainsString('chat-li-unread', $html);
+        $this->assertStringContainsString('#f3a12b', $html);
 
         $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
         $this->assertDoesNotMatchRegularExpression(
@@ -84,6 +91,11 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('js-chat-unread-count', $deniedHtml);
         $this->assertStringNotContainsString('KidsCrmChatSetUnread', $deniedHtml);
         $this->assertStringNotContainsString(route('chat.index', [], false), $deniedHtml);
+        $this->assertStringContainsString('setInterval(ping, 60000)', $deniedHtml);
+        $this->assertTrue(
+            str_contains($deniedHtml, '/presence/ping') || str_contains($deniedHtml, 'presence\/ping'),
+            'Dashboard без messages.view должен пинговать presence'
+        );
     }
 
     public function test_unread_badge_shows_count_when_peer_has_new_messages(): void
@@ -118,6 +130,17 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertNotFalse($openThreadPos);
         $openThreadChunk = substr($js, $openThreadPos, 2200);
         $this->assertStringContainsString('setComposerEnabled(true)', $openThreadChunk);
+        $this->assertStringContainsString("getElementById('msgInput').focus()", $openThreadChunk);
+        $enablePos = strpos($openThreadChunk, 'setComposerEnabled(true)');
+        $focusPos = strpos($openThreadChunk, "getElementById('msgInput').focus()");
+        $this->assertNotFalse($enablePos);
+        $this->assertNotFalse($focusPos);
+        $this->assertGreaterThan(
+            $enablePos,
+            $focusPos,
+            'Фокус в поле ввода — только после включения композера'
+        );
+        $this->assertStringContainsString('setHeaderPeerClickable(!!currentPeerId)', $openThreadChunk);
         $this->assertStringContainsString("av.style.display = ''", $openThreadChunk);
         $this->assertStringContainsString('subscribeThread(currentThreadId)', $openThreadChunk);
         $this->assertStringContainsString('setUnreadBadge(res.unread_total)', $openThreadChunk);
@@ -212,6 +235,36 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('last_seen_label', $js);
         $this->assertStringContainsString("href=\"' + escapeHtml(href)", $js);
         $this->assertStringContainsString("urls.users + '/' + encodeURIComponent", $js);
+
+        $renderThreadsPos = strpos($js, 'function renderThreads(');
+        $this->assertNotFalse($renderThreadsPos);
+        $renderThreadsChunk = substr($js, $renderThreadsPos, strpos($js, 'function upsertThread(') - $renderThreadsPos);
+        $this->assertStringContainsString('fmtTime(t.last_message_time)', $renderThreadsChunk);
+        $this->assertStringContainsString('chat-li-unread', $renderThreadsChunk);
+        $this->assertStringContainsString('chat-li-meta', $renderThreadsChunk);
+        $this->assertStringNotContainsString('bg-primary', $renderThreadsChunk);
+        $this->assertStringNotContainsString('last_seen', $renderThreadsChunk);
+        $this->assertStringNotContainsString('is-offline', $renderThreadsChunk);
+        $this->assertStringContainsString('openThread(t.id)', $renderThreadsChunk);
+        $this->assertStringNotContainsString('openPeerCard', $renderThreadsChunk);
+
+        $renderContactsPos = strpos($js, 'function renderContacts(');
+        $this->assertNotFalse($renderContactsPos);
+        $renderContactsChunk = substr($js, $renderContactsPos, strpos($js, 'function loadContacts(') - $renderContactsPos);
+        $this->assertStringContainsString('is-offline', $renderContactsChunk);
+        $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $renderContactsChunk);
+        $this->assertStringContainsString('contact-main', $renderContactsChunk);
+        $this->assertStringContainsString('contact-team', $renderContactsChunk);
+        $this->assertStringContainsString('contact-role', $renderContactsChunk);
+        $this->assertStringNotContainsString('d-flex justify-content-between', $renderContactsChunk);
+        $this->assertStringContainsString('startDialog(Number(u.id))', $renderContactsChunk);
+        $this->assertStringNotContainsString('openPeerCard', $renderContactsChunk);
+
+        $openPeerPos = strpos($js, 'function openPeerCard(');
+        $this->assertNotFalse($openPeerPos);
+        $openPeerChunk = substr($js, $openPeerPos, strpos($js, 'function renderContacts(') - $openPeerPos);
+        $this->assertStringContainsString('if (!currentPeerId)', $openPeerChunk);
+        $this->assertStringContainsString('function dashText(', $js);
     }
 
     public function test_echo_badge_script_hides_zero_and_ignores_foreign_thread_read(): void

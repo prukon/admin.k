@@ -416,8 +416,8 @@
 
             function showCreateClientResultModal(isSuccess, message) {
                 if (isSuccess) {
-                    if (typeof showSuccessModal === 'function') {
-                        showSuccessModal('Создание клиента', message || 'Клиент создан.');
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(message || 'Клиент создан.', 'success');
                         return;
                     }
                     showToast(message || 'Клиент создан.', 'success');

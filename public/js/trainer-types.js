@@ -206,8 +206,8 @@
         }
         await loadList('saved');
         showList();
-        if (typeof showSuccessModal === 'function') {
-            showSuccessModal('Типы тренеров', data.message || 'Сохранено', 0);
+        if (typeof window.showToast === 'function') {
+            window.showToast(data.message || 'Тип тренера сохранён', 'success');
         }
     }
 
@@ -240,8 +240,8 @@
         }
         await loadList('saved');
         showList();
-        if (typeof showSuccessModal === 'function') {
-            showSuccessModal('Типы тренеров', data.message || 'Тип удалён', 0);
+        if (typeof window.showToast === 'function') {
+            window.showToast(data.message || 'Тип тренера удалён', 'success');
         }
     }
 

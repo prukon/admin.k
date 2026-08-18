@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Chat;
 
+use App\Events\InboxBump;
 use App\Models\ParentProfile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Онлайн-статус (last_seen_at, ping), ФИО родителя в контактах, галочки исходящего в списке.
@@ -130,5 +132,231 @@ final class ChatPresenceFeatureTest extends ChatTestCase
         $this->assertFalse((bool) $row['last_message_is_mine']);
         $this->assertNull($row['last_message_is_read']);
         $this->assertFalse((bool) $row['peer_is_online']);
+    }
+
+    public function test_user_with_chat_permission_can_still_ping_presence(): void
+    {
+        $this->assertNull($this->user->fresh()->last_seen_at);
+
+        $this->postJson(route('presence.ping'))
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $this->assertNotNull($this->user->fresh()->last_seen_at);
+    }
+
+    public function test_native_presence_ping_returns_json_ok_and_writes_last_seen(): void
+    {
+        $this->assertNull($this->user->fresh()->last_seen_at);
+
+        $response = $this->post(route('presence.ping'));
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response
+            ->assertOk()
+            ->assertJsonPath('ok', true);
+        $this->assertStringContainsString(
+            'application/json',
+            (string) $response->headers->get('content-type')
+        );
+        $this->assertNotNull($this->user->fresh()->last_seen_at);
+    }
+
+    public function test_presence_ping_wrong_methods_are_not_empty_200(): void
+    {
+        foreach (['GET', 'PATCH', 'DELETE'] as $method) {
+            $json = $this->json($method, route('presence.ping'));
+            $this->assertNotSame(500, $json->getStatusCode(), $method.' JSON не 500');
+            $this->assertNotSame(200, $json->getStatusCode(), $method.' не пустой 200');
+            $this->assertContains(
+                $json->getStatusCode(),
+                [404, 405],
+                $method.' JSON должен быть 404/405, получено '.$json->getStatusCode()
+            );
+
+            $html = $this->call($method, route('presence.ping'));
+            $this->assertNotSame(500, $html->getStatusCode(), $method.' HTML не 500');
+            $this->assertNotSame(200, $html->getStatusCode(), $method.' HTML не пустой 200');
+            $this->assertContains(
+                $html->getStatusCode(),
+                [404, 405],
+                $method.' HTML должен быть 404/405, получено '.$html->getStatusCode()
+            );
+        }
+    }
+
+    public function test_guest_wrong_methods_on_presence_ping_do_not_return_server_error(): void
+    {
+        Auth::logout();
+
+        foreach (['GET', 'PATCH', 'DELETE'] as $method) {
+            $json = $this->json($method, route('presence.ping'));
+            $this->assertNotSame(500, $json->getStatusCode(), $method.' JSON гость не 500');
+            $this->assertContains($json->getStatusCode(), [401, 404, 405, 419]);
+
+            $html = $this->call($method, route('presence.ping'));
+            $this->assertNotSame(500, $html->getStatusCode(), $method.' HTML гость не 500');
+            $this->assertTrue(
+                $html->isRedirect() || in_array($html->getStatusCode(), [401, 404, 405, 419], true),
+                $method.' HTML гость: редирект/401/404/405/419, получено '.$html->getStatusCode()
+            );
+        }
+    }
+
+    public function test_peer_still_online_at_exactly_two_minutes_and_offline_a_second_later(): void
+    {
+        $this->travelTo('2026-08-18 12:00:00');
+        $edge = $this->makePeer('EdgeOnline_');
+        $over = $this->makePeer('JustOffline_');
+        $edge->forceFill(['last_seen_at' => now()->subSeconds(120)])->save();
+        $over->forceFill(['last_seen_at' => now()->subSeconds(121)])->save();
+
+        $contacts = collect($this->getJson(route('chat.api.users'))->assertOk()->json());
+
+        $this->assertTrue((bool) $contacts->firstWhere('id', $edge->id)['is_online']);
+        $this->assertFalse((bool) $contacts->firstWhere('id', $over->id)['is_online']);
+    }
+
+    public function test_thread_list_time_is_last_message_not_last_seen(): void
+    {
+        $this->travelTo('2026-08-18 15:00:00');
+        $peer = $this->makePeer('SeenPeer_');
+        $peer->forceFill(['last_seen_at' => '2026-08-01 09:00:00'])->save();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $this->seedMessage($thread, (int) $this->user->id, 'Последнее');
+
+        $row = collect($this->getJson(route('chat.api.threads.index'))->json('threads'))
+            ->firstWhere('id', $thread->id);
+        $this->assertNotNull($row);
+        $this->assertSame('2026-08-18 15:00:00', $row['last_message_time']);
+        $this->assertArrayNotHasKey('last_seen_at', $row);
+    }
+
+    public function test_inbox_bump_carries_ticks_online_and_last_message_time_for_both_sides(): void
+    {
+        $this->travelTo('2026-08-18 15:00:00');
+        $this->user->forceFill(['last_seen_at' => now()])->save();
+        $peer = $this->makePeer('BumpPeer_');
+        $peer->forceFill(['last_seen_at' => now()])->save();
+
+        $threadId = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        Event::fake([InboxBump::class]);
+
+        $this->postJson(route('chat.api.threads.messages.store', $threadId), [
+            'body' => 'Флаги списка',
+        ])->assertCreated();
+
+        Event::assertDispatched(InboxBump::class, function (InboxBump $event) use ($threadId, $peer) {
+            if ($event->userId !== (int) $this->user->id) {
+                return false;
+            }
+            $data = $event->broadcastWith();
+
+            return (int) $data['thread_id'] === $threadId
+                && (int) $data['peer_id'] === (int) $peer->id
+                && $data['last_message_time'] === '2026-08-18 15:00:00'
+                && $data['last_message_is_mine'] === true
+                && $data['last_message_is_read'] === false
+                && $data['peer_is_online'] === true;
+        });
+
+        Event::assertDispatched(InboxBump::class, function (InboxBump $event) use ($threadId) {
+            if ($event->userId !== (int) $this->user->id) {
+                $data = $event->broadcastWith();
+
+                return (int) $data['thread_id'] === $threadId
+                    && (int) $data['peer_id'] === (int) $this->user->id
+                    && $data['last_message_time'] === '2026-08-18 15:00:00'
+                    && $data['last_message_is_mine'] === false
+                    && $data['last_message_is_read'] === null
+                    && $data['peer_is_online'] === true;
+            }
+
+            return false;
+        });
+    }
+
+    public function test_soft_deleted_parent_is_hidden_in_contacts_and_peer_card(): void
+    {
+        $parent = ParentProfile::factory()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Удалённый',
+            'firstname' => 'Родитель',
+            'middlename' => 'Тестовый',
+            'phone' => '+79009998877',
+        ]);
+        $kid = $this->makePeer('KidDeletedParent_', ['parent_id' => $parent->id]);
+        $parent->delete();
+
+        $contacts = collect($this->getJson(route('chat.api.users'))->assertOk()->json());
+        $kidRow = $contacts->firstWhere('id', $kid->id);
+        $this->assertNotNull($kidRow);
+        $this->assertSame('', $kidRow['parent_full_name']);
+        $this->assertArrayNotHasKey('phone', $kidRow);
+        $this->assertArrayNotHasKey('parent_phone', $kidRow);
+        $this->assertArrayNotHasKey('last_seen_at', $kidRow);
+
+        $this->getJson(route('chat.api.users.show', $kid))
+            ->assertOk()
+            ->assertJsonPath('parent_full_name', '')
+            ->assertJsonPath('parent_phone', '');
+    }
+
+    public function test_disabled_same_school_peer_card_is_still_available(): void
+    {
+        $disabled = $this->makePeer('DisabledCard_', ['is_enabled' => 0]);
+
+        $this->getJson(route('chat.api.users.show', $disabled))
+            ->assertOk()
+            ->assertJsonPath('id', $disabled->id);
+    }
+
+    public function test_own_peer_card_is_available(): void
+    {
+        $this->getJson(route('chat.api.users.show', $this->user))
+            ->assertOk()
+            ->assertJsonPath('id', $this->user->id);
+    }
+
+    public function test_native_peer_card_get_returns_json_profile_not_empty_page(): void
+    {
+        $peer = $this->makePeer('NativeCard_');
+
+        $response = $this->get(route('chat.api.users.show', $peer));
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response
+            ->assertOk()
+            ->assertJsonPath('id', $peer->id)
+            ->assertJsonPath('full_name', $peer->full_name);
+        $this->assertStringContainsString(
+            'application/json',
+            (string) $response->headers->get('content-type')
+        );
+        $this->assertNotSame('', trim((string) $response->getContent()));
+    }
+
+    public function test_peer_card_wrong_methods_are_not_empty_200(): void
+    {
+        $peer = $this->makePeer('MutateCard_');
+
+        foreach (['POST', 'PATCH', 'DELETE'] as $method) {
+            $json = $this->json($method, route('chat.api.users.show', $peer));
+            $this->assertNotSame(500, $json->getStatusCode(), $method.' JSON не 500');
+            $this->assertNotSame(200, $json->getStatusCode(), $method.' не пустой 200');
+            $this->assertSame(405, $json->getStatusCode(), $method.' должен быть 405');
+        }
+    }
+
+    public function test_user_without_messages_view_cannot_open_peer_card_but_can_ping(): void
+    {
+        $peer = $this->makePeer('DeniedCard_');
+        $denied = $this->createUserWithoutPermission('messages.view', $this->partner);
+        $this->actingInPartner($denied);
+
+        $this->getJson(route('chat.api.users.show', $peer))->assertForbidden();
+        $this->get(route('chat.api.users.show', $peer))->assertForbidden();
+        $this->postJson(route('presence.ping'))->assertOk()->assertJsonPath('ok', true);
     }
 }

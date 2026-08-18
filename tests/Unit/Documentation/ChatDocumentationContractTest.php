@@ -33,6 +33,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString(':6009', $chunk);
         $this->assertStringContainsString('ChatReverbOverlayFeatureTest', $chunk);
         $this->assertStringContainsString('reverb-status-overlay-index', $chunk);
+        $this->assertStringContainsString('chat-presence-index', $chunk);
+        $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
         $this->assertStringNotContainsString('красный бейдж', $chunk);
         $this->assertStringNotContainsString("wsPath: '/app'", str_replace(
             "<b>без</b> <code>wsPath: '/app'</code>",
@@ -68,11 +70,26 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('presence/ping', $html);
         $this->assertStringContainsString('last_seen_at', $html);
         $this->assertStringContainsString('parent_full_name', $html);
+        $this->assertStringContainsString('contact-team', $html);
+        $this->assertStringContainsString('по центру на одной линии с именем', $html);
+        $this->assertStringNotContainsString('Ниже — группы ученика', $html);
+        $this->assertStringContainsString('users.lastname', $html);
+        $this->assertStringContainsString('PEER_USER_COLUMNS', $html);
+        $this->assertStringContainsString('parents.firstname', $html);
         $this->assertStringContainsString('2 минут', $html);
+        $this->assertStringContainsString('chat-li-unread', $html);
+        $this->assertStringContainsString('#f3a12b', $html);
+        $this->assertStringContainsString('#msgInput', $html);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
+        $this->assertStringContainsString('ChatPresenceUxFeatureTest', $html);
         $this->assertStringContainsString('peerCardError', $html);
         $this->assertStringContainsString('chat.api.users.show', $html);
         $this->assertStringContainsString('last_seen_label', $html);
+        $this->assertStringContainsString('id="presence"', $html);
+        $this->assertStringContainsString('/doc#chat-presence-index', $html);
+        $this->assertStringContainsString('без</b> <code>can:messages.view</code>', $html);
+        $this->assertStringContainsString('без точки и без', $html);
+        $this->assertStringNotContainsString('все API чата</td>', $html);
     }
 
     public function test_doc_catalog_and_controller_title_mention_no_flash_and_no_wspath(): void
@@ -85,6 +102,54 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('без вспышки в открытом диалоге', $controller);
         $this->assertStringContainsString('Reverb без wsPath', $controller);
         $this->assertStringContainsString('оверлей статуса процесса/сокета для superadmin', $controller);
+        $this->assertStringContainsString('онлайн (ping без messages.view)', $controller);
+        $this->assertStringContainsString('карточка собеседника из шапки', $controller);
+    }
+
+    public function test_doc_index_announces_chat_presence_without_contradicting_live_ux(): void
+    {
+        $html = $this->docFile('index.html');
+
+        $this->assertStringContainsString('id="chat-presence-index"', $html);
+        $start = strpos($html, 'id="chat-presence-index"');
+        $this->assertNotFalse($start);
+        $end = strpos($html, 'id="admin-password-change-toast-index"');
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+        $chunk = substr($html, $start, $end - $start);
+
+        $this->assertStringContainsString('last_seen_at', $chunk);
+        $this->assertStringContainsString('2 минут', $chunk);
+        $this->assertStringContainsString('120 секунд', $chunk);
+        $this->assertStringContainsString('/presence/ping', $chunk);
+        $this->assertStringContainsString('без</b> права', $chunk);
+        $this->assertStringContainsString('messages.view', $chunk);
+        $this->assertStringContainsString('{ok: true}', $chunk);
+        $this->assertStringContainsString('не 302', $chunk);
+        $this->assertStringContainsString('last_message_time', $chunk);
+        $this->assertStringContainsString('последнего сообщения', $chunk);
+        $this->assertStringContainsString('chat-li-unread', $chunk);
+        $this->assertStringContainsString('#f3a12b', $chunk);
+        $this->assertStringContainsString('#msgInput', $chunk);
+        $this->assertStringContainsString('не</b> рисуем', $chunk);
+        $this->assertStringContainsString('красной нет', $chunk);
+        $this->assertStringContainsString('parent_full_name', $chunk);
+        $this->assertStringContainsString('contact-team', $chunk);
+        $this->assertStringContainsString('по центру на одной линии с именем', $chunk);
+        $this->assertStringContainsString('parents.firstname', $chunk);
+        $this->assertStringContainsString('lastname', $chunk);
+        $this->assertStringContainsString('threadPeerHit', $chunk);
+        $this->assertStringContainsString('is-idle', $chunk);
+        $this->assertStringContainsString('tel:', $chunk);
+        $this->assertStringContainsString('/docs/documentation/chat#presence', $chunk);
+        $this->assertStringContainsString('ChatPresenceFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
+        $this->assertStringContainsString('/doc#chat-index', $chunk);
+
+        $this->assertStringNotContainsString('ping требует', $chunk);
+        $this->assertStringNotContainsString('красная точка в списке', $chunk);
+        $this->assertStringNotContainsString('время last_seen справа', $chunk);
+        $this->assertStringNotContainsString('карточка из списка диалогов', $chunk);
     }
 
     public function test_doc_index_announces_reverb_overlay_without_contradicting_live_ux(): void

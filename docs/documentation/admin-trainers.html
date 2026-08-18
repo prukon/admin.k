@@ -155,8 +155,8 @@
   <h2>6) UI страницы <code>/admin/trainers</code></h2>
   <ul>
     <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку» (поля профиля <code>default_*</code>, в Канзасе на карточке не редактируются), статус, действия. При Канзасе в тулбаре кнопка «Типы».</li>
-    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>). Classic: поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>). Канзас: обязателен селект <code>trainer_type_id</code>; поля classic скрыты и disabled; сохранение карточки <code>default_*</code> не затирает.</li>
-    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
+    <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>). Classic: поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>). Канзас: обязателен селект <code>trainer_type_id</code>; поля classic скрыты и disabled; сохранение карточки <code>default_*</code> не затирает. Успех create/edit/delete карточки — toast (<code>window.showToast</code>: «Тренер успешно создан.» / «обновлён» / «удалён»), не <code>showSuccessModal</code>.</li>
+    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). При первом открытии блок <code>#trainer-change-pass-wrap</code> скрыт. Успех: поле очищается, всплывайка «Пароль успешно изменен» (<code>#kidsMainToast</code> / <code>window.showToast</code>), не <code>showSuccessModal</code>. Повтор того же пароля на клиенте не шлётся. Без права кнопка disabled (<code>opacity-50 pe-none</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>). Анонс UX — <a href="/doc#admin-password-change-toast-index">/doc</a>.</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
@@ -211,7 +211,7 @@
   </table>
   <p>Несистемный тип удаляется, только если на него никто не назначен (включая soft-deleted профили) — иначе 422 <code>errors.name</code>.</p>
   <p>
-    CRUD модалки (<code>/admin/trainer-types</code>) при успехе всегда JSON (<code>message</code> + <code>trainer_type</code>), в том числе без <code>X-Requested-With</code> — не пустой 200 и не redirect.
+    CRUD модалки (<code>/admin/trainer-types</code>) при успехе всегда JSON (<code>message</code> + <code>trainer_type</code>), в том числе без <code>X-Requested-With</code> — не пустой 200 и не redirect. UI: toast «Тип тренера сохранён» / «Тип тренера удалён» (<code>window.showToast</code>, не <code>showSuccessModal</code>).
     Ошибка валидации: AJAX → 422 <code>errors[field]</code>; non-AJAX → 302 и ошибки сессии под полями.
     Карточка тренера: non-AJAX create/update → 302 на <code>/admin/trainers</code>; AJAX → JSON 200/422.
   </p>
@@ -288,6 +288,11 @@
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>
+      <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — смена пароля тренера: скрытый блок, toast, skip повторного пароля (общий эндпоинт с админами/учениками)</li>
+      <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — успех create/edit/delete тренера и смена пароля тренера — toast, не success-модалка; негатив вне списка</li>
+      <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalAccessFeatureTest.php</code>,
+        <code>SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,
+        <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code> — GET/JSON/non-AJAX для toast-операций тренера</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerSyncAndTeamsFeatureTest.php</code> — store/show team_ids, user update, смена роли</li>
       <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — привязка через группу и update тренера</li>
       <li><code>tests/Feature/Crm/Teams/TeamTrainerColumnFeatureTest.php</code> — колонка «Тренер» на <code>/admin/teams</code></li>
