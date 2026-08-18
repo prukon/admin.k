@@ -1120,6 +1120,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
     });
 
     Route::get('/chat/api/reverb-status', [ChatApiController::class, 'reverbStatus'])->name('chat.api.reverb-status');
+    Route::post('/presence/ping', [ChatApiController::class, 'presencePing'])->name('presence.ping');
 
     Route::middleware('can:messages.view')->group(function () {
         Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');

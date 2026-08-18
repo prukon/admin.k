@@ -43,6 +43,9 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="contactsError"', $modal);
         $this->assertStringContainsString('id="msgBodyError"', $page);
         $this->assertStringContainsString('js/chat.js', $html);
+        $this->assertStringContainsString('chat-online-dot', $html);
+        $this->assertStringContainsString('contact-online-dot', $html);
+        $this->assertStringContainsString('contact-parent', $html);
 
         $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
         $this->assertDoesNotMatchRegularExpression(
@@ -187,6 +190,12 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $createdChunk = substr($js, $createdPos, 1600);
         $this->assertStringContainsString('markThreadRead(threadId)', $createdChunk);
         $this->assertStringContainsString('Number(msg.user_id) === me', $createdChunk);
+        $this->assertStringContainsString('last_message_is_mine', $js);
+        $this->assertStringContainsString('function markListOutgoingRead(', $js);
+        $this->assertStringContainsString('chat-online-dot', $js);
+        $this->assertStringContainsString('contact-online-dot', $js);
+        $this->assertStringContainsString('contact-parent', $js);
+        $this->assertStringContainsString('parent_full_name', $js);
     }
 
     public function test_echo_badge_script_hides_zero_and_ignores_foreign_thread_read(): void

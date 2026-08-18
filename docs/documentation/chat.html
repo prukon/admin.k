@@ -76,8 +76,15 @@
       раз в 1 секунду (<code>KidsCrmChatRefreshInbox</code>); на остальных страницах —
       <code>GET /chat/api/unread</code> раз в 12 секунд. Без перезагрузки страницы.
       Если открыт тот же диалог, бейдж не вспыхивает (из <code>unread_total</code> вычитается unread этого треда).</li>
-    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по имени и превью.</li>
-    <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).</li>
+    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по имени и превью.
+      Справа — время последнего сообщения (сегодня <code>ЧЧ:ММ</code>, иначе дата).
+      Если последнее сообщение исходящее: одна серая галочка слева от времени, пока собеседник не прочитал,
+      две зелёные — после прочтения (как в пузыре сообщения).
+      Если собеседник онлайн (<code>last_seen_at</code> не старше 2 минут) — зелёная точка справа снизу на аватарке списка.
+      Офлайн в списке точку не рисуем.</li>
+    <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).
+      Справа снизу аватарки: зелёная точка если онлайн, красная если офлайн (в том числе если человек ещё ни разу не пинговал после появления <code>last_seen_at</code>).
+      Под именем, если есть карточка родителя, — ФИО родителя серым меньшим шрифтом (<code>parent_full_name</code>); пустую строку не показываем. Ниже — группы ученика.</li>
     <li>Клик по контакту открывает существующий 1-на-1 или создаёт новый. Повторный клик по тому же человеку не плодит диалоги.</li>
     <li>Справа — переписка. Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
       (сокет <code>thread.read</code>; если сокет не <code>connected</code> — опрос <code>is_read</code> раз в 1 секунду на странице чата). Ошибки валидации — под полем
@@ -88,7 +95,8 @@
   <h2 id="routes">3) Маршруты</h2>
   <p>Страница и API чата: группа <code>auth</code> + <code>2fa</code> + <code>can:messages.view</code>.
     <code>GET /chat/api/reverb-status</code> — только <code>auth</code> + <code>2fa</code>, без
-    <code>messages.view</code>; доступ по Form Request только у superadmin.</p>
+    <code>messages.view</code>; доступ по Form Request только у superadmin.
+    <code>POST /presence/ping</code> — тоже без <code>messages.view</code>, любой залогиненный.</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URI</th><th>Имя</th><th>Ответ</th></tr>
@@ -98,6 +106,7 @@
       <tr><td>GET</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.index</code></td><td>JSON <code>threads</code> + <code>unread_total</code></td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201/200 JSON, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
+      <tr><td>POST</td><td><code>/presence/ping</code></td><td><code>presence.ping</code></td><td>только <code>auth</code>+<code>2fa</code>, без <code>messages.view</code>; JSON <code>ok</code>; пишет <code>users.last_seen_at</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы, <code>?q=</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code></td></tr>
@@ -109,7 +118,10 @@
   <p>Чужой тред (не участник) — 403. Пользователь другой школы в <code>user_id</code> — 422,
     <code>errors.user_id</code>: «Нельзя добавить пользователя другой организации.»
     Пустое сообщение — 422 <code>errors.body</code> (AJAX) или 302 с <code>errors.body</code> в сессии (нативный POST).
-    Нативный POST/PATCH без <code>X-Requested-With</code> не отдаёт сырой JSON 200/201 — редирект на страницу чата, запись в БД создана.</p>
+    Нативный POST/PATCH без <code>X-Requested-With</code> не отдаёт сырой JSON 200/201 — редирект на страницу чата, запись в БД создана.
+    <code>POST /presence/ping</code> доступен любому залогиненному (включая роли без <code>messages.view</code>):
+    гость 302/401, JSON <code>ok</code>. Пишет <code>users.last_seen_at</code> не чаще чем раз в 30 секунд
+    (клиент пингует раз в 60 секунд из Echo-include на страницах кабинета).</p>
 
   <h2 id="data">4) Данные и код</h2>
   <ol>
@@ -119,7 +131,11 @@
       <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>.</li>
     <li>Контакты: <code>users.partner_id = current_partner</code>, <code>is_enabled=1</code>, без себя.
       В карточке <code>team_title</code> — группы ученика через <code>UserTeamQuery</code>
-      (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).</li>
+      (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
+      <code>is_online</code> — <code>users.last_seen_at</code> не старше 2 минут;
+      <code>parent_full_name</code> — ФИО из справочника <code>parents</code> (пусто, если карточки нет).
+      Онлайн в CRM обновляется ping <code>POST /presence/ping</code>
+      (Echo-include на всех страницах кабинета, раз в 60 секунд, запись в БД не чаще чем раз в 30 секунд).</li>
     <li>1-на-1: тред ровно с двумя участниками (я + собеседник). Повторный POST возвращает тот же <code>thread_id</code>
       (блокировка пары пользователей). Список диалогов показывает один тред на <code>peer_id</code>, даже если в БД остались старые дубли.</li>
   </ol>
@@ -168,7 +184,8 @@
 
   <h2 id="tests">6) Тесты</h2>
   <ul>
-    <li><code>ChatAccessFeatureTest</code> — гость (редирект / 401 JSON), без <code>messages.view</code> 403 на каждый endpoint и HTML-страницу, со правом без 500; каналы <code>inbox.{id}</code> / <code>thread.{id}</code> только свои.</li>
+    <li><code>ChatPresenceFeatureTest</code> — ping без <code>messages.view</code>, throttle 30с, онлайн ≤2 минут,
+      ФИО родителя в контактах, галочки исходящего и <code>peer_is_online</code> в списке тредов.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>

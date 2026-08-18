@@ -27,7 +27,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
                 'ok',
                 'created',
                 'thread_id',
-                'thread' => ['id', 'title', 'avatar', 'peer_id'],
+                'thread' => ['id', 'title', 'avatar', 'peer_id', 'peer_is_online'],
             ]);
     }
 
@@ -352,7 +352,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         $contacts = $this->getJson(route('chat.api.users'))
             ->assertOk()
             ->assertJsonStructure([
-                '*' => ['id', 'name', 'email', 'avatar', 'role_name', 'role_label', 'team_title'],
+                '*' => ['id', 'name', 'email', 'avatar', 'role_name', 'role_label', 'team_title', 'is_online', 'parent_full_name'],
             ])
             ->json();
 

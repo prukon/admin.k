@@ -20,17 +20,24 @@ class ThreadReadUpdated implements ShouldBroadcastNow
         public int $threadId,
         public int $userId,
         public int $unreadTotal,
-    ) {}
+        public array $inboxUserIds = [],
+    ) {
+        if ($this->inboxUserIds === []) {
+            $this->inboxUserIds = [$this->userId];
+        }
+    }
 
     /**
      * @return list<PrivateChannel>
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('thread.'.$this->threadId),
-            new PrivateChannel('inbox.'.$this->userId),
-        ];
+        $channels = [new PrivateChannel('thread.'.$this->threadId)];
+        foreach (array_unique($this->inboxUserIds) as $inboxUserId) {
+            $channels[] = new PrivateChannel('inbox.'.(int) $inboxUserId);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

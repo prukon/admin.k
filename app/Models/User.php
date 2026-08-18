@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Traits\Filterable;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Chat\UserPresence;
 use App\Services\TeamUserSyncService;
 use App\Support\UserTeamQuery;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,7 @@ class User extends Authenticatable
         'is_on_medical_register' => 'boolean',
         'is_with_disability' => 'boolean',
         'layout_wide' => 'boolean',
+        'last_seen_at' => 'datetime',
 
         //2FA
         'two_factor_enabled' => 'boolean',
@@ -224,6 +226,18 @@ class User extends Authenticatable
         $this->two_factor_code = null;
         $this->two_factor_expires_at = null;
         $this->save();
+    }
+
+    /**
+     * Пользователь считается онлайн, если last_seen_at не старше 2 минут.
+     */
+    public function isOnline(): bool
+    {
+        if ($this->last_seen_at === null) {
+            return false;
+        }
+
+        return $this->last_seen_at->gte(now()->subSeconds(UserPresence::ONLINE_WITHIN_SECONDS));
     }
 
     public function getFullNameAttribute(): string

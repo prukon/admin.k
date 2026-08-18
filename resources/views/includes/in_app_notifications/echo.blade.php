@@ -28,6 +28,29 @@
             });
         })();
     </script>
+    <script>
+        (function () {
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrf = csrfMeta ? csrfMeta.content : '';
+            var presenceUrl = @json(route('presence.ping'));
+            function ping() {
+                if (!presenceUrl) {
+                    return;
+                }
+                fetch(presenceUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    credentials: 'same-origin'
+                }).catch(function () {});
+            }
+            ping();
+            setInterval(ping, 60000);
+        })();
+    </script>
 @endif
 
 @if(!empty($inAppNotificationBell) && is_array($inAppNotificationBell) && auth()->check())

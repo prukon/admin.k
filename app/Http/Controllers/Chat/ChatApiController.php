@@ -7,12 +7,14 @@ namespace App\Http\Controllers\Chat;
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Chat\ChatMessagesIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
+use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Http\Requests\Chat\StoreChatThreadRequest;
 use App\Models\ChatThread;
 use App\Services\Chat\ChatService;
 use App\Services\Chat\ReverbHealth;
+use App\Services\Chat\UserPresence;
 use App\Services\PartnerContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +26,7 @@ class ChatApiController extends AdminBaseController
         PartnerContext $partnerContext,
         private readonly ChatService $chat,
         private readonly ReverbHealth $reverbHealth,
+        private readonly UserPresence $presence,
     ) {
         parent::__construct($partnerContext);
     }
@@ -47,6 +50,15 @@ class ChatApiController extends AdminBaseController
         ]);
     }
 
+    public function presencePing(PresencePingRequest $request): JsonResponse
+    {
+        $this->presence->touch($this->currentUser());
+
+        return response()->json([
+            'ok' => true,
+        ]);
+    }
+
     public function reverbStatus(ReverbStatusRequest $request): JsonResponse
     {
         return response()->json($this->reverbHealth->snapshot());
@@ -59,7 +71,7 @@ class ChatApiController extends AdminBaseController
         $unreadTotal = $this->chat->markRead($thread, $userId);
 
         return response()->json(array_merge(
-            $this->chat->threadPayload($thread->fresh(['participants.user:id,name,image_crop']), $userId),
+            $this->chat->threadPayload($thread->fresh(['participants.user:id,name,image_crop,last_seen_at']), $userId),
             ['unread_total' => $unreadTotal],
         ));
     }

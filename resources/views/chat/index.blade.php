@@ -11,13 +11,21 @@
         .chat-list-item:hover { background: rgba(46, 170, 220, .06); border-left-color: #2eaadc; }
         .chat-list-item.active { background: #eaf6ff; border-left-color: #2eaadc; }
         .chat-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex: 0 0 42px; }
+        .chat-avatar-wrap { position: relative; flex: 0 0 42px; width: 42px; height: 42px; }
+        .chat-online-dot {
+            position: absolute; right: 0; bottom: 0; width: 10px; height: 10px;
+            border-radius: 50%; background: #22c55e; border: 2px solid #fff; box-sizing: content-box;
+        }
         .chat-li-middle { flex: 1; min-width: 0; }
         .chat-li-title { font-weight: 600; line-height: 1.2; }
         .chat-li-preview {
             font-size: .9rem; color: #6c757d; overflow: hidden;
             white-space: nowrap; text-overflow: ellipsis; text-align: left;
         }
-        .chat-li-time { font-size: .8rem; color: #6c757d; white-space: nowrap; }
+        .chat-li-time { font-size: .8rem; color: #6c757d; white-space: nowrap; display: flex; align-items: center; gap: .15rem; }
+        .chat-li-time .check { width: 12px; height: 12px; }
+        .chat-li-time .check svg { width: 12px; height: 12px; }
+        .chat-li-time .check-second { margin-left: -6px; }
         .dialog-bg { background: url("/img/background-chat.jpg") repeat; background-size: cover; }
         .msg-row { display: flex; width: 100%; margin: .25rem 0; }
         .msg-inner { display: flex; flex-direction: column; width: 100%; }
@@ -46,7 +54,15 @@
         }
         .contact-row:hover { background: #f5f7f9; }
         .contact-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+        .contact-avatar-wrap { position: relative; flex: 0 0 36px; width: 36px; height: 36px; }
+        .contact-online-dot {
+            position: absolute; right: 0; bottom: 0; width: 9px; height: 9px;
+            border-radius: 50%; border: 2px solid #fff; box-sizing: content-box;
+        }
+        .contact-online-dot.is-online { background: #22c55e; }
+        .contact-online-dot.is-offline { background: #dc3545; }
         .contact-name { font-weight: 600; }
+        .contact-parent { font-size: .8rem; color: #868e96; font-weight: 400; line-height: 1.25; }
         .contact-sub { font-size: .85rem; color: #6c757d; }
         .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
         .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }

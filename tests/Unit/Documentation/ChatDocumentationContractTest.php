@@ -65,6 +65,11 @@ final class ChatDocumentationContractTest extends TestCase
             'опрос <code>/chat/api/unread</code> раз в 12 секунд без перезагрузки',
             $html
         );
+        $this->assertStringContainsString('presence/ping', $html);
+        $this->assertStringContainsString('last_seen_at', $html);
+        $this->assertStringContainsString('parent_full_name', $html);
+        $this->assertStringContainsString('2 минут', $html);
+        $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
     }
 
     public function test_doc_catalog_and_controller_title_mention_no_flash_and_no_wspath(): void

@@ -480,6 +480,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('Number(e.unread_total) - Number(e.unread_count || 0)', $content);
         $this->assertStringContainsString('KidsCrmChatOnInboxBump = applyInboxBump', $content);
         $this->assertStringContainsString('markThreadRead(threadId)', $content);
+        $this->assertStringContainsString('last_message_is_mine', $content);
+        $this->assertStringContainsString('function markListOutgoingRead(', $content);
+        $this->assertStringContainsString('chat-online-dot', $content);
+        $this->assertStringContainsString('contact-online-dot', $content);
+        $this->assertStringContainsString('parent_full_name', $content);
 
         $output = [];
         $exitCode = 0;
@@ -552,6 +557,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("enabledTransports: ['ws', 'wss']", $echo);
         $this->assertStringNotContainsString("wsPath: '/app'", $echo);
         $this->assertStringNotContainsString('wsPath: "/app"', $echo);
+        $this->assertStringContainsString("route('presence.ping')", $echo);
+        $this->assertStringContainsString('setInterval(ping, 60000)', $echo);
+        $this->assertStringContainsString("method: 'POST'", $echo);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $overlayPath,
@@ -562,6 +570,11 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $echoPath,
             "broadcaster: 'reverb'",
             'blade-js-reverb-echo-client'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $echoPath,
+            'setInterval(ping, 60000)',
+            'blade-js-presence-ping'
         );
     }
 

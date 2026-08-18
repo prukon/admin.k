@@ -21,6 +21,8 @@ class ChatService
 {
     public const DEFAULT_AVATAR = '/img/default-avatar.png';
 
+    private const PEER_USER_COLUMNS = 'id,name,image_crop,last_seen_at';
+
     public function unreadTotal(int $userId): int
     {
         return (int) ChatMessage::query()
@@ -46,7 +48,7 @@ class ChatService
     {
         $threads = ChatThread::query()
             ->whereHas('participants', fn ($q) => $q->where('user_id', $userId))
-            ->with(['participants.user:id,name,image_crop'])
+            ->with(['participants.user:'.self::PEER_USER_COLUMNS])
             ->with('lastMessage')
             ->orderByDesc('updated_at')
             ->limit(100)
@@ -158,7 +160,7 @@ class ChatService
                 'user_id' => $peerId,
             ]);
 
-            $thread = $thread->fresh(['participants.user:id,name,image_crop']);
+            $thread = $thread->fresh(['participants.user:'.self::PEER_USER_COLUMNS]);
 
             return [
                 'thread' => $this->serializeThreadHeader($thread, (int) $actor->id),
@@ -184,7 +186,7 @@ class ChatService
         );
 
         $thread->touch();
-        $thread->load(['participants.user:id,name,image_crop', 'lastMessage']);
+        $thread->load(['participants.user:'.self::PEER_USER_COLUMNS, 'lastMessage']);
 
         $payload = $this->serializeMessage($thread, $message, (int) $actor->id);
         $this->safeBroadcast(new MessageCreated((int) $thread->id, $payload));
@@ -199,8 +201,11 @@ class ChatService
                 'title' => $this->titleForViewer($thread, $uid),
                 'avatar' => $this->avatarForViewer($thread, $uid),
                 'peer_id' => $this->peerId($thread, $uid),
+                'peer_is_online' => $this->isPeerOnline($thread, $uid),
                 'last_message' => $this->preview($body),
                 'last_message_time' => $message->created_at?->toDateTimeString(),
+                'last_message_is_mine' => $isSender,
+                'last_message_is_read' => $isSender ? false : null,
                 'unread_count' => $threadUnread,
                 'unread_total' => $this->unreadTotal($uid),
             ]));
@@ -217,7 +222,14 @@ class ChatService
         );
 
         $unreadTotal = $this->unreadTotal($userId);
-        $this->safeBroadcast(new ThreadReadUpdated((int) $thread->id, $userId, $unreadTotal));
+        if (! $thread->relationLoaded('participants')) {
+            $thread->load('participants:id,thread_id,user_id');
+        }
+        $inboxUserIds = $thread->participants
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $this->safeBroadcast(new ThreadReadUpdated((int) $thread->id, $userId, $unreadTotal, $inboxUserIds));
 
         return $unreadTotal;
     }
@@ -239,7 +251,10 @@ class ChatService
             $query->leftJoin('roles', 'roles.id', '=', 'users.role_id');
         }
 
-        $selects = ['users.id', 'users.name', 'users.email', 'users.image_crop'];
+        $selects = ['users.id', 'users.name', 'users.email', 'users.image_crop', 'users.parent_id'];
+        if (Schema::hasColumn('users', 'last_seen_at')) {
+            $selects[] = 'users.last_seen_at';
+        }
         if ($hasRoleId && $hasRoles) {
             $selects[] = DB::raw('roles.name as role_name');
             $selects[] = DB::raw('roles.label as role_label');
@@ -259,6 +274,7 @@ class ChatService
         }
 
         return $query
+            ->with(['parentProfile:id,lastname,firstname,middlename'])
             ->orderBy('users.name')
             ->limit(100)
             ->get($selects)
@@ -271,6 +287,8 @@ class ChatService
                     'role_name' => $user->role_name,
                     'role_label' => $user->role_label,
                     'team_title' => $user->team_title,
+                    'is_online' => $user->isOnline(),
+                    'parent_full_name' => (string) ($user->parent_full_name ?: ''),
                 ];
             })
             ->values()
@@ -292,7 +310,7 @@ class ChatService
             ->has('participants', '=', 2)
             ->whereHas('participants', fn ($q) => $q->where('user_id', $userId))
             ->whereHas('participants', fn ($q) => $q->where('user_id', $peerId))
-            ->with(['participants.user:id,name,image_crop'])
+            ->with(['participants.user:'.self::PEER_USER_COLUMNS])
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->first();
@@ -374,15 +392,19 @@ class ChatService
     private function serializeThread(ChatThread $thread, int $viewerId, int $unreadCount): array
     {
         $last = $thread->lastMessage;
+        $lastIsMine = $last !== null && (int) $last->user_id === $viewerId;
 
         return [
             'id' => (int) $thread->id,
             'title' => $this->titleForViewer($thread, $viewerId),
             'avatar' => $this->avatarForViewer($thread, $viewerId),
             'peer_id' => $this->peerId($thread, $viewerId),
+            'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
             'last_message' => $last ? $this->preview((string) $last->body) : null,
             'last_message_time' => $last?->created_at?->toDateTimeString()
                 ?? $thread->updated_at?->toDateTimeString(),
+            'last_message_is_mine' => $lastIsMine,
+            'last_message_is_read' => $lastIsMine ? $this->isReadByPeer($thread, $last) : null,
             'unread_count' => $unreadCount,
         ];
     }
@@ -393,7 +415,7 @@ class ChatService
     private function serializeThreadHeader(ChatThread $thread, int $viewerId): array
     {
         if (! $thread->relationLoaded('participants')) {
-            $thread->load(['participants.user:id,name,image_crop']);
+            $thread->load(['participants.user:'.self::PEER_USER_COLUMNS]);
         }
 
         return [
@@ -401,6 +423,7 @@ class ChatService
             'title' => $this->titleForViewer($thread, $viewerId),
             'avatar' => $this->avatarForViewer($thread, $viewerId),
             'peer_id' => $this->peerId($thread, $viewerId),
+            'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
         ];
     }
 
@@ -469,11 +492,18 @@ class ChatService
     {
         $participants = $thread->relationLoaded('participants')
             ? $thread->participants
-            : $thread->participants()->with('user:id,name,image_crop')->get();
+            : $thread->participants()->with('user:'.self::PEER_USER_COLUMNS)->get();
 
         $other = $participants->firstWhere('user_id', '<>', $viewerId);
 
         return $other?->user;
+    }
+
+    private function isPeerOnline(ChatThread $thread, int $viewerId): bool
+    {
+        $peer = $this->peerUser($thread, $viewerId);
+
+        return $peer?->isOnline() ?? false;
     }
 
     private function preview(string $body): string

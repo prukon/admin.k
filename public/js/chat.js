@@ -134,15 +134,22 @@
             const active = String(t.id) === String(currentThreadId) ? ' active' : '';
             const unread = String(t.id) === String(currentThreadId) ? 0 : (t.unread_count || 0);
             const badge = unread > 0 ? '<span class="badge rounded-pill bg-primary ms-2">' + unread + '</span>' : '';
+            const onlineDot = t.peer_is_online
+                ? '<span class="chat-online-dot" title="Онлайн"></span>'
+                : '';
+            const ticks = t.last_message_is_mine ? ticksHtml(!!t.last_message_is_read) : '';
             const item = document.createElement('div');
             item.className = 'chat-list-item' + active;
             item.setAttribute('data-id', String(t.id));
             item.innerHTML =
+                '<div class="chat-avatar-wrap">' +
                 '<img class="chat-avatar" src="' + escapeHtml(t.avatar || '/img/default-avatar.png') + '" alt="">' +
+                onlineDot +
+                '</div>' +
                 '<div class="chat-li-middle">' +
                 '<div class="d-flex justify-content-between">' +
                 '<div class="chat-li-title">' + escapeHtml(t.title || 'Диалог') + badge + '</div>' +
-                '<div class="chat-li-time">' + escapeHtml(fmtTime(t.last_message_time)) + '</div>' +
+                '<div class="chat-li-time">' + ticks + escapeHtml(fmtTime(t.last_message_time)) + '</div>' +
                 '</div>' +
                 '<div class="chat-li-preview">' + escapeHtml(t.last_message || '') + '</div>' +
                 '</div>';
@@ -154,6 +161,13 @@
     }
 
     function upsertThread(patch) {
+        const clean = {};
+        Object.keys(patch || {}).forEach(function (key) {
+            if (typeof patch[key] !== 'undefined') {
+                clean[key] = patch[key];
+            }
+        });
+        patch = clean;
         if (patch.peer_id) {
             threadsCache = threadsCache.filter(function (t) {
                 return String(t.id) === String(patch.id)
@@ -238,6 +252,16 @@
                 el.outerHTML = ticksHtml(true);
             }
         });
+    }
+
+    function markListOutgoingRead(threadId) {
+        const row = threadsCache.find(function (t) {
+            return String(t.id) === String(threadId);
+        });
+        if (!row || !row.last_message_is_mine) {
+            return;
+        }
+        upsertThread({ id: threadId, last_message_is_read: true });
     }
 
     function syncMineReadStatus(messages) {
@@ -406,13 +430,16 @@
                 id: threadId,
                 unread_count: 0,
                 last_message: msg.body,
-                last_message_time: msg.created_at
+                last_message_time: msg.created_at,
+                last_message_is_mine: Number(msg.user_id) === me,
+                last_message_is_read: Number(msg.user_id) === me ? !!msg.is_read : null
             });
             scrollBottom();
         });
         threadChannel.listen('.thread.read', function (e) {
             if (e && Number(e.user_id) !== me) {
                 markMineRead();
+                markListOutgoingRead(threadId);
             }
         });
         } catch (e) {}
@@ -426,8 +453,11 @@
             title: e.title,
             avatar: e.avatar,
             peer_id: e.peer_id,
+            peer_is_online: e.peer_is_online,
             last_message: e.last_message,
             last_message_time: e.last_message_time,
+            last_message_is_mine: e.last_message_is_mine,
+            last_message_is_read: e.last_message_is_read,
             unread_count: isActive ? 0 : Number(e.unread_count || 0)
         });
         if (typeof e.unread_total !== 'undefined') {
@@ -445,6 +475,11 @@
         try {
             const ch = window.Echo.private('inbox.' + me);
             ch.listen('.inbox.bump', applyInboxBump);
+            ch.listen('.thread.read', function (e) {
+                if (e && Number(e.user_id) !== me && e.thread_id) {
+                    markListOutgoingRead(e.thread_id);
+                }
+            });
             inboxBound = true;
         } catch (e) {}
     }
@@ -479,7 +514,9 @@
                                     id: currentThreadId,
                                     unread_count: 0,
                                     last_message: m.body,
-                                    last_message_time: m.created_at
+                                    last_message_time: m.created_at,
+                                    last_message_is_mine: Number(m.user_id) === me,
+                                    last_message_is_read: Number(m.user_id) === me ? !!m.is_read : null
                                 });
                                 if (Number(m.user_id) !== me) {
                                     sawPeer = true;
@@ -537,7 +574,14 @@
         const nowSql = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
             + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
         appendMessage({ user_id: me, body: text, created_at: nowSql, is_read: false }, { mine: true, tempId: tempId, pending: true });
-        upsertThread({ id: id, last_message: text, last_message_time: nowSql, unread_count: 0 });
+        upsertThread({
+            id: id,
+            last_message: text,
+            last_message_time: nowSql,
+            last_message_is_mine: true,
+            last_message_is_read: false,
+            unread_count: 0
+        });
         scrollBottom();
 
         fetch(threadUrl(id, '/messages'), {
@@ -573,7 +617,14 @@
                     appendMessage(m);
                 }
                 lastMessageId = m.id;
-                upsertThread({ id: id, last_message: m.body, last_message_time: m.created_at, unread_count: 0 });
+                upsertThread({
+                    id: id,
+                    last_message: m.body,
+                    last_message_time: m.created_at,
+                    last_message_is_mine: true,
+                    last_message_is_read: !!m.is_read,
+                    unread_count: 0
+                });
             })
             .catch(function () {
                 showMsgError('Не удалось отправить сообщение. Проверьте соединение.');
@@ -600,15 +651,22 @@
             const li = document.createElement('li');
             li.setAttribute('data-id', String(u.id));
             const role = u.role_label || u.role_name || '';
+            const parentFio = String(u.parent_full_name || '').trim();
+            const team = String(u.team_title || '').trim();
+            const onlineClass = u.is_online ? 'is-online' : 'is-offline';
             li.innerHTML =
                 '<div class="contact-row">' +
+                '<div class="contact-avatar-wrap">' +
                 '<img class="contact-avatar" src="' + escapeHtml(u.avatar) + '" alt="">' +
+                '<span class="contact-online-dot ' + onlineClass + '"></span>' +
+                '</div>' +
                 '<div class="flex-grow-1">' +
                 '<div class="d-flex justify-content-between gap-2">' +
                 '<div class="contact-name">' + escapeHtml(u.name || '') + '</div>' +
                 '<div class="contact-sub">' + escapeHtml(role) + '</div>' +
                 '</div>' +
-                '<div class="contact-sub">' + escapeHtml(u.team_title || '') + '</div>' +
+                (parentFio ? '<div class="contact-parent">' + escapeHtml(parentFio) + '</div>' : '') +
+                (team ? '<div class="contact-sub">' + escapeHtml(team) + '</div>' : '') +
                 '</div></div>';
             li.querySelector('.contact-row').addEventListener('click', function () {
                 startDialog(Number(u.id));
