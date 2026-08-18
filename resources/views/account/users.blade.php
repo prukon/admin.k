@@ -562,6 +562,7 @@
                 document.getElementById('change-password-btn').addEventListener('click', function () {
                     document.getElementById('change-password-btn').style.display = 'none';
                     document.getElementById('change-pass-wrap').style.display = 'inline-block';
+                    document.getElementById('error-message').style.display = 'none';
                 });
             }
 
@@ -574,6 +575,7 @@
 
                     // Проверка длины пароля
                     if (newPassword.length < 8) {
+                        errorMessage.textContent = 'Пароль должен быть не менее 8 символов';
                         errorMessage.style.display = 'block';
                         return;
                     } else {
@@ -584,19 +586,39 @@
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Accept': 'application/json',
                             'X-CSRF-TOKEN': token,
+                            'X-Requested-With': 'XMLHttpRequest',
                         },
                         body: JSON.stringify({password: newPassword}),
                     })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
+                        .then(function (response) {
+                            return response.json().then(function (data) {
+                                return {ok: response.ok, data: data};
+                            });
+                        })
+                        .then(function (result) {
+                            if (result.ok && result.data && result.data.success) {
                                 document.getElementById('change-password-btn').style.display = 'inline-block';
                                 document.querySelector('#change-pass-wrap').style.display = 'none';
+                                document.getElementById('new-password').value = '';
+                                errorMessage.style.display = 'none';
                                 if (typeof window.showToast === 'function') {
                                     window.showToast('Пароль успешно изменен.', 'success');
                                 }
+                                return;
                             }
+
+                            var fieldErrors = result.data && result.data.errors && result.data.errors.password;
+                            var msg = (Array.isArray(fieldErrors) && fieldErrors[0])
+                                ? fieldErrors[0]
+                                : ((result.data && result.data.message) || 'Не удалось изменить пароль.');
+                            errorMessage.textContent = msg;
+                            errorMessage.style.display = 'block';
+                        })
+                        .catch(function () {
+                            errorMessage.textContent = 'Не удалось изменить пароль.';
+                            errorMessage.style.display = 'block';
                         });
                 });
             }

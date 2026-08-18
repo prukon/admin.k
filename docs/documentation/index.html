@@ -28,6 +28,111 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="account-own-password-index">ЛК: тот же пароль — ошибка под полем, не toast успеха (2026‑08)</h2>
+  <div class="note">
+    На <code>/account-settings/user/edit</code> «Изменить пароль» на тот же текст,
+    что уже стоит, давал toast «Пароль успешно изменен.»: сервер всегда хешировал
+    заново и отвечал <code>{success: true}</code>. Это <b>не</b> админская смена
+    чужого пароля
+    (<a href="/doc#admin-password-change-toast-index">анонс в карточке</a>:
+    <code>POST /admin/user/{id}/update-password</code>, skip на клиенте,
+    422 с <code>message</code> без <code>errors.password</code>)
+    и <b>не</b> показ поля у тренера
+    (<a href="/doc#trainer-password-form-index">анонс</a>).
+    <br><br>
+    1) <b>Где.</b> Свой пароль, <code>PUT /account-settings/user/password</code>
+    (маршрут <code>account.user.password.update</code>), право только
+    <code>account.user.view</code> — <code>users.password.update</code> не нужно.
+    Request: <code>AccountUpdatePasswordRequest</code>. Throttle 5/мин здесь <b>нет</b>
+    (он у админского POST).
+    При первом открытии страницы <code>#change-pass-wrap</code> и
+    <code>#error-message</code> скрыты; клик ставит wrap
+    <code>display: inline-block</code> и прячет прошлую ошибку.
+    <br>
+    2) <b>Успех.</b> JSON 200 <code>{success: true}</code>, toast
+    «Пароль успешно изменен.» (<code>window.showToast</code>), не
+    <code>showSuccessModal</code>. Блок снова скрыт, поле очищается.
+    В <code>my_logs</code> — <code>user.password_changed</code>.
+    Non-AJAX PUT без <code>X-Requested-With</code>: успех — JSON 200 (запись есть,
+    не пустой 200); валидация — 302 + session <code>errors.password</code>.
+    <br>
+    3) <b>Тот же пароль.</b> Сервер всегда проверяет <code>Hash::check</code>
+    (клиент текущий пароль не знает и skip как в карточке не делает).
+    JSON 422 <code>errors.password</code> «Новый пароль совпадает с текущим.»
+    (не голый <code>message</code>). UI — текст в <code>#error-message</code>
+    под полем, блок не закрывается, без toast и без <code>showErrorModal</code>.
+    В лог не пишется. Повтор сразу после успешной смены — тот же 422.
+    Пустой / короче 8 / длиннее 255 — 422 <code>errors.password</code>
+    (на клиенте длина &lt; 8 отсекается до PUT).
+    <br>
+    4) <b>Не в этом контракте.</b> Вкладка «Мои документы»
+    (<code>myDocuments.blade.php</code>) этот UX пока не повторяет.
+    <br><br>
+    Подробно —
+    <a href="/docs/documentation/parents-and-family-cabinet#account-own-password">parents-and-family-cabinet §4.3.1</a>,
+    успех-toast списка —
+    <a href="/doc#success-toast-instead-of-modal-index">анонс всплывайки</a>.
+    Тесты: <code>AccountOwnPasswordUpdateAccessFeatureTest</code>,
+    <code>AccountOwnPasswordUpdateAjaxContractFeatureTest</code>
+    (повтор текущего — UX-баг прода: был toast успеха),
+    <code>AccountOwnPasswordUpdateNonAjaxSafetyNetFeatureTest</code>,
+    <code>AccountOwnPasswordUpdateUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>,
+    <code>AccountOwnPasswordDocumentationContractTest</code>.
+  </div>
+
+  <h2 id="chat-draft-index">Чат: черновик сообщения на сервере (2026‑08)</h2>
+  <div class="note">
+    Набранный и не отправленный текст больше не живёт только в поле ввода:
+    при переключении диалога он не «переезжает» к другому собеседнику и не теряется после F5.
+    Это <b>не</b> черновик ЗП тренеров (Канзас) и <b>не</b> только <code>sessionStorage</code>.
+    Не путать превью «Черновик:» со временем справа и с бейджем непрочитанных
+    (<a href="/doc#chat-index">анонс чата</a>,
+    <a href="/doc#chat-presence-index">онлайн / карточка</a>).
+    <br><br>
+    1) <b>Где хранится.</b> Колонка <code>participants.draft_body</code> (nullable text, до 5000 символов)
+    у <b>текущего</b> участника диалога. Собеседник в JSON списка и
+    <code>GET /chat/api/threads/{id}</code> видит только свой черновик (чужой не отдаём).
+    Пустая строка и одни пробелы после trim — стереть (<code>NULL</code> в БД, в JSON <code>draft_body: ''</code>).
+    <br>
+    2) <b>API.</b> <code>PATCH /chat/api/threads/{thread}/draft</code>
+    (<code>chat.api.threads.draft</code>, право <code>messages.view</code>, только участник).
+    Поле <code>body</code> (можно опустить — стереть). AJAX → JSON 200
+    <code>{ok: true, draft_body}</code>. Нативный PATCH без <code>X-Requested-With</code> → 302 на
+    <code>/chat</code>, запись в БД есть (не сырой JSON 200). Не участник — 403.
+    Нет треда — 404. Длиннее 5000 или не строка — 422 <code>errors.body</code>
+    («Черновик слишком длинный…» / «Черновик должен быть строкой.»), прошлый черновик не затирается.
+    GET/POST/DELETE этого URI → 404/405, не 500 и не пустой 200.
+    Сохранение черновика <b>не</b> шлёт <code>inbox.bump</code> собеседнику.
+    <br>
+    3) <b>Список слева.</b> Если свой <code>draft_body</code> непустой — превью
+    <b>Черновик: …</b> вместо последнего сообщения
+    (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>, курсив).
+    Время справа остаётся <code>last_message_time</code> (в JSON <code>last_message</code> тоже остаётся).
+    Пробельный черновик превью не рисует. HTML в тексте экранируется.
+    Поиск по списку ищет и по тексту черновика.
+    <br>
+    4) <b>Клиент.</b> Набор — debounce 500 мс, превью в списке сразу.
+    Уход в другой диалог сохраняет сразу (<code>persistLeavingDraft</code>) и подставляет
+    черновик открытого в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>), затем фокус.
+    Повторный клик по тому же диалогу PATCH не шлёт. Опрос inbox раз в 1 с не затирает поле
+    и не откатывает локальный набор более старым серверным значением.
+    Успешная отправка обнуляет черновик отправителя; неуспешная — текст и превью «Черновик:» остаются.
+    Входящее сообщение собеседника мой черновик не стирает.
+    <code>InboxBump</code> после send несёт <code>draft_body: ''</code> <b>только</b> отправителю
+    (у собеседника ключа нет, чтобы не затереть его кэш).
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#draft">chat §черновик</a>,
+    чат — <a href="/doc#chat-index">анонс чата</a>.
+    Тесты: <code>ChatDraftFeatureTest</code> (HTTP: свой/чужой, 422 под <code>body</code>, 302,
+    403/404/405, отправка обнуляет, входящее не обнуляет),
+    <code>ChatDraftUxFeatureTest</code> (прогон реального <code>chat.js</code>: переход диалогов,
+    превью, опрос, bump, debounce),
+    <code>ChatNonAjaxSafetyNetFeatureTest</code>,
+    <code>ChatAccessFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
   <h2 id="trainer-password-form-index">Тренер: «Изменить пароль» открывает поле ввода (2026‑08)</h2>
   <div class="note">
     На <code>/admin/trainers</code> в модалке «Редактирование тренера» клик
@@ -55,7 +160,8 @@
     3) <b>Не путать с другими экранами.</b> Ученик
     (<code>editUser</code>, тот же класс <code>.change-pass-wrap</code>) —
     jQuery <code>$('#change-pass-wrap').show()</code> (для div это тоже block).
-    Свой пароль в ЛК — <code>display: inline-block</code>.
+    Свой пароль в ЛК — <code>display: inline-block</code>
+    (<a href="/doc#account-own-password-index">анонс: тот же пароль — ошибка под полем</a>).
     Администратор / кастомная роль — <code>#role-staff-change-pass-wrap</code>
     <b>без</b> класса <code>.change-pass-wrap</code>, там
     <code>display: ''</code> достаточно. Это <b>не</b> welcome-письмо
@@ -97,6 +203,7 @@
     Неотправленный текст — свой черновик на сервере (<code>participants.draft_body</code>);
     в списке вместо последнего сообщения превью <b>Черновик: …</b>
     (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>). Собеседник чужой черновик не видит.
+    Отдельный анонс: <a href="/doc#chat-draft-index">черновик сообщения</a>.
     <br>
     3) <b>Контакты.</b> Зелёная точка если онлайн, красная если офлайн (в том числе
     если человек ещё ни разу не пинговал). После аватарки три колонки: слева фамилия и имя
@@ -129,6 +236,8 @@
     Тесты: <code>ChatPresenceFeatureTest</code>, <code>ChatPresenceUxFeatureTest</code>
     (прогон реального <code>chat.js</code>: время сообщения, нет красной в списке,
     шапка idle, родитель только если ФИО есть),
+    <code>ChatDraftUxFeatureTest</code> (переключение диалогов не оставляет чужой текст в поле,
+    превью «Черновик:», опрос не затирает набор),
     <code>ChatAjaxContractFeatureTest</code> (JSON карточки),
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
@@ -149,14 +258,16 @@
     Это <b>не</b> welcome-письмо и <b>не</b> «Отправить новый пароль по почте»
     (там другое право и другой маршрут — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1</a>),
     и <b>не</b> смена своего пароля в ЛК
-    (<code>PUT /account-settings/user/password</code>).
+    (<code>PUT /account-settings/user/password</code>,
+    <a href="/doc#account-own-password-index">анонс</a>: 422
+    <code>errors.password</code> под полем, не toast).
     <br>
     2) <b>Успех.</b> Поле очищается, блок ввода снова скрыт, справа снизу
     всплывайка «Пароль успешно изменен» — не success-модалка.
     Общая toast админки: <code>#kidsMainToast</code> /
     <code>window.showToast(message, type)</code>
     (partial <code>partials/ui/main-toast</code> в layout <code>admin2</code>,
-    поверх модалки, <code>z-index: 1090</code>).
+    поверх модалки, <code>z-index: 4050</code>).
     Локальные toast заявок (<code>#mainToast</code>) и цен (<code>#priceToast</code>) не трогали.
     <br>
     3) <b>Тот же пароль.</b> Клиент помнит последний успешный пароль <b>по userId</b>
@@ -196,7 +307,7 @@
     лишний клик «OK». Для списка ниже успех идёт во всплывайку справа снизу:
     <code>#kidsMainToast</code> / <code>window.showToast(message, type)</code>
     (partial <code>partials.ui.main-toast</code> в layout <code>admin2</code>,
-    поверх модалки, <code>z-index: 1090</code>, типы
+    поверх модалки, <code>z-index: 4050</code>, типы
     <code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code>).
     Это та же всплывайка, что у смены пароля в карточке
     (<a href="/doc#admin-password-change-toast-index">анонс</a>).
@@ -208,7 +319,7 @@
     «Тренер успешно создан.» / «обновлён» / «удалён»).
     Создание администратора (<code>message</code> сервера, обычно «Пользователь создан»).
     Юр. лицо create/edit («Юр. лицо создано» / «обновлено»).
-    Удаление объекта: UI «Объект успешно удалён.» (JSON <code>message</code> — «Объект удалён»).
+    Объект create/edit/delete: UI «Объект создан» / «Объект обновлён» / «Объект успешно удалён.» (JSON <code>message</code> — «Объект создан» / «Объект обновлён» / «Объект удалён»).
     Типы тренера: «Тип тренера сохранён» / «удалён».
     «Создать клиента» у лида: <code>window.showToast</code> (общий), не локальный
     <code>#mainToast</code> заявок.
@@ -216,10 +327,14 @@
     (Vite <code>resources/js/settings-prices.js</code>; вкладка <b>не</b> грузит
     <code>public/js/settings-prices.js</code>).
     Создание доп. платежа — оба JS-пути (Vite-источник и
-    <code>public/js/setting-prices-custom-payments.js</code>, его грузит страница).
+    <code>public/js/setting-prices-custom-payments.js</code>, его грузит страница):
+    toast «Дополнительный платеж успешно создан.» / «Изменения сохранены.»,
+    общий <code>#kidsMainToast</code>, не локальный <code>#priceToast</code>.
     Создание роли и удаление кастомной роли (без <code>location.reload()</code>:
     колонка в матрице и строка в таблице ролей снимаются на клиенте).
-    Свой пароль в ЛК (<code>PUT /account-settings/user/password</code>).
+    Свой пароль в ЛК (<code>PUT /account-settings/user/password</code>):
+    успех — toast; тот же, что уже стоит — не toast,
+    <a href="/doc#account-own-password-index">анонс</a>.
     Повторная отправка пароля ученику по почте
     (<code>POST /admin/users/{id}/send-welcome-credentials</code>).
     <br>
@@ -240,6 +355,8 @@
     <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code>,
     <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code>
     (UX-баг лишнего OK и негатив «не из списка → модалка»),
+    <code>LocationsToastDocumentationContractTest</code> (объект create/edit/delete),
+    <code>CustomPaymentsToastDocumentationContractTest</code>,
     <code>SettingsRoleDeleteWithoutReloadFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code>.
   </div>
@@ -501,7 +618,8 @@
     Повторный диалог с тем же человеком не создаёт второй тред.
     Композер (поле и «Отправить») <b>disabled</b>, пока не выбран диалог.
     Неотправленный текст хранится на сервере (<code>draft_body</code> участника) и в списке слева
-    показывается как <b>Черновик: …</b> (как в Telegram), пока сообщение не отправлено.
+    показывается как <b>Черновик: …</b> (как в Telegram), пока сообщение не отправлено —
+    <a href="/doc#chat-draft-index">анонс черновика</a>.
     У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после
     (в пузыре и слева от времени последнего <b>исходящего</b> в списке; входящее без галочек).
     Справа в списке — время последнего <b>сообщения</b>, не last seen.
@@ -543,6 +661,7 @@
     (вспышка бейджа), <code>ChatReverbOverlayFeatureTest</code> (оверлей / status API),
     <code>ChatPresenceFeatureTest</code> / <code>ChatPresenceUxFeatureTest</code>
     (<a href="/doc#chat-presence-index">онлайн / карточка</a>),
+    <code>ChatDraftFeatureTest</code> / <code>ChatDraftUxFeatureTest</code> (черновик на сервере и превью «Черновик:»),
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -820,6 +939,8 @@
     5) <b>Удаление.</b>
     Несистемный тип — только если никто не назначен, включая soft-deleted профили (иначе 422 <code>errors.name</code>).
     Выключенный тип нельзя назначить заново, но уже назначенный можно оставить.
+    Подтверждение в UI — <code>showConfirmDeleteModal</code> (не браузерный <code>confirm</code>).
+    После успеха модалка типов остаётся на списке (AJAX <code>loadList</code>), toast «Тип тренера удалён».
     <br>
     6) <b>HTTP.</b>
     Успех CRUD модалки — всегда JSON (<code>message</code> + <code>trainer_type</code>), в том числе без <code>X-Requested-With</code>.
@@ -2560,7 +2681,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, <b>оверлей статуса Reverb</b> для superadmin (<a href="/doc#reverb-status-overlay-index">анонс</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), без вложений и без групп — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> + опрос 1с/12с, <b>оверлей статуса Reverb</b> для superadmin (<a href="/doc#reverb-status-overlay-index">анонс</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), без вложений и без групп — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -2599,7 +2720,7 @@
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
-    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
+    <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>

@@ -189,7 +189,9 @@ final class TeamsDirectoriesIntegrationFeatureTest extends CrmTestCase
         $this->actingAs($actor);
 
         $html = $this->get(route('admin.sport-types.index'))->assertOk()->getContent();
-        $sidebarStart = strpos($html, 'nav-sidebar');
+        // CSS в <head> тоже содержит «nav-sidebar»; якорь — разметка меню.
+        $sidebarStart = strpos($html, 'nav nav-pills nav-sidebar');
+        $this->assertNotFalse($sidebarStart, 'Sidebar not found in response');
         $sidebarChunk = substr($html, (int) $sidebarStart, 4000);
 
         preg_match(

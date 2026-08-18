@@ -102,6 +102,63 @@ final class SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest extends CrmTes
         $this->assertSoftDeleted('trainer_profiles', ['id' => $profile->id]);
     }
 
+    public function test_non_ajax_location_store_redirects_and_creates_record(): void
+    {
+        $response = $this->from(route('admin.locations.index'))
+            ->post(route('admin.locations.store'), [
+                '_token'     => csrf_token(),
+                'name'       => 'Non-ajax объект create',
+                'is_enabled' => 1,
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Create объекта без AJAX — redirect, не пустой 200');
+        $response->assertRedirect(route('admin.locations.index'));
+
+        $this->assertDatabaseHas('locations', [
+            'partner_id' => $this->partner->id,
+            'name'       => 'Non-ajax объект create',
+        ]);
+    }
+
+    public function test_non_ajax_location_store_validation_redirects_with_field_errors(): void
+    {
+        $response = $this->from(route('admin.locations.index'))
+            ->post(route('admin.locations.store'), [
+                '_token'     => csrf_token(),
+                'is_enabled' => 1,
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors(['name']);
+    }
+
+    public function test_non_ajax_location_update_redirects_and_updates_record(): void
+    {
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Non-ajax объект before',
+        ]);
+
+        $response = $this->from(route('admin.locations.index'))
+            ->put(route('admin.locations.update', $location), [
+                '_token'     => csrf_token(),
+                'name'       => 'Non-ajax объект after',
+                'is_enabled' => 1,
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Update объекта без AJAX — redirect, не пустой 200');
+        $response->assertRedirect(route('admin.locations.index'));
+
+        $this->assertDatabaseHas('locations', [
+            'id'   => $location->id,
+            'name' => 'Non-ajax объект after',
+        ]);
+    }
+
     public function test_non_ajax_location_delete_redirects_and_deletes_record(): void
     {
         $location = Location::factory()->create([
@@ -236,6 +293,24 @@ final class SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest extends CrmTes
         $this->assertNotSame(200, $response->getStatusCode());
         $response->assertStatus(302);
         $response->assertSessionHasErrors(['password']);
+    }
+
+    public function test_non_ajax_own_password_same_as_current_redirects_with_password_field_error(): void
+    {
+        $this->user->password = 'current-pass-8';
+        $this->user->save();
+
+        $response = $this->from(route('account.user.edit'))
+            ->put(route('account.user.password.update'), [
+                '_token'   => csrf_token(),
+                'password' => 'current-pass-8',
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors(['password']);
+        $this->assertTrue(Hash::check('current-pass-8', $this->user->fresh()->password));
     }
 
     private function makeTrainerProfile(): TrainerProfile

@@ -32,6 +32,7 @@
   <div class="small">Файл: <code>/docs/documentation/chat.html</code> · кабинет: <code>/chat</code>
     · анонс чата: <a href="/doc#chat-index">/doc#chat-index</a>
     · онлайн / карточка: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>
+    · черновик: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a></div>
 
   <div class="ok">
@@ -39,6 +40,8 @@
     Пункт «Чат» в сайдбаре, бейдж <code>badge-info</code> — число непрочитанных (скрыт при 0).
     Онлайн — зелёная точка (в списке диалогов красной нет), галочки только у исходящего,
     карточка собеседника из шапки открытого диалога.
+    Неотправленный текст — черновик на сервере, в списке превью «Черновик: …»
+    (<a href="/doc#chat-draft-index">анонс</a>).
     Realtime — тот же Reverb, что у колокольчика. Если сокет недоступен, страница
     чата подтягивает новые сообщения опросом раз в 1 секунду; на остальных страницах
     бейдж — раз в 12 секунд.
@@ -48,6 +51,7 @@
     <b>Не путать</b> с колокольчиком in-app уведомлений
     (<a href="/docs/documentation/in-app-notifications">in-app-notifications</a>)
     и с email «Установка цен → Уведомления».
+    Не путать черновик сообщения с черновиком ЗП тренеров (схема Канзас).
     Групповые чаты в этой версии <b>нет</b> (отложено).
   </div>
 
@@ -95,7 +99,7 @@
       Офлайн в списке точку не рисуем. Если у текущего пользователя есть неотправленный текст —
       превью <b>Черновик: …</b> вместо последнего сообщения (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>),
       время справа остаётся <code>last_message_time</code>. Черновик свой, на сервере; собеседник его не видит.
-      Клик по строке открывает диалог (<code>openThread</code>), подставляет черновик в поле и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>.</li>
+      Клик по строке открывает диалог (<code>openThread</code>), подставляет черновик в поле и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>, черновик — <a href="#draft">§2.2</a> / <a href="/doc#chat-draft-index">анонс</a>.</li>
     <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).
       Справа снизу аватарки: зелёная точка если онлайн, красная если офлайн (в том числе если человек ещё ни разу не пинговал после появления <code>last_seen_at</code>).
       После аватарки три колонки: слева фамилия и имя (<code>users.lastname</code> + <code>users.name</code>, JSON <code>name</code>;
@@ -139,7 +143,8 @@
       Неотправленный текст: <code>PATCH /chat/api/threads/{id}/draft</code> (поле <code>body</code>, debounce 500 мс на клиенте, сразу при уходе из диалога).
       В списке при непустом своём <code>draft_body</code> — превью <b>Черновик: …</b> (<code>.chat-li-preview.is-draft</code>, <code>#f3a12b</code>), не последнее сообщение.
       Собеседник в JSON списка и show видит только свой черновик (чужой не отдаём). Успешная отправка обнуляет черновик отправителя.
-      <code>InboxBump</code> после send несёт <code>draft_body: ''</code> только отправителю (у собеседника ключ не ставим, чтобы не затереть его кэш).</li>
+      <code>InboxBump</code> после send несёт <code>draft_body: ''</code> только отправителю (у собеседника ключ не ставим, чтобы не затереть его кэш).
+      Анонс: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>, подробно — <a href="#draft">§2.2</a>.</li>
     <li><b>Контакты.</b> <code>is_online</code> → <code>contact-online-dot is-online</code> / <code>is-offline</code>
       (ни разу не seen = красная). Три колонки после аватарки, выравнивание по верху:
       слева <code>.contact-main</code> (имя и под ним <code>.contact-parent</code>),
@@ -161,6 +166,29 @@
       Модалка <code>#peerCardModal</code> стандартной ширины, ошибки в <code>#peerCardError</code>.</li>
     <li><b>Перерисовка.</b> <code>InboxBump</code> отдаёт те же флаги списка, что HTTP inbox.
       <code>markListOutgoingRead</code> меняет галочки, только если последнее сообщение исходящее.</li>
+  </ol>
+
+  <h2 id="draft">2.2) Черновик неотправленного текста</h2>
+  <p>Анонс на главной: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>.</p>
+  <ol>
+    <li><b>Хранение.</b> <code>participants.draft_body</code> — только строка текущего участника.
+      Собеседник в index/show видит пустой свой <code>draft_body</code>, не чужой текст.
+      Trim: пусто и пробелы → <code>NULL</code> в БД, в JSON <code>''</code>. Максимум 5000 символов
+      (как у сообщения).</li>
+    <li><b>Запись.</b> <code>PATCH /chat/api/threads/{thread}/draft</code>, поле <code>body</code>
+      (<code>SaveChatDraftRequest</code>). AJAX 200 <code>ok</code> + <code>draft_body</code>;
+      нативный PATCH — 302 на <code>/chat</code>. Не участник 403, нет треда 404,
+      422 <code>errors.body</code> (длиннее 5000 / не строка) не затирает прошлый черновик.
+      Пропущенное <code>body</code> стирает. GET/POST/DELETE URI → 404/405.
+      Сохранение <b>не</b> бродкастит <code>inbox.bump</code>.</li>
+    <li><b>Список.</b> Непустой свой черновик → превью <b>Черновик: …</b>
+      (<code>.chat-li-preview.is-draft</code>, <code>#f3a12b</code>), не <code>last_message</code>.
+      Время — по-прежнему <code>last_message_time</code>. Поиск слева матчит и <code>draft_body</code>.</li>
+    <li><b>Клиент</b> (<code>public/js/chat.js</code>). Debounce 500 мс при наборе; сразу при уходе
+      из диалога. <code>openThread</code> подставляет черновик в <code>#msgInput</code> и ставит фокус.
+      Опрос inbox не затирает поле. Успешный send обнуляет; ошибка отправки возвращает текст и превью.
+      Входящее сообщение собеседника мой черновик не трогает.
+      После send <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю.</li>
   </ol>
 
   <h2 id="routes">3) Маршруты</h2>
@@ -276,7 +304,9 @@
       шапка <code>is-idle</code> не открывает карточку до выбора диалога, клик по списку/контакту открывает диалог (не карточку),
       <code>thread.read</code> не ставит галочки входящему, <code>inbox.bump</code> не сбрасывает флаги при перерисовке списка;
       ping на dashboard без <code>messages.view</code>.</li>
-    <li><code>ChatDraftFeatureTest</code> — свой <code>draft_body</code> в index/show, чужой не виден, пустое тело стирает, отправка обнуляет, <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю, PATCH draft не шлёт bump, 422 <code>errors.body</code>, чужой тред 403, неверный метод 404/405.</li>
+    <li><code>ChatDraftFeatureTest</code> — свой <code>draft_body</code> в index/show, чужой не виден, пустое тело стирает, отправка обнуляет, чужое сообщение не стирает мой черновик, <code>last_message</code> в JSON остаётся при черновике, <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю, PATCH draft не шлёт bump, 422 <code>errors.body</code> с русским текстом, 5000 символов ок / 5001 нет, пропущенное <code>body</code> стирает, чужой тред 403, нет треда 404, неверный метод 404/405 (JSON и HTML).</li>
+    <li><code>ChatDraftUxFeatureTest</code> — UX: переход в другой диалог не оставляет текст предыдущего в <code>#msgInput</code> (превью «Черновик:» у ушедшего), первый open подставляет серверный черновик без PATCH, повторный клик по тому же диалогу не шлёт PATCH, опрос inbox не затирает поле и локальный черновик, <code>inbox.bump</code> без <code>draft_body</code> не сбрасывает превью, bump отправителя с <code>draft_body: ''</code> убирает «Черновик:», неуспешная отправка возвращает превью, поиск по тексту черновика, XSS-escape, whitespace не рисует «Черновик:», debounce 500 мс (превью сразу, PATCH после).</li>
+    <li><code>ChatDraftDocumentationContractTest</code> — анонс <code>/doc#chat-draft-index</code> и §2.2 не противоречат коду (свой <code>draft_body</code>, превью, собеседник не видит, не sessionStorage-only, не Канзас).</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
@@ -289,7 +319,8 @@
     <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code>,
       <code>/doc#chat-presence-index</code> и эта страница не противоречат UX
       (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>,
-      ping без <code>messages.view</code>, в списке нет красной точки).</li>
+      ping без <code>messages.view</code>, в списке нет красной точки,
+      черновик на сервере / превью «Черновик:»).</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter Chat</code></pre>
 </div>

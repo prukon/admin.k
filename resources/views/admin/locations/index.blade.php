@@ -667,6 +667,9 @@
                     }
                     bootstrap.Modal.getInstance(document.getElementById('locationCreateModal'))?.hide();
                     reloadLocationsTable();
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Объект создан', 'success');
+                    }
                 }
             });
 
@@ -707,6 +710,9 @@
                 if (ok) {
                     bootstrap.Modal.getInstance(document.getElementById('locationEditModal'))?.hide();
                     reloadLocationsTable();
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(data.message || 'Объект обновлён', 'success');
+                    }
                 }
             });
 
@@ -728,19 +734,32 @@
 
                         // Не возвращать модалку редактирования после закрытия подтверждения
                         $(confirmEl).off('hidden.bs.modal.return');
+                        $(editEl).off('hidden.bs.modal.openNext');
 
                         $.ajax({
                             url: @json(url('/admin/locations')) + '/' + id,
                             type: 'DELETE',
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': token,
+                            },
                             data: { _token: token },
                             success: function () {
-                                $(editEl).off('hidden.bs.modal.openNext');
                                 bootstrap.Modal.getInstance(editEl)?.hide();
-
                                 reloadLocationsTable();
 
-                                if (typeof window.showToast === 'function') {
-                                    window.showToast('Объект успешно удалён.', 'success');
+                                function showDeletedToast() {
+                                    if (typeof window.showToast === 'function') {
+                                        window.showToast('Объект успешно удалён.', 'success');
+                                    }
+                                }
+
+                                // #confirmDeleteModal z-index 1900 перекрывает toast, пока ещё .show
+                                if (confirmEl && confirmEl.classList.contains('show')) {
+                                    confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true });
+                                } else {
+                                    showDeletedToast();
                                 }
                             },
                             error: function (xhr) {

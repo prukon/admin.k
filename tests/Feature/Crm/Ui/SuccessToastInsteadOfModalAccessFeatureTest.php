@@ -88,6 +88,11 @@ final class SuccessToastInsteadOfModalAccessFeatureTest extends CrmTestCase
                 "{$spec['key']}: на первом открытии должна быть общая всплывайка layout"
             );
             $this->assertStringContainsString('window.showToast', $html, $spec['key']);
+            $this->assertStringContainsString(
+                'z-index: 4050',
+                $html,
+                "{$spec['key']}: toast выше #confirmDeleteModal (1900) и #errorModal (4010)"
+            );
         }
     }
 }

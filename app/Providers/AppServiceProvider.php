@@ -10,7 +10,6 @@ use App\Models\SchoolLead;
 use App\Models\SchoolLeadStatus;
 use App\Models\Setting;
 use App\Models\Team;
-use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use App\Services\Chat\ChatService;
 use App\Services\InAppNotifications\InAppNotificationInbox;
@@ -200,9 +199,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         /**
-         * ИЗМЕНЁННЫЙ БЛОК: счётчики юзеров и групп
-         * Теперь считаем в разрезе текущего партнёра (partner_id),
-         * а если партнёр не определён — fallback на глобальные значения.
+         * Счётчики сайдбара в разрезе текущего партнёра (partner_id);
+         * если партнёр не определён — fallback на глобальные значения.
          */
         View::composer('includes.sidebar', function ($view) {
 
@@ -212,11 +210,9 @@ class AppServiceProvider extends ServiceProvider
 
             if ($partnerId) {
                 $teamsCount = Team::where('partner_id', $partnerId)->count();
-                $usersCount = User::where('partner_id', $partnerId)->count();
             } else {
                 // fallback (например, супер-админ)
                 $teamsCount = Team::count();
-                $usersCount = User::count();
             }
 
             $newSchoolLeadsCount = 0;
@@ -235,7 +231,6 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with([
                 'allTeamsCount' => $teamsCount,
-                'allUsersCount' => $usersCount,
                 'newSchoolLeadsCount' => $newSchoolLeadsCount,
                 'unsignedContractsCount' => $this->unsignedContractsCountForCurrentUser(),
                 'chatUnreadCount' => $chatUnreadCount,

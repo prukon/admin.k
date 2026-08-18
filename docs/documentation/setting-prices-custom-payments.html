@@ -126,7 +126,7 @@
     <li>Поля: ученик (Select2 AJAX), группа (Select2 AJAX после выбора ученика), сумма (<code>step=0.01</code>, копейки разрешены), <b>«Описание (отображается у ученика)»</b> (<code>note</code>).</li>
     <li>Полей «Дата начала» / «Дата окончания» <b>нет</b>.</li>
     <li>Если у ученика ровно одна группа — она подставляется автоматически после <code>teams-for-user</code>.</li>
-    <li>Успех: toast <code>window.showToast('Дополнительный платеж успешно создан.', 'success')</code> (<code>#kidsMainToast</code>, не <code>showSuccessModal</code>). Локальный <code>#priceToast</code> — запасной, если общего toast нет.</li>
+    <li>Успех: toast <code>window.showToast('Дополнительный платеж успешно создан.', 'success')</code> (<code>#kidsMainToast</code>, не <code>showSuccessModal</code>, не <code>#priceToast</code>).</li>
     <li>Ошибки 422 — под полями (<code>.custom-payment-field-error</code>).</li>
   </ul>
 
@@ -135,7 +135,9 @@
     <li>Поля: сумма (readonly/disabled, если уже оплачен), статус оплаты, описание (<code>note</code>), при смене статуса — обязательное «Комментарий к изменению статуса оплаты» (<code>status_comment</code>, min 3).</li>
     <li>Ученика и группу менять нельзя.</li>
     <li>Кнопка <b>«Удалить»</b> (слева в footer) видна только если <code>effective_is_paid === false</code>; подтверждение через <code>showConfirmDeleteModal</code>.</li>
-    <li>Ошибки 422 — под полями (<code>.custom-payment-edit-field-error</code>).</li>
+    <li>Успех PUT: без reload, закрытие модалки, <code>dtApi.reload({ keepPage: true })</code>, toast <code>window.showToast('Изменения сохранены.', 'success')</code> (<code>#kidsMainToast</code>, не <code>#priceToast</code>, не <code>showSuccessModal</code>, не <code>alert</code>).</li>
+    <li>Успех DELETE: тот же общий toast — «Дополнительный платеж удалён.».</li>
+    <li>Ошибки 422 — под полями (<code>.custom-payment-edit-field-error</code>); прочие ошибки — <code>window.showToast(..., 'error')</code>.</li>
   </ul>
 
   <h3>3.4) Валидация update</h3>
@@ -193,7 +195,7 @@
     <li><code>app/Http/Requests/Admin/UserCustomPaymentStoreRequest.php</code>, <code>UserCustomPaymentUpdateRequest.php</code>, <code>SetManualUserCustomPaymentPaidRequest.php</code></li>
     <li><code>app/Models/UserCustomPayment.php</code></li>
     <li><code>resources/views/admin/SettingPrices/custom-payments.blade.php</code></li>
-    <li><code>resources/js/setting-prices-custom-payments.js</code></li>
+    <li><code>resources/js/setting-prices-custom-payments.js</code> и стендовый <code>public/js/setting-prices-custom-payments.js</code> (страница грузит <code>public/js</code>)</li>
     <li><code>resources/views/dashboard.blade.php</code> — блок доп. платежей</li>
   </ul>
 
@@ -204,13 +206,16 @@
     <li><code>CustomPaymentsCrudAccessFeatureTest</code> — update/delete, статус + comment, запрет суммы у оплаченного, users-search только <code>user</code>, guest/403</li>
     <li><code>SettingPricesSectionFullAccessFeatureTest</code> — матрица прав раздела, в т.ч. mutations + <code>manualPaid.manage</code></li>
     <li><code>BladeInlineJsSyntaxTest</code> — inline JS вкладки + оба файла <code>setting-prices-custom-payments.js</code> (Vite-источник и <code>public/js</code>)</li>
-    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — оба JS-пути create: toast «Дополнительный платеж успешно создан.», не <code>showSuccessModal</code></li>
+    <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — оба JS-пути: create «Дополнительный платеж успешно создан.», update «Изменения сохранены.», delete «Дополнительный платеж удалён.» через <code>window.showToast</code>; нет <code>showSuccessModal</code> / <code>#priceToast</code> / <code>alert(</code></li>
+    <li><code>CustomPaymentsToastDocumentationContractTest</code> — анонс <code>/doc#success-toast-instead-of-modal-index</code> и §3.3 совпадают с JS (update-toast, без <code>#priceToast</code>)</li>
     <li><code>DebtsReportManualPaidFeatureTest</code> — manual-paid доп. платежа ↔ отчёт задолженностей</li>
     <li>Payments: <code>PayableTeamPaymentFlowTest</code>, <code>PayableTeamPaymentInitFeatureTest</code>, <code>PaymentAssignmentTeamBackfillTest</code></li>
   </ul>
   <pre><code>php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsCrudAccessFeatureTest.php
 php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamAccessFeatureTest.php
-php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php</code></pre>
+php artisan test --env=testing tests/Feature/Crm/SettingPrices/CustomPaymentsTeamColumnFeatureTest.php
+php artisan test --env=testing tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php --filter=custom_payment
+php artisan test --env=testing tests/Unit/Documentation/CustomPaymentsToastDocumentationContractTest.php</code></pre>
 </div>
 </body>
 </html>

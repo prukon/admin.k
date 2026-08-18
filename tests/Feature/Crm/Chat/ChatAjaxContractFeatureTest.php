@@ -334,6 +334,12 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         ]))
             ->assertStatus(422)
             ->assertJsonPath('errors.after_id.0', 'Некорректный идентификатор сообщения.');
+
+        $this->patchJson(route('chat.api.threads.draft', $threadId), [
+            'body' => str_repeat('я', 5001),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.body.0', 'Черновик слишком длинный (максимум 5000 символов).');
     }
 
     public function test_missing_thread_returns_404_not_server_error(): void
@@ -343,6 +349,12 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         $response->assertNotFound();
 
         $response = $this->postJson(route('chat.api.threads.messages.store', 9_999_999), [
+            'body' => 'x',
+        ]);
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertNotFound();
+
+        $response = $this->patchJson(route('chat.api.threads.draft', 9_999_999), [
             'body' => 'x',
         ]);
         $this->assertNotSame(500, $response->getStatusCode());

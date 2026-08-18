@@ -18,6 +18,11 @@
             <directory>app</directory>
         </include>
     </source>
+    <!-- Последний прогон: php artisan test сам перезаписывает. testdox — список, junit — тексты падений. -->
+    <logging>
+        <testdoxText outputFile="storage/logs/phpunit-last.txt"/>
+        <junit outputFile="storage/logs/phpunit-last.junit.xml"/>
+    </logging>
     <php>
         <!-- force: иначе .env на диске перебивает; флаг: мы реально внутри PHPUnit (php artisan test) -->
         <env name="APP_ENV" value="testing" force="true"/>

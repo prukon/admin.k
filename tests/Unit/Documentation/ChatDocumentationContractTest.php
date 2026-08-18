@@ -37,6 +37,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
         $this->assertStringContainsString('Черновик', $chunk);
         $this->assertStringContainsString('draft_body', $chunk);
+        $this->assertStringContainsString('ChatDraftUxFeatureTest', $chunk);
+        $this->assertStringContainsString('/doc#chat-draft-index', $chunk);
         $this->assertStringNotContainsString('красный бейдж', $chunk);
         $this->assertStringNotContainsString("wsPath: '/app'", str_replace(
             "<b>без</b> <code>wsPath: '/app'</code>",
@@ -49,6 +51,8 @@ final class ChatDocumentationContractTest extends TestCase
     {
         $html = $this->docFile('chat.html');
 
+        $this->assertStringContainsString('/doc#chat-draft-index', $html);
+        $this->assertStringContainsString('id="draft"', $html);
         $this->assertStringContainsString('badge badge-info', $html);
         $this->assertStringContainsString('не вспыхивает', $html);
         $this->assertStringContainsString("wsPath: '/app'", $html);
@@ -86,6 +90,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Черновик', $html);
         $this->assertStringContainsString('chat.api.threads.draft', $html);
         $this->assertStringContainsString('ChatDraftFeatureTest', $html);
+        $this->assertStringContainsString('ChatDraftUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatDraftDocumentationContractTest', $html);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $html);
         $this->assertStringContainsString('peerCardError', $html);
@@ -153,6 +159,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/docs/documentation/chat#presence', $chunk);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatDraftUxFeatureTest', $chunk);
+        $this->assertStringContainsString('/doc#chat-draft-index', $chunk);
         $this->assertStringContainsString('/doc#chat-index', $chunk);
 
         $this->assertStringNotContainsString('ping требует', $chunk);

@@ -10,7 +10,7 @@ use Tests\Feature\Crm\Schedule\ScheduleTrainerSalaryTestCase;
 
 /**
  * P1: UX-контракты типов тренера — первое открытие, видимость, selected/disabled,
- * дефолт системного типа, негатив без Канзаса.
+ * дефолт системного типа, негатив без Канзаса, удаление через брендовую модалку.
  */
 final class TrainerTypesUiContractsFeatureTest extends ScheduleTrainerSalaryTestCase
 {
@@ -53,6 +53,9 @@ final class TrainerTypesUiContractsFeatureTest extends ScheduleTrainerSalaryTest
         $this->assertStringContainsString('data-error-for="rate_per_training"', $html);
         $this->assertStringContainsString('data-error-for="base_premium"', $html);
         $this->assertStringContainsString('/js/trainer-types.js', $html);
+        $this->assertStringContainsString('id="confirmDeleteModal"', $html);
+        $this->assertStringContainsString('function showConfirmDeleteModal', $html);
+        $this->assertStringContainsString('id="trainer-type-delete-btn"', $html);
 
         $createSelect = $this->markupById($html, 'trainer-create-type');
         $this->assertStringNotContainsString('disabled', $createSelect);
@@ -132,6 +135,9 @@ final class TrainerTypesUiContractsFeatureTest extends ScheduleTrainerSalaryTest
         $this->assertStringContainsString('id="trainer-types-add-btn"', $html);
         $this->assertStringContainsString('/js/trainer-types.js', $html);
         $this->assertStringContainsString('reason === \'open\'', $html);
+        $this->assertStringContainsString('id="confirmDeleteModal"', $html);
+        $this->assertStringContainsString('function showConfirmDeleteModal', $html);
+        $this->assertStringContainsString('id="trainer-type-delete-btn"', $html);
         $this->assertStringContainsString('class="modal-dialog"', $html);
         $this->assertStringNotContainsString('modal-dialog modal-xl', $html);
         $this->assertStringNotContainsString('modal-fullscreen', $html);
@@ -227,6 +233,33 @@ final class TrainerTypesUiContractsFeatureTest extends ScheduleTrainerSalaryTest
         );
         $this->assertStringNotContainsString('value=""', $first);
         $this->assertStringNotContainsString('value=""', $second);
+    }
+
+    public function test_trainer_types_delete_js_uses_branded_confirm_ajax_list_and_toast(): void
+    {
+        $path = public_path('js/trainer-types.js');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('function confirmDeleteType()', $content);
+        $this->assertStringContainsString('window.showConfirmDeleteModal', $content);
+        $this->assertStringContainsString('Удаление типа тренера', $content);
+        $this->assertStringContainsString("Вы уверены, что хотите удалить тип тренера «' + name + '»?", $content);
+        $this->assertStringContainsString("deleteType().catch(() => showAlert('Ошибка удаления'))", $content);
+        $this->assertStringNotContainsString('window.confirm', $content);
+
+        $deleteStart = strpos($content, 'function confirmDeleteType()');
+        $this->assertNotFalse($deleteStart);
+        $deleteChunk = substr($content, $deleteStart, 3000);
+        $this->assertStringContainsString("method: 'DELETE'", $deleteChunk);
+        $this->assertStringContainsString("await loadList('saved')", $deleteChunk);
+        $this->assertStringContainsString('showList()', $deleteChunk);
+        $this->assertStringContainsString("window.showToast(data.message || 'Тип тренера удалён', 'success')", $deleteChunk);
+        $this->assertStringContainsString('showFieldErrors(data.errors || {})', $deleteChunk);
+        $this->assertStringNotContainsString('trainerTypesModal', $deleteChunk);
+        $this->assertStringNotContainsString('.hide()', $deleteChunk);
+        $this->assertStringNotContainsString('hideModal', $deleteChunk);
+        $this->assertStringNotContainsString('showSuccessModal', $deleteChunk);
     }
 
     private function markupById(string $html, string $id): string

@@ -209,6 +209,7 @@ school_leads.district_id + school_leads.location_id — снимок на мом
     <li>Колонка и фильтр «Район» в таблице; фильтр «Без района» (<code>district_id=none</code>).</li>
     <li>Сортировка по <code>district_name</code> (join к <code>districts</code>) и <code>admin_user_label</code> (минимальное ФИО среди администраторов объекта).</li>
     <li>Multiselect групп (<code>team_ids</code>) при <code>locations.manage</code>.</li>
+    <li>Успех create/edit/delete — toast <code>window.showToast</code> («Объект создан» / «Объект обновлён» / «Объект успешно удалён.»), не <code>showSuccessModal</code>. См. <a href="/docs/documentation/admin-locations">admin-locations §4</a>.</li>
     <li>Назначение админов объекта <b>не</b> используется для ограничения доступа к разделу — только отображение и фильтрация.</li>
   </ul>
 
@@ -327,8 +328,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>DirectoriesHierarchyNewFeaturesFeatureTest.php</code></td><td>Сквозные сценарии: <code>admin_user_ids</code>, фильтры групп, multiselect район↔объекты, <code>locations_label</code></td></tr>
       <tr><td><code>LocationAdminUserFeatureTest.php</code></td><td>M2M-админы объекта: pivot-схема, CRUD <code>admin_user_ids</code>, лимит 5, label/tooltip, сортировка, фильтры объектов и групп, валидация, cascade</td></tr>
       <tr><td><code>LocationAdminUsersPageFullAccessFeatureTest.php</code></td><td>Smoke 200: страница + все endpoint'ы с M2M; view/manage/guest; фильтр групп по админу объекта</td></tr>
-      <tr><td><code>LocationsFeatureTest.php</code></td><td>Объекты с <code>district_id</code>, фильтры, unique per district, структура JSON <code>admin_user_*</code></td></tr>
-      <tr><td><code>LocationsPageFullAccessFeatureTest.php</code></td><td>Full access объектов + district и admin payloads (все endpoint'ы → 200)</td></tr>
+      <tr><td><code>LocationsFeatureTest.php</code></td><td>Объекты с <code>district_id</code>, фильтры, unique per district, структура JSON <code>admin_user_*</code>, toast create/edit на index</td></tr>
+      <tr><td><code>LocationsPageFullAccessFeatureTest.php</code></td><td>Full access объектов + district и admin payloads (все endpoint'ы → 200), toast create/edit/delete в HTML</td></tr>
       <tr><td><code>DistrictsFeatureTest.php</code></td><td>CRUD районов, partner scope, unique name, hard delete, <code>location_ids</code>, <code>locations_label</code></td></tr>
       <tr><td><code>DistrictsPageFullAccessFeatureTest.php</code></td><td>Full access + payloads с <code>location_ids</code>; 403 без <code>districts.view</code></td></tr>
       <tr><td><code>DistrictHierarchyFeatureTest.php</code></td><td>Сортировки, связь с заявками, лендинг, disabled district</td></tr>
@@ -344,7 +345,8 @@ school_leads.district_id + school_leads.location_id — снимок на мом
       <tr><td><code>SchoolLeadLandingPublicAccessFeatureTest.php</code></td><td>Публичный доступ, в т.ч. <code>/locations?district_id=</code></td></tr>
       <tr><td><code>DataTableClickableNameLinksFeatureTest.php</code> (Ui)</td><td>Кликабельные названия справочников + связанные JSON endpoint'ы (districts, locations, sport-types, teams, school-leads)</td></tr>
       <tr><td><code>GenericMultiselectFullAccessFeatureTest.php</code> (Ui)</td><td>Единый Select2 multiselect: partial, UI на districts/users, AJAX/non-AJAX контракты, доступ 200/403/guest</td></tr>
-      <tr><td><code>BladeInlineJsSyntaxTest.php</code> (Ui)</td><td><code>node --check</code> inline-JS в blade с AJAX-submit (districts, users, generic-multiselect)</td></tr>
+      <tr><td><code>BladeInlineJsSyntaxTest.php</code> (Ui)</td><td><code>node --check</code> inline-JS в blade с AJAX-submit (districts, users, generic-multiselect); toast объектов create/edit/delete</td></tr>
+      <tr><td><code>LocationsToastDocumentationContractTest.php</code> (Unit)</td><td>Анонс /doc и admin-locations: toast create/edit/delete объектов, не <code>showSuccessModal</code></td></tr>
     </tbody>
   </table>
 

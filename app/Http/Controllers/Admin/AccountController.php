@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Enums\UserSex;
+use App\Http\Requests\User\AccountUpdatePasswordRequest;
 use App\Http\Requests\User\AccountUpdateRequest;
 use App\Http\Requests\User\UpdateRequest;
 
@@ -472,17 +473,13 @@ class AccountController extends AdminBaseController
 
         return response()->json(['success' => true, 'message' => 'Пользователь успешно обновлен']);
     }
-    public function updatePassword(Request $request)
+    public function updatePassword(AccountUpdatePasswordRequest $request)
     {
-        $request->validate([
-            'password' => 'required|min:8',
-        ]);
-        $user = $request->user(); // текущий пользователь
-        $authorId = (int) $user->id;
+        $user = $request->user();
+        $newPassword = $request->validated()['password'];
 
-        DB::transaction(function () use ($user, $authorId, $request) {
-
-            $user->password = Hash::make($request->password);
+        DB::transaction(function () use ($user, $newPassword) {
+            $user->password = Hash::make($newPassword);
             $user->save();
 
             $targetLabel = trim(($user->lastname ? ($user->lastname.' ') : '').($user->name ?? ''));
@@ -495,6 +492,7 @@ class AccountController extends AdminBaseController
                     ->withCreatedAt(now())
             );
         });
+
         return response()->json(['success' => true]);
     }
     public function phoneSendCode(Request $request, User $user)

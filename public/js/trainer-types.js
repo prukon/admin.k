@@ -211,13 +211,31 @@
         }
     }
 
+    function confirmDeleteType() {
+        if (!canManage) return;
+        const id = form.querySelector('[name="id"]').value;
+        if (!id) return;
+
+        const name = (form.querySelector('[name="name"]')?.value || '').trim();
+        const title = 'Удаление типа тренера';
+        const text = name !== ''
+            ? 'Вы уверены, что хотите удалить тип тренера «' + name + '»?'
+            : 'Вы уверены, что хотите удалить тип тренера?';
+
+        if (typeof window.showConfirmDeleteModal !== 'function') {
+            showAlert('Не загружена форма подтверждения. Обновите страницу.');
+            return;
+        }
+
+        window.showConfirmDeleteModal(title, text, function () {
+            deleteType().catch(() => showAlert('Ошибка удаления'));
+        });
+    }
+
     async function deleteType() {
         if (!canManage) return;
         const id = form.querySelector('[name="id"]').value;
         if (!id) return;
-        if (!window.confirm('Удалить этот тип тренера?')) {
-            return;
-        }
         clearFieldErrors();
         showAlert('');
         const res = await fetch(cfg.destroyUrlTemplate.replace('__ID__', encodeURIComponent(id)), {
@@ -263,7 +281,7 @@
         saveType().catch(() => showAlert('Ошибка сохранения'));
     });
     document.getElementById('trainer-type-delete-btn')?.addEventListener('click', () => {
-        deleteType().catch(() => showAlert('Ошибка удаления'));
+        confirmDeleteType();
     });
 
     modalEl.addEventListener('show.bs.modal', () => {

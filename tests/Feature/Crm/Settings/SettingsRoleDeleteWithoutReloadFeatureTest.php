@@ -215,6 +215,7 @@ final class SettingsRoleDeleteWithoutReloadFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="rolesTable"', $html);
         $this->assertStringContainsString('id="permission-accordion"', $html);
         $this->assertStringContainsString('id="kidsMainToast"', $html);
+        $this->assertStringContainsString('z-index: 4050', $html);
         $this->assertMatchesRegularExpression(
             '/id="kidsMainToastBody"><\/div>/',
             $html,

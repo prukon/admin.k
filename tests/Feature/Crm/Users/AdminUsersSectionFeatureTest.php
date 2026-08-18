@@ -171,7 +171,8 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
         $this->get(route('admin.user1'))
             ->assertOk()
             ->assertSee('href="/admin/users"', false)
-            ->assertSee('<p>Пользователи', false)
+            ->assertSee('<p>Пользователи</p>', false)
+            ->assertDontSee('<p>Пользователи<span class="badge badge-info right">', false)
             ->assertDontSee('<p>Тренеры</p>', false)
             ->assertDontSee('fa-person-running', false);
 

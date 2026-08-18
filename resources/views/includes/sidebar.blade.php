@@ -104,7 +104,7 @@
             <li class="nav-item">
                 <a href="/admin/users" class="nav-link">
                     <i class="nav-icon fa-solid fa-users"></i>
-                    <p>Пользователи<span class="badge badge-info right">{{ $allUsersCount}}</span></p>
+                    <p>Пользователи</p>
                 </a>
             </li>
         @endcan

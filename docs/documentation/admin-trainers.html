@@ -212,6 +212,11 @@
   <p>Несистемный тип удаляется, только если на него никто не назначен (включая soft-deleted профили) — иначе 422 <code>errors.name</code>.</p>
   <p>
     CRUD модалки (<code>/admin/trainer-types</code>) при успехе всегда JSON (<code>message</code> + <code>trainer_type</code>), в том числе без <code>X-Requested-With</code> — не пустой 200 и не redirect. UI: toast «Тип тренера сохранён» / «Тип тренера удалён» (<code>window.showToast</code>, не <code>showSuccessModal</code>).
+    Удаление: кнопка <code>#trainer-type-delete-btn</code> → <code>confirmDeleteType()</code> → <code>showConfirmDeleteModal('Удаление типа тренера', …)</code> (не <code>window.confirm</code>).
+    Текст: «Вы уверены, что хотите удалить тип тренера «Название»?».
+    Модалка «Типы тренеров» остаётся открытой (очередь Bootstrap вернёт её после confirm; <code>#trainerTypesModal</code> не <code>hide</code>).
+    Успех: AJAX <code>DELETE</code> → <code>loadList('saved')</code> → <code>showList()</code>, toast <code>message</code> сервера или «Тип тренера удалён».
+    422 — <code>showAlert</code> + <code>errors.name</code> в форме модалки типов.
     Ошибка валидации: AJAX → 422 <code>errors[field]</code>; non-AJAX → 302 и ошибки сессии под полями.
     Карточка тренера: non-AJAX create/update → 302 на <code>/admin/trainers</code>; AJAX → JSON 200/422.
   </p>
@@ -308,8 +313,9 @@
     <ul>
       <li><code>tests/Feature/Crm/Trainers/TrainerTypesFeatureTest.php</code> — типы Канзаса: системный тип, права, CRUD, 403/401/404, <code>can_delete</code>, уникальность имени, черновики vs слепки</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerTypesNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX JSON CRUD типов, 302 карточки тренера без типа, AJAX 200/422</li>
-      <li><code>tests/Feature/Crm/Trainers/TrainerTypesUiContractsFeatureTest.php</code> — первое открытие: selected системного типа, disabled classic-полей, кнопка/модалка, readonly ставки в ЗП</li>
-      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_trainer_types_js_contract_is_valid_javascript</code> — <code>node --check</code>, 422 под полями, дефолты 0.00, два JS-пути (селекты на карточке / reload ЗП только после save)</li>
+      <li><code>tests/Feature/Crm/Trainers/TrainerTypesUiContractsFeatureTest.php</code> — первое открытие: selected системного типа, disabled classic-полей, кнопка/модалка, readonly ставки в ЗП; удаление типа — <code>showConfirmDeleteModal</code>, AJAX <code>loadList('saved')</code>, toast</li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_trainer_types_js_contract_is_valid_javascript</code> — <code>node --check</code>, 422 под полями, дефолты 0.00, два JS-пути (селекты на карточке / reload ЗП только после save), брендовое подтверждение удаления (не <code>window.confirm</code>)</li>
+      <li><code>tests/Unit/Documentation/TrainerTypeDeleteUiDocumentationContractTest.php</code> — анонс <code>/doc#trainer-types-kansas-index</code> и §6.3 совпадают с <code>public/js/trainer-types.js</code> (брендовая модалка, AJAX-список, toast)</li>
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>

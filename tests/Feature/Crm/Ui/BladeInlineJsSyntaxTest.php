@@ -473,6 +473,10 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("getElementById('msgInput').focus()", $content);
         $this->assertStringContainsString('persistLeavingDraft(threadId)', $content);
         $this->assertStringContainsString("threadUrl(id, '/draft')", $content);
+        $this->assertStringContainsString('function persistLeavingDraft(', $content);
+        $this->assertStringContainsString('function scheduleDraftSave(', $content);
+        $this->assertStringContainsString('function composerDraftFor(', $content);
+        $this->assertStringContainsString('function mergeLocalDrafts(', $content);
         $this->assertStringContainsString('startDialogBusy', $content);
         $this->assertStringContainsString('Number(t.peer_id) !== Number(patch.peer_id)', $content);
         $this->assertStringContainsString("contactsSearch').value = ''", $content);
@@ -3885,6 +3889,10 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $toast = (string) file_get_contents($toastPath);
         $this->assertStringContainsString('window.showToast = function (message, type)', $toast);
         $this->assertStringContainsString('id="kidsMainToast"', $toast);
+        $this->assertStringContainsString('z-index: 4050', $toast);
+        $this->assertStringNotContainsString('z-index: 1090', $toast);
+        $this->assertStringContainsString('document.body.appendChild(wrap)', $toast);
+        $this->assertStringContainsString('existing.dispose()', $toast);
         $this->assertStringContainsString('bootstrap.Toast.getOrCreateInstance', $toast);
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $toastPath,
@@ -3966,6 +3974,16 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 'toast' => 'Юр. лицо обновлено',
                 'absent' => 'showSuccessModal',
             ],
+            'location-create' => [
+                'path' => resource_path('views/admin/locations/index.blade.php'),
+                'toast' => "window.showToast(data.message || 'Объект создан', 'success')",
+                'absent' => "showSuccessModal('Создание объекта'",
+            ],
+            'location-edit' => [
+                'path' => resource_path('views/admin/locations/index.blade.php'),
+                'toast' => "window.showToast(data.message || 'Объект обновлён', 'success')",
+                'absent' => "showSuccessModal('Редактирование объекта'",
+            ],
             'location-delete' => [
                 'path' => resource_path('views/admin/locations/index.blade.php'),
                 'toast' => 'Объект успешно удалён.',
@@ -3995,6 +4013,16 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 'path' => public_path('js/setting-prices-custom-payments.js'),
                 'toast' => 'Дополнительный платеж успешно создан.',
                 'absent' => 'window.showSuccessModal',
+            ],
+            'custom-payment-update' => [
+                'path' => resource_path('js/setting-prices-custom-payments.js'),
+                'toast' => "window.showToast('Изменения сохранены.', 'success')",
+                'absent' => 'priceToast',
+            ],
+            'custom-payment-update-public' => [
+                'path' => public_path('js/setting-prices-custom-payments.js'),
+                'toast' => "window.showToast('Изменения сохранены.', 'success')",
+                'absent' => 'priceToast',
             ],
             'create-role' => [
                 'path' => resource_path('views/admin/setting/rule.blade.php'),
@@ -4062,6 +4090,23 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 );
             }
         }
+
+        $locationsJs = (string) file_get_contents(resource_path('views/admin/locations/index.blade.php'));
+        $this->assertStringContainsString(
+            "window.showToast(data.message || 'Объект создан', 'success')",
+            $locationsJs,
+            'Создание объекта: toast #kidsMainToast после AJAX-успеха'
+        );
+        $this->assertStringContainsString(
+            "window.showToast(data.message || 'Объект обновлён', 'success')",
+            $locationsJs,
+            'Редактирование объекта: toast #kidsMainToast после AJAX-успеха'
+        );
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $locationsJs,
+            'Удаление объекта: toast после закрытия #confirmDeleteModal, иначе оверлей z-index 1900 его перекрывает'
+        );
     }
 
     /**
@@ -4129,6 +4174,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("reason = reason || 'open'", $content);
         $this->assertStringContainsString('window.__onTrainerTypesChanged(types, reason)', $content);
         $this->assertStringContainsString('if (!canManage) return', $content);
+        $this->assertStringContainsString('window.showConfirmDeleteModal', $content);
+        $this->assertStringContainsString('Удаление типа тренера', $content);
+        $this->assertStringNotContainsString('window.confirm', $content);
         $this->assertStringContainsString('enabled.disabled = !!type?.is_system', $content);
         $this->assertStringContainsString("type?.rate_per_training ?? '0.00'", $content);
 

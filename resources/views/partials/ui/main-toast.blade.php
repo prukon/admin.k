@@ -1,5 +1,6 @@
-{{-- Общая Bootstrap-всплывайка админки (как в заявках / ценах). --}}
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090;">
+{{-- Общая Bootstrap-всплывайка админки (как в заявках / ценах).
+     z-index 4050: выше #confirmDeleteModal (1900) и #errorModal/#successModal (4010). --}}
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 4050;">
     <div id="kidsMainToast" class="toast align-items-center text-white bg-success border-0" role="alert"
          aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
@@ -15,6 +16,11 @@
         var toastBodyEl = document.getElementById('kidsMainToastBody');
         if (!toastEl || !toastBodyEl) {
             return;
+        }
+
+        var wrap = toastEl.parentElement;
+        if (wrap && document.body) {
+            document.body.appendChild(wrap);
         }
 
         toastEl.classList.remove('bg-success', 'bg-danger', 'bg-info', 'bg-warning', 'text-dark');
@@ -39,6 +45,10 @@
             return;
         }
 
-        bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2500 }).show();
+        var existing = bootstrap.Toast.getInstance(toastEl);
+        if (existing) {
+            existing.dispose();
+        }
+        bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2500, autohide: true }).show();
     };
 </script>

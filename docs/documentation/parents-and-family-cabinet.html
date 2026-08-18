@@ -246,10 +246,45 @@ users (role=user) — ученик, вход в CRM
     <tbody>
       <tr><td>GET</td><td><code>/account-settings/user/edit</code></td><td>200 при <code>account.user.view</code></td></tr>
       <tr><td>PATCH</td><td><code>/account-settings/user</code></td><td>200 JSON <code>success</code></td></tr>
-      <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>200 JSON <code>{success: true}</code>; UI — toast «Пароль успешно изменен.» (<code>window.showToast</code>), не <code>showSuccessModal</code>. Короткий пароль — 422 <code>errors.password</code>.</td></tr>
+      <tr><td>PUT</td><td><code>/account-settings/user/password</code></td><td>См. §<a href="#account-own-password">4.3.1</a></td></tr>
       <tr><td>POST / DELETE</td><td><code>/account-settings/user/avatar</code></td><td>200 / 422</td></tr>
     </tbody>
   </table>
+
+  <h3 id="account-own-password">4.3.1) Смена своего пароля</h3>
+  <div class="note">
+    Кнопка «Изменить пароль» на <code>/account-settings/user/edit</code>
+    открывает <code>#change-pass-wrap</code> (при первом открытии страницы скрыт,
+    <code>#error-message</code> тоже скрыт; клик — <code>display: inline-block</code>).
+    Отдельного права <code>users.password.update</code> не нужно — достаточно
+    <code>account.user.view</code>.
+    Это <b>не</b> админская смена чужого пароля
+    (<code>POST /admin/user/{id}/update-password</code>).
+    Request: <code>AccountUpdatePasswordRequest</code>.
+    Анонс — <a href="/doc#account-own-password-index">/doc</a>.
+    <br><br>
+    1) <b>Успех.</b> PUT JSON 200 <code>{success: true}</code>, toast
+    «Пароль успешно изменен.» (<code>window.showToast</code>), не
+    <code>showSuccessModal</code>. Блок снова скрыт, поле очищается.
+    <br>
+    2) <b>Тот же пароль, что уже стоит</b> (в том числе повтор сразу после успешной смены):
+    JSON 422 <code>errors.password</code> «Новый пароль совпадает с текущим.»,
+    без записи в <code>my_logs</code>. UI — текст сервера в <code>#error-message</code>
+    под полем, блок не закрывается, без toast и без <code>showErrorModal</code>.
+    Короткий / пустой / длиннее 255 — 422 <code>errors.password</code>
+    (на клиенте длина &lt; 8 отсекается до запроса).
+    <br>
+    3) <b>Не в этом контракте.</b> Вкладка «Мои документы»
+    (<code>myDocuments.blade.php</code>) этот UX пока не повторяет.
+  </div>
+  <p class="small">Тесты:
+    <code>AccountOwnPasswordUpdateAccessFeatureTest</code>,
+    <code>AccountOwnPasswordUpdateAjaxContractFeatureTest</code>
+    (повтор текущего пароля — UX-баг прода: был toast успеха),
+    <code>AccountOwnPasswordUpdateNonAjaxSafetyNetFeatureTest</code>,
+    <code>AccountOwnPasswordUpdateUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_account_own_password_js_shows_field_error_instead_of_success_toast</code>,
+    <code>AccountOwnPasswordDocumentationContractTest</code>.</p>
 
   <h3 id="account-sex">4.4) Пол ученика в кабинете</h3>
   <div class="note">
@@ -441,6 +476,12 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Crm/Users/AdminUsersParentAjaxContractFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentNonAjaxSafetyNetFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentPartnerIsolationTest.php</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountOwnPasswordUpdateAccessFeatureTest.php</code> — свой пароль: гость / без <code>account.user.view</code> 403 / 200; чужой пользователь не меняется; GET/POST/PATCH/DELETE → 404/405</li>
+      <li><code>tests/Feature/Crm/Account/AccountOwnPasswordUpdateAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors.password</code>, повтор текущего (UX-баг прода: был toast успеха)</li>
+      <li><code>tests/Feature/Crm/Account/AccountOwnPasswordUpdateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX PUT пишет пароль; валидация 302 + session <code>errors.password</code></li>
+      <li><code>tests/Feature/Crm/Account/AccountOwnPasswordUpdateUiContractsFeatureTest.php</code> — скрытый <code>#change-pass-wrap</code> при первом открытии, ошибка под <code>#error-message</code>, без <code>showErrorModal</code></li>
+      <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_account_own_password_js_shows_field_error_instead_of_success_toast</code> — <code>node --check</code> + контракт <code>errors.password</code></li>
+      <li><code>tests/Unit/Documentation/AccountOwnPasswordDocumentationContractTest.php</code> — анонс <code>/doc#account-own-password-index</code> совпадает с кодом</li>
       <li><code>tests/Feature/Crm/Account/AccountParentProfileUpdateTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentFullAccessFeatureTest.php</code></li>
       <li><code>tests/Feature/Crm/Account/AccountParentFullNameGenitiveFeatureTest.php</code> — родительный падеж в ЛК</li>
@@ -450,7 +491,7 @@ users (role=user) — ученик, вход в CRM
       <li><code>tests/Feature/Public/SchoolLeadLandingParentMatchFeatureTest.php</code> — автосопоставление <code>parents</code> к лиду с лендинга</li>
       <li><code>tests/Feature/Crm/SchoolLeads/SchoolLeadParentMatcherFeatureTest.php</code> и смежные <code>SchoolLeadParentMatch*</code> — CRM UI/PUT матча</li>
     </ul>
-    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AdminUsersParentFullNameGenitive|AccountParentFullNameGenitive|AccountParentNonAjax|ContractParentFullNameGenitive|SchoolLeadParentMatch'</code>
+    Запуск: <code>php artisan test --filter='Parent|FamilyStudent|ParentsAndFamily|AdminUsersParentDirectoryFio|AdminUsersParentFullNameGenitive|AccountParentFullNameGenitive|AccountParentNonAjax|AccountOwnPassword|ContractParentFullNameGenitive|SchoolLeadParentMatch'</code>
   </div>
 
   <h2>9) Что не поддерживается</h2>
@@ -471,7 +512,8 @@ users (role=user) — ученик, вход в CRM
     <li><code>app/Http/Controllers/Admin/UserController.php</code> — <code>searchParents</code>, data, store/update</li>
     <li><code>app/Http/Controllers/Admin/AccountController.php</code> — личный кабинет</li>
     <li><code>app/Http/Requests/User/AccountUpdateRequest.php</code> — пол (<code>users.sex</code>)</li>
-    <li><code>resources/views/account/users.blade.php</code> — пол в кабинете</li>
+    <li><code>app/Http/Requests/User/AccountUpdatePasswordRequest.php</code> — смена своего пароля в ЛК</li>
+    <li><code>resources/views/account/users.blade.php</code> — пол в кабинете, смена пароля</li>
     <li><code>app/Http/Controllers/User/FamilyStudentContextController.php</code></li>
     <li><code>resources/views/admin/users/_parent_form.blade.php</code></li>
     <li><code>database/factories/ParentProfileFactory.php</code></li>

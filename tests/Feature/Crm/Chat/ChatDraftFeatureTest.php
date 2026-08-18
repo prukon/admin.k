@@ -188,4 +188,156 @@ final class ChatDraftFeatureTest extends ChatTestCase
         $this->assertNotNull($row);
         $this->assertSame('', $row['draft_body']);
     }
+
+    public function test_ajax_save_draft_returns_json_not_redirect(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => 'AJAX черновик',
+        ])
+            ->assertOk()
+            ->assertJsonStructure(['ok', 'draft_body'])
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('draft_body', 'AJAX черновик');
+    }
+
+    public function test_draft_validation_puts_russian_message_under_body(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => str_repeat('я', 5001),
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.body.0', 'Черновик слишком длинный (максимум 5000 символов).');
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => ['не строка'],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.body.0', 'Черновик должен быть строкой.');
+    }
+
+    public function test_draft_of_max_length_is_accepted(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $body = str_repeat('я', 5000);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => $body,
+        ])
+            ->assertOk()
+            ->assertJsonPath('draft_body', $body);
+    }
+
+    public function test_omitted_body_clears_existing_draft(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => 'будет стёрт',
+        ])->assertOk();
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [])
+            ->assertOk()
+            ->assertJsonPath('draft_body', '');
+
+        $this->assertDatabaseHas('participants', [
+            'thread_id' => $thread->id,
+            'user_id' => $this->user->id,
+            'draft_body' => null,
+        ]);
+    }
+
+    public function test_too_long_draft_does_not_wipe_previous_value(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => 'сохранить',
+        ])->assertOk();
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => str_repeat('я', 5001),
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('participants', [
+            'thread_id' => $thread->id,
+            'user_id' => $this->user->id,
+            'draft_body' => 'сохранить',
+        ]);
+    }
+
+    public function test_missing_thread_draft_is_404_not_server_error(): void
+    {
+        $response = $this->patchJson(route('chat.api.threads.draft', 9_999_999), [
+            'body' => 'x',
+        ]);
+        $this->assertNotSame(500, $response->getStatusCode());
+        $response->assertNotFound();
+    }
+
+    public function test_peer_message_does_not_clear_my_draft(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => 'мой текст',
+        ])->assertOk();
+
+        $this->actingInPartner($peer);
+        $this->postJson(route('chat.api.threads.messages.store', $thread->id), [
+            'body' => 'Входящее',
+        ])->assertCreated();
+
+        $this->actingInPartner($this->user);
+        $row = collect($this->getJson(route('chat.api.threads.index'))->json('threads'))
+            ->firstWhere('id', $thread->id);
+        $this->assertNotNull($row);
+        $this->assertSame('мой текст', $row['draft_body']);
+        $this->assertSame('Входящее', $row['last_message']);
+    }
+
+    public function test_list_keeps_last_message_payload_when_own_draft_exists(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $this->seedMessage($thread, $peer->id, 'Последнее сообщение');
+
+        $this->patchJson(route('chat.api.threads.draft', $thread->id), [
+            'body' => 'черновик поверх',
+        ])->assertOk();
+
+        $row = collect($this->getJson(route('chat.api.threads.index'))->json('threads'))
+            ->firstWhere('id', $thread->id);
+        $this->assertNotNull($row);
+        $this->assertSame('черновик поверх', $row['draft_body']);
+        $this->assertSame('Последнее сообщение', $row['last_message']);
+        $this->assertNotEmpty($row['last_message_time']);
+    }
+
+    public function test_html_wrong_methods_on_draft_are_not_empty_200(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $url = route('chat.api.threads.draft', $thread->id);
+
+        foreach (['GET', 'POST', 'DELETE'] as $method) {
+            $html = $this->call($method, $url, ['body' => 'x']);
+            $this->assertNotSame(500, $html->getStatusCode(), $method.' HTML не 500');
+            $this->assertNotSame(200, $html->getStatusCode(), $method.' HTML не пустой 200');
+            $this->assertContains(
+                $html->getStatusCode(),
+                [404, 405],
+                $method.' HTML должен быть 404/405, получено '.$html->getStatusCode()
+            );
+        }
+    }
 }

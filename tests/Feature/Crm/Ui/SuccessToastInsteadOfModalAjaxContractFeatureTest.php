@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Ui;
 
+use App\Enums\AuditEvent;
 use App\Models\Location;
+use App\Models\MyLog;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\TrainerProfile;
@@ -174,6 +176,40 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
             ->assertJsonValidationErrors(['business_type']);
     }
 
+    public function test_ajax_location_create_and_edit_return_messages_toast_shows(): void
+    {
+        $this->postJson(route('admin.locations.store'), [
+            'name'       => 'Объект toast create',
+            'is_enabled' => 1,
+        ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('message', 'Объект создан')
+            ->assertJsonStructure(['message', 'location']);
+
+        $this->postJson(route('admin.locations.store'), [
+            'is_enabled' => 1,
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+
+        $location = Location::factory()->create([
+            'partner_id' => $this->partner->id,
+            'name'       => 'Объект toast edit',
+        ]);
+
+        $this->putJson(route('admin.locations.update', $location), [
+            'name'       => 'Объект toast updated',
+            'is_enabled' => 1,
+        ], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('message', 'Объект обновлён');
+
+        $this->assertDatabaseHas('locations', [
+            'id'   => $location->id,
+            'name' => 'Объект toast updated',
+        ]);
+    }
+
     public function test_ajax_location_delete_returns_message_toast_does_not_copy_verbatim(): void
     {
         $location = Location::factory()->create([
@@ -189,7 +225,7 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
         $this->assertDatabaseMissing('locations', ['id' => $location->id]);
     }
 
-    public function test_manager_without_locations_manage_gets_403_on_location_delete(): void
+    public function test_manager_without_locations_manage_gets_403_on_location_mutate(): void
     {
         $actor = $this->createUserWithoutPermission('locations.manage', $this->partner);
         $this->grantPermissionsTo($actor, ['locations.view']);
@@ -198,6 +234,16 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
         $location = Location::factory()->create([
             'partner_id' => $this->partner->id,
         ]);
+
+        $this->postJson(route('admin.locations.store'), [
+            'name'       => 'Forbidden toast create',
+            'is_enabled' => 1,
+        ], $this->ajaxHeaders())->assertStatus(403);
+
+        $this->putJson(route('admin.locations.update', $location), [
+            'name'       => 'Forbidden toast update',
+            'is_enabled' => 1,
+        ], $this->ajaxHeaders())->assertStatus(403);
 
         $this->deleteJson(route('admin.locations.destroy', $location), [], $this->ajaxHeaders())
             ->assertStatus(403);
@@ -275,6 +321,50 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
             ->assertJsonValidationErrors(['password']);
     }
 
+    public function test_ajax_own_password_same_as_current_returns_422_and_does_not_log(): void
+    {
+        $this->user->password = 'current-pass-8';
+        $this->user->save();
+
+        $this->putJson(route('account.user.password.update'), [
+            'password' => 'current-pass-8',
+        ], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['password'])
+            ->assertJsonPath('errors.password.0', 'Новый пароль совпадает с текущим.');
+
+        $this->assertTrue(Hash::check('current-pass-8', $this->user->fresh()->password));
+
+        $this->assertNull(
+            MyLog::query()
+                ->where('target_type', User::class)
+                ->where('target_id', $this->user->id)
+                ->where('event', AuditEvent::UserPasswordChanged->value)
+                ->first()
+        );
+    }
+
+    public function test_ajax_own_password_after_same_rejection_a_different_password_still_saves(): void
+    {
+        $this->user->password = 'current-pass-8';
+        $this->user->save();
+        $url = route('account.user.password.update');
+
+        $this->putJson($url, ['password' => 'current-pass-8'], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+
+        $this->putJson($url, ['password' => 'account-pass-99'], $this->ajaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertTrue(Hash::check('account-pass-99', $this->user->fresh()->password));
+
+        $this->putJson($url, ['password' => 'account-pass-99'], $this->ajaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('errors.password.0', 'Новый пароль совпадает с текущим.');
+    }
+
     public function test_ajax_custom_payment_create_returns_success_json_without_message_toast_is_hardcoded(): void
     {
         $team = Team::factory()->create([
@@ -321,6 +411,8 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
             ['DELETE', route('admin.trainers.destroy', $profile->id), []],
             ['POST', route('admin.administrators.store'), ['name' => 'Гость', 'lastname' => 'Админ', 'is_enabled' => 1]],
             ['DELETE', route('admin.user.delete', $student), []],
+            ['POST', route('admin.locations.store'), ['name' => 'Гость объект', 'is_enabled' => 1]],
+            ['PUT', route('admin.locations.update', $location), ['name' => 'Гость объект', 'is_enabled' => 1]],
             ['DELETE', route('admin.locations.destroy', $location), []],
             ['POST', route('admin.setting.role.create'), ['name' => 'Гость']],
             ['DELETE', route('admin.setting.role.delete'), ['role_id' => 1]],
@@ -357,6 +449,8 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
             ['PATCH', route('admin.trainers.store')],
             ['GET', route('admin.user.delete', $student)],
             ['POST', route('admin.user.delete', $student)],
+            ['GET', route('admin.locations.store')],
+            ['GET', route('admin.locations.update', $location)],
             ['GET', route('admin.locations.destroy', $location)],
             ['POST', route('admin.locations.destroy', $location)],
             ['GET', route('admin.setting.role.create')],

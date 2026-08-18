@@ -664,10 +664,14 @@ dataTable: {
 
   <h2 id="kids-main-toast">8) Всплывайка уведомлений <code>#kidsMainToast</code></h2>
   <div class="note">
-    Общий Bootstrap 5 toast админки (как локальные toast на заявках / ценах): правый нижний угол, поверх модалок (<code>z-index: 1090</code>).
+    Общий Bootstrap 5 toast админки (как локальные toast на заявках / ценах): правый нижний угол, поверх модалок (<code>z-index: 4050</code> — выше <code>#confirmDeleteModal</code> 1900 и <code>#errorModal</code>/<code>#successModal</code> 4010).
     Partial: <code>resources/views/partials/ui/main-toast.blade.php</code>.
     Подключение: <code>@include('partials.ui.main-toast')</code> в <code>layouts/admin2.blade.php</code> — на всех admin-страницах доступен <code>window.showToast(message, type)</code>
     (<code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code>).
+    При показе обёртка переносится в <code>document.body</code>, предыдущий экземпляр Bootstrap Toast <code>dispose()</code>, delay 2500&nbsp;ms.
+    Объекты: create/edit — toast сразу после AJAX (<code>data.message</code> «Объект создан» / «Объект обновлён»).
+    Удаление из-под confirm (объекты): toast «Объект успешно удалён.» после <code>hidden.bs.modal</code> у <code>#confirmDeleteModal</code> — иначе полноэкранный оверлей confirm его перекрывает.
+    Типы тренера: подтверждение тоже <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>); toast после успешного AJAX <code>DELETE</code> (confirm к этому моменту уже закрывается очередью), модалка <code>#trainerTypesModal</code> остаётся на списке.
   </div>
   <p>
     Смена пароля в карточке админа / ученика / тренера использует эту всплывайку («Пароль успешно изменен»), а не success-модалку (запасного <code>showSuccessModal</code> нет).
@@ -678,12 +682,19 @@ dataTable: {
     См. также <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>.
   </p>
   <p class="small">
-    Тесты: <code>SuccessToastInsteadOfModalAccessFeatureTest</code> (гость / 403 / 200 + toast на первом открытии),
+    Тесты: <code>SuccessToastInsteadOfModalAccessFeatureTest</code> (гость / 403 / 200 + toast на первом открытии, <code>z-index: 4050</code>),
     <code>SuccessToastInsteadOfModalAjaxContractFeatureTest</code> (JSON 200/422 <code>errors[field]</code>, 403),
     <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code> (без AJAX — 302 или непустой JSON, запись в БД),
-    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (скрытый пустой toast, оба JS-пути доп. платежа, лид не берёт локальный toast, негатив вне списка),
+    <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (скрытый пустой toast, partial выше confirm/error, объект create/edit + удаление после <code>hidden.bs.modal</code>, оба JS-пути доп. платежа: create + update без <code>#priceToast</code>, лид не берёт локальный toast, негатив вне списка),
+    <code>LocationsFeatureTest::test_index_create_and_edit_success_use_toast</code>,
+    <code>LocationsFeatureTest::test_index_edit_modal_has_confirm_delete_button</code>,
+    <code>LocationsToastDocumentationContractTest</code>,
     <code>SettingsRoleDeleteWithoutReloadFeatureTest</code> (удаление роли без reload),
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code> (<code>node --check</code>).
+    Удаление типа тренера: <code>TrainerTypesUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code>,
+    <code>TrainerTypeDeleteUiDocumentationContractTest</code>.
+    Доп. платёж create/update: <code>CustomPaymentsToastDocumentationContractTest</code>.
   </p>
 
   <p class="small">

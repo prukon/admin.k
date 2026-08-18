@@ -93,7 +93,8 @@ final class DirectoriesSectionIntegrationFeatureTest extends CrmTestCase
 
     private function assertSidebarDirectoriesUrl(string $html, string $expectedPath): void
     {
-        $sidebarStart = strpos($html, 'nav-sidebar');
+        // CSS в <head> тоже содержит «nav-sidebar»; якорь — разметка меню.
+        $sidebarStart = strpos($html, 'nav nav-pills nav-sidebar');
         $this->assertNotFalse($sidebarStart, 'Sidebar not found in response');
 
         $sidebarChunk = substr($html, $sidebarStart, 4000);
@@ -107,7 +108,7 @@ final class DirectoriesSectionIntegrationFeatureTest extends CrmTestCase
 
     private function assertSidebarDirectoriesLabel(string $html, string $expectedLabel): void
     {
-        $sidebarStart = strpos($html, 'nav-sidebar');
+        $sidebarStart = strpos($html, 'nav nav-pills nav-sidebar');
         $this->assertNotFalse($sidebarStart, 'Sidebar not found in response');
 
         $sidebarChunk = substr($html, $sidebarStart, 4000);

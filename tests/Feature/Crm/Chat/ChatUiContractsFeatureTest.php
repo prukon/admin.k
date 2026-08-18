@@ -25,6 +25,11 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="msgInput"', $page);
         $this->assertStringContainsString('name="body"', $page);
         $this->assertStringContainsString('autocomplete="off" disabled', $page);
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="msgInput"[^>]*\bvalue="/',
+            $page,
+            'Поле ввода при первом открытии страницы не должно содержать заранее вписанный текст'
+        );
         $this->assertStringContainsString('type="submit" disabled', $page);
         $this->assertStringContainsString('Сообщения появятся здесь', $page);
         $this->assertStringContainsString('id="openContactsBtn"', $page);

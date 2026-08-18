@@ -147,6 +147,9 @@ final class AdminUserPasswordUpdateUiContractsFeatureTest extends CrmTestCase
         $toast = (string) file_get_contents(resource_path('views/partials/ui/main-toast.blade.php'));
         $this->assertStringContainsString('id="kidsMainToast"', $toast);
         $this->assertStringContainsString('window.showToast = function', $toast);
+        $this->assertStringContainsString('z-index: 4050', $toast);
+        $this->assertStringContainsString('document.body.appendChild(wrap)', $toast);
+        $this->assertStringContainsString('existing.dispose()', $toast);
         $this->assertStringContainsString('bootstrap.Toast.getOrCreateInstance', $toast);
     }
 

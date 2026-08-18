@@ -58,7 +58,6 @@ final class PhoneInputMaskCentralizationFeatureTest extends TestCase
         $sources = $this->bladeSourcesUsingPhoneInputPartial();
 
         $required = [
-            'account/myDocuments.blade.php',
             'account/organizations.blade.php',
             'account/partials/contract-fill-content.blade.php',
             'account/partials/contract-fill-field.blade.php',

@@ -188,6 +188,10 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             ->assertSee('locationEditModal', false)
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('showConfirmDeleteModal', false)
+            ->assertSee("window.showToast(data.message || 'Объект создан', 'success')", false)
+            ->assertSee("window.showToast(data.message || 'Объект обновлён', 'success')", false)
+            ->assertSee("window.showToast('Объект успешно удалён.', 'success')", false)
+            ->assertSee("confirmEl.addEventListener('hidden.bs.modal', showDeletedToast", false)
             ->assertSee('historyModal', false)
             ->assertSee('KidsCrmGenericMultiselectSelect2', false)
             ->assertSee('KidsCrmDataTable.create', false)
@@ -215,13 +219,15 @@ final class LocationsPageFullAccessFeatureTest extends CrmTestCase
             'name' => 'Created with manage',
             'is_enabled' => 1,
             'team_ids' => [$team->id],
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('message', 'Объект создан');
 
         $this->putJson(route('admin.locations.update', $loc->id), [
             'name' => 'Manage smoke updated',
             'is_enabled' => 0,
             'team_ids' => [$team->id],
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('message', 'Объект обновлён');
 
         $toDelete = Location::factory()->create([
             'partner_id' => $this->partner->id,

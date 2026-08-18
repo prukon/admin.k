@@ -45,9 +45,9 @@
       <tr><td>POST</td><td><code>/admin/locations/columns-settings</code></td><td><code>locations.view</code></td><td>Сохранение колонок</td></tr>
       <tr><td>GET</td><td><code>/admin/locations/logs-data</code></td><td><code>locations.view</code></td><td>JSON модалки «История изменений» (категория <code>location</code>)</td></tr>
       <tr><td>GET</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code></td><td>JSON карточки (+ <code>team_ids</code>, <code>district_id</code>, <code>admin_user_ids</code>)</td></tr>
-      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание; тело: <code>name</code>, <code>district_id</code>, <code>admin_user_ids[]</code>, <code>team_ids[]</code>, …</td></tr>
-      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление; <code>admin_user_ids[]</code> — полная замена списка админов</td></tr>
-      <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление объекта; у групп с этим <code>location_id</code> — <code>null</code></td></tr>
+      <tr><td>POST</td><td><code>/admin/locations</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Создание; AJAX JSON <code>message</code> «Объект создан»; тело: <code>name</code>, <code>district_id</code>, <code>admin_user_ids[]</code>, <code>team_ids[]</code>, …</td></tr>
+      <tr><td>PUT</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Обновление; AJAX JSON <code>message</code> «Объект обновлён»; <code>admin_user_ids[]</code> — полная замена списка админов</td></tr>
+      <tr><td>DELETE</td><td><code>/admin/locations/{location}</code></td><td><code>locations.view</code> + <code>locations.manage</code></td><td>Удаление объекта; AJAX JSON <code>message</code> «Объект удалён»; UI-toast «Объект успешно удалён.»; у групп с этим <code>location_id</code> — <code>null</code></td></tr>
     </tbody>
   </table>
 
@@ -83,12 +83,12 @@
       <tr>
         <td><code>POST /admin/locations</code></td>
         <td><code>admin_user_ids[]</code> — необязательный массив id (0..5). Отсутствие или <code>[]</code> → объект без админов.</td>
-        <td><code>{ message, location }</code> — в <code>location</code> нет вложенного списка админов; после create pivot заполняется sync-сервисом.</td>
+        <td><code>{ message: "Объект создан", location }</code> — в <code>location</code> нет вложенного списка админов; после create pivot заполняется sync-сервисом. UI: toast <code>data.message</code>.</td>
       </tr>
       <tr>
         <td><code>PUT /admin/locations/{id}</code></td>
         <td><code>admin_user_ids[]</code> — полная замена: только переданные id остаются в pivot. <code>[]</code> снимает всех админов.</td>
-        <td><code>{ message }</code></td>
+        <td><code>{ message: "Объект обновлён" }</code>. UI: toast <code>data.message</code>.</td>
       </tr>
       <tr>
         <td><code>GET /admin/locations/{id}</code></td>
@@ -124,7 +124,7 @@
     <li><b>Фильтры</b>: название/адрес, статус, район (все / «Без района» / id), администратор (все / «Без администратора» (<code>none</code>) / id пользователя — query-параметр <code>admin_user_id</code> в <code>/data</code>).</li>
     <li><b>Колонка «Группы»</b> — при наличии групп у партнёра; tooltip со списком (тип <code>list</code>, сокращение «X, еще N шт.» при 3+ объектах в списке).</li>
     <li><b>Колонка «Администратор»</b> — тип <code>list</code>, тот же паттерн сокращения, что у «Группы».</li>
-    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>). Удаление из edit: toast «Объект успешно удалён.» (<code>window.showToast</code>), не <code>showSuccessModal</code>.</li>
+    <li><b>Модалки</b> — multiselect <code>team_ids[]</code> и <code>admin_user_ids[]</code> при <code>locations.manage</code> (единый partial <code>generic-multiselect</code>, <code>KidsCrmGenericMultiselectSelect2</code>; см. <a href="/docs/documentation/reusable-ui-partials#select2-multiselect">reusable-ui-partials §4.2</a>). Успех create/edit/delete — toast <code>window.showToast</code>, не <code>showSuccessModal</code>: «Объект создан» / «Объект обновлён» (<code>data.message</code> сервера) и «Объект успешно удалён.» (удаление из edit: после закрытия confirm — <code>hidden.bs.modal</code> у <code>#confirmDeleteModal</code>).</li>
     <li><b>Колонка «Название»</b> — при <code>locations.manage</code> тип <code>link</code> (<code>js-location-edit</code>, модалка edit); без manage — обычный <code>text</code>. См. <a href="/docs/documentation/reusable-ui-partials#datatable-clickable-names">reusable-ui-partials §3.2</a>.</li>
   </ul>
 
@@ -140,8 +140,9 @@
   <h2>6) Привязка групп (<code>team_ids</code>)</h2>
   <p>Sync через <code>TeamLocationSyncService::syncTeamsForLocation</code>: выбранным группам проставляется <code>teams.location_id</code> текущего объекта; снятым — <code>null</code>. Обратная сторона — select <code>location_id</code> на <a href="/docs/documentation/admin-teams">/admin/teams</a>. Подробнее: <a href="/docs/documentation/location-team-bindings">Объекты ↔ группы</a>.</p>
   <p class="small">
-    <code>PUT /admin/locations/{id}</code> без AJAX → redirect <code>admin.locations.index</code> (запись обновлена, в т.ч. sync <code>team_ids</code>).
-    Тест: <code>GenericMultiselectFullAccessFeatureTest::test_update_location_non_ajax_redirects_and_syncs_team_ids</code>.
+    <code>POST /admin/locations</code> и <code>PUT /admin/locations/{id}</code> без AJAX → redirect <code>admin.locations.index</code> (запись создана/обновлена, в т.ч. sync <code>team_ids</code>).
+    Тесты: <code>GenericMultiselectFullAccessFeatureTest::test_update_location_non_ajax_redirects_and_syncs_team_ids</code>,
+    <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code> (store/update/delete).
   </p>
 
   <h2>7) Связанные сущности</h2>
@@ -161,11 +162,13 @@
     <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — гость/403, 200 для всех endpoint'ов при <code>locations.view</code> / <code>locations.manage</code></li>
     <li><code>tests/Feature/Crm/Locations/LocationAdminUserFeatureTest.php</code> — CRUD, фильтр, колонка, валидация <code>admin_user_ids</code>, лимит 5, сокращение label, сортировка, cascade</li>
     <li><code>tests/Feature/Crm/Locations/LocationAdminUsersPageFullAccessFeatureTest.php</code> — smoke 200 всех endpoint'ов с M2M-админами, контроль доступа view/manage/guest</li>
-    <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select</li>
+    <li><code>tests/Feature/Crm/Locations/LocationsFeatureTest.php</code> — в т.ч. <code>district_id</code>, фильтр активных районов в select, toast create/edit на index</li>
     <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code>,
       <code>SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,
-      <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code> —
-      удаление объекта: toast в UI, AJAX JSON «Объект удалён», non-AJAX 302 + запись удалена</li>
+      <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code>,
+      <code>BladeInlineJsSyntaxTest</code>,
+      <code>tests/Unit/Documentation/LocationsToastDocumentationContractTest.php</code> —
+      create/edit/delete объекта: toast в UI («Объект создан» / «Объект обновлён» / «Объект успешно удалён.»), AJAX JSON «Объект создан» / «Объект обновлён» / «Объект удалён», non-AJAX 302 + запись создана/обновлена/удалена</li>
     <li><code>tests/Feature/Crm/Locations/LocationsPageFullAccessFeatureTest.php</code> — full access + district и admin payloads (все endpoint'ы → 200)</li>
     <li><code>tests/Feature/Crm/LocationTeam/LocationTeamIntegrationFeatureTest.php</code>, <code>LocationTeamPagesAccessFeatureTest.php</code> — sync <code>team_ids</code>, smoke 200</li>
     <li><code>tests/Feature/Crm/Directories/DirectoriesPageFullAccessFeatureTest.php</code> — сквозной доступ справочников</li>

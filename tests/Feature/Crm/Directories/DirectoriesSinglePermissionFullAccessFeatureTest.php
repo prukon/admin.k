@@ -270,7 +270,8 @@ final class DirectoriesSinglePermissionFullAccessFeatureTest extends CrmTestCase
 
     private function sidebarChunk(string $html): string
     {
-        $sidebarStart = strpos($html, 'nav-sidebar');
+        // CSS в <head> тоже содержит «nav-sidebar»; якорь — разметка меню.
+        $sidebarStart = strpos($html, 'nav nav-pills nav-sidebar');
         $this->assertNotFalse($sidebarStart, 'Sidebar not found');
 
         return substr($html, (int) $sidebarStart, 5000);

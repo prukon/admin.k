@@ -39,7 +39,7 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
         $this->assertStringContainsString('id="kidsMainToast"', $html);
         $this->assertStringContainsString('id="kidsMainToastBody"', $html);
         $this->assertStringContainsString('window.showToast', $html);
-        $this->assertStringContainsString('z-index: 1090', $html);
+        $this->assertStringContainsString('z-index: 4050', $html);
         $this->assertDoesNotMatchRegularExpression(
             '/id="kidsMainToast"[^>]*\bshow\b/',
             $html,
@@ -63,6 +63,64 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
             $layoutSuccessJsPos,
             'Toast в footer layout после successModal, не внутри #editUserModal: повторное открытие карточки не пересобирает всплывайку'
         );
+    }
+
+    public function test_shared_toast_partial_sits_above_confirm_and_error_modals(): void
+    {
+        $toast = (string) file_get_contents(resource_path('views/partials/ui/main-toast.blade.php'));
+
+        $this->assertStringContainsString('z-index: 4050', $toast);
+        $this->assertStringNotContainsString('z-index: 1090', $toast);
+        $this->assertStringContainsString('document.body.appendChild(wrap)', $toast);
+        $this->assertStringContainsString('existing.dispose()', $toast);
+        $this->assertStringContainsString('autohide: true', $toast);
+    }
+
+    public function test_location_delete_shows_toast_after_confirm_modal_is_hidden(): void
+    {
+        $js = (string) file_get_contents(resource_path('views/admin/locations/index.blade.php'));
+        $deletePos = strpos($js, 'function deleteLocation()');
+        $this->assertNotFalse($deletePos);
+        $chunk = substr($js, $deletePos, 2800);
+
+        $this->assertStringContainsString("window.showToast('Объект успешно удалён.', 'success')", $chunk);
+        $this->assertStringContainsString(
+            "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast, { once: true })",
+            $chunk
+        );
+        $this->assertStringContainsString("'Accept': 'application/json'", $chunk);
+
+        $toastPos = strpos($chunk, "window.showToast('Объект успешно удалён.', 'success')");
+        $listenerPos = strpos($chunk, "confirmEl.addEventListener('hidden.bs.modal', showDeletedToast");
+        $this->assertNotFalse($toastPos);
+        $this->assertNotFalse($listenerPos);
+        $this->assertLessThan(
+            $listenerPos,
+            $toastPos,
+            'showDeletedToast с текстом тоста объявляется до слушателя hidden.bs.modal'
+        );
+    }
+
+    public function test_location_create_and_edit_show_toast_after_ajax_success(): void
+    {
+        $js = (string) file_get_contents(resource_path('views/admin/locations/index.blade.php'));
+
+        $createPos = strpos($js, "document.getElementById('locationCreateSubmit')");
+        $this->assertNotFalse($createPos);
+        $createChunk = substr($js, $createPos, 1600);
+        $this->assertStringContainsString("window.showToast(data.message || 'Объект создан', 'success')", $createChunk);
+        $this->assertStringContainsString('reloadLocationsTable()', $createChunk);
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $createChunk);
+
+        $editPos = strpos($js, "document.getElementById('locationEditSubmit')");
+        $this->assertNotFalse($editPos);
+        $editEnd = strpos($js, 'function deleteLocation()', $editPos);
+        $this->assertNotFalse($editEnd);
+        $editChunk = substr($js, $editPos, $editEnd - $editPos);
+        $this->assertStringContainsString("window.showToast(data.message || 'Объект обновлён', 'success')", $editChunk);
+        $this->assertStringContainsString('reloadLocationsTable()', $editChunk);
+        $this->assertStringContainsString("if (typeof window.showToast === 'function')", $editChunk);
+        $this->assertStringNotContainsString("showSuccessModal('Редактирование объекта'", $editChunk);
     }
 
     public function test_each_listed_success_trigger_uses_shared_toast_instead_of_success_modal(): void
@@ -102,6 +160,16 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
                 'path'  => resource_path('views/admin/legal-entities/index.blade.php'),
                 'toast' => "window.showToast(data.message || 'Юр. лицо обновлено', 'success')",
                 'absent'=> 'showSuccessModal',
+            ],
+            'location-create' => [
+                'path'  => resource_path('views/admin/locations/index.blade.php'),
+                'toast' => "window.showToast(data.message || 'Объект создан', 'success')",
+                'absent'=> "showSuccessModal('Создание объекта'",
+            ],
+            'location-edit' => [
+                'path'  => resource_path('views/admin/locations/index.blade.php'),
+                'toast' => "window.showToast(data.message || 'Объект обновлён', 'success')",
+                'absent'=> "showSuccessModal('Редактирование объекта'",
             ],
             'location-delete' => [
                 'path'  => resource_path('views/admin/locations/index.blade.php'),
@@ -189,12 +257,17 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
             $this->assertFileExists($path, $label);
             $content = (string) file_get_contents($path);
             $this->assertStringContainsString(
-                'Дополнительный платеж успешно создан.',
+                "window.showToast('Дополнительный платеж успешно создан.', 'success')",
                 $content,
-                "{$label}: fallback toast после create"
+                "{$label}: create — общий #kidsMainToast"
             );
-            $this->assertStringContainsString('window.showToast', $content, $label);
+            $this->assertStringContainsString(
+                "window.showToast('Изменения сохранены.', 'success')",
+                $content,
+                "{$label}: update — общий #kidsMainToast, без alert/#priceToast"
+            );
             $this->assertStringNotContainsString('showSuccessModal', $content, $label);
+            $this->assertStringNotContainsString('priceToast', $content, $label);
         }
     }
 

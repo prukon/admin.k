@@ -129,7 +129,22 @@ final class LocationsFeatureTest extends CrmTestCase
             ->assertSee('id="locationDeleteBtn"', false)
             ->assertSee('confirm-delete-modal', false)
             ->assertSee('deleteLocation', false)
-            ->assertSee('showConfirmDeleteModal', false);
+            ->assertSee('showConfirmDeleteModal', false)
+            ->assertSee("window.showToast('Объект успешно удалён.', 'success')", false)
+            ->assertSee("confirmEl.addEventListener('hidden.bs.modal', showDeletedToast", false);
+    }
+
+    public function test_index_create_and_edit_success_use_toast(): void
+    {
+        $this->grantPermission('locations.view');
+        $this->grantPermission('locations.manage');
+
+        $this->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertSee("window.showToast(data.message || 'Объект создан', 'success')", false)
+            ->assertSee("window.showToast(data.message || 'Объект обновлён', 'success')", false)
+            ->assertDontSee("showSuccessModal('Создание объекта'", false)
+            ->assertDontSee("showSuccessModal('Редактирование объекта'", false);
     }
 
     public function test_index_renders_toolbar_and_filters_like_users_page(): void
@@ -516,7 +531,8 @@ final class LocationsFeatureTest extends CrmTestCase
             'name' => 'Кабинет 1',
             'address' => 'Адрес',
             'is_enabled' => 1,
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('message', 'Объект создан');
 
         $this->assertDatabaseHas('locations', [
             'partner_id' => $this->partner->id,
@@ -741,7 +757,8 @@ final class LocationsFeatureTest extends CrmTestCase
             'address' => 'Адрес 2',
             'description' => 'Описание',
             'is_enabled' => 0,
-        ])->assertOk();
+        ])->assertOk()
+            ->assertJsonPath('message', 'Объект обновлён');
 
         $this->assertDatabaseHas('locations', [
             'id' => $loc->id,

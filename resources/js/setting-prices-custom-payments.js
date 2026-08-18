@@ -39,29 +39,10 @@
         });
     }
 
-    function toast(msg, isError) {
-        if (typeof window.bootstrap === 'undefined' || !bootstrap.Toast) {
-            alert(msg || (isError ? 'Ошибка' : 'OK'));
-            return;
+    function showAppToast(message, type) {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
         }
-
-        var wrapper = document.querySelector('.position-fixed.bottom-0.end-0.p-3');
-        if (!wrapper) {
-            alert(msg || (isError ? 'Ошибка' : 'OK'));
-            return;
-        }
-
-        var toastEl = document.getElementById('priceToast');
-        var bodyEl = document.getElementById('priceToastBody');
-        if (!toastEl || !bodyEl) {
-            alert(msg || (isError ? 'Ошибка' : 'OK'));
-            return;
-        }
-
-        bodyEl.textContent = msg || (isError ? 'Ошибка' : 'OK');
-        toastEl.classList.remove('bg-success', 'bg-danger');
-        toastEl.classList.add(isError ? 'bg-danger' : 'bg-success');
-        new bootstrap.Toast(toastEl).show();
     }
 
     function syncEditStatusCommentVisibility() {
@@ -294,12 +275,10 @@
                         }
                         if (typeof window.showToast === 'function') {
                             window.showToast('Дополнительный платеж успешно создан.', 'success');
-                        } else {
-                            toast('Дополнительный платеж успешно создан.', false);
                         }
                     })
                     .catch(function (err) {
-                        toast(err && err.message ? err.message : 'Ошибка', true);
+                        showAppToast(err && err.message ? err.message : 'Ошибка', 'error');
                     })
                     .finally(function () {
                         if (btn) btn.disabled = false;
@@ -366,10 +345,12 @@
                         if (dtApi) {
                             dtApi.reload({ keepPage: true });
                         }
-                        toast('Изменения сохранены.', false);
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('Изменения сохранены.', 'success');
+                        }
                     })
                     .catch(function (err) {
-                        toast(err && err.message ? err.message : 'Ошибка', true);
+                        showAppToast(err && err.message ? err.message : 'Ошибка', 'error');
                     })
                     .finally(function () {
                         if (btn) btn.disabled = false;
@@ -384,7 +365,7 @@
                 if (!id) return;
 
                 if (typeof window.showConfirmDeleteModal !== 'function') {
-                    toast('Не загружена форма подтверждения. Обновите страницу.', true);
+                    showAppToast('Не загружена форма подтверждения. Обновите страницу.', 'error');
                     return;
                 }
 
@@ -429,7 +410,9 @@
                                 if (dtApi) {
                                     dtApi.reload({ keepPage: true });
                                 }
-                                toast('Дополнительный платеж удалён.', false);
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast('Дополнительный платеж удалён.', 'success');
+                                }
                             })
                             .catch(function (err) {
                                 if (window.$ && editEl) {
@@ -438,7 +421,7 @@
                                 if (editEl && window.bootstrap && bootstrap.Modal) {
                                     bootstrap.Modal.getInstance(editEl)?.hide();
                                 }
-                                toast(err && err.message ? err.message : 'Ошибка', true);
+                                showAppToast(err && err.message ? err.message : 'Ошибка', 'error');
                             });
                     }
                 );
@@ -450,14 +433,14 @@
             if (!btn) return;
 
             if (!dtApi || !dtApi.table) {
-                toast('Таблица ещё не загружена. Обновите страницу.', true);
+                showAppToast('Таблица ещё не загружена. Обновите страницу.', 'error');
                 return;
             }
 
             var tr = btn.closest('tr');
             var rowData = tr ? dtApi.table.row(tr).data() : null;
             if (!rowData) {
-                toast('Не удалось найти запись для редактирования.', true);
+                showAppToast('Не удалось найти запись для редактирования.', 'error');
                 return;
             }
 

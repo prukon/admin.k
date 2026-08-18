@@ -249,10 +249,11 @@
     <code>ScheduleTrainerSalaryKansasFeatureTest</code> (формула, общие поля, два слота в день, слепок, не считаются disabled / не «Посетил» / без pivot / перекрытый статус),
     <code>TrainerTypesFeatureTest</code> (системный тип, права, CRUD, 403/401/404, <code>can_delete</code>, черновики vs слепки),
     <code>TrainerTypesNonAjaxSafetyNetFeatureTest</code> (CRUD типов без X-Requested-With → JSON не пустой 200; карточка тренера Канзаса без типа → 302 <code>trainer_type_id</code>),
-    <code>TrainerTypesUiContractsFeatureTest</code> (первое открытие: selected системного типа, hidden/disabled classic-полей, кнопка типов только при manage на ЗП, readonly оклад/премия),
+    <code>TrainerTypesUiContractsFeatureTest</code> (первое открытие: selected системного типа, hidden/disabled classic-полей, кнопка типов только при manage на ЗП, readonly оклад/премия; удаление типа — <code>showConfirmDeleteModal</code>, AJAX-список, toast),
     <code>KansasTrainerSalaryCalculatorTest</code> (пример 41 000 ₽, пол премии),
     <code>BladeInlineJsSyntaxTest::test_trainer_salary_js_kansas_reload_contract_is_valid_javascript</code> (<code>node --check</code>, hotfix-копия, <code>reload_table</code> + <code>extra.team_id</code> + <code>data-save-trainer-id</code>; GET <code>…/data</code> вызывает <code>applyMonthSettingsHtml</code>, PATCH/«Расчет»/«Сформировать всех» — нет, чтобы не затирать модалку; клик «Настройки месяца» не дергает fetch),
-    <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code> (<code>public/js/trainer-types.js</code>, дефолты 0.00, <code>reason === 'open'</code> не пересобирает таблицу ЗП),
+    <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code> (<code>public/js/trainer-types.js</code>, дефолты 0.00, <code>reason === 'open'</code> не пересобирает таблицу ЗП, удаление через <code>showConfirmDeleteModal</code>),
+    <code>TrainerTypeDeleteUiDocumentationContractTest</code> (анонс /doc и admin-trainers §6.3 = JS удаления типа),
     <code>ScheduleTrainerSalarySheetsFeatureTest</code> — см. <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
     Базовый кейс: <code>ScheduleTrainerSalaryTestCase</code> extends <code>ScheduleJournalTestCase</code>.
   </p>
