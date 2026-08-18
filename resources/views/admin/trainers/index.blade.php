@@ -899,7 +899,7 @@
             document.getElementById('trainer-change-password-btn')?.addEventListener('click', function () {
                 this.style.display = 'none';
                 const passWrap = document.getElementById('trainer-change-pass-wrap');
-                if (passWrap) passWrap.style.display = '';
+                if (passWrap) passWrap.style.display = 'block';
             });
 
             document.getElementById('trainer-cancel-change-password-btn')?.addEventListener('click', function () {

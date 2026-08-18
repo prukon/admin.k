@@ -54,6 +54,24 @@ final class ChatPresenceUxFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('chat-li-unread', $ui['list_unread_open']['html']);
     }
 
+    public function test_thread_list_shows_draft_preview_instead_of_last_message(): void
+    {
+        $ui = $this->simulatePresenceUi();
+
+        $draftHtml = $ui['list_draft']['html'];
+        $this->assertStringContainsString('Черновик: моя запись', $draftHtml);
+        $this->assertStringContainsString('is-draft', $draftHtml);
+        $this->assertStringContainsString('01.08.26', $draftHtml);
+        $this->assertStringNotContainsString('>текст</div>', $draftHtml);
+
+        $this->assertStringContainsString('>текст</div>', $ui['list_online']['html']);
+        $this->assertStringNotContainsString('Черновик:', $ui['list_online']['html']);
+        $this->assertStringNotContainsString('is-draft', $ui['list_online']['html']);
+        $this->assertStringNotContainsString('Черновик:', $ui['list_draft_empty']['html']);
+        $this->assertStringNotContainsString('is-draft', $ui['list_draft_empty']['html']);
+        $this->assertStringContainsString('>текст</div>', $ui['list_draft_empty']['html']);
+    }
+
     public function test_thread_list_shows_outgoing_ticks_only_when_last_message_is_mine(): void
     {
         $ui = $this->simulatePresenceUi();
@@ -354,6 +372,7 @@ eval(extractFn(chatJs, 'fmtTime'));
 eval(extractFn(chatJs, 'dashText'));
 eval(extractFn(chatJs, 'telHref'));
 eval(extractFn(chatJs, 'phoneHtml'));
+eval(extractFn(chatJs, 'normalizeDraft'));
 eval(extractFn(chatJs, 'renderThreads'));
 eval(extractFn(chatJs, 'renderContacts'));
 eval(extractFn(chatJs, 'renderPeerCard'));
@@ -414,6 +433,12 @@ const ticks_read = renderOneThread(Object.assign({}, baseThread, {
 const ticks_incoming = renderOneThread(Object.assign({}, baseThread, {
     last_message_is_mine: false,
     last_message_is_read: true
+}));
+const list_draft = renderOneThread(Object.assign({}, baseThread, {
+    draft_body: 'моя запись'
+}));
+const list_draft_empty = renderOneThread(Object.assign({}, baseThread, {
+    draft_body: '   '
 }));
 
 const contacts_online = renderOneContact({
@@ -587,6 +612,8 @@ process.stdout.write(JSON.stringify({
     ticks_unread: ticks_unread,
     ticks_read: ticks_read,
     ticks_incoming: ticks_incoming,
+    list_draft: list_draft,
+    list_draft_empty: list_draft_empty,
     contacts_online: contacts_online,
     contacts_offline: contacts_offline,
     contacts_dash_parent: contacts_dash_parent,

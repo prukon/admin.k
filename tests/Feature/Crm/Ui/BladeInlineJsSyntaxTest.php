@@ -56,7 +56,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'ulp public pay page' => ['payment/ulp-public-pay.blade.php'];
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'locations index delete toast ajax' => ['admin/locations/index.blade.php'];
-        yield 'settings roles create toast ajax' => ['admin/setting/rule.blade.php'];
+        yield 'settings roles create and delete toast ajax' => ['admin/setting/rule.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
         yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
@@ -471,6 +471,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("fieldError(res.data, 'user_id')", $content);
         $this->assertStringContainsString('setComposerEnabled(true)', $content);
         $this->assertStringContainsString("getElementById('msgInput').focus()", $content);
+        $this->assertStringContainsString('persistLeavingDraft(threadId)', $content);
+        $this->assertStringContainsString("threadUrl(id, '/draft')", $content);
         $this->assertStringContainsString('startDialogBusy', $content);
         $this->assertStringContainsString('Number(t.peer_id) !== Number(patch.peer_id)', $content);
         $this->assertStringContainsString("contactsSearch').value = ''", $content);
@@ -508,6 +510,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('is-offline', $renderThreadsChunk);
         $this->assertStringContainsString('openThread(t.id)', $renderThreadsChunk);
         $this->assertStringContainsString('chat-li-unread', $renderThreadsChunk);
+        $this->assertStringContainsString('Черновик: ', $renderThreadsChunk);
+        $this->assertStringContainsString('is-draft', $renderThreadsChunk);
         $this->assertStringNotContainsString('bg-primary', $renderThreadsChunk);
         $this->assertStringNotContainsString('openPeerCard', $renderThreadsChunk);
 
@@ -4058,6 +4062,48 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 );
             }
         }
+    }
+
+    /**
+     * UX-баг: удаление роли звало success-модалку и location.reload().
+     * Create-путь обязан ставить data-role-id — иначе delete без reload не снимет колонку.
+     */
+    public function test_role_delete_without_reload_js_updates_dom_instead_of_success_modal(): void
+    {
+        $path = resource_path('views/admin/setting/rule.blade.php');
+        $this->assertFileExists($path);
+        $js = (string) file_get_contents($path);
+
+        $this->assertStringNotContainsString('showSuccessModal("Удаление роли"', $js);
+        $this->assertStringNotContainsString('location.reload();', $js);
+        $this->assertStringContainsString("window.showToast('Роль успешно удалена.', 'success')", $js);
+        $this->assertStringContainsString('function removeRoleColumnFromPermissionTables', $js);
+        $this->assertStringContainsString('function removeRoleFromRolesTable', $js);
+
+        $appendPos = strpos($js, 'function appendRoleColumnToPermissionTables');
+        $this->assertNotFalse($appendPos);
+        $this->assertStringContainsString(".attr('data-role-id', roleId)", substr($js, $appendPos, 1400));
+
+        $removePos = strpos($js, 'function removeRoleColumnFromPermissionTables');
+        $this->assertNotFalse($removePos);
+        $this->assertStringContainsString('thead th[data-role-id="', substr($js, $removePos, 1100));
+        $this->assertLessThan($removePos, $appendPos);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function removeRoleColumnFromPermissionTables',
+            'blade-js-role-delete-column'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function removeRoleFromRolesTable',
+            'blade-js-role-delete-row'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "window.showToast('Роль успешно удалена.', 'success')",
+            'blade-js-role-delete-toast'
+        );
     }
 
     /**

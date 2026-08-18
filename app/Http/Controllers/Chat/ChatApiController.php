@@ -10,6 +10,7 @@ use App\Http\Requests\Chat\ChatUsersIndexRequest;
 use App\Http\Requests\Chat\ChatUserShowRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
+use App\Http\Requests\Chat\SaveChatDraftRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Http\Requests\Chat\StoreChatThreadRequest;
 use App\Models\ChatThread;
@@ -148,6 +149,21 @@ class ChatApiController extends AdminBaseController
             return response()->json([
                 'ok' => true,
                 'unread_total' => $unreadTotal,
+            ]);
+        }
+
+        return redirect()->route('chat.index');
+    }
+
+    public function saveDraft(SaveChatDraftRequest $request, ChatThread $thread): JsonResponse|RedirectResponse
+    {
+        $this->assertParticipant($thread);
+        $draft = $this->chat->saveDraft($thread, (int) $this->currentUser()->id, $request->draftBody());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json([
+                'ok' => true,
+                'draft_body' => $draft,
             ]);
         }
 

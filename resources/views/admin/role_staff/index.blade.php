@@ -584,21 +584,42 @@
                 showFormError(editForm, result.data.message || 'Не удалось сохранить');
             });
 
-            document.getElementById('roleStaffDeleteBtn')?.addEventListener('click', async function () {
+            document.getElementById('roleStaffDeleteBtn')?.addEventListener('click', function () {
                 const userId = $('#role-staff-edit-user-id').val();
-                if (!userId || !confirm('Удалить пользователя?')) return;
-                const res = await fetch(urlFromTemplate(cfg.destroyUrlTemplate, userId), {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': token,
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                });
-                if (res.ok) {
-                    bootstrap.Modal.getInstance(document.getElementById('roleStaffEditModal'))?.hide();
-                    reloadTable();
-                }
+                if (!userId) return;
+
+                showConfirmDeleteModal(
+                    'Удаление пользователя',
+                    'Вы уверены, что хотите удалить пользователя?',
+                    function () {
+                        const confirmEl = document.getElementById('confirmDeleteModal');
+                        const editEl = document.getElementById('roleStaffEditModal');
+                        $(confirmEl).off('hidden.bs.modal.return');
+
+                        fetch(urlFromTemplate(cfg.destroyUrlTemplate, userId), {
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': token,
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        }).then(async function (res) {
+                            const data = await res.json().catch(function () { return {}; });
+                            if (res.ok) {
+                                $(editEl).off('hidden.bs.modal.openNext');
+                                bootstrap.Modal.getInstance(editEl)?.hide();
+                                reloadTable();
+                                if (typeof window.showToast === 'function') {
+                                    window.showToast(data.message || 'Пользователь удалён', 'success');
+                                }
+                                return;
+                            }
+                            if (typeof showErrorModal === 'function') {
+                                showErrorModal('Ошибка', data.message || 'Не удалось удалить пользователя', 0);
+                            }
+                        });
+                    }
+                );
             });
 
             if (cfg.canChangePassword) {

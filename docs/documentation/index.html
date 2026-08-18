@@ -28,6 +28,47 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="trainer-password-form-index">Тренер: «Изменить пароль» открывает поле ввода (2026‑08)</h2>
+  <div class="note">
+    На <code>/admin/trainers</code> в модалке «Редактирование тренера» клик
+    «Изменить пароль» прятал кнопку, а поле нового пароля не появлялось.
+    Это не смена API и не всплывайка после «Применить»
+    (<a href="/doc#admin-password-change-toast-index">анонс toast</a>): ломался только показ формы.
+    <br><br>
+    1) <b>Почему.</b> Блок <code>#trainer-change-pass-wrap</code> с классами
+    <code>buttons-wrap change-pass-wrap</code> в разметке скрыт
+    (<code>style="display: none"</code>). В Vite-CSS кабинета
+    (<code>resources/css/style.css</code>, layout <code>admin2</code>) у
+    <code>.change-pass-wrap</code> тоже <code>display: none</code>.
+    JS ставил <code>style.display = ''</code> — inline-стиль снимался,
+    и правило CSS снова прятало форму. Кнопка при этом уже
+    <code>display: none</code>.
+    <br>
+    2) <b>Как сейчас.</b> Клик <code>#trainer-change-password-btn</code>
+    прячет кнопку и ставит <code>#trainer-change-pass-wrap</code>
+    <code>display: block</code> (перекрывает CSS). Поле, «Применить» и «Отмена»
+    видны в той же модалке, без reload. «Отмена», закрытие модалки и успешное
+    «Применить» снова скрывают блок (<code>resetTrainerPasswordUi</code>).
+    Без <code>users.password.update</code> кнопка disabled
+    (<code>opacity-50 pe-none</code>), форму не открыть.
+    <br>
+    3) <b>Не путать с другими экранами.</b> Ученик
+    (<code>editUser</code>, тот же класс <code>.change-pass-wrap</code>) —
+    jQuery <code>$('#change-pass-wrap').show()</code> (для div это тоже block).
+    Свой пароль в ЛК — <code>display: inline-block</code>.
+    Администратор / кастомная роль — <code>#role-staff-change-pass-wrap</code>
+    <b>без</b> класса <code>.change-pass-wrap</code>, там
+    <code>display: ''</code> достаточно. Это <b>не</b> welcome-письмо
+    и <b>не</b> «Отправить новый пароль по почте» (у тренера resend нет).
+    <br><br>
+    Подробно — <a href="/docs/documentation/admin-trainers#trainer-edit-password">admin-trainers §6.4</a>,
+    toast после сохранения — <a href="/doc#admin-password-change-toast-index">анонс смены пароля</a>.
+    Тесты: <code>AdminUserPasswordUpdateUiContractsFeatureTest</code>
+    (скрыт до клика, показ через <code>display: block</code>, не пустой inline),
+    <code>TrainerPasswordFormDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
   <h2 id="chat-presence-index">Чат: онлайн, галочки исходящего, карточка собеседника (2026‑08)</h2>
   <div class="note">
     В чате видно, кто сейчас в кабинете, прочитано ли последнее исходящее,
@@ -53,6 +94,9 @@
     не прочитал, две зелёные — после. Входящее последнее — галочек нет.
     Онлайн — зелёная точка на аватарке. Офлайн в списке точку <b>не</b> рисуем (красной нет).
     Клик по диалогу слева ставит фокус в поле ввода <code>#msgInput</code>.
+    Неотправленный текст — свой черновик на сервере (<code>participants.draft_body</code>);
+    в списке вместо последнего сообщения превью <b>Черновик: …</b>
+    (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>). Собеседник чужой черновик не видит.
     <br>
     3) <b>Контакты.</b> Зелёная точка если онлайн, красная если офлайн (в том числе
     если человек ещё ни разу не пинговал). После аватарки три колонки: слева фамилия и имя
@@ -127,11 +171,16 @@
     блок смены пароля <b>не рендерится</b>. У ученика и тренера кнопка есть,
     но disabled (<code>opacity-50 pe-none</code>) с подсказкой.
     Гость — 302/401, без права — 403, чужой партнёр — 404.
+    <br>
+    5) <b>Показ поля у тренера.</b> Клик «Изменить пароль» должен открыть
+    <code>#trainer-change-pass-wrap</code> через <code>display: block</code>
+    (CSS <code>.change-pass-wrap { display: none }</code> иначе снова прячет блок).
+    Отдельный анонс — <a href="/doc#trainer-password-form-index">форма пароля тренера</a>.
     <br><br>
     Подробно —
     <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>,
     ученики — <a href="/docs/documentation/admin-users#user-edit-password">admin-users §4.5.3</a>,
-    тренеры — <a href="/docs/documentation/admin-trainers">admin-trainers §6</a>,
+    тренеры — <a href="/docs/documentation/admin-trainers#trainer-edit-password">admin-trainers §6.4</a>,
     toast — <a href="/docs/documentation/reusable-ui-partials#kids-main-toast">reusable-ui-partials §8</a>.
     Тесты: <code>AdminUserPasswordUpdateAccessFeatureTest</code>,
     <code>AdminUserPasswordUpdateAjaxContractFeatureTest</code>
@@ -143,27 +192,55 @@
 
   <h2 id="success-toast-instead-of-modal-index">Успех без лишнего «OK»: всплывайка вместо success-модалки (2026‑08)</h2>
   <div class="note">
-    На проде после create/edit/delete без reload страницы открывалась success-модалка —
-    лишний клик «OK». Для согласованного списка действий успех идёт во всплывайку
-    <code>#kidsMainToast</code> / <code>window.showToast</code> (layout <code>admin2</code>,
-    <code>z-index: 1090</code>), без перезагрузки.
+    На проде после AJAX-успеха без reload страницы открывалась success-модалка —
+    лишний клик «OK». Для списка ниже успех идёт во всплывайку справа снизу:
+    <code>#kidsMainToast</code> / <code>window.showToast(message, type)</code>
+    (partial <code>partials.ui.main-toast</code> в layout <code>admin2</code>,
+    поверх модалки, <code>z-index: 1090</code>, типы
+    <code>success</code> / <code>error</code> / <code>warning</code> / <code>info</code>).
+    Это та же всплывайка, что у смены пароля в карточке
+    (<a href="/doc#admin-password-change-toast-index">анонс</a>).
     <br><br>
-    Список: удаление ученика; CRUD тренера; создание администратора; юр. лицо create/edit;
-    удаление объекта; типы тренера; «Создать клиента» у лида (общий toast, не локальный
-    <code>#mainToast</code>); цена одного ученика и «Применить» справа на вкладке «по месяцам»;
-    создание доп. платежа (оба JS: Vite-источник и <code>public/js</code>); создание роли;
-    свой пароль в ЛК; смена пароля в карточке ученика / тренера (без запасной success-модалки);
-    повторная отправка пароля ученику по почте; удаление кастомной роли (без reload, колонка прав снимается на клиенте).
+    1) <b>Где toast, без перезагрузки страницы.</b>
+    Удаление ученика из edit (<code>DELETE /admin/user/{id}</code>, текст UI
+    «Пользователь успешно удален.» — буква «е»; JSON <code>success</code> с «ё»).
+    CRUD карточки тренера (create/edit/delete: <code>message</code> сервера или fallback
+    «Тренер успешно создан.» / «обновлён» / «удалён»).
+    Создание администратора (<code>message</code> сервера, обычно «Пользователь создан»).
+    Юр. лицо create/edit («Юр. лицо создано» / «обновлено»).
+    Удаление объекта: UI «Объект успешно удалён.» (JSON <code>message</code> — «Объект удалён»).
+    Типы тренера: «Тип тренера сохранён» / «удалён».
+    «Создать клиента» у лида: <code>window.showToast</code> (общий), не локальный
+    <code>#mainToast</code> заявок.
+    Карандаш одного ученика и «Применить» справа на вкладке «по месяцам»
+    (Vite <code>resources/js/settings-prices.js</code>; вкладка <b>не</b> грузит
+    <code>public/js/settings-prices.js</code>).
+    Создание доп. платежа — оба JS-пути (Vite-источник и
+    <code>public/js/setting-prices-custom-payments.js</code>, его грузит страница).
+    Создание роли и удаление кастомной роли (без <code>location.reload()</code>:
+    колонка в матрице и строка в таблице ролей снимаются на клиенте).
+    Свой пароль в ЛК (<code>PUT /account-settings/user/password</code>).
+    Повторная отправка пароля ученику по почте
+    (<code>POST /admin/users/{id}/send-welcome-credentials</code>).
     <br>
-    Не в списке (модалка как было): сохранение карточки ученика,
-    «Применить» слева всем группам, CRUD групп/партнёров.
+    2) <b>Не в списке</b> — по-прежнему success-модалка (часто с reload):
+    «Добавить» ученика на <code>/admin/users</code> (<code>showSuccessModal</code> + reload;
+    из заявки create-модалка ученика не подключается),
+    сохранение карточки ученика (PATCH + reload),
+    «Применить» слева всем группам на «по месяцам»,
+    CRUD групп и партнёров, аватар, настройки сайта.
+    <br>
+    3) <b>Два JS-пути.</b> Регрессия часто в дубликате: доп. платёж — Vite и
+    <code>public/js</code>; тренер — create, edit и delete в одном blade;
+    лид — общий toast с <code>return</code> до локального.
     <br><br>
-    Подробно — <a href="/docs/documentation/reusable-ui-partials#kids-main-toast">reusable-ui-partials §8</a>.
+    Partial и API toast — <a href="/docs/documentation/reusable-ui-partials#kids-main-toast">reusable-ui-partials §8</a>.
     Тесты: <code>SuccessToastInsteadOfModalAccessFeatureTest</code>,
     <code>SuccessToastInsteadOfModalAjaxContractFeatureTest</code>,
     <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code>,
     <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code>
-    (в т.ч. UX-баг лишнего OK и негатив «не из списка → модалка»),
+    (UX-баг лишнего OK и негатив «не из списка → модалка»),
+    <code>SettingsRoleDeleteWithoutReloadFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code>.
   </div>
 
@@ -423,6 +500,8 @@
     Писать можно включённым пользователям текущей школы, не себе и не отключённым.
     Повторный диалог с тем же человеком не создаёт второй тред.
     Композер (поле и «Отправить») <b>disabled</b>, пока не выбран диалог.
+    Неотправленный текст хранится на сервере (<code>draft_body</code> участника) и в списке слева
+    показывается как <b>Черновик: …</b> (как в Telegram), пока сообщение не отправлено.
     У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после
     (в пузыре и слева от времени последнего <b>исходящего</b> в списке; входящее без галочек).
     Справа в списке — время последнего <b>сообщения</b>, не last seen.
@@ -2519,7 +2598,7 @@
     <li><a href="/docs/documentation/admin-legal-entities"><strong>Юр. лица (админка)</strong>: <code>/admin/legal-entities</code> — <code>legal_entities.view</code> / <code>manage</code> / <code>sm_register</code>, модалки CRUD, <b>корр. счёт</b> (<code>bank_corr_account</code>, CRM-only + плейсхолдер договоров), карточка sm-register, ShopCode T‑Bank, guardrails, <code>LegalEntityResolver</code></a></li>
     <li><a href="/docs/documentation/admin-teams">Группы (админка): <code>/admin/teams</code> — <code>groups.view</code>, фильтры по объекту / району / администратору объекта, «Стоимость», тренер, расписание, виды спорта</a></li>
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: <code>/admin/users</code> — ученики; <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок</a></li>
-    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
+    <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
     <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code></a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>

@@ -35,6 +35,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('reverb-status-overlay-index', $chunk);
         $this->assertStringContainsString('chat-presence-index', $chunk);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $chunk);
+        $this->assertStringContainsString('Черновик', $chunk);
+        $this->assertStringContainsString('draft_body', $chunk);
         $this->assertStringNotContainsString('красный бейдж', $chunk);
         $this->assertStringNotContainsString("wsPath: '/app'", str_replace(
             "<b>без</b> <code>wsPath: '/app'</code>",
@@ -80,6 +82,10 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat-li-unread', $html);
         $this->assertStringContainsString('#f3a12b', $html);
         $this->assertStringContainsString('#msgInput', $html);
+        $this->assertStringContainsString('draft_body', $html);
+        $this->assertStringContainsString('Черновик', $html);
+        $this->assertStringContainsString('chat.api.threads.draft', $html);
+        $this->assertStringContainsString('ChatDraftFeatureTest', $html);
         $this->assertStringContainsString('ChatPresenceFeatureTest', $html);
         $this->assertStringContainsString('ChatPresenceUxFeatureTest', $html);
         $this->assertStringContainsString('peerCardError', $html);
@@ -104,6 +110,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('оверлей статуса процесса/сокета для superadmin', $controller);
         $this->assertStringContainsString('онлайн (ping без messages.view)', $controller);
         $this->assertStringContainsString('карточка собеседника из шапки', $controller);
+        $this->assertStringContainsString('черновик на сервере', $controller);
     }
 
     public function test_doc_index_announces_chat_presence_without_contradicting_live_ux(): void
@@ -131,6 +138,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat-li-unread', $chunk);
         $this->assertStringContainsString('#f3a12b', $chunk);
         $this->assertStringContainsString('#msgInput', $chunk);
+        $this->assertStringContainsString('Черновик', $chunk);
+        $this->assertStringContainsString('draft_body', $chunk);
         $this->assertStringContainsString('не</b> рисуем', $chunk);
         $this->assertStringContainsString('красной нет', $chunk);
         $this->assertStringContainsString('parent_full_name', $chunk);

@@ -156,7 +156,7 @@
   <ul>
     <li>Список: ФИО, email, телефон, колонки «Оклад по умолчанию» и «Ставка за тренировку» (поля профиля <code>default_*</code>, в Канзасе на карточке не редактируются), статус, действия. При Канзасе в тулбаре кнопка «Типы».</li>
     <li><b>Создание</b> — модалка без аватара; обязательны имя и фамилия; email и пароль опциональны (если не включён welcome — §<a href="#trainer-welcome-credentials">6.2</a>). Classic: поля <code>default_base_salary</code>, <code>default_rate_per_training</code> (рубли, <code>numeric|min:0</code>, можно с копейками → в БД <code>*_cents</code>). Канзас: обязателен селект <code>trainer_type_id</code>; поля classic скрыты и disabled; сохранение карточки <code>default_*</code> не затирает. Успех create/edit/delete карточки — toast (<code>window.showToast</code>: «Тренер успешно создан.» / «обновлён» / «удалён»), не <code>showSuccessModal</code>.</li>
-    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). При первом открытии блок <code>#trainer-change-pass-wrap</code> скрыт. Успех: поле очищается, всплывайка «Пароль успешно изменен» (<code>#kidsMainToast</code> / <code>window.showToast</code>), не <code>showSuccessModal</code>. Повтор того же пароля на клиенте не шлётся. Без права кнопка disabled (<code>opacity-50 pe-none</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>). Анонс UX — <a href="/doc#admin-password-change-toast-index">/doc</a>.</li>
+    <li><b>Редактирование</b> — как у пользователя: аватар с cropper (<code>editAvatar</code>), маска телефона, смена пароля отдельной кнопкой (§<a href="#trainer-edit-password">6.4</a>) → <code>POST /admin/user/{id}/update-password</code> (право <code>users.password.update</code>). Успех: поле очищается, всплывайка «Пароль успешно изменен» (<code>#kidsMainToast</code> / <code>window.showToast</code>), не <code>showSuccessModal</code>. Повтор того же пароля на клиенте не шлётся. Без права кнопка disabled (<code>opacity-50 pe-none</code>). Повторной отправки пароля по email на странице тренеров <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>). Анонс UX — <a href="/doc#admin-password-change-toast-index">toast</a>, показ формы — <a href="/doc#trainer-password-form-index">/doc</a>.</li>
     <li>Ошибки валидации возвращаются JSON (<code>422</code>) и выводятся под полями формы.</li>
   </ul>
 
@@ -215,6 +215,31 @@
     Ошибка валидации: AJAX → 422 <code>errors[field]</code>; non-AJAX → 302 и ошибки сессии под полями.
     Карточка тренера: non-AJAX create/update → 302 на <code>/admin/trainers</code>; AJAX → JSON 200/422.
   </p>
+
+  <h3 id="trainer-edit-password">6.4) «Изменить пароль» в модалке редактирования</h3>
+  <div class="note">
+    Модалка <code>#trainerEditModal</code>, кнопка <code>#trainer-change-password-btn</code>
+    («Изменить пароль»), форма <code>#trainer-change-pass-wrap</code>
+    (классы <code>buttons-wrap change-pass-wrap</code>, поле <code>#trainer-new-password</code>,
+    «Применить» / «Отмена»).
+    <ul>
+      <li>При первом открытии и после закрытия модалки блок скрыт (<code>style="display: none"</code>).</li>
+      <li>В <code>resources/css/style.css</code> (Vite, layout <code>admin2</code>) у
+        <code>.change-pass-wrap</code> стоит <code>display: none</code>. Поэтому клик
+        <b>не</b> может ставить <code>style.display = ''</code> — CSS снова прячет форму,
+        а кнопка уже скрыта. Нужен явный <code>display: block</code>.</li>
+      <li>«Отмена», <code>hidden.bs.modal</code> и успешное «Применить» вызывают
+        <code>resetTrainerPasswordUi</code>: кнопка снова видна, блок <code>display: none</code>, поле пустое.</li>
+      <li>Сохранение пароля — тот же <code>POST /admin/user/{id}/update-password</code>,
+        toast, skip повторного пароля: <a href="/doc#admin-password-change-toast-index">анонс</a>,
+        не success-модалка.</li>
+      <li><b>Не</b> то же, что у ученика (jQuery <code>$('#change-pass-wrap').show()</code>),
+        своего пароля в ЛК (<code>display: inline-block</code>) и сотрудника
+        (<code>#role-staff-change-pass-wrap</code> <b>без</b> класса <code>.change-pass-wrap</code>).
+        Resend пароля по email на этой странице <b>нет</b>.</li>
+    </ul>
+    Анонс: <a href="/doc#trainer-password-form-index">/doc §форма пароля тренера</a>.
+  </div>
 
   <h2 id="schedule-journal-trainer">7) Тренеры в журнале <code>/schedule</code> (отметка «Посетил»)</h2>
   <div class="note">
@@ -288,7 +313,8 @@
       <li><code>tests/Feature/Crm/Trainers/TrainersAccessSmokeFeatureTest.php</code> — 200/403 по всем маршрутам, роль trainer в справочнике</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsFeatureTest.php</code> — <code>send_welcome_email</code> при create</li>
       <li><code>tests/Feature/Crm/Trainers/TrainerCreateWelcomeCredentialsNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX 302 + AJAX JSON-контракт</li>
-      <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — смена пароля тренера: скрытый блок, toast, skip повторного пароля (общий эндпоинт с админами/учениками)</li>
+      <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — смена пароля тренера: скрытый блок до клика, показ через <code>display: block</code> (не пустой inline — иначе CSS <code>.change-pass-wrap</code> прячет форму), toast, skip повторного пароля (общий эндпоинт с админами/учениками)</li>
+      <li><code>tests/Unit/Documentation/TrainerPasswordFormDocumentationContractTest.php</code> — анонс <code>/doc#trainer-password-form-index</code> и §6.4 совпадают с CSS/JS (ученик — jQuery <code>.show()</code>, сотрудник без класса <code>.change-pass-wrap</code>)</li>
       <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — успех create/edit/delete тренера и смена пароля тренера — toast, не success-модалка; негатив вне списка</li>
       <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalAccessFeatureTest.php</code>,
         <code>SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,

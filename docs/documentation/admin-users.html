@@ -901,8 +901,8 @@
       <tr>
         <td><b>Edit</b></td>
         <td>В основной форме <b>нет</b> <code>name="password"</code>. Кнопка «Изменить пароль» → поле + «Применить» / «Отмена» → отдельный <code>POST /admin/user/{id}/update-password</code> (<code>users.password.update</code>). PATCH профиля пароль не меняет.<br>
-        При первом открытии блок <code>#change-pass-wrap</code> скрыт. Успех: поле очищается, всплывайка «Пароль успешно изменен» (<code>#kidsMainToast</code> / <code>window.showToast</code>), не success-модалка и без запасного <code>showSuccessModal</code>. Повтор того же пароля на клиенте не шлётся (ключ — <code>userId</code>).
-        Анонс — <a href="/doc#admin-password-change-toast-index">/doc</a>.<br>
+        При первом открытии блок <code>#change-pass-wrap</code> скрыт; клик «Изменить пароль» — jQuery <code>$('#change-pass-wrap').show()</code> (класс <code>.change-pass-wrap</code> в CSS кабинета <code>display: none</code>; пустой inline-стиль форму не откроет). Успех: поле очищается, всплывайка «Пароль успешно изменен» (<code>#kidsMainToast</code> / <code>window.showToast</code>), не success-модалка и без запасного <code>showSuccessModal</code>. Повтор того же пароля на клиенте не шлётся (ключ — <code>userId</code>).
+        Анонс toast — <a href="/doc#admin-password-change-toast-index">/doc</a>. Показ поля у тренера — другой JS (<code>display: block</code>, <a href="/docs/documentation/admin-trainers#trainer-edit-password">admin-trainers §6.4</a>).<br>
         Без <code>users.password.update</code> кнопка disabled (<code>opacity-50 pe-none</code>) с подсказкой «Нет прав на изменение пароля».<br>
         Дополнительно для учеников с заполненным email — кнопка «Отправить новый пароль по почте» (<code>#send-welcome-credentials-btn</code>, §<a href="#user-welcome-credentials">5.1</a>): доступна при <code>users.view</code>, <b>не требует</b> <code>users.password.update</code>.</td>
       </tr>
@@ -915,9 +915,14 @@
   <h3>4.5.5) AJAX-submit</h3>
   <p>
     Обе формы: <code>e.preventDefault()</code> + <code>$.ajax</code> с <code>Accept: application/json</code>.
-    Успех create — reload или callback заявки; edit — reload / success modal.
+    Успех <b>create</b> на <code>/admin/users</code> — <code>showSuccessModal</code> + reload
+    (на заявках эта create-модалка не подключается — callback <code>onSchoolLeadUserCreated</code>).
+    Успех <b>PATCH карточки</b> — <code>showSuccessModal("Редактирование пользователя", …, 1)</code> + reload.
+    Успех <b>удаления</b> из edit — toast <code>window.showToast('Пользователь успешно удален.', 'success')</code>
+    (таблица DataTables без F5), не success-модалка.
     Ошибки 422 — подсветка полей, раскрытие аккордеонов с ошибками (<code>syncStudentUserAccordionsForErrors</code>).
     Non-AJAX POST create → redirect на <code>admin.user1</code>, запись создаётся (<code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>).
+    Анонс toast — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.
   </p>
 
   <h2>5) Создание ученика (<code>POST /admin/users</code>)</h2>
@@ -1373,7 +1378,7 @@
       <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateAccessFeatureTest.php</code> — ручная смена пароля: гость / без <code>users.password.update</code> 403 / 200 / чужой партнёр 404; GET/PUT/PATCH/DELETE → 404/405</li>
       <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors.password</code>, повтор только что сменённого пароля → 422 (UX-баг прода)</li>
       <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX POST пишет пароль; валидация 302 + session <code>errors.password</code></li>
-      <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — всплывайка <code>#kidsMainToast</code>, скрытый блок при первом открытии, @can, три JS-пути (админы / ученики / тренеры)</li>
+      <li><code>tests/Feature/Crm/Users/AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — всплывайка <code>#kidsMainToast</code>, скрытый блок при первом открытии, клик ученика — jQuery <code>.show()</code>, тренер — <code>display: block</code>, @can, три JS-пути (админы / ученики / тренеры)</li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php::test_admin_password_change_js_paths_show_toast_and_skip_same_password</code> — <code>node --check</code> toast + skip повторного пароля</li>
       <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — удаление ученика, смена пароля ученика и повторная отправка пароля по почте: toast, не success-модалка; сохранение карточки по-прежнему модалка</li>
       <li><code>tests/Feature/Crm/Users/ClientWelcomeCredentialsFullAccessFeatureTest.php</code> — доступ guest/403/200, UI-маркеры, foreign partner 404, не-ученик 422</li>

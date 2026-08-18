@@ -106,6 +106,43 @@ final class ChatNonAjaxSafetyNetFeatureTest extends ChatTestCase
             ->assertJsonPath('unread_total', 0);
     }
 
+    public function test_non_ajax_save_draft_redirects_and_persists_body(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $response = $this->from(route('chat.index'))
+            ->patch(route('chat.api.threads.draft', $thread->id), [
+                'body' => 'Нативный черновик',
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertRedirect(route('chat.index'));
+
+        $this->assertDatabaseHas('participants', [
+            'thread_id' => $thread->id,
+            'user_id' => $this->user->id,
+            'draft_body' => 'Нативный черновик',
+        ]);
+    }
+
+    public function test_non_ajax_too_long_draft_redirects_with_body_field_error(): void
+    {
+        $peer = $this->makePeer();
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $response = $this->from(route('chat.index'))
+            ->patch(route('chat.api.threads.draft', $thread->id), [
+                'body' => str_repeat('я', 5001),
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertRedirect(route('chat.index'));
+        $response->assertSessionHasErrors(['body']);
+    }
+
     public function test_non_ajax_store_thread_with_disabled_peer_redirects_with_user_id_error(): void
     {
         $disabled = $this->makePeer('Off_', ['is_enabled' => 0]);

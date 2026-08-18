@@ -56,6 +56,9 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
         ])->assertCreated();
 
         $this->patchJson(route('chat.api.threads.read', $threadId))->assertOk();
+        $this->patchJson(route('chat.api.threads.draft', $threadId), [
+            'body' => 'Scope draft',
+        ])->assertOk()->assertJsonPath('ok', true);
     }
 
     public function test_chat_users_returns_only_users_of_current_partner(): void
@@ -167,6 +170,9 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
             'body' => 'hack',
         ])->assertForbidden();
         $this->patchJson(route('chat.api.threads.read', $foreignOnlyThread->id))->assertForbidden();
+        $this->patchJson(route('chat.api.threads.draft', $foreignOnlyThread->id), [
+            'body' => 'hack draft',
+        ])->assertForbidden();
     }
 
     public function test_users_search_with_q_filters_within_current_partner(): void

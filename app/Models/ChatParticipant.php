@@ -18,6 +18,7 @@ class ChatParticipant extends Model
         'thread_id',
         'user_id',
         'last_read',
+        'draft_body',
     ];
 
     protected $casts = [

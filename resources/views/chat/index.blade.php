@@ -26,6 +26,7 @@
             font-size: .9rem; color: #6c757d; overflow: hidden;
             white-space: nowrap; text-overflow: ellipsis; text-align: left;
         }
+        .chat-li-preview.is-draft { color: #f3a12b; font-style: italic; }
         .chat-li-meta {
             flex: 0 0 auto; display: flex; flex-direction: column;
             align-items: flex-end; gap: .15rem;

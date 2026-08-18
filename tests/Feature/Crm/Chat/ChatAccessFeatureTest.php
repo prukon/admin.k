@@ -30,6 +30,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['GET', 'chat.api.threads.messages.index', ['thread' => $threadId]],
             ['POST', 'chat.api.threads.messages.store', ['thread' => $threadId, 'body' => 'x']],
             ['PATCH', 'chat.api.threads.read', ['thread' => $threadId]],
+            ['PATCH', 'chat.api.threads.draft', ['thread' => $threadId, 'body' => 'черновик']],
         ];
     }
 
@@ -112,6 +113,9 @@ final class ChatAccessFeatureTest extends ChatTestCase
         $this->assertNotSame('', trim((string) $send->getContent()));
 
         $this->patchJson(route('chat.api.threads.read', $threadId))->assertOk();
+        $this->patchJson(route('chat.api.threads.draft', $threadId), [
+            'body' => 'Access draft',
+        ])->assertOk()->assertJsonPath('ok', true);
     }
 
     public function test_guest_cannot_read_reverb_status(): void

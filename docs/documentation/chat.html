@@ -92,7 +92,10 @@
       Если последнее сообщение исходящее: одна серая галочка слева от времени, пока собеседник не прочитал,
       две зелёные — после прочтения (как в пузыре сообщения).
       Если собеседник онлайн (<code>last_seen_at</code> не старше 2 минут) — зелёная точка справа снизу на аватарке списка.
-      Офлайн в списке точку не рисуем. Клик по строке открывает диалог (<code>openThread</code>) и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>.</li>
+      Офлайн в списке точку не рисуем. Если у текущего пользователя есть неотправленный текст —
+      превью <b>Черновик: …</b> вместо последнего сообщения (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>),
+      время справа остаётся <code>last_message_time</code>. Черновик свой, на сервере; собеседник его не видит.
+      Клик по строке открывает диалог (<code>openThread</code>), подставляет черновик в поле и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>.</li>
     <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).
       Справа снизу аватарки: зелёная точка если онлайн, красная если офлайн (в том числе если человек ещё ни разу не пинговал после появления <code>last_seen_at</code>).
       После аватарки три колонки: слева фамилия и имя (<code>users.lastname</code> + <code>users.name</code>, JSON <code>name</code>;
@@ -132,7 +135,11 @@
       <code>is-offline</code>. Галочки (<code>ticksHtml</code>) только если <code>last_message_is_mine</code>:
       непрочитано — <code>checks-sent</code> (одна серая), прочитано — <code>checks-read</code> + <code>check-second</code>.
       Входящее: <code>last_message_is_read = null</code>, галочек нет.
-      Клик по строке — <code>openThread</code>, не карточка; после включения композера фокус в <code>#msgInput</code>.</li>
+      Клик по строке — <code>openThread</code>, не карточка; после включения композера в <code>#msgInput</code> подставляется свой <code>draft_body</code> и ставится фокус.
+      Неотправленный текст: <code>PATCH /chat/api/threads/{id}/draft</code> (поле <code>body</code>, debounce 500 мс на клиенте, сразу при уходе из диалога).
+      В списке при непустом своём <code>draft_body</code> — превью <b>Черновик: …</b> (<code>.chat-li-preview.is-draft</code>, <code>#f3a12b</code>), не последнее сообщение.
+      Собеседник в JSON списка и show видит только свой черновик (чужой не отдаём). Успешная отправка обнуляет черновик отправителя.
+      <code>InboxBump</code> после send несёт <code>draft_body: ''</code> только отправителю (у собеседника ключ не ставим, чтобы не затереть его кэш).</li>
     <li><b>Контакты.</b> <code>is_online</code> → <code>contact-online-dot is-online</code> / <code>is-offline</code>
       (ни разу не seen = красная). Три колонки после аватарки, выравнивание по верху:
       слева <code>.contact-main</code> (имя и под ним <code>.contact-parent</code>),
@@ -177,12 +184,14 @@
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code></td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/draft</code></td><td><code>chat.api.threads.draft</code></td><td>свой черновик, поле <code>body</code> (пустое — стереть); AJAX JSON <code>ok</code> + <code>draft_body</code>, иначе 302 на <code>/chat</code>; не участник 403; собеседнику не транслируем; GET/POST/DELETE → 404/405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td>только superadmin; JSON <code>listening</code>, <code>host</code>, <code>port</code>, <code>driver</code></td></tr>
     </tbody>
   </table>
   <p>Чужой тред (не участник) — 403. Пользователь другой школы в <code>user_id</code> — 422,
     <code>errors.user_id</code>: «Нельзя добавить пользователя другой организации.»
     Пустое сообщение — 422 <code>errors.body</code> (AJAX) или 302 с <code>errors.body</code> в сессии (нативный POST).
+    Черновик длиннее 5000 — 422 <code>errors.body</code> (AJAX) или 302 с <code>errors.body</code> (нативный PATCH).
     Нативный POST/PATCH без <code>X-Requested-With</code> не отдаёт сырой JSON 200/201 — редирект на страницу чата, запись в БД создана.
     <code>POST /presence/ping</code> доступен любому залогиненному (включая роли без <code>messages.view</code>):
     гость 302/401, JSON <code>ok</code>. Пишет <code>users.last_seen_at</code> не чаще чем раз в 30 секунд
@@ -192,7 +201,8 @@
 
   <h2 id="data">4) Данные и код</h2>
   <ol>
-    <li>Таблицы пакета messenger без смены схемы: <code>threads</code>, <code>messages</code>, <code>participants</code> (soft deletes).</li>
+    <li>Таблицы пакета messenger: <code>threads</code>, <code>messages</code>, <code>participants</code> (soft deletes).
+      Своя колонка <code>participants.draft_body</code> (nullable text, до 5000 символов) — черновик текущего участника, собеседник её не читает.</li>
     <li>Модели: <code>App\Models\ChatThread</code>, <code>ChatMessage</code>, <code>ChatParticipant</code>.</li>
     <li>Логика: <code>App\Services\Chat\ChatService</code>. Контроллер тонкий:
       <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>.</li>
@@ -266,12 +276,13 @@
       шапка <code>is-idle</code> не открывает карточку до выбора диалога, клик по списку/контакту открывает диалог (не карточку),
       <code>thread.read</code> не ставит галочки входящему, <code>inbox.bump</code> не сбрасывает флаги при перерисовке списка;
       ping на dashboard без <code>messages.view</code>.</li>
+    <li><code>ChatDraftFeatureTest</code> — свой <code>draft_body</code> в index/show, чужой не виден, пустое тело стирает, отправка обнуляет, <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю, PATCH draft не шлёт bump, 422 <code>errors.body</code>, чужой тред 403, неверный метод 404/405.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
     <li><code>ChatReverbOverlayFeatureTest</code> — <code>GET /chat/api/reverb-status</code> (гость / без superadmin / JSON-структура / внутренний порт, не client host), оверлей на dashboard и <code>/chat</code>, Echo без <code>wsPath</code>, UX: процесс down + сокет connecting ≠ <code>is-ok</code>.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
-    <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1, чужой тред 403 (включая PATCH read), 422 под полями.</li>
+    <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1, чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>
     <li><code>ChatMessagesViewPermissionCatalogFeatureTest</code> — каталог права и автовыдача.</li>
     <li><code>PartnerBasePermissionsTest</code> — <code>messages.view</code> в базовых ролях.</li>
     <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда), echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>), оверлей Reverb и Echo-клиент (без <code>wsPath</code>).</li>

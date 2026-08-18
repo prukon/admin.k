@@ -83,8 +83,23 @@
   <div class="note">
     JSON содержит поля <code>success</code>, <code>role</code> (модель роли) и <code>permission_ids</code> — список идентификаторов permissions, реально назначенных для текущего партнёра.
     Клиент обновляет таблицу чекбоксов и список ролей в модальном окне <b>без полной перезагрузки страницы</b>. Успех — toast «Роль успешно создана.» (<code>window.showToast</code>), не <code>showSuccessModal</code>.
-    Удаление кастомной роли так же без reload: снимается колонка роли в матрице прав (<code>thead th[data-role-id]</code>) и строка в <code>#rolesTable</code>, затем toast «Роль успешно удалена.».
+    Удаление кастомной роли так же без reload: снимается колонка роли в матрице прав (<code>thead th[data-role-id]</code>) и строка в <code>#rolesTable</code> (номера пересчитываются), затем toast «Роль успешно удалена.».
+    Подтверждение через <code>showConfirmDeleteModal</code> остаётся. Ошибка DELETE — <code>eroorRespone</code> / error-модалка, не toast.
+    Create-JS обязан ставить <code>data-role-id</code> на новую колонку — иначе удаление только что созданной роли без F5 оставит колонку в матрице.
+    Анонс toast — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>.
   </div>
+
+  <h2 id="role-delete-api">5.1) Ответ API при удалении роли</h2>
+  <table>
+    <thead><tr><th>Запрос</th><th>Ответ</th></tr></thead>
+    <tbody>
+      <tr><td>AJAX <code>DELETE /admin/setting/role/delete</code> с <code>role_id</code></td><td>200 JSON <code>{ success: true }</code>; запись снята для текущего партнёра.</td></tr>
+      <tr><td>Без <code>role_id</code> / неизвестный id</td><td>422 <code>errors.role_id</code>. Non-AJAX — 302 + session <code>errors.role_id</code>.</td></tr>
+      <tr><td>Системная роль</td><td>400 JSON <code>{ success: false, message: "Нельзя удалять системную роль!" }</code>.</td></tr>
+      <tr><td>Роль другого партнёра</td><td>404.</td></tr>
+      <tr><td>Без <code>settings.roles.view</code></td><td>403. Гость — 302/401/419. Чужой глагол (GET/POST/PUT/PATCH) — не 500.</td></tr>
+    </tbody>
+  </table>
 
   <h2>6) Автотесты</h2>
   <div class="note">
@@ -94,12 +109,14 @@
     <li><code>/tests/Feature/Crm/RuleControllerTest.php</code> — создание роли, базовые <code>permission_ids</code>, пустой конфиг, неизвестные имена в конфиге и вызов <code>Log::warning</code>, коллизии имён.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php</code> — 403 без права <code>settings.roles.view</code>, 200 для администратора партнёра на странице и JSON-ручках.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — smoke 200 на все endpoint'ы вкладки (гость, 403 без права, admin, superadmin).</li>
+    <li><code>tests/Feature/Crm/Settings/SettingsRoleDeleteWithoutReloadFeatureTest.php</code> — гость / 403 / 200, AJAX 422 <code>errors.role_id</code>, non-AJAX safety-net и session-ошибка поля, чужие глаголы не 500, первое открытие (кнопка удаления только у кастомной роли, <code>data-role-id</code> на колонке, toast пустой вне модалки), UX-баг без <code>showSuccessModal</code>/<code>location.reload()</code>, оба JS-пути create/delete.</li>
     <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — создание и удаление роли: toast, без <code>showSuccessModal</code> и без <code>location.reload()</code>.</li>
+    <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — <code>node --check</code> delete-хендлера и <code>test_role_delete_without_reload_js_updates_dom_instead_of_success_modal</code>.</li>
     <li><code>tests/Feature/Crm/Ui/SuccessToastInsteadOfModalAjaxContractFeatureTest.php</code>,
       <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest.php</code> — JSON 200/422 <code>errors.name</code> / <code>errors.role_id</code>; non-AJAX не пустой 200.</li>
     <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группы <code>permission_groups</code> и маппинг прав после перегруппировки каталога.</li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing tests/Feature/Crm/Settings/SettingsRoleDeleteWithoutReloadFeatureTest.php tests/Feature/Crm/RuleControllerTest.php tests/Feature/Crm/Settings/RulesSettingsAccessControlTest.php tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code></pre>
 
   <p class="small"><a href="/docs/documentation">К списку разделов</a> ·
     <a href="/docs/documentation/settings-permission-groups">группы в матрице прав</a> ·

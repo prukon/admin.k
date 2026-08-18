@@ -1133,6 +1133,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread')->name('chat.api.threads.messages.index');
         Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');
         Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead'])->whereNumber('thread')->name('chat.api.threads.read');
+        Route::patch('/chat/api/threads/{thread}/draft', [ChatApiController::class, 'saveDraft'])->whereNumber('thread')->name('chat.api.threads.draft');
     });
 
     //Кошелек партнера

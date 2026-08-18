@@ -71,7 +71,7 @@
     <li>Фильтры: имя (ФИО / email / телефон), статус (<code>active</code> / <code>inactive</code>).</li>
     <li><b>Создание</b> — модалка: имя*, фамилия*, email, телефон, чекбокс «Отправить письмо» (§<a href="#staff-welcome-credentials">3.3</a>), пароль (опционально; скрыт при включённом чекбоксе), активен. Успех: toast с <code>message</code> сервера (обычно «Пользователь создан»), не <code>showSuccessModal</code>.</li>
     <li><b>Редактирование</b> — аватар (<code>editAvatar</code>), смена пароля → <code>POST /admin/user/{id}/update-password</code> при <code>users.password.update</code> (§<a href="#staff-password-change">3.4</a>). Повторной отправки пароля по email на этих страницах <b>нет</b> (только для учеников — <a href="/docs/documentation/admin-users#user-welcome-credentials">admin-users §5.1.2</a>).</li>
-    <li><b>Удаление</b> — soft delete пользователя из модалки редактирования.</li>
+    <li><b>Удаление</b> — soft delete из модалки редактирования. Подтверждение через <code>showConfirmDeleteModal</code> (не <code>window.confirm</code>) → <code>DELETE</code>. Успех: edit-модалка закрывается (снятие <code>hidden.bs.modal.return</code> у confirm), AJAX reload таблицы, toast с <code>message</code> сервера (обычно «Пользователь удалён»), не <code>showSuccessModal</code>. Ошибка DELETE — <code>showErrorModal</code>.</li>
     <li>Ошибки валидации — JSON <code>422</code>, поля под формой.</li>
   </ul>
 
@@ -93,6 +93,8 @@
     Кнопка «Сменить пароль» видна только при <code>users.password.update</code> (<code>$canChangePassword</code>).
     Без права блок в разметке <b>не рендерится</b>.
     При первом открытии карточки поле пароля скрыто (<code>#role-staff-change-pass-wrap</code>, <code>display:none</code>).
+    Класса <code>.change-pass-wrap</code> у блока <b>нет</b> — <code>style.display = ''</code> здесь достаточно
+    (в отличие от тренера, где тот же приём прячет форму из‑за CSS — <a href="/docs/documentation/admin-trainers#trainer-edit-password">admin-trainers §6.4</a>).
     <ul>
       <li>Эндпоинт: <code>POST /admin/user/{id}/update-password</code> (<code>admin.user.password.update</code>), throttle 5/мин. Права: <code>users.view</code> + <code>users.password.update</code>.</li>
       <li>AJAX 200: <code>{ "success": true }</code>. Успех в UI: поле очищается, блок скрывается, всплывайка «Пароль успешно изменен» (<code>window.showToast</code> / <code>#kidsMainToast</code> в layout <code>admin2</code>).</li>
@@ -174,6 +176,7 @@
       <li><code>AdminUserPasswordUpdateAjaxContractFeatureTest.php</code> — JSON 200/422, <code>errors.password</code>, повтор того же пароля (UX-баг 422)</li>
       <li><code>AdminUserPasswordUpdateNonAjaxSafetyNetFeatureTest.php</code> — non-AJAX успех пишет в БД; валидация 302 + session errors</li>
       <li><code>AdminUserPasswordUpdateUiContractsFeatureTest.php</code> — всплывайка, скрытый блок при первом открытии, @can, три JS-пути</li>
+      <li><code>tests/Unit/Documentation/TrainerPasswordFormDocumentationContractTest.php</code> — у сотрудника нет класса <code>.change-pass-wrap</code>, в отличие от тренера / ученика</li>
       <li><code>BladeInlineJsSyntaxTest::test_admin_password_change_js_paths_show_toast_and_skip_same_password</code> — <code>node --check</code> toast + role_staff / editUser / trainers</li>
       <li><code>SuccessToastInsteadOfModalUiContractsFeatureTest.php</code> — создание администратора: toast, не success-модалка</li>
     </ul>

@@ -63,6 +63,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('align-items: flex-start', $html);
         $this->assertStringContainsString('chat-li-unread', $html);
         $this->assertStringContainsString('#f3a12b', $html);
+        $this->assertStringContainsString('chat-li-preview.is-draft', $html);
 
         $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
         $this->assertDoesNotMatchRegularExpression(
@@ -128,17 +129,26 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
 
         $openThreadPos = strpos($js, 'function openThread(');
         $this->assertNotFalse($openThreadPos);
-        $openThreadChunk = substr($js, $openThreadPos, 2200);
+        $openThreadChunk = substr($js, $openThreadPos, 2800);
+        $this->assertStringContainsString('persistLeavingDraft(threadId)', $openThreadChunk);
         $this->assertStringContainsString('setComposerEnabled(true)', $openThreadChunk);
+        $this->assertStringContainsString('composerDraftFor(res.thread)', $openThreadChunk);
         $this->assertStringContainsString("getElementById('msgInput').focus()", $openThreadChunk);
         $enablePos = strpos($openThreadChunk, 'setComposerEnabled(true)');
+        $draftPos = strpos($openThreadChunk, 'composerDraftFor(res.thread)');
         $focusPos = strpos($openThreadChunk, "getElementById('msgInput').focus()");
         $this->assertNotFalse($enablePos);
+        $this->assertNotFalse($draftPos);
         $this->assertNotFalse($focusPos);
         $this->assertGreaterThan(
             $enablePos,
+            $draftPos,
+            'Черновик в поле ввода — после включения композера'
+        );
+        $this->assertGreaterThan(
+            $draftPos,
             $focusPos,
-            'Фокус в поле ввода — только после включения композера'
+            'Фокус в поле ввода — только после восстановления черновика'
         );
         $this->assertStringContainsString('setHeaderPeerClickable(!!currentPeerId)', $openThreadChunk);
         $this->assertStringContainsString("av.style.display = ''", $openThreadChunk);
@@ -186,6 +196,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('fetch(', $submitChunk);
         $this->assertStringContainsString("JSON.stringify({ body: text })", $submitChunk);
         $this->assertStringContainsString("fieldError(res.data, 'body')", $submitChunk);
+        $this->assertStringContainsString('clearTimeout(draftTimer)', $submitChunk);
+        $this->assertStringContainsString("rememberDraft(id, '')", $submitChunk);
         $this->assertStringContainsString('Сначала выберите диалог слева.', $submitChunk);
         $this->assertStringContainsString('Введите текст сообщения.', $submitChunk);
         $this->assertSame(1, substr_count($js, "getElementById('sendForm').addEventListener('submit'"));
@@ -235,6 +247,10 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('last_seen_label', $js);
         $this->assertStringContainsString("href=\"' + escapeHtml(href)", $js);
         $this->assertStringContainsString("urls.users + '/' + encodeURIComponent", $js);
+        $this->assertStringContainsString('function persistLeavingDraft(', $js);
+        $this->assertStringContainsString('function scheduleDraftSave(', $js);
+        $this->assertStringContainsString("threadUrl(id, '/draft')", $js);
+        $this->assertStringContainsString("addEventListener('input', scheduleDraftSave)", $js);
 
         $renderThreadsPos = strpos($js, 'function renderThreads(');
         $this->assertNotFalse($renderThreadsPos);
@@ -242,6 +258,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('fmtTime(t.last_message_time)', $renderThreadsChunk);
         $this->assertStringContainsString('chat-li-unread', $renderThreadsChunk);
         $this->assertStringContainsString('chat-li-meta', $renderThreadsChunk);
+        $this->assertStringContainsString('Черновик: ', $renderThreadsChunk);
+        $this->assertStringContainsString('is-draft', $renderThreadsChunk);
         $this->assertStringNotContainsString('bg-primary', $renderThreadsChunk);
         $this->assertStringNotContainsString('last_seen', $renderThreadsChunk);
         $this->assertStringNotContainsString('is-offline', $renderThreadsChunk);

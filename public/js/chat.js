@@ -37,6 +37,9 @@
     let threadChannel = null;
     let inboxBound = false;
     let pollTimer = null;
+    let draftCache = Object.create(null);
+    let lastPatchedDraft = Object.create(null);
+    let draftTimer = null;
 
     function escapeHtml(value) {
         const div = document.createElement('div');
@@ -139,6 +142,9 @@
                 ? '<span class="chat-online-dot" title="Онлайн"></span>'
                 : '';
             const ticks = t.last_message_is_mine ? ticksHtml(!!t.last_message_is_read) : '';
+            const draft = normalizeDraft(t.draft_body);
+            const previewClass = draft ? 'chat-li-preview is-draft' : 'chat-li-preview';
+            const previewText = draft ? ('Черновик: ' + draft) : (t.last_message || '');
             const item = document.createElement('div');
             item.className = 'chat-list-item' + active;
             item.setAttribute('data-id', String(t.id));
@@ -150,7 +156,7 @@
                 '<div class="chat-li-body">' +
                 '<div class="chat-li-middle">' +
                 '<div class="chat-li-title">' + escapeHtml(t.title || 'Диалог') + '</div>' +
-                '<div class="chat-li-preview">' + escapeHtml(t.last_message || '') + '</div>' +
+                '<div class="' + previewClass + '">' + escapeHtml(previewText) + '</div>' +
                 '</div>' +
                 '<div class="chat-li-meta">' +
                 '<div class="chat-li-time">' + ticks + escapeHtml(fmtTime(t.last_message_time)) + '</div>' +
@@ -201,7 +207,8 @@
         if (!q) return list;
         return list.filter(function (t) {
             return (t.title && t.title.toLowerCase().indexOf(q) !== -1)
-                || (t.last_message && t.last_message.toLowerCase().indexOf(q) !== -1);
+                || (t.last_message && t.last_message.toLowerCase().indexOf(q) !== -1)
+                || (t.draft_body && String(t.draft_body).toLowerCase().indexOf(q) !== -1);
         });
     }
 
@@ -314,6 +321,7 @@
                 }
                 inboxPollStamp = stamp;
                 threadsCache = threads;
+                mergeLocalDrafts(threadsCache);
                 if (currentThreadId) {
                     threadsCache.forEach(function (t) {
                         if (String(t.id) === String(currentThreadId)) {
@@ -330,7 +338,95 @@
             .catch(function () {});
     }
 
+    function normalizeDraft(value) {
+        return String(value == null ? '' : value).trim();
+    }
+
+    function rememberDraft(threadId, body) {
+        if (!threadId) {
+            return;
+        }
+        draftCache[String(threadId)] = normalizeDraft(body);
+    }
+
+    function mergeLocalDrafts(threads) {
+        threads.forEach(function (t) {
+            const key = String(t.id);
+            if (Object.prototype.hasOwnProperty.call(draftCache, key)) {
+                t.draft_body = draftCache[key];
+            } else {
+                draftCache[key] = normalizeDraft(t.draft_body);
+            }
+        });
+    }
+
+    function composerDraftFor(thread) {
+        const key = String(thread && thread.id ? thread.id : '');
+        if (!key) {
+            return '';
+        }
+        if (Object.prototype.hasOwnProperty.call(draftCache, key)) {
+            return draftCache[key];
+        }
+        const fromServer = normalizeDraft(thread && thread.draft_body);
+        draftCache[key] = fromServer;
+        return fromServer;
+    }
+
+    function persistDraft(threadId, text) {
+        const id = Number(threadId);
+        if (!id) {
+            return;
+        }
+        const body = normalizeDraft(text);
+        const key = String(id);
+        draftCache[key] = body;
+        upsertThread({ id: id, draft_body: body });
+        if (lastPatchedDraft[key] === body) {
+            return;
+        }
+        lastPatchedDraft[key] = body;
+        fetch(threadUrl(id, '/draft'), {
+            method: 'PATCH',
+            headers: headers(true),
+            credentials: 'same-origin',
+            body: JSON.stringify({ body: body })
+        }).then(function (r) {
+            if (!r.ok) {
+                delete lastPatchedDraft[key];
+            }
+        }).catch(function () {
+            delete lastPatchedDraft[key];
+        });
+    }
+
+    function persistLeavingDraft(nextId) {
+        const leavingId = currentThreadId;
+        if (!leavingId) {
+            return;
+        }
+        if (String(leavingId) === String(nextId)) {
+            return;
+        }
+        clearTimeout(draftTimer);
+        persistDraft(leavingId, document.getElementById('msgInput').value);
+    }
+
+    function scheduleDraftSave() {
+        const id = currentThreadId;
+        if (!id) {
+            return;
+        }
+        rememberDraft(id, document.getElementById('msgInput').value);
+        upsertThread({ id: id, draft_body: draftCache[String(id)] });
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(function () {
+            persistDraft(id, document.getElementById('msgInput').value);
+        }, 500);
+    }
+
     function openThread(threadId) {
+        persistLeavingDraft(threadId);
         fetch(threadUrl(threadId), { headers: headers(false), credentials: 'same-origin' })
             .then(function (r) {
                 if (!r.ok) throw r;
@@ -349,6 +445,7 @@
                 av.src = res.thread.avatar || '/img/default-avatar.png';
                 av.style.display = '';
                 setComposerEnabled(true);
+                document.getElementById('msgInput').value = composerDraftFor(res.thread);
                 document.getElementById('msgInput').focus();
                 showMsgError('');
 
@@ -465,7 +562,8 @@
             last_message_time: e.last_message_time,
             last_message_is_mine: e.last_message_is_mine,
             last_message_is_read: e.last_message_is_read,
-            unread_count: isActive ? 0 : Number(e.unread_count || 0)
+            unread_count: isActive ? 0 : Number(e.unread_count || 0),
+            draft_body: e.draft_body
         });
         if (typeof e.unread_total !== 'undefined') {
             if (isActive) {
@@ -575,6 +673,8 @@
 
         const btn = this.querySelector('button[type="submit"]');
         btn.disabled = true;
+        clearTimeout(draftTimer);
+        rememberDraft(id, '');
         input.value = '';
         const tempId = 'tmp-' + Date.now();
         const now = new Date();
@@ -587,7 +687,8 @@
             last_message_time: nowSql,
             last_message_is_mine: true,
             last_message_is_read: false,
-            unread_count: 0
+            unread_count: 0,
+            draft_body: ''
         });
         scrollBottom();
 
@@ -604,6 +705,8 @@
                 if (!res.ok) {
                     showMsgError(fieldError(res.data, 'body') || 'Не удалось отправить сообщение.');
                     input.value = text;
+                    rememberDraft(id, text);
+                    upsertThread({ id: id, draft_body: text });
                     const tmp = document.querySelector('#messagesBox [data-mid="' + CSS.escape(tempId) + '"]');
                     if (tmp) tmp.remove();
                     return;
@@ -624,24 +727,30 @@
                     appendMessage(m);
                 }
                 lastMessageId = m.id;
+                lastPatchedDraft[String(id)] = '';
                 upsertThread({
                     id: id,
                     last_message: m.body,
                     last_message_time: m.created_at,
                     last_message_is_mine: true,
                     last_message_is_read: !!m.is_read,
-                    unread_count: 0
+                    unread_count: 0,
+                    draft_body: ''
                 });
             })
             .catch(function () {
                 showMsgError('Не удалось отправить сообщение. Проверьте соединение.');
                 input.value = text;
+                rememberDraft(id, text);
+                upsertThread({ id: id, draft_body: text });
             })
             .finally(function () {
                 btn.disabled = false;
                 input.focus();
             });
     });
+
+    document.getElementById('msgInput').addEventListener('input', scheduleDraftSave);
 
     function contactsModal() {
         return bootstrap.Modal.getOrCreateInstance(document.getElementById('contactsModal'));

@@ -671,11 +671,10 @@ dataTable: {
   </div>
   <p>
     Смена пароля в карточке админа / ученика / тренера использует эту всплывайку («Пароль успешно изменен»), а не success-модалку (запасного <code>showSuccessModal</code> нет).
-    Тот же toast — удаление ученика, повторная отправка пароля ученику по почте, CRUD тренера, создание администратора, создание/правка юр. лица, удаление объекта, типы тренера, «Создать клиента» у лида, цены одного ученика и группы справа, создание доп. платежа, создание и удаление кастомной роли, смена своего пароля в ЛК.
+    Полный список действий с toast и исключений (сохранение карточки ученика, «Добавить» ученика, «Применить» слева всем группам, CRUD групп/партнёров) —
+    <a href="/doc#success-toast-instead-of-modal-index">анонс на /doc</a>.
     Заявки школы по-прежнему могут иметь <b>свой</b> локальный <code>#mainToast</code> — «Создать клиента» зовёт <code>window.showToast</code> (общий), не локальный.
-    «Применить» слева (всем группам) по-прежнему <code>showSuccessModal</code>.
-    Анонс — <a href="/doc#success-toast-instead-of-modal-index">/doc</a>, смена пароля в карточке —
-    <a href="/doc#admin-password-change-toast-index">/doc</a>.
+    Смена пароля в карточке — <a href="/doc#admin-password-change-toast-index">/doc</a>.
     См. также <a href="/docs/documentation/admin-role-staff#staff-password-change">admin-role-staff §3.4</a>.
   </p>
   <p class="small">
@@ -683,6 +682,7 @@ dataTable: {
     <code>SuccessToastInsteadOfModalAjaxContractFeatureTest</code> (JSON 200/422 <code>errors[field]</code>, 403),
     <code>SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest</code> (без AJAX — 302 или непустой JSON, запись в БД),
     <code>SuccessToastInsteadOfModalUiContractsFeatureTest</code> (скрытый пустой toast, оба JS-пути доп. платежа, лид не берёт локальный toast, негатив вне списка),
+    <code>SettingsRoleDeleteWithoutReloadFeatureTest</code> (удаление роли без reload),
     <code>BladeInlineJsSyntaxTest::test_listed_success_actions_use_toast_instead_of_success_modal</code> (<code>node --check</code>).
   </p>
 

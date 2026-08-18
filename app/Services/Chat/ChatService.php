@@ -180,9 +180,13 @@ class ChatService
             'body' => $body,
         ]);
 
+        $participantPayload = ['last_read' => now()];
+        if ($this->hasDraftColumn()) {
+            $participantPayload['draft_body'] = null;
+        }
         ChatParticipant::query()->updateOrCreate(
             ['thread_id' => $thread->id, 'user_id' => (int) $actor->id],
-            ['last_read' => now()]
+            $participantPayload
         );
 
         $thread->touch();
@@ -196,7 +200,7 @@ class ChatService
             $isSender = $uid === (int) $actor->id;
             $threadUnread = $isSender ? 0 : $this->unreadCountForThread($thread->id, $uid);
 
-            $this->safeBroadcast(new InboxBump($uid, [
+            $bump = [
                 'thread_id' => (int) $thread->id,
                 'title' => $this->titleForViewer($thread, $uid),
                 'avatar' => $this->avatarForViewer($thread, $uid),
@@ -208,7 +212,11 @@ class ChatService
                 'last_message_is_read' => $isSender ? false : null,
                 'unread_count' => $threadUnread,
                 'unread_total' => $this->unreadTotal($uid),
-            ]));
+            ];
+            if ($isSender) {
+                $bump['draft_body'] = '';
+            }
+            $this->safeBroadcast(new InboxBump($uid, $bump));
         }
 
         return $payload;
@@ -232,6 +240,21 @@ class ChatService
         $this->safeBroadcast(new ThreadReadUpdated((int) $thread->id, $userId, $unreadTotal, $inboxUserIds));
 
         return $unreadTotal;
+    }
+
+    public function saveDraft(ChatThread $thread, int $userId, string $body): string
+    {
+        $normalized = trim($body);
+        if (! $this->hasDraftColumn()) {
+            return $normalized;
+        }
+
+        ChatParticipant::query()->updateOrCreate(
+            ['thread_id' => (int) $thread->id, 'user_id' => $userId],
+            ['draft_body' => $normalized === '' ? null : $normalized]
+        );
+
+        return $normalized;
     }
 
     /**
@@ -456,6 +479,7 @@ class ChatService
             'last_message_is_mine' => $lastIsMine,
             'last_message_is_read' => $lastIsMine ? $this->isReadByPeer($thread, $last) : null,
             'unread_count' => $unreadCount,
+            'draft_body' => $this->viewerDraftBody($thread, $viewerId),
         ];
     }
 
@@ -472,6 +496,7 @@ class ChatService
             'avatar' => $this->avatarForViewer($thread, $viewerId),
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
+            'draft_body' => $this->viewerDraftBody($thread, $viewerId),
         ];
     }
 
@@ -558,5 +583,30 @@ class ChatService
     private function preview(string $body): string
     {
         return mb_strimwidth(strip_tags($body), 0, 90, '…');
+    }
+
+    private function viewerDraftBody(ChatThread $thread, int $viewerId): string
+    {
+        if (! $this->hasDraftColumn()) {
+            return '';
+        }
+
+        $participants = $thread->relationLoaded('participants')
+            ? $thread->participants
+            : $thread->participants()->get();
+
+        $mine = $participants->firstWhere('user_id', $viewerId);
+
+        return trim((string) ($mine?->draft_body ?? ''));
+    }
+
+    private function hasDraftColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasColumn('participants', 'draft_body');
+        }
+
+        return $has;
     }
 }

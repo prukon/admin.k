@@ -127,6 +127,16 @@ final class AdminUserPasswordUpdateUiContractsFeatureTest extends CrmTestCase
             $html,
             'С правом users.password.update кнопка смены пароля тренера не должна быть заблокирована'
         );
+        $this->assertStringContainsString(
+            "passWrap.style.display = 'block'",
+            $html,
+            'Показ формы пароля должен задавать display:block, иначе CSS .change-pass-wrap { display:none } снова прячет блок'
+        );
+        $this->assertStringNotContainsString(
+            "if (passWrap) passWrap.style.display = ''",
+            $html,
+            'Пустой inline display не перекрывает CSS display:none у .change-pass-wrap'
+        );
     }
 
     public function test_layout_includes_shared_toast_partial(): void
