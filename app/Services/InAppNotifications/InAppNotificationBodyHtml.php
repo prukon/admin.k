@@ -61,10 +61,32 @@ final class InAppNotificationBodyHtml
 
     public static function preview(?string $html, int $limit = 60): string
     {
-        $text = html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        return Str::limit(self::toPlainTextWithBreaks((string) $html), $limit);
+    }
 
-        return Str::limit(trim($text), $limit);
+    /**
+     * Текст для выпадашки: абзацы/переносы остаются переводами строк,
+     * горизонтальные пробелы схлопываются, HTML снимается.
+     */
+    public static function toPlainTextWithBreaks(?string $html): string
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return '';
+        }
+
+        $html = preg_replace('/<\s*br\s*\/?\s*>/i', "\n", $html) ?? $html;
+        $html = preg_replace('/<\s*\/\s*(p|div|h[1-6]|li|blockquote|tr)\s*>/i', "\n", $html) ?? $html;
+        $html = preg_replace('/<\s*\/\s*(ul|ol)\s*>/i', "\n", $html) ?? $html;
+
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $text = preg_replace('/[^\S\n]+/u', ' ', $text) ?? $text;
+        $text = preg_replace('/ *\n */u', "\n", $text) ?? $text;
+        $text = preg_replace("/\n{2,}/u", "\n", $text) ?? $text;
+
+        return trim($text);
     }
 
     private static function sanitizeMarkup(string $html): string

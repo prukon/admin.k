@@ -21,6 +21,6 @@
             @endif
             <time>{{ $createdHuman }}</time>
         </div>
-        <div class="small">{{ $preview }}</div>
+        <div class="small bell-preview">{{ $preview }}</div>
     </a>
 @endif

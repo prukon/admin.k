@@ -87,6 +87,28 @@ final class InAppNotificationsAjaxContractFeatureTest extends InAppNotifications
         $this->assertDoesNotMatchRegularExpression('/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/', (string) $item['created_at_human']);
     }
 
+    public function test_bell_preview_keeps_line_breaks_from_paragraphs(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $this->dispatchToRoles(
+            [$this->partner->id],
+            [$this->roleId('admin')],
+            false,
+            [
+                'title' => 'С переносами',
+                'body' => '<p>Первая строка</p><p>Вторая строка</p>',
+            ]
+        );
+
+        $this->actingInPartner($admin);
+        $item = $this->getJson(route('inAppNotifications.bell'))
+            ->assertOk()
+            ->json('items.0');
+
+        $this->assertSame("Первая строка\nВторая строка", $item['body_preview']);
+        $this->assertStringNotContainsString('<p>', (string) $item['body_preview']);
+    }
+
     public function test_ajax_mark_read_returns_updated_counter_and_items(): void
     {
         $admin = $this->createUserWithRole('admin');

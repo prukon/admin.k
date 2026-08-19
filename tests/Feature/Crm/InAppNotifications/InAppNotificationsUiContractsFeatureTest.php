@@ -156,6 +156,28 @@ final class InAppNotificationsUiContractsFeatureTest extends InAppNotificationsT
         $this->assertStringContainsString('Обычное в колокольчике', $bellChunk);
     }
 
+    public function test_dropdown_preview_shows_line_breaks_without_html(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $this->dispatchToRoles(
+            [$this->partner->id],
+            [$this->roleId('admin')],
+            false,
+            [
+                'title' => 'Переносы в колокольчике',
+                'body' => '<p>Первая строка</p><p>Вторая строка</p>',
+            ]
+        );
+
+        $this->actingInPartner($admin);
+        $html = $this->get(route('dashboard'))->assertOk()->getContent();
+        $bellChunk = $this->bellMarkup($html);
+
+        $this->assertStringContainsString('bell-preview', $bellChunk);
+        $this->assertStringContainsString("Первая строка\nВторая строка", $bellChunk);
+        $this->assertStringNotContainsString('<p>Первая строка</p>', $bellChunk);
+    }
+
     public function test_dropdown_shows_three_items_and_admin_does_not_see_compose_button(): void
     {
         $admin = $this->createUserWithRole('admin');
@@ -254,7 +276,12 @@ final class InAppNotificationsUiContractsFeatureTest extends InAppNotificationsT
 
         $this->assertStringContainsString('page_url', $item);
         $this->assertStringContainsString("in_array(\$category, ['update', 'important'], true)", $item);
+        $this->assertStringContainsString('bell-preview', $item);
         $this->assertStringNotContainsString('js-in-app-bell-mark-read', $item);
+
+        $bell = (string) file_get_contents(resource_path('views/includes/in_app_notifications/bell.blade.php'));
+        $this->assertStringContainsString('white-space: pre-line', $bell);
+        $this->assertStringContainsString('bell-preview', $echo);
     }
 
     public function test_empty_inbox_shows_quiet_state_without_read_all(): void

@@ -4679,6 +4679,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('preventDefault', $compose);
 
         $this->assertStringContainsString('item.page_url', $echo);
+        $this->assertStringContainsString('bell-preview', $echo);
         $this->assertStringContainsString("category === 'update' || category === 'important'", $echo);
         $this->assertStringNotContainsString("category === 'normal'", $echo);
         $this->assertStringNotContainsString('open_url', $echo);

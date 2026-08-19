@@ -89,7 +89,7 @@
                 var inner = '<div class="bell-title">' + title + '</div>'
                     + '<div class="small text-muted bell-meta">' + badge
                     + '<time>' + escapeHtml(item.created_at_human || '') + '</time></div>'
-                    + '<div class="small">' + preview + '</div>';
+                    + '<div class="small bell-preview">' + preview + '</div>';
                 return '<a class="dropdown-item in-app-bell-item' + unreadClass + '" href="' + href + '" data-notification-id="' + Number(item.id) + '">' + inner + '</a>';
             }
 

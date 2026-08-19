@@ -65,6 +65,7 @@
         .in-app-bell-item { white-space: normal; padding: 0.7rem 1rem; border-left: 3px solid transparent; }
         .in-app-bell-item.unread { background: #fff8ee; border-left-color: #f3a12b; }
         .in-app-bell-item .bell-title { font-weight: 600; color: #212529; }
+        .in-app-bell-item .bell-preview { white-space: pre-line; }
         .in-app-bell-item .bell-meta {
             display: flex;
             align-items: center;

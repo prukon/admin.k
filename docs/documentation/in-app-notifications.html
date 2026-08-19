@@ -84,7 +84,7 @@
     <li>Иконка в шапке <code>admin2</code>, справа, перед «Выйти». Есть на всех страницах этого layout (в том числе <code>/cabinet</code>).</li>
     <li>Красный каунтер — <b>точное</b> число непрочитанных (не «9+»). Если непрочитанных нет — каунтер скрыт.</li>
     <li>Выпадашка: заголовок «Уведомления», <b>3</b> самых новых (<code>created_at DESC, id DESC</code>), внизу «Показать все» → <code>/in-app-notifications</code>.</li>
-    <li>Превью текста — до 60 символов. Дата — по Москве, вид «13 августа 2026» (без времени).</li>
+    <li>Превью текста — до 60 символов, экранированный текст без HTML (чтобы не вкладывать ссылки в пункт-<code>&lt;a&gt;</code>). Абзацы, <code>&lt;br&gt;</code> и пункты списка показываются переносами строк (<code>white-space: pre-line</code> на <code>.bell-preview</code>). Дата — по Москве, вид «13 августа 2026» (без времени).</li>
     <li>Плашки «Важное» (бордо) и «Обновление» (голубой) — те же, что на странице ленты. Плашка «Обычное» <b>не показывается</b>.</li>
     <li>Пункт выпадашки — ссылка на ленту <code>/in-app-notifications?n={id}</code>. Отдельного поля URL у уведомления нет: клик <b>не</b> уводит с сайта на внешний адрес.</li>
   </ul>
@@ -210,9 +210,10 @@
   <ul>
     <li><code>tests/Feature/Crm/InAppNotifications/InAppNotificationsFeatureTest.php</code> — аудитория, TTL, XSS-ссылки, compose</li>
     <li><code>InAppNotificationsAccessFeatureTest</code> — гость, 403, trainer/user, manage ≠ compose, чужое 404</li>
-    <li><code>InAppNotificationsAjaxContractFeatureTest</code> — JSON колокольчика/прочтения/ролей, 422 по полям, «последние 3»</li>
+    <li><code>InAppNotificationsAjaxContractFeatureTest</code> — JSON колокольчика/прочтения/ролей, 422 по полям, «последние 3», переносы в <code>body_preview</code></li>
     <li><code>InAppNotificationsNonAjaxSafetyNetFeatureTest</code> — обычный POST 302, <code>action_url</code> игнорируется</li>
-    <li><code>InAppNotificationsUiContractsFeatureTest</code> — плашки, даты, клик с <code>?n=</code>, дефолты формы, JS-контракт</li>
+    <li><code>InAppNotificationsUiContractsFeatureTest</code> — плашки, даты, клик с <code>?n=</code>, переносы в выпадашке, дефолты формы, JS-контракт</li>
+    <li><code>tests/Unit/Services/InAppNotifications/InAppNotificationBodyHtmlTest.php</code> — превью: абзацы/<code>br</code>/списки → <code>\n</code>, схлопывание пробелов, лимит 60</li>
     <li><code>BladeInlineJsSyntaxTest</code> — <code>node --check</code> compose / echo / highlight на ленте</li>
     <li><code>tests/Feature/Crm/Cabinet/CabinetTeamAttachInAppNotification*FeatureTest.php</code> —
       автособытие attach: ядро (admin/trainer, изоляция, семья, пустое ФИО родителя, XSS), доступ (гость/403/422 без уведомления),
@@ -220,7 +221,7 @@
       UX ленты (ФИО без ссылки; с родителем — три строки, без плашки «Обычное», SSR колокольчика, <code>?n=</code>, просрочка)</li>
     <li><code>InAppNotificationsPermissionCatalogFeatureTest</code>, <code>PartnerBasePermissionsTest</code>, <code>PermissionGroupsReorganizationFeatureTest</code></li>
   </ul>
-  <pre><code>php artisan test --env=testing tests/Feature/Crm/InAppNotifications tests/Feature/Crm/Cabinet --filter=CabinetTeamAttachInAppNotification tests/Feature/Crm/Permissions/InAppNotificationsPermissionCatalogFeatureTest.php</code></pre>
+  <pre><code>php artisan test --env=testing tests/Unit/Services/InAppNotifications/InAppNotificationBodyHtmlTest.php tests/Feature/Crm/InAppNotifications tests/Feature/Crm/Cabinet --filter=CabinetTeamAttachInAppNotification tests/Feature/Crm/Permissions/InAppNotificationsPermissionCatalogFeatureTest.php</code></pre>
 
   <p class="small"><a href="/docs/documentation">К списку разделов</a> ·
     не путать с <a href="/docs/documentation/setting-prices-payment-notifications">email-уведомлениями об оплате</a></p>
