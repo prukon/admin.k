@@ -41,7 +41,7 @@
             <div class="row g-3 mb-3 align-items-stretch">
             <div class="col-12 @if(!empty($showAccountParentSection)) col-lg-6 @endif">
             <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold">{{ $user->role?->label ?? $user->role?->name ?? 'Пользователь' }}</div>
+                <div class="card-header fw-semibold">{{ $user->role?->label ?? $user->role?->name ?? 'Клиент' }}</div>
                 <div class="card-body">
 
             {{-- Поле "Фамилия" --}}

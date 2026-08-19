@@ -22,7 +22,7 @@
                 <div class="card payments-report-surface border-0 shadow-sm mb-2 mb-md-3 mt-2">
                     <div class="card-body px-3 py-3">
                         <div class="payments-report-toolbar d-flex flex-nowrap align-items-center justify-content-between gap-2 gap-md-3 min-w-0">
-                            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Пользователи</h1>
+                            <h1 class="h5 mb-0 fw-semibold text-body payments-report-title text-truncate min-w-0 flex-shrink-1">Клиенты</h1>
                             <div class="d-flex align-items-center gap-2 payments-report-toolbar-actions payments-report-toolbar-actions--many flex-shrink-0">
                                 <button id="new-user"
                                         type="button"
@@ -258,7 +258,7 @@
                             <div class="col-12 col-md-6 col-lg-3">
                                 <label class="form-label" for="filter-status">Статус</label>
                                 <select id="filter-status" class="form-select">
-                                    <option value="">Все пользователи</option>
+                                    <option value="">Все клиенты</option>
                                     <option value="active" selected>Только активные</option>
                                     <option value="inactive">Только неактивные</option>
                                 </select>

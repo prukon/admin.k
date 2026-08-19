@@ -18,11 +18,13 @@ class ChatParticipant extends Model
         'thread_id',
         'user_id',
         'last_read',
+        'unread_count',
         'draft_body',
     ];
 
     protected $casts = [
         'last_read' => 'datetime',
+        'unread_count' => 'integer',
     ];
 
     public function thread(): BelongsTo

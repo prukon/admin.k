@@ -66,7 +66,7 @@ final class UserCreateWelcomeCredentialsFeatureTest extends CrmTestCase
         $response->assertOk()
             ->assertJsonPath('welcome_email_sent', true)
             ->assertJsonFragment([
-                'message' => 'Пользователь создан. Письмо с данными для входа отправлено на student-welcome@example.com.',
+                'message' => 'Клиент создан. Письмо с данными для входа отправлено на student-welcome@example.com.',
             ]);
 
         $user = User::findOrFail((int) $response->json('user.id'));
@@ -103,7 +103,7 @@ final class UserCreateWelcomeCredentialsFeatureTest extends CrmTestCase
 
         $response->assertOk()
             ->assertJsonPath('welcome_email_sent', false)
-            ->assertJsonFragment(['message' => 'Пользователь создан успешно']);
+            ->assertJsonFragment(['message' => 'Клиент создан успешно']);
 
         $user = User::findOrFail((int) $response->json('user.id'));
         $this->assertTrue(Hash::check('ManualPass12', $user->password));
@@ -120,7 +120,7 @@ final class UserCreateWelcomeCredentialsFeatureTest extends CrmTestCase
                 'error' => 'SMTP down',
             ]);
             $mock->shouldReceive('createResponseMessage')->once()->andReturn(
-                'Пользователь создан, но не удалось отправить письмо на fail-student@example.com.'
+                'Клиент создан, но не удалось отправить письмо на fail-student@example.com.'
             );
         });
 
@@ -141,7 +141,7 @@ final class UserCreateWelcomeCredentialsFeatureTest extends CrmTestCase
         $response->assertOk()
             ->assertJsonPath('welcome_email_sent', false)
             ->assertJsonFragment([
-                'message' => 'Пользователь создан, но не удалось отправить письмо на fail-student@example.com.',
+                'message' => 'Клиент создан, но не удалось отправить письмо на fail-student@example.com.',
             ]);
 
         $this->assertDatabaseHas('users', [

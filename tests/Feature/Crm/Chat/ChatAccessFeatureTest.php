@@ -23,6 +23,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['GET', 'chat.index', []],
             ['GET', 'chat.api.threads.index', []],
             ['POST', 'chat.api.threads.store', ['user_id' => 1]],
+            ['POST', 'chat.api.threads.groups.store', ['title' => 'Группа', 'user_ids' => [1, 2]]],
             ['GET', 'chat.api.unread', []],
             ['GET', 'chat.api.users', []],
             ['GET', 'chat.api.users.show', ['user' => $peerId]],
@@ -31,6 +32,9 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['POST', 'chat.api.threads.messages.store', ['thread' => $threadId, 'body' => 'x']],
             ['PATCH', 'chat.api.threads.read', ['thread' => $threadId]],
             ['PATCH', 'chat.api.threads.draft', ['thread' => $threadId, 'body' => 'черновик']],
+            ['GET', 'chat.api.threads.participants.index', ['thread' => $threadId]],
+            ['POST', 'chat.api.threads.participants.store', ['thread' => $threadId, 'user_ids' => [1]]],
+            ['DELETE', 'chat.api.threads.participants.destroy', ['thread' => $threadId, 'user' => $peerId]],
         ];
     }
 
@@ -116,6 +120,32 @@ final class ChatAccessFeatureTest extends ChatTestCase
         $this->patchJson(route('chat.api.threads.draft', $threadId), [
             'body' => 'Access draft',
         ])->assertOk()->assertJsonPath('ok', true);
+
+        $second = $this->makePeer('AccessGroup_');
+        $group = $this->postJson(route('chat.api.threads.groups.store'), [
+            'title' => 'AccessGroup',
+            'user_ids' => [$peer->id, $second->id],
+        ]);
+        $this->assertSame(201, $group->getStatusCode());
+        $this->assertNotSame('', trim((string) $group->getContent()));
+        $this->assertGreaterThan(0, (int) $group->json('thread_id'));
+
+        $groupId = (int) $group->json('thread_id');
+        $this->getJson(route('chat.api.threads.participants.index', $groupId))
+            ->assertOk()
+            ->assertJsonPath('thread.is_group', true)
+            ->assertJsonPath('can_manage', false);
+
+        $toAdd = $this->makePeer('AccessAdd_');
+        $studentAdd = $this->postJson(route('chat.api.threads.participants.store', $groupId), [
+            'user_ids' => [$toAdd->id],
+        ]);
+        $this->assertNotSame(500, $studentAdd->getStatusCode());
+        $studentAdd->assertForbidden();
+
+        $studentKick = $this->deleteJson(route('chat.api.threads.participants.destroy', [$groupId, $peer]));
+        $this->assertNotSame(500, $studentKick->getStatusCode());
+        $studentKick->assertForbidden();
     }
 
     public function test_guest_cannot_read_reverb_status(): void

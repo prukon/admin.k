@@ -70,7 +70,7 @@ final class TrainersFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('>Тренеры</a>', false)
-            ->assertDontSee('>Пользователи</a>', false)
+            ->assertDontSee('>Клиенты</a>', false)
             ->assertDontSee('>Администраторы</a>', false)
             ->assertSee('value="active" selected', false);
     }

@@ -20,6 +20,7 @@ export default defineConfig({
                 'resources/css/admin-list-toolbar.css',
                 'resources/css/datatables-columns.css',
                 'resources/css/kids-tooltip.css',
+                'resources/css/chat.css',
 
 
                 'resources/js/common-scripts.js', //выпил
@@ -28,6 +29,7 @@ export default defineConfig({
                 'resources/js/scripts.js',
                 'resources/js/kids-tooltip.js',
                 'resources/js/kids-datatable.js',
+                'resources/js/chat.js',
                 // 'resources/js/bootstrap.js',
                 'resources/js/schedule.js',
                 'resources/js/trainer-workload.js',

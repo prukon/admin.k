@@ -82,6 +82,29 @@
             </tr>
         @endcan
 
+        @can('settings.reverbOverlay.manage')
+            <tr id="rowCabinetDiagnostics">
+                <td>Оверлей статуса Reverb</td>
+                <td>
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="cabinetDiagnostics"
+                               name="cabinetDiagnostics"
+                               value="1"
+                               {{ !empty($cabinetDiagnosticsEnabled) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="cabinetDiagnostics" id="cabinetDiagnosticsLabel">
+                            {{ !empty($cabinetDiagnosticsEnabled) ? 'включён' : 'выключен' }}
+                        </label>
+                        <div class="text-danger error-message" id="cabinetDiagnosticsError" data-error-for="cabinetDiagnostics"></div>
+                    </div>
+                </td>
+                <td>
+                    <button type="button" id="btnCabinetDiagnostics" class="btn btn-primary">Применить</button>
+                </td>
+            </tr>
+        @endcan
+
         <tr>
             <td class="col-4">Текст уведомления у пользователей</td>
             <td colspan="col-6">
@@ -366,6 +389,71 @@
                 });
             });
 
+
+            @can('settings.reverbOverlay.manage')
+            $(document).on('click', '#btnCabinetDiagnostics', function () {
+                var $row = $('#rowCabinetDiagnostics');
+                var $cb = $('#cabinetDiagnostics');
+                var $label = $('#cabinetDiagnosticsLabel');
+                var $error = $('#cabinetDiagnosticsError');
+                var active = $cb.is(':checked');
+                $error.text('');
+
+                $.ajax({
+                    url: '{{ route('settings.cabinetDiagnostics') }}',
+                    method: 'POST',
+                    headers: {'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest'},
+                    data: {cabinetDiagnostics: active ? 1 : 0},
+                    success: function (resp) {
+                        if (resp && resp.success) {
+                            $label.text(active ? 'включён' : 'выключен');
+                            $row.addClass('applied-flash');
+                            setTimeout(function () {
+                                $row.removeClass('applied-flash');
+                            }, 1100);
+                            if (typeof showSuccessModal === 'function') {
+                                showSuccessModal(
+                                    'Оверлей статуса Reverb',
+                                    'Оверлей статуса Reverb ' + (active ? 'включён' : 'выключен') + '.',
+                                    1
+                                );
+                            }
+                            return;
+                        }
+                        var failMsg = (resp && resp.message) ? resp.message : 'Не удалось сохранить настройку.';
+                        $error.text(failMsg);
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Ошибка', failMsg);
+                        } else {
+                            alert(failMsg);
+                        }
+                    },
+                    error: function (xhr) {
+                        $cb.prop('checked', !active);
+                        var msg = 'Не удалось сохранить настройку.';
+                        if (xhr.status === 419) {
+                            msg = 'CSRF-токен устарел. Обновите страницу.';
+                        }
+                        if (xhr.status === 403) {
+                            msg = 'Оверлей статуса Reverb доступен только суперадмину.';
+                        }
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.errors && xhr.responseJSON.errors.cabinetDiagnostics) {
+                                msg = xhr.responseJSON.errors.cabinetDiagnostics[0];
+                            } else if (xhr.status !== 403 && xhr.responseJSON.message) {
+                                msg = xhr.responseJSON.message;
+                            }
+                        }
+                        $error.text(msg);
+                        if (typeof showErrorModal === 'function') {
+                            showErrorModal('Ошибка', msg);
+                        } else {
+                            alert(msg);
+                        }
+                    }
+                });
+            });
+            @endcan
 
             @can('settings.registration.manage')
             // Вызов модалки Активность регистрации

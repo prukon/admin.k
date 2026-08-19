@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Документация: пользователи в админке</title>
+  <title>Документация: клиенты в админке</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; color: #111; margin: 0; }
     .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
@@ -25,12 +25,27 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Пользователи в админке (ученики)</h1>
+  <h1>Клиенты в админке (ученики)</h1>
   <div class="small">Файл: <code>/docs/documentation/admin-users.html</code> · URL в CRM: <code>/docs/documentation/admin-users</code> · оглавление: <a href="/doc">/doc</a> · вкладки раздела: <a href="/docs/documentation/admin-users-section">admin-users-section</a></div>
 
   <div class="note">
-    Вкладка «<b>Пользователи</b>» в разделе CRM «Пользователи» — это <b>только ученики</b> (<code>roles.name = user</code>).
+    Вкладка «<b>Клиенты</b>» в разделе CRM «Пользователи» — это <b>только ученики</b> (<code>roles.name = user</code>, UI-label «Клиент»).
     Тренеры, администраторы и кастомные роли — на отдельных вкладках (<a href="/docs/documentation/admin-users-section">обзор</a>, <a href="/docs/documentation/admin-trainers">тренеры</a>, <a href="/docs/documentation/admin-role-staff">администраторы и кастомные роли</a>).
+    Анонс на <code>/doc</code>: <a href="/doc#users-client-naming-index">нейминг «Клиенты»</a>.
+  </div>
+
+  <h2 id="user-client-naming">Нейминг: «Клиенты» vs «Пользователи»</h2>
+  <div class="note">
+    <b>Клиент</b> в UI — ученик (роль <code>user</code>), не любой аккаунт CRM.
+    Сайдбар и h4 раздела остаются «Пользователи». Toolbar h1 и вкладка на этой странице — «Клиенты», фильтр — «Все клиенты».
+    Модалки: «Создание клиента» / «Редактирование клиента» / «Удаление клиента».
+    JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code> (ё);
+    toast удаления: «Клиент успешно удален.» (е).
+    Не переименовывали: «пользовательские поля», импорт «учеников из Excel», тренеры, сотрудники («Пользователь создан»),
+    право <code>users.view</code> («Страница "Пользователи"»), свой профиль в ЛК («Пользователь успешно обновлен»),
+    отчёты «Все пользователи».
+    Подробнее — <a href="/docs/documentation/admin-users-section">admin-users-section §2–3</a>,
+    тесты — §автотесты ниже и <a href="/doc#users-client-naming-index">/doc</a>.
   </div>
 
   <h2>1) Назначение и доступ</h2>
@@ -825,6 +840,8 @@
     У ученика может быть <b>несколько групп</b>. Источник истины — pivot <code>team_user</code>.
     Колонка <code>users.team_id</code> — legacy-архив (не обновляется при смене групп в CRM).
     Полное описание по всем разделам CRM: <a href="/docs/documentation/student-team-membership">student-team-membership</a>.
+    Привязка <code>team_ids</code> добавляет ученика в авто-чат группы; снятие группы из чата не выгоняет
+    (<a href="/doc#chat-team-groups-index">анонс</a>).
   </div>
   <table>
     <thead><tr><th>Место</th><th>Поведение</th></tr></thead>
@@ -861,7 +878,7 @@
     <code>admin/users/_student_teams_multiselect.blade.php</code>.</p>
 
   <h3>4.5.1) Структура формы (роль «Ученик»)</h3>
-  <p>На вкладке «Пользователи» (<code>lockStudentRole</code>) роль передаётся скрытым <code>role_id</code>; аккордеоны и поля ученика видны сразу.</p>
+  <p>На вкладке «Клиенты» (<code>lockStudentRole</code>) роль передаётся скрытым <code>role_id</code>; аккордеоны и поля ученика видны сразу.</p>
   <ol>
     <li><b>Аккордеон «Ученик»</b> (по умолчанию свёрнут) — поля ученика и multiselect групп.</li>
     <li><b>Аккордеон «Данные родителя»</b> (по умолчанию свёрнут) — блок из <code>_parent_form.blade.php</code>.</li>
@@ -917,8 +934,8 @@
     Обе формы: <code>e.preventDefault()</code> + <code>$.ajax</code> с <code>Accept: application/json</code>.
     Успех <b>create</b> на <code>/admin/users</code> — <code>showSuccessModal</code> + reload
     (на заявках эта create-модалка не подключается — callback <code>onSchoolLeadUserCreated</code>).
-    Успех <b>PATCH карточки</b> — <code>showSuccessModal("Редактирование пользователя", …, 1)</code> + reload.
-    Успех <b>удаления</b> из edit — toast <code>window.showToast('Пользователь успешно удален.', 'success')</code>
+    Успех <b>PATCH карточки</b> — <code>showSuccessModal("Редактирование клиента", …, 1)</code> + reload.
+    Успех <b>удаления</b> из edit — toast <code>window.showToast('Клиент успешно удален.', 'success')</code>
     (таблица DataTables без F5), не success-модалка.
     Ошибки 422 — подсветка полей, раскрытие аккордеонов с ошибками (<code>syncStudentUserAccordionsForErrors</code>).
     Non-AJAX POST create → redirect на <code>admin.user1</code>, запись создаётся (<code>UserControllerTest::test_store_non_ajax_redirects_and_creates_user</code>).
@@ -929,7 +946,7 @@
   <div class="note">
     Маршрут <code>admin.user.store</code>. Валидация: <code>App\Http\Requests\User\StoreRequest</code>.
     Создание через <code>UserService::store()</code> в <code>DB::transaction</code> с аудитом (<code>event = user.created</code>) и опциональными <code>user_field_values</code>.
-    Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании через отдельную вкладку с выбором роли могут задаваться в create; на вкладке «Пользователи» с фиксированной ролью <code>user</code> — см. §2.2.<br>
+    Флаги мед./особенностей (§<a href="#user-health">2.2</a>) при создании через отдельную вкладку с выбором роли могут задаваться в create; на вкладке «Клиенты» с фиксированной ролью <code>user</code> — см. §2.2.<br>
     Пол и комментарий (§<a href="#user-comment-sex">2.4</a>) — в модалках <b>create и edit</b> при <code>users.sex</code> / <code>users.comment</code>.
     Персональная скидка (§<a href="#user-percent-discount">2.6</a>) — там же при <code>users.discount.manage</code>.<br>
     На этой странице селект роли в модалке скрыт: передаётся скрытое <code>role_id</code> = id системной роли <code>user</code> (<code>lockStudentRole</code> в view). Создание администратора, тренера или сотрудника с кастомной ролью — через соответствующую вкладку (см. <a href="/docs/documentation/admin-users-section">admin-users-section</a>).
@@ -1351,6 +1368,7 @@
       <li><code>tests/Feature/Crm/Contracts/ContractChildFullNameGenitivePrefillFeatureTest.php</code>, <code>ContractStudentProfileSyncTest.php</code> — prefill/sync <code>{{child_full_name_genitive}}</code></li>
       <li><code>tests/Feature/Crm/Users/UsersImportFeatureTest.php</code>, <code>UsersImportPreviewDiffFeatureTest.php</code>, <code>UsersImportAccessFeatureTest.php</code>, <code>UsersImportAjaxContractFeatureTest.php</code>, <code>UsersImportNonAjaxSafetyNetFeatureTest.php</code> — импорт из Excel §<a href="#user-import">8</a> / preview-diff §<a href="#user-import-preview-diff">8.5</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersContractColumnFeatureTest.php</code> — полное покрытие §<a href="#user-contract-column">2.3</a> (колонка, фильтр, сортировка, доступ); см. §2.3.8</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code>, <code>AdminUsersClientNamingAjaxContractFeatureTest.php</code>, <code>AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code>, <code>AdminUsersClientNamingFullAccessFeatureTest.php</code> — нейминг «Клиенты»/«Клиент» vs зонтик «Пользователи»: HTML (сайдбар, h4, вкладка, h1, модалки), JSON 200/422, non-AJAX 302, guest/403, оба JS-пути editUser; см. <a href="/docs/documentation/admin-users-section">admin-users-section §6</a></li>
       <li><code>tests/Feature/Crm/Users/AdminUsersPageFeatureTest.php</code> — toolbar, фильтры, smoke 200 endpoint’ов раздела</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersTablePreloaderRegressionFeatureTest.php</code> — список без table-preloader: guest/403/200, тулбар снаружи таблицы, AdminLTE <code>.wrapper</code> не размазан, PUT/PATCH/DELETE → 404/405</li>
       <li><code>tests/Feature/Crm/Users/AdminUsersParentFeatureTest.php</code> — колонка <code>parent</code>, поиск, edit JSON, parents/search, store/update, columns-settings</li>

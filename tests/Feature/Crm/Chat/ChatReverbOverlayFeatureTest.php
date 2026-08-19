@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Chat;
 
+use App\Models\Setting;
+use App\Support\CabinetDiagnostics;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Оверлей Reverb (superadmin) и GET /chat/api/reverb-status:
+ * Оверлей Reverb (superadmin + флаг на /admin/settings) и GET /chat/api/reverb-status:
  * процесс = слушает ли внутренний порт, сокет = Echo.
  * UX: процесс down + сокет connecting — не «всё ок»; лишний wsPath ломает handshake.
  *
@@ -226,14 +228,31 @@ final class ChatReverbOverlayFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('id="js-reverb-status"', $html);
     }
 
-    public function test_superadmin_sees_reverb_overlay_on_dashboard_and_chat_above_other_windows(): void
+    public function test_superadmin_does_not_see_reverb_overlay_when_diagnostics_are_off(): void
     {
         $this->actingAsSuperadmin();
+        Setting::setBool(CabinetDiagnostics::SETTING, false, null);
 
         $dashboard = $this->get(route('dashboard'))->assertOk()->getContent();
         $chat = $this->get(route('chat.index'))->assertOk()->getContent();
+        $settings = $this->get(route('admin.setting.setting'))->assertOk()->getContent();
 
-        foreach ([$dashboard, $chat] as $html) {
+        foreach ([$dashboard, $chat, $settings] as $html) {
+            $this->assertStringNotContainsString('id="js-reverb-status"', $html);
+            $this->assertStringNotContainsString('data-role="process-dot"', $html);
+        }
+    }
+
+    public function test_superadmin_sees_reverb_overlay_on_dashboard_and_chat_above_other_windows(): void
+    {
+        $this->actingAsSuperadmin();
+        Setting::setBool(CabinetDiagnostics::SETTING, true, null);
+
+        $dashboard = $this->get(route('dashboard'))->assertOk()->getContent();
+        $chat = $this->get(route('chat.index'))->assertOk()->getContent();
+        $settings = $this->get(route('admin.setting.setting'))->assertOk()->getContent();
+
+        foreach ([$dashboard, $chat, $settings] as $html) {
             $this->assertStringContainsString('id="js-reverb-status"', $html);
             $this->assertStringContainsString('data-status-url="'.route('chat.api.reverb-status').'"', $html);
             $this->assertStringContainsString('data-role="process-dot"', $html);
@@ -244,6 +263,9 @@ final class ChatReverbOverlayFeatureTest extends ChatTestCase
             $this->assertStringContainsString('>процесс<', $html);
             $this->assertStringContainsString('>сокет<', $html);
         }
+
+        $this->assertStringContainsString('sidebar-mini layout-fixed', $settings);
+        $this->assertStringContainsString('id="btnCabinetDiagnostics"', $settings);
     }
 
     public function test_echo_client_on_crm_pages_does_not_set_wspath_that_breaks_handshake(): void
@@ -266,6 +288,7 @@ final class ChatReverbOverlayFeatureTest extends ChatTestCase
     public function test_overlay_script_is_rendered_after_echo_so_it_can_bind_socket_state(): void
     {
         $this->actingAsSuperadmin();
+        Setting::setBool(CabinetDiagnostics::SETTING, true, null);
         $html = $this->get(route('dashboard'))->assertOk()->getContent();
 
         $echoPos = strpos($html, "broadcaster: 'reverb'");
@@ -330,7 +353,7 @@ final class ChatReverbOverlayFeatureTest extends ChatTestCase
         $this->assertStringContainsString("connection.bind('state_change'", $blade);
         $this->assertStringContainsString('data.listening', $blade);
         $this->assertStringContainsString('data.host + \':\' + data.port', $blade);
-        $this->assertStringContainsString("optional(auth()->user()->role)->name === 'superadmin'", $blade);
+        $this->assertStringContainsString('CabinetDiagnostics::shouldShow(auth()->user())', $blade);
         $this->assertStringNotContainsString('@can(', $blade);
         $this->assertStringNotContainsString('messages.view', $blade);
     }

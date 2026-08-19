@@ -10,6 +10,7 @@ use App\Models\SchoolLead;
 use App\Models\SchoolLeadStatus;
 use App\Models\Setting;
 use App\Models\Team;
+use App\Models\User;
 use App\Services\Audit\AuditLogger;
 use App\Services\Chat\ChatService;
 use App\Services\InAppNotifications\InAppNotificationInbox;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\BlogPost;
 use App\Observers\BlogPostObserver;
+use App\Observers\TeamGroupChatUserObserver;
 use App\Observers\UserObserver;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Queue\Events\JobProcessed;
@@ -103,6 +105,7 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrap();
 
         BlogPost::observe(BlogPostObserver::class);
+        User::observe(TeamGroupChatUserObserver::class);
 
         // Получаем срок оплаты сервиса
         View::composer('*', function ($view) {

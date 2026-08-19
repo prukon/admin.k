@@ -1,11 +1,11 @@
 {{--Cropie--}}
 
-<!-- Модальное окно редактирования пользователя -->
+<!-- Модальное окно редактирования клиента -->
 <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
     <div class="modal-dialog ">
         <div class="modal-content background-color-grey">
             <div class="modal-header">
-                <h5 class="modal-title" id="editUserModalLabel">Редактирование пользователя</h5>
+                <h5 class="modal-title" id="editUserModalLabel">Редактирование клиента</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -1093,7 +1093,7 @@
                         data: $form.serialize(),
                         headers: {'Accept': 'application/json'}, // Laravel вернёт JSON для 422
                         success: function (response) {
-                            showSuccessModal("Редактирование пользователя", "Пользователь успешно обновлён.", 1);
+                            showSuccessModal("Редактирование клиента", "Клиент успешно обновлён.", 1);
                             // при желании: обновить список/закрыть модалку и т.п.
                         },
                         error: function (xhr) {
@@ -1163,8 +1163,8 @@
 
         function deleteUser() {
             showConfirmDeleteModal(
-                "Удаление пользователя",
-                "Вы уверены, что хотите удалить пользователя?",
+                "Удаление клиента",
+                "Вы уверены, что хотите удалить клиента?",
                 function () {
                     const confirmEl = document.getElementById('confirmDeleteModal');
                     const editEl = document.getElementById('editUserModal');
@@ -1188,15 +1188,15 @@
                                 }
 
                                 if (typeof window.showToast === 'function') {
-                                    window.showToast('Пользователь успешно удален.', 'success');
+                                    window.showToast('Клиент успешно удален.', 'success');
                                 }
                             } else {
-                                $('#error-modal-message').text('Произошла ошибка при удалении пользователя.');
+                                $('#error-modal-message').text('Произошла ошибка при удалении клиента.');
                                 $('#errorModal').modal('show');
                             }
                         },
                         error: function () {
-                            $('#error-modal-message').text('Произошла ошибка при удалении пользователя.');
+                            $('#error-modal-message').text('Произошла ошибка при удалении клиента.');
                             $('#errorModal').modal('show');
                         }
                     });

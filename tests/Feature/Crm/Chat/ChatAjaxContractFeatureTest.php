@@ -6,7 +6,9 @@ namespace Tests\Feature\Crm\Chat;
 
 use App\Models\ParentProfile;
 use App\Models\Team;
+use App\Models\User;
 use App\Services\TeamUserSyncService;
+use Illuminate\Support\Facades\DB;
 
 /**
  * P1: JSON-контракт API чата — структура, errors[field], история, прочитанность.
@@ -27,6 +29,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertJsonPath('created', true)
             ->assertJsonPath('thread.title', $peer->full_name)
             ->assertJsonPath('thread.peer_id', $peer->id)
+            ->assertJsonPath('thread.is_group', false)
             ->assertJsonStructure([
                 'ok',
                 'created',
@@ -187,6 +190,10 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         $this->getJson(route('chat.api.users', ['q' => str_repeat('a', 121)]))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['q']);
+
+        $this->getJson(route('chat.api.users', ['team_id' => 'abc']))
+            ->assertStatus(422)
+            ->assertJsonPath('errors.team_id.0', 'Выберите группу из списка.');
     }
 
     public function test_thread_preview_is_trimmed_and_contacts_exclude_self_and_disabled(): void
@@ -462,6 +469,77 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
         $parent->delete();
         $afterDelete = collect($this->getJson(route('chat.api.users', ['q' => $parentLast]))->assertOk()->json());
         $this->assertNull($afterDelete->firstWhere('id', $kid->id));
+    }
+
+    public function test_contacts_filter_by_team_id_shows_only_students_and_none(): void
+    {
+        $teamA = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ЧатГруппаА_'.uniqid('', true),
+        ]);
+        $teamB = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ЧатГруппаБ_'.uniqid('', true),
+        ]);
+        $foreignTeam = Team::factory()->create([
+            'partner_id' => $this->foreignPartner->id,
+            'title' => 'ЧатГруппаЧужая_'.uniqid('', true),
+        ]);
+
+        $inA = $this->makePeer('InA_', ['lastname' => 'УникФамА_'.uniqid('', true)]);
+        $inB = $this->makePeer('InB_', ['lastname' => 'УникФамБ_'.uniqid('', true)]);
+        $noTeam = $this->makePeer('NoTeam_');
+        $trainer = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('trainer'),
+            'is_enabled' => 1,
+            'name' => 'TrainerChat_'.uniqid('', true),
+        ]);
+        $adminInA = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->roleId('admin'),
+            'is_enabled' => 1,
+            'name' => 'AdminInTeamChat_'.uniqid('', true),
+        ]);
+
+        app(TeamUserSyncService::class)->syncTeamsForStudent($inA, [(int) $teamA->id]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($inB, [(int) $teamB->id]);
+        DB::table('team_user')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamA->id,
+            'user_id' => $adminInA->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $byA = collect($this->getJson(route('chat.api.users', ['team_id' => $teamA->id]))->assertOk()->json());
+        $this->assertNotNull($byA->firstWhere('id', $inA->id));
+        $this->assertNull($byA->firstWhere('id', $inB->id));
+        $this->assertNull($byA->firstWhere('id', $noTeam->id));
+        $this->assertNull($byA->firstWhere('id', $trainer->id));
+        $this->assertNull($byA->firstWhere('id', $adminInA->id));
+
+        $none = collect($this->getJson(route('chat.api.users', ['team_id' => 'none']))->assertOk()->json());
+        $this->assertNotNull($none->firstWhere('id', $noTeam->id));
+        $this->assertNotNull($none->firstWhere('id', $trainer->id));
+        $this->assertNull($none->firstWhere('id', $inA->id));
+        $this->assertNull($none->firstWhere('id', $inB->id));
+
+        $all = collect($this->getJson(route('chat.api.users'))->assertOk()->json());
+        $this->assertNotNull($all->firstWhere('id', $inA->id));
+        $this->assertNotNull($all->firstWhere('id', $trainer->id));
+        $this->assertNotNull($all->firstWhere('id', $noTeam->id));
+
+        $combined = collect($this->getJson(route('chat.api.users', [
+            'team_id' => $teamA->id,
+            'q' => $inA->lastname,
+        ]))->assertOk()->json());
+        $this->assertNotNull($combined->firstWhere('id', $inA->id));
+        $this->assertNull($combined->firstWhere('id', $inB->id));
+
+        $this->getJson(route('chat.api.users', ['team_id' => $foreignTeam->id]))
+            ->assertStatus(422)
+            ->assertJsonPath('errors.team_id.0', 'Выберите группу из списка.');
     }
 
     public function test_empty_inbox_returns_zero_unread_and_empty_thread_list(): void

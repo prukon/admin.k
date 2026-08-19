@@ -37,7 +37,7 @@ class RolesSeeder extends Seeder
                 [
                     'id'         => 3,
                     'name'       => 'user',
-                    'label'      => 'Пользователь',
+                    'label'      => 'Клиент',
                     'is_sistem'  => 1,
                     'is_visible' => 1,
                     'order_by'   => 10,

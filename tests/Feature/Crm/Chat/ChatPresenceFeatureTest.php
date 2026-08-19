@@ -216,6 +216,44 @@ final class ChatPresenceFeatureTest extends ChatTestCase
         $this->assertFalse((bool) $contacts->firstWhere('id', $over->id)['is_online']);
     }
 
+    public function test_open_private_thread_header_subtitle_uses_online_relative_and_absolute_last_seen(): void
+    {
+        $this->travelTo('2028-08-19 12:00:00');
+
+        $online = $this->makePeer('HdrOn_');
+        $twoMin = $this->makePeer('HdrTwo_');
+        $fiveMin = $this->makePeer('HdrFive_');
+        $old = $this->makePeer('HdrOld_');
+        $never = $this->makePeer('HdrNever_');
+
+        $online->forceFill(['last_seen_at' => now()])->save();
+        $twoMin->forceFill(['last_seen_at' => now()->subSeconds(121)])->save();
+        $threeMin = $this->makePeer('HdrThree_');
+        $threeMin->forceFill(['last_seen_at' => now()->subMinutes(3)])->save();
+        $fiveMin->forceFill(['last_seen_at' => now()->subMinutes(5)])->save();
+        $old->forceFill(['last_seen_at' => '2028-08-18 16:50:00'])->save();
+        $never->forceFill(['last_seen_at' => null])->save();
+
+        $cases = [
+            [$online, 'онлайн', 'онлайн'],
+            [$twoMin, 'был(а) в сети 2 минуты назад', 'был(а) в сети 2 минуты назад'],
+            [$threeMin, 'был(а) в сети 3 минуты назад', 'был(а) в сети 3 минуты назад'],
+            [$fiveMin, 'был(а) в сети 5 минут назад', 'был(а) в сети 5 минут назад'],
+            [$old, 'был(а) в сети в 16:50 18 августа 2028', 'был(а) в сети в 16:50 18 августа 2028'],
+            [$never, '', ''],
+        ];
+
+        foreach ($cases as [$peer, $subtitle, $presence]) {
+            $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+            $this->getJson(route('chat.api.threads.show', $thread))
+                ->assertOk()
+                ->assertJsonPath('thread.is_group', false)
+                ->assertJsonPath('thread.header_subtitle', $subtitle)
+                ->assertJsonPath('thread.peer_presence_label', $presence)
+                ->assertJsonPath('thread.members_total', null);
+        }
+    }
+
     public function test_thread_list_time_is_last_message_not_last_seen(): void
     {
         $this->travelTo('2026-08-18 15:00:00');
@@ -229,6 +267,9 @@ final class ChatPresenceFeatureTest extends ChatTestCase
         $this->assertNotNull($row);
         $this->assertSame('2026-08-18 15:00:00', $row['last_message_time']);
         $this->assertArrayNotHasKey('last_seen_at', $row);
+        $this->assertArrayNotHasKey('header_subtitle', $row);
+        $this->assertArrayNotHasKey('peer_presence_label', $row);
+        $this->assertArrayNotHasKey('members_total', $row);
     }
 
     public function test_inbox_bump_carries_ticks_online_and_last_message_time_for_both_sides(): void

@@ -114,10 +114,9 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
             'team_id' => ['required_with:base_avg_students', 'integer', 'min:0'],
             'base_avg_students' => [
                 'required_with:team_id',
-                'numeric',
+                'integer',
                 'min:0',
-                'max:999.9',
-                'decimal:0,1',
+                'max:999',
             ],
         ];
     }
@@ -140,10 +139,9 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
             'base_premium.prohibited' => 'Базовая премия задаётся в типе тренера.',
             'premium_increment.numeric' => 'Базовая надбавка должна быть числом (рубли, можно с копейками).',
             'premium_increment.min' => 'Базовая надбавка не может быть отрицательной.',
-            'base_avg_students.numeric' => 'Базовое среднее должно быть числом с не более чем одной десятой.',
+            'base_avg_students.integer' => 'Базовое среднее должно быть целым числом.',
             'base_avg_students.min' => 'Базовое среднее не может быть отрицательным.',
             'base_avg_students.max' => 'Базовое среднее слишком большое.',
-            'base_avg_students.decimal' => 'Базовое среднее — число с одной десятой (например 16 или 16.5).',
             'team_id.required_with' => 'Для базового среднего укажите группу.',
             'base_avg_students.required_with' => 'Укажите базовое среднее учеников.',
         ];
@@ -284,7 +282,7 @@ final class KansasTrainerSalaryScheme implements TrainerSalaryScheme
             }
             $this->assertTeamBelongsToPeriodPartner($period, $teamId);
 
-            $tenths = KansasQuantity::toTenthsOrFail($data['base_avg_students']);
+            $tenths = KansasQuantity::toWholeTenthsOrFail($data['base_avg_students']);
             TrainerSalaryKansasGroupBaseline::query()->updateOrCreate(
                 [
                     'trainer_salary_period_id' => $period->id,

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1{{ request()->routeIs('chat.index') ? ', maximum-scale=1, user-scalable=no' : '' }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
 
@@ -225,7 +225,7 @@
 
 </head>
 
-<body class="hold-transition sidebar-mini layout-fixed{{ auth()->user()?->layout_wide ? ' layout-wide' : '' }}">
+<body class="hold-transition sidebar-mini layout-fixed{{ auth()->user()?->layout_wide ? ' layout-wide' : '' }}{{ request()->routeIs('chat.index') ? ' chat-immersive' : '' }}">
     <div class="wrapper">
 
         <!-- Preloader -->

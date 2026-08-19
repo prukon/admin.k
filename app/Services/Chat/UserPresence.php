@@ -29,4 +29,49 @@ class UserPresence
     {
         return $user !== null && $user->isOnline();
     }
+
+    /**
+     * Подпись под именем в шапке личного диалога.
+     * Онлайн — окно 120 секунд. 2–5 минут назад — относительная фраза.
+     * Дальше — «был(а) в сети в ЧЧ:ММ D месяца YYYY». Никогда не пинговал — пусто.
+     */
+    public function dialogStatusLabel(?CarbonInterface $lastSeenAt): string
+    {
+        if ($lastSeenAt === null) {
+            return '';
+        }
+
+        $now = now();
+        if ($lastSeenAt->gte($now->copy()->subSeconds(self::ONLINE_WITHIN_SECONDS))) {
+            return 'онлайн';
+        }
+
+        $minutes = (int) $lastSeenAt->diffInMinutes($now);
+        if ($minutes < 2) {
+            $minutes = 2;
+        }
+        if ($minutes <= 5) {
+            return 'был(а) в сети '.$minutes.' '.$this->minutesWord($minutes).' назад';
+        }
+
+        return 'был(а) в сети в '.$lastSeenAt
+            ->copy()
+            ->timezone((string) config('app.timezone'))
+            ->locale('ru')
+            ->translatedFormat('H:i j F Y');
+    }
+
+    private function minutesWord(int $n): string
+    {
+        $n10 = $n % 10;
+        $n100 = $n % 100;
+        if ($n10 === 1 && $n100 !== 11) {
+            return 'минуту';
+        }
+        if ($n10 >= 2 && $n10 <= 4 && ($n100 < 12 || $n100 > 14)) {
+            return 'минуты';
+        }
+
+        return 'минут';
+    }
 }

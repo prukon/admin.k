@@ -5,19 +5,27 @@ declare(strict_types=1);
 namespace App\Services\Schedule\TrainerSalary\Schemes\Kansas;
 
 /**
- * Средние Канзаса: десятые доли ученика (16.0 → 160 tenths).
- * Деньги остаются в копейках; десятые участвуют в формуле через целочисленное деление на 10.
+ * Средние Канзаса: в формуле и UI — целые ученики.
+ * В БД колонки *_tenths: 16 учеников → 160 (канон деления на 10 для денег).
  */
 final class KansasQuantity
 {
     public static function toTenths(string|int|float|null $value): ?int
+    {
+        return self::toWholeTenths($value);
+    }
+
+    /**
+     * Только целое число учеников (16 ок, 16.5 нет). Возвращает tenths (16 → 160).
+     */
+    public static function toWholeTenths(string|int|float|null $value): ?int
     {
         if ($value === null) {
             return null;
         }
 
         if (is_int($value)) {
-            if ($value < 0) {
+            if ($value < 0 || $value > 999) {
                 return null;
             }
 
@@ -25,33 +33,31 @@ final class KansasQuantity
         }
 
         if (is_float($value)) {
-            if (! is_finite($value) || $value < 0) {
+            if (! is_finite($value) || $value < 0 || $value > 999 || $value != floor($value)) {
                 return null;
             }
 
-            $value = number_format($value, 1, '.', '');
+            return ((int) $value) * 10;
         }
 
         $v = trim(str_replace(["\xc2\xa0", ' '], '', (string) $value));
-        $v = str_replace(',', '.', $v);
-        if ($v === '' || ! preg_match('/^\d{1,3}(\.\d)?$/', $v)) {
+        if ($v === '' || ! preg_match('/^\d{1,3}$/', $v)) {
             return null;
         }
 
-        if (! str_contains($v, '.')) {
-            return ((int) $v) * 10;
-        }
-
-        [$whole, $frac] = explode('.', $v, 2);
-
-        return ((int) $whole) * 10 + (int) $frac;
+        return ((int) $v) * 10;
     }
 
     public static function toTenthsOrFail(string|int|float|null $value): int
     {
-        $tenths = self::toTenths($value);
+        return self::toWholeTenthsOrFail($value);
+    }
+
+    public static function toWholeTenthsOrFail(string|int|float|null $value): int
+    {
+        $tenths = self::toWholeTenths($value);
         if ($tenths === null) {
-            throw new \InvalidArgumentException('Некорректное среднее (ожидается число с одной десятой).');
+            throw new \InvalidArgumentException('Некорректное среднее (ожидается целое число учеников).');
         }
 
         return $tenths;
@@ -59,23 +65,22 @@ final class KansasQuantity
 
     public static function formatTenths(int $tenths): string
     {
+        return self::formatTenthsAsInt($tenths);
+    }
+
+    /**
+     * Целое учеников из tenths (160 → 16). Хранимые средние всегда кратны 10.
+     */
+    public static function formatTenthsAsInt(int $tenths): string
+    {
         $neg = $tenths < 0;
-        $abs = abs($tenths);
-        $body = intdiv($abs, 10) . '.' . (string) ($abs % 10);
+        $body = (string) intdiv(abs($tenths), 10);
 
         return $neg ? '-' . $body : $body;
     }
 
     /**
-     * Целая часть десятых для ячейки (16.5 → 16). Расчёт и БД не трогает.
-     */
-    public static function formatTenthsAsInt(int $tenths): string
-    {
-        return (string) intdiv($tenths, 10);
-    }
-
-    /**
-     * round(sum / count, 1) как tenths: round(sum * 10 / count) half-up.
+     * round(sum / count, 1), затем вверх до целого: 15.04 → 15, 15.1 → 16.
      */
     public static function averageToTenths(int $sum, int $count): int
     {
@@ -83,7 +88,19 @@ final class KansasQuantity
             return 0;
         }
 
-        return self::roundDiv($sum * 10, $count);
+        return self::ceilTenthsToWholeTenths(self::roundDiv($sum * 10, $count));
+    }
+
+    /**
+     * 150 → 150 (15.0), 151 → 160 (15.1 → 16).
+     */
+    public static function ceilTenthsToWholeTenths(int $tenths): int
+    {
+        if ($tenths >= 0) {
+            return intdiv($tenths + 9, 10) * 10;
+        }
+
+        return -intdiv(-$tenths + 9, 10) * 10;
     }
 
     /**

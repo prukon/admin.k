@@ -101,7 +101,7 @@ class AuditEventTest extends TestCase
     {
         $label = AuditEvent::resolveLabel('user.created');
 
-        $this->assertSame('Создание пользователя', $label);
+        $this->assertSame('Создание клиента', $label);
     }
 
     #[Test]

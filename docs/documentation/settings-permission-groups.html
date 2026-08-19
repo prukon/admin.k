@@ -58,7 +58,7 @@
       <tr><th><code>slug</code></th><th>Название в UI</th><th>Что внутри (примеры)</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …</td></tr>
+      <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …</td></tr>
       <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
       <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
@@ -68,8 +68,8 @@
       <tr><td><code>leads</code></td><td>Заявки и лиды</td><td><code>partnerLeads.view</code>, <code>schoolWidget.view</code>, <code>schoolLeadLanding.view</code> (пункт меню «Лиды» — <code>schoolLeads.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
       <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles)</td></tr>
-      <tr><td><code>users</code></td><td>Управление пользователями</td><td>Страница <code>trainers.view</code> и поля CRM: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.discount.manage</code> (персональная скидка, не в базовых ролях), скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), …</td></tr>
-      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, …</td></tr>
+      <tr><td><code>users</code></td><td>Управление клиентами</td><td>Поля CRM ученика/сотрудника: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.discount.manage</code> (персональная скидка, не в базовых ролях), скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), страница тренеров <code>trainers.view</code>. Пункт меню «Пользователи» — это <code>users.view</code> в <code>mainMenu</code>, не эта группа. Колонка роли <code>user</code> в матрице — «Клиент».</td></tr>
+      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, скрытое <code>settings.reverbOverlay.manage</code> (оверлей Reverb, не в базовых ролях)</td></tr>
       <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
       <tr><td><code>inAppNotifications</code></td><td>Уведомления CRM</td><td><code>inAppNotifications.view</code> (колокольчик/лента, в базовых ролях); скрытое <code>inAppNotifications.manage</code> (форма админа школы зарезервирована, v1 UI нет — создаёт superadmin)</td></tr>
       <tr><td><code>misc</code></td><td>Разное</td><td><code>paying.classes</code></td></tr>
@@ -104,6 +104,9 @@
       (создаёт группы и переназначает <code>permission_group_id</code> batch-update; <code>down()</code> намеренно пустой).</li>
     <li>Миграция страничных прав в «Главное меню»: <code>/database/migrations/2026_06_23_120000_move_page_view_permissions_to_main_menu.php</code>
       (<code>reports.view</code>, <code>schedule.view</code>, <code>groups.view</code>, <code>setPrices.view</code>, <code>contracts.view</code>, <code>partner.view</code>, <code>users.view</code>, <code>settings.view</code> + <code>sort_order</code> по боковому меню).</li>
+    <li>Миграция нейминга ученика: <code>/database/migrations/2026_08_18_221000_rename_user_client_labels.php</code>
+      (label роли <code>user</code>: «Пользователь»→«Клиент»; имя группы <code>users</code>: «Управление пользователями»→«Управление клиентами»).
+      Описание <code>users.view</code> остаётся «Страница "Пользователи"». Анонс: <a href="/doc#users-client-naming-index">/doc</a>.</li>
     <li>Миграция <code>directories.view</code> и пунктов «Расписание школы» / «Лиды» в mainMenu:
       <code>/database/migrations/2026_06_23_140000_add_directories_view_and_menu_page_permissions.php</code>.</li>
     <li>Миграция <code>setPrices.cabinetSeasons.view</code>:
@@ -138,6 +141,15 @@
       <code>/database/migrations/2026_08_12_210000_revoke_account_user_team_update_from_base_roles.php</code>
       (право уже в каталоге; <code>is_visible=0</code>; снятие с <code>permission_role</code>; не в base roles).
       См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</li>
+    <li>Оверлей статуса Reverb: скрытое право <code>settings.reverbOverlay.manage</code>
+      (<code>is_visible=0</code>, группа <code>settings</code>, <b>без</b> выдачи ролям).
+      Superadmin видит кнопку через <code>Gate::before</code> / <code>@can</code>.
+      JSON-оверлея на <code>/cabinet</code> нет.
+      Старого <code>settings.cabinetDiagnostics.manage</code> нет
+      (миграция <code>2026_08_18_234000_drop_settings_cabinet_diagnostics_manage_permission.php</code>).
+      Новое право: <code>2026_08_18_235000_add_settings_reverb_overlay_manage_permission.php</code>.
+      См. <a href="/docs/documentation/dashboard-cabinet#cabinet-diagnostics">dashboard-cabinet §8</a>,
+      анонс <a href="/doc#cabinet-diagnostics-index">/doc</a>.</li>
     <li>На проде после выката: <code>php artisan migrate</code>. Отдельный запуск <code>PermissionSeeder</code> не обязателен, если миграция применена.</li>
     <li>Порядок в тестах и dev: <code>PermissionGroupsSeeder</code> → <code>PermissionSeeder</code> (см. <code>DatabaseSeeder</code>, <code>CrmTestCase</code>).</li>
   </ul>
@@ -155,7 +167,12 @@
   </div>
   <ul>
     <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 14 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
+    <li><code>/tests/Feature/Crm/Permissions/SettingsCabinetDiagnosticsPermissionCatalogFeatureTest.php</code> — <code>settings.reverbOverlay.manage</code> скрытое, не в базовых ролях; <code>settings.cabinetDiagnostics.manage</code> нет.</li>
+    <li><code>/tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsAccessFeatureTest.php</code>,
+      <code>AjaxContract</code>, <code>NonAjaxSafetyNet</code>, <code>UiContracts</code> —
+      HTTP/JSON кнопки оверлея, native POST, первый paint, бейдж на <code>/admin/settings</code>.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — гость / без <code>settings.roles.view</code> → 403; с правом, admin и superadmin → все endpoint'ы вкладки 200.</li>
+    <li><code>/tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code> — колонка «Клиент», группа «Управление клиентами», <code>users.view</code> = «Страница "Пользователи"».</li>
     <li>См. также: <code>RulesSettingsAccessControlTest</code>, <code>RulesSettingsPageFullAccessFeatureTest</code>, <code>RuleControllerTest</code>.</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter 'PermissionGroupsReorganizationFeatureTest|RulesSettingsSectionFullAccessFeatureTest'</code></pre>

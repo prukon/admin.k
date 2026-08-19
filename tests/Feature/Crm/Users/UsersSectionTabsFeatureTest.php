@@ -34,7 +34,7 @@ final class UsersSectionTabsFeatureTest extends CrmTestCase
 
         $this->get(route('admin.user1'))
             ->assertOk()
-            ->assertSee('>Пользователи</a>', false)
+            ->assertSee('>Клиенты</a>', false)
             ->assertSee('>Тренеры</a>', false)
             ->assertSee('>Администраторы</a>', false)
             ->assertSee('href="' . route('admin.user1') . '"', false)
@@ -52,7 +52,7 @@ final class UsersSectionTabsFeatureTest extends CrmTestCase
         $this->get(route('admin.trainers.index'))
             ->assertOk()
             ->assertSee('>Тренеры</a>', false)
-            ->assertDontSee('>Пользователи</a>', false)
+            ->assertDontSee('>Клиенты</a>', false)
             ->assertDontSee('>Администраторы</a>', false);
     }
 
@@ -64,7 +64,7 @@ final class UsersSectionTabsFeatureTest extends CrmTestCase
 
         $this->get(route('admin.user1'))
             ->assertOk()
-            ->assertSee('>Пользователи</a>', false)
+            ->assertSee('>Клиенты</a>', false)
             ->assertDontSee('>Тренеры</a>', false);
     }
 

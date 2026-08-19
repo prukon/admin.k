@@ -55,7 +55,7 @@ final class AdminUsersPageFeatureTest extends CrmTestCase
             ->getContent();
 
         $this->assertStringContainsString('>Пользователи</h4>', $html);
-        $this->assertStringContainsString('>Пользователи</h1>', $html);
+        $this->assertStringContainsString('>Клиенты</h1>', $html);
         $this->assertStringContainsString('payments-report-surface', $html);
         $this->assertStringContainsString('admin-list-toolbar', $html);
         $this->assertStringContainsString('payments-report-toolbar-actions--many', $html);

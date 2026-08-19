@@ -6,11 +6,14 @@ namespace App\Http\Controllers\Chat;
 
 use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Chat\ChatMessagesIndexRequest;
+use App\Http\Requests\Chat\ChatParticipantsIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
 use App\Http\Requests\Chat\ChatUserShowRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
 use App\Http\Requests\Chat\SaveChatDraftRequest;
+use App\Http\Requests\Chat\StoreChatGroupParticipantsRequest;
+use App\Http\Requests\Chat\StoreChatGroupThreadRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Http\Requests\Chat\StoreChatThreadRequest;
 use App\Models\ChatThread;
@@ -122,12 +125,43 @@ class ChatApiController extends AdminBaseController
         return redirect()->route('chat.index');
     }
 
+    public function storeGroupThread(StoreChatGroupThreadRequest $request): JsonResponse|RedirectResponse
+    {
+        $thread = $this->chat->createGroupThread(
+            $this->currentUser(),
+            $request->groupTitle(),
+            $request->memberIds()
+        );
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json([
+                'ok' => true,
+                'created' => true,
+                'thread_id' => $thread['id'],
+                'thread' => $thread,
+            ], 201);
+        }
+
+        return redirect()->route('chat.index');
+    }
+
     public function users(ChatUsersIndexRequest $request): JsonResponse
     {
+        $excludeIds = [];
+        $excludeThreadId = $request->excludeThreadId();
+        if ($excludeThreadId !== null) {
+            $excludeThread = ChatThread::query()->find($excludeThreadId);
+            if ($excludeThread) {
+                $excludeIds = $this->chat->groupMemberUserIds($excludeThread);
+            }
+        }
+
         $users = $this->chat->usersForPicker(
             (int) $this->currentUser()->id,
             $this->requirePartnerId(),
-            $request->searchQuery()
+            $request->searchQuery(),
+            $request->teamFilter(),
+            $excludeIds
         );
 
         return response()->json($users);
@@ -138,6 +172,62 @@ class ChatApiController extends AdminBaseController
         return response()->json(
             $this->chat->userCard($user, $this->requirePartnerId())
         );
+    }
+
+    public function participants(ChatParticipantsIndexRequest $request, ChatThread $thread): JsonResponse
+    {
+        $this->assertParticipant($thread);
+        $this->assertGroupThread($thread);
+
+        return response()->json(
+            $this->chat->groupMembersPage($thread, $this->currentUser(), $request->afterUserId())
+        );
+    }
+
+    public function storeParticipants(StoreChatGroupParticipantsRequest $request, ChatThread $thread): JsonResponse|RedirectResponse
+    {
+        $this->assertParticipant($thread);
+        $this->assertGroupThread($thread);
+        $this->assertCanManageGroupMembers();
+
+        $payload = $this->chat->addGroupParticipants($thread, $this->currentUser(), $request->memberIds());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', (string) ($payload['message'] ?? 'Участники добавлены.'));
+    }
+
+    public function destroyParticipant(Request $request, ChatThread $thread, User $user): JsonResponse|RedirectResponse
+    {
+        $this->assertParticipant($thread);
+        $this->assertGroupThread($thread);
+
+        $actor = $this->currentUser();
+        $isSelf = (int) $actor->id === (int) $user->id;
+        if (! $isSelf) {
+            $this->assertCanManageGroupMembers();
+        }
+
+        if (! $thread->hasParticipant((int) $user->id)) {
+            if ($this->wantsJsonPayload($request)) {
+                return response()->json([
+                    'message' => 'Этот пользователь не состоит в группе.',
+                    'errors' => ['user' => ['Этот пользователь не состоит в группе.']],
+                ], 422);
+            }
+
+            return redirect()->route('chat.index')->withErrors(['user' => 'Этот пользователь не состоит в группе.']);
+        }
+
+        $payload = $this->chat->removeGroupParticipant($thread, $actor, $user);
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', (string) ($payload['message'] ?? 'Готово.'));
     }
 
     public function markRead(Request $request, ChatThread $thread): JsonResponse|RedirectResponse
@@ -181,6 +271,24 @@ class ChatApiController extends AdminBaseController
             $thread->hasParticipant((int) $this->currentUser()->id),
             403,
             'Нет доступа к этому диалогу.'
+        );
+    }
+
+    private function assertGroupThread(ChatThread $thread): void
+    {
+        abort_unless(
+            (bool) $thread->is_group,
+            403,
+            'Это не групповой чат.'
+        );
+    }
+
+    private function assertCanManageGroupMembers(): void
+    {
+        abort_unless(
+            $this->chat->userCanManageGroupMembers($this->currentUser()),
+            403,
+            'Добавлять и удалять участников может только администратор.'
         );
     }
 }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Chat;
 
+use App\Models\ChatParticipant;
 use App\Models\ChatThread;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -154,6 +156,73 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
         $this->assertSame(1, ChatThread::query()->count());
     }
 
+    public function test_private_thread_is_reused_when_peer_participant_is_soft_deleted(): void
+    {
+        $peer = $this->makePeer('LeftPeer_');
+        $first = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        ChatParticipant::query()
+            ->where('thread_id', $first)
+            ->where('user_id', $peer->id)
+            ->delete();
+
+        $this->assertSame(
+            1,
+            ChatParticipant::query()->where('thread_id', $first)->count()
+        );
+
+        $again = $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertOk();
+
+        $this->assertSame($first, (int) $again->json('thread_id'));
+        $this->assertFalse((bool) $again->json('created'));
+        $this->assertTrue(
+            ChatParticipant::query()
+                ->where('thread_id', $first)
+                ->where('user_id', $peer->id)
+                ->exists()
+        );
+        $this->assertSame(1, ChatThread::query()->where('is_group', false)->count());
+    }
+
+    public function test_private_thread_is_reused_when_both_participants_are_soft_deleted(): void
+    {
+        $peer = $this->makePeer('EmptyPeer_');
+        $first = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        ChatParticipant::query()->where('thread_id', $first)->delete();
+        $this->assertSame(0, ChatParticipant::query()->where('thread_id', $first)->count());
+        $this->assertSame(
+            2,
+            ChatParticipant::withTrashed()->where('thread_id', $first)->count()
+        );
+
+        $again = $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertOk();
+
+        $this->assertSame($first, (int) $again->json('thread_id'));
+        $this->assertFalse((bool) $again->json('created'));
+        $this->assertSame(2, ChatParticipant::query()->where('thread_id', $first)->count());
+    }
+
+    public function test_participant_cannot_be_inserted_twice_in_same_thread(): void
+    {
+        $peer = $this->makePeer('UniqPeer_');
+        $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+
+        $this->expectException(QueryException::class);
+        ChatParticipant::query()->create([
+            'thread_id' => $thread->id,
+            'user_id' => (int) $this->user->id,
+        ]);
+    }
+
     public function test_cannot_access_thread_where_user_is_not_participant(): void
     {
         $foreignOnlyThread = $this->createThreadForUsers([
@@ -237,8 +306,12 @@ final class ChatPartnerScopeFullAccessFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="contactsModal"', $html);
         $this->assertStringContainsString('id="msgBodyError"', $html);
         $this->assertStringContainsString('id="contactsError"', $html);
-        $this->assertStringContainsString('js/chat.js', $html);
-        $this->assertStringNotContainsString('Создать группу', $html);
+        $this->assertStringContainsString('id="contactsTeamFilter"', $html);
+        $this->assertStringContainsString('id="contactsTeamError"', $html);
+        $this->assertStringContainsString('Создать группу', $html);
+
+        $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
+        $this->assertStringContainsString("@vite(['resources/js/chat.js'])", $blade);
     }
 
     public function test_sidebar_shows_messages_item_and_unread_badge(): void

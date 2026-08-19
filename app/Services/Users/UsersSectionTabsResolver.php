@@ -18,7 +18,7 @@ class UsersSectionTabsResolver
 
     /** @var array<string, string> */
     private const SYSTEM_ROLE_TAB_LABELS = [
-        'user'    => 'Пользователи',
+        'user'    => 'Клиенты',
         'trainer' => 'Тренеры',
         'admin'   => 'Администраторы',
     ];

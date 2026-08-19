@@ -48,11 +48,6 @@
                 refreshUnread();
             }
 
-            function socketState() {
-                var pusher = window.Echo && window.Echo.connector && window.Echo.connector.pusher;
-                return pusher && pusher.connection ? String(pusher.connection.state || '') : '';
-            }
-
             function bindInboxSocket() {
                 if (inboxBound || !window.Echo) {
                     return;
@@ -84,21 +79,6 @@
             }
 
             bindInboxSocket();
-
-            var lastFallbackPoll = 0;
-            setInterval(function () {
-                if (socketState() === 'connected') {
-                    return;
-                }
-                var onChatPage = typeof window.KidsCrmChatRefreshInbox === 'function';
-                var wait = onChatPage ? 1000 : 12000;
-                var now = Date.now();
-                if (now - lastFallbackPoll < wait) {
-                    return;
-                }
-                lastFallbackPoll = now;
-                refreshInboxOrUnread();
-            }, 1000);
         })();
     </script>
 @endif

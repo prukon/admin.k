@@ -47,6 +47,11 @@
     <code>inAppNotifications.view</code>; это не блок оплат консоли —
     <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
     Анонс фильтра абонементов и <code>team_id</code> из журнала — <a href="/doc#cabinet-ulp-team-filter">/doc</a>.
+    Оверлей статуса Reverb — <code>settings.reverbOverlay.manage</code> (скрытое, superadmin через
+    <code>Gate::before</code>), кнопка на
+    <code>/admin/settings</code> — §<a href="#cabinet-diagnostics">8</a>,
+    анонс <a href="/doc#cabinet-diagnostics-index">/doc</a>.
+    JSON-оверлея на <code>/cabinet</code> нет.
   </div>
 
   <h2>1) Маршруты и права</h2>
@@ -322,6 +327,8 @@
     Кандидаты select: группы с <code>location_id</code> из множества объектов текущих групп ученика,
     без уже назначенных; soft-deleted и <code>is_enabled=0</code> не попадают; при 2+ объектах — <code>optgroup</code>.
     Только attach (<code>TeamUserSyncService::attachTeamForStudent</code>); снять/заменить нельзя.
+    Успешный attach добавляет ученика в авто-чат группы
+    (<a href="/doc#chat-team-groups-index">анонс</a>).
     Без групп или без объектов у групп — сайдбар/карандаш/модалка не рендерятся.
     Аудит: <code>user.account_updated</code>. После успешного attach — колокольчик admin/trainer
     этой школы (<code>source=event</code>, 30 суток, без ссылки на карточку;
@@ -369,7 +376,46 @@
     <code>PartnerBasePermissionsTest::test_new_partner_does_not_assign_account_user_team_update_to_base_roles</code>.
   </p>
 
-  <h2>8) Feature-тесты</h2>
+  <h2 id="cabinet-diagnostics">8) Оверлей статуса Reverb</h2>
+  <div class="ok">
+    Кнопка на <code>/admin/settings</code> (вкладка «Общие») через
+    <code>@can('settings.reverbOverlay.manage')</code>. Право скрытое
+    (<code>is_visible=0</code>), никому не выдаётся. Superadmin видит кнопку, потому что
+    <code>Gate::before</code> обходит проверки.
+    JSON-оверлея на <code>/cabinet</code> нет.
+  </div>
+  <table>
+    <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Кто видит кнопку / бейдж Reverb</td><td><code>can(settings.reverbOverlay.manage)</code> — фактически superadmin через <code>Gate::before</code></td></tr>
+      <tr><td>Проверка</td><td><code>App\Support\CabinetDiagnostics::actorCanManage()</code> → <code>$user-&gt;can()</code></td></tr>
+      <tr><td>Флаг</td><td>глобальная запись <code>settings.name = cabinet_diagnostics</code>, <code>partner_id = NULL</code>, по умолчанию выкл</td></tr>
+      <tr><td>POST</td><td><code>/admin/settings/cabinet-diagnostics</code> (<code>settings.cabinetDiagnostics</code>), middleware <code>can:settings.reverbOverlay.manage</code>, Form Request <code>ToggleCabinetDiagnosticsRequest</code></td></tr>
+    </tbody>
+  </table>
+  <p>Кнопка «Оверлей статуса Reverb» (чекбокс + «Применить») в
+    <code>resources/views/admin/setting/setting.blade.php</code>.
+    Строка и click-handler оба в <code>@can('settings.reverbOverlay.manage')</code>.
+    Superadmin включает и выключает флаг себе. Admin / trainer / user кнопку не видят;
+    если скрытое право всё же выдано роли — <code>can()</code> открывает кнопку
+    (не <code>isSuperAdmin()</code>). POST без права —
+    <b>403</b> JSON; клиент показывает «Оверлей статуса Reverb доступен только суперадмину.»
+    и <b>не</b> затирает его английским <code>message</code>.
+    422 — <code>errors.cabinetDiagnostics</code> под чекбоксом
+    (<code>#cabinetDiagnosticsError</code>). Чекбокс при ошибке откатывается.
+    Подписи <b>включён</b> / <b>выключен</b>. Native POST без AJAX-заголовка
+    сохраняет флаг (JSON 200 <code>success</code>, не пустой 200). GET/PATCH/DELETE — 404/405.
+    Партнёрская строка настройки оверлей не включает.</p>
+  <p>Блока <code>#cabinet-diagnostics</code> на <code>/cabinet</code> нет.
+    AJAX <code>/get-user-details</code> ключ <code>cabinet_diagnostics</code> не отдаёт.</p>
+  <p>Бейдж Reverb <code>#js-reverb-status</code> в лейауте <code>admin2</code>
+    (<code>sidebar-mini layout-fixed</code>), в том числе на <code>/admin/settings</code> —
+    этот флаг: <code>CabinetDiagnostics::shouldShow()</code>. Выключил оверлей —
+    бейджа нет на dashboard, чате, настройках и остальных страницах CRM.
+    Первый paint: флаг выкл — чекбокс без <code>checked</code>, «выключен»;
+    флаг вкл — <code>checked</code> и «включён».</p>
+
+  <h2>9) Feature-тесты</h2>
   <div class="note">
     <ul class="small">
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetSeasonsAccessFeatureTest.php</code> — право <code>setPrices.cabinetSeasons.view</code>, 200/403/гость, изоляция от <code>setPrices.view</code></li>
@@ -395,6 +441,14 @@
       <li><code>tests/Feature/Crm/Account/AccountUserEditPageFeatureTest.php</code> — «Группы» readonly, lock-текст / карандаш при <code>account.user.team.update</code></li>
       <li><code>tests/Feature/Crm/Ui/BladeInlineJsSyntaxTest.php</code> — синтаксис + AJAX-контракт модалки attach; фильтр абонементов селектом группы (<code>filterLessonPackagesByTeam</code>); контракт <code>cabinetPackages.*</code> (<code>dashboardSeasonsEnabled</code> + postpay, без <code>packageAssignments.view</code>)</li>
       <li><code>tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — группа <code>setPrices</code> (10 прав, включая <code>cabinetPackages.*</code>)</li>
+      <li><code>tests/Feature/Crm/Permissions/SettingsCabinetDiagnosticsPermissionCatalogFeatureTest.php</code> — <code>settings.reverbOverlay.manage</code> скрытое, не в базовых ролях; <code>settings.cabinetDiagnostics.manage</code> нет</li>
+      <li><code>tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsFeatureTest.php</code> — кнопка оверлея Reverb на «Общие» только у superadmin; admin 403; глобальный флаг; 422 под полем</li>
+      <li><code>tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsAccessFeatureTest.php</code> — гость / без <code>settings.view</code> / trainer / user 403; admin 403 на POST; superadmin 200; выданное скрытое право открывает кнопку; GET/PATCH/DELETE → 404/405</li>
+      <li><code>tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsAjaxContractFeatureTest.php</code> — JSON 200/422 <code>errors.cabinetDiagnostics</code>, «on»/«1», партнёрская строка не включает оверлей</li>
+      <li><code>tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsNonAjaxSafetyNetFeatureTest.php</code> — native POST сохраняет флаг (JSON 200, не пустой 200 / не 500); валидация 422 под полем</li>
+      <li><code>tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsUiContractsFeatureTest.php</code> — первый paint чекбокса, бейдж на <code>/admin/settings</code> (layout-fixed), @can на строке и handler, JS: откат чекбокса, 403 без английского message, «включён»/«выключен»</li>
+      <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetDiagnosticsFeatureTest.php</code> — на <code>/cabinet</code> нет JSON-оверлея даже у superadmin; бейдж Reverb при включённом флаге; JSON <code>get-user-details</code> без ключа <code>cabinet_diagnostics</code></li>
+      <li><code>tests/Feature/Crm/Chat/ChatReverbOverlayFeatureTest.php</code> — бейдж Reverb в <code>admin2</code> (dashboard / чат / настройки) только у superadmin при включённом флаге</li>
     </ul>
     <pre><code>php artisan test --env=testing tests/Feature/Crm/Cabinet/
 php artisan test --env=testing --filter=cabinet_attach_team_modal</code></pre>

@@ -31,20 +31,51 @@
   <h1>Чат CRM (Сообщения)</h1>
   <div class="small">Файл: <code>/docs/documentation/chat.html</code> · кабинет: <code>/chat</code>
     · анонс чата: <a href="/doc#chat-index">/doc#chat-index</a>
+    · подзаголовок шапки: <a href="/doc#chat-header-subtitle-index">/doc#chat-header-subtitle-index</a>
     · онлайн / карточка: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>
     · черновик: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>
+    · фильтр контактов по группе: <a href="/doc#chat-contacts-team-filter-index">/doc#chat-contacts-team-filter-index</a>
+    · групповой чат: <a href="/doc#chat-groups-index">/doc#chat-groups-index</a>
+    · состав группы: <a href="/doc#chat-group-members-index">/doc#chat-group-members-index</a>
+    · чат учебной группы: <a href="/doc#chat-team-groups-index">/doc#chat-team-groups-index</a>
+    · служба поддержки: <a href="/doc#chat-support-identity-index">/doc#chat-support-identity-index</a>
+    · идентичность 1-на-1: <a href="/doc#chat-private-thread-identity-index">/doc#chat-private-thread-identity-index</a>
+    · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
+    · мобильная панель: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>
+    · сплит «Личные» / «Чаты»: <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a></div>
 
   <div class="ok">
-    <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы. Текст без вложений.
+    <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы плюс одна
+    «Служба поддержки» вместо суперадмина
+    (<a href="/doc#chat-support-identity-index">анонс</a>). Текст без вложений.
+    Повторный клик по контакту открывает тот же тред, даже после 0/1 живого
+    (<a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).
     Пункт «Чат» в сайдбаре, бейдж <code>badge-info</code> — число непрочитанных (скрыт при 0).
     Онлайн — зелёная точка (в списке диалогов красной нет), галочки только у исходящего,
     карточка собеседника из шапки открытого диалога.
+    Под названием — участники группы или «онлайн» / «был(а) в сети…»
+    (<a href="/doc#chat-header-subtitle-index">анонс подзаголовка</a>), не в списке слева.
     Неотправленный текст — черновик на сервере, в списке превью «Черновик: …»
     (<a href="/doc#chat-draft-index">анонс</a>).
-    Realtime — тот же Reverb, что у колокольчика. Если сокет недоступен, страница
-    чата подтягивает новые сообщения опросом раз в 1 секунду; на остальных страницах
-    бейдж — раз в 12 секунд.
+    Можно создать групповой чат: кнопка «Создать группу», название, затем выбор участников
+    (<a href="/doc#chat-groups-index">анонс групп</a>).
+    Состав открытой группы — из шапки: добавить / удалить (admin/superadmin), покинуть (любой)
+    (<a href="/doc#chat-group-members-index">анонс состава</a>).
+    Учебная группа сразу получает свой чат (<code>threads.team_id</code>,
+    <a href="/doc#chat-team-groups-index">анонс</a>).
+    В списке слева группа показывает имя чата, не «Диалог» и не ФИО участника
+    (<a href="/doc#chat-group-list-title-index">анонс имени в списке</a>).
+    Фильтр контактов по учебной группе — селект в модалке
+    (<a href="/doc#chat-contacts-team-filter-index">анонс</a>), не сам групповой чат.
+    На планшете и телефоне (с 992px) — нижняя панель как в Telegram
+    (<a href="/doc#chat-mobile-index">анонс</a>): «Личные сообщения» без групп,
+    «Чаты» — только группы
+    (<a href="/doc#chat-mobile-inbox-split-index">анонс сплита</a>).
+    Стили и JS страницы — Vite только на <code>/chat</code>.
+    Realtime — тот же Reverb, что у колокольчика, <b>без HTTP-опроса</b> inbox / unread / истории.
+    Если сокет не <code>connected</code>, новые сообщения и бейдж не обновляются, пока процесс
+    не поднимут (оверлей Reverb у superadmin). При reconnect — один refresh.
   </div>
 
   <div class="warn">
@@ -52,7 +83,23 @@
     (<a href="/docs/documentation/in-app-notifications">in-app-notifications</a>)
     и с email «Установка цен → Уведомления».
     Не путать черновик сообщения с черновиком ЗП тренеров (схема Канзас).
-    Групповые чаты в этой версии <b>нет</b> (отложено).
+    Кнопка «Создать группу» создаёт <b>ручной</b> групповой чат, это не учебная группа
+    и не селект фильтра контактов. Чаты учебных групп создаются сами
+    (<code>threads.team_id</code>, <a href="/doc#chat-team-groups-index">анонс</a>).
+    Селект групп в контактах и в визарде участников — фильтр учеников школы,
+    не список групповых переписок
+    (<a href="/doc#chat-contacts-team-filter-index">анонс</a>).
+    Вкладка «Чаты» на узком экране — кнопка «Создать группу» и список групповых чатов
+    (<code>#groupThreads</code>, <code>is_group</code>). Вкладка «Личные сообщения» — только 1-на-1
+    (<code>!is_group</code>), без групп. Десктоп слева по-прежнему общий список
+    (<a href="/doc#chat-mobile-inbox-split-index">анонс сплита</a>).
+    Вкладка «Аккаунт» — карточка в чате, не <code>/account-settings/user/edit</code>.
+    Leftover личка в списке может называться «Диалог» (<code>peer_id: null</code>) —
+    это тот же тред, не новая переписка
+    (<a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).
+    Учётка <code>superadmin</code> в <code>users</code> не переименовывается:
+    в чате это «Служба поддержки», не ФИО и не роль «Суперадмин»
+    (<a href="/doc#chat-support-identity-index">анонс</a>).
   </div>
 
   <h2 id="permissions">1) Права</h2>
@@ -83,14 +130,23 @@
   <ol>
     <li>Сайдбар: «Чат» (иконка конверта). Бейдж <code>js-chat-unread-count</code> с классом
       <code>badge badge-info</code> (не красный), скрыт при 0, иначе точное число непрочитанных.
-      Живое обновление: сокет <code>inbox.bump</code> / <code>thread.read</code>.
-      Если WebSocket не <code>connected</code>: на странице чата — опрос inbox и открытого диалога
-      раз в 1 секунду (<code>KidsCrmChatRefreshInbox</code>); на остальных страницах —
-      <code>GET /chat/api/unread</code> раз в 12 секунд. Без перезагрузки страницы.
+      Живое обновление: сокет <code>inbox.bump</code> / <code>thread.read</code>,
+      <b>без HTTP-опроса</b>.
+      Если сокет не <code>connected</code>, бейдж и список не подтягиваются таймером.
+      При reconnect Echo один раз вызывает <code>KidsCrmChatRefreshInbox</code>
+      (на странице чата) или <code>GET /chat/api/unread</code> (на остальных).
       Если открыт тот же диалог, бейдж не вспыхивает (из <code>unread_total</code> вычитается unread этого треда).</li>
-    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по фамилии и имени собеседника и превью.
-      Заголовок диалога, шапка и <code>GET /chat/api/threads/{id}</code> — <code>users.lastname</code> + <code>users.name</code> (если фамилии нет — только имя).
-      Клиент при открытии диалога перезаписывает title в списке слева из этого ответа, поэтому колонки собеседника те же, что у списка (<code>ChatService::PEER_USER_COLUMNS</code>, с <code>lastname</code>).
+    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по заголовку (ФИО лички / имя группы), превью и черновику.
+      Заголовок личного диалога, шапка и <code>GET /chat/api/threads/{id}</code> — <code>users.lastname</code> + <code>users.name</code> (если фамилии нет — только имя).
+      Исключение: канонический <code>superadmin</code> всегда «Служба поддержки»
+      (<a href="#support-identity">§2.6</a> / <a href="/doc#chat-support-identity-index">анонс</a>), не ФИО из учётки.
+      Групповой чат в списке слева и в шапке — <code>threads.subject</code> (имя чата), не «Диалог» и не ФИО первого участника; пустое имя — «Группа» (<code>threadListTitle</code> / <code>ChatService::titleForViewer</code>, <a href="/doc#chat-group-list-title-index">анонс</a>).
+      <code>.chat-li-title</code> / <code>.chat-li-middle</code> прижаты влево (<code>text-align: left</code>), не по центру — и десктоп, и моб
+      (правило вне <code>@media (max-width: 991.98px)</code>; глобальный <code>body.sidebar-mini</code> иначе центрирует текст).
+      В шапке то же: <code>.chat-header-text</code>, <code>#threadTitle</code>, <code>.chat-header-subtitle</code>.
+      Клиент при открытии диалога перезаписывает title в списке слева из этого ответа:
+      у личного — те же колонки собеседника (<code>ChatService::PEER_USER_COLUMNS</code>, с <code>lastname</code>),
+      у группы — снова имя чата, не ФИО участника.
       Справа сверху — время последнего сообщения (сегодня <code>ЧЧ:ММ</code>, иначе дата).
       Под временем, справа внизу — каунтер непрочитанных (<code>.chat-li-unread</code>, фон <code>#f3a12b</code>); при 0 не показываем.
       Если последнее сообщение исходящее: одна серая галочка слева от времени, пока собеседник не прочитал,
@@ -99,25 +155,88 @@
       Офлайн в списке точку не рисуем. Если у текущего пользователя есть неотправленный текст —
       превью <b>Черновик: …</b> вместо последнего сообщения (<code>.chat-li-preview.is-draft</code>, цвет <code>#f3a12b</code>),
       время справа остаётся <code>last_message_time</code>. Черновик свой, на сервере; собеседник его не видит.
-      Клик по строке открывает диалог (<code>openThread</code>), подставляет черновик в поле и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>). Подробнее — <a href="#presence">§2.1</a>, черновик — <a href="#draft">§2.2</a> / <a href="/doc#chat-draft-index">анонс</a>.</li>
-    <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом).
+      Клик по строке открывает диалог (<code>openThread</code>), подставляет черновик в поле и сразу ставит фокус в <code>#msgInput</code> (после <code>setComposerEnabled(true)</code>).
+      В шапке открытого диалога под названием (<code>#threadSubtitle</code>, JSON <code>header_subtitle</code>) — не в списке слева:
+      у группы число участников («N участник/участника/участников», <code>members_total</code>);
+      у лички статус собеседника: «онлайн» (окно 120 секунд), «был(а) в сети 2 минуты назад» / «… 5 минут назад» (2–5 минут, не «1 минуту»),
+      дальше «был(а) в сети в 16:50 18 августа 2028» (<code>H:i j F Y</code>, <code>peer_presence_label</code>);
+      никогда не пинговал — подпись скрыта.
+      Подробнее — <a href="#header-subtitle">§2.1.1</a> / <a href="/doc#chat-header-subtitle-index">анонс</a>, онлайн — <a href="#presence">§2.1</a>, черновик — <a href="#draft">§2.2</a> / <a href="/doc#chat-draft-index">анонс</a>.</li>
+    <li>«Контакты» открывает модалку контактов текущей школы (стандартная ширина Bootstrap, список до 60vh / 520px со скроллом)
+      плюс первая строка «Служба поддержки» при «Все группы» / «Без группы»
+      (<a href="#support-identity">§2.6</a> / <a href="/doc#chat-support-identity-index">анонс</a>;
+      в фильтре конкретной учебной группы этой строки нет).
       Справа снизу аватарки: зелёная точка если онлайн, красная если офлайн (в том числе если человек ещё ни разу не пинговал после появления <code>last_seen_at</code>).
       После аватарки три колонки: слева фамилия и имя (<code>users.lastname</code> + <code>users.name</code>, JSON <code>name</code>;
-      без фамилии — только имя), под ним ФИО родителя серым меньшим шрифтом
+      без фамилии — только имя; у поддержки — подпись, не ФИО учётки), под ним ФИО родителя серым меньшим шрифтом
       (<code>parent_full_name</code>, <code>.contact-parent</code>) — только если строка непустая;
+      имя и родитель прижаты влево (<code>text-align: left</code> у <code>.contact-main</code> /
+      <code>.contact-name</code> / <code>.contact-parent</code>), иначе <code>body.sidebar-mini</code>
+      (<code>text-align: -webkit-center</code>) центрирует и на вкладке «Контакты», и в модалке участников;
       по центру на одной линии с именем — группы ученика (<code>team_title</code>, <code>.contact-team</code>);
-      справа — роль (<code>.contact-role</code>). Пустую строку родителя не показываем.
+      справа — роль (<code>.contact-role</code>, у поддержки та же подпись, не «Суперадмин» и не <code>role_name</code>). Пустую строку родителя не показываем.
       Поиск <code>?q=</code> — по фамилии и имени ученика, email, фамилии и имени родителя
-      (<code>parents.lastname</code> / <code>parents.firstname</code>). Отчество родителя и soft-deleted карточка в поиске не участвуют.</li>
+      (<code>parents.lastname</code> / <code>parents.firstname</code>); у поддержки — только по «Служба поддержки», не по ФИО/email учётки. Отчество родителя и soft-deleted карточка в поиске не участвуют.
+      Фильтр по учебной группе — нативный селект <code>#contactsTeamFilter</code> над поиском
+      (не Select2, не multi, не групповой чат): «Все группы», «Без группы»,
+      группы текущей школы. <code>?team_id=</code> вместе с <code>?q=</code>: пусто — все контакты как раньше;
+      <code>none</code> — без групп в <code>team_user</code> (админы, тренеры, ученики без группы);
+      id группы — только ученики этой группы (системная роль <code>user</code>, не тренеры).
+      При открытии модалки селект сбрасывается вместе с поиском.
+      Ошибки фильтра — <code>#contactsTeamError</code> (<code>errors.team_id</code>), поиска — <code>#contactsError</code>.</li>
+    <li>«Создать группу» рядом с «Контакты» на десктопе (<code>#openCreateGroupBtn</code>,
+      <code>d-none d-lg-inline-block</code>) и на вкладке «Чаты» (<code>#openCreateGroupMobileBtn</code>).
+      Сначала модалка названия (<code>#createGroupNameModal</code>), затем участники
+      (<code>#createGroupMembersModal</code>). Обе стандартной ширины Bootstrap.
+      На узком экране шаг 2 ограничен <code>max-height: calc(100dvh - 1rem)</code>:
+      список скроллится, «Отмена» / «Создать» остаются в зоне экрана (не fullscreen).
+      Подробно — <a href="#groups">§2.4</a> / <a href="/doc#chat-groups-index">анонс</a>.</li>
     <li>Клик по контакту открывает существующий 1-на-1 или создаёт новый. Повторный клик по тому же человеку не плодит диалоги.</li>
-    <li>Справа — переписка. Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
-      (сокет <code>thread.read</code>; если сокет не <code>connected</code> — опрос <code>is_read</code> раз в 1 секунду на странице чата).
-      Клик по аватарке или имени в шапке открытого диалога открывает модалку карточки собеседника
+    <li>Справа — переписка. Свои пузыри (<code>.msg-mine</code>) прижаты вправо,
+      входящие (<code>.msg-other</code>) влево (не по центру).
+      Время/дата в <code>.msg-meta</code> на одной строке (<code>white-space: nowrap</code>),
+      даже у сообщения из 1 символа.
+      Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
+      (сокет <code>thread.read</code>; без HTTP-опроса <code>is_read</code>).
+      Под названием в шапке — <code>#threadSubtitle</code>
+      (<a href="#header-subtitle">§2.1.1</a>: участники группы / «онлайн» / «был(а) в сети…»).
+      Клик по аватарке или имени в шапке открытого <b>личного</b> диалога открывает модалку карточки собеседника
       (стандартная ширина Bootstrap): аватар, ФИО (<code>lastname</code>+<code>name</code>), телефон ученика (<code>tel:</code>),
       ФИО и телефон родителя, последний онлайн («онлайн» / дата-время / «-»), группы.
-      Пустые поля в карточке — «-». Ошибки — под полями
-      (<code>#msgBodyError</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>).</li>
-    <li>История вверх: прокрутка к верху догружает более старые сообщения.</li>
+      Пустые поля в карточке — «-».
+      Клик по шапке <b>группы</b> открывает модалку состава
+      (<code>#groupCardModal</code>, <a href="#groups">§2.4</a>).
+      Ошибки — под полями
+      (<code>#msgBodyError</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
+      в карточке группы <code>#groupCardError</code>).</li>
+    <li>История вверх: скролл (в т.ч. свайп) внутри <code>#messagesBox</code>.
+      Подгрузка <code>GET .../messages?before_id=</code> начинается заранее
+      (<code>maybeLoadOlder</code>, порог ≈ 1.5 экрана, минимум 480px), а не у самого верха.
+      После порции — ещё раз, пока запас не набран. Страница кабинета не скроллится.</li>
+    <li>Планшет и телефон (max-width <code>991.98px</code>, Bootstrap <code>lg</code>):
+      <code>body.chat-immersive</code> только на <code>chat.index</code> — шапка кабинета
+      (<code>.main-header</code>: гамбургер, колокольчик, Выйти) видна, скрыт
+      <code>.main-footer</code>, сайдбар — оверлей по гамбургеру.
+      Высота области — остаток <code>100dvh</code> под шапкой. Внизу <code>#chatMobileNav</code> как в Telegram:
+      Контакты (<code>fa-solid fa-address-book</code>), Личные сообщения
+      (<code>fa-solid fa-comment</code>, бейдж <code>js-chat-private-unread-count</code> — только 1-на-1),
+      Чаты (<code>fa-solid fa-comments</code>, кнопка «Создать группу», список групп,
+      бейдж <code>js-chat-group-unread-count</code> — только группы),
+      Аккаунт (<code>fa-solid fa-user</code>). Иконки из локального FA 6
+      (<code>includes.fontawesome</code>, не CDN Kit).
+      Кнопка «Контакты» в поиске списка — <code>d-none d-lg-inline-block</code> (только десктоп),
+      рядом «Создать группу» с тем же классом.
+      Открытый диалог: <code>#chatApp.is-dialog-open</code>, стрелка
+      <code>#chatMobileBack</code> (<code>fa-arrow-left</code>), нижняя панель на время диалога скрыта.
+      Контакты на узком экране — вкладка: <code>#contactsMount</code> переносится из
+      <code>#contactsModalBody</code> в <code>#chatPaneContacts</code>.
+      Аккаунт — карточка себя в <code>#accountCardBody</code> через
+      <code>GET /chat/api/users/{me}</code> и тот же <code>renderPeerCard</code>,
+      ошибка <code>#accountCardError</code>. Не переход на учётку кабинета.
+      Подробно — <a href="#mobile">§2.3</a> /
+      <a href="#mobile-inbox-split">§2.3.1</a> /
+      <a href="/doc#chat-mobile-index">анонс панели</a> /
+      <a href="/doc#chat-mobile-inbox-split-index">анонс сплита</a>.</li>
   </ol>
 
   <h2 id="presence">2.1) Онлайн, галочки исходящего, ФИО родителя, карточка</h2>
@@ -131,7 +250,9 @@
       Клиент: <code>includes/in_app_notifications/echo.blade.php</code>, <code>ping()</code> при загрузке
       и <code>setInterval(ping, 60000)</code>. Скрипт не содержит <code>route('chat.index')</code>,
       чтобы HTML dashboard без права чата не тащил URL <code>/chat</code>.</li>
-    <li><b>Список диалогов.</b> Заголовок и шапка — <code>lastname</code>+<code>name</code> (без фамилии — только имя).
+    <li><b>Список диалогов.</b> Заголовок личного — <code>lastname</code>+<code>name</code> (без фамилии — только имя).
+      Группа — <code>threads.subject</code> (имя чата), не «Диалог»; пустое — «Группа».
+      Имя в <code>.chat-li-title</code> слева (<code>text-align: left</code>), не по центру.
       Время справа сверху — <code>last_message_time</code> (сегодня часы:минуты, иначе
       <code>ДД.ММ.ГГ</code>), поле <code>last_seen_at</code> в payload списка нет.
       Каунтер непрочитанных — <code>.chat-li-unread</code> справа внизу под временем, цвет <code>#f3a12b</code>; при 0 не рисуем.
@@ -140,6 +261,11 @@
       непрочитано — <code>checks-sent</code> (одна серая), прочитано — <code>checks-read</code> + <code>check-second</code>.
       Входящее: <code>last_message_is_read = null</code>, галочек нет.
       Клик по строке — <code>openThread</code>, не карточка; после включения композера в <code>#msgInput</code> подставляется свой <code>draft_body</code> и ставится фокус.
+      Под названием в шапке открытого личного диалога (<code>#threadSubtitle</code>, JSON <code>header_subtitle</code> / <code>peer_presence_label</code> на <code>GET /chat/api/threads/{id}</code>, не в inbox):
+      «онлайн» в окне 120 секунд; 2–5 минут — «был(а) в сети N минуты/минут назад» (121 с → «2 минуты», не «1 минуту»);
+      больше 5 минут — «был(а) в сети в ЧЧ:ММ D месяца YYYY» (пример: «был(а) в сети в 16:50 18 августа 2028»);
+      <code>last_seen_at</code> пустой — подпись скрыта. Карточка шапки по-прежнему «онлайн» / <code>d.m.Y H:i</code> / «-».
+      Анонс подзаголовка: <a href="/doc#chat-header-subtitle-index">/doc#chat-header-subtitle-index</a>, подробно — <a href="#header-subtitle">§2.1.1</a>.
       Неотправленный текст: <code>PATCH /chat/api/threads/{id}/draft</code> (поле <code>body</code>, debounce 500 мс на клиенте, сразу при уходе из диалога).
       В списке при непустом своём <code>draft_body</code> — превью <b>Черновик: …</b> (<code>.chat-li-preview.is-draft</code>, <code>#f3a12b</code>), не последнее сообщение.
       Собеседник в JSON списка и show видит только свой черновик (чужой не отдаём). Успешная отправка обнуляет черновик отправителя.
@@ -147,11 +273,14 @@
       Анонс: <a href="/doc#chat-draft-index">/doc#chat-draft-index</a>, подробно — <a href="#draft">§2.2</a>.</li>
     <li><b>Контакты.</b> <code>is_online</code> → <code>contact-online-dot is-online</code> / <code>is-offline</code>
       (ни разу не seen = красная). Три колонки после аватарки, выравнивание по верху:
-      слева <code>.contact-main</code> (имя и под ним <code>.contact-parent</code>),
+      слева <code>.contact-main</code> (имя и под ним <code>.contact-parent</code>,
+      <code>text-align: left</code> против <code>body.sidebar-mini</code>),
       по центру <code>.contact-team</code> (<code>team_title</code>) на одной линии с именем,
       справа <code>.contact-role</code>. JSON <code>name</code> — фамилия и имя ученика.
       Поиск <code>?q=</code> по <code>users.lastname</code> / <code>users.name</code> / email /
       <code>parents.lastname</code> / <code>parents.firstname</code> (soft-deleted родитель не матчится).
+      Фильтр <code>#contactsTeamFilter</code> / <code>?team_id=</code>: пусто — все; <code>none</code> — без
+      <code>team_user</code>; id — только ученики группы. Ошибки <code>team_id</code> — <code>#contactsTeamError</code>.
       Строка <code>.contact-parent</code> только при непустом
       <code>parent_full_name</code>; пустую и пробелы не показываем и не рисуем «-».
       В JSON контактов нет <code>phone</code> / <code>parent_phone</code> / <code>last_seen_at</code>.
@@ -166,6 +295,47 @@
       Модалка <code>#peerCardModal</code> стандартной ширины, ошибки в <code>#peerCardError</code>.</li>
     <li><b>Перерисовка.</b> <code>InboxBump</code> отдаёт те же флаги списка, что HTTP inbox.
       <code>markListOutgoingRead</code> меняет галочки, только если последнее сообщение исходящее.</li>
+  </ol>
+
+  <h2 id="header-subtitle">2.1.1) Подзаголовок шапки открытого диалога</h2>
+  <p>Анонс на главной: <a href="/doc#chat-header-subtitle-index">/doc#chat-header-subtitle-index</a>.
+    Строка под <code>#threadTitle</code> в открытом диалоге, не в списке слева и не в карточке человека.</p>
+  <ol>
+    <li><b>Разметка.</b> <code>#threadSubtitle</code> (<code>.chat-header-subtitle</code>) внутри
+      <code>.chat-header-text</code>, сразу под названием. Пока диалог не выбран —
+      пусто и <code>style="display:none;"</code>. Имя и подпись —
+      <code>text-align: left</code> (<code>.chat-header-text</code>, <code>#threadTitle</code>,
+      <code>.chat-header-subtitle</code>), иначе <code>body.sidebar-mini</code> центрирует.
+      Клиент <code>setThreadSubtitle</code>:
+      <code>textContent</code> (HTML из payload не исполняется), пустая строка → <code>display:none</code>.</li>
+    <li><b>Группа.</b> <code>header_subtitle</code> = <code>membersCountLabel(members_total)</code>
+      («1 участник», «2 участника», «5 участников», «11 участников», «21 участник»).
+      <code>members_total</code> — живые видимые (<code>visibleGroupMembersCount</code>):
+      soft-delete не входит, лишний superadmin не входит.
+      <code>peer_presence_label</code> у группы пустое: онлайн участников не подставляем.
+      После add/kick клиент берёт счётчик из JSON состава
+      (<code>setThreadSubtitle(membersCountLabel(thread.members_total))</code>),
+      не leftover предыдущего диалога. <code>#groupCardCount</code> в модалке состава —
+      то же склонение, отдельный элемент.</li>
+    <li><b>Личка.</b> <code>header_subtitle</code> = <code>peer_presence_label</code> =
+      <code>UserPresence::dialogStatusLabel</code>. Окно «онлайн» — 120 секунд
+      (<code>ONLINE_WITHIN_SECONDS</code>, <code>gte</code>). 121 с → «был(а) в сети 2 минуты назад»
+      (не «1 минуту»). 2–4 мин — «минуты», 5 — «минут». С 6-й минуты —
+      «был(а) в сети в » + <code>H:i j F Y</code> в <code>config('app.timezone')</code>
+      (<code>Europe/Moscow</code>), locale <code>ru</code>.
+      Нет <code>last_seen_at</code> — пусто, блок скрыт. <code>members_total</code> у лички
+      <code>null</code>; чужое число в payload клиент игнорирует, ставит <code>header_subtitle</code>.</li>
+    <li><b>Откуда берётся.</b> <code>openThread</code> (клик по списку и <code>startDialog</code>)
+      читает show JSON. Inbox / <code>renderThreads</code> поля шапки не рисуют и в index их нет.
+      <code>closeCurrentThread</code> и <code>inbox.bump removed</code> очищают строку.
+      Ping пишет <code>last_seen_at</code> и шапку не трогает.
+      <code>inbox.bump</code> может обновить точку в списке (<code>peer_is_online</code>),
+      но не <code>#threadSubtitle</code> (кроме <code>removed</code> → закрытие).
+      Подпись — после повторного открытия или <code>fetchGroupMembers</code>.
+      Карточка <code>last_seen_label</code> — «онлайн» / <code>d.m.Y H:i</code> / «-», не эта фраза.</li>
+    <li><b>API.</b> Show, create group/private, add участников, GET состава —
+      <code>thread.header_subtitle</code>. Нативный GET show — JSON, не страница.
+      Гость 302/401, без права / не участник 403. POST/PATCH/DELETE show → 404/405.</li>
   </ol>
 
   <h2 id="draft">2.2) Черновик неотправленного текста</h2>
@@ -184,36 +354,403 @@
     <li><b>Список.</b> Непустой свой черновик → превью <b>Черновик: …</b>
       (<code>.chat-li-preview.is-draft</code>, <code>#f3a12b</code>), не <code>last_message</code>.
       Время — по-прежнему <code>last_message_time</code>. Поиск слева матчит и <code>draft_body</code>.</li>
-    <li><b>Клиент</b> (<code>public/js/chat.js</code>). Debounce 500 мс при наборе; сразу при уходе
+    <li><b>Клиент</b> (<code>resources/js/chat.js</code>, Vite на <code>chat.index</code>). Debounce 500 мс при наборе; сразу при уходе
       из диалога. <code>openThread</code> подставляет черновик в <code>#msgInput</code> и ставит фокус.
       Опрос inbox не затирает поле. Успешный send обнуляет; ошибка отправки возвращает текст и превью.
       Входящее сообщение собеседника мой черновик не трогает.
       После send <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю.</li>
   </ol>
 
+  <h2 id="mobile">2.3) Мобильная нижняя панель</h2>
+  <p>Анонс оболочки: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>.
+    Сплит списков «Личные» / «Чаты»:
+    <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>,
+    подробно — <a href="#mobile-inbox-split">§2.3.1</a>.</p>
+  <ol>
+    <li>Порог — <code>max-width: 991.98px</code> (с планшета). Стили — <code>resources/css/chat.css</code>
+      (page-only <code>@vite</code> вместе с <code>resources/js/chat.js</code>, не в бандл <code>admin2</code>;
+      после правки — <code>npm run build</code>).
+      Класс <code>chat-immersive</code>
+      на <code>body</code> ставит layout <code>admin2</code> только при
+      <code>request()->routeIs('chat.index')</code>. На консоли и остальных страницах кабинета
+      класса нет — шапка и сайдбар на месте. Правила мобильной оболочки — только внутри этой медиа,
+      на десктопе нижняя панель <code>display: none</code>.</li>
+    <li>Шапка <code>.main-header</code> видна (гамбургер, колокольчик, Выйти).
+      Скрыт <code>.main-footer</code>. Сайдбар не <code>display:none</code> — оверлей по гамбургеру.
+      <code>#chatApp</code> занимает остаток <code>100dvh</code> под шапкой. Колонки десктопа:
+      <code>col-lg-4</code> / <code>col-lg-8</code>.</li>
+    <li><code>#chatMobileNav</code>: Контакты, Личные сообщения, Чаты, Аккаунт.
+      Иконки <code>fa-solid fa-address-book</code> / <code>fa-comment</code> /
+      <code>fa-comments</code> / <code>fa-user</code> из <code>includes.fontawesome</code>
+      (файлы <code>plugins/fontawesome-free</code>, не Kit, не <code>ka-f.fontawesome.com</code>).
+      Бейдж непрочитанных на «Личные сообщения» — <code>#chatPrivateUnreadBadge</code>
+      (<code>js-chat-private-unread-count</code>), сумма <code>unread_count</code> тредов
+      <code>!is_group</code> (открытый тред как 0). На «Чаты» — <code>#chatGroupUnreadBadge</code>
+      (<code>js-chat-group-unread-count</code>), только <code>is_group</code>.
+      Сайдбар «Чат» по-прежнему <code>js-chat-unread-count</code> и <code>unreadTotal</code> (сумма всех).
+      Нижняя панель на время диалога скрыта (как в Telegram).
+      Высота колонки переписки ограничена (сетка <code>#chatApp</code>: контент + нижнее меню;
+      в диалоге меню <code>display: none</code>, композер с <code>margin-top: auto</code> у нижнего края).
+      <code>#messagesBox</code> скроллится внутри; нижнее меню не уезжает в середину экрана
+      и не отрывается от поля ввода, когда сообщений больше, чем влезает.</li>
+    <li>      Клик по диалогу: <code>openThread</code> на узком экране ставит
+      <code>is-dialog-open</code> и вкладку по типу треда: личка —
+      <code>data-mobile-tab="messages"</code>, группа — <code>groups</code>
+      (из <code>threadsCache.is_group</code>, затем из JSON show).
+      Если открывают другой тред, <code>#messagesBox</code> очищается сразу, до fetch
+      (иначе на долю секунды видна переписка предыдущего). Счётчик <code>openThread._seq</code>
+      отбрасывает поздний ответ прошлого диалога. На десктопе ящик заранее не чистим:
+      колонка переписки и так ждёт ответ.
+      <code>#chatMobileBack</code> снимает только <code>is-dialog-open</code>
+      (вкладка «Личные» или «Чаты» остаётся; из группы не прыгает на «Личные»).
+      Смена нижней вкладки тоже снимает класс диалога.
+      На ширине ≥ 992px класс диалога не ставится; ресайз на десктоп снимает его
+      и возвращает <code>#contactsMount</code> в <code>#contactsModalBody</code>.</li>
+    <li>Вкладка «Контакты» вызывает <code>setMobileTab('contacts')</code> →
+      <code>placeContactsMount</code> + <code>loadContacts</code>, <b>без</b>
+      <code>contactsModal().show()</code>. Десктопная кнопка «Контакты» по-прежнему открывает
+      модалку стандартной ширины и сбрасывает поиск с фильтром группы.</li>
+    <li>Вкладка «Чаты»: <code>#chatPaneGroups</code>, кнопка «Создать группу»
+      (<code>#openCreateGroupMobileBtn</code>), список <code>#groupThreads</code>
+      (те же строки, что слева: имя чата, превью/черновик, время, галочки, каунтер).
+      Только <code>is_group</code> из того же inbox, без поиска (поиск <code>#threadSearch</code>
+      на этой вкладке не показывается и группы не фильтрует). Пусто — «Групп нет».
+      Leftover личка (<code>peer_id: null</code>, <code>!is_group</code>, заголовок «Диалог»)
+      остаётся на «Личные», не на «Чаты».
+      Отдельный fetch нет: рисуем из <code>threadsCache</code> при <code>renderThreads</code>.
+      <code>GET /chat/api/threads</code> смешанный (личка + группы, без серверного фильтра
+      <code>is_group</code>); <code>GET /chat/api/unread</code> — только <code>unread_total</code>.
+      Echo <code>applyUnread</code> красит сайдбар <code>.js-chat-unread-count</code>, не бейджи вкладок.</li>
+    <li>Вкладка «Аккаунт»: <code>loadAccountCard</code> →
+      <code>GET /chat/api/users/{me}</code> → <code>renderPeerCard(data, 'accountCardBody')</code>.
+      Поля те же, что у модалки «Контакт». Ошибка — <code>#accountCardError</code>
+      (не <code>#peerCardError</code>).
+      Не редирект на <code>/account-settings/user/edit</code>.
+      API своей карточки: со правом — 200; без <code>messages.view</code> — 403 даже на себя;
+      гость — 401 / редирект; POST/PATCH/DELETE — 405.</li>
+    <li>Бейдж непрочитанных сайдбара — тот же <code>$chatUnreadCount</code>
+      (<code>ChatService::unreadTotal</code>). На нижней панели SSR:
+      <code>$chatPrivateUnreadCount</code> / <code>$chatGroupUnreadCount</code>
+      (<code>unreadPrivateTotal</code> / <code>unreadGroupTotal</code>) отдаёт
+      <code>ChatPageController</code> (composer лейаута в <code>@section('content')</code>
+      не виден). После загрузки inbox клиент перекрашивает сплит из <code>threadsCache</code>
+      (<code>paintSplitNavBadges</code>).</li>
+    <li>Зум страницы на телефоне на <code>/chat</code> выключен: viewport
+      <code>maximum-scale=1, user-scalable=no</code> только при <code>chat.index</code>
+      (консоль и остальные страницы кабинета без этого), CSS <code>html { touch-action: pan-x pan-y }</code>
+      в page-only <code>chat.css</code>, iOS — <code>gesturestart</code> / <code>gesturechange</code>
+      <code>preventDefault</code> в <code>chat.js</code>.</li>
+    <li>Доступ страницы: со <code>messages.view</code> — 200; без права — 403; гость — 302/401.
+      История: подгрузка заранее (<code>olderPrefetchThreshold</code>), не <code>scrollTop &lt; 40</code>;
+      ошибка fetch не крутит цикл. <code>before_id=0</code> — 422 под полем / нативный 302.</li>
+  </ol>
+
+  <h2 id="mobile-inbox-split">2.3.1) Сплит inbox: «Личные» и «Чаты»</h2>
+  <p>Анонс: <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>.
+    Оболочка (шапка, зум, история, вкладка «Аккаунт») — <a href="#mobile">§2.3</a>.</p>
+  <ol>
+    <li><b>Если узкий экран, то списки разделены.</b> Порог тот же:
+      <code>matchMedia('(max-width: 991.98px)')</code>.
+      «Личные» (<code>#threads</code>) — только <code>!is_group</code> после фильтра поиска.
+      «Чаты» (<code>#groupThreads</code>) — только <code>is_group</code> из <b>нефильтрованного</b>
+      <code>threadsCache</code> (поиск «Личных» группы не трогает). Пусто —
+      «Диалогов нет» / «Групп нет». На «Чатах» нет <code>#threadSearch</code>.
+      Если ширина ≥ 992px, дефолт сплита <b>не</b> навязывается: <code>#threads</code>
+      снова смешанный, <code>#groupThreads</code> по-прежнему только группы (вкладка скрыта).</li>
+    <li><b>Бейджи.</b> SSR: <code>$chatPrivateUnreadCount</code> / <code>$chatGroupUnreadCount</code>
+      из <code>ChatPageController</code> (<code>unreadPrivateTotal</code> /
+      <code>unreadGroupTotal</code> по <code>threads.is_group</code>, soft-delete участника
+      не в сумме). Сайдбар — <code>$chatUnreadCount</code> / <code>unreadTotal</code>.
+      Нижняя панель <b>без</b> класса <code>js-chat-unread-count</code>.
+      Клиент: <code>paintSplitNavBadges</code> из кэша, открытый тред как 0.
+      <code>setUnreadBadge</code> зовёт <code>KidsCrmChatSetUnread</code> (сайдбар) и сплит,
+      не подменяет вкладки полем <code>unread_total</code>.
+      Echo <code>applyUnread</code> в <code>includes/chat/echo.blade.php</code> —
+      только <code>querySelectorAll('.js-chat-unread-count')</code>.</li>
+    <li><b>Триггеры пересборки.</b> Первый <code>renderThreads</code> после inbox;
+      поиск <code>#threadSearch</code> (группы из кэша); <code>upsertThread</code> /
+      <code>applyInboxBump</code> / <code>removed</code> (группа не переезжает в «Личные»);
+      смена медиа (ресайз) — снова <code>renderThreads(applyThreadFilter(threadsCache))</code>;
+      <code>openThread</code> группы — вкладка <code>groups</code> +
+      <code>is-dialog-open</code>; назад — вкладка не сбрасывается на <code>messages</code>;
+      <code>submitCreateGroup</code> (обе кнопки <code>js-open-create-group</code>) —
+      <code>upsertThread</code> + <code>openThread</code> на «Чатах».
+      CSS диалога с «Чаты»:
+      <code>#chatApp[data-mobile-tab="groups"].is-dialog-open .chat-desktop-row { display: flex }</code>.</li>
+    <li><b>API.</b> <code>GET /chat/api/threads</code> — <code>threads</code> +
+      <code>unread_total</code>, смешанный состав, без <code>unread_private</code>.
+      <code>?is_group=1</code> не фильтрует. <code>GET /chat/api/unread</code> —
+      <code>{ unread_total }</code>. Нативный GET — JSON, не пустая страница.
+      Гость 302/401, без права 403, чужая школа 0. PATCH/DELETE/PUT
+      <code>/chat/api/threads</code> и POST/PATCH/DELETE/PUT <code>/chat/api/unread</code> — 405.</li>
+    <li><b>Негатив.</b> Не X (не узкий экран / не группа / leftover без <code>is_group</code>) —
+      дефолт «Чаты» не навязывается: leftover «Диалог» на «Личных»; пустая группа —
+      заголовок «Группа» на «Чатах»; Echo не красит сплит суммой сайдбара.</li>
+  </ol>
+
+  <h2 id="groups">2.4) Групповой чат</h2>
+  <p>Анонс: <a href="/doc#chat-groups-index">/doc#chat-groups-index</a>.
+    Имя в списке слева: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>.
+    Состав из шапки: <a href="/doc#chat-group-members-index">/doc#chat-group-members-index</a>.
+    Это не учебная группа (<code>teams</code>) и не фильтр контактов по <code>team_id</code>.
+    Личка склеивается по паре, группа по составу — нет
+    (<a href="#private-thread-identity">§2.7</a> /
+    <a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).</p>
+  <ol>
+    <li><b>Кнопки.</b> Десктоп — <code>#openCreateGroupBtn</code> рядом с «Контакты»
+      (<code>d-none d-lg-inline-block</code>). Узкий экран — <code>#openCreateGroupMobileBtn</code>
+      на вкладке «Чаты». Класс <code>js-open-create-group</code> у обеих. Модалки стандартной ширины
+      Bootstrap (не <code>modal-xl</code> / не fullscreen).</li>
+    <li><b>Шаг 1.</b> <code>#createGroupNameModal</code>: поле <code>#createGroupTitle</code>
+      (макс. 100), ошибка <code>#createGroupTitleError</code> (<code>errors.title</code>).
+      «Создать» не пишет в БД: пустое имя остаётся на шаге 1; иначе открывается шаг 2.
+      «Отмена» закрывает визард.</li>
+    <li><b>Шаг 2.</b> <code>#createGroupMembersModal</code>: тот же <code>GET /chat/api/users</code>,
+      селект <code>#createGroupMembersTeamFilter</code> и поиск
+      <code>#createGroupMembersSearch</code> (debounce 250 мс). Ошибки
+      <code>#createGroupMembersTeamError</code> / <code>#createGroupMembersSearchError</code>.
+      Клик по строке включает/выключает участника. Выбранный: класс
+      <code>group-member-row is-selected</code>, бордер аватарки и галочка
+      <code>.group-pick-check</code> справа снизу, цвет <code>#f3a12b</code>.
+      Точку онлайн в этом списке не рисуем. Минимум <b>двух</b> участников кроме себя.
+      Ошибка состава — <code>#createGroupMembersError</code> (<code>errors.user_ids</code>).
+      «Отмена» закрывает весь визард (не возврат к названию).
+      На узком экране (<code>max-width: 991.98px</code>) модалка не выше
+      <code>calc(100dvh - 1rem)</code>. Flex-колонка идёт через
+      <code>#createGroupMembersForm</code> (она между <code>.modal-content</code>
+      и body/footer): шапка и футер <code>flex: 0 0 auto</code>, список
+      <code>#createGroupMembersList</code> скроллится внутри
+      (<code>max-height: calc(100dvh - 16rem)</code>, <code>overflow: auto</code>),
+      оверлей <code>#createGroupMembersModal { overflow: hidden }</code> —
+      участники не вылезают за карточку. Кнопки «Отмена» / «Создать» всегда
+      в зоне экрана (safe-area снизу). Ширина стандартная Bootstrap, не
+      <code>modal-xl</code> / не fullscreen.</li>
+    <li><b>Сохранение.</b> <code>POST /chat/api/threads/groups</code>,
+      <code>StoreChatGroupThreadRequest</code>: <code>title</code>, <code>user_ids</code> (min 2).
+      Создатель добавляется сам. Это всегда новый тред (<code>threads.is_group=1</code>,
+      <code>subject</code> = название), одинаковый состав не склеивается.
+      Повторы в <code>user_ids</code> и больше 100 участников — 422 под <code>user_ids</code>.
+      AJAX 201 JSON <code>ok</code> + <code>thread</code> (<code>is_group</code>,
+      <code>peer_id: null</code>); нативный POST — 302 на <code>/chat</code>.
+      Гость 302/401, без <code>messages.view</code> 403, чужая школа / себя / отключённый —
+      422 под <code>user_ids</code>. GET/PATCH/PUT/DELETE URI — 404/405.</li>
+    <li><b>Список и realtime.</b> Группа сразу в inbox всех участников:
+      <code>inbox.bump</code> с <code>is_group: true</code>, <code>unread_count: 0</code>,
+      без первого сообщения. Дедуп 1-на-1 по <code>peer_id</code> группу не прячет.
+      В списке слева и в шапке — имя чата (<code>threads.subject</code> / JSON <code>title</code>), не «Диалог»
+      и не ФИО первого участника; пустое — «Группа» (<code>threadListTitle</code>).
+      Под названием в шапке открытой группы — число участников («N участник/участника/участников»,
+      <code>#threadSubtitle</code>, JSON <code>members_total</code> / <code>header_subtitle</code> на show;
+      в списке слева счётчика нет). После добавления/удаления шапка обновляется из того же JSON
+      (<a href="#header-subtitle">§2.1.1</a> / <a href="/doc#chat-header-subtitle-index">анонс</a>).
+      Личный диалог с заполненным <code>subject</code> всё равно показывает ФИО собеседника.
+      После сообщения <code>inbox.bump</code> и повторное открытие не подменяют название группы на человека.
+      <code>upsertThread</code> дедупит 1-на-1 только если есть <code>peer_id</code> и нет <code>is_group</code>
+      (группа со «случайным» <code>peer_id</code> личку не съедает).
+      Клик по контакту (<code>startDialog</code>) открывает существующий 1-на-1
+      (<code>!is_group && peer_id</code>), а не группу, где этот человек тоже есть.
+      Аватар пока дефолтный.
+      После создания клиент открывает тред (на узком экране вкладка «Чаты» + диалог).
+      Десктоп: группа в общем списке слева. Узкий экран: только вкладка «Чаты»
+      (<code>#groupThreads</code>), во «Личных сообщениях» групп нет.</li>
+    <li><b>Карточка группы.</b> Клик по аватарке или названию в шапке открытого группового чата
+      (<code>#threadPeerHit</code>, <code>headerPeerActivate</code>) открывает
+      <code>#groupCardModal</code> стандартной ширины Bootstrap (не <code>modal-xl</code>).
+      Личный диалог по-прежнему открывает <code>#peerCardModal</code>.
+      <code>setHeaderPeerClickable</code> — при <code>peer_id</code> или <code>is_group</code>.
+      В шапке модалки: аватар, название, число участников («N участник/участника/участников»).
+      Кнопки-иконки в одну строку: «Добавить участников» (<code>#addGroupMembersBtn</code>,
+      <code>fa-user-plus</code>) и «Покинуть группу» (<code>#leaveGroupBtn</code>,
+      <code>fa-right-from-bracket</code>). Добавлять и удалять других может только
+      роль <code>admin</code> или <code>superadmin</code> (<code>can_manage</code> в JSON);
+      у ученика и тренера кнопка добавления скрыта (<code>.is-hidden</code>).
+      Покинуть может любой участник. Ошибка — <code>#groupCardError</code>.</li>
+    <li><b>Таблица участников.</b> Лёгкая HTML-таблица (не DataTables): колонки «Аватар»,
+      «ФИО клиента» (<code>lastname</code>+<code>name</code>), «Роль» (<code>role_label</code>).
+      Сортировка по фамилии и имени. Первая порция — 15 строк
+      (<code>ChatService::MEMBERS_PAGE_SIZE</code>), контейнер <code>#groupMembersWrap</code>
+      со скроллом (~40vh). Если порция не заполняет высоту — сразу следующая
+      (<code>maybeFillGroupMembers</code>), дальше скролл вниз
+      (<code>maybeLoadMoreMembers</code>, <code>?after_user_id=</code>).
+      Клик по строке открывает карточку человека (<code>openPeerCard(id, true)</code>);
+      «удалить» — <code>stopPropagation</code>.
+      На десктопе <code>.group-member-remove</code> с <code>opacity: 0</code>, hover —
+      <code>opacity: 1</code> (у себя не рисуем); в <code>@media (max-width: 991.98px)</code>
+      кнопка видна всегда. Удаление — <code>#confirmDeleteModal</code> /
+      <code>showConfirmDeleteModal</code>; «Отмена» DELETE не шлёт. Успех — тост
+      <code>window.showToast</code> «Участник удалён.» и AJAX-перезагрузка списка.
+      Покинуть — тоже подтверждение, тост «Вы покинули группу.», тред закрывается
+      и пропадает из inbox (<code>inbox.bump</code> с <code>removed: true</code>;
+      <code>applyInboxBump</code> закрывает композер, только если открыт этот тред).
+      Если участников не осталось — soft-delete <code>threads</code>, кроме чата
+      учебной группы (<code>threads.team_id</code>).</li>
+    <li><b>Добавить участников.</b> Модалка <code>#addGroupMembersModal</code> как шаг 2 создания:
+      селект «Все группы» по умолчанию, поиск debounce 250 мс,
+      <code>GET /chat/api/users?exclude_thread_id=</code>
+      (уже состоящие скрыты, 422 под <code>team_id</code> / <code>q</code> / <code>exclude_thread_id</code>).
+      Минимум один выбранный. Повторное открытие сбрасывает фильтр/поиск/выбор.
+      Открытие: <code>showModalQueued('addGroupMembersModal')</code>, иначе
+      <code>addGroupMembersModal().show()</code>.
+      <code>POST /chat/api/threads/{thread}/participants</code>,
+      <code>StoreChatGroupParticipantsRequest</code>: <code>user_ids</code> (min 1, max 100).
+      Успех — тост «Участники добавлены.» и обновление таблицы (и <code>#threadSubtitle</code>).
+      422 под <code>errors.user_ids</code> (пусто, себя, уже в группе, чужая школа, отключённый, больше 100).
+      Не админ — 403. Не группа / не участник — 403.
+      <code>DELETE /chat/api/threads/{thread}/participants/{user}</code> — себя может любой участник,
+      другого только админ. AJAX JSON 200; нативный POST/DELETE — 302 на <code>/chat</code>.</li>
+    <li><b>Не в этом срезе.</b> Свой аватар группы,
+      роль админа внутри чата (не CRM-роль).</li>
+  </ol>
+
+  <h2 id="team-groups">2.5) Чат учебной группы</h2>
+  <p>Анонс: <a href="/doc#chat-team-groups-index">/doc#chat-team-groups-index</a>.
+    Одна учебная группа (<code>teams</code>) — один групповой чат
+    (<code>threads.team_id</code>, unique). Ручные чаты кнопки «Создать группу»
+    без <code>team_id</code>. Селект фильтра контактов этот чат не открывает.
+    В inbox: <code>is_group</code>, <code>peer_id: null</code>, заголовок = имя чата
+    (не «Диалог»). Клик по однокласснику — личка, не этот тред.</p>
+  <ol>
+    <li><b>Создание.</b> Сразу в <code>TeamService::store</code> при
+      <code>POST /admin/teams</code>, даже без учеников и даже если
+      <code>teams.is_enabled=0</code>. Имя чата = <code>teams.title</code> только
+      в этот момент. Дальше названия независимы.
+      <code>TeamService::update</code> / <code>PATCH /admin/team/{id}</code> чат
+      не создаёт и не переименовывает (успех update — JSON 200, в том числе без XHR).
+      AJAX store с <code>X-Requested-With</code> → JSON 200 + чат; нативный POST →
+      302 на <code>/admin/teams</code>, чат есть. 422 <code>errors.title</code> /
+      403 без <code>groups.view</code> — чата нет.
+      <code>Team::create</code> (factory) чат сам не создаёт — только store,
+      attach ученика/тренера или backfill.</li>
+    <li><b>Стартовый состав.</b> Активные <code>admin</code> школы, <b>один</b> канонический
+      активный <code>superadmin</code> (минимальный <code>users.id</code>, в UI —
+      «Служба поддержки», <a href="#support-identity">§2.6</a>), текущий тренер,
+      текущие активные ученики. Остальных superadmin и кастомную роль не добавляем.
+      Отключённых не берём. Сервис <code>TeamGroupChatService</code>.</li>
+    <li><b>Ученик.</b> <code>TeamUserSyncService</code> attach/sync добавляет
+      в чаты новых групп. Несколько групп — во всех этих чатах. Снятие группы
+      и soft-delete учебной группы из чата не выгоняют.
+      Пути: <code>team_ids</code> на <code>/admin/users</code>,
+      <code>POST /schedule/user/{user}/sync-teams</code>,
+      <code>POST /cabinet/teams/attach</code>.</li>
+    <li><b>Тренер.</b> <code>TeamTrainerSyncService</code>: привязка добавляет,
+      отвязка не удаляет из чата. Пути: селект в модалке группы и
+      <code>team_ids[]</code> на <code>/admin/trainers</code>.</li>
+    <li><b>Админ / superadmin.</b> <code>TeamGroupChatUserObserver</code> на
+      <code>User::saved</code> (не <code>afterCommit</code>): новая роль
+      <code>admin</code> (<code>POST /admin/administrators</code> или смена
+      <code>role_id</code>) — все чаты групп школы; в чаты всех партнёров
+      попадает только канонический <code>superadmin</code>. Снятие роли из чатов
+      не убирает. Отключение канонического — в учебные чаты добавляется новый
+      канонический (следующий активный superadmin по id).</li>
+    <li><b>Отключение.</b> <code>is_enabled=0</code> — участник soft-delete
+      во всех чатах (1-на-1, ручные, учебные). Треды не удаляем.
+      Включение возвращает только в чаты учебных групп по текущей роли
+      и членству. Личку и ручные группы сами не возвращаем:
+      повторный клик по контакту восстанавливает ту же личку
+      (<a href="#private-thread-identity">§2.7</a>), не создаёт вторую.</li>
+    <li><b>Покинуть / удалить</b> в карточке — как у ручной группы
+      (<a href="/doc#chat-group-members-index">анонс состава</a>).
+      0 участников у чата с <code>team_id</code> тред не soft-delete.</li>
+    <li><b>Backfill.</b> Миграция <code>2026_08_19_140000_add_team_id_to_threads_table</code>
+      (в т.ч. для групп, созданных через factory).</li>
+    <li><b>Не путать.</b> Кнопки «Создать группу» на <code>/chat</code> не бьют
+      в <code>/admin/teams</code>.</li>
+  </ol>
+
+  <h2 id="support-identity">2.6) Служба поддержки вместо суперадмина</h2>
+  <p>Анонс: <a href="/doc#chat-support-identity-index">/doc#chat-support-identity-index</a>.
+    Учётка <code>superadmin</code> в БД не переименовывается. В чате любой зритель
+    (включая самого суперадмина) видит подпись <b>Служба поддержки</b>, не ФИО
+    и не роль «Суперадмин».</p>
+  <ol>
+    <li><b>Кто это.</b> Канонический пользователь — активный
+      (<code>is_enabled=1</code>) <code>superadmin</code> с минимальным
+      <code>users.id</code> (<code>ChatSupportIdentity::canonicalUserId</code>).
+      Остальные superadmin в контакты, состав группы и новые чаты учебных групп
+      не попадают. Личка с неканоническим superadmin скрыта из inbox.
+      POST лички с id лишнего superadmin нормализуется на канонического
+      (тот же тред, 422 чужой школы не ставим).</li>
+    <li><b>Где подпись.</b> Контакты и пикер участников (<code>name</code>,
+      <code>role_label</code>), заголовок лички / <code>titleForViewer</code> /
+      <code>inbox.bump</code>, состав группы (<code>full_name</code>,
+      <code>role_label</code>), карточка <code>GET /chat/api/users/{id}</code>
+      (телефон, родитель, группы пустые). В JSON <code>role_name</code> остаётся
+      <code>superadmin</code> (колонка роли на экране берёт <code>role_label</code>,
+      JS: <code>role_label || role_name</code> в контактах, пикере «Создать группу»
+      и «Добавить участников»). Нативный POST лички/группы без
+      <code>X-Requested-With</code> — 302 на <code>/chat</code>, не сырой JSON.
+      AJAX — 201/200 JSON; extra+canonical в одном <code>user_ids</code> — 422
+      под <code>errors.user_ids</code> (повторы после нормализации не схлопываем).</li>
+    <li><b>Контакты без нагрузки.</b> Запрос школы как раньше:
+      <code>partner_id</code> текущей школы, без <code>OR</code> по всем
+      superadmin. Superadmin из этого запроса исключаются
+      (<code>role_id &lt;&gt;</code>). Канонический ряд подмешивается отдельно:
+      один <code>ORDER BY id LIMIT 1</code> / PK, в начало списка.
+      Поиск <code>?q=</code> — только по строке «Служба поддержки», не по ФИО/email
+      учётки. Фильтр конкретной учебной группы канонического не показывает;
+      «Все группы» и «Без группы» (<code>none</code>) — показывает, если его ещё
+      нет в <code>exclude_thread_id</code>. Себя каноническому в контакты не кладём.</li>
+    <li><b>Карточка.</b> <code>ChatUserShowRequest</code>: канонический доступен
+      при <code>partner_id = null</code>; лишний superadmin чужому зрителю — 403;
+      свою карточку (вкладка «Аккаунт») можно открыть — тоже «Служба поддержки»,
+      не ФИО. Карточка канонического маскирует телефон, родителя и группы.</li>
+  </ol>
+
+  <h2 id="private-thread-identity">2.7) Идентичность личного диалога</h2>
+  <p>Анонс: <a href="/doc#chat-private-thread-identity-index">/doc#chat-private-thread-identity-index</a>.
+    Повторный клик по контакту не создаёт второй тред 1-на-1. Группы по составу
+    не склеиваются (<a href="#groups">§2.4</a>). Включение учётки само личку
+    не возвращает (<a href="#team-groups">§2.5</a>).</p>
+  <ol>
+    <li><b>Ключ.</b> <code>UNIQUE participants (thread_id, user_id)</code>
+      (<code>participants_thread_user_unique</code>). Soft-deleted строка занимает слот.
+      Миграция <code>2026_08_19_160000_unique_participants_thread_user</code>.</li>
+    <li><b>Поиск.</b> <code>ChatService::findPrivateThread</code>: JOIN пары включая trashed,
+      <code>whereNotExists</code> любого другого <code>user_id</code>,
+      <code>threads.is_group=0</code>. Не <code>has(participants, 2)</code>.
+      Живых может быть 2, 1 или 0. Группа из двоих, тред на троих без флага, пустой
+      чат с <code>threads.team_id</code> — не личка.</li>
+    <li><b>Restore.</b> <code>findOrCreatePrivateThread</code> при найденном треде
+      вызывает <code>restoreParticipantIfTrashed</code> для обоих id (не сбрасывает
+      last_read оставшегося). Send / read / draft — только
+      <code>updateLiveParticipant</code>. Добавление в группу после выхода —
+      <code>restoreOrCreateParticipant</code> (unread сбрасывается).</li>
+    <li><b>Список.</b> 1 живой: inbox «Диалог», <code>peer_id: null</code>, пока store
+      не восстановит пару. 0 живых: скрыт до клика по контакту.
+      <code>startDialog</code> — <code>!is_group && peer_id</code>.</li>
+    <li><b>API.</b> <code>POST /chat/api/threads</code>: AJAX 201 создан / 200 тот же тред,
+      native 302 на <code>/chat</code>, 422 <code>errors.user_id</code>,
+      PATCH/PUT/DELETE 405. Выход из группы → send/draft/read 403, не 500 unique.</li>
+  </ol>
+
   <h2 id="routes">3) Маршруты</h2>
   <p>Страница и API чата: группа <code>auth</code> + <code>2fa</code> + <code>can:messages.view</code>.
     <code>GET /chat/api/reverb-status</code> — только <code>auth</code> + <code>2fa</code>, без
-    <code>messages.view</code>; доступ по Form Request только у superadmin.
+    <code>messages.view</code>; Form Request —
+    <code>can(settings.reverbOverlay.manage)</code> (superadmin через <code>Gate::before</code>).
     <code>POST /presence/ping</code> — тоже без <code>messages.view</code>, любой залогиненный.</p>
   <table>
     <thead>
       <tr><th>Метод</th><th>URI</th><th>Имя</th><th>Ответ</th></tr>
     </thead>
     <tbody>
-      <tr><td>GET</td><td><code>/chat</code></td><td><code>chat.index</code></td><td>HTML страницы</td></tr>
+      <tr><td>GET</td><td><code>/chat</code></td><td><code>chat.index</code></td><td>HTML страницы; без <code>messages.view</code> 403; гость 302/401; POST/PATCH/DELETE → 405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.index</code></td><td>JSON <code>threads</code> + <code>unread_total</code></td></tr>
-      <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201/200 JSON, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201 (создан) / 200 (тот же тред, в т.ч. после 0/1 живого); иначе 302 на <code>/chat</code>; 422 <code>errors.user_id</code>; GET этого URI — список тредов; PATCH/PUT/DELETE → 405</td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads/groups</code></td><td><code>chat.api.threads.groups.store</code></td><td>создать группу; поля <code>title</code> + <code>user_ids</code> (min 2, не себя); AJAX 201 JSON, иначе 302 на <code>/chat</code>; 422 под <code>title</code> / <code>user_ids</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
       <tr><td>POST</td><td><code>/presence/ping</code></td><td><code>presence.ping</code></td><td>только <code>auth</code>+<code>2fa</code>, без <code>messages.view</code>; JSON <code>ok</code>; пишет <code>users.last_seen_at</code></td></tr>
-      <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы; <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка собеседника текущей школы; чужой партнёр 403</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы + одна «Служба поддержки» (канонический superadmin, без <code>OR</code> по всем SA); <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя; для поддержки — только подпись «Служба поддержки»; <code>?team_id=</code> — пусто / <code>none</code> / id группы (только ученики; поддержка не в конкретной группе); <code>?exclude_thread_id=</code> — скрыть уже состоящих в этой группе (участник группы)</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка текущей школы, в т.ч. себя (вкладка «Аккаунт»); канонический superadmin — «Служба поддержки» даже при <code>partner_id = null</code>; лишний superadmin 403; чужой партнёр 403; без <code>messages.view</code> — 403; POST/PATCH/DELETE → 405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным; у группы <code>members_total</code> + <code>header_subtitle</code> («N участник/участника/участников»); у лички <code>peer_presence_label</code> / <code>header_subtitle</code> («онлайн» / «был(а) в сети…»); нативный GET — JSON, не HTML; POST/PATCH/DELETE → 404/405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.index</code></td><td>карточка группы + порция участников (15, курсор <code>after_user_id</code>); <code>thread.header_subtitle</code> / <code>members_total</code>; не группа / не участник 403; <code>after_user_id=0</code> — JSON 422 <code>errors.after_user_id</code>, нативный GET 302</td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.store</code></td><td>добавить; поле <code>user_ids</code> (min 1); только admin/superadmin; AJAX JSON, иначе 302; 422 под <code>user_ids</code>; ученик/тренер 403</td></tr>
+      <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/participants/{user}</code></td><td><code>chat.api.threads.participants.destroy</code></td><td>себя — любой участник (покинуть); другого — только admin; AJAX JSON <code>ok</code>+<code>message</code>, иначе 302; 0 участников — soft-delete треда, кроме <code>threads.team_id</code>; GET/PATCH → 404/405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code> (integer min 1; <code>0</code> → JSON 422 <code>errors.before_id</code> «Некорректный идентификатор сообщения.», нативный GET 302 с ошибкой поля); PATCH/DELETE → 405</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/draft</code></td><td><code>chat.api.threads.draft</code></td><td>свой черновик, поле <code>body</code> (пустое — стереть); AJAX JSON <code>ok</code> + <code>draft_body</code>, иначе 302 на <code>/chat</code>; не участник 403; собеседнику не транслируем; GET/POST/DELETE → 404/405</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td>только superadmin; JSON <code>listening</code>, <code>host</code>, <code>port</code>, <code>driver</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td><code>can(settings.reverbOverlay.manage)</code>; JSON <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>; гость 302/401; без права 403; POST/PATCH/DELETE → 405</td></tr>
     </tbody>
   </table>
   <p>Чужой тред (не участник) — 403. Пользователь другой школы в <code>user_id</code> — 422,
@@ -230,9 +767,24 @@
   <h2 id="data">4) Данные и код</h2>
   <ol>
     <li>Таблицы пакета messenger: <code>threads</code>, <code>messages</code>, <code>participants</code> (soft deletes).
-      Своя колонка <code>participants.draft_body</code> (nullable text, до 5000 символов) — черновик текущего участника, собеседник её не читает.</li>
+      <code>threads.is_group</code> — групповой чат (default 0); название группы — <code>threads.subject</code>.
+      <code>threads.team_id</code> — чат учебной группы (nullable unique); ручные группы без этой колонки.
+      Если колонки ещё нет или флаг 0, тред с <b>тремя и более</b> участниками всё равно группа:
+      в списке имя из <code>subject</code>, <code>peer_id: null</code>, дедуп 1-на-1 его не подменяет.
+      Своя колонка <code>participants.draft_body</code> (nullable text, до 5000 символов) — черновик текущего участника, собеседник её не читает.
+      <code>participants.unread_count</code> — денормализованный счётчик непрочитанных (бейдж сайдбара = <code>SUM</code>, не <code>COUNT</code> по <code>messages</code>).
+      <code>threads.last_message_id</code> — превью списка без скана <code>latestOfMany</code>.
+      Индексы: <code>messages (thread_id, id)</code>, <code>messages (thread_id, created_at)</code>,
+      <code>participants (user_id, thread_id)</code>,
+      <code>UNIQUE participants (thread_id, user_id)</code> (<code>participants_thread_user_unique</code>;
+      soft-deleted строка тоже занимает слот — повторный вход через
+      <code>restoreOrCreateParticipant</code> / <code>restoreParticipantIfTrashed</code>, не второй INSERT),
+      <code>threads.last_message_id</code>.</li>
     <li>Модели: <code>App\Models\ChatThread</code>, <code>ChatMessage</code>, <code>ChatParticipant</code>.</li>
-    <li>Логика: <code>App\Services\Chat\ChatService</code>. Контроллер тонкий:
+    <li>Логика: <code>App\Services\Chat\ChatService</code> (<code>serializeThreadHeader</code>, <code>membersCountLabel</code>),
+      <code>UserPresence::dialogStatusLabel</code> (подпись лички в шапке),
+      <code>TeamGroupChatService</code> (чаты учебных групп),
+      <code>TeamGroupChatUserObserver</code>. Контроллер тонкий:
       <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>.</li>
     <li>Контакты: <code>users.partner_id = current_partner</code>, <code>is_enabled=1</code>, без себя.
       В карточке <code>team_title</code> — группы ученика через <code>UserTeamQuery</code>
@@ -241,12 +793,27 @@
       <code>parent_full_name</code> — ФИО из справочника <code>parents</code> (пусто, если карточки нет).
       Поле <code>name</code> в списке контактов и <code>title</code> диалога — <code>lastname</code>+<code>name</code>
       (без фамилии — только имя). Поиск контактов <code>?q=</code> ещё по фамилии/имени родителя.
+      Фильтр контактов <code>?team_id=</code> — через <code>UserTeamQuery::applyStudentTeamFilter</code> /
+      <code>User::filterByStudentTeam</code>; конкретная группа дополнительно сужает до
+      <code>withSystemRoleUser</code>. Невалидный или чужой id — 422 <code>errors.team_id</code>.
       Онлайн в CRM обновляется ping <code>POST /presence/ping</code>
       (Echo-include на всех страницах кабинета, раз в 60 секунд, запись в БД не чаще чем раз в 30 секунд).
       Карточка шапки: <code>GET /chat/api/users/{id}</code> — <code>full_name</code>, <code>phone</code>,
       <code>parent_full_name</code>, <code>parent_phone</code>, <code>last_seen_label</code>, <code>team_title</code>.</li>
-    <li>1-на-1: тред ровно с двумя участниками (я + собеседник). Повторный POST возвращает тот же <code>thread_id</code>
-      (блокировка пары пользователей). Список диалогов показывает один тред на <code>peer_id</code>, даже если в БД остались старые дубли.</li>
+    <li>1-на-1: <code>is_group=0</code>, в <code>participants</code> (включая soft-deleted) ровно эта пара user id,
+      без третьего человека. Живых может быть 2, 1 или 0 (собеседника выключили /
+      оба ушли из треда; пустой не-team тред группы soft-delete, личка остаётся).
+      Поиск — JOIN по паре + <code>is_group=0</code>, не <code>has(participants, 2)</code>:
+      группа, где остались двое, личкой не становится. Повторный POST возвращает тот же
+      <code>thread_id</code> (блокировка пары) и восстанавливает soft-deleted участника пары.
+      Список диалогов показывает один тред на <code>peer_id</code>, даже если в БД остались старые дубли.
+      Группа: <code>is_group=1</code>, <code>peer_id: null</code>, в дедуп 1-на-1 не входит; одинаковый состав создаёт новый тред.
+      Отправка / прочтение / черновик обновляют только живую строку участника, не создают вторую
+      и не восстанавливают вышедшего.
+      Подробно — <a href="#private-thread-identity">§2.7</a>.</li>
+    <li>Клиент страницы: <code>resources/css/chat.css</code> и <code>resources/js/chat.js</code> —
+      только на <code>chat.index</code> через <code>@vite</code> (не в общий бандл <code>admin2</code>).
+      После правки CSS/JS нужен <code>npm run build</code>.</li>
   </ol>
 
   <h2 id="realtime">5) Realtime</h2>
@@ -257,29 +824,34 @@
     <li>Клиент Echo поднимается в <code>includes/in_app_notifications/echo.blade.php</code>
       (без лишнего <code>wsPath: '/app'</code>: pusher-js сам собирает <code>/app/{key}</code>).
       Бейдж сайдбара слушает inbox в <code>includes/chat/echo.blade.php</code>.
-      Страница чата — <code>public/js/chat.js</code> (без Vite / <code>npm run build</code>).
-      Если Reverb недоступен, HTTP чата не падает (событие пишется в лог).
-      На странице чата опрос и событие <code>inbox.bump</code> обновляют бейдж меню и превью списка одним тиком
+      Страница чата — Vite <code>resources/css/chat.css</code> и <code>resources/js/chat.js</code>
+      (page-only <code>@vite</code> на <code>chat.index</code>, не в общий бандл <code>admin2</code>;
+      после правки нужен <code>npm run build</code>).
+      Если Reverb недоступен, HTTP чата не падает (событие пишется в лог), но живое обновление
+      останавливается: <b>без HTTP-опроса</b> inbox / unread / истории.
+      Событие <code>inbox.bump</code> обновляет бейдж меню и превью списка одним тиком
       (<code>KidsCrmChatRefreshInbox</code> / <code>KidsCrmChatOnInboxBump</code>).
       Если открыт тот же диалог, бейдж сайдбара не вспыхивает: из <code>unread_total</code> вычитается unread этого треда.
-      Если сокет не <code>connected</code>, страница чата опрашивает inbox и открытый диалог раз в 1 секунду;
-      на остальных страницах бейдж — раз в 12 секунд.
+      При reconnect Echo — один refresh inbox/unread, не таймер.
       Открытие диалога (GET show) сразу отдаёт <code>unread_total</code>; страница чата ставит его в бейдж меню без ожидания сокета.
-      Superadmin видит поверх всех окон бейдж Reverb: процесс — TCP-проверка внутреннего
+      Superadmin при включённом флаге оверлея видит поверх всех окон бейдж Reverb: процесс — TCP-проверка внутреннего
       <code>broadcasting.connections.reverb.options</code> (тест <code>127.0.0.1:6008</code>,
       прод <code>127.0.0.1:6009</code>), сокет — состояние Echo через nginx
       <code>location /app</code> (сниппет <code>nginx.ssl.conf_reverb</code>, не proxy-template
       <code>laravel-reverb</code>). Процесс down и сокет <code>connecting</code> — не «всё ок»
       (оверлей <code>is-warn</code> / <code>is-bad</code>, не <code>is-ok</code>).
       Иконка копирует оба значения в буфер.
+      Выключил флаг на <code>/admin/settings</code> — <code>#js-reverb-status</code> нет.
       Отдельный анонс: <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>.</li>
   </ol>
 
   <h2 id="reverb-overlay">5.1) Оверлей статуса Reverb</h2>
   <ol>
-    <li>Только роль <code>superadmin</code> (не <code>@can messages.view</code>). Include
+    <li>Только <code>can(settings.reverbOverlay.manage)</code> <b>и</b> флаг <code>cabinet_diagnostics</code>
+      (<code>CabinetDiagnostics::shouldShow()</code>, не <code>@can messages.view</code>). Include
       <code>includes/chat/reverb_status.blade.php</code> в лейауте <code>admin2</code>
-      после Echo. На логине и у admin/trainer/user бейджа нет.</li>
+      после Echo. Бейдж есть и на <code>/admin/settings</code> (<code>sidebar-mini layout-fixed</code>),
+      пока флаг включён. На логине, у admin/trainer/user и при выключенном флаге бейджа нет.</li>
     <li>Процесс: TCP на <code>broadcasting.connections.reverb.options</code>
       (тест <code>127.0.0.1:6008</code>, прод <code>127.0.0.1:6009</code>), не на публичный :443.</li>
     <li>Сокет: Echo. Nginx <code>location /app</code> — сниппет <code>nginx.ssl.conf_reverb</code>,
@@ -287,8 +859,8 @@
     <li>Зелёный только при процессе <code>up</code> и сокете <code>connected</code>.
       Down + <code>connecting</code> — не «всё ок».</li>
     <li><code>GET /chat/api/reverb-status</code>: JSON <code>listening</code> / <code>ok</code> /
-      <code>host</code> / <code>port</code> / <code>driver</code>. Гость 302/401, не-superadmin 403,
-      мутации 405.</li>
+      <code>host</code> / <code>port</code> / <code>driver</code>. Гость 302/401,
+      без <code>can(settings.reverbOverlay.manage)</code> — 403, мутации 405.</li>
   </ol>
 
   <h2 id="tests">6) Тесты</h2>
@@ -296,8 +868,21 @@
     <li><code>ChatPresenceFeatureTest</code> — ping без <code>messages.view</code>, throttle 30с, онлайн ровно 120с / офлайн 121с,
       ФИО родителя в контактах, галочки исходящего и <code>peer_is_online</code> в списке тредов,
       время списка = <code>last_message_time</code> (не <code>last_seen_at</code>),
-      <code>InboxBump</code> несёт галочки/онлайн, soft-delete родителя, карточка отключённого/себя,
+      шапка лички: <code>header_subtitle</code> / <code>peer_presence_label</code> («онлайн» / «был(а) в сети…»),
+      inbox без этих полей, <code>InboxBump</code> несёт галочки/онлайн, soft-delete родителя, карточка отключённого/себя,
       нативный GET карточки JSON, ping неверным методом → 404/405, карточка неверным методом → 405.</li>
+    <li><code>ChatHeaderSubtitleFeatureTest</code> — шапка открытого диалога: гость 302/401, без <code>messages.view</code> и чужой тред 403,
+      нет треда 404, POST/PATCH/DELETE show → 404/405, нативный GET — JSON шапки (не пустая страница),
+      личка: онлайн / 2–5 мин / абсолютная дата / пусто если не пинговал,
+      группа: «N участник/участника/участников» (1/2/5/11) даже если участники онлайн, soft-delete не в счётчике,
+      inbox без <code>header_subtitle</code>, AJAX create group/private несёт поле,
+      add/kick обновляет show, нативный POST 302 затем show со счётчиком,
+      idle HTML: <code>#threadSubtitle</code> пустой <code>display:none</code> под названием, не в списке.</li>
+    <li><code>ChatHeaderSubtitleUxFeatureTest</code> — UX: idle скрыт; открытие группы/лички; переход группа↔личка не оставляет прошлую подпись;
+      close и payload без поля сбрасывают leftover; клик по списку и <code>startDialog</code> (существующий и POST) заполняют шапку;
+      список не рисует «N участника»; личка игнорирует чужой <code>members_total</code>, группа — флаг онлайн;
+      XSS через <code>textContent</code>; после kick/add шапка из <code>fetchGroupMembers</code>;
+      <code>inbox.bump removed</code> очищает подпись.</li>
     <li><code>ChatPresenceUxFeatureTest</code> — UX-баги клиента: список рисует время сообщения (не last seen) и зелёную точку только если онлайн (без красной),
       галочки только у исходящего, контакты — красная точка офлайн и строка родителя только если ФИО непустое,
       повторное открытие контактов не оставляет прошлого родителя, карточка «-» / <code>tel:</code>,
@@ -308,19 +893,129 @@
     <li><code>ChatDraftUxFeatureTest</code> — UX: переход в другой диалог не оставляет текст предыдущего в <code>#msgInput</code> (превью «Черновик:» у ушедшего), первый open подставляет серверный черновик без PATCH, повторный клик по тому же диалогу не шлёт PATCH, опрос inbox не затирает поле и локальный черновик, <code>inbox.bump</code> без <code>draft_body</code> не сбрасывает превью, bump отправителя с <code>draft_body: ''</code> убирает «Черновик:», неуспешная отправка возвращает превью, поиск по тексту черновика, XSS-escape, whitespace не рисует «Черновик:», debounce 500 мс (превью сразу, PATCH после).</li>
     <li><code>ChatDraftDocumentationContractTest</code> — анонс <code>/doc#chat-draft-index</code> и §2.2 не противоречат коду (свой <code>draft_body</code>, превью, собеседник не видит, не sessionStorage-only, не Канзас).</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
-    <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>.</li>
-    <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin.</li>
-    <li><code>ChatReverbOverlayFeatureTest</code> — <code>GET /chat/api/reverb-status</code> (гость / без superadmin / JSON-структура / внутренний порт, не client host), оверлей на dashboard и <code>/chat</code>, Echo без <code>wsPath</code>, UX: процесс down + сокет connecting ≠ <code>is-ok</code>.</li>
+    <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>, фильтр контактов <code>?team_id=</code> (ученики группы / <code>none</code> / 422).</li>
+    <li><code>ChatUnreadCounterFeatureTest</code> — бейдж берёт <code>participants.unread_count</code> (не <code>COUNT messages</code>), send увеличивает счётчик собеседника, GET show обнуляет, список использует <code>threads.last_message_id</code>, <code>unreadPrivateTotal</code> / <code>unreadGroupTotal</code> делят сумму по <code>threads.is_group</code>.</li>
+    <li><code>ChatContactsTeamFilterFeatureTest</code> — фильтр контактов по группе: гость 302/401, без <code>messages.view</code> 403, со правом 200, нативный GET — JSON-список, невалидный/чужой/удалённый <code>team_id</code> — 422 <code>errors.team_id</code> (нативный не пустой 200), только ученики группы, «Без группы», две группы ученика, отключённый и сам себе скрыты, поиск+фильтр, POST/PATCH/DELETE → 405, селект «Все группы» / «Без группы» / свои группы по <code>order_by</code>.</li>
+    <li><code>ChatContactsTeamFilterUxFeatureTest</code> — UX: повторное открытие контактов сбрасывает селект и не шлёт прошлый <code>team_id</code>, смена группы сохраняет набор в поиске, поиск не сбрасывает группу (debounce 250 мс), «Все группы» без <code>team_id</code>, 422 <code>team_id</code> под селектом (не только «Ничего не найдено»), ошибка <code>q</code> под поиском.</li>
+    <li><code>ChatMobileFeatureTest</code> — HTTP вкладки «Аккаунт» и страницы <code>/chat</code>: гость 401/302 и без нижней панели, без <code>messages.view</code> 403 даже на себя и на <code>/chat</code>, со правом 200 те же поля, что у собеседника, шапка (гамбургер / Выйти / колокольчик) и viewport <code>user-scalable=no</code> только на чате (консоль без этого), нативный GET карточки и истории — JSON не пустая страница, <code>before_id=0</code> — JSON 422 <code>errors.before_id</code> / нативный 302 с ошибкой поля, POST/PATCH/DELETE карточки и <code>/chat</code> и PATCH/DELETE истории — 405 не пустой 200, чужая школа 403, бейджи нижней панели: личка — <code>js-chat-private-unread-count</code>, группы — <code>js-chat-group-unread-count</code>, сайдбар — сумма.</li>
+    <li><code>ChatMobileInboxSplitFeatureTest</code> — сплит inbox: гость 302 без <code>#groupThreads</code>, без <code>messages.view</code> 403, со правом / admin / trainer — список групп без поиска на «Чаты», бейджи вкладок не <code>js-chat-unread-count</code>; смешанные непрочитанные — личка 2 / группы 3 / сайдбар 5, не одна сумма на обеих вкладках; <code>GET /chat/api/threads</code> смешанный (личка + группа, <code>?is_group=1</code> не фильтрует), без ключей <code>unread_private</code>; unread JSON только <code>unread_total</code>; нативный GET — JSON не пустая страница; PATCH/DELETE/PUT inbox и POST/PATCH/DELETE/PUT unread — 405 (POST <code>/chat/api/threads</code> — создание лички); AJAX create group оставляет личку в том же payload; leftover «Диалог» <code>!is_group</code>; выход из группы не раздувает бейдж «Чаты»; чужая школа бейджи 0.</li>
+    <li><code>ChatMobileInboxSplitUxFeatureTest</code> — UX сплита: Echo <code>applyUnread</code> красит только сайдбар, не вкладки; <code>setUnreadBadge</code> тоже не подменяет сплит суммой; bump группы не в «Личные», bump лички не в «Чаты»; <code>removed</code> убирает группу и не переносит в личку; открытие группы обнуляет только её в бейдже «Чаты»; leftover «Диалог» на «Личные»; пустая группа — «Группа» на «Чаты»; создание группы на мобилке открывает вкладку <code>groups</code>; ресайз ≥ 992px возвращает группы в общий список; назад из группы остаётся на «Чаты».</li>
+    <li><code>ChatMobileUxFeatureTest</code> — UX мобильной панели: <code>openThread</code> на ширине &lt; 992px ставит <code>is-dialog-open</code>, личка — вкладка <code>messages</code>, группа — <code>groups</code>; на десктопе класса диалога нет; назад снимает класс (из группы вкладка <code>groups</code> остаётся); вкладка контактов грузит список без <code>contactsModal().show()</code> и переносит <code>#contactsMount</code>; десктопная кнопка «Контакты» по-прежнему открывает модалку; вкладка «Чаты» без fetch и без модалки рисует <code>#groupThreads</code> из inbox; «Личные» без <code>is_group</code>; вкладка аккаунта — <code>GET /chat/api/users/{me}</code> в <code>#accountCardBody</code>, ошибка в <code>#accountCardError</code> (не модалка «Контакт», не <code>/account-settings</code>); клик по контакту открывает диалог на весь экран; смена вкладки и ресайз ≥ 992px снимают <code>is-dialog-open</code>.</li>
+    <li><code>ChatMobileHistoryUxFeatureTest</code> — UX истории: подгрузка начинается до верха (<code>olderPrefetchThreshold</code> = max(480, 1.5×высоты), не <code>scrollTop &lt; 40</code>); у последних сообщений и при <code>clientHeight === 0</code> запроса нет; короткая первая страница после <code>openThread</code> догружает <code>before_id</code>, высокая — нет; ошибка fetch не крутит цикл (в <code>catch</code> нет <code>maybeLoadOlder</code>).</li>
+    <li><code>ChatMobileLayoutUxFeatureTest</code> — UX оболочки: шапка кабинета видна (не <code>display:none</code> вместе с футером), открытый диалог прячет нижние вкладки, дата в пузыре на одной строке (<code>nowrap</code> / <code>min-width: 6.5rem</code>), переписка скроллится внутри (<code>#messagesBox</code> / сетка / композер <code>margin-top: auto</code>), зум только на <code>/chat</code>, открытие группы с вкладки «Чаты» показывает колонку переписки (<code>#chatApp[data-mobile-tab="groups"].is-dialog-open .chat-desktop-row { display: flex }</code>), не белый экран.</li>
+    <li><code>ChatMobileContactsAlignFeatureTest</code> — HTTP/разметка мобильных контактов и модалки «Участники группы»: гость 302/401 без разметки модалки, без <code>messages.view</code> 403, со правом / admin / trainer — форма оборачивает body+список+футер (не fullscreen), JSON контактов с <code>name</code> / <code>parent_full_name</code>, чужая школа не в списке, <code>q</code> 121 → 422 <code>errors.q</code> (нативный не пустой 200), 120 символов ок, GET show второго диалога без истории первого, гость/без права/чужой тред 403 без утечки тела, POST/PATCH/DELETE users и show — 405/404 не пустой 200.</li>
+    <li><code>ChatMobileContactsAlignUxFeatureTest</code> — UX-баги: <code>.contact-name</code> / <code>.contact-parent</code> слева не только в mobile-media; flex на <code>#createGroupMembersForm</code> и <code>max-height: calc(100dvh - 16rem)</code> у списка модалки (не <code>max-height: none</code>); вкладка «Контакты» по-прежнему <code>max-height: none</code>; и <code>renderContacts</code>, и <code>renderGroupMembers</code> рисуют родителя под именем (пустого нет, XSS escape); смена диалога на мобилке чистит ящик до fetch и игнорирует поздний ответ (<code>openThread._seq</code>); десктоп ящик заранее не чистит; повторное открытие того же треда не сбрасывает историю до ответа.</li>
+    <li><code>ChatGroupThreadFeatureTest</code> — создание группы: гость 302/401, без <code>messages.view</code> 403 JSON и нативный POST,
+      группа с двумя живыми не подменяется личкой той же пары,
+      AJAX 201 (<code>is_group</code>, <code>peer_id: null</code>), повтор с тем же составом — новый тред,
+      группа не прячет 1-на-1 и наоборот, <code>inbox.bump</code> всем участникам с unread 0,
+      422 под <code>title</code> / <code>user_ids</code> (пробелы, max 100, повторы, неизвестный id, себя, чужая школа, отключённый),
+      нативный POST 302 (в т.ч. строковые id), нативный 422 → сессия под полями, PUT/GET/PATCH/DELETE 404/405,
+      админ/тренер/superadmin создают, не участник 403, участник видит имя чата (не ФИО первого члена),
+      чужая школа группу в inbox не видит, 1-на-1 с заполненным subject всё равно ФИО собеседника,
+      сообщение в группе сохраняет имя чата и <code>is_group</code>,
+      тред с 3+ участниками без флага всё равно группа, пустое имя — «Группа» не «Диалог»,
+      селект участников — «Все группы» по умолчанию.</li>
+    <li><code>ChatGroupThreadUxFeatureTest</code> — UX визарда: пробелы в имени не открывают шаг 2,
+      клик выбирает/снимает участника (класс <code>is-selected</code>, без онлайн-точки), меньше двух — ошибка под списком,
+      «Отмена» закрывает весь визард, повторное открытие сбрасывает название/поиск/селект/выбор,
+      выбор переживает перерисовку фильтра, поиск и фильтр <code>team_id</code> как в контактах,
+      422 <code>q</code> под поиском, 422 <code>user_ids</code> под списком, двойной submit не шлёт второй запрос,
+      <code>inbox.bump</code> группы с <code>peer_id: null</code> не выкидывает личку
+      (и bump с <code>is_group</code>+<code>peer_id</code> тоже),
+      кнопки десктоп и вкладка «Чаты» открывают модалку названия,
+      список рисует имя чата не «Диалог», пустая группа — «Группа», пустая личка — «Диалог»,
+      смешанный список, поиск по имени чата, клик по контакту открывает личку а не группу с тем же человеком.</li>
+    <li><code>ChatGroupMembersFeatureTest</code> — состав группы: гость 302/401, без права 403,
+      список 15 + <code>after_user_id</code>, <code>after_user_id=0</code> 422 под полем,
+      не группа / не участник 403, ученик и тренер не добавляют и не кикают (403),
+      админ добавляет (тост-текст в JSON, <code>inbox.bump</code> новому),
+      422 под <code>user_ids</code> (себя / уже в группе / чужая школа / пусто),
+      кик soft-delete участника и <code>removed</code> bump, выход последнего удаляет тред
+      (чат учебной группы с <code>team_id</code> не удаляет),
+      повторное добавление restore, нативный POST/DELETE 302, неверный метод 404/405,
+      <code>exclude_thread_id</code> скрывает текущих, <code>can_manage</code> у admin/superadmin
+      (ученик/тренер — false).</li>
+    <li><code>ChatGroupMembersUxFeatureTest</code> — UX: шапка группы открывает
+      <code>#groupCardModal</code> (не карточку человека), личный — карточку;
+      «удалить» только у админа и не у себя; тост после кика/выхода/добавления;
+      подтверждение через <code>showConfirmDeleteModal</code>; подгрузка
+      <code>maybeLoadMoreMembers</code>.</li>
+    <li><code>ChatTeamGroupThreadFeatureTest</code> — чат учебной группы: создание при
+      <code>POST /admin/teams</code>, админы и один канонический superadmin, независимость названий,
+      ученик во всех чатах своих групп и не выгоняется при detach/delete группы,
+      тренер при bind/unbind, новый админ, отключение со всех чатов и возврат
+      только в учебные, backfill, последний участник не удаляет тред с <code>team_id</code>.</li>
+    <li><code>ChatTeamGroupThreadFullAccessFeatureTest</code> — гость 302/401, без
+      <code>groups.view</code> 403 и без чата, со правом 200 + тред, 405 на чужие методы,
+      ученик без <code>messages.view</code> в составе но 403 на inbox, одноклассник и чужая
+      школа не видят тред.</li>
+    <li><code>ChatTeamGroupThreadNonAjaxSafetyNetFeatureTest</code> — нативный POST группы
+      302 + чат даже при <code>is_enabled=0</code>, пустое имя 302 <code>errors.title</code> без чата,
+      ученик/тренер/журнал/ЛК без XHR — 302 и участник в чате, не сырой JSON 200.</li>
+    <li><code>ChatTeamGroupThreadAjaxContractFeatureTest</code> — JSON 200/422 под полями
+      (<code>title</code>, <code>trainer_profile_id</code>, <code>name</code>, <code>team_ids.0</code>,
+      <code>team_id</code>), HTTP ученик/админ/тренер/журнал/ЛК, кастомная роль не в составе,
+      inbox <code>is_group</code> / <code>peer_id: null</code>, клик по однокласснику — личка не team-чат.</li>
+    <li><code>ChatTeamGroupThreadUxFeatureTest</code> — модалка «Добавить» (title первым,
+      активность 1 по умолчанию, тренер через <code>@can</code>), кнопки «Создать группу» на
+      <code>/chat</code> не бьют в <code>/admin/teams</code>, inbox после создания/переименования,
+      <code>startDialog</code> и <code>inbox.bump</code> не подменяют личку командным чатом.</li>
+    <li><code>ChatSupportIdentityFeatureTest</code> — «Служба поддержки»: один канонический
+      superadmin в контактах и составе, лишний скрыт, поиск по подписи не по ФИО,
+      личка при <code>partner_id = null</code>, нормализация id лишнего SA,
+      карточка маскирует ФИО (в т.ч. своя), inbox без лички с лишним SA,
+      отключённый канонический сменяется следующим, себя в контакты не кладём,
+      чужая школа видит того же канонического, HTML страницы не утекает ФИО.</li>
+    <li><code>ChatSupportIdentityFullAccessFeatureTest</code> — гость 302/401, без
+      <code>messages.view</code> 403, со правом 200/201, карточка лишнего SA 403,
+      POST/PATCH/DELETE карточки 405, админ и тренер видят поддержку в контактах.</li>
+    <li><code>ChatSupportIdentityNonAjaxSafetyNetFeatureTest</code> — нативный POST лички
+      (канон / extra → канон) и группы 302 + запись, дубль extra+canonical 302
+      <code>errors.user_ids</code> без группы, нативный GET контактов и карточки — JSON
+      не пустая HTML-страница.</li>
+    <li><code>ChatSupportIdentityAjaxContractFeatureTest</code> — JSON 201/200/422 под
+      <code>user_id</code> / <code>user_ids</code>, extra+canonical не схлопывается
+      в 201, ученик не добавляет поддержку в группу, <code>role_name</code> остаётся
+      <code>superadmin</code>.</li>
+    <li><code>ChatSupportIdentityUxFeatureTest</code> — живой JSON через реальный
+      <code>chat.js</code>: контакты / создать группу / добавить участников /
+      состав / список / карточка без ФИО и без <code>superadmin</code>; десктоп,
+      мобильная вкладка, шаг участников и пикер добавления на дефолте «Все группы»;
+      конкретная группа не навязывает поддержку; клик → <code>startDialog</code>
+      с каноническим id; fallback без <code>role_label</code> показал бы
+      <code>role_name</code>.</li>
+    <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST группы 302+запись, AJAX 201 JSON не редирект,
+      нативный повтор 1-на-1 (в т.ч. после soft-delete собеседника) 302 без второго треда.</li>
+    <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска и фильтра групп контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin при включённом флаге, мобильная оболочка (<code>chat-immersive</code>, <code>#chatMobileNav</code>, локальный FA, кнопка «Создать группу»), оба пути <code>renderContacts</code> / <code>renderGroupMembers</code> с <code>.contact-parent</code>.</li>
+    <li><code>ChatReverbOverlayFeatureTest</code> — <code>GET /chat/api/reverb-status</code> (гость / без superadmin / JSON-структура / внутренний порт, не client host), оверлей на dashboard, <code>/chat</code> и <code>/admin/settings</code> только при включённом флаге, Echo без <code>wsPath</code>, UX: процесс down + сокет connecting ≠ <code>is-ok</code>.</li>
+    <li><code>SettingsCabinetDiagnosticsAccessFeatureTest</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>UiContracts</code> — кнопка на «Общие»: гость/403/405, JSON 422 под полем, native POST не пустой 200, первый paint чекбокса, бейдж на настройках, JS-откат и 403 без английского <code>message</code>.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
-    <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1, чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>
+    <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
+      (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>
+    <li><code>ChatPrivateThreadIdentityFeatureTest</code> — идентичность 1-на-1: гость/403/со правом,
+      AJAX 201 затем 200 reuse, нативный 302 без второго треда и без JSON 200,
+      422 под <code>user_id</code>, PATCH/PUT/DELETE URI 405,
+      leftover 1 живой (inbox «Диалог», send/draft не возвращают ушедшего, store восстанавливает историю),
+      0 живых скрыты до клика по контакту, группа из двоих и тред на троих без флага не становятся личкой,
+      пустой team-чат не перехватывает store, после disable/enable личка не сама, store возвращает тот же id,
+      выход из группы → send/draft/read 403 не 500 unique.</li>
+    <li><code>ChatPrivateThreadIdentityUxFeatureTest</code> — UX: <code>startDialog</code> не берёт группу с тем же человеком,
+      строка без <code>peer_id</code> («Диалог») не матчится как чужой контакт, restore того же id не плодит вторую строку,
+      новый id от store оставил бы сироту (поэтому сервер reuse), контакты десктоп/моб — один <code>startDialog</code>.</li>
     <li><code>ChatMessagesViewPermissionCatalogFeatureTest</code> — каталог права и автовыдача.</li>
     <li><code>PartnerBasePermissionsTest</code> — <code>messages.view</code> в базовых ролях.</li>
-    <li><code>BladeInlineJsSyntaxTest</code> — <code>public/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда), echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>), оверлей Reverb и Echo-клиент (без <code>wsPath</code>).</li>
+    <li><code>BladeInlineJsSyntaxTest</code> — <code>resources/js/chat.js</code> (<code>node --check</code> + AJAX-контракт + вычитание unread открытого треда + page-only Vite + <code>openThread._seq</code> / очистка ящика до fetch + <code>.contact-parent</code> в <code>renderContacts</code> и <code>renderGroupMembers</code>), echo-бейдж (handoff на <code>KidsCrmChatOnInboxBump</code>), оверлей Reverb и Echo-клиент (без <code>wsPath</code>).</li>
     <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code>,
-      <code>/doc#chat-presence-index</code> и эта страница не противоречат UX
-      (бейдж info, без вспышки, опрос 1с/12с, Echo без <code>wsPath</code>,
+      <code>/doc#chat-presence-index</code>, <code>/doc#chat-group-members-index</code>,
+      <code>/doc#chat-private-thread-identity-index</code>,
+      <code>/doc#chat-mobile-inbox-split-index</code>
+      и эта страница не противоречат UX
+      (бейдж info, без вспышки, без HTTP-опроса, Echo без <code>wsPath</code>,
       ping без <code>messages.view</code>, в списке нет красной точки,
-      черновик на сервере / превью «Черновик:»).</li>
+      черновик на сервере / превью «Черновик:», состав группы из шапки,
+      UNIQUE лички / leftover «Диалог»,
+      сплит «Личные» / «Чаты» на узком экране, inbox JSON смешанный).</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter Chat</code></pre>
 </div>

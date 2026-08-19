@@ -75,19 +75,16 @@
                 </td>
                 <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
                     @include('admin.schedule.trainer-salary.kansas._avg_cell', [
-                        'full' => $group['base_avg_students'],
                         'int' => $group['base_avg_students_int'] ?? $group['base_avg_students'],
                     ])
                 </td>
                 <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
                     @include('admin.schedule.trainer-salary.kansas._avg_cell', [
-                        'full' => $group['fact_avg_students'],
                         'int' => $group['fact_avg_students_int'] ?? $group['fact_avg_students'],
                     ])
                 </td>
                 <td class="trainer-salary-cell trainer-salary-data trainer-salary-data--body text-end">
                     @include('admin.schedule.trainer-salary.kansas._avg_cell', [
-                        'full' => $group['diff_students'],
                         'int' => $group['diff_students_int'] ?? $group['diff_students'],
                     ])
                 </td>

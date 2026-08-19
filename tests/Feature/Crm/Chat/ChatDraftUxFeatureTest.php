@@ -138,7 +138,7 @@ final class ChatDraftUxFeatureTest extends ChatTestCase
      */
     private function simulateDraftUi(): array
     {
-        $chatJs = public_path('js/chat.js');
+        $chatJs = resource_path('js/chat.js');
         $this->assertFileExists($chatJs);
 
         $script = <<<'JS'
@@ -249,6 +249,7 @@ const svgTick = '<svg></svg>';
 const urls = { threads: '/chat/api/threads' };
 let currentThreadId = null;
 let currentPeerId = null;
+let currentIsGroup = false;
 let threadsCache = [];
 let draftCache = Object.create(null);
 let lastPatchedDraft = Object.create(null);
@@ -265,6 +266,7 @@ function setHeaderPeerClickable() {}
 function showMsgError() {}
 function appendMessage() {}
 function scrollBottom() {}
+function maybeLoadOlder() {}
 function subscribeThread() {}
 function startPoll() {}
 function setUnreadBadge() {}
@@ -281,6 +283,7 @@ eval(extractFn(chatJs, 'normalizeDraft'));
 eval(extractFn(chatJs, 'rememberDraft'));
 eval(extractFn(chatJs, 'mergeLocalDrafts'));
 eval(extractFn(chatJs, 'composerDraftFor'));
+eval(extractFn(chatJs, 'threadListTitle'));
 eval(extractFn(chatJs, 'renderThreads'));
 eval(extractFn(chatJs, 'upsertThread'));
 eval(extractFn(chatJs, 'persistDraft'));

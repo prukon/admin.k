@@ -691,7 +691,7 @@ class UserControllerTest extends CrmTestCase
         $this->assertEquals($payload['email'], $created->email);
         $this->assertEquals(1, $created->is_enabled);
 
-        $this->assertEquals('Пользователь создан успешно', $json['message']);
+        $this->assertEquals('Клиент создан успешно', $json['message']);
     }
 
     /**
@@ -1692,7 +1692,7 @@ class UserControllerTest extends CrmTestCase
         $response = $this->deleteJson('/admin/user/' . $userToDelete->id);
         $response->assertStatus(200)
             ->assertJson([
-                'success' => 'Пользователь успешно удалён',
+                'success' => 'Клиент успешно удалён',
             ]);
 
         $this->assertSoftDeleted('users', [
@@ -1705,7 +1705,7 @@ class UserControllerTest extends CrmTestCase
             ->first();
 
         $this->assertNotNull($log);
-        $this->assertStringContainsString('Удален пользователь', $log->description);
+        $this->assertStringContainsString('Удален клиент', $log->description);
         $this->assertStringContainsString((string)$userToDelete->id, $log->description);
     }
 

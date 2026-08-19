@@ -70,7 +70,9 @@
     <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>. Таблица рисуется по <code>scheme_code</code> слепка:
       classic — <code>trainer-salary/classic/_sheet_detail_table.blade.php</code>,
       kansas — <code>trainer-salary/kansas/_sheet_detail_table.blade.php</code>
-      (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы, тип в скобках, X в шапке слепка, подпись <code>Итого:</code>, без кнопки «Расчет»).
+      (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы, тип в скобках, X в шапке слепка, подпись <code>Итого:</code>, без кнопки «Расчет»;
+      средние — целые без ховера, как заморозил слепок, см. <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">ЗП §12.1</a>
+      и <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс на /doc</a>).
       Смена текущей схемы партнёра карточку уже сформированного слепка не меняет.</li>
     <li>Бейдж «Актуальная» — последняя <code>version</code> тренера за выбранный месяц.</li>
     <li>Бейдж «Последний пакет» — последний полный <code>batch_id</code> за месяц.</li>
@@ -94,6 +96,7 @@
 
   <p class="small">
     <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров</a> ·
+    <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс целых средних Канзаса</a> ·
     <a href="/docs/documentation/schedule-journal">Журнал расписания</a>
   </p>
 </div>

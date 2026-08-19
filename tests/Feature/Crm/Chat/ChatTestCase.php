@@ -19,6 +19,8 @@ abstract class ChatTestCase extends CrmTestCase
     {
         parent::setUp();
 
+        $this->withoutVite();
+
         config(['broadcasting.default' => 'null']);
         $this->app->forgetInstance(BroadcastManager::class);
         $this->app->forgetInstance('Illuminate\Contracts\Broadcasting\Factory');
@@ -84,6 +86,7 @@ abstract class ChatTestCase extends CrmTestCase
             'role_id' => $this->roleId('user'),
             'name' => $prefix.uniqid('', true),
             'is_enabled' => 1,
+            'team_id' => null,
         ], $attributes));
     }
 
@@ -104,12 +107,41 @@ abstract class ChatTestCase extends CrmTestCase
         return $thread;
     }
 
+    /**
+     * @param  list<int>  $userIds
+     */
+    protected function createGroupThreadForUsers(array $userIds, string $subject = 'Test group'): ChatThread
+    {
+        $thread = ChatThread::query()->create([
+            'subject' => $subject,
+            'is_group' => true,
+        ]);
+
+        foreach (array_unique($userIds) as $userId) {
+            ChatParticipant::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => (int) $userId,
+            ]);
+        }
+
+        return $thread;
+    }
+
     protected function seedMessage(ChatThread $thread, int $userId, string $body): ChatMessage
     {
-        return ChatMessage::query()->create([
+        $message = ChatMessage::query()->create([
             'thread_id' => $thread->id,
             'user_id' => $userId,
             'body' => $body,
         ]);
+
+        $thread->forceFill(['last_message_id' => $message->id])->save();
+
+        ChatParticipant::query()
+            ->where('thread_id', $thread->id)
+            ->where('user_id', '<>', $userId)
+            ->increment('unread_count');
+
+        return $message;
     }
 }

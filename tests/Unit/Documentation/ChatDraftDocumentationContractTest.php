@@ -91,7 +91,8 @@ final class ChatDraftDocumentationContractTest extends TestCase
 
     public function test_live_code_matches_documented_draft_rules(): void
     {
-        $js = (string) file_get_contents(dirname(__DIR__, 3).'/public/js/chat.js');
+        $js = (string) file_get_contents(dirname(__DIR__, 3).'/resources/js/chat.js');
+        $css = (string) file_get_contents(dirname(__DIR__, 3).'/resources/css/chat.css');
         $service = (string) file_get_contents(dirname(__DIR__, 3).'/app/Services/Chat/ChatService.php');
         $routes = (string) file_get_contents(dirname(__DIR__, 3).'/routes/web.php');
         $request = (string) file_get_contents(dirname(__DIR__, 3).'/app/Http/Requests/Chat/SaveChatDraftRequest.php');
@@ -115,8 +116,10 @@ final class ChatDraftDocumentationContractTest extends TestCase
         $this->assertStringContainsString("'max:5000'", $request);
         $this->assertStringContainsString('Черновик слишком длинный (максимум 5000 символов).', $request);
 
-        $this->assertStringContainsString('.chat-li-preview.is-draft', $blade);
-        $this->assertStringContainsString('#f3a12b', $blade);
+        $this->assertStringContainsString('.chat-li-preview.is-draft', $css);
+        $this->assertStringContainsString('#f3a12b', $css);
+        $this->assertStringContainsString("@vite(['resources/css/chat.css'])", $blade);
+        $this->assertStringContainsString("@vite(['resources/js/chat.js'])", $blade);
     }
 
     public function test_other_chat_docs_do_not_claim_peer_sees_draft_or_client_only_storage(): void

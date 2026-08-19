@@ -196,7 +196,7 @@ final class SuccessToastInsteadOfModalNonAjaxSafetyNetFeatureTest extends CrmTes
         $this->assertContains($response->getStatusCode(), [200, 302]);
         if ($response->getStatusCode() === 200) {
             $this->assertNotSame('', trim((string) $response->getContent()));
-            $response->assertJsonPath('success', 'Пользователь успешно удалён');
+            $response->assertJsonPath('success', 'Клиент успешно удалён');
         }
 
         $this->assertSoftDeleted('users', ['id' => $student->id]);

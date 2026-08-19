@@ -525,12 +525,12 @@ class UserController extends AdminBaseController
         });
 
         if (!$user) {
-            abort(500, 'Не удалось создать пользователя.');
+            abort(500, 'Не удалось создать клиента.');
         }
 
-        $responseMessage = 'Пользователь создан успешно';
+        $responseMessage = 'Клиент создан успешно';
         $mailResult = ['sent' => false, 'error' => null];
-        $createdPrefix = $schoolLeadId ? 'Клиент создан' : 'Пользователь создан';
+        $createdPrefix = 'Клиент создан';
 
         if ($sendWelcomeEmail && $isSiblingWelcome && $familyLoginUser) {
             $mailResult = $this->welcomeCredentialsService->sendSiblingAdded(
@@ -1022,7 +1022,7 @@ class UserController extends AdminBaseController
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Пользователь успешно обновлён',
+                'message' => 'Клиент успешно обновлён',
             ], 200);
         }
 
@@ -1042,7 +1042,7 @@ class UserController extends AdminBaseController
 
             $this->auditLogger->record(
                 AuditEvent::UserDeleted,
-                AuditContext::make("Удален пользователь: {$user->name}  ID: {$user->id}.")
+                AuditContext::make("Удален клиент: {$user->name}  ID: {$user->id}.")
                     ->withUser($user)
                     ->withTarget($user, $targetLabel)
                     ->withCreatedAt(now())
@@ -1050,7 +1050,7 @@ class UserController extends AdminBaseController
         });
 
         return response()->json([
-            'success' => 'Пользователь успешно удалён',
+            'success' => 'Клиент успешно удалён',
         ]);
     }
 

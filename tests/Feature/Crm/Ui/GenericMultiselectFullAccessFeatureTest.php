@@ -284,7 +284,7 @@ final class GenericMultiselectFullAccessFeatureTest extends CrmTestCase
 
         $response->assertOk()
             ->assertJsonStructure(['message', 'user' => ['id', 'email']])
-            ->assertJsonPath('message', 'Пользователь создан успешно');
+            ->assertJsonPath('message', 'Клиент создан успешно');
 
         $userId = (int) $response->json('user.id');
         $this->assertGreaterThan(0, $userId);

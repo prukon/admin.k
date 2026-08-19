@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Chat;
 
-use App\Services\PartnerContext;
+use App\Support\CabinetDiagnostics;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReverbStatusRequest extends FormRequest
@@ -13,7 +13,7 @@ class ReverbStatusRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && app(PartnerContext::class)->isSuperAdmin($user);
+        return $user !== null && $user->can(CabinetDiagnostics::PERMISSION);
     }
 
     public function rules(): array

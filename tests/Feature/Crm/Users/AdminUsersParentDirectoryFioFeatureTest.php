@@ -181,7 +181,7 @@ final class AdminUsersParentDirectoryFioFeatureTest extends CrmTestCase
             'is_enabled'            => 1,
         ], ['X-Requested-With' => 'XMLHttpRequest'])
             ->assertOk()
-            ->assertJsonPath('message', 'Пользователь успешно обновлён');
+            ->assertJsonPath('message', 'Клиент успешно обновлён');
 
         $this->assertNotSame('', trim((string) $response->getContent()));
 

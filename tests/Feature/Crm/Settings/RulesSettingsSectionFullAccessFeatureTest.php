@@ -110,7 +110,7 @@ final class RulesSettingsSectionFullAccessFeatureTest extends CrmTestCase
             ->assertViewHas(['roles', 'permissions', 'groups'])
             ->assertSee('id="permission-accordion"', false)
             ->assertSee('Главное меню', false)
-            ->assertSee('Управление пользователями', false);
+            ->assertSee('Управление клиентами', false);
     }
 
     private function assertAllRulesSectionEndpointsReturnOk(): void

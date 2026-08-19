@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Chat;
 
 use App\Models\User;
+use App\Services\Chat\ChatSupportIdentity;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -21,6 +22,14 @@ class StoreChatThreadRequest extends FormRequest
         $userId = $this->input('user_id');
         if (is_string($userId) && ctype_digit($userId)) {
             $this->merge(['user_id' => (int) $userId]);
+        }
+
+        $peerId = (int) $this->input('user_id');
+        if ($peerId > 0) {
+            $normalized = app(ChatSupportIdentity::class)->normalizePeerId($peerId);
+            if ($normalized !== $peerId) {
+                $this->merge(['user_id' => $normalized]);
+            }
         }
     }
 
@@ -77,7 +86,13 @@ class StoreChatThreadRequest extends FormRequest
             }
 
             $peer = User::query()->find($peerId);
-            if (! $peer || (int) $peer->partner_id !== (int) $partnerId) {
+            if (! $peer) {
+                $validator->errors()->add('user_id', 'Выбранный пользователь не найден.');
+
+                return;
+            }
+
+            if (! app(ChatSupportIdentity::class)->isAllowedPeerInPartner($peer, (int) $partnerId)) {
                 $validator->errors()->add('user_id', 'Нельзя добавить пользователя другой организации.');
 
                 return;

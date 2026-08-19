@@ -1,4 +1,4 @@
-@if(auth()->check() && optional(auth()->user()->role)->name === 'superadmin')
+@if(\App\Support\CabinetDiagnostics::shouldShow(auth()->user()))
     <div id="js-reverb-status" class="reverb-status" data-status-url="{{ route('chat.api.reverb-status') }}" aria-live="polite">
         <div class="reverb-status__head">
             <div class="reverb-status__title">Reverb</div>

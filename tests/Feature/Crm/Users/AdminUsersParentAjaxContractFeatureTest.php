@@ -129,7 +129,7 @@ final class AdminUsersParentAjaxContractFeatureTest extends CrmTestCase
         ], $this->ajaxHeaders());
 
         $response->assertOk()
-            ->assertJsonPath('message', 'Пользователь успешно обновлён')
+            ->assertJsonPath('message', 'Клиент успешно обновлён')
             ->assertJsonStructure(['message']);
 
         $this->assertNotSame('', trim((string) $response->getContent()));

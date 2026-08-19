@@ -6,6 +6,8 @@ use App\Http\Controllers\AdminBaseController;
 use App\Http\Requests\Team\FilterRequest;
 use App\Http\Requests\Setting\SaveMenuItemsRequest;
 use App\Http\Requests\Setting\SaveSocialItemsRequest;
+use App\Http\Requests\Setting\ToggleCabinetDiagnosticsRequest;
+use App\Support\CabinetDiagnostics;
 use App\Enums\AuditEvent;
 use App\Enums\AuditLevel;
 use App\Models\MenuItem;
@@ -67,6 +69,8 @@ class SettingController extends AdminBaseController
 //статус 2Fa для админов
         $force2faAdmins = Setting::getBool('force_2fa_admins', false, null);
 
+        $cabinetDiagnosticsEnabled = CabinetDiagnostics::isEnabled();
+
         // Соцсети партнёра для модалки настроек:
         // - показываем только глобально включённые соцсети
         // - создаём недостающие строки для партнёра (не в middleware, а только на странице настроек)
@@ -119,6 +123,7 @@ class SettingController extends AdminBaseController
                 'partnerId',
                 'isRegistrationActive',
                 'force2faAdmins',
+                'cabinetDiagnosticsEnabled',
                 'socialSettingsItems'
             )
         );
@@ -523,6 +528,26 @@ class SettingController extends AdminBaseController
             ]);
             return response()->json(['success' => false, 'message' => 'DB error: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function toggleCabinetDiagnostics(ToggleCabinetDiagnosticsRequest $request)
+    {
+        $active = $request->boolean('cabinetDiagnostics');
+
+        $ok = Setting::setBool(CabinetDiagnostics::SETTING, $active, null);
+        if (! $ok) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Не удалось сохранить настройку.',
+            ], 500);
+        }
+
+        $value = Setting::getBool(CabinetDiagnostics::SETTING, false, null);
+
+        return response()->json([
+            'success' => true,
+            'value' => $value,
+        ]);
     }
 
     private function buildQueueStatusData(): array

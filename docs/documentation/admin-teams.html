@@ -59,7 +59,7 @@
 
   <h2 id="team-delete">1.1) Удаление группы</h2>
   <div class="note">
-    <code>DELETE /admin/team/{team}</code> (<code>TeamController@destroy</code>):
+    <code>DELETE /admin/team/{team}</code> (<code>TeamController@delete</code>):
     <ul>
       <li>soft delete — <code>teams.deleted_at</code>;</li>
       <li>все ученики отвязываются от группы в pivot: <code>TeamUserSyncService::detachTeamFromAllStudents</code>;</li>
@@ -67,6 +67,15 @@
       <li>аудит <code>team.deleted</code> в <code>my_logs</code>.</li>
     </ul>
     Связь M:N и влияние на «Цены» / <code>users_prices</code> — <a href="/docs/documentation/student-team-membership#team-delete">student-team-membership §1.2</a>.
+    Групповой чат учебной группы создаётся сразу в <code>TeamService::store</code>
+    при <code>POST /admin/teams</code>, даже без учеников и даже если
+    <code>teams.is_enabled=0</code>
+    (<a href="/doc#chat-team-groups-index">анонс на /doc</a>,
+    <a href="/docs/documentation/chat#team-groups">chat §team-groups</a>).
+    <code>Team::create</code> (factory) чат сам не создаёт.
+    Название чата = <code>teams.title</code> только при создании; <code>PATCH</code>
+    группы чат не переименовывает (успешный update — JSON 200, не 302).
+    Soft-delete группы чат не удаляет и никого не кикает.
   </div>
 
   <h2>2) Таблица групп и «Поля списка»</h2>
@@ -316,7 +325,7 @@
     </tbody>
   </table>
   <p class="small">Валидация: <code>PartnerLegalEntityId</code>, <code>Team\StoreRequest</code> / <code>UpdateRequest</code> — <code>legal_entity_id</code> <code>required</code> при <code>PartnerLegalEntityMode::isMultiEntity</code>; сообщение «Выберите юр. лицо для группы». <code>TeamService::resolveLegalEntityIdForPartner()</code>.</p>
-  <p class="small"><b>Non-AJAX safety-net (store):</b> <code>POST /admin/teams</code> без <code>X-Requested-With</code> → redirect 302 на index, группа создана; при ошибке валидации — redirect back + session errors (не пустой 200). <b>Update:</b> успешный <code>PATCH</code> без AJAX → JSON 200 <code>{ message }</code> (текущий контракт контроллера); ошибка валидации — redirect 302 + session errors.</p>
+  <p class="small"><b>Non-AJAX safety-net (store):</b> <code>POST /admin/teams</code> без <code>X-Requested-With</code> → redirect 302 на index, группа и её авто-чат созданы; при ошибке валидации — redirect back + session errors (не пустой 200), чата нет. AJAX store с заголовком → JSON 200 <code>message</code> + чат. <b>Update:</b> успешный <code>PATCH</code> без AJAX → JSON 200 <code>{ message }</code> (текущий контракт контроллера, чат не создаёт и не переименовывает); ошибка валидации — redirect 302 + session errors.</p>
 
   <h2 id="removed-legacy-fields">5.3) Удалённые поля (история)</h2>
   <div class="warn">
@@ -334,6 +343,8 @@
     Сохранение: <code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — поле <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра). Пустое значение снимает тренера с группы.<br>
     <code>GET /admin/team/{id}/edit</code> (JSON) возвращает <code>trainer_profile_id</code> первого связанного профиля.<br>
     Обратная привязка из карточки тренера — <code>team_ids[]</code> на <code>/admin/trainers</code>. Подробнее: <a href="/docs/documentation/admin-trainers#team-link">Тренеры: привязка к группам</a>.
+    Привязка тренера добавляет его в авто-чат группы; отвязка из чата не убирает
+    (<a href="/doc#chat-team-groups-index">анонс</a>).
   </div>
 
   <h2>7) Серверное поведение <code>GET /admin/teams/data</code></h2>

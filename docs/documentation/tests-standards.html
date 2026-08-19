@@ -226,15 +226,19 @@ LegalEntityResolver::forPayable / forFiscalReceipt / forTinkoffPayment</code></p
     <li><code>tests/Feature/Crm/LessonPackages/LessonPackagePublicPayCheckoutFeatureTest.php</code> — UI checkout на <code>/p/{code}</code> и <code>/pay/ulp/{token}</code>, доступы, JSON QR (<a href="/docs/documentation/payments#ulp-public-pay">payments §3.4.1</a>)</li>
   </ul>
 
-  <h2 id="phpunit-last-log">6) Лог последнего прогона</h2>
+  <h2 id="phpunit-last-log">6) Лог последнего прогона PHPUnit</h2>
   <div class="note">
+    Анонс: <a href="/doc#phpunit-last-log-index">/doc</a>.
     Команда не меняется: <code>php artisan test</code> (или с <code>--env=testing</code> / путём к файлу).
-    PHPUnit сам перезаписывает в <code>storage/logs/</code> (каталог в git не попадает):
+    В <code>phpunit.xml</code> включено <code>&lt;logging&gt;</code>:
+    <code>testdoxText</code> и <code>junit</code>. PHPUnit сам пишет файлы в <code>storage/logs/</code>
+    (каталог в git не попадает, это не <code>laravel.log</code> и не аудит <code>my_logs</code>).
     <ul>
-      <li><code>phpunit-last.txt</code> — список тестов (pass/fail)</li>
-      <li><code>phpunit-last.junit.xml</code> — те же результаты плюс тексты assertion; нужен, чтобы разобрать падение без копипаста из терминала</li>
+      <li><code>storage/logs/phpunit-last.txt</code> — список тестов (pass/fail, testdox)</li>
+      <li><code>storage/logs/phpunit-last.junit.xml</code> — те же результаты плюс тексты assertion
+        (<code>Failed asserting that…</code>); по нему разбирают падения без копипаста из терминала</li>
     </ul>
-    В файле только последний запуск, не вся история.
+    Каждый запуск <b>перезаписывает</b> оба файла. Архива прошлых прогонов нет — только последний.
   </div>
 
 </div>

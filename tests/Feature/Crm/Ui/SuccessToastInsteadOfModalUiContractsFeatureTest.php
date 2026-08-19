@@ -128,8 +128,8 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
         $cases = [
             'student-delete' => [
                 'path'  => resource_path('views/includes/modal/editUser.blade.php'),
-                'toast' => "window.showToast('Пользователь успешно удален.', 'success')",
-                'absent'=> 'showSuccessModal("Удаление пользователя"',
+                'toast' => "window.showToast('Клиент успешно удален.', 'success')",
+                'absent'=> 'showSuccessModal("Удаление клиента"',
             ],
             'trainer-create' => [
                 'path'  => resource_path('views/admin/trainers/index.blade.php'),
@@ -310,7 +310,7 @@ final class SuccessToastInsteadOfModalUiContractsFeatureTest extends CrmTestCase
 
         $editUser = (string) file_get_contents(resource_path('views/includes/modal/editUser.blade.php'));
         $this->assertStringContainsString(
-            'showSuccessModal("Редактирование пользователя"',
+            'showSuccessModal("Редактирование клиента"',
             $editUser,
             'Сохранение карточки ученика не в списке toast'
         );

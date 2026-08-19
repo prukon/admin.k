@@ -44,8 +44,8 @@
     </thead>
     <tbody>
       <tr>
-        <td><b>Пользователи</b></td>
-        <td><code>user</code> (ученик)</td>
+        <td><b>Клиенты</b></td>
+        <td><code>user</code> (ученик, label «Клиент»)</td>
         <td><code>/admin/users</code></td>
         <td><code>users.role.update</code></td>
         <td><a href="/docs/documentation/admin-users">admin-users</a></td>
@@ -75,7 +75,8 @@
   </table>
 
   <div class="warn">
-    <b>Не путать:</b> вкладка «Пользователи» показывает только <b>учеников</b> (<code>role_id</code> системной роли <code>user</code>). Администраторы, тренеры и кастомные роли — на своих вкладках. Журнал <code>/schedule</code> по-прежнему фильтрует только активных учеников — см. <a href="/docs/documentation/schedule-journal#student-list">schedule-journal §2.1</a>.
+    <b>Не путать:</b> вкладка «Клиенты» показывает только <b>учеников</b> (<code>role_id</code> системной роли <code>user</code>, UI-label «Клиент»). Общий заголовок раздела и пункт сайдбара остаются «Пользователи». Администраторы, тренеры и кастомные роли — на своих вкладках. Журнал <code>/schedule</code> по-прежнему фильтрует только активных учеников — см. <a href="/docs/documentation/schedule-journal#student-list">schedule-journal §2.1</a>.
+    Анонс: <a href="/doc#users-client-naming-index">/doc — нейминг «Клиенты»</a>.
   </div>
 
   <h3>2.1) Какие роли попадают во вкладки</h3>
@@ -93,9 +94,9 @@
 
   <h2>3) Общий UI</h2>
   <ul>
-    <li>Заголовок страницы раздела: <code>Пользователи</code> (h4).</li>
+    <li>Заголовок страницы раздела: <code>Пользователи</code> (h4, сайдбар тот же). Вкладка учеников и toolbar <code>h1</code> на <code>/admin/users</code>: <code>Клиенты</code>. Модалки ученика: «Создание клиента» / «Редактирование клиента» / «Удаление клиента». JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code>. Toast удаления: <code>Клиент успешно удален.</code> (е). Тренеры и сотрудники этот копирайт не получают. Право <code>users.view</code> в матрице прав по-прежнему «Страница "Пользователи"»; группа прав — «Управление клиентами»; label роли <code>user</code> — «Клиент».</li>
     <li>На каждой вкладке — toolbar (добавить, фильтры, колонки), DataTables через <code>KidsCrmDataTable.create</code> — см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.</li>
-    <li>На вкладке «Пользователи» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code> (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>, preview-diff — <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>); колонки «Телефон родителя» / «Телефон ученика» — <a href="/docs/documentation/admin-users#user-parent-phone-column">§2.1.0</a>.</li>
+    <li>На вкладке «Клиенты» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code> (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>, preview-diff — <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>); колонки «Телефон родителя» / «Телефон ученика» — <a href="/docs/documentation/admin-users#user-parent-phone-column">§2.1.0</a>.</li>
     <li>Trait контроллеров: <code>App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs</code> передаёт в view <code>usersSectionTabs</code> и <code>activeTab</code>.</li>
   </ul>
 
@@ -123,13 +124,25 @@
       <li><code>tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php</code> — <code>/admin/administrators</code>: 200 на все endpoint’ы, 403, изоляция</li>
       <li><code>tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php</code> — <code>/admin/roles/{role}</code>: 200, 403, изоляция</li>
       <li><code>tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php</code> — CRUD, валидация, список учеников на <code>/admin/users/data</code></li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code> — UX-нейминг: сайдбар/h4 «Пользователи», вкладка и toolbar h1 «Клиенты», фильтр «Все клиенты», модалки «клиента»; тренеры/админы не получают h1 «Клиенты»; повторное открытие страницы; @can импорта; правила: роль «Клиент», группа «Управление клиентами», <code>users.view</code> остаётся «Страница "Пользователи"»; ЛК ученика — «Клиент»; отчёты не «Все клиенты»</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingAjaxContractFeatureTest.php</code> — JSON store/update/delete: <code>Клиент создан успешно</code> / <code>Клиент успешно обновлён</code> / <code>Клиент успешно удалён</code>; 422 <code>errors.name</code>/<code>errors.lastname</code>; сотрудник — «Пользователь создан»; ЛК — «Пользователь успешно обновлен»; чужой партнёр 404</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php</code> — POST/PATCH без <code>X-Requested-With</code> → 302 на <code>/admin/users</code> + запись в БД; валидация 302 + session errors; DELETE без AJAX всё равно JSON «Клиент успешно удалён»</li>
+      <li><code>tests/Feature/Crm/Users/AdminUsersClientNamingFullAccessFeatureTest.php</code> — гость 302/401; без <code>users.view</code> 403; без <code>settings.roles.view</code> / <code>trainers.view</code> 403; admin 200; PUT/PATCH/DELETE на GET-страницы → 404/405; чужой партнёр 404</li>
+      <li><code>tests/Unit/Documentation/UsersClientNamingDocumentationContractTest.php</code> — анонс <code>/doc#users-client-naming-index</code> совпадает с Blade/контроллерами (сайдбар «Пользователи», JSON «Клиент…», негативы)</li>
     </ul>
     <pre><code>php artisan test --env=testing \
   tests/Feature/Crm/Users/UsersSectionTabsFeatureTest.php \
   tests/Feature/Crm/Users/AdministratorsPageFullAccessFeatureTest.php \
   tests/Feature/Crm/Users/CustomRoleUsersPageFullAccessFeatureTest.php \
   tests/Feature/Crm/Users/RoleStaffUsersFeatureTest.php \
-  tests/Feature/Crm/Users/AdminUsersSectionFeatureTest.php</code></pre>
+  tests/Feature/Crm/Users/AdminUsersSectionFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUsersClientNamingAjaxContractFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUsersClientNamingNonAjaxSafetyNetFeatureTest.php \
+  tests/Feature/Crm/Users/AdminUsersClientNamingFullAccessFeatureTest.php
+
+php artisan test --env=testing --filter=test_student_client_naming_js_paths_keep_client_copy_and_do_not_reset_modal_title
+php artisan test --env=testing tests/Unit/Documentation/UsersClientNamingDocumentationContractTest.php</code></pre>
   </div>
 
   <p class="small">

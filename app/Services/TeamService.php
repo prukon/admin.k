@@ -8,6 +8,7 @@ use App\Models\SportType;
 use App\Models\Team;
 use App\Services\Audit\AuditContext;
 use App\Services\Audit\AuditLogger;
+use App\Services\Chat\TeamGroupChatService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class TeamService
         private readonly TeamTrainerSyncService $teamTrainerSync,
         private readonly TeamLocationSyncService $teamLocationSync,
         private readonly AuditLogger $auditLogger,
+        private readonly TeamGroupChatService $teamGroupChat,
     ) {
         $this->partnerContext = $partnerContext;
     }
@@ -90,6 +92,8 @@ class TeamService
         if ($trainerProvided) {
             $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
         }
+
+        $this->teamGroupChat->ensureThreadForTeam($team);
 
         return $team; // Возвращаем созданную команду
     }

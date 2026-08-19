@@ -72,6 +72,9 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('inAppNotifications.manage', $userPerms);
         $this->assertNotContains('inAppNotifications.manage', $adminPerms);
         $this->assertNotContains('inAppNotifications.manage', $trainerPerms);
+        $this->assertNotContains('settings.reverbOverlay.manage', $userPerms);
+        $this->assertNotContains('settings.reverbOverlay.manage', $adminPerms);
+        $this->assertNotContains('settings.reverbOverlay.manage', $trainerPerms);
         $this->assertContains('inAppNotifications.view', $userPerms);
         $this->assertContains('inAppNotifications.view', $adminPerms);
         $this->assertContains('inAppNotifications.view', $trainerPerms);

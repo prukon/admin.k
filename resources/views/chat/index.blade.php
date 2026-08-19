@@ -1,144 +1,48 @@
 @extends('layouts.admin2')
 
-@section('content')
-    <style>
-        .chat-page { min-height: 70vh; }
-        .chat-list-search { padding: .5rem .75rem; border-bottom: 1px solid #e9ecef; }
-        .chat-list-item {
-            display: flex; gap: .75rem; padding: .6rem .75rem; cursor: pointer;
-            border-left: 4px solid transparent;
-        }
-        .chat-list-item:hover { background: rgba(46, 170, 220, .06); border-left-color: #2eaadc; }
-        .chat-list-item.active { background: #eaf6ff; border-left-color: #2eaadc; }
-        .chat-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex: 0 0 42px; }
-        .chat-avatar-wrap { position: relative; flex: 0 0 42px; width: 42px; height: 42px; }
-        .chat-online-dot {
-            position: absolute; right: 0; bottom: 0; width: 10px; height: 10px;
-            border-radius: 50%; background: #22c55e; border: 2px solid #fff; box-sizing: content-box;
-        }
-        .chat-li-middle { flex: 1; min-width: 0; }
-        .chat-li-body { display: flex; align-items: flex-start; gap: .5rem; min-width: 0; flex: 1; }
-        .chat-li-title {
-            font-weight: 600; line-height: 1.2;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .chat-li-preview {
-            font-size: .9rem; color: #6c757d; overflow: hidden;
-            white-space: nowrap; text-overflow: ellipsis; text-align: left;
-        }
-        .chat-li-preview.is-draft { color: #f3a12b; font-style: italic; }
-        .chat-li-meta {
-            flex: 0 0 auto; display: flex; flex-direction: column;
-            align-items: flex-end; gap: .15rem;
-        }
-        .chat-li-time { font-size: .8rem; color: #6c757d; white-space: nowrap; display: flex; align-items: center; gap: .15rem; }
-        .chat-li-time .check { width: 12px; height: 12px; }
-        .chat-li-time .check svg { width: 12px; height: 12px; }
-        .chat-li-time .check-second { margin-left: -6px; }
-        .chat-li-unread {
-            display: inline-flex; align-items: center; justify-content: center;
-            min-width: 1.25rem; height: 1.25rem; padding: 0 .35rem;
-            border-radius: 999px; background: #f3a12b; color: #fff;
-            font-size: .75rem; font-weight: 600; line-height: 1;
-        }
-        .dialog-bg { background: url("/img/background-chat.jpg") repeat; background-size: cover; }
-        .msg-row { display: flex; width: 100%; margin: .25rem 0; }
-        .msg-inner { display: flex; flex-direction: column; width: 100%; }
-        .msg-bubble {
-            max-width: 75%; padding: .6rem 3.2rem 1.4rem .9rem; border-radius: 16px;
-            background: #fff; position: relative; word-break: break-word;
-            box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
-        }
-        .msg-row.msg-other .msg-bubble { border-bottom-left-radius: 4px; margin-right: auto; }
-        .msg-row.msg-mine .msg-bubble { background: #c7f7c9; border-bottom-right-radius: 4px; margin-left: auto; }
-        .msg-meta {
-            position: absolute; bottom: 4px; right: 8px; font-size: .7rem;
-            color: #6c757d; display: flex; align-items: center; gap: .2rem;
-        }
-        .msg-row.msg-mine .msg-meta { color: #4CAF50; }
-        .checks { display: inline-flex; align-items: center; line-height: 1; }
-        .check { width: 14px; height: 14px; display: inline-block; }
-        .check-second { margin-left: -7px; }
-        .check svg { width: 14px; height: 14px; display: block; }
-        .checks-sent { color: #6c757d; }
-        .checks-read { color: #4CAF50; }
-        .contact-list { margin: 0; padding: 0; list-style: none; max-height: min(60vh, 520px); overflow: auto; }
-        .contact-row {
-            display: flex; align-items: flex-start; gap: .65rem;
-            padding: .4rem .25rem; cursor: pointer; border-radius: 8px;
-        }
-        .contact-row:hover { background: #f5f7f9; }
-        .contact-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-        .contact-avatar-wrap { position: relative; flex: 0 0 36px; width: 36px; height: 36px; }
-        .contact-online-dot {
-            position: absolute; right: 0; bottom: 0; width: 9px; height: 9px;
-            border-radius: 50%; border: 2px solid #fff; box-sizing: content-box;
-        }
-        .contact-online-dot.is-online { background: #22c55e; }
-        .contact-online-dot.is-offline { background: #dc3545; }
-        .contact-main { flex: 1 1 38%; min-width: 0; }
-        .contact-name {
-            font-weight: 600; line-height: 1.35;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .contact-parent {
-            font-size: .8rem; color: #868e96; font-weight: 400; line-height: 1.25;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .contact-team {
-            flex: 1 1 32%; min-width: 0; text-align: center; line-height: 1.35;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .contact-role {
-            flex: 0 1 22%; min-width: 4.5rem; text-align: right; line-height: 1.35;
-            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .contact-sub { font-size: .85rem; color: #6c757d; }
-        .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
-        .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }
-        .chat-header-peer { min-width: 0; }
-        .chat-header-peer:not(.is-idle) { cursor: pointer; }
-        .chat-header-peer.is-idle { cursor: default; }
-        .peer-card { text-align: left; }
-        .peer-card-avatar {
-            display: block; width: 96px; height: 96px; border-radius: 50%;
-            object-fit: cover; margin: 0 auto 1rem;
-        }
-        .peer-card-name { text-align: center; font-weight: 600; font-size: 1.1rem; margin-bottom: 1rem; }
-        .peer-card-row { display: flex; gap: .75rem; padding: .35rem 0; border-top: 1px solid #f0f2f4; }
-        .peer-card-label { flex: 0 0 42%; color: #6c757d; font-size: .85rem; }
-        .peer-card-row > div:last-child { min-width: 0; word-break: break-word; }
-    </style>
+@push('styles')
+    @vite(['resources/css/chat.css'])
+@endpush
 
+@section('content')
     <div class="container py-3 chat-page" id="chatApp"
          data-me="{{ (int) auth()->id() }}"
+         data-mobile-tab="messages"
          data-threads-url="{{ route('chat.api.threads.index') }}"
          data-store-thread-url="{{ route('chat.api.threads.store') }}"
+         data-store-group-url="{{ route('chat.api.threads.groups.store') }}"
          data-users-url="{{ route('chat.api.users') }}"
          data-unread-url="{{ route('chat.api.unread') }}">
-        <div class="row g-3">
-            <div class="col-12 col-md-4">
+        <div class="row g-0 g-lg-3 chat-desktop-row">
+            <div class="col-12 col-lg-4 chat-list-col">
                 <div class="card h-100">
                     <div class="chat-list-search d-flex gap-2">
                         <input type="text" id="threadSearch" class="form-control form-control-sm" placeholder="Поиск" autocomplete="off">
-                        <button type="button" class="btn btn-sm btn-primary text-nowrap" id="openContactsBtn">Контакты</button>
+                        <button type="button" class="btn btn-sm btn-primary text-nowrap d-none d-lg-inline-block" id="openContactsBtn">Контакты</button>
+                        <button type="button" class="btn btn-sm btn-primary text-nowrap d-none d-lg-inline-block js-open-create-group" id="openCreateGroupBtn">Создать группу</button>
                     </div>
                     <div id="threads" class="list-group list-group-flush" style="overflow:auto; max-height:65vh;"></div>
                 </div>
             </div>
-            <div class="col-12 col-md-8">
+            <div class="col-12 col-lg-8 chat-dialog-col">
                 <div class="card h-100">
                     <div class="card-header d-flex align-items-center gap-2">
+                        <button type="button" class="chat-mobile-back" id="chatMobileBack" aria-label="Назад">
+                            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                        </button>
                         <div id="threadPeerHit" class="d-flex align-items-center gap-2 chat-header-peer is-idle">
                             <img id="threadAvatar" src="/img/default-avatar.png" alt="" class="chat-avatar" style="display:none;">
-                            <div class="fw-semibold" id="threadTitle">Выберите диалог</div>
+                            <div class="chat-header-text">
+                                <div class="fw-semibold" id="threadTitle">Выберите диалог</div>
+                                <div id="threadSubtitle" class="chat-header-subtitle" style="display:none;"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body dialog-bg p-0 d-flex flex-column" style="height:65vh;">
                         <div id="messagesBox" class="p-3 flex-grow-1 overflow-auto">
                             <div class="chat-empty">Сообщения появятся здесь…</div>
                         </div>
-                        <div class="border-top p-2 bg-white">
+                        <div class="border-top p-2 bg-white chat-composer">
                             <form id="sendForm">
                                 <div class="d-flex gap-2">
                                     <input type="text" class="form-control" id="msgInput" name="body" placeholder="Напишите сообщение…" autocomplete="off" disabled>
@@ -151,6 +55,43 @@
                 </div>
             </div>
         </div>
+
+        <div id="chatPaneContacts" class="chat-mobile-pane" data-mobile-pane="contacts">
+            <div class="chat-mobile-pane-title">Контакты</div>
+        </div>
+        <div id="chatPaneGroups" class="chat-mobile-pane" data-mobile-pane="groups">
+            <div class="chat-mobile-pane-title">Чаты</div>
+            <div class="px-3 pb-2">
+                <button type="button" class="btn btn-sm btn-primary js-open-create-group" id="openCreateGroupMobileBtn">Создать группу</button>
+            </div>
+            <div id="groupThreads" class="list-group list-group-flush chat-group-threads"></div>
+        </div>
+        <div id="chatPaneAccount" class="chat-mobile-pane" data-mobile-pane="account">
+            <div class="chat-mobile-pane-title">Аккаунт</div>
+            <div class="text-danger chat-field-error" id="accountCardError"></div>
+            <div id="accountCardBody"></div>
+        </div>
+
+        <nav class="chat-mobile-nav" id="chatMobileNav" aria-label="Разделы чата">
+            <button type="button" class="chat-mobile-nav-btn" data-mobile-tab="contacts" aria-selected="false">
+                <i class="fa-solid fa-address-book" aria-hidden="true"></i>
+                <span>Контакты</span>
+            </button>
+            <button type="button" class="chat-mobile-nav-btn is-active" data-mobile-tab="messages" aria-selected="true">
+                <i class="fa-solid fa-comment" aria-hidden="true"></i>
+                <span>Личные сообщения</span>
+                <span id="chatPrivateUnreadBadge" class="badge badge-info chat-mobile-nav-badge js-chat-private-unread-count"@if(($chatPrivateUnreadCount ?? 0) <= 0) style="display:none"@endif>{{ (int) ($chatPrivateUnreadCount ?? 0) }}</span>
+            </button>
+            <button type="button" class="chat-mobile-nav-btn" data-mobile-tab="groups" aria-selected="false">
+                <i class="fa-solid fa-comments" aria-hidden="true"></i>
+                <span>Чаты</span>
+                <span id="chatGroupUnreadBadge" class="badge badge-info chat-mobile-nav-badge js-chat-group-unread-count"@if(($chatGroupUnreadCount ?? 0) <= 0) style="display:none"@endif>{{ (int) ($chatGroupUnreadCount ?? 0) }}</span>
+            </button>
+            <button type="button" class="chat-mobile-nav-btn" data-mobile-tab="account" aria-selected="false">
+                <i class="fa-solid fa-user" aria-hidden="true"></i>
+                <span>Аккаунт</span>
+            </button>
+        </nav>
     </div>
 
     <div class="modal fade" id="contactsModal" tabindex="-1" aria-hidden="true">
@@ -160,10 +101,20 @@
                     <h5 class="modal-title">Контакты</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" id="contactsModalBody">
+                    <div id="contactsMount">
+                    <select id="contactsTeamFilter" class="form-select mb-2" aria-label="Фильтр по группе">
+                        <option value="">Все группы</option>
+                        <option value="none">Без группы</option>
+                        @foreach ($contactTeams ?? [] as $team)
+                            <option value="{{ (int) $team->id }}">{{ $team->title }}</option>
+                        @endforeach
+                    </select>
+                    <div class="text-danger chat-field-error" id="contactsTeamError" data-error-for="team_id"></div>
                     <input type="text" id="contactsSearch" class="form-control mb-2" placeholder="Поиск по имени или email" autocomplete="off">
-                    <div class="text-danger chat-field-error" id="contactsError"></div>
+                    <div class="text-danger chat-field-error" id="contactsError" data-error-for="q"></div>
                     <ul id="contactsList" class="contact-list"></ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,8 +134,130 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="createGroupNameModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Создать группу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <form id="createGroupNameForm">
+                    <div class="modal-body">
+                        <label for="createGroupTitle" class="form-label">Название группы</label>
+                        <input type="text" id="createGroupTitle" name="title" class="form-control" maxlength="100" autocomplete="off">
+                        <div class="text-danger chat-field-error" id="createGroupTitleError" data-error-for="title"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary" id="createGroupNameSubmit">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="createGroupMembersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Участники группы</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <form id="createGroupMembersForm">
+                    <div class="modal-body">
+                        <select id="createGroupMembersTeamFilter" class="form-select mb-2" aria-label="Фильтр по группе">
+                            <option value="">Все группы</option>
+                            <option value="none">Без группы</option>
+                            @foreach ($contactTeams ?? [] as $team)
+                                <option value="{{ (int) $team->id }}">{{ $team->title }}</option>
+                            @endforeach
+                        </select>
+                        <div class="text-danger chat-field-error" id="createGroupMembersTeamError" data-error-for="team_id"></div>
+                        <input type="text" id="createGroupMembersSearch" class="form-control mb-2" placeholder="Поиск по имени или email" autocomplete="off">
+                        <div class="text-danger chat-field-error" id="createGroupMembersSearchError" data-error-for="q"></div>
+                        <ul id="createGroupMembersList" class="contact-list"></ul>
+                        <div class="text-danger chat-field-error" id="createGroupMembersError" data-error-for="user_ids"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary" id="createGroupMembersSubmit">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="groupCardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Группа</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger chat-field-error" id="groupCardError"></div>
+                    <div class="group-card-head">
+                        <img id="groupCardAvatar" class="group-card-avatar" src="/img/default-avatar.png" alt="">
+                        <div class="group-card-title" id="groupCardTitle"></div>
+                        <div class="group-card-count" id="groupCardCount"></div>
+                    </div>
+                    <div class="group-card-actions">
+                        <button type="button" class="group-card-action" id="addGroupMembersBtn" title="Добавить участников" aria-label="Добавить участников">
+                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="group-card-action" id="leaveGroupBtn" title="Покинуть группу" aria-label="Покинуть группу">
+                            <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                    <div class="group-members-wrap" id="groupMembersWrap">
+                        <table class="table table-sm group-members-table">
+                            <thead>
+                                <tr>
+                                    <th>Аватар</th>
+                                    <th>ФИО клиента</th>
+                                    <th>Роль</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groupMembersBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="addGroupMembersModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить участников</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <form id="addGroupMembersForm">
+                    <div class="modal-body">
+                        <select id="addGroupMembersTeamFilter" class="form-select mb-2" aria-label="Фильтр по группе">
+                            <option value="">Все группы</option>
+                            <option value="none">Без группы</option>
+                            @foreach ($contactTeams ?? [] as $team)
+                                <option value="{{ (int) $team->id }}">{{ $team->title }}</option>
+                            @endforeach
+                        </select>
+                        <div class="text-danger chat-field-error" id="addGroupMembersTeamError" data-error-for="team_id"></div>
+                        <input type="text" id="addGroupMembersSearch" class="form-control mb-2" placeholder="Поиск по имени или email" autocomplete="off">
+                        <div class="text-danger chat-field-error" id="addGroupMembersSearchError" data-error-for="q"></div>
+                        <ul id="addGroupMembersList" class="contact-list"></ul>
+                        <div class="text-danger chat-field-error" id="addGroupMembersError" data-error-for="user_ids"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary" id="addGroupMembersSubmit">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/chat.js') }}?v={{ @filemtime(public_path('js/chat.js')) ?: time() }}"></script>
+    @vite(['resources/js/chat.js'])
 @endpush

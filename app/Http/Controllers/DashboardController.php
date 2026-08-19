@@ -122,7 +122,7 @@ class DashboardController extends Controller
             "textForUsers",
             "userFields",
             "userFieldValues",
-            "allFields"
+            "allFields",
         ));
     }
 
@@ -206,7 +206,7 @@ class DashboardController extends Controller
             ? Carbon::parse($user->birthday)->format('d.m.Y')
             : null;
 
-        return response()->json([
+        $payload = [
             'success'           => true,
             'user'              => $user,
             'userTeam'          => $userTeam,
@@ -217,7 +217,9 @@ class DashboardController extends Controller
             'userFields'        => $userFields,
             'userFieldValues'   => $userFieldValues,
             'allFields'         => $allFields,
-        ]);
+        ];
+
+        return response()->json($payload);
     }
 
     //AJAX Изменение команды

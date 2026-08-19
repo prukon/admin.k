@@ -36,7 +36,7 @@ class AdminUsersAccessFeatureTest extends CrmTestCase
             ->assertViewHas('fields')
             ->assertViewHas('userFieldsPayload')
             ->assertViewHas('activeTab', 'users')
-            ->assertSee('Все пользователи', false);
+            ->assertSee('Все клиенты', false);
     }
 
     /**

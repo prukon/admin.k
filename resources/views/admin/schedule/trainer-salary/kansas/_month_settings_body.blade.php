@@ -36,8 +36,7 @@
         <div class="cell-edit-section__label">Баз. среднее по группам</div>
         @forelse($monthGroups as $group)
             @php
-                $avgFull = (string) ($group['base_avg_students'] ?? '0.0');
-                $avgInt = (string) ($group['base_avg_students_int'] ?? '0');
+                $avgInt = (string) ($group['base_avg_students_int'] ?? $group['base_avg_students'] ?? '0');
             @endphp
             <div class="trainer-salary-kansas-month-group"
                  data-team-id="{{ (int) $group['team_id'] }}">
@@ -48,13 +47,9 @@
                            class="form-control trainer-salary-input text-end"
                            id="trainer-salary-kansas-base-avg-{{ (int) $group['team_id'] }}"
                            data-field="base_avg_students"
-                           data-kids-tooltip-hint
-                           data-bs-toggle="tooltip"
-                           data-bs-placement="top"
-                           title="{{ $avgFull }}"
                            min="0"
-                           max="999.9"
-                           step="0.1"
+                           max="999"
+                           step="1"
                            @unless($canEditMonth) disabled @endunless
                            value="{{ $avgInt }}">
                     <div class="invalid-feedback d-none" data-error-for="base_avg_students"></div>

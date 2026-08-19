@@ -4,10 +4,17 @@ namespace App\Services;
 
 use App\Models\Team;
 use App\Models\TrainerProfile;
+use App\Models\User;
+use App\Services\Chat\TeamGroupChatService;
 use Illuminate\Support\Facades\DB;
 
 class TeamTrainerSyncService
 {
+    public function __construct(
+        private readonly TeamGroupChatService $teamGroupChat,
+    ) {
+    }
+
     /**
      * Назначить одного тренера группе (в UI пока один; таблица many-to-many).
      */
@@ -46,6 +53,8 @@ class TeamTrainerSyncService
                 'updated_at' => now(),
             ],
         );
+
+        $this->addTrainerToTeamChat($team, $profile);
     }
 
     /**
@@ -89,6 +98,22 @@ class TeamTrainerSyncService
                     'updated_at' => now(),
                 ],
             );
+
+            $linked = Team::query()->whereKey($teamId)->first();
+            if ($linked) {
+                $this->addTrainerToTeamChat($linked, $profile);
+            }
+        }
+    }
+
+    private function addTrainerToTeamChat(Team $team, TrainerProfile $profile): void
+    {
+        $user = $profile->relationLoaded('user')
+            ? $profile->user
+            : User::query()->whereKey((int) $profile->user_id)->first();
+
+        if ($user) {
+            $this->teamGroupChat->addUserToTeamChat($team, $user);
         }
     }
 

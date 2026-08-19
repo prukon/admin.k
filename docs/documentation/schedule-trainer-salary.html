@@ -213,7 +213,7 @@
     <li>При <code>manage</code>: autosave черновика по <code>change</code> полей (debounce 400 мс) → <code>PATCH …/draft/{id}</code>; ошибки 422 — под соответствующим полем (<code>data-error-for</code>). Classic обновляет одну строку из JSON <code>row</code>. Kansas всегда отвечает <code>reload_table: true</code> + полный <code>table_html</code> (X и базовое среднее общие; иначе в DOM обновился бы только один тренер). X и «Баз. среднее» правятся в модалке «Настройки месяца»; клиент шлёт <code>team_id</code> из <code>data-team-id</code> строки группы в модалке. После PATCH таблица пересобирается, поля модалки не затираются (фокус остаётся). Смена месяца обновляет и <code>month_settings_html</code>.</li>
     <li>Кнопка «Расчет» → <code>POST …/snapshots/{id}</code>: у classic — в строке тренера, у Канзаса — в подвале блока сразу слева от «Итого:». Под именем тренера — подсказка «Слепок vN · дата · кто сформировал».</li>
     <li>«Сформировать всех» — confirm, затем <code>POST …/snapshots</code>; создаёт слепок для каждого активного тренера с одним <code>batch_id</code>.</li>
-    <li>При Канзасе и <code>manage</code>: кнопка «Настройки месяца» (рядом с «Типы тренеров») открывает модалку в стиле журнала «Статус занятия» (<code>schedule-modal-content cell-edit-modal</code>, стандартная ширина, заголовок «Настройки базовых значений за {месяц}»): базовая надбавка к премии на школу за этот месяц и базовое среднее всех активных групп партнёра. Значения в полях — целые (десятые/копейки в ховере). Кнопка «Типы тренеров» открывает ту же модалку, что на <code>/admin/trainers</code> (hotfix <code>public/js/trainer-types.js</code>). После сохранения типа таблица ЗП пересобирается; простое открытие модалки (<code>reason === 'open'</code>) таблицу не трогает.</li>
+    <li>При Канзасе и <code>manage</code>: кнопка «Настройки месяца» (рядом с «Типы тренеров») открывает модалку в стиле журнала «Статус занятия» (<code>schedule-modal-content cell-edit-modal</code>, стандартная ширина, заголовок «Настройки базовых значений за {месяц}»): базовая надбавка к премии на школу за этот месяц и базовое среднее всех активных групп партнёра. X в поле — целое, копейки в ховере. Базовое среднее — только целое, без ховера и без десятых. Кнопка «Типы тренеров» открывает ту же модалку, что на <code>/admin/trainers</code> (hotfix <code>public/js/trainer-types.js</code>). После сохранения типа таблица ЗП пересобирается; простое открытие модалки (<code>reason === 'open'</code>) таблицу не трогает.</li>
     <li>Без <code>manage</code>: поля readonly, кнопки «Расчет» нет, кнопок «Сформировать всех», «Настройки месяца» и «Типы тренеров» нет. У Канзаса надбавка показывается текстом <strong>над таблицей</strong>.</li>
   </ul>
 
@@ -244,21 +244,24 @@
     <code>ScheduleTrainerSalaryAccessFeatureTest</code> (гость, 403/200 по правам, 403 без схемы у сотрудника, superadmin без схемы → 200 classic fallback, kansas при выданном праве),
     <code>ScheduleTrainerSalaryKansasAccessFeatureTest</code> (все endpoint’ы Канзаса: гость 302/401, без view 403, view+manage без схемы 403, view без manage — GET 200 / PATCH 403, manager smoke 200 + JSON <code>message</code>/<code>reload_table</code>, вкладки SA без схемы, вкладки скрыты у сотрудника без схемы),
     <code>ScheduleTrainerSalarySchemeSwitchFeatureTest</code> (месяц без слепка: GET страницы и <code>/data</code>, PATCH без предварительного GET, non-AJAX, группы из визитов classic, повторное открытие не сбрасывает X; после «Расчет» / «Сформировать всех» classic остаётся; гость и сотрудник без схемы не переключают период),
-    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code> (UX: смена X/базы пересобирает <code>table_html</code> для всех тренеров; X и база — в <code>month_settings_html</code>; PATCH не затирает модалку на клиенте, смена месяца — затирает; classic не шлёт <code>reload_table</code>; дефолт X=0 и оклад/премия из типа тренера; смена месяца не копирует X; view-only без input и без «Настройки месяца»; non-AJAX GET <code>…/data</code>, PATCH/POST form-one/form-all — JSON 200 и запись в БД; <code>errors</code> по полям 422, в том числе <code>16.55</code> → <code>base_avg_students</code>; изоляция партнёра; readonly лист; целые средние, ховер с десятыми на числе без иконки; оклад/премия только в строке группы; пустой тренер скрыт; «Расчет» слева от «Итого:» в подвале, в шапке имя и тип; у kansas нет подзаголовка черновика, у classic — есть; заголовок модалки «за {месяц}», стандартная ширина; база группы без визитов сохраняется, но строку в таблицу не добавляет; без тренеров поля настроек disabled; в настройках месяца — все активные группы),
+    <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code> (UX: смена X/базы пересобирает <code>table_html</code> для всех тренеров; X и база — в <code>month_settings_html</code>; PATCH не затирает модалку на клиенте, смена месяца — затирает; classic не шлёт <code>reload_table</code>; дефолт X=0 и оклад/премия из типа тренера; смена месяца не копирует X; view-only без input и без «Настройки месяца»; non-AJAX GET <code>…/data</code>, PATCH/POST form-one/form-all — JSON 200 и запись в БД; <code>errors</code> по полям 422, в том числе <code>16.5</code> → <code>base_avg_students</code>; изоляция партнёра; readonly лист; целые средние без ховера; оклад/премия только в строке группы; пустой тренер скрыт; «Расчет» слева от «Итого:» в подвале, в шапке имя и тип; у kansas нет подзаголовка черновика, у classic — есть; заголовок модалки «за {месяц}», стандартная ширина; база группы без визитов сохраняется, но строку в таблицу не добавляет; без тренеров поля настроек disabled; в настройках месяца — все активные группы),
     <code>TrainerSalarySchemeClassicPermissionCatalogFeatureTest</code> / <code>TrainerSalarySchemeKansasPermissionCatalogFeatureTest</code> (каталог скрытых прав),
     <code>ScheduleTrainerSalaryKansasFeatureTest</code> (формула, общие поля, два слота в день, слепок, не считаются disabled / не «Посетил» / без pivot / перекрытый статус),
     <code>TrainerTypesFeatureTest</code> (системный тип, права, CRUD, 403/401/404, <code>can_delete</code>, черновики vs слепки),
     <code>TrainerTypesNonAjaxSafetyNetFeatureTest</code> (CRUD типов без X-Requested-With → JSON не пустой 200; карточка тренера Канзаса без типа → 302 <code>trainer_type_id</code>),
     <code>TrainerTypesUiContractsFeatureTest</code> (первое открытие: selected системного типа, hidden/disabled classic-полей, кнопка типов только при manage на ЗП, readonly оклад/премия; удаление типа — <code>showConfirmDeleteModal</code>, AJAX-список, toast),
-    <code>KansasTrainerSalaryCalculatorTest</code> (пример 41 000 ₽, пол премии),
-    <code>BladeInlineJsSyntaxTest::test_trainer_salary_js_kansas_reload_contract_is_valid_javascript</code> (<code>node --check</code>, hotfix-копия, <code>reload_table</code> + <code>extra.team_id</code> + <code>data-save-trainer-id</code>; GET <code>…/data</code> вызывает <code>applyMonthSettingsHtml</code>, PATCH/«Расчет»/«Сформировать всех» — нет, чтобы не затирать модалку; клик «Настройки месяца» не дергает fetch),
+    <code>ScheduleTrainerSalaryKansasIntegerAveragesFeatureTest</code> (факт 15.1 → 16 в JSON/HTML/деньгах, не 15 и не 810 ₽; целое 15 не поднимается; база <code>16.5</code>/<code>16.0</code> → 422 <code>errors.base_avg_students</code> и не пишется в БД; целое 16 сохраняется без ховера; первое открытие и смена месяца — <code>step="1"</code>, база 0, X с ховером копеек; повторный GET не возвращает десятые; гость 401/302, без view/без manage → 403; non-AJAX PATCH целого → JSON 200 и запись; non-AJAX дробь → 302 + session <code>errors.base_avg_students</code>; слепок замораживает 16, лист без инпутов и без <code>15.1</code>; classic игнорирует kansas-поле и не навязывает целое),
+    <code>KansasTrainerSalaryCalculatorTest</code> (пример 41 000 ₽, пол премии, 15.04 → 15, 15.1 → 16, ввод <code>16.5</code> отвергается),
+    <code>BladeInlineJsSyntaxTest::test_trainer_salary_js_kansas_reload_contract_is_valid_javascript</code> (<code>node --check</code>, hotfix-копия, <code>reload_table</code> + <code>extra.team_id</code> + <code>data-save-trainer-id</code>; GET <code>…/data</code> вызывает <code>applyMonthSettingsHtml</code>, PATCH/«Расчет»/«Сформировать всех» — нет, чтобы не затирать модалку; клик «Настройки месяца» не дергает fetch; ячейки средних без ховера; в модалке <code>step="1"</code> у базы и ховер только у X),
     <code>BladeInlineJsSyntaxTest::test_trainer_types_js_contract_is_valid_javascript</code> (<code>public/js/trainer-types.js</code>, дефолты 0.00, <code>reason === 'open'</code> не пересобирает таблицу ЗП, удаление через <code>showConfirmDeleteModal</code>),
     <code>TrainerTypeDeleteUiDocumentationContractTest</code> (анонс /doc и admin-trainers §6.3 = JS удаления типа),
+    <code>KansasIntegerAveragesDocumentationContractTest</code> (анонс /doc и §12.1 = живой код целых средних),
     <code>ScheduleTrainerSalarySheetsFeatureTest</code> — см. <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a>.
     Базовый кейс: <code>ScheduleTrainerSalaryTestCase</code> extends <code>ScheduleJournalTestCase</code>.
   </p>
   <p>
-    Autosave черновика (PATCH) и формирование слепков (POST) всегда отвечают JSON (<code>message</code>, сущность), в том числе без заголовка <code>X-Requested-With</code>: запись сохраняется, тело не пустое, не 500 и не «голый» 200.
+    Autosave черновика (PATCH) и формирование слепков (POST) при успехе всегда отвечают JSON (<code>message</code>, сущность), в том числе без заголовка <code>X-Requested-With</code>: запись сохраняется, тело не пустое, не 500 и не «голый» 200.
+    Ошибка валидации: AJAX/<code>patchJson</code> → <b>422</b> <code>errors[field]</code>; обычный браузерный PATCH без JSON Accept → <b>302</b> + session <code>errors[field]</code> (запись не меняется).
     Для Канзаса успешный PATCH/POST дополнительно отдаёт <code>reload_table: true</code> и полный <code>table_html</code> (плюс <code>month_settings_html</code>).
     Клиент подменяет только таблицу: тело модалки настроек месяца после PATCH/POST не пересобирается, чтобы не сбросить незавершённый ввод и фокус.
     Смена фильтра месяца (<code>GET …/data</code>) обновляет и таблицу, и <code>month_settings_html</code> (заголовок «за {месяц}»).
@@ -274,8 +277,9 @@
     слепки не меняются. Редактируемые поля месяца живут в модалке «Настройки месяца» (кнопка при manage, заголовок «Настройки базовых значений за {месяц}», стиль журнала <code>schedule-modal-content cell-edit-modal</code>):
     базовая надбавка к премии — <strong>одно значение на школу за выбранный месяц</strong> (у каждого месяца своё);
     базовое среднее учеников — <strong>на каждую активную группу</strong> партнёра (<code>is_enabled</code>), не только у тех, где были визиты.
-    В модалке поля показываются <strong>целым</strong> (как в таблице); полное значение с десятой/копейками — в ховере.
-    В таблице «Баз. среднее» всегда readonly (целое + ховер с десятой).
+    В модалке X показывается целым, копейки — в ховере.
+    Базовое среднее — только целое, без ховера (<code>step="1"</code>).
+    В таблице «Баз. среднее» / факт / разница — readonly, целое, без ховера.
     Без manage кнопки настроек нет; надбавка над таблицей — текст.
   </p>
   <p>
@@ -285,18 +289,15 @@
     Имя — в шапке блока вместе с типом тренера в скобках; итог и «Расчет» — в подвале
     (<code>trainer-salary-kansas-foot</code>, подпись <code>Итого:</code>).
     Если ни у кого нет визитов — «Нет тренеров с тренировками в этом месяце».
-    Значение базы в БД: целое или одна десятая (<code>16</code> / <code>16.5</code>);
-    <code>16.55</code> → 422 <code>errors.base_avg_students</code>.
-    В ячейках база / факт / разница выводятся <strong>целым</strong> (16.5 → 16);
-    полное значение с десятой — в ховере на самом числе (<code>data-kids-tooltip-hint</code>, без иконки).
-    В модалке настроек месяца поля тоже <strong>показывают целое</strong>; десятая/копейки — в ховере.
-    Ввод десятой принимается (<code>step="0.1"</code>); <code>16.55</code> → 422.
-    Расчёт и колонки <code>*_tenths</code> не округляются. Сохранение по <code>change</code>;
+    Базовое среднее — целое (<code>16</code>); дробь (<code>16.5</code>, <code>16.55</code>) → 422 <code>errors.base_avg_students</code>.
+    Фактическое среднее: <code>round(сумма / тренировки, 1)</code>, затем вверх до целого
+    (15.04 → 15, 15.1 → 16). Это целое идёт и на экран, и в формулу; исходная дробь нигде не хранится.
+    Колонки <code>*_tenths</code> хранят целое × 10 (16 → 160). Сохранение по <code>change</code>;
     правка базы подставляется всем тренерам этой группы.
     PATCH «Баз. среднее» шлёт <code>team_id</code> вместе с <code>base_avg_students</code>
     (клиент берёт <code>data-team-id</code> строки группы в модалке).
   </p>
-  <p class="small">Поля PATCH Канзаса (рубли в HTTP, в БД <code>*_cents</code> / десятые):
+  <p class="small">Поля PATCH Канзаса (рубли в HTTP, в БД <code>*_cents</code>; средние — целые ученики, в колонках <code>*_tenths</code> как ×10):
     <code>premium_increment</code> (X) — на школу за месяц;
     <code>base_avg_students</code> + <code>team_id</code> — на группу.
     <code>rate_per_training</code> и <code>base_premium</code> в PATCH <strong>запрещены</strong> (422): задаются в типе тренера.
@@ -307,20 +308,32 @@
     (тот же контур, что нагрузка: latest <code>user_lesson_occurrence_status_events</code> + pivot тренеров).
     Идентичность тренировки: <code>(trainer, team_id, team_schedule_slot_id, occurrence_date)</code> —
     два слота в один календарный день считаются двумя тренировками (в отличие от <code>COUNT(DISTINCT DATE)</code> нагрузки).
-    Численность занятия — DISTINCT <code>user_id</code>. Фактическое среднее = сумма численностей / число тренировок группы.
+    Численность занятия — DISTINCT <code>user_id</code>. Фактическое среднее = сумма численностей / число тренировок группы,
+    затем округление до десятой и вверх до целого — <a href="#kansas-integer-averages">§12.1</a>.
     В таблицу групп попадают только группы, где у тренера были такие визиты в месяце.
     Если у слота нет <code>team_id</code>, строка называется «Без группы» (<code>team_id = 0</code>).
   </p>
-  <pre><code>diff = round(fact_avg, 1) − round(base_avg, 1)
+
+  <h3 id="kansas-integer-averages">12.1) Целые средние</h3>
+  <p>
+    Анонс: <a href="/doc#trainer-salary-kansas-integer-averages-index">/doc#trainer-salary-kansas-integer-averages-index</a>.
+    Код: <code>KansasQuantity::averageToTenths</code> (факт: десятая, затем вверх до целого; 151/10 → 16),
+    <code>toWholeTenths</code> (база: только целое), UI без ховера на средних.
+  </p>
+  <pre><code>fact_avg = ceil(round(sum / trainings_count, 1))   // 15.04 → 15, 15.1 → 16
+diff = fact_avg − base_avg                         // оба целые
 premium_per_training = max(0, base_premium + diff × X)
 pay_per_training = rate_per_training + premium
 group_total = pay_per_training × trainings_count
 trainer_total = sum(group_totals)</code></pre>
   <p>
-    Средние хранятся как десятые доли ученика (16.0 → 160). В расчёт денег идут уже округлённые средние, чтобы таблица сходилась с итогом.
-    Деньги — копейки, целочисленно (<code>KansasTrainerSalaryCalculator</code>). Премия не уходит ниже нуля: оклад за тренировку остаётся.
-    JSON <code>groups[]</code> отдаёт и десятые (<code>base_avg_students</code> = <code>16.5</code>), и целое для ячейки (<code>base_avg_students_int</code> = <code>16</code>).
-    После подмены <code>table_html</code> клиент вызывает <code>KidsCrmTooltip.dispose/init(tableHost, { scopes: ['hint'] })</code>.
+    Средние в UI и формуле — целые ученики. В БД колонки <code>*_tenths</code> хранят целое × 10 (16 → 160), чтобы премия считалась через то же деление на 10, что и деньги в копейках.
+    JSON <code>groups[]</code> отдаёт целое в <code>base_avg_students</code> / <code>fact_avg_students</code> / <code>diff_students</code> и те же значения в <code>*_int</code> (не <code>"16.0"</code>).
+    Ховер у средних нет. У X (надбавка к премии) ховер с копейками остаётся (<code>step="0.01"</code>).
+    База в модалке — <code>step="1"</code>; дробь (<code>16.5</code>, <code>16.0</code>) → 422 <code>errors.base_avg_students</code>
+    (non-AJAX без JSON Accept → 302 + session). Classic это правило не получает.
+    Слепок замораживает уже целое. <code>Money</code> / копейки / формула премии не менялись: меняется только то, какие целые идут в <code>diff</code>.
+    После подмены <code>table_html</code> / тела модалки клиент вызывает <code>KidsCrmTooltip.dispose/init(..., { scopes: ['hint'] })</code> (ховер X).
   </p>
   <p>
     Пример: оклад 1000, базовая премия 800, X 100; группа A база 16 факт 14, 10 тренировок → премия 600, за тренировку 1600, группа 16 000;
@@ -349,7 +362,8 @@ trainer_total = sum(group_totals)</code></pre>
     <a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП</a> ·
     <a href="/docs/documentation/admin-trainers#trainer-types">Типы тренера</a> ·
     <a href="/doc#trainer-types-kansas-index">анонс типов на /doc</a> ·
-    <a href="/doc#trainer-salary-kansas-month-settings-index">анонс настроек месяца на /doc</a>
+    <a href="/doc#trainer-salary-kansas-month-settings-index">анонс настроек месяца на /doc</a> ·
+    <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс целых средних на /doc</a>
   </p>
 </div>
 </body>

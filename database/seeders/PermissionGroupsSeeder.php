@@ -105,7 +105,7 @@ class PermissionGroupsSeeder extends Seeder
             ],
             [
                 'slug'        => 'users',
-                'name'        => 'Управление пользователями',
+                'name'        => 'Управление клиентами',
                 'description' => null,
                 'is_visible'  => 1,
                 'sort_order'  => 30,

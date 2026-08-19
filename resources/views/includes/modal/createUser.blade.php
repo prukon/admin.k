@@ -1,10 +1,10 @@
-<!-- Модальное окно для создания пользователя -->
+<!-- Модальное окно для создания клиента -->
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true"
      data-bs-backdrop="static">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="createUserModalLabel">Создание пользователя</h5>
+                <h5 class="modal-title" id="createUserModalLabel">Создание клиента</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -457,8 +457,8 @@
                     }
 
                     showSuccessModal(
-                        "Создание пользователя",
-                        (response && response.message) ? response.message : "Пользователь успешно создан.",
+                        "Создание клиента",
+                        (response && response.message) ? response.message : "Клиент успешно создан.",
                         1
                     );
                     window.location.reload();

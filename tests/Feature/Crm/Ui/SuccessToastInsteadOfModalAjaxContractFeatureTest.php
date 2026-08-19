@@ -138,7 +138,7 @@ final class SuccessToastInsteadOfModalAjaxContractFeatureTest extends CrmTestCas
 
         $this->deleteJson(route('admin.user.delete', $student), [], $this->ajaxHeaders())
             ->assertOk()
-            ->assertJsonPath('success', 'Пользователь успешно удалён');
+            ->assertJsonPath('success', 'Клиент успешно удалён');
 
         $this->assertSoftDeleted('users', ['id' => $student->id]);
     }

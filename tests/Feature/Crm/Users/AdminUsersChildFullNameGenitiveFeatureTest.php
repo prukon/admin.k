@@ -163,7 +163,7 @@ final class AdminUsersChildFullNameGenitiveFeatureTest extends CrmTestCase
             'is_enabled'         => 1,
         ], $this->ajaxHeaders())
             ->assertOk()
-            ->assertJsonPath('message', 'Пользователь успешно обновлён');
+            ->assertJsonPath('message', 'Клиент успешно обновлён');
 
         $this->assertSame('Новое Родительное Ученика', $student->fresh()->full_name_genitive);
 

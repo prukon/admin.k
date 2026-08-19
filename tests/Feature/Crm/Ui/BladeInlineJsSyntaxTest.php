@@ -57,6 +57,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'legal entities index modals' => ['admin/legal-entities/index.blade.php'];
         yield 'locations index delete toast ajax' => ['admin/locations/index.blade.php'];
         yield 'settings roles create and delete toast ajax' => ['admin/setting/rule.blade.php'];
+        yield 'settings general tab cabinet diagnostics' => ['admin/setting/setting.blade.php'];
         yield 'legal entities show sm and crud forms' => ['admin/legal-entities/show.blade.php'];
         yield 'teams index legal entity column' => ['admin/team.blade.php'];
         yield 'account organization tab ajax form' => ['account/organizations.blade.php'];
@@ -171,6 +172,57 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 @unlink($tempFile);
             }
         }
+    }
+
+    public function test_create_team_modal_ajax_prevents_native_submit_and_shows_title_errors(): void
+    {
+        $path = resource_path('views/includes/modal/createTeam.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="teamForm"', $content);
+        $this->assertStringContainsString("route('admin.team.store')", $content);
+        $this->assertStringContainsString("function createTeam()", $content);
+        $this->assertSame(1, substr_count($content, "teamForm.addEventListener('submit'"));
+
+        $submitPos = strpos($content, "teamForm.addEventListener('submit'");
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($content, (int) $submitPos, 8000);
+        $this->assertStringContainsString('e.preventDefault()', $submitChunk);
+        $this->assertStringContainsString('fetch(', $submitChunk);
+        $this->assertStringContainsString('X-Requested-With', $submitChunk);
+        $this->assertStringContainsString('XMLHttpRequest', $submitChunk);
+        $this->assertStringContainsString('errors.title', $submitChunk);
+        $this->assertStringContainsString('title-error', $submitChunk);
+        $this->assertStringContainsString('teamForm.reset()', $submitChunk);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'function createTeam()',
+            'blade-js-create-team-modal'
+        );
+    }
+
+    public function test_edit_team_modal_ajax_patches_and_shows_title_errors_without_touching_chat_api(): void
+    {
+        $path = resource_path('views/includes/modal/editTeam.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="edit-team-form"', $content);
+        $this->assertStringContainsString("$('#update-team-btn').on('click'", $content);
+        $this->assertStringContainsString('$.ajax({', $content);
+        $this->assertStringContainsString("type: 'PATCH'", $content);
+        $this->assertStringContainsString('errors.title', $content);
+        $this->assertStringContainsString('edit-title-error', $content);
+        $this->assertStringNotContainsString('/chat/api', $content);
+        $this->assertStringNotContainsString('threads.subject', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            "type: 'PATCH'",
+            'blade-js-edit-team-modal'
+        );
     }
 
     /**
@@ -453,7 +505,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
 
     public function test_chat_js_module_has_valid_javascript_and_field_errors(): void
     {
-        $path = public_path('js/chat.js');
+        $path = resource_path('js/chat.js');
         $this->assertFileExists($path);
         $content = (string) file_get_contents($path);
 
@@ -461,6 +513,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('errors', $content);
         $this->assertStringContainsString('msgBodyError', $content);
         $this->assertStringContainsString('contactsError', $content);
+        $this->assertStringContainsString('contactsTeamError', $content);
+        $this->assertStringContainsString('contactsTeamFilter', $content);
+        $this->assertStringContainsString("fieldError(res.data, 'team_id')", $content);
         $this->assertStringContainsString('user_id', $content);
         $this->assertStringContainsString('preventDefault', $content);
         $this->assertStringContainsString('bootstrap.Modal', $content);
@@ -469,6 +524,28 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
         $this->assertStringContainsString("fieldError(res.data, 'body')", $content);
         $this->assertStringContainsString("fieldError(res.data, 'user_id')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'user_ids')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'title')", $content);
+        $this->assertStringContainsString('function openCreateGroupWizard(', $content);
+        $this->assertStringContainsString('function submitCreateGroup(', $content);
+        $this->assertStringContainsString('function resetCreateGroupWizard(', $content);
+        $this->assertStringContainsString('js-open-create-group', $content);
+        $this->assertStringContainsString("querySelectorAll('.js-open-create-group')", $content);
+        $this->assertStringContainsString('is_group: e.is_group', $content);
+        $this->assertStringContainsString('function threadListTitle(', $content);
+        $this->assertStringContainsString("return t && t.is_group ? 'Группа' : 'Диалог';", $content);
+        $this->assertStringContainsString("threadTitle').textContent = threadListTitle(res.thread)", $content);
+        $this->assertStringContainsString('function setThreadSubtitle(', $content);
+        $this->assertStringContainsString("getElementById('threadSubtitle')", $content);
+        $this->assertStringContainsString('res.thread.header_subtitle', $content);
+        $this->assertStringContainsString("setThreadSubtitle('')", $content);
+        $this->assertStringContainsString('function membersCountLabel(', $content);
+        $this->assertStringContainsString('setThreadSubtitle(membersCountLabel(thread.members_total))', $content);
+        $this->assertStringContainsString('return !t.is_group && Number(t.peer_id) === Number(userId);', $content);
+        $this->assertStringContainsString('if (patch.peer_id && !patch.is_group) {', $content);
+        $this->assertStringContainsString('is_group: e.is_group', $content);
+        $this->assertStringNotContainsString('/admin/teams', $content);
+        $this->assertStringNotContainsString('admin.team.store', $content);
         $this->assertStringContainsString('setComposerEnabled(true)', $content);
         $this->assertStringContainsString("getElementById('msgInput').focus()", $content);
         $this->assertStringContainsString('persistLeavingDraft(threadId)', $content);
@@ -478,8 +555,13 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('function composerDraftFor(', $content);
         $this->assertStringContainsString('function mergeLocalDrafts(', $content);
         $this->assertStringContainsString('startDialogBusy', $content);
+        $this->assertSame(1, substr_count($content, 'startDialog(Number(u.id))'));
         $this->assertStringContainsString('Number(t.peer_id) !== Number(patch.peer_id)', $content);
         $this->assertStringContainsString("contactsSearch').value = ''", $content);
+        $this->assertStringContainsString("contactsTeamFilter').value = ''", $content);
+        $this->assertStringContainsString("params.set('team_id', teamId)", $content);
+        $this->assertStringContainsString("getElementById('contactsTeamFilter').addEventListener('change'", $content);
+        $this->assertStringContainsString('showContactsTeamError', $content);
         $this->assertStringContainsString('bootstrap.Modal.getOrCreateInstance', $content);
         $this->assertStringContainsString('ticksHtml', $content);
         $this->assertStringContainsString('checks-read', $content);
@@ -496,12 +578,82 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('contact-online-dot', $content);
         $this->assertStringContainsString('parent_full_name', $content);
         $this->assertStringContainsString('function openPeerCard(', $content);
-        $this->assertStringContainsString('if (!currentPeerId)', $content);
+        $this->assertStringContainsString('if (!id)', $content);
+        $this->assertStringContainsString('function openGroupCard(', $content);
+        $this->assertStringContainsString('function headerPeerActivate(', $content);
         $this->assertStringContainsString('function dashText(', $content);
         $this->assertStringContainsString('fmtTime(t.last_message_time)', $content);
         $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $content);
         $this->assertStringContainsString('last_seen_label', $content);
         $this->assertStringContainsString('threadPeerHit', $content);
+        $this->assertStringContainsString('function loadAccountCard(', $content);
+        $this->assertStringContainsString("renderPeerCard(res.data, 'accountCardBody')", $content);
+        $this->assertStringContainsString('function showAccountCardError(', $content);
+        $this->assertStringContainsString("fieldError(res.data, 'user')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'after_user_id')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'exclude_thread_id')", $content);
+        $this->assertStringContainsString('function fetchGroupMembers(', $content);
+        $this->assertStringContainsString('function submitRemoveGroupMember(', $content);
+        $this->assertStringContainsString('function submitLeaveGroup(', $content);
+        $this->assertStringContainsString('function submitAddGroupMembers(', $content);
+        $this->assertStringContainsString('function maybeFillGroupMembers(', $content);
+        $this->assertStringContainsString("params.set('exclude_thread_id'", $content);
+        $this->assertStringContainsString('if (e.removed)', $content);
+        $this->assertStringContainsString("showToast(message, 'success')", $content);
+        $this->assertStringContainsString('e.stopPropagation()', $content);
+        $this->assertStringContainsString('function setMobileTab(', $content);
+        $this->assertStringContainsString("matchMedia('(max-width: 991.98px)')", $content);
+        $this->assertStringContainsString('is-dialog-open', $content);
+        $this->assertStringContainsString('function maybeLoadOlder(', $content);
+        $this->assertStringContainsString('olderPrefetchThreshold', $content);
+        $this->assertStringContainsString('preventPageZoom', $content);
+        $this->assertStringNotContainsString('scrollTop < 40', $content);
+        $this->assertStringNotContainsString('account-settings', $content);
+
+        $setMobilePos = strpos($content, 'function setMobileTab(');
+        $this->assertNotFalse($setMobilePos);
+        $setMobileChunk = substr(
+            $content,
+            $setMobilePos,
+            strpos($content, 'function leaveMobileDialog(') - $setMobilePos
+        );
+        $this->assertStringNotContainsString('contactsModal().show()', $setMobileChunk);
+        $this->assertStringContainsString("tab === 'contacts'", $setMobileChunk);
+        $this->assertStringContainsString("tab === 'account'", $setMobileChunk);
+        $this->assertStringContainsString('loadContacts', $setMobileChunk);
+        $this->assertStringContainsString('loadAccountCard', $setMobileChunk);
+        $this->assertStringNotContainsString("tab === 'groups'", $setMobileChunk);
+
+        $openContactsPos = strpos($content, "getElementById('openContactsBtn')");
+        $this->assertNotFalse($openContactsPos);
+        $openContactsChunk = substr($content, $openContactsPos, 700);
+        $this->assertStringContainsString('contactsModal().show()', $openContactsChunk);
+        $this->assertStringContainsString("contactsSearch').value = ''", $openContactsChunk);
+
+        $this->assertStringContainsString("classList.remove('is-dialog-open')", $content);
+        $mqPos = strpos($content, "matchMedia('(max-width: 991.98px)')");
+        $this->assertNotFalse($mqPos);
+        $mqTail = substr($content, $mqPos);
+        $this->assertStringContainsString('placeContactsMount()', $mqTail);
+        $this->assertStringContainsString('if (!isMobileChat() && root)', $mqTail);
+        $this->assertStringContainsString('renderThreads(applyThreadFilter(threadsCache))', $mqTail);
+
+        $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
+        $stylesPos = strpos($blade, "@push('styles')");
+        $scriptsPos = strpos($blade, "@push('scripts')");
+        $this->assertNotFalse($stylesPos);
+        $this->assertNotFalse($scriptsPos);
+        $this->assertGreaterThan($stylesPos, $scriptsPos);
+        $stylesChunk = substr($blade, $stylesPos, $scriptsPos - $stylesPos);
+        $this->assertStringContainsString("@vite(['resources/css/chat.css'])", $stylesChunk);
+        $this->assertStringContainsString("@vite(['resources/js/chat.js'])", substr($blade, $scriptsPos));
+        $this->assertStringNotContainsString("@vite(['resources/js/chat.js'])", $stylesChunk);
+        $this->assertStringNotContainsString("@vite(['resources/css/chat.css'])", substr($blade, $scriptsPos));
+        $this->assertStringNotContainsString("asset('js/chat.js')", $blade);
+
+        $vite = (string) file_get_contents(base_path('vite.config.js'));
+        $this->assertStringContainsString("'resources/css/chat.css'", $vite);
+        $this->assertStringContainsString("'resources/js/chat.js'", $vite);
 
         $renderThreadsPos = strpos($content, 'function renderThreads(');
         $this->assertNotFalse($renderThreadsPos);
@@ -518,6 +670,43 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('is-draft', $renderThreadsChunk);
         $this->assertStringNotContainsString('bg-primary', $renderThreadsChunk);
         $this->assertStringNotContainsString('openPeerCard', $renderThreadsChunk);
+        $this->assertStringContainsString("getElementById('groupThreads')", $renderThreadsChunk);
+        $this->assertStringContainsString("filter(function (t) { return !t.is_group; })", $renderThreadsChunk);
+        $this->assertStringContainsString("'Групп нет'", $renderThreadsChunk);
+        $this->assertStringContainsString('threadsCache.filter', $renderThreadsChunk);
+        $this->assertStringContainsString('paintSplitNavBadges', $renderThreadsChunk);
+
+        $openThreadPos = strpos($content, 'function openThread(');
+        $this->assertNotFalse($openThreadPos);
+        $openThreadChunk = substr(
+            $content,
+            $openThreadPos,
+            strpos($content, 'function olderPrefetchThreshold(') - $openThreadPos
+        );
+        $this->assertStringContainsString("currentIsGroup ? 'groups' : 'messages'", $openThreadChunk);
+        $this->assertStringContainsString("tab = 'groups'", $openThreadChunk);
+        $this->assertStringContainsString('openThread._seq', $openThreadChunk);
+        $clearBoxPos = strpos($openThreadChunk, "box.innerHTML = ''");
+        $fetchPos = strpos($openThreadChunk, 'fetch(threadUrl(threadId)');
+        $this->assertNotFalse($clearBoxPos);
+        $this->assertNotFalse($fetchPos);
+        $this->assertLessThan(
+            $fetchPos,
+            $clearBoxPos,
+            'На мобилке #messagesBox очищается до fetch, иначе видна переписка прошлого диалога'
+        );
+        $this->assertStringContainsString('if (isMobile && openSeq !== openThread._seq)', $openThreadChunk);
+
+        $this->assertStringContainsString("querySelectorAll('.js-open-create-group')", $content);
+        $submitCreatePos = strpos($content, 'function submitCreateGroup(');
+        $this->assertNotFalse($submitCreatePos);
+        $submitCreateChunk = substr(
+            $content,
+            $submitCreatePos,
+            strpos($content, 'let contactsDebounce') - $submitCreatePos
+        );
+        $this->assertStringContainsString('upsertThread(Object.assign({ unread_count: 0 }, res.data.thread))', $submitCreateChunk);
+        $this->assertStringContainsString('openThread(id)', $submitCreateChunk);
 
         $renderContactsPos = strpos($content, 'function renderContacts(');
         $this->assertNotFalse($renderContactsPos);
@@ -533,6 +722,35 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('d-flex justify-content-between', $renderContactsChunk);
         $this->assertStringContainsString('startDialog(Number(u.id))', $renderContactsChunk);
         $this->assertStringNotContainsString('openPeerCard', $renderContactsChunk);
+        $this->assertStringContainsString('u.role_label || u.role_name', $renderContactsChunk);
+        $this->assertStringContainsString("escapeHtml(u.name || '')", $renderContactsChunk);
+        $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $renderContactsChunk);
+
+        $renderMembersPos = strpos($content, 'function renderGroupMembers(');
+        $this->assertNotFalse($renderMembersPos);
+        $renderMembersChunk = substr(
+            $content,
+            $renderMembersPos,
+            strpos($content, 'function loadGroupMembers(') - $renderMembersPos
+        );
+        $this->assertStringContainsString("parentFio ? '<div class=\"contact-parent\">'", $renderMembersChunk);
+        $this->assertStringContainsString('contact-name', $renderMembersChunk);
+        $this->assertStringContainsString('group-member-row', $renderMembersChunk);
+        $this->assertStringNotContainsString('contact-online-dot', $renderMembersChunk);
+        $this->assertSame(
+            2,
+            substr_count($content, "parentFio ? '<div class=\"contact-parent\">'"),
+            'И вкладка «Контакты», и модалка участников должны рисовать .contact-parent'
+        );
+
+        $this->assertSame(
+            3,
+            substr_count($content, 'u.role_label || u.role_name'),
+            'Контакты, создание группы и добавление участников должны брать role_label, иначе колонка покажет superadmin'
+        );
+        $this->assertSame(1, substr_count($content, 'm.role_label || m.role_name'));
+        $this->assertStringContainsString("escapeHtml(dashText(u.full_name))", $content);
+        $this->assertStringContainsString("escapeHtml(m.full_name || '')", $content);
 
         $output = [];
         $exitCode = 0;
@@ -540,7 +758,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertSame(
             0,
             $exitCode,
-            "JS syntax error in public/js/chat.js:\n".implode("\n", $output)
+            "JS syntax error in resources/js/chat.js:\n".implode("\n", $output)
         );
     }
 
@@ -561,6 +779,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
             strpos($listener, 'applyUnread(payload.unread_total)'),
             strpos($listener, 'KidsCrmChatOnInboxBump')
         );
+        $this->assertStringContainsString("querySelectorAll('.js-chat-unread-count')", $content);
+        $this->assertStringNotContainsString('js-chat-private-unread-count', $content);
+        $this->assertStringNotContainsString('js-chat-group-unread-count', $content);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
@@ -1781,6 +2002,62 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertTrue(
             $seasonsScriptFound,
             'В dashboard.blade.php не найден script с dashboardSeasonsEnabled / createSeasons'
+        );
+    }
+
+    public function test_dashboard_has_no_cabinet_diagnostics_overlay(): void
+    {
+        $path = resource_path('views/dashboard.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringNotContainsString('id="cabinet-diagnostics"', $content);
+        $this->assertStringNotContainsString('id="cabinet-diagnostics-json"', $content);
+        $this->assertStringNotContainsString('data-cabinet-diagnostics="1"', $content);
+        $this->assertStringNotContainsString('refreshCabinetDiagnosticsPanel', $content);
+        $this->assertStringNotContainsString('__cabinetDiagnosticsPayload', $content);
+        $this->assertStringNotContainsString('cabinet_diagnostics', $content);
+        $this->assertStringNotContainsString('Диагностика консоли', $content);
+    }
+
+    public function test_settings_cabinet_diagnostics_button_ajax_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/admin/setting/setting.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="rowCabinetDiagnostics"', $content);
+        $this->assertStringContainsString('id="btnCabinetDiagnostics"', $content);
+        $this->assertStringContainsString('id="cabinetDiagnosticsError"', $content);
+        $this->assertStringContainsString('data-error-for="cabinetDiagnostics"', $content);
+        $this->assertStringContainsString("route('settings.cabinetDiagnostics')", $content);
+        $this->assertStringContainsString('errors.cabinetDiagnostics', $content);
+        $this->assertStringContainsString('$error.text', $content);
+        $this->assertStringContainsString("@can('settings.reverbOverlay.manage')", $content);
+        $this->assertSame(2, substr_count($content, "@can('settings.reverbOverlay.manage')"));
+        $this->assertStringNotContainsString("@can('settings.cabinetDiagnostics.manage')", $content);
+        $this->assertStringNotContainsString('canManageCabinetDiagnostics', $content);
+        $this->assertStringContainsString('Оверлей статуса Reverb', $content);
+        $this->assertStringNotContainsString('Диагностика консоли', $content);
+
+        $handlerStart = strpos($content, "click', '#btnCabinetDiagnostics'");
+        $this->assertNotFalse($handlerStart);
+        $handlerEnd = strpos($content, "@can('settings.registration.manage')", $handlerStart);
+        $this->assertNotFalse($handlerEnd);
+        $handler = substr($content, $handlerStart, $handlerEnd - $handlerStart);
+        $this->assertStringContainsString("\$label.text(active ? 'включён' : 'выключен')", $handler);
+        $this->assertStringNotContainsString('включена', $handler);
+        $this->assertStringNotContainsString('выключена', $handler);
+        $this->assertStringContainsString("\$cb.prop('checked', !active)", $handler);
+        $this->assertStringContainsString('xhr.status !== 403', $handler);
+        $this->assertStringContainsString('Оверлей статуса Reverb доступен только суперадмину.', $handler);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $handler);
+        $this->assertStringContainsString("xhr.responseJSON.errors.cabinetDiagnostics", $handler);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'btnCabinetDiagnostics',
+            'blade-js-settings-cabinet-diagnostics'
         );
     }
 
@@ -3872,9 +4149,34 @@ final class BladeInlineJsSyntaxTest extends TestCase
         }
 
         $avgCell = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_avg_cell.blade.php'));
-        $this->assertStringContainsString('data-kids-tooltip-hint', $avgCell);
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $avgCell);
         $this->assertStringNotContainsString('partials.ui.tooltip-hint', $avgCell);
         $this->assertStringNotContainsString('fa-info-circle', $avgCell);
+
+        $monthBody = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_month_settings_body.blade.php'));
+        $this->assertSame(1, substr_count($monthBody, 'data-kids-tooltip-hint'), 'Ховер только у X, не у базового среднего');
+        $this->assertStringContainsString('data-field="premium_increment"', $monthBody);
+        $this->assertStringContainsString('data-field="base_avg_students"', $monthBody);
+        $this->assertStringContainsString('step="1"', $monthBody);
+        $this->assertStringContainsString('step="0.01"', $monthBody);
+        $this->assertStringNotContainsString('step="0.1"', $monthBody);
+        $baseFieldPos = strpos($monthBody, 'data-field="base_avg_students"');
+        $this->assertNotFalse($baseFieldPos);
+        $baseChunk = substr($monthBody, $baseFieldPos, 700);
+        $this->assertStringContainsString('step="1"', $baseChunk);
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $baseChunk);
+        $xFieldPos = strpos($monthBody, 'data-field="premium_increment"');
+        $this->assertNotFalse($xFieldPos);
+        $xChunk = substr($monthBody, $xFieldPos, 700);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $xChunk);
+        $this->assertStringContainsString('step="0.01"', $xChunk);
+
+        $kansasTable = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_table.blade.php'));
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $kansasTable);
+        $this->assertStringNotContainsString("'full' =>", $kansasTable);
+        $sheetTable = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_sheet_detail_table.blade.php'));
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $sheetTable);
+        $this->assertStringNotContainsString("'full' =>", $sheetTable);
     }
 
     /**
@@ -3934,6 +4236,104 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: нейминг ученика «Клиент» — оба пути открытия editUser и submit createUser.
+     * UX-баг: один из дубликатов (editUserLink2 / editUserLink) или ветка
+     * school-leads-table пересобирает заголовок/тост обратно на «пользователя».
+     */
+    public function test_student_client_naming_js_paths_keep_client_copy_and_do_not_reset_modal_title(): void
+    {
+        $createPath = resource_path('views/includes/modal/createUser.blade.php');
+        $editPath = resource_path('views/includes/modal/editUser.blade.php');
+        $leadsPath = resource_path('views/admin/school-leads/tabs/leads.blade.php');
+        $trainersPath = resource_path('views/admin/trainers/index.blade.php');
+        $staffPath = resource_path('views/admin/role_staff/index.blade.php');
+
+        $create = (string) file_get_contents($createPath);
+        $this->assertStringContainsString('id="createUserModalLabel">Создание клиента</h5>', $create);
+        $this->assertStringContainsString('e.preventDefault()', $create);
+        $this->assertStringContainsString("showSuccessModal(\n                        \"Создание клиента\"", $create);
+        $this->assertStringContainsString('(response && response.message) ? response.message : "Клиент успешно создан."', $create);
+        $this->assertStringContainsString("\$form.data('success-handler') === 'school-leads-table'", $create);
+        $this->assertStringNotContainsString('Создание пользователя', $create);
+        $this->assertStringNotContainsString('Пользователь успешно создан', $create);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $createPath,
+            "showSuccessModal(\n                        \"Создание клиента\"",
+            'blade-js-create-user-client-naming'
+        );
+
+        $leads = (string) file_get_contents($leadsPath);
+        $this->assertStringContainsString("window.showToast(message || 'Клиент создан.', 'success')", $leads);
+        $this->assertStringContainsString("showErrorModal('Создание клиента'", $leads);
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $leadsPath,
+            "window.showToast(message || 'Клиент создан.', 'success')",
+            'blade-js-leads-create-client-naming'
+        );
+
+        $edit = (string) file_get_contents($editPath);
+        $this->assertStringContainsString('id="editUserModalLabel">Редактирование клиента</h5>', $edit);
+        $this->assertStringContainsString('function editUserLink2()', $edit);
+        $this->assertStringContainsString('function editUserLink()', $edit);
+        $this->assertStringContainsString('function editUserForm()', $edit);
+        $this->assertStringContainsString('showSuccessModal("Редактирование клиента", "Клиент успешно обновлён.", 1);', $edit);
+        $this->assertStringContainsString('window.showToast(\'Клиент успешно удален.\', \'success\');', $edit);
+        $this->assertStringContainsString('showConfirmDeleteModal(', $edit);
+        $this->assertStringContainsString('"Удаление клиента"', $edit);
+        $this->assertStringContainsString('Вы уверены, что хотите удалить клиента?', $edit);
+        $this->assertStringNotContainsString('Редактирование пользователя', $edit);
+        $this->assertStringNotContainsString('Удаление пользователя', $edit);
+        $this->assertStringNotContainsString('Пользователь успешно обновлён', $edit);
+
+        $link2Pos = strpos($edit, 'function editUserLink2()');
+        $linkPos = strpos($edit, 'function editUserLink()');
+        $formPos = strpos($edit, 'function editUserForm()');
+        $this->assertNotFalse($link2Pos);
+        $this->assertNotFalse($linkPos);
+        $this->assertNotFalse($formPos);
+        $this->assertLessThan($linkPos, $link2Pos);
+        $this->assertLessThan($formPos, $linkPos);
+
+        $link2Body = substr($edit, $link2Pos, $linkPos - $link2Pos);
+        $linkBody = substr($edit, $linkPos, $formPos - $linkPos);
+
+        foreach (['editUserLink2' => $link2Body, 'editUserLink' => $linkBody] as $label => $body) {
+            $this->assertStringNotContainsString(
+                'editUserModalLabel',
+                $body,
+                "{$label} не должен перезаписывать заголовок модалки при открытии"
+            );
+            $this->assertStringNotContainsString('Редактирование пользователя', $body, $label);
+            $this->assertStringContainsString("url: `/admin/users/\${userId}/edit`", $body, $label);
+            $this->assertStringContainsString('$(\'#editUserModal\').modal(\'show\')', $body, $label);
+        }
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'function editUserLink2()',
+            'blade-js-edit-user-link2-client-naming'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'function editUserLink()',
+            'blade-js-edit-user-link-client-naming'
+        );
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $editPath,
+            'function editUserForm()',
+            'blade-js-edit-user-form-client-naming'
+        );
+
+        $trainers = (string) file_get_contents($trainersPath);
+        $this->assertStringContainsString('id="trainerCreateModalLabel">Создание тренера</h5>', $trainers);
+        $this->assertStringNotContainsString('id="trainerCreateModalLabel">Создание клиента</h5>', $trainers);
+
+        $staff = (string) file_get_contents($staffPath);
+        $this->assertStringContainsString('Пользователь создан', $staff);
+        $this->assertStringNotContainsString('Клиент создан успешно', $staff);
+    }
+
+    /**
      * Успех без reload страницы — toast (#kidsMainToast), не showSuccessModal.
      */
     public function test_listed_success_actions_use_toast_instead_of_success_modal(): void
@@ -3941,8 +4341,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $cases = [
             'student-delete' => [
                 'path' => resource_path('views/includes/modal/editUser.blade.php'),
-                'toast' => 'Пользователь успешно удален.',
-                'absent' => 'showSuccessModal("Удаление пользователя"',
+                'toast' => 'Клиент успешно удален.',
+                'absent' => 'showSuccessModal("Удаление клиента"',
             ],
             'trainer-create' => [
                 'path' => resource_path('views/admin/trainers/index.blade.php'),

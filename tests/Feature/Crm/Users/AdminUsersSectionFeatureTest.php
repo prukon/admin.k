@@ -88,7 +88,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'users')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Пользователи</a>', false)
+            ->assertSee('>Клиенты</a>', false)
             ->assertSee('href="' . $usersUrl . '"', false)
             ->assertSee('nav-link active', false)
             ->assertSee('role="tab">Тренеры</a>', false);
@@ -107,7 +107,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'trainers')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Пользователи</a>', false)
+            ->assertSee('>Клиенты</a>', false)
             ->assertSee('href="' . $usersUrl . '"', false)
             ->assertSee('href="' . $trainersUrl . '"', false)
             ->assertSee('role="tab">Тренеры</a>', false)
@@ -138,7 +138,7 @@ final class AdminUsersSectionFeatureTest extends CrmTestCase
             ->assertOk()
             ->assertViewHas('activeTab', 'users')
             ->assertSee('id="usersSectionTabs"', false)
-            ->assertSee('>Пользователи</a>', false)
+            ->assertSee('>Клиенты</a>', false)
             ->assertDontSee('role="tab">Тренеры</a>', false)
             ->assertDontSee('href="' . route('admin.trainers.index') . '"', false);
     }

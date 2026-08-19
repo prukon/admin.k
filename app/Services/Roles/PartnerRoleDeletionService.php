@@ -49,7 +49,7 @@ class PartnerRoleDeletionService
         $defaultRole = Role::firstOrCreate(
             ['name' => 'user'],
             [
-                'label' => 'Пользователь',
+                'label' => 'Клиент',
                 'is_sistem' => 1,
                 'order_by' => 0,
             ]

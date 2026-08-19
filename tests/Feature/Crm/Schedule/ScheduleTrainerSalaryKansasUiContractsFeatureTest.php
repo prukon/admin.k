@@ -109,13 +109,14 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertStringContainsString('База А', $html);
         $this->assertStringContainsString('База Б', $html);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $html);
-        $this->assertStringContainsString('title="2.0"', $html);
-        $this->assertStringContainsString('aria-label="2.0">2</span>', $html);
+        $this->assertStringContainsString('>2</span>', $html);
+        $this->assertStringNotContainsString('title="2.0"', $html);
+        $this->assertStringNotContainsString('aria-label="2.0"', $html);
         $this->assertStringNotContainsString('data-field="base_avg_students"', $html);
 
         $settingsHtml = (string) $response->json('month_settings_html');
         $this->assertStringContainsString('value="2"', $settingsHtml);
-        $this->assertStringContainsString('title="2.0"', $settingsHtml);
+        $this->assertStringNotContainsString('title="2.0"', $settingsHtml);
         $this->assertStringNotContainsString('value="2.0"', $settingsHtml);
         $this->assertStringContainsString('data-field="base_avg_students"', $settingsHtml);
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', $settingsHtml);
@@ -123,8 +124,8 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $rows = collect(
             $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->json('rows')
         );
-        $this->assertSame('2.0', $rows->firstWhere('trainer_profile_id', $trainerA->id)['groups'][0]['base_avg_students']);
-        $this->assertSame('2.0', $rows->firstWhere('trainer_profile_id', $trainerB->id)['groups'][0]['base_avg_students']);
+        $this->assertSame('2', $rows->firstWhere('trainer_profile_id', $trainerA->id)['groups'][0]['base_avg_students']);
+        $this->assertSame('2', $rows->firstWhere('trainer_profile_id', $trainerB->id)['groups'][0]['base_avg_students']);
     }
 
     public function test_kansas_form_one_and_form_all_also_reload_full_table(): void
@@ -305,7 +306,7 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertStringNotContainsString('resources/js/trainer-salary.js', $page);
     }
 
-    public function test_group_row_shows_type_money_integer_averages_and_fraction_hover(): void
+    public function test_group_row_shows_type_money_and_integer_averages_without_hover(): void
     {
         $trainer = $this->makeTrainerProfile('Целые средние');
         $team = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа целые']);
@@ -318,7 +319,7 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             'year' => 2026,
             'month' => 5,
             'team_id' => $team->id,
-            'base_avg_students' => '16.5',
+            'base_avg_students' => '16',
         ])->assertOk();
 
         $html = (string) $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
@@ -329,15 +330,11 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertStringContainsString('trainer-salary-kansas-head-bar', $html);
         $this->assertStringNotContainsString('colspan="8"', $html);
         $this->assertStringNotContainsString('fa-info-circle', $html);
-        $this->assertStringContainsString('data-kids-tooltip-hint', $html);
-        $this->assertStringContainsString('title="16.5"', $html);
-        $this->assertStringContainsString('title="1.0"', $html);
-        $this->assertStringContainsString('aria-label="1.0">1</span>', $html);
-        $this->assertStringNotContainsString('aria-label="1.0">1.0</span>', $html);
-        $this->assertStringNotContainsString('aria-label="16.5">16.5</span>', $html);
-        $this->assertStringContainsString('aria-label="16.5">16</span>', $html);
+        $this->assertStringNotContainsString('data-kids-tooltip-hint', $html);
+        $this->assertStringNotContainsString('title="16.5"', $html);
+        $this->assertStringNotContainsString('title="1.0"', $html);
+        $this->assertStringNotContainsString('16.5', $html);
         $this->assertStringNotContainsString('value="16"', $html);
-        $this->assertStringNotContainsString('value="16.5"', $html);
         $this->assertStringContainsString('400', $html);
         $this->assertStringContainsString('50', $html);
 
@@ -364,8 +361,9 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $settingsHtml = (string) $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
             ->json('month_settings_html');
         $this->assertStringContainsString('value="16"', $settingsHtml);
-        $this->assertStringContainsString('title="16.5"', $settingsHtml);
+        $this->assertStringNotContainsString('title="16.5"', $settingsHtml);
         $this->assertStringNotContainsString('value="16.5"', $settingsHtml);
+        $this->assertStringContainsString('step="1"', $settingsHtml);
         $this->assertStringContainsString('data-field="base_avg_students"', $settingsHtml);
     }
 
@@ -772,6 +770,17 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             ->assertStatus(422)
             ->assertJsonValidationErrors(['team_id']);
 
+        $fraction = $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'team_id' => $team->id,
+            'base_avg_students' => '16.5',
+        ]);
+        $fraction->assertStatus(422)
+            ->assertJsonValidationErrors(['base_avg_students']);
+        $this->assertIsArray($fraction->json('errors.base_avg_students'));
+        $this->assertNotSame('', (string) $fraction->json('errors.base_avg_students.0'));
+
         $tooPrecise = $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,
             'month' => 5,
@@ -783,7 +792,7 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
         $this->assertIsArray($tooPrecise->json('errors.base_avg_students'));
         $this->assertNotSame('', (string) $tooPrecise->json('errors.base_avg_students.0'));
         $this->assertSame(
-            '0.0',
+            '0',
             collect($this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->json('rows'))
                 ->firstWhere('trainer_profile_id', $trainer->id)['groups'][0]['base_avg_students']
         );
@@ -1096,11 +1105,11 @@ final class ScheduleTrainerSalaryKansasUiContractsFeatureTest extends ScheduleTr
             'year' => 2026,
             'month' => 5,
             'team_id' => $team->id,
-            'base_avg_students' => '16.5',
+            'base_avg_students' => '16',
         ]);
         $baseResponse->assertOk()->assertJsonPath('reload_table', true);
         $this->assertStringContainsString('value="16"', (string) $baseResponse->json('month_settings_html'));
-        $this->assertStringContainsString('title="16.5"', (string) $baseResponse->json('month_settings_html'));
+        $this->assertStringNotContainsString('title="16.5"', (string) $baseResponse->json('month_settings_html'));
         $this->assertStringContainsString('data-team-id="'.$team->id.'"', (string) $baseResponse->json('month_settings_html'));
         $this->assertStringNotContainsString('data-field="base_avg_students"', (string) $baseResponse->json('table_html'));
     }

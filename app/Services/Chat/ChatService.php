@@ -21,24 +21,40 @@ class ChatService
 {
     public const DEFAULT_AVATAR = '/img/default-avatar.png';
 
-    public const PEER_USER_COLUMNS = 'id,name,lastname,image_crop,last_seen_at';
+    public const PEER_USER_COLUMNS = 'id,name,lastname,image_crop,last_seen_at,role_id';
+
+    public function __construct(
+        private readonly ChatSupportIdentity $support,
+    ) {
+    }
+
+    public const MEMBERS_PAGE_SIZE = 15;
 
     public function unreadTotal(int $userId): int
     {
-        return (int) ChatMessage::query()
-            ->whereIn('thread_id', $this->threadIdsForUser($userId))
-            ->where('user_id', '<>', $userId)
-            ->whereRaw(
-                'messages.created_at > COALESCE((
-                    SELECT last_read FROM participants
-                    WHERE participants.thread_id = messages.thread_id
-                      AND participants.user_id = ?
-                      AND participants.deleted_at IS NULL
-                    LIMIT 1
-                ), ?)',
-                [$userId, '1970-01-01 00:00:00']
-            )
-            ->count();
+        return $this->unreadSum($userId, null);
+    }
+
+    public function unreadPrivateTotal(int $userId): int
+    {
+        return $this->unreadSum($userId, false);
+    }
+
+    public function unreadGroupTotal(int $userId): int
+    {
+        return $this->unreadSum($userId, true);
+    }
+
+    private function unreadSum(int $userId, ?bool $isGroup): int
+    {
+        $query = ChatParticipant::query()->where('user_id', $userId);
+        if ($isGroup !== null && $this->hasIsGroupColumn()) {
+            $query->whereHas('thread', function ($thread) use ($isGroup) {
+                $thread->where('is_group', $isGroup);
+            });
+        }
+
+        return (int) $query->sum('unread_count');
     }
 
     /**
@@ -59,13 +75,16 @@ class ChatService
         $seenPeers = [];
         $unique = [];
         foreach ($threads as $thread) {
+            if ($this->shouldHideThreadFromInbox($thread, $userId)) {
+                continue;
+            }
             $row = $this->serializeThread(
                 $thread,
                 $userId,
                 (int) ($unreadByThread[$thread->id] ?? 0)
             );
             $peerId = $row['peer_id'] ?? null;
-            if ($peerId !== null) {
+            if (empty($row['is_group']) && $peerId !== null) {
                 if (isset($seenPeers[$peerId])) {
                     continue;
                 }
@@ -141,6 +160,10 @@ class ChatService
 
             $existing = $this->findPrivateThread((int) $actor->id, $peerId);
             if ($existing) {
+                $this->restoreParticipantIfTrashed((int) $existing->id, (int) $actor->id);
+                $this->restoreParticipantIfTrashed((int) $existing->id, $peerId);
+                $existing = $existing->fresh(['participants.user:'.self::PEER_USER_COLUMNS]) ?? $existing;
+
                 return [
                     'thread' => $this->serializeThreadHeader($existing, (int) $actor->id),
                     'created' => false,
@@ -170,34 +193,409 @@ class ChatService
     }
 
     /**
+     * @param  list<int>  $memberIds
+     * @return array<string, mixed>
+     */
+    public function createGroupThread(User $actor, string $title, array $memberIds): array
+    {
+        $actorId = (int) $actor->id;
+        $memberIds = array_values(array_unique(array_map('intval', $memberIds)));
+
+        $stored = DB::transaction(function () use ($actorId, $title, $memberIds) {
+            $lockIds = $memberIds;
+            $lockIds[] = $actorId;
+            $lockIds = array_values(array_unique($lockIds));
+            sort($lockIds);
+            User::query()->whereIn('id', $lockIds)->orderBy('id')->lockForUpdate()->get();
+
+            $payload = ['subject' => $title];
+            if ($this->hasIsGroupColumn()) {
+                $payload['is_group'] = true;
+            }
+            $thread = ChatThread::query()->create($payload);
+
+            ChatParticipant::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => $actorId,
+                'last_read' => now(),
+            ]);
+
+            foreach ($memberIds as $memberId) {
+                ChatParticipant::query()->create([
+                    'thread_id' => $thread->id,
+                    'user_id' => $memberId,
+                ]);
+            }
+
+            $thread = $thread->fresh(['participants.user:'.self::PEER_USER_COLUMNS]);
+
+            return [
+                'thread' => $thread,
+                'header' => $this->serializeThreadHeader($thread, $actorId),
+            ];
+        });
+
+        $thread = $stored['thread'];
+        foreach ($thread->participants as $participant) {
+            $uid = (int) $participant->user_id;
+            $this->safeBroadcast(new InboxBump($uid, $this->groupCreatedBumpPayload($thread, $uid)));
+        }
+
+        return $stored['header'];
+    }
+
+    public function userCanManageGroupMembers(User $user): bool
+    {
+        return $user->hasRole('admin') || $user->hasRole('superadmin');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function groupMembersPage(ChatThread $thread, User $viewer, ?int $afterUserId = null, int $limit = self::MEMBERS_PAGE_SIZE): array
+    {
+        $limit = max(1, min(50, $limit));
+        $hasRoleId = Schema::hasColumn('users', 'role_id');
+        $hasRoles = Schema::hasTable('roles');
+
+        $query = User::query()
+            ->from('users')
+            ->join('participants', function ($join) use ($thread) {
+                $join->on('participants.user_id', '=', 'users.id')
+                    ->where('participants.thread_id', (int) $thread->id)
+                    ->whereNull('participants.deleted_at');
+            });
+
+        $selects = ['users.id', 'users.name', 'users.lastname', 'users.image_crop', 'users.role_id'];
+        if ($hasRoleId && $hasRoles) {
+            $query->leftJoin('roles', 'roles.id', '=', 'users.role_id');
+            $selects[] = DB::raw('roles.name as role_name');
+            $selects[] = DB::raw('roles.label as role_label');
+            $this->support->constrainVisibleMembers($query);
+        } else {
+            $selects[] = DB::raw('NULL as role_name');
+            $selects[] = DB::raw('NULL as role_label');
+        }
+
+        $query->orderBy('users.lastname')->orderBy('users.name')->orderBy('users.id');
+
+        if ($afterUserId !== null) {
+            $after = User::query()->whereKey($afterUserId)->first(['id', 'lastname', 'name']);
+            if ($after) {
+                $lastName = (string) ($after->lastname ?? '');
+                $firstName = (string) ($after->name ?? '');
+                $afterId = (int) $after->id;
+                $query->where(function ($w) use ($lastName, $firstName, $afterId) {
+                    $w->where('users.lastname', '>', $lastName)
+                        ->orWhere(function ($w2) use ($lastName, $firstName) {
+                            $w2->where('users.lastname', '=', $lastName)
+                                ->where('users.name', '>', $firstName);
+                        })
+                        ->orWhere(function ($w3) use ($lastName, $firstName, $afterId) {
+                            $w3->where('users.lastname', '=', $lastName)
+                                ->where('users.name', '=', $firstName)
+                                ->where('users.id', '>', $afterId);
+                        });
+                });
+            }
+        }
+
+        $rows = $query->limit($limit + 1)->get($selects);
+        $hasMore = $rows->count() > $limit;
+        if ($hasMore) {
+            $rows = $rows->take($limit);
+        }
+
+        $members = $rows->map(function ($user) {
+            $isSupport = $this->support->isSupportUser($user);
+            $fullName = $isSupport
+                ? ChatSupportIdentity::DISPLAY_NAME
+                : trim((string) ($user->full_name ?: $user->name));
+
+            return [
+                'id' => (int) $user->id,
+                'avatar' => $this->avatarUrl($user->image_crop ?? null),
+                'full_name' => $fullName !== '' ? $fullName : 'Клиент',
+                'role_name' => $user->role_name,
+                'role_label' => $isSupport
+                    ? ChatSupportIdentity::DISPLAY_NAME
+                    : $user->role_label,
+            ];
+        })->values()->all();
+
+        $membersTotal = $this->visibleGroupMembersCount($thread);
+
+        return [
+            'thread' => [
+                'id' => (int) $thread->id,
+                'title' => $this->titleForViewer($thread, (int) $viewer->id),
+                'avatar' => self::DEFAULT_AVATAR,
+                'is_group' => true,
+                'members_total' => $membersTotal,
+                'header_subtitle' => $this->membersCountLabel($membersTotal),
+            ],
+            'can_manage' => $this->userCanManageGroupMembers($viewer),
+            'members' => $members,
+            'has_more' => $hasMore,
+        ];
+    }
+
+    /**
+     * Добавить участников в групповой чат, не трогая уже состоящих (unread/last_read).
+     *
+     * @param  list<int>  $userIds
+     */
+    public function addUsersToGroupThread(ChatThread $thread, array $userIds): void
+    {
+        $userIds = array_values(array_unique(array_filter(
+            array_map('intval', $userIds),
+            fn (int $id) => $id > 0
+        )));
+        if ($userIds === []) {
+            return;
+        }
+
+        $already = ChatParticipant::query()
+            ->where('thread_id', (int) $thread->id)
+            ->whereIn('user_id', $userIds)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $alreadyMap = array_flip($already);
+        $toAdd = array_values(array_filter($userIds, fn (int $id) => ! isset($alreadyMap[$id])));
+        if ($toAdd === []) {
+            return;
+        }
+
+        $stored = DB::transaction(function () use ($thread, $toAdd) {
+            User::query()->whereIn('id', $toAdd)->orderBy('id')->lockForUpdate()->get();
+
+            foreach ($toAdd as $userId) {
+                $this->restoreOrCreateParticipant((int) $thread->id, $userId);
+            }
+
+            return $thread->fresh(['participants.user:'.self::PEER_USER_COLUMNS]) ?? $thread;
+        });
+
+        foreach ($toAdd as $userId) {
+            $this->safeBroadcast(new InboxBump($userId, $this->groupCreatedBumpPayload($stored, $userId)));
+        }
+    }
+
+    public function removeUserFromAllThreads(int $userId): void
+    {
+        $threadIds = ChatParticipant::query()
+            ->where('user_id', $userId)
+            ->pluck('thread_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($threadIds === []) {
+            return;
+        }
+
+        ChatParticipant::query()
+            ->where('user_id', $userId)
+            ->delete();
+
+        $unreadTotal = $this->unreadTotal($userId);
+        foreach ($threadIds as $threadId) {
+            $this->safeBroadcast(new InboxBump($userId, [
+                'thread_id' => $threadId,
+                'removed' => true,
+                'unread_total' => $unreadTotal,
+            ]));
+        }
+    }
+
+    /**
+     * @param  list<int>  $memberIds
+     * @return array<string, mixed>
+     */
+    public function addGroupParticipants(ChatThread $thread, User $actor, array $memberIds): array
+    {
+        $memberIds = array_values(array_unique(array_map('intval', $memberIds)));
+
+        $this->addUsersToGroupThread($thread, $memberIds);
+
+        $stored = $thread->fresh(['participants.user:'.self::PEER_USER_COLUMNS]) ?? $thread;
+
+        return [
+            'ok' => true,
+            'message' => 'Участники добавлены.',
+            'thread' => $this->serializeThreadHeader($stored, (int) $actor->id),
+            'members_total' => $this->groupMembersCount($stored),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function removeGroupParticipant(ChatThread $thread, User $actor, User $target): array
+    {
+        $actorId = (int) $actor->id;
+        $targetId = (int) $target->id;
+        $leftSelf = $actorId === $targetId;
+
+        $result = DB::transaction(function () use ($thread, $targetId) {
+            $participant = ChatParticipant::query()
+                ->where('thread_id', (int) $thread->id)
+                ->where('user_id', $targetId)
+                ->first();
+
+            if ($participant) {
+                $participant->delete();
+            }
+
+            $remaining = $this->groupMembersCount($thread);
+            $threadDeleted = false;
+            $isTeamChat = $this->hasTeamIdColumn() && $thread->team_id;
+            if ($remaining === 0 && ! $isTeamChat) {
+                $thread->delete();
+                $threadDeleted = true;
+            }
+
+            return [
+                'remaining' => $remaining,
+                'thread_deleted' => $threadDeleted,
+            ];
+        });
+
+        $this->safeBroadcast(new InboxBump($targetId, [
+            'thread_id' => (int) $thread->id,
+            'removed' => true,
+            'unread_total' => $this->unreadTotal($targetId),
+        ]));
+
+        return [
+            'ok' => true,
+            'message' => $leftSelf ? 'Вы покинули группу.' : 'Участник удалён.',
+            'left' => $leftSelf,
+            'thread_deleted' => (bool) $result['thread_deleted'],
+            'members_total' => (int) $result['remaining'],
+        ];
+    }
+
+    public function groupMembersCount(ChatThread $thread): int
+    {
+        return (int) ChatParticipant::query()
+            ->where('thread_id', (int) $thread->id)
+            ->count();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function groupMemberUserIds(ChatThread $thread): array
+    {
+        return ChatParticipant::query()
+            ->where('thread_id', (int) $thread->id)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    private function restoreOrCreateParticipant(int $threadId, int $userId): void
+    {
+        $existing = ChatParticipant::withTrashed()
+            ->where('thread_id', $threadId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+                $payload = [
+                    'unread_count' => 0,
+                    'last_read' => null,
+                ];
+                if ($this->hasDraftColumn()) {
+                    $payload['draft_body'] = null;
+                }
+                $existing->forceFill($payload)->save();
+            }
+
+            return;
+        }
+
+        ChatParticipant::query()->create([
+            'thread_id' => $threadId,
+            'user_id' => $userId,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function updateLiveParticipant(int $threadId, int $userId, array $attributes): void
+    {
+        $row = ChatParticipant::query()
+            ->where('thread_id', $threadId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($row) {
+            $row->forceFill($attributes)->save();
+        }
+    }
+
+    private function restoreParticipantIfTrashed(int $threadId, int $userId): void
+    {
+        $existing = ChatParticipant::withTrashed()
+            ->where('thread_id', $threadId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+        }
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function storeMessage(ChatThread $thread, User $actor, string $body): array
     {
-        $message = ChatMessage::query()->create([
-            'thread_id' => $thread->id,
-            'user_id' => (int) $actor->id,
-            'body' => $body,
-        ]);
+        $actorId = (int) $actor->id;
 
-        $participantPayload = ['last_read' => now()];
-        if ($this->hasDraftColumn()) {
-            $participantPayload['draft_body'] = null;
-        }
-        ChatParticipant::query()->updateOrCreate(
-            ['thread_id' => $thread->id, 'user_id' => (int) $actor->id],
-            $participantPayload
-        );
+        $stored = DB::transaction(function () use ($thread, $actorId, $body) {
+            $message = ChatMessage::query()->create([
+                'thread_id' => $thread->id,
+                'user_id' => $actorId,
+                'body' => $body,
+            ]);
 
-        $thread->touch();
-        $thread->load(['participants.user:'.self::PEER_USER_COLUMNS, 'lastMessage']);
+            $thread->forceFill(['last_message_id' => $message->id])->save();
 
-        $payload = $this->serializeMessage($thread, $message, (int) $actor->id);
+            ChatParticipant::query()
+                ->where('thread_id', $thread->id)
+                ->where('user_id', '<>', $actorId)
+                ->increment('unread_count');
+
+            $participantPayload = [
+                'last_read' => now(),
+                'unread_count' => 0,
+            ];
+            if ($this->hasDraftColumn()) {
+                $participantPayload['draft_body'] = null;
+            }
+            $this->updateLiveParticipant((int) $thread->id, $actorId, $participantPayload);
+
+            $thread->load(['participants.user:'.self::PEER_USER_COLUMNS, 'lastMessage']);
+
+            return [
+                'message' => $message,
+                'payload' => $this->serializeMessage($thread, $message, $actorId),
+            ];
+        });
+
+        $message = $stored['message'];
+        $payload = $stored['payload'];
         $this->safeBroadcast(new MessageCreated((int) $thread->id, $payload));
 
         foreach ($thread->participants as $participant) {
             $uid = (int) $participant->user_id;
-            $isSender = $uid === (int) $actor->id;
+            $isSender = $uid === $actorId;
             $threadUnread = $isSender ? 0 : $this->unreadCountForThread($thread->id, $uid);
 
             $bump = [
@@ -206,6 +604,7 @@ class ChatService
                 'avatar' => $this->avatarForViewer($thread, $uid),
                 'peer_id' => $this->peerId($thread, $uid),
                 'peer_is_online' => $this->isPeerOnline($thread, $uid),
+                'is_group' => $this->isGroupThread($thread),
                 'last_message' => $this->preview($body),
                 'last_message_time' => $message->created_at?->toDateTimeString(),
                 'last_message_is_mine' => $isSender,
@@ -224,10 +623,10 @@ class ChatService
 
     public function markRead(ChatThread $thread, int $userId): int
     {
-        ChatParticipant::query()->updateOrCreate(
-            ['thread_id' => $thread->id, 'user_id' => $userId],
-            ['last_read' => now()]
-        );
+        $this->updateLiveParticipant((int) $thread->id, $userId, [
+            'last_read' => now(),
+            'unread_count' => 0,
+        ]);
 
         $unreadTotal = $this->unreadTotal($userId);
         if (! $thread->relationLoaded('participants')) {
@@ -249,10 +648,9 @@ class ChatService
             return $normalized;
         }
 
-        ChatParticipant::query()->updateOrCreate(
-            ['thread_id' => (int) $thread->id, 'user_id' => $userId],
-            ['draft_body' => $normalized === '' ? null : $normalized]
-        );
+        $this->updateLiveParticipant((int) $thread->id, $userId, [
+            'draft_body' => $normalized === '' ? null : $normalized,
+        ]);
 
         return $normalized;
     }
@@ -260,7 +658,7 @@ class ChatService
     /**
      * @return list<array<string, mixed>>
      */
-    public function usersForPicker(int $actorId, int $partnerId, string $q = ''): array
+    public function usersForPicker(int $actorId, int $partnerId, string $q = '', string $teamFilter = '', array $excludeUserIds = []): array
     {
         $query = User::query()
             ->from('users')
@@ -268,13 +666,19 @@ class ChatService
             ->where('users.id', '<>', $actorId)
             ->where('users.is_enabled', 1);
 
+        $excludeUserIds = array_values(array_unique(array_map('intval', $excludeUserIds)));
+        if ($excludeUserIds !== []) {
+            $query->whereNotIn('users.id', $excludeUserIds);
+        }
+
         $hasRoleId = Schema::hasColumn('users', 'role_id');
         $hasRoles = Schema::hasTable('roles');
         if ($hasRoleId && $hasRoles) {
             $query->leftJoin('roles', 'roles.id', '=', 'users.role_id');
+            $this->support->constrainExcludeSupportRole($query);
         }
 
-        $selects = ['users.id', 'users.name', 'users.lastname', 'users.email', 'users.image_crop', 'users.parent_id'];
+        $selects = ['users.id', 'users.name', 'users.lastname', 'users.email', 'users.image_crop', 'users.parent_id', 'users.role_id'];
         if (Schema::hasColumn('users', 'last_seen_at')) {
             $selects[] = 'users.last_seen_at';
         }
@@ -301,27 +705,35 @@ class ChatService
             });
         }
 
-        return $query
+        $teamFilter = trim($teamFilter);
+        if ($teamFilter !== '') {
+            if ($teamFilter !== 'none' && ctype_digit($teamFilter) && (int) $teamFilter > 0) {
+                $query->withSystemRoleUser();
+            }
+            $query->filterByStudentTeam($partnerId, $teamFilter);
+        }
+
+        $injectSupport = $this->support->shouldAppearInContacts($actorId, $q, $teamFilter, $excludeUserIds);
+        $limit = $injectSupport ? 99 : 100;
+
+        $rows = $query
             ->with(['parentProfile:id,lastname,firstname,middlename'])
             ->orderBy('users.lastname')
             ->orderBy('users.name')
-            ->limit(100)
+            ->limit($limit)
             ->get($selects)
-            ->map(function ($user) {
-                return [
-                    'id' => (int) $user->id,
-                    'name' => (string) ($user->full_name ?: $user->name),
-                    'email' => $user->email,
-                    'avatar' => $this->avatarUrl($user->image_crop ?? null),
-                    'role_name' => $user->role_name,
-                    'role_label' => $user->role_label,
-                    'team_title' => $user->team_title,
-                    'is_online' => $user->isOnline(),
-                    'parent_full_name' => (string) ($user->parent_full_name ?: ''),
-                ];
-            })
+            ->map(fn ($user) => $this->serializePickerUser($user))
             ->values()
             ->all();
+
+        if ($injectSupport) {
+            $supportUser = $this->support->canonicalUser();
+            if ($supportUser) {
+                array_unshift($rows, $this->serializePickerUser($supportUser, true));
+            }
+        }
+
+        return $rows;
     }
 
     /**
@@ -331,6 +743,31 @@ class ChatService
      */
     public function userCard(User $peer, int $partnerId): array
     {
+        if ($this->support->isSupportUser($peer)) {
+            $isOnline = $peer->isOnline();
+            $lastSeenLabel = '-';
+            if ($isOnline) {
+                $lastSeenLabel = 'онлайн';
+            } elseif ($peer->last_seen_at) {
+                $lastSeenLabel = $peer->last_seen_at
+                    ->timezone((string) config('app.timezone'))
+                    ->format('d.m.Y H:i');
+            }
+
+            return [
+                'id' => (int) $peer->id,
+                'avatar' => $this->avatarUrl($peer->image_crop ?? null),
+                'full_name' => ChatSupportIdentity::DISPLAY_NAME,
+                'phone' => '',
+                'parent_full_name' => '',
+                'parent_phone' => '',
+                'is_online' => $isOnline,
+                'last_seen_at' => $peer->last_seen_at?->toDateTimeString(),
+                'last_seen_label' => $lastSeenLabel,
+                'team_title' => '',
+            ];
+        }
+
         $peer->loadMissing('parentProfile');
 
         $teamTitle = (string) (User::query()
@@ -379,14 +816,31 @@ class ChatService
 
     public function findPrivateThread(int $userId, int $peerId): ?ChatThread
     {
-        return ChatThread::query()
-            ->has('participants', '=', 2)
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $userId))
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $peerId))
+        $query = ChatThread::query()
+            ->select('threads.*')
+            ->join('participants as chat_p_me', function ($join) use ($userId) {
+                $join->on('chat_p_me.thread_id', '=', 'threads.id')
+                    ->where('chat_p_me.user_id', $userId);
+            })
+            ->join('participants as chat_p_peer', function ($join) use ($peerId) {
+                $join->on('chat_p_peer.thread_id', '=', 'threads.id')
+                    ->where('chat_p_peer.user_id', $peerId);
+            })
+            ->whereNotExists(function ($q) use ($userId, $peerId) {
+                $q->selectRaw('1')
+                    ->from('participants as chat_p_other')
+                    ->whereColumn('chat_p_other.thread_id', 'threads.id')
+                    ->whereNotIn('chat_p_other.user_id', [$userId, $peerId]);
+            })
             ->with(['participants.user:'.self::PEER_USER_COLUMNS])
-            ->orderByDesc('updated_at')
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('threads.updated_at')
+            ->orderByDesc('threads.id');
+
+        if ($this->hasIsGroupColumn()) {
+            $query->where('threads.is_group', false);
+        }
+
+        return $query->first();
     }
 
     private function safeBroadcast(object $event): void
@@ -411,21 +865,9 @@ class ChatService
             return [];
         }
 
-        $rows = ChatMessage::query()
-            ->selectRaw('thread_id, COUNT(*) as unread_count')
+        $rows = ChatParticipant::query()
+            ->where('user_id', $userId)
             ->whereIn('thread_id', $threadIds)
-            ->where('user_id', '<>', $userId)
-            ->whereRaw(
-                'messages.created_at > COALESCE((
-                    SELECT last_read FROM participants
-                    WHERE participants.thread_id = messages.thread_id
-                      AND participants.user_id = ?
-                      AND participants.deleted_at IS NULL
-                    LIMIT 1
-                ), ?)',
-                [$userId, '1970-01-01 00:00:00']
-            )
-            ->groupBy('thread_id')
             ->pluck('unread_count', 'thread_id');
 
         return $rows->map(fn ($count) => (int) $count)->all();
@@ -433,30 +875,10 @@ class ChatService
 
     private function unreadCountForThread(int $threadId, int $userId): int
     {
-        return (int) ChatMessage::query()
+        return (int) ChatParticipant::query()
             ->where('thread_id', $threadId)
-            ->where('user_id', '<>', $userId)
-            ->whereRaw(
-                'messages.created_at > COALESCE((
-                    SELECT last_read FROM participants
-                    WHERE participants.thread_id = ?
-                      AND participants.user_id = ?
-                      AND participants.deleted_at IS NULL
-                    LIMIT 1
-                ), ?)',
-                [$threadId, $userId, '1970-01-01 00:00:00']
-            )
-            ->count();
-    }
-
-    /**
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    private function threadIdsForUser(int $userId)
-    {
-        return ChatParticipant::query()
             ->where('user_id', $userId)
-            ->select('thread_id');
+            ->value('unread_count');
     }
 
     /**
@@ -473,6 +895,7 @@ class ChatService
             'avatar' => $this->avatarForViewer($thread, $viewerId),
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
+            'is_group' => $this->isGroupThread($thread),
             'last_message' => $last ? $this->preview((string) $last->body) : null,
             'last_message_time' => $last?->created_at?->toDateTimeString()
                 ?? $thread->updated_at?->toDateTimeString(),
@@ -489,6 +912,11 @@ class ChatService
     private function serializeThreadHeader(ChatThread $thread, int $viewerId): array
     {
         $thread->load(['participants.user:'.self::PEER_USER_COLUMNS]);
+        $isGroup = $this->isGroupThread($thread);
+        $membersTotal = $isGroup ? $this->visibleGroupMembersCount($thread) : null;
+        $presenceLabel = $isGroup
+            ? ''
+            : (new UserPresence())->dialogStatusLabel($this->peerUser($thread, $viewerId)?->last_seen_at);
 
         return [
             'id' => (int) $thread->id,
@@ -496,8 +924,28 @@ class ChatService
             'avatar' => $this->avatarForViewer($thread, $viewerId),
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
+            'is_group' => $isGroup,
+            'members_total' => $membersTotal,
+            'peer_presence_label' => $presenceLabel,
+            'header_subtitle' => $isGroup
+                ? $this->membersCountLabel((int) $membersTotal)
+                : $presenceLabel,
             'draft_body' => $this->viewerDraftBody($thread, $viewerId),
         ];
+    }
+
+    public function membersCountLabel(int $n): string
+    {
+        $n10 = $n % 10;
+        $n100 = $n % 100;
+        $word = 'участников';
+        if ($n10 === 1 && $n100 !== 11) {
+            $word = 'участник';
+        } elseif ($n10 >= 2 && $n10 <= 4 && ($n100 < 12 || $n100 > 14)) {
+            $word = 'участника';
+        }
+
+        return $n.' '.$word;
     }
 
     /**
@@ -540,9 +988,41 @@ class ChatService
         return true;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function groupCreatedBumpPayload(ChatThread $thread, int $viewerId): array
+    {
+        return [
+            'thread_id' => (int) $thread->id,
+            'title' => $this->titleForViewer($thread, $viewerId),
+            'avatar' => $this->avatarForViewer($thread, $viewerId),
+            'peer_id' => $this->peerId($thread, $viewerId),
+            'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
+            'is_group' => true,
+            'last_message' => null,
+            'last_message_time' => $thread->updated_at?->toDateTimeString(),
+            'last_message_is_mine' => false,
+            'last_message_is_read' => null,
+            'unread_count' => $this->unreadCountForThread((int) $thread->id, $viewerId),
+            'unread_total' => $this->unreadTotal($viewerId),
+            'draft_body' => '',
+        ];
+    }
+
     private function titleForViewer(ChatThread $thread, int $viewerId): string
     {
+        if ($this->isGroupThread($thread)) {
+            $subject = trim((string) ($thread->subject ?? ''));
+
+            return $subject !== '' ? $subject : 'Группа';
+        }
+
         $peer = $this->peerUser($thread, $viewerId);
+        if ($this->support->isSupportUser($peer)) {
+            return ChatSupportIdentity::DISPLAY_NAME;
+        }
+
         $fullName = trim((string) ($peer?->full_name ?: ''));
 
         return $fullName !== '' ? $fullName : 'Диалог';
@@ -550,6 +1030,10 @@ class ChatService
 
     private function avatarForViewer(ChatThread $thread, int $viewerId): string
     {
+        if ($this->isGroupThread($thread)) {
+            return self::DEFAULT_AVATAR;
+        }
+
         $peer = $this->peerUser($thread, $viewerId);
 
         return $this->avatarUrl($peer?->image_crop);
@@ -557,6 +1041,10 @@ class ChatService
 
     private function peerId(ChatThread $thread, int $viewerId): ?int
     {
+        if ($this->isGroupThread($thread)) {
+            return null;
+        }
+
         $peer = $this->peerUser($thread, $viewerId);
 
         return $peer ? (int) $peer->id : null;
@@ -575,9 +1063,26 @@ class ChatService
 
     private function isPeerOnline(ChatThread $thread, int $viewerId): bool
     {
+        if ($this->isGroupThread($thread)) {
+            return false;
+        }
+
         $peer = $this->peerUser($thread, $viewerId);
 
         return $peer?->isOnline() ?? false;
+    }
+
+    private function isGroupThread(ChatThread $thread): bool
+    {
+        if ($this->hasIsGroupColumn() && (bool) $thread->is_group) {
+            return true;
+        }
+
+        $count = $thread->relationLoaded('participants')
+            ? $thread->participants->count()
+            : (int) $thread->participants()->count();
+
+        return $count > 2;
     }
 
     private function preview(string $body): string
@@ -608,5 +1113,81 @@ class ChatService
         }
 
         return $has;
+    }
+
+    private function hasIsGroupColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasColumn('threads', 'is_group');
+        }
+
+        return $has;
+    }
+
+    private function hasTeamIdColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasColumn('threads', 'team_id');
+        }
+
+        return $has;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializePickerUser(User $user, bool $asSupport = false): array
+    {
+        $support = $asSupport || $this->support->isSupportUser($user);
+
+        return [
+            'id' => (int) $user->id,
+            'name' => $support
+                ? ChatSupportIdentity::DISPLAY_NAME
+                : (string) ($user->full_name ?: $user->name),
+            'email' => $support ? '' : $user->email,
+            'avatar' => $this->avatarUrl($user->image_crop ?? null),
+            'role_name' => $support ? 'superadmin' : $user->role_name,
+            'role_label' => $support
+                ? ChatSupportIdentity::DISPLAY_NAME
+                : $user->role_label,
+            'team_title' => $support ? '' : $user->team_title,
+            'is_online' => $user->isOnline(),
+            'parent_full_name' => $support ? '' : (string) ($user->parent_full_name ?: ''),
+        ];
+    }
+
+    private function shouldHideThreadFromInbox(ChatThread $thread, int $viewerId): bool
+    {
+        if ($this->isGroupThread($thread)) {
+            return false;
+        }
+
+        $peer = $this->peerUser($thread, $viewerId);
+        if ($peer === null || ! $this->support->isSupportUser($peer)) {
+            return false;
+        }
+
+        return ! $this->support->isCanonicalUserId((int) $peer->id);
+    }
+
+    private function visibleGroupMembersCount(ChatThread $thread): int
+    {
+        if (! Schema::hasColumn('users', 'role_id')) {
+            return $this->groupMembersCount($thread);
+        }
+
+        $query = User::query()
+            ->from('users')
+            ->join('participants', function ($join) use ($thread) {
+                $join->on('participants.user_id', '=', 'users.id')
+                    ->where('participants.thread_id', (int) $thread->id)
+                    ->whereNull('participants.deleted_at');
+            });
+        $this->support->constrainVisibleMembers($query);
+
+        return (int) $query->count('users.id');
     }
 }

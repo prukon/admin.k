@@ -47,7 +47,7 @@ class UserAvatarController extends AdminBaseController
 
             $this->auditLogger->record(
                 AuditEvent::UserAvatarDeletedByAdmin,
-                AuditContext::make("Пользователю {$targetLabel} удален аватар.")
+                AuditContext::make("Клиенту {$targetLabel} удален аватар.")
                     ->withUser($user)
                     ->withTarget($user, $targetLabel)
                     ->withCreatedAt(now())
@@ -112,7 +112,7 @@ class UserAvatarController extends AdminBaseController
 
             $this->auditLogger->record(
                 AuditEvent::UserAvatarUpdatedByAdmin,
-                AuditContext::make("Пользователю {$targetLabel} изменён аватар.")
+                AuditContext::make("Клиенту {$targetLabel} изменён аватар.")
                     ->withUser($user)
                     ->withTarget($user, $targetLabel)
                     ->withCreatedAt(now())

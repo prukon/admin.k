@@ -318,6 +318,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.registration.manage');
         });
 
+        // Оверлей статуса Reverb: невидимое право, никому не выдаётся.
+        // Superadmin проходит Gate::before.
+        Gate::define('settings.reverbOverlay.manage', function (User $user) {
+            return $user->hasPermission('settings.reverbOverlay.manage');
+        });
+
         // Страница "Настройки -> Права и роли"
         Gate::define('settings.roles.view', function (User $user) {
             return $user->hasPermission('settings.roles.view');

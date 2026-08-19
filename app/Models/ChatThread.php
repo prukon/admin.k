@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChatThread extends Model
@@ -18,6 +18,13 @@ class ChatThread extends Model
 
     protected $fillable = [
         'subject',
+        'is_group',
+        'team_id',
+        'last_message_id',
+    ];
+
+    protected $casts = [
+        'is_group' => 'boolean',
     ];
 
     public function participants(): HasMany
@@ -30,9 +37,9 @@ class ChatThread extends Model
         return $this->hasMany(ChatMessage::class, 'thread_id');
     }
 
-    public function lastMessage(): HasOne
+    public function lastMessage(): BelongsTo
     {
-        return $this->hasOne(ChatMessage::class, 'thread_id')->latestOfMany('id');
+        return $this->belongsTo(ChatMessage::class, 'last_message_id');
     }
 
     public function users(): BelongsToMany
@@ -40,6 +47,11 @@ class ChatThread extends Model
         return $this->belongsToMany(User::class, 'participants', 'thread_id', 'user_id')
             ->withTimestamps()
             ->whereNull('participants.deleted_at');
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'team_id');
     }
 
     public function hasParticipant(int $userId): bool

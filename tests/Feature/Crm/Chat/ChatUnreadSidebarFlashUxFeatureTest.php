@@ -201,7 +201,7 @@ final class ChatUnreadSidebarFlashUxFeatureTest extends ChatTestCase
      */
     private function simulateSidebarPaints(): array
     {
-        $chatJs = public_path('js/chat.js');
+        $chatJs = resource_path('js/chat.js');
         $echoBlade = resource_path('views/includes/chat/echo.blade.php');
         $this->assertFileExists($chatJs);
         $this->assertFileExists($echoBlade);

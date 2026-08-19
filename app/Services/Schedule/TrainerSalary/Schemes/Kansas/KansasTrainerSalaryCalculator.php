@@ -6,10 +6,11 @@ namespace App\Services\Schedule\TrainerSalary\Schemes\Kansas;
 
 /**
  * Схема kansas: по группе, затем сумма.
- * premium = max(0, base_premium + (round(fact,1) − round(base,1)) × X)
+ * fact = вверх до целого после round(..., 1): 15.04 → 15, 15.1 → 16
+ * premium = max(0, base_premium + (fact − base) × X)
  * pay = rate_per_training + premium
  * group_total = pay × trainings_count
- * Канон — целочисленная арифметика: копейки и десятые доли ученика.
+ * Канон — целочисленная арифметика: копейки; средние в БД как tenths целого (16 → 160).
  */
 final class KansasTrainerSalaryCalculator
 {

@@ -62,7 +62,7 @@ final class AccountUserEditPageFeatureTest extends CrmTestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Пользователь', $html);
+        $this->assertStringContainsString('Клиент', $html);
         $this->assertStringNotContainsString('Данные ученика', $html);
         $this->assertStringContainsString('for="lastname"', $html);
         $this->assertStringContainsString('>Фамилия*</label>', $html);

@@ -239,7 +239,7 @@ final class ChatPresenceUxFeatureTest extends ChatTestCase
      */
     private function simulatePresenceUi(): array
     {
-        $chatJs = public_path('js/chat.js');
+        $chatJs = resource_path('js/chat.js');
         $this->assertFileExists($chatJs);
 
         $script = <<<'JS'
@@ -364,6 +364,7 @@ global.document = {
 const svgTick = '<svg></svg>';
 let currentThreadId = null;
 let currentPeerId = null;
+let currentIsGroup = false;
 eval(extractFn(chatJs, 'ticksHtml'));
 eval(extractFn(chatJs, 'escapeHtml'));
 eval(extractFn(chatJs, 'pad'));
@@ -373,6 +374,7 @@ eval(extractFn(chatJs, 'dashText'));
 eval(extractFn(chatJs, 'telHref'));
 eval(extractFn(chatJs, 'phoneHtml'));
 eval(extractFn(chatJs, 'normalizeDraft'));
+eval(extractFn(chatJs, 'threadListTitle'));
 eval(extractFn(chatJs, 'renderThreads'));
 eval(extractFn(chatJs, 'renderContacts'));
 eval(extractFn(chatJs, 'renderPeerCard'));

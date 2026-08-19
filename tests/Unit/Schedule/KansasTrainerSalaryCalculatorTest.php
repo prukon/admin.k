@@ -80,18 +80,54 @@ final class KansasTrainerSalaryCalculatorTest extends TestCase
     {
         return [
             'int 16' => [16, 160],
-            'string 16.5' => ['16.5', 165],
-            'comma' => ['16,0', 160],
+            'string 16' => ['16', 160],
             'zero' => [0, 0],
         ];
     }
 
-    public function test_format_tenths_as_int_drops_fraction_for_display_only(): void
+    public function test_fractional_average_input_is_rejected(): void
+    {
+        $this->assertNull(KansasQuantity::toWholeTenths('16.5'));
+        $this->assertNull(KansasQuantity::toWholeTenths('16.1'));
+        $this->assertNull(KansasQuantity::toWholeTenths(16.5));
+        $this->expectException(\InvalidArgumentException::class);
+        KansasQuantity::toWholeTenthsOrFail('16.5');
+    }
+
+    public function test_format_tenths_as_int_is_the_display_value(): void
     {
         $this->assertSame('16', KansasQuantity::formatTenthsAsInt(160));
-        $this->assertSame('16', KansasQuantity::formatTenthsAsInt(165));
-        $this->assertSame('-2', KansasQuantity::formatTenthsAsInt(-25));
+        $this->assertSame('16', KansasQuantity::formatTenths(160));
+        $this->assertSame('-2', KansasQuantity::formatTenthsAsInt(-20));
         $this->assertSame('0', KansasQuantity::formatTenthsAsInt(0));
-        $this->assertSame('16.5', KansasQuantity::formatTenths(165));
+    }
+
+    public function test_average_rounds_to_tenth_then_up_to_whole(): void
+    {
+        $this->assertSame(150, KansasQuantity::averageToTenths(150, 10));
+        $this->assertSame(160, KansasQuantity::averageToTenths(151, 10));
+        $this->assertSame(150, KansasQuantity::averageToTenths(376, 25));
+        $this->assertSame(160, KansasQuantity::ceilTenthsToWholeTenths(151));
+        $this->assertSame(150, KansasQuantity::ceilTenthsToWholeTenths(150));
+    }
+
+    public function test_ceiled_fact_average_changes_premium(): void
+    {
+        $calculator = new KansasTrainerSalaryCalculator();
+
+        $group = $calculator->computeGroup(
+            10,
+            151,
+            150,
+            100000,
+            80000,
+            10000,
+        );
+
+        $this->assertSame(160, $group['fact_avg_tenths']);
+        $this->assertSame(10, $group['diff_tenths']);
+        $this->assertSame(90000, $group['premium_cents']);
+        $this->assertSame(190000, $group['pay_per_training_cents']);
+        $this->assertSame(1900000, $group['group_total_cents']);
     }
 }

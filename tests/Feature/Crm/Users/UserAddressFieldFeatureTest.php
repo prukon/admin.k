@@ -141,7 +141,7 @@ final class UserAddressFieldFeatureTest extends CrmTestCase
             'address'  => 'г. Казань, ул. Новая, д. 5',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Пользователь успешно обновлён');
+            ->assertJsonPath('message', 'Клиент успешно обновлён');
 
         $this->assertSame('г. Казань, ул. Новая, д. 5', $user->fresh()->address);
     }

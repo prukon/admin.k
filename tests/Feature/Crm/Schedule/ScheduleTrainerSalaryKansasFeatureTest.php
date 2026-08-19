@@ -56,7 +56,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $this->assertSame(2, $row['trainings_count']);
         $this->assertCount(1, $row['groups']);
         $this->assertSame(2, $row['groups'][0]['trainings_count']);
-        $this->assertSame('1.0', $row['groups'][0]['fact_avg_students']);
+        $this->assertSame('1', $row['groups'][0]['fact_avg_students']);
         $this->assertStringContainsString('Группа Канзас', $response->json('table_html'));
         $this->assertStringContainsString('premium_increment', $response->json('month_settings_html'));
     }
@@ -105,18 +105,18 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $this->assertSame(4, $row['trainings_count']);
 
         $groups = collect($row['groups'])->keyBy('team_title');
-        $this->assertSame('14.0', $groups['Группа A']['fact_avg_students']);
+        $this->assertSame('14', $groups['Группа A']['fact_avg_students']);
         $this->assertSame('14', $groups['Группа A']['fact_avg_students_int']);
-        $this->assertSame('16.0', $groups['Группа A']['base_avg_students']);
+        $this->assertSame('16', $groups['Группа A']['base_avg_students']);
         $this->assertSame('16', $groups['Группа A']['base_avg_students_int']);
-        $this->assertSame('-2.0', $groups['Группа A']['diff_students']);
+        $this->assertSame('-2', $groups['Группа A']['diff_students']);
         $this->assertSame('-2', $groups['Группа A']['diff_students_int']);
         $this->assertSame('600.00', $groups['Группа A']['premium']);
         $this->assertSame('1600.00', $groups['Группа A']['pay_per_training']);
         $this->assertSame('3200.00', $groups['Группа A']['group_total']);
 
-        $this->assertSame('25.0', $groups['Группа B']['fact_avg_students']);
-        $this->assertSame('7.0', $groups['Группа B']['diff_students']);
+        $this->assertSame('25', $groups['Группа B']['fact_avg_students']);
+        $this->assertSame('7', $groups['Группа B']['diff_students']);
         $this->assertSame('1500.00', $groups['Группа B']['premium']);
         $this->assertSame('5000.00', $groups['Группа B']['group_total']);
     }
@@ -143,7 +143,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
             'year' => 2026,
             'month' => 5,
             'team_id' => $team->id,
-            'base_avg_students' => '16.5',
+            'base_avg_students' => 16,
         ])->assertOk();
 
         $rows = collect(
@@ -153,9 +153,9 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
 
         $rowA = $rows->firstWhere('trainer_profile_id', $trainerA->id);
         $rowB = $rows->firstWhere('trainer_profile_id', $trainerB->id);
-        $this->assertSame('16.5', $rowA['groups'][0]['base_avg_students']);
+        $this->assertSame('16', $rowA['groups'][0]['base_avg_students']);
         $this->assertSame('16', $rowA['groups'][0]['base_avg_students_int']);
-        $this->assertSame('16.5', $rowB['groups'][0]['base_avg_students']);
+        $this->assertSame('16', $rowB['groups'][0]['base_avg_students']);
         $this->assertSame('16', $rowB['groups'][0]['base_avg_students_int']);
 
         $baseline = TrainerSalaryKansasGroupBaseline::query()
@@ -163,7 +163,7 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
             ->where('team_id', $team->id)
             ->first();
         $this->assertNotNull($baseline);
-        $this->assertSame(165, (int) $baseline->base_avg_students_tenths);
+        $this->assertSame(160, (int) $baseline->base_avg_students_tenths);
     }
 
     public function test_premium_floor_and_snapshot_freezes_groups(): void
@@ -243,6 +243,15 @@ final class ScheduleTrainerSalaryKansasFeatureTest extends ScheduleTrainerSalary
         $this->createVisitedScheduleEntry($student->id, $trainer->id, '2026-05-09');
 
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
+
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'team_id' => $team->id,
+            'base_avg_students' => '16.5',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['base_avg_students']);
 
         $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
             'year' => 2026,

@@ -901,6 +901,9 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])
             ->middleware('can:settings.force2fa.admins')
             ->name('settings.force2fa.admins');
+        Route::post('admin/settings/cabinet-diagnostics', [SettingController::class, 'toggleCabinetDiagnostics'])
+            ->middleware('can:settings.reverbOverlay.manage')
+            ->name('settings.cabinetDiagnostics');
     });
 
     // Логи текущего партнёра (все типы)
@@ -1126,10 +1129,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/chat', [ChatPageController::class, 'index'])->name('chat.index');
         Route::get('/chat/api/threads', [ChatApiController::class, 'threads'])->name('chat.api.threads.index');
         Route::post('/chat/api/threads', [ChatApiController::class, 'storeThread'])->name('chat.api.threads.store');
+        Route::post('/chat/api/threads/groups', [ChatApiController::class, 'storeGroupThread'])->name('chat.api.threads.groups.store');
         Route::get('/chat/api/unread', [ChatApiController::class, 'unread'])->name('chat.api.unread');
         Route::get('/chat/api/users', [ChatApiController::class, 'users'])->name('chat.api.users');
         Route::get('/chat/api/users/{user}', [ChatApiController::class, 'showUser'])->whereNumber('user')->name('chat.api.users.show');
         Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread')->name('chat.api.threads.show');
+        Route::get('/chat/api/threads/{thread}/participants', [ChatApiController::class, 'participants'])->whereNumber('thread')->name('chat.api.threads.participants.index');
+        Route::post('/chat/api/threads/{thread}/participants', [ChatApiController::class, 'storeParticipants'])->whereNumber('thread')->name('chat.api.threads.participants.store');
+        Route::delete('/chat/api/threads/{thread}/participants/{user}', [ChatApiController::class, 'destroyParticipant'])->whereNumber('thread')->whereNumber('user')->name('chat.api.threads.participants.destroy');
         Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread')->name('chat.api.threads.messages.index');
         Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');
         Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead'])->whereNumber('thread')->name('chat.api.threads.read');

@@ -5,11 +5,17 @@ namespace App\Services;
 use App\Models\Role;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\Chat\TeamGroupChatService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TeamUserSyncService
 {
+    public function __construct(
+        private readonly TeamGroupChatService $teamGroupChat,
+    ) {
+    }
+
     /**
      * Полная синхронизация групп ученика (роль user).
      *
@@ -45,6 +51,8 @@ class TeamUserSyncService
                 ],
             );
         }
+
+        $this->addStudentToTeamChats($user, $validTeamIds);
     }
 
     /**
@@ -75,6 +83,8 @@ class TeamUserSyncService
                 'updated_at' => $now,
             ],
         );
+
+        $this->addStudentToTeamChats($user, $validTeamIds);
     }
 
     /**
@@ -212,5 +222,22 @@ class TeamUserSyncService
             ->whereKey((int) $user->role_id)
             ->where('name', 'user')
             ->exists();
+    }
+
+    /**
+     * @param  int[]  $teamIds
+     */
+    private function addStudentToTeamChats(User $user, array $teamIds): void
+    {
+        if ($teamIds === []) {
+            return;
+        }
+
+        foreach ($teamIds as $teamId) {
+            $team = Team::query()->whereKey((int) $teamId)->first();
+            if ($team) {
+                $this->teamGroupChat->addUserToTeamChat($team, $user);
+            }
+        }
     }
 }

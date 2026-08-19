@@ -137,7 +137,7 @@
   <h2 id="team-link">4) Привязка к группам</h2>
   <p><code>App\Services\TeamTrainerSyncService</code>:</p>
   <ul>
-    <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются.</li>
+    <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются. Привязка добавляет тренера в авто-чат группы; отвязка из чата не убирает (<a href="/doc#chat-team-groups-index">анонс</a>).</li>
     <li><b>Из группы</b> — поле <code>trainer_profile_id</code> в <code>POST/PATCH /admin/team/{id}</code> (<code>TeamController</code>): на группу назначается один тренер; предыдущий тренер группы снимается.</li>
     <li><b>Список групп</b> — на <code>/admin/teams</code> при <code>trainers.view</code> колонка «Тренер» (<code>trainer_label</code> в JSON <code>/admin/teams/data</code>, настройка в «Поля списка»). Без права колонка скрыта, но поле в JSON остаётся. См. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</li>
   </ul>

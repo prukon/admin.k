@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Crm\Chat;
 
 use App\Models\ChatMessage;
+use App\Models\ChatParticipant;
 use App\Models\ChatThread;
 
 /**
@@ -37,6 +38,33 @@ final class ChatNonAjaxSafetyNetFeatureTest extends ChatTestCase
                 ->whereHas('participants', fn ($q) => $q->where('user_id', $this->user->id))
                 ->whereHas('participants', fn ($q) => $q->where('user_id', $peer->id))
                 ->exists()
+        );
+    }
+
+    public function test_non_ajax_store_thread_reuses_pair_and_does_not_return_json(): void
+    {
+        $peer = $this->makePeer('NonAjaxReuse_');
+        $first = (int) $this->postJson(route('chat.api.threads.store'), [
+            'user_id' => $peer->id,
+        ])->assertCreated()->json('thread_id');
+
+        ChatParticipant::query()
+            ->where('thread_id', $first)
+            ->where('user_id', $peer->id)
+            ->delete();
+
+        $response = $this->from(route('chat.index'))
+            ->post(route('chat.api.threads.store'), [
+                'user_id' => $peer->id,
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Повтор без JS не должен быть белым JSON 200');
+        $this->assertNotSame(201, $response->getStatusCode());
+        $response->assertRedirect(route('chat.index'));
+        $this->assertSame(1, ChatThread::query()->where('is_group', false)->count());
+        $this->assertTrue(
+            ChatParticipant::query()->where('thread_id', $first)->where('user_id', $peer->id)->exists()
         );
     }
 
@@ -205,5 +233,129 @@ final class ChatNonAjaxSafetyNetFeatureTest extends ChatTestCase
             ->assertCreated()
             ->assertJsonPath('ok', true)
             ->assertJsonStructure(['ok', 'created', 'thread_id', 'thread']);
+    }
+
+    public function test_non_ajax_create_group_redirects_to_chat_and_creates_thread(): void
+    {
+        $a = $this->makePeer('NonAjaxGrpA_');
+        $b = $this->makePeer('NonAjaxGrpB_');
+
+        $response = $this->from(route('chat.index'))
+            ->post(route('chat.api.threads.groups.store'), [
+                'title' => 'Нативная группа',
+                'user_ids' => [$a->id, $b->id],
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Нативный POST не должен отдавать сырой JSON 200');
+        $this->assertNotSame(201, $response->getStatusCode(), 'Нативный POST не должен отдавать JSON 201');
+        $response->assertRedirect(route('chat.index'));
+
+        $this->assertTrue(
+            ChatThread::query()->where('is_group', true)->where('subject', 'Нативная группа')->exists()
+        );
+    }
+
+    public function test_non_ajax_create_group_validation_redirects_with_field_errors(): void
+    {
+        $response = $this->from(route('chat.index'))
+            ->post(route('chat.api.threads.groups.store'), []);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertRedirect(route('chat.index'));
+        $response->assertSessionHasErrors(['title', 'user_ids']);
+        $this->assertSame(0, ChatThread::query()->count());
+    }
+
+    public function test_ajax_create_group_still_returns_json_created_not_redirect(): void
+    {
+        $a = $this->makePeer('AjaxGrpA_');
+        $b = $this->makePeer('AjaxGrpB_');
+
+        $this->postJson(route('chat.api.threads.groups.store'), [
+            'title' => 'AJAX группа',
+            'user_ids' => [$a->id, $b->id],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('thread.is_group', true)
+            ->assertJsonPath('thread.peer_id', null)
+            ->assertJsonStructure(['ok', 'created', 'thread_id', 'thread']);
+    }
+
+    public function test_non_ajax_add_group_member_redirects_and_creates_participant(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $a = $this->makePeer('NonAjaxMemA_');
+        $b = $this->makePeer('NonAjaxMemB_');
+        $newbie = $this->makePeer('NonAjaxMemNew_');
+        $thread = $this->createGroupThreadForUsers([$admin->id, $a->id, $b->id], 'Натив состав');
+        $this->actingInPartner($admin);
+
+        $response = $this->from(route('chat.index'))
+            ->post(route('chat.api.threads.participants.store', $thread), [
+                'user_ids' => [$newbie->id],
+            ]);
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode(), 'Нативный POST не должен отдавать сырой JSON 200');
+        $response->assertRedirect(route('chat.index'));
+        $this->assertTrue(
+            ChatParticipant::query()->where('thread_id', $thread->id)->where('user_id', $newbie->id)->exists()
+        );
+    }
+
+    public function test_non_ajax_leave_group_redirects_and_removes_participant(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $a = $this->makePeer('NonAjaxLeaveA_');
+        $b = $this->makePeer('NonAjaxLeaveB_');
+        $thread = $this->createGroupThreadForUsers([$admin->id, $a->id, $b->id], 'Натив выход');
+        $this->actingInPartner($a);
+
+        $response = $this->from(route('chat.index'))
+            ->delete(route('chat.api.threads.participants.destroy', [$thread, $a]));
+
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
+        $response->assertRedirect(route('chat.index'));
+        $this->assertFalse(
+            ChatParticipant::query()->where('thread_id', $thread->id)->where('user_id', $a->id)->exists()
+        );
+    }
+
+    public function test_ajax_add_group_member_still_returns_json_not_redirect(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $a = $this->makePeer('AjaxMemA_');
+        $b = $this->makePeer('AjaxMemB_');
+        $newbie = $this->makePeer('AjaxMemNew_');
+        $thread = $this->createGroupThreadForUsers([$admin->id, $a->id, $b->id], 'AJAX состав');
+        $this->actingInPartner($admin);
+
+        $this->postJson(route('chat.api.threads.participants.store', $thread), [
+            'user_ids' => [$newbie->id],
+        ])
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('message', 'Участники добавлены.')
+            ->assertJsonPath('members_total', 4);
+    }
+
+    public function test_ajax_leave_group_still_returns_json_not_redirect(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+        $a = $this->makePeer('AjaxLeaveA_');
+        $b = $this->makePeer('AjaxLeaveB_');
+        $thread = $this->createGroupThreadForUsers([$admin->id, $a->id, $b->id], 'AJAX выход');
+        $this->actingInPartner($a);
+
+        $this->deleteJson(route('chat.api.threads.participants.destroy', [$thread, $a]))
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('left', true)
+            ->assertJsonPath('message', 'Вы покинули группу.');
     }
 }

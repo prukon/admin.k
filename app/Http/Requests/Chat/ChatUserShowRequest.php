@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Chat;
 
 use App\Models\User;
+use App\Services\Chat\ChatSupportIdentity;
 use App\Services\PartnerContext;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -23,11 +24,21 @@ class ChatUserShowRequest extends FormRequest
         }
 
         $partnerId = app(PartnerContext::class)->partnerId();
+        $support = app(ChatSupportIdentity::class);
+
+        if ((int) $peer->id === (int) $actor->id) {
+            return true;
+        }
+
+        if ($support->isCanonicalUserId((int) $peer->id)) {
+            return true;
+        }
+
         if (! $partnerId || (int) $peer->partner_id !== (int) $partnerId) {
             return false;
         }
 
-        return true;
+        return ! $support->isSupportUser($peer);
     }
 
     public function rules(): array
