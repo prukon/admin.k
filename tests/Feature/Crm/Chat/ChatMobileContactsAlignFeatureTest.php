@@ -274,7 +274,7 @@ final class ChatMobileContactsAlignFeatureTest extends ChatTestCase
         $peer = $this->makePeer('MethodAlign_');
         $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
 
-        foreach (['POST', 'PATCH', 'DELETE'] as $method) {
+        foreach (['POST', 'PATCH'] as $method) {
             $usersJson = $this->json($method, route('chat.api.users'));
             $this->assertNotSame(500, $usersJson->getStatusCode(), $method.' users JSON не 500');
             $this->assertNotSame(200, $usersJson->getStatusCode(), $method.' users не пустой 200');
@@ -295,5 +295,17 @@ final class ChatMobileContactsAlignFeatureTest extends ChatTestCase
             $this->assertNotSame(200, $showHtml->getStatusCode(), $method.' show HTML не пустой 200');
             $this->assertContains($showHtml->getStatusCode(), [404, 405], $method.' show HTML');
         }
+
+        $this->json('DELETE', route('chat.api.users'))->assertStatus(405);
+        $this->call('DELETE', route('chat.api.users'))->assertStatus(405);
+
+        $deleteJson = $this->json('DELETE', route('chat.api.threads.show', $thread));
+        $this->assertNotSame(500, $deleteJson->getStatusCode());
+        $deleteJson->assertForbidden();
+
+        $deleteHtml = $this->call('DELETE', route('chat.api.threads.show', $thread));
+        $this->assertNotSame(500, $deleteHtml->getStatusCode());
+        $this->assertNotSame(200, $deleteHtml->getStatusCode());
+        $deleteHtml->assertForbidden();
     }
 }

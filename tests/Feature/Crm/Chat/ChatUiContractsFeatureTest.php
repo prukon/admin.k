@@ -92,6 +92,9 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="addGroupMembersModal"', $html);
         $this->assertStringContainsString('id="addGroupMembersBtn"', $html);
         $this->assertStringContainsString('id="leaveGroupBtn"', $html);
+        $this->assertStringNotContainsString('id="deleteThreadBtn"', $html);
+        $this->assertStringNotContainsString('data-can-delete-thread="1"', $html);
+        $this->assertStringContainsString('data-can-delete-thread="0"', $html);
         $this->assertStringContainsString('id="addGroupMembersForm"', $html);
         $this->assertStringContainsString('id="addGroupMembersTeamFilter"', $html);
         $this->assertStringContainsString('id="addGroupMembersSearch"', $html);
@@ -186,7 +189,7 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertNotFalse($contactParentPos);
         $this->assertStringContainsString('align-items: flex-start', $css);
         $this->assertStringContainsString('.chat-li-unread', $css);
-        $this->assertStringContainsString('.chat-header-peer { min-width: 0; text-align: left; }', $css);
+        $this->assertStringContainsString('.chat-header-peer { min-width: 0; flex: 1 1 auto; text-align: left; }', $css);
         $this->assertStringContainsString('.chat-header-subtitle {', $css);
         $this->assertMatchesRegularExpression(
             '/\.chat-header-text\s*\{[^}]*text-align:\s*left/',
@@ -306,6 +309,67 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringNotContainsString('resources/js/chat.js', $layout);
     }
 
+    public function test_superadmin_sees_delete_thread_button_in_dialog_header(): void
+    {
+        $html = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="deleteThreadBtn"', $html);
+
+        $superadmin = $this->createUserWithRole('superadmin');
+        $this->actingInPartner($superadmin);
+        $saHtml = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="deleteThreadBtn"', $saHtml);
+        $this->assertStringContainsString('data-can-delete-thread="1"', $saHtml);
+        $this->assertStringContainsString('fa-trash', $saHtml);
+        $this->assertStringContainsString('id="threadDeleteError"', $saHtml);
+        $this->assertStringContainsString('data-error-for="thread"', $saHtml);
+        $this->assertStringNotContainsString('Удалить чат</button>', $saHtml);
+        $this->assertStringContainsString('id="confirmDeleteModal"', $saHtml);
+        $this->assertMatchesRegularExpression(
+            '/id="deleteThreadBtn"[^>]*style="display:none;"/',
+            $saHtml
+        );
+        $this->assertMatchesRegularExpression(
+            '/id="deleteThreadBtn"[^>]*title="Удалить чат"/',
+            $saHtml
+        );
+        $this->assertMatchesRegularExpression(
+            '/id="deleteThreadBtn"[^>]*aria-label="Удалить чат"/',
+            $saHtml
+        );
+        $peerPos = strpos($saHtml, 'id="threadPeerHit"');
+        $btnPos = strpos($saHtml, 'id="deleteThreadBtn"');
+        $this->assertNotFalse($peerPos);
+        $this->assertNotFalse($btnPos);
+        $this->assertLessThan($btnPos, $peerPos, 'Корзина справа от имени, не слева');
+
+        $blade = (string) file_get_contents(resource_path('views/chat/index.blade.php'));
+        $this->assertStringContainsString("@can('messages.threads.delete')", $blade);
+        $css = (string) file_get_contents(resource_path('css/chat.css'));
+        $this->assertStringContainsString('.chat-header-delete-wrap', $css);
+        $this->assertStringContainsString('.chat-header-delete {', $css);
+    }
+
+    public function test_granted_user_sees_trash_admin_and_trainer_without_grant_do_not(): void
+    {
+        $this->grantPermission($this->user, 'messages.threads.delete');
+        $granted = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringContainsString('id="deleteThreadBtn"', $granted);
+        $this->assertStringContainsString('data-can-delete-thread="1"', $granted);
+        $this->assertStringContainsString('id="threadDeleteError"', $granted);
+
+        $admin = $this->createUserWithRole('admin');
+        $this->actingInPartner($admin);
+        $adminHtml = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="deleteThreadBtn"', $adminHtml);
+        $this->assertStringContainsString('data-can-delete-thread="0"', $adminHtml);
+
+        $trainer = $this->createUserWithRole('trainer');
+        $this->actingInPartner($trainer);
+        $trainerHtml = $this->get(route('chat.index'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('id="deleteThreadBtn"', $trainerHtml);
+        $this->assertStringContainsString('data-can-delete-thread="0"', $trainerHtml);
+    }
+
     public function test_contacts_modal_lists_own_partner_teams_and_not_foreign(): void
     {
         $own = Team::factory()->create([
@@ -418,6 +482,8 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
             'Фокус в поле ввода — только после восстановления черновика'
         );
         $this->assertStringContainsString('setHeaderPeerClickable(!!currentPeerId || currentIsGroup)', $openThreadChunk);
+        $this->assertStringContainsString('currentTeamId = res.thread.team_id ? Number(res.thread.team_id) : null;', $openThreadChunk);
+        $this->assertStringContainsString('setDeleteThreadVisible();', $openThreadChunk);
         $this->assertStringContainsString("av.style.display = ''", $openThreadChunk);
         $this->assertStringContainsString('subscribeThread(currentThreadId)', $openThreadChunk);
         $this->assertStringContainsString('setUnreadBadge(res.unread_total)', $openThreadChunk);
@@ -537,6 +603,29 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('parent_full_name', $js);
         $this->assertStringContainsString('function openPeerCard(', $js);
         $this->assertStringContainsString('threadPeerHit', $js);
+        $this->assertStringContainsString('function confirmDeleteThread(', $js);
+        $this->assertStringContainsString('function submitDeleteThread(', $js);
+        $this->assertStringContainsString('function setDeleteThreadVisible(', $js);
+        $this->assertStringContainsString("fieldError(res.data, 'thread')", $js);
+        $this->assertStringContainsString("chatToast(res.data.message || 'Чат удалён.')", $js);
+        $this->assertStringContainsString("method: 'DELETE'", $js);
+        $this->assertStringContainsString('e.stopPropagation()', $js);
+        $bumpPos = strpos($js, 'function applyInboxBump(');
+        $this->assertNotFalse($bumpPos);
+        $bumpChunk = substr($js, $bumpPos, 900);
+        $this->assertStringContainsString('if (e.removed)', $bumpChunk);
+        $this->assertStringContainsString('closeCurrentThread()', $bumpChunk);
+        $clickPos = strpos($js, "deleteThreadBtn.addEventListener('click'");
+        $this->assertNotFalse($clickPos);
+        $clickChunk = substr($js, $clickPos, 280);
+        $this->assertStringContainsString('e.preventDefault()', $clickChunk);
+        $this->assertStringContainsString('e.stopPropagation()', $clickChunk);
+        $this->assertStringContainsString('confirmDeleteThread()', $clickChunk);
+        $submitPos = strpos($js, 'function submitDeleteThread(');
+        $this->assertNotFalse($submitPos);
+        $submitChunk = substr($js, $submitPos, 900);
+        $this->assertStringContainsString('headers(true)', $submitChunk);
+        $this->assertStringContainsString("method: 'DELETE'", $submitChunk);
         $this->assertStringContainsString('peerCardModal', $js);
         $this->assertStringContainsString('last_seen_label', $js);
         $this->assertStringContainsString("href=\"' + escapeHtml(href)", $js);

@@ -1134,6 +1134,7 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::get('/chat/api/users', [ChatApiController::class, 'users'])->name('chat.api.users');
         Route::get('/chat/api/users/{user}', [ChatApiController::class, 'showUser'])->whereNumber('user')->name('chat.api.users.show');
         Route::get('/chat/api/threads/{thread}', [ChatApiController::class, 'thread'])->whereNumber('thread')->name('chat.api.threads.show');
+        Route::delete('/chat/api/threads/{thread}', [ChatApiController::class, 'destroyThread'])->whereNumber('thread')->name('chat.api.threads.destroy');
         Route::get('/chat/api/threads/{thread}/participants', [ChatApiController::class, 'participants'])->whereNumber('thread')->name('chat.api.threads.participants.index');
         Route::post('/chat/api/threads/{thread}/participants', [ChatApiController::class, 'storeParticipants'])->whereNumber('thread')->name('chat.api.threads.participants.store');
         Route::delete('/chat/api/threads/{thread}/participants/{user}', [ChatApiController::class, 'destroyParticipant'])->whereNumber('thread')->whereNumber('user')->name('chat.api.threads.participants.destroy');

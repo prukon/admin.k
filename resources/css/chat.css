@@ -131,10 +131,25 @@ html { touch-action: pan-x pan-y; }
 .group-pick-check svg { width: 10px; height: 10px; display: block; }
 .chat-field-error { min-height: 1.2rem; font-size: .85rem; }
 .chat-empty { color: #6c757d; text-align: center; padding: 2rem 1rem; }
-.chat-header-peer { min-width: 0; text-align: left; }
+.chat-header-peer { min-width: 0; flex: 1 1 auto; text-align: left; }
 .chat-header-peer:not(.is-idle) { cursor: pointer; }
 .chat-header-peer.is-idle { cursor: default; }
 .chat-header-text { min-width: 0; text-align: left; }
+.chat-header-delete-wrap {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.chat-header-delete {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+#threadDeleteError { min-height: 0; }
 .chat-header-text #threadTitle {
     overflow: hidden;
     text-overflow: ellipsis;

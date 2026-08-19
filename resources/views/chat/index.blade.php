@@ -12,7 +12,8 @@
          data-store-thread-url="{{ route('chat.api.threads.store') }}"
          data-store-group-url="{{ route('chat.api.threads.groups.store') }}"
          data-users-url="{{ route('chat.api.users') }}"
-         data-unread-url="{{ route('chat.api.unread') }}">
+         data-unread-url="{{ route('chat.api.unread') }}"
+         data-can-delete-thread="{{ auth()->user()?->can('messages.threads.delete') ? '1' : '0' }}">
         <div class="row g-0 g-lg-3 chat-desktop-row">
             <div class="col-12 col-lg-4 chat-list-col">
                 <div class="card h-100">
@@ -37,6 +38,14 @@
                                 <div id="threadSubtitle" class="chat-header-subtitle" style="display:none;"></div>
                             </div>
                         </div>
+                        @can('messages.threads.delete')
+                            <div class="chat-header-delete-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-danger chat-header-delete" id="deleteThreadBtn" title="Удалить чат" aria-label="Удалить чат" style="display:none;">
+                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                </button>
+                                <div class="text-danger chat-field-error" id="threadDeleteError" data-error-for="thread"></div>
+                            </div>
+                        @endcan
                     </div>
                     <div class="card-body dialog-bg p-0 d-flex flex-column" style="height:65vh;">
                         <div id="messagesBox" class="p-3 flex-grow-1 overflow-auto">

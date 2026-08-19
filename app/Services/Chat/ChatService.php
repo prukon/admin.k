@@ -476,6 +476,45 @@ class ChatService
         ];
     }
 
+    /**
+     * Soft-delete треда, всех участников и сообщений. Авто-чат учебной группы не трогаем.
+     *
+     * @return array<string, mixed>
+     */
+    public function deleteThread(ChatThread $thread, User $actor): array
+    {
+        $threadId = (int) $thread->id;
+
+        $participantIds = DB::transaction(function () use ($thread, $threadId): array {
+            $ids = ChatParticipant::query()
+                ->where('thread_id', $threadId)
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $thread->forceFill(['last_message_id' => null])->save();
+            ChatMessage::query()->where('thread_id', $threadId)->delete();
+            ChatParticipant::query()->where('thread_id', $threadId)->delete();
+            $thread->delete();
+
+            return $ids;
+        });
+
+        foreach ($participantIds as $userId) {
+            $this->safeBroadcast(new InboxBump($userId, [
+                'thread_id' => $threadId,
+                'removed' => true,
+                'unread_total' => $this->unreadTotal($userId),
+            ]));
+        }
+
+        return [
+            'ok' => true,
+            'message' => 'Чат удалён.',
+            'thread_id' => $threadId,
+        ];
+    }
+
     public function groupMembersCount(ChatThread $thread): int
     {
         return (int) ChatParticipant::query()
@@ -896,6 +935,7 @@ class ChatService
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
             'is_group' => $this->isGroupThread($thread),
+            'team_id' => $this->threadTeamId($thread),
             'last_message' => $last ? $this->preview((string) $last->body) : null,
             'last_message_time' => $last?->created_at?->toDateTimeString()
                 ?? $thread->updated_at?->toDateTimeString(),
@@ -925,6 +965,7 @@ class ChatService
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
             'is_group' => $isGroup,
+            'team_id' => $this->threadTeamId($thread),
             'members_total' => $membersTotal,
             'peer_presence_label' => $presenceLabel,
             'header_subtitle' => $isGroup
@@ -1113,6 +1154,15 @@ class ChatService
         }
 
         return $has;
+    }
+
+    private function threadTeamId(ChatThread $thread): ?int
+    {
+        if (! $this->hasTeamIdColumn() || ! $thread->team_id) {
+            return null;
+        }
+
+        return (int) $thread->team_id;
     }
 
     private function hasIsGroupColumn(): bool

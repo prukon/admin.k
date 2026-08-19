@@ -79,6 +79,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('chat-private-thread-identity-index', $chunk);
         $this->assertStringContainsString('ChatPrivateThreadIdentityFeatureTest', $chunk);
         $this->assertStringContainsString('ChatPrivateThreadIdentityUxFeatureTest', $chunk);
+        $this->assertStringContainsString('chat-thread-delete-index', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteFeatureTest', $chunk);
+        $this->assertStringContainsString('messages.threads.delete', $chunk);
         $this->assertStringNotContainsString('красный бейдж', $chunk);
         $this->assertStringNotContainsString("wsPath: '/app'", str_replace(
             "<b>без</b> <code>wsPath: '/app'</code>",
@@ -196,6 +199,15 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatPartnerScopeFullAccessFeatureTest', $html);
         $this->assertStringContainsString('ChatPrivateThreadIdentityFeatureTest', $html);
         $this->assertStringContainsString('ChatPrivateThreadIdentityUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatThreadDeleteFeatureTest', $html);
+        $this->assertStringContainsString('ChatThreadDeleteFullAccessFeatureTest', $html);
+        $this->assertStringContainsString('ChatThreadDeleteNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('ChatThreadDeleteAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('ChatThreadDeleteUxFeatureTest', $html);
+        $this->assertStringContainsString('messages.threads.delete', $html);
+        $this->assertStringContainsString('chat.api.threads.destroy', $html);
+        $this->assertStringContainsString('deleteThreadBtn', $html);
+        $this->assertStringContainsString('/doc#chat-thread-delete-index', $html);
         $this->assertStringContainsString('ChatUnreadCounterFeatureTest', $html);
         $this->assertStringContainsString('presence/ping', $html);
         $this->assertStringContainsString('last_seen_at', $html);
@@ -360,6 +372,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('/doc#chat-group-list-title-index', $index);
         $this->assertStringContainsString('/doc#chat-group-members-index', $index);
         $this->assertStringContainsString('/doc#chat-header-subtitle-index', $index);
+        $this->assertStringContainsString('/doc#chat-thread-delete-index', $index);
+        $this->assertStringContainsString('скрытое messages.threads.delete', $controller);
         $this->assertStringContainsString('имя группы в списке не', $controller);
         $this->assertStringContainsString('добавить/удалить — admin/superadmin', $controller);
         $this->assertStringContainsString('0 участников soft-delete кроме team_id', $controller);
@@ -876,6 +890,40 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringNotContainsString('в чужих глазах', $chunk);
     }
 
+    public function test_doc_index_announces_chat_thread_delete(): void
+    {
+        $html = $this->docFile('index.html');
+
+        $this->assertStringContainsString('id="chat-thread-delete-index"', $html);
+        $start = strpos($html, 'id="chat-thread-delete-index"');
+        $this->assertNotFalse($start);
+        $end = strpos($html, 'id="chat-mobile-inbox-split-index"');
+        $this->assertNotFalse($end);
+        $this->assertGreaterThan($start, $end);
+        $chunk = substr($html, $start, $end - $start);
+
+        $this->assertStringContainsString('messages.threads.delete', $chunk);
+        $this->assertStringContainsString('is_visible=0', $chunk);
+        $this->assertStringContainsString('Gate::before', $chunk);
+        $this->assertStringContainsString('#deleteThreadBtn', $chunk);
+        $this->assertStringContainsString('fa-trash', $chunk);
+        $this->assertStringContainsString('#confirmDeleteModal', $chunk);
+        $this->assertStringContainsString('errors.thread', $chunk);
+        $this->assertStringContainsString('DELETE /chat/api/threads/{thread}', $chunk);
+        $this->assertStringContainsString('Нельзя удалить чат учебной группы.', $chunk);
+        $this->assertStringContainsString('DestroyChatThreadRequest', $chunk);
+        $this->assertStringContainsString('ChatService::deleteThread', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteFullAccessFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteNonAjaxSafetyNetFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteAjaxContractFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatThreadDeleteUxFeatureTest', $chunk);
+        $this->assertStringContainsString('removed: true', $chunk);
+        $this->assertStringContainsString('PUT/POST/PATCH 405', $chunk);
+        $this->assertStringContainsString('GET того же URL открывает диалог', $chunk);
+        $this->assertStringNotContainsString('Hard-delete из UI', $chunk);
+    }
+
     public function test_doc_index_announces_chat_private_thread_identity(): void
     {
         $html = $this->docFile('index.html');
@@ -1164,6 +1212,9 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('User::observe(TeamGroupChatUserObserver::class)', $provider);
         $this->assertStringContainsString('removeUserFromAllThreads', $chat);
         $this->assertStringContainsString('$isTeamChat', $chat);
+        $this->assertStringContainsString('function deleteThread', $chat);
+        $this->assertStringContainsString('ChatThreadDeleteFeatureTest', $docs);
+        $this->assertStringContainsString('chat.api.threads.destroy', $docs);
     }
 
     public function test_live_code_uses_vite_page_only_chat_assets(): void

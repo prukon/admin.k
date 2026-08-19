@@ -33,6 +33,7 @@
     let currentThreadId = null;
     let currentPeerId = null;
     let currentIsGroup = false;
+    let currentTeamId = null;
     let lastMessageId = null;
     let loadingOlder = false;
     let hasOlder = true;
@@ -548,6 +549,7 @@
                 }
                 currentThreadId = res.thread.id;
                 currentIsGroup = !!res.thread.is_group;
+                currentTeamId = res.thread.team_id ? Number(res.thread.team_id) : null;
                 currentPeerId = res.thread.peer_id ? Number(res.thread.peer_id) : null;
                 if (isMobile) {
                     const app = document.getElementById('chatApp');
@@ -561,6 +563,7 @@
                     }
                 }
                 setHeaderPeerClickable(!!currentPeerId || currentIsGroup);
+                setDeleteThreadVisible();
                 hasOlder = (res.messages || []).length >= 40;
                 document.getElementById('threadTitle').textContent = threadListTitle(res.thread);
                 if (typeof setThreadSubtitle === 'function') {
@@ -958,9 +961,11 @@
         currentThreadId = null;
         currentPeerId = null;
         currentIsGroup = false;
+        currentTeamId = null;
         lastMessageId = null;
         hasOlder = false;
         setHeaderPeerClickable(false);
+        setDeleteThreadVisible();
         const title = document.getElementById('threadTitle');
         if (title) {
             title.textContent = 'Выберите диалог';
@@ -1641,6 +1646,81 @@
         }
     }
 
+    function canDeleteThread() {
+        return !!(root && root.getAttribute('data-can-delete-thread') === '1');
+    }
+
+    function showThreadDeleteError(text) {
+        const el = document.getElementById('threadDeleteError');
+        if (!el) {
+            return;
+        }
+        el.textContent = text ? String(text) : '';
+    }
+
+    function setDeleteThreadVisible() {
+        const btn = document.getElementById('deleteThreadBtn');
+        if (!btn) {
+            return;
+        }
+        const allow = canDeleteThread() && currentThreadId && !currentTeamId;
+        btn.style.display = allow ? '' : 'none';
+        if (!allow) {
+            showThreadDeleteError('');
+        }
+    }
+
+    function confirmDeleteThread() {
+        if (!currentThreadId || currentTeamId || !canDeleteThread()) {
+            return;
+        }
+        if (typeof showConfirmDeleteModal !== 'function') {
+            return;
+        }
+        showConfirmDeleteModal(
+            'Удалить чат',
+            'Вы уверены, что хотите удалить этот чат? Сообщения пропадут у всех участников.',
+            function () {
+                const confirmEl = document.getElementById('confirmDeleteModal');
+                if (window.jQuery) {
+                    window.jQuery(confirmEl).off('hidden.bs.modal.return');
+                }
+                submitDeleteThread();
+            }
+        );
+    }
+
+    function submitDeleteThread() {
+        if (!currentThreadId || currentTeamId || !canDeleteThread()) {
+            return;
+        }
+        const threadId = currentThreadId;
+        showThreadDeleteError('');
+        fetch(threadUrl(threadId), {
+            method: 'DELETE',
+            headers: headers(true),
+            credentials: 'same-origin'
+        })
+            .then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            })
+            .then(function (res) {
+                if (!res.ok) {
+                    showThreadDeleteError(fieldError(res.data, 'thread') || res.data.message || 'Не удалось удалить чат.');
+                    return;
+                }
+                threadsCache = threadsCache.filter(function (t) {
+                    return String(t.id) !== String(threadId);
+                });
+                renderThreads(applyThreadFilter(threadsCache));
+                closeCurrentThread();
+                chatToast(res.data.message || 'Чат удалён.');
+            })
+            .catch(function () {
+                showThreadDeleteError('Не удалось удалить чат.');
+            });
+    }
+
     function setGroupManageVisible(on) {
         const btn = document.getElementById('addGroupMembersBtn');
         if (btn) {
@@ -2101,6 +2181,15 @@
                 e.preventDefault();
                 headerPeerActivate();
             }
+        });
+    }
+
+    const deleteThreadBtn = document.getElementById('deleteThreadBtn');
+    if (deleteThreadBtn) {
+        deleteThreadBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            confirmDeleteThread();
         });
     }
 

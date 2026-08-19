@@ -76,7 +76,7 @@ final class ChatHeaderSubtitleFeatureTest extends ChatTestCase
         $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
         $url = route('chat.api.threads.show', $thread);
 
-        foreach (['POST', 'PATCH', 'DELETE'] as $method) {
+        foreach (['POST', 'PATCH'] as $method) {
             $json = $this->json($method, $url);
             $this->assertNotSame(500, $json->getStatusCode(), $method.' JSON не 500');
             $this->assertNotSame(200, $json->getStatusCode(), $method.' не пустой 200');
@@ -87,6 +87,16 @@ final class ChatHeaderSubtitleFeatureTest extends ChatTestCase
             $this->assertNotSame(200, $html->getStatusCode(), $method.' HTML не пустой 200');
             $this->assertContains($html->getStatusCode(), [404, 405], $method.' HTML 404/405');
         }
+
+        $deleteJson = $this->json('DELETE', $url);
+        $this->assertNotSame(500, $deleteJson->getStatusCode());
+        $deleteJson->assertForbidden();
+        $this->assertNotNull(ChatThread::query()->find($thread->id));
+
+        $deleteHtml = $this->call('DELETE', $url);
+        $this->assertNotSame(500, $deleteHtml->getStatusCode());
+        $this->assertNotSame(200, $deleteHtml->getStatusCode());
+        $deleteHtml->assertForbidden();
     }
 
     public function test_native_open_dialog_returns_json_header_not_empty_page(): void

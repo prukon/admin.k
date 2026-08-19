@@ -40,7 +40,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
     private function expectedPermissionCountsByGroupSlug(): array
     {
         return [
-            'mainMenu'        => 17,
+            'mainMenu'        => 18,
             'reports'         => 9,
             'schedule'        => 6,
             'directories'     => 8,
@@ -97,6 +97,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'blog.view',
                 'documentations.view',
                 'messages.view',
+                'messages.threads.delete',
                 'partner.view',
             ],
             'reports' => [

@@ -28,6 +28,43 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="chat-thread-delete-index">Чат: удаление диалога из шапки (2026‑08)</h2>
+  <div class="note">
+    Скрытое право <code>messages.threads.delete</code> (группа <code>mainMenu</code>,
+    <code>is_visible=0</code>, <b>не</b> в базовых ролях). Superadmin видит корзину
+    в шапке открытого диалога через <code>Gate::before</code> / <code>@can</code>,
+    остальным кнопки нет. Это не «покинуть группу» и не авто-чат учебной группы.
+    <br><br>
+    1) <b>Кнопка.</b> Справа в шапке — только иконка корзины (<code>#deleteThreadBtn</code>,
+    <code>fa-trash</code>), без подписи. Пока диалог не выбран — скрыта. У чата с
+    <code>threads.team_id</code> тоже скрыта. Клик открывает
+    <code>#confirmDeleteModal</code> («Удалить чат»). Ошибка — под кнопкой
+    <code>#threadDeleteError</code> / <code>errors.thread</code>.
+    <br>
+    2) <b>API.</b> <code>DELETE /chat/api/threads/{thread}</code>
+    (<code>chat.api.threads.destroy</code>): <code>messages.view</code> +
+    <code>messages.threads.delete</code> + живой участник. AJAX 200
+    <code>ok</code> + <code>message</code> «Чат удалён.»; без XHR — 302 на
+    <code>/chat</code>, не сырой JSON. Soft-delete треда, участников и сообщений.
+    Повторный клик по контакту создаёт <b>новый</b> 1-на-1. Авто-чат учебной группы —
+    422 «Нельзя удалить чат учебной группы.» Гость 302/401, без права / не участник
+    403, нет треда 404, PUT/POST/PATCH 405. GET того же URL открывает диалог
+    и <b>не</b> удаляет чат. Сокет <code>inbox.bump</code> с <code>removed: true</code>
+    всем живым участникам (открытый диалог закрывается). Успех в UI — строка пропадает,
+    диалог закрывается, тост, корзина скрывается.
+    <br>
+    3) <b>Не в этом срезе.</b> Hard-delete, удаление авто-чата учебной группы,
+    кнопка у ученика без выдачи права.
+    <br><br>
+    Код: <code>DestroyChatThreadRequest</code>, <code>ChatService::deleteThread</code>.
+    Подробно — <a href="/docs/documentation/chat">chat</a>.
+    Тесты: <code>ChatThreadDeleteFeatureTest</code>,
+    <code>ChatThreadDeleteFullAccessFeatureTest</code>,
+    <code>ChatThreadDeleteNonAjaxSafetyNetFeatureTest</code>,
+    <code>ChatThreadDeleteAjaxContractFeatureTest</code>,
+    <code>ChatThreadDeleteUxFeatureTest</code>.
+  </div>
+
   <h2 id="chat-mobile-inbox-split-index">Чат: на телефоне «Личные» и «Чаты» раздельно (2026‑08)</h2>
   <div class="note">
     На узком экране (&lt; 992px, медиа <code>max-width: 991.98px</code>) вкладка
@@ -1372,6 +1409,9 @@
     в базовых ролях <code>user</code> / <code>admin</code> / <code>trainer</code>.
     Без права — 403 на страницу и API, пункта в меню нет. Гость — редирект / 401 JSON.
     Superadmin — через <code>Gate::before</code>.
+    Скрытое <code>messages.threads.delete</code> (<code>is_visible=0</code>, не в базовых ролях) —
+    корзина в шапке и удаление диалога
+    (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
     <br>
     2) <b>Страница.</b> Слева список диалогов (непрочитанные сверху). Кнопка <b>«Контакты»</b>
     открывает модалку стандартной ширины Bootstrap (не на весь экран, список до 60vh / 520px).
@@ -1403,7 +1443,8 @@
     <code>resources/js/chat.js</code> (только на <code>/chat</code>, не в общий бандл admin2).
     Ошибки — под полями: <code>errors.body</code>, <code>errors.user_id</code>,
     <code>errors.title</code> / <code>errors.user_ids</code> у создания группы,
-    в модалке контактов <code>errors.team_id</code> под селектом группы.
+    в модалке контактов <code>errors.team_id</code> под селектом группы,
+    удаление чата — <code>errors.thread</code> под корзиной.
     <br>
     3) <b>Бейдж сайдбара.</b> Класс <code>badge badge-info</code> (как у «Учетная запись»),
     не красный. Скрыт при 0, иначе точное число непрочитанных.
@@ -1490,6 +1531,12 @@
     <code>ChatSupportIdentityAjaxContractFeatureTest</code> /
     <code>ChatSupportIdentityUxFeatureTest</code>
     (<a href="/doc#chat-support-identity-index">служба поддержки</a>),
+    <code>ChatThreadDeleteFeatureTest</code> /
+    <code>ChatThreadDeleteFullAccessFeatureTest</code> /
+    <code>ChatThreadDeleteNonAjaxSafetyNetFeatureTest</code> /
+    <code>ChatThreadDeleteAjaxContractFeatureTest</code> /
+    <code>ChatThreadDeleteUxFeatureTest</code>
+    (<a href="/doc#chat-thread-delete-index">удаление чата</a>),
     <code>ChatTeamGroupThreadFeatureTest</code> /
     <code>ChatTeamGroupThreadFullAccessFeatureTest</code> /
     <code>ChatTeamGroupThreadNonAjaxSafetyNetFeatureTest</code> /

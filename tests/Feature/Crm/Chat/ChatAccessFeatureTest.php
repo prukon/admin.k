@@ -35,6 +35,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['GET', 'chat.api.threads.participants.index', ['thread' => $threadId]],
             ['POST', 'chat.api.threads.participants.store', ['thread' => $threadId, 'user_ids' => [1]]],
             ['DELETE', 'chat.api.threads.participants.destroy', ['thread' => $threadId, 'user' => $peerId]],
+            ['DELETE', 'chat.api.threads.destroy', ['thread' => $threadId]],
         ];
     }
 
@@ -146,6 +147,11 @@ final class ChatAccessFeatureTest extends ChatTestCase
         $studentKick = $this->deleteJson(route('chat.api.threads.participants.destroy', [$groupId, $peer]));
         $this->assertNotSame(500, $studentKick->getStatusCode());
         $studentKick->assertForbidden();
+
+        $studentDelete = $this->deleteJson(route('chat.api.threads.destroy', $threadId));
+        $this->assertNotSame(500, $studentDelete->getStatusCode());
+        $studentDelete->assertForbidden();
+        $this->assertNotNull(\App\Models\ChatThread::query()->find($threadId));
     }
 
     public function test_guest_cannot_read_reverb_status(): void

@@ -39,6 +39,7 @@
     · состав группы: <a href="/doc#chat-group-members-index">/doc#chat-group-members-index</a>
     · чат учебной группы: <a href="/doc#chat-team-groups-index">/doc#chat-team-groups-index</a>
     · служба поддержки: <a href="/doc#chat-support-identity-index">/doc#chat-support-identity-index</a>
+    · удаление чата: <a href="/doc#chat-thread-delete-index">/doc#chat-thread-delete-index</a>
     · идентичность 1-на-1: <a href="/doc#chat-private-thread-identity-index">/doc#chat-private-thread-identity-index</a>
     · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
     · мобильная панель: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>
@@ -115,6 +116,15 @@
         <td>Пункт «Чат», страница <code>/chat</code>, API <code>/chat/api/*</code> кроме
           <code>reverb-status</code>. Ping <code>/presence/ping</code> — без этого права
           (любой залогиненный).</td>
+      </tr>
+      <tr>
+        <td><code>messages.threads.delete</code></td>
+        <td><code>is_visible=0</code>, группа <code>mainMenu</code></td>
+        <td>никому, не в базовых ролях</td>
+        <td>Кнопка-корзина в шапке открытого диалога и
+          <code>DELETE /chat/api/threads/{thread}</code>. Superadmin видит через
+          <code>Gate::before</code> / <code>@can</code>. Авто-чат учебной группы
+          (<code>threads.team_id</code>) этим правом не удаляется.</td>
       </tr>
     </tbody>
   </table>
@@ -206,9 +216,15 @@
       Пустые поля в карточке — «-».
       Клик по шапке <b>группы</b> открывает модалку состава
       (<code>#groupCardModal</code>, <a href="#groups">§2.4</a>).
+      Справа в шапке открытого диалога — корзина <code>#deleteThreadBtn</code>
+      (<code>fa-trash</code>) при <code>can(messages.threads.delete)</code>
+      (superadmin через <code>Gate::before</code>). Пока диалог не выбран и у чата учебной группы
+      (<code>threads.team_id</code>) кнопки нет. Клик — <code>#confirmDeleteModal</code>
+      («Удалить чат»). Успех AJAX: строка исчезает из списка, диалог закрывается, тост
+      «Чат удалён.». Ошибка — <code>#threadDeleteError</code> / <code>errors.thread</code>.
       Ошибки — под полями
       (<code>#msgBodyError</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
-      в карточке группы <code>#groupCardError</code>).</li>
+      в карточке группы <code>#groupCardError</code>, удаление чата <code>#threadDeleteError</code>).</li>
     <li>История вверх: скролл (в т.ч. свайп) внутри <code>#messagesBox</code>.
       Подгрузка <code>GET .../messages?before_id=</code> начинается заранее
       (<code>maybeLoadOlder</code>, порог ≈ 1.5 экрана, минимум 480px), а не у самого верха.
@@ -335,7 +351,8 @@
       Карточка <code>last_seen_label</code> — «онлайн» / <code>d.m.Y H:i</code> / «-», не эта фраза.</li>
     <li><b>API.</b> Show, create group/private, add участников, GET состава —
       <code>thread.header_subtitle</code>. Нативный GET show — JSON, не страница.
-      Гость 302/401, без права / не участник 403. POST/PATCH/DELETE show → 404/405.</li>
+      Гость 302/401, без права / не участник 403. POST/PATCH show → 404/405.
+      DELETE show — удаление чата (<code>messages.threads.delete</code>), без права 403.</li>
   </ol>
 
   <h2 id="draft">2.2) Черновик неотправленного текста</h2>
@@ -742,7 +759,8 @@
       <tr><td>POST</td><td><code>/presence/ping</code></td><td><code>presence.ping</code></td><td>только <code>auth</code>+<code>2fa</code>, без <code>messages.view</code>; JSON <code>ok</code>; пишет <code>users.last_seen_at</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/users</code></td><td><code>chat.api.users</code></td><td>массив контактов текущей школы + одна «Служба поддержки» (канонический superadmin, без <code>OR</code> по всем SA); <code>?q=</code> — фамилия/имя ученика, email, фамилия/имя родителя; для поддержки — только подпись «Служба поддержки»; <code>?team_id=</code> — пусто / <code>none</code> / id группы (только ученики; поддержка не в конкретной группе); <code>?exclude_thread_id=</code> — скрыть уже состоящих в этой группе (участник группы)</td></tr>
       <tr><td>GET</td><td><code>/chat/api/users/{user}</code></td><td><code>chat.api.users.show</code></td><td>карточка текущей школы, в т.ч. себя (вкладка «Аккаунт»); канонический superadmin — «Служба поддержки» даже при <code>partner_id = null</code>; лишний superadmin 403; чужой партнёр 403; без <code>messages.view</code> — 403; POST/PATCH/DELETE → 405</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным; у группы <code>members_total</code> + <code>header_subtitle</code> («N участник/участника/участников»); у лички <code>peer_presence_label</code> / <code>header_subtitle</code> («онлайн» / «был(а) в сети…»); нативный GET — JSON, не HTML; POST/PATCH/DELETE → 404/405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.show</code></td><td>заголовок + последние 40 сообщений; помечает прочитанным; у группы <code>members_total</code> + <code>header_subtitle</code> («N участник/участника/участников»); у лички <code>peer_presence_label</code> / <code>header_subtitle</code> («онлайн» / «был(а) в сети…»); JSON <code>team_id</code> (null у ручных); нативный GET — JSON, не HTML; POST/PATCH → 404/405</td></tr>
+      <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}</code></td><td><code>chat.api.threads.destroy</code></td><td><code>messages.view</code> + <code>messages.threads.delete</code> + живой участник; soft-delete треда, участников и сообщений; AJAX JSON <code>ok</code>+<code>message</code> «Чат удалён.»; иначе 302 на <code>/chat</code>; авто-чат <code>threads.team_id</code> — 422 <code>errors.thread</code> «Нельзя удалить чат учебной группы.»; без права / не участник 403; нет треда 404; гость 302/401; PUT → 405; повторный клик по контакту создаёт новый 1-на-1</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.index</code></td><td>карточка группы + порция участников (15, курсор <code>after_user_id</code>); <code>thread.header_subtitle</code> / <code>members_total</code>; не группа / не участник 403; <code>after_user_id=0</code> — JSON 422 <code>errors.after_user_id</code>, нативный GET 302</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.store</code></td><td>добавить; поле <code>user_ids</code> (min 1); только admin/superadmin; AJAX JSON, иначе 302; 422 под <code>user_ids</code>; ученик/тренер 403</td></tr>
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/participants/{user}</code></td><td><code>chat.api.threads.participants.destroy</code></td><td>себя — любой участник (покинуть); другого — только admin; AJAX JSON <code>ok</code>+<code>message</code>, иначе 302; 0 участников — soft-delete треда, кроме <code>threads.team_id</code>; GET/PATCH → 404/405</td></tr>
@@ -785,7 +803,8 @@
       <code>UserPresence::dialogStatusLabel</code> (подпись лички в шапке),
       <code>TeamGroupChatService</code> (чаты учебных групп),
       <code>TeamGroupChatUserObserver</code>. Контроллер тонкий:
-      <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>.</li>
+      <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>
+      (<code>DestroyChatThreadRequest</code> — удаление чата).</li>
     <li>Контакты: <code>users.partner_id = current_partner</code>, <code>is_enabled=1</code>, без себя.
       В карточке <code>team_title</code> — группы ученика через <code>UserTeamQuery</code>
       (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
@@ -872,7 +891,8 @@
       inbox без этих полей, <code>InboxBump</code> несёт галочки/онлайн, soft-delete родителя, карточка отключённого/себя,
       нативный GET карточки JSON, ping неверным методом → 404/405, карточка неверным методом → 405.</li>
     <li><code>ChatHeaderSubtitleFeatureTest</code> — шапка открытого диалога: гость 302/401, без <code>messages.view</code> и чужой тред 403,
-      нет треда 404, POST/PATCH/DELETE show → 404/405, нативный GET — JSON шапки (не пустая страница),
+      нет треда 404, POST/PATCH show → 404/405, DELETE без <code>messages.threads.delete</code> → 403 (тред жив),
+      нативный GET — JSON шапки (не пустая страница),
       личка: онлайн / 2–5 мин / абсолютная дата / пусто если не пинговал,
       группа: «N участник/участника/участников» (1/2/5/11) даже если участники онлайн, soft-delete не в счётчике,
       inbox без <code>header_subtitle</code>, AJAX create group/private несёт поле,
@@ -985,6 +1005,25 @@
       конкретная группа не навязывает поддержку; клик → <code>startDialog</code>
       с каноническим id; fallback без <code>role_label</code> показал бы
       <code>role_name</code>.</li>
+    <li><code>ChatThreadDeleteFeatureTest</code> — soft-delete лички и ручной группы, inbox пуст
+      у обоих участников, повторный клик по контакту создаёт новый 1-на-1, авто-чат
+      <code>team_id</code> 422 <code>errors.thread</code> (и у superadmin), без права / не участник 403,
+      повторный DELETE 404, открыть удалённый — 404, <code>inbox.bump removed</code>.</li>
+    <li><code>ChatThreadDeleteFullAccessFeatureTest</code> — гость 302/401, без
+      <code>messages.view</code> 403, со <code>messages.view</code> без delete 403 и тред жив,
+      superadmin 200, admin/trainer с выдачей права 200, PUT/POST/PATCH 405,
+      GET show не удаляет чат.</li>
+    <li><code>ChatThreadDeleteNonAjaxSafetyNetFeatureTest</code> — нативный DELETE 302 на
+      <code>/chat</code> и soft-delete, team-чат 302 <code>errors.thread</code> без удаления,
+      нативный GET не удаляет, POST/PATCH не сырой JSON 200.</li>
+    <li><code>ChatThreadDeleteAjaxContractFeatureTest</code> — JSON 200 <code>ok</code>+<code>message</code>,
+      422 под <code>thread</code> без <code>ok</code>, show несёт <code>team_id</code> (личка null,
+      учебная группа — id), 403 без права.</li>
+    <li><code>ChatThreadDeleteUxFeatureTest</code> — корзина только при праве и без
+      <code>team_id</code> (открытие учебной группы скрывает, личка/ручная группа снова показывает;
+      idle / team / без права не открывают модалку), модалка, тост, ошибка под
+      <code>#threadDeleteError</code>, успех скрывает корзину, <code>inbox.bump removed</code>
+      закрывает открытый диалог без upsert, fetch DELETE + JSON-заголовки.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST группы 302+запись, AJAX 201 JSON не редирект,
       нативный повтор 1-на-1 (в т.ч. после soft-delete собеседника) 302 без второго треда.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска и фильтра групп контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin при включённом флаге, мобильная оболочка (<code>chat-immersive</code>, <code>#chatMobileNav</code>, локальный FA, кнопка «Создать группу»), оба пути <code>renderContacts</code> / <code>renderGroupMembers</code> с <code>.contact-parent</code>.</li>

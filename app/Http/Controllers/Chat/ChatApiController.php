@@ -9,6 +9,7 @@ use App\Http\Requests\Chat\ChatMessagesIndexRequest;
 use App\Http\Requests\Chat\ChatParticipantsIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
 use App\Http\Requests\Chat\ChatUserShowRequest;
+use App\Http\Requests\Chat\DestroyChatThreadRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
 use App\Http\Requests\Chat\SaveChatDraftRequest;
@@ -228,6 +229,17 @@ class ChatApiController extends AdminBaseController
         }
 
         return redirect()->route('chat.index')->with('status', (string) ($payload['message'] ?? 'Готово.'));
+    }
+
+    public function destroyThread(DestroyChatThreadRequest $request, ChatThread $thread): JsonResponse|RedirectResponse
+    {
+        $payload = $this->chat->deleteThread($thread, $this->currentUser());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', (string) ($payload['message'] ?? 'Чат удалён.'));
     }
 
     public function markRead(Request $request, ChatThread $thread): JsonResponse|RedirectResponse

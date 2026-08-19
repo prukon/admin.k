@@ -526,6 +526,17 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("fieldError(res.data, 'user_id')", $content);
         $this->assertStringContainsString("fieldError(res.data, 'user_ids')", $content);
         $this->assertStringContainsString("fieldError(res.data, 'title')", $content);
+        $this->assertStringContainsString("fieldError(res.data, 'thread')", $content);
+        $this->assertStringContainsString('function confirmDeleteThread(', $content);
+        $this->assertStringContainsString('function submitDeleteThread(', $content);
+        $this->assertStringContainsString('function setDeleteThreadVisible(', $content);
+        $this->assertStringContainsString("chatToast(res.data.message || 'Чат удалён.')", $content);
+        $this->assertStringContainsString('headers(true)', $content);
+        $this->assertStringContainsString('e.stopPropagation()', $content);
+        $this->assertStringContainsString('if (e.removed)', $content);
+        $this->assertStringContainsString('currentTeamId = res.thread.team_id ? Number(res.thread.team_id) : null;', $content);
+        $this->assertStringContainsString('setDeleteThreadVisible();', $content);
+        $this->assertStringContainsString('showConfirmDeleteModal(', $content);
         $this->assertStringContainsString('function openCreateGroupWizard(', $content);
         $this->assertStringContainsString('function submitCreateGroup(', $content);
         $this->assertStringContainsString('function resetCreateGroupWizard(', $content);

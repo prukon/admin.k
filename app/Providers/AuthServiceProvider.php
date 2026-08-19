@@ -391,6 +391,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('messages.view');
         });
 
+        // Удаление чата (шапка диалога). Скрытое, не в базовых ролях.
+        // Superadmin проходит Gate::before.
+        Gate::define('messages.threads.delete', function (User $user) {
+            return $user->hasPermission('messages.threads.delete');
+        });
+
         // Страница "Блог" (управление статьями)
         Gate::define('blog.view', function (User $user) {
             return $user->hasPermission('blog.view');

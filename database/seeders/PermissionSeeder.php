@@ -39,6 +39,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'blog.view',                      'description' => 'Страница "Блог"',                               'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 95],
             ['name' => 'documentations.view',            'description' => 'Страница "Документация"',                       'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 100],
             ['name' => 'messages.view',                  'description' => 'Страница "Сообщения"',                          'group_slug' => 'mainMenu', 'is_visible' => 1, 'sort_order' => 110],
+            ['name' => 'messages.threads.delete',        'description' => 'Удаление чата (шапка диалога)',                 'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 111],
             ['name' => 'partner.view',                   'description' => 'Страница "Партнеры"',                           'group_slug' => 'mainMenu', 'is_visible' => 0, 'sort_order' => 120],
 
             // group_slug reports
