@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Models\ParentProfile;
 use App\Models\PartnerLegalEntity;
 use App\Models\Role;
 use App\Models\User;
@@ -278,5 +279,142 @@ final class UsersImportAjaxContractFeatureTest extends CrmTestCase
             ->assertStatus(422)
             ->assertJsonPath('valid', false)
             ->assertJsonFragment(['field' => 'Email ученика']);
+    }
+
+    public function test_preview_ajax_ok_when_nameless_parent_fio_is_filled_and_empty_phone_is_not_conflict(): void
+    {
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => null,
+            'firstname' => null,
+            'email' => 'ajax-fill-parent@example.test',
+            'phone' => '79627035846',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->studentRoleId(),
+            'lastname' => 'Анзароков',
+            'name' => 'Идар',
+            'email' => 'ajax-fill-student@example.test',
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $response = $this->postJson(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Фамилия ученика' => $student->lastname,
+                    'Имя ученика' => $student->name,
+                    'Группа' => '',
+                    'Юр. лицо' => '',
+                    'Email ученика' => $student->email,
+                    'Email родителя' => $parent->email,
+                    'Фамилия родителя' => 'Анзароков',
+                    'Имя родителя' => 'Довлет',
+                    'Телефон родителя' => '',
+                ]),
+            ]),
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('message', 'Файл проверен успешно. Подтвердите импорт.')
+            ->assertJsonPath('preview.0.mode', 'update')
+            ->assertJsonPath('summary.update_with_changes_count', 1);
+
+        $this->assertNotSame('', (string) $response->json('import_token'));
+        $change = collect($response->json('preview.0.changes') ?? [])->firstWhere('field', 'parent');
+        $this->assertIsArray($change);
+        $this->assertSame('Родитель', $change['label']);
+        $this->assertSame('changed', $change['kind']);
+        $this->assertStringContainsString('Анзароков', (string) $change['to']);
+        $this->assertStringContainsString('Довлет', (string) $change['to']);
+        $this->assertStringContainsString('79627035846', (string) $change['to']);
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame('', trim((string) $response->getContent()));
+    }
+
+    public function test_preview_ajax_parent_directory_conflict_returns_422_errors_on_parent_email_field(): void
+    {
+        ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванова',
+            'firstname' => 'Анна',
+            'email' => 'ajax-conflict-parent@example.test',
+            'phone' => '79001112233',
+        ]);
+
+        $response = $this->postJson(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Email родителя' => 'ajax-conflict-parent@example.test',
+                    'Фамилия родителя' => 'Петрова',
+                    'Имя родителя' => 'Анна',
+                ]),
+            ]),
+        ], $this->importAjaxHeaders());
+
+        $response->assertStatus(422)
+            ->assertJsonPath('valid', false)
+            ->assertJsonPath('message', 'Импорт не выполнен: найдены ошибки в файле.')
+            ->assertJsonStructure([
+                'message',
+                'valid',
+                'errors' => [
+                    ['row', 'field', 'message'],
+                ],
+            ])
+            ->assertJsonFragment([
+                'field' => 'Email родителя',
+                'message' => 'Родитель с таким email уже существует, но данные в файле не совпадают со справочником.',
+            ]);
+
+        $this->assertSame('Email родителя', $response->json('errors.0.field'));
+        $this->assertNotSame('', trim((string) $response->getContent()));
+    }
+
+    public function test_commit_ajax_fills_nameless_parent_and_returns_updated_count(): void
+    {
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => null,
+            'firstname' => null,
+            'email' => 'ajax-commit-fill@example.test',
+            'phone' => '79627035846',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->studentRoleId(),
+            'email' => 'ajax-commit-fill-student@example.test',
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $preview = $this->previewImportFile($this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $student->lastname,
+                'Имя ученика' => $student->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $student->email,
+                'Email родителя' => $parent->email,
+                'Фамилия родителя' => 'Анзароков',
+                'Имя родителя' => 'Довлет',
+                'Телефон родителя' => '',
+            ]),
+        ]));
+
+        $this->postJson(route('admin.users.import.commit'), [
+            'import_token' => $preview['import_token'],
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('updated', 1)
+            ->assertJsonStructure(['message', 'created', 'updated']);
+
+        $parent->refresh();
+        $this->assertSame('Анзароков', $parent->lastname);
+        $this->assertSame('Довлет', $parent->firstname);
+        $this->assertSame('79627035846', $parent->phone);
     }
 }

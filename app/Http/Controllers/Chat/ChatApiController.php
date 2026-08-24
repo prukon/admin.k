@@ -9,14 +9,17 @@ use App\Http\Requests\Chat\ChatMessagesIndexRequest;
 use App\Http\Requests\Chat\ChatParticipantsIndexRequest;
 use App\Http\Requests\Chat\ChatUsersIndexRequest;
 use App\Http\Requests\Chat\ChatUserShowRequest;
+use App\Http\Requests\Chat\DestroyChatMessageReactionRequest;
 use App\Http\Requests\Chat\DestroyChatThreadRequest;
 use App\Http\Requests\Chat\PresencePingRequest;
 use App\Http\Requests\Chat\ReverbStatusRequest;
 use App\Http\Requests\Chat\SaveChatDraftRequest;
 use App\Http\Requests\Chat\StoreChatGroupParticipantsRequest;
 use App\Http\Requests\Chat\StoreChatGroupThreadRequest;
+use App\Http\Requests\Chat\StoreChatMessageReactionRequest;
 use App\Http\Requests\Chat\StoreChatMessageRequest;
 use App\Http\Requests\Chat\StoreChatThreadRequest;
+use App\Models\ChatMessage;
 use App\Models\ChatThread;
 use App\Models\User;
 use App\Services\Chat\ChatService;
@@ -108,6 +111,38 @@ class ChatApiController extends AdminBaseController
         }
 
         return redirect()->route('chat.index')->with('status', 'Сообщение отправлено.');
+    }
+
+    public function upsertMessageReaction(
+        StoreChatMessageReactionRequest $request,
+        ChatThread $thread,
+        ChatMessage $message
+    ): JsonResponse|RedirectResponse {
+        $this->assertMessageInThread($thread, $message);
+
+        $payload = $this->chat->setMessageReaction($thread, $message, $this->currentUser(), $request->emoji());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', 'Реакция сохранена.');
+    }
+
+    public function destroyMessageReaction(
+        DestroyChatMessageReactionRequest $request,
+        ChatThread $thread,
+        ChatMessage $message
+    ): JsonResponse|RedirectResponse {
+        $this->assertMessageInThread($thread, $message);
+
+        $payload = $this->chat->removeMessageReaction($thread, $message, $this->currentUser());
+
+        if ($this->wantsJsonPayload($request)) {
+            return response()->json($payload);
+        }
+
+        return redirect()->route('chat.index')->with('status', 'Реакция снята.');
     }
 
     public function storeThread(StoreChatThreadRequest $request): JsonResponse|RedirectResponse
@@ -283,6 +318,14 @@ class ChatApiController extends AdminBaseController
             $thread->hasParticipant((int) $this->currentUser()->id),
             403,
             'Нет доступа к этому диалогу.'
+        );
+    }
+
+    private function assertMessageInThread(ChatThread $thread, ChatMessage $message): void
+    {
+        abort_unless(
+            (int) $message->thread_id === (int) $thread->id,
+            404
         );
     }
 

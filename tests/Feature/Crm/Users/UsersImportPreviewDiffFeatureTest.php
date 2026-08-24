@@ -259,6 +259,60 @@ final class UsersImportPreviewDiffFeatureTest extends CrmTestCase
         $this->assertFalse((bool) $sameRow['has_clears']);
     }
 
+    public function test_preview_update_diff_shows_parent_fill_when_already_linked(): void
+    {
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => null,
+            'firstname' => null,
+            'email' => 'diff-parent-fill@example.test',
+            'phone' => '79627035846',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $this->studentRoleId(),
+            'lastname' => 'Анзароков',
+            'name' => 'Идар',
+            'email' => 'diff-student-fill-parent@example.test',
+            'phone' => null,
+            'birthday' => null,
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $response = $this->postJson(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Фамилия ученика' => $student->lastname,
+                    'Имя ученика' => $student->name,
+                    'Группа' => '',
+                    'Юр. лицо' => '',
+                    'Email ученика' => $student->email,
+                    'Активен' => 'да',
+                    'Email родителя' => $parent->email,
+                    'Фамилия родителя' => 'Анзароков',
+                    'Имя родителя' => 'Довлет',
+                    'Телефон родителя' => '',
+                ]),
+            ]),
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('summary.update_count', 1)
+            ->assertJsonPath('summary.update_with_changes_count', 1)
+            ->assertJsonPath('summary.update_unchanged_count', 0);
+
+        $row = collect($response->json('preview') ?? [])->first();
+        $this->assertIsArray($row);
+        $parentChange = collect($row['changes'] ?? [])->firstWhere('field', 'parent');
+        $this->assertNotNull($parentChange);
+        $this->assertSame('changed', $parentChange['kind']);
+        $this->assertStringContainsString('79627035846', (string) $parentChange['from']);
+        $this->assertStringContainsString('Анзароков', (string) $parentChange['to']);
+        $this->assertStringContainsString('Довлет', (string) $parentChange['to']);
+        $this->assertStringContainsString('79627035846', (string) $parentChange['to']);
+    }
+
     public function test_preview_orders_rows_with_changes_before_create_and_unchanged_updates(): void
     {
         $unchanged = User::factory()->create([

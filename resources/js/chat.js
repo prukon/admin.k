@@ -50,6 +50,292 @@
         return div.innerHTML;
     }
 
+    function parseEmojiJson(id) {
+        const el = document.getElementById(id);
+        if (!el) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(el.textContent || '[]');
+            return Array.isArray(parsed) ? parsed.map(function (item) { return String(item); }) : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    const composerEmojis = parseEmojiJson('composerEmojisJson');
+    const reactionEmojis = parseEmojiJson('reactionEmojisJson');
+    let reactionPickerMessageId = null;
+    let longPressTimer = null;
+
+    function emojiSeqRe() {
+        return /(?:\p{RI}\p{RI}|\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\uFE0E)?)*|[0-9#*]\uFE0F?\u20E3)/gu;
+    }
+
+    function emojiOnlyCount(text) {
+        const trimmed = String(text == null ? '' : text).trim();
+        if (!trimmed) {
+            return 0;
+        }
+        const compact = trimmed.replace(/\s+/g, '');
+        if (!compact) {
+            return 0;
+        }
+        const parts = compact.match(emojiSeqRe());
+        if (!parts || parts.join('') !== compact) {
+            return 0;
+        }
+        return parts.length;
+    }
+
+    function isBigEmojiMessage(text) {
+        const n = emojiOnlyCount(text);
+        return n >= 1 && n <= 3;
+    }
+
+    function bigEmojiClass(text) {
+        const n = emojiOnlyCount(text);
+        if (n < 1 || n > 3) {
+            return '';
+        }
+        return ' is-big-emoji is-big-emoji-' + n;
+    }
+
+    function insertComposerEmoji(input, emoji) {
+        if (!input || !emoji) {
+            return;
+        }
+        const value = String(input.value || '');
+        let start = value.length;
+        let end = value.length;
+        if (typeof input.selectionStart === 'number' && typeof input.selectionEnd === 'number') {
+            start = input.selectionStart;
+            end = input.selectionEnd;
+        }
+        input.value = value.slice(0, start) + emoji + value.slice(end);
+        const pos = start + String(emoji).length;
+        if (typeof input.setSelectionRange === 'function') {
+            try {
+                input.focus();
+                input.setSelectionRange(pos, pos);
+            } catch (e) {}
+        }
+        if (typeof input.dispatchEvent === 'function') {
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    function viewerHasReaction(chip, userId) {
+        if (chip && chip.mine === true) {
+            return true;
+        }
+        const ids = chip && Array.isArray(chip.user_ids) ? chip.user_ids : [];
+        return ids.some(function (id) { return Number(id) === Number(userId); });
+    }
+
+    function reactionChipHtml(chip) {
+        const emoji = String(chip && chip.emoji ? chip.emoji : '');
+        const count = Number(chip && chip.count ? chip.count : 0);
+        const mine = viewerHasReaction(chip, me) ? ' is-mine' : '';
+        let extra = '';
+        if (count >= 4) {
+            extra = '<span class="msg-reaction-count">' + escapeHtml(String(count)) + '</span>';
+        } else {
+            const users = Array.isArray(chip && chip.users) ? chip.users : [];
+            extra = '<span class="msg-reaction-avatars">' + users.map(function (u) {
+                const src = escapeHtml(u && u.avatar ? u.avatar : '/img/default-avatar.png');
+                const name = escapeHtml(u && u.name ? u.name : '');
+                return '<img src="' + src + '" alt="' + name + '" title="' + name + '">';
+            }).join('') + '</span>';
+        }
+        return '<button type="button" class="msg-reaction-chip' + mine + '" data-emoji="' + escapeHtml(emoji) + '">'
+            + '<span class="msg-reaction-emoji">' + escapeHtml(emoji) + '</span>' + extra + '</button>';
+    }
+
+    function reactionsHtml(reactions) {
+        const list = Array.isArray(reactions) ? reactions : [];
+        if (!list.length) {
+            return '<div class="msg-reactions" hidden></div>';
+        }
+        return '<div class="msg-reactions">' + list.map(reactionChipHtml).join('') + '</div>';
+    }
+
+    function applyReactions(messageId, reactions) {
+        const row = document.querySelector('#messagesBox [data-mid="' + CSS.escape(String(messageId)) + '"]');
+        if (!row) {
+            return;
+        }
+        const html = reactionsHtml(reactions);
+        const box = row.querySelector('.msg-reactions');
+        if (box) {
+            box.outerHTML = html;
+            return;
+        }
+        const inner = row.querySelector('.msg-inner');
+        if (inner) {
+            inner.insertAdjacentHTML('beforeend', html);
+        }
+    }
+
+    function ensureReactButton(row, mine) {
+        if (!row || row.getAttribute('data-temp') === '1' || row.querySelector('.msg-react-btn')) {
+            return;
+        }
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'msg-react-btn';
+        btn.setAttribute('aria-label', 'Добавить реакцию');
+        btn.innerHTML = '<i class="fa-regular fa-face-smile" aria-hidden="true"></i>';
+        if (mine) {
+            row.insertBefore(btn, row.firstChild);
+        } else {
+            row.appendChild(btn);
+        }
+    }
+
+    function fillEmojiGrid(el, list, btnClass) {
+        if (!el) {
+            return;
+        }
+        el.innerHTML = (list || []).map(function (emoji) {
+            return '<button type="button" class="' + btnClass + '" data-emoji="' + escapeHtml(emoji) + '">'
+                + escapeHtml(emoji) + '</button>';
+        }).join('');
+    }
+
+    function closeEmojiPicker() {
+        const picker = document.getElementById('emojiPicker');
+        if (picker) {
+            picker.hidden = true;
+        }
+        const btn = document.getElementById('emojiBtn');
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    function closeReactionPicker() {
+        const picker = document.getElementById('reactionPicker');
+        if (picker) {
+            picker.hidden = true;
+        }
+        document.querySelectorAll('#messagesBox .msg-row.is-react-open').forEach(function (row) {
+            row.classList.remove('is-react-open');
+        });
+        reactionPickerMessageId = null;
+    }
+
+    function positionFixedPicker(picker, anchor) {
+        if (!picker || !anchor || typeof anchor.getBoundingClientRect !== 'function') {
+            return;
+        }
+        const rect = anchor.getBoundingClientRect();
+        const width = Math.min(280, window.innerWidth - 16);
+        let left = rect.right - width;
+        if (left < 8) {
+            left = 8;
+        }
+        if (left + width > window.innerWidth - 8) {
+            left = window.innerWidth - width - 8;
+        }
+        let top = rect.top - 228;
+        if (top < 8) {
+            top = rect.bottom + 8;
+        }
+        picker.style.left = left + 'px';
+        picker.style.top = top + 'px';
+    }
+
+    function openEmojiPicker() {
+        const picker = document.getElementById('emojiPicker');
+        const btn = document.getElementById('emojiBtn');
+        if (!picker || !btn || btn.disabled) {
+            return;
+        }
+        closeReactionPicker();
+        if (!picker.childNodes.length) {
+            fillEmojiGrid(picker, composerEmojis, 'chat-emoji-pick');
+        }
+        picker.hidden = false;
+        picker.style.position = 'fixed';
+        positionFixedPicker(picker, btn);
+        btn.setAttribute('aria-expanded', 'true');
+    }
+
+    function toggleEmojiPicker() {
+        const picker = document.getElementById('emojiPicker');
+        if (picker && !picker.hidden) {
+            closeEmojiPicker();
+            return;
+        }
+        openEmojiPicker();
+    }
+
+    function openReactionPickerForRow(row) {
+        if (!row || row.getAttribute('data-temp') === '1' || !row.getAttribute('data-mid')) {
+            return;
+        }
+        const picker = document.getElementById('reactionPicker');
+        if (!picker) {
+            return;
+        }
+        closeEmojiPicker();
+        document.querySelectorAll('#messagesBox .msg-row.is-react-open').forEach(function (el) {
+            el.classList.remove('is-react-open');
+        });
+        row.classList.add('is-react-open');
+        reactionPickerMessageId = row.getAttribute('data-mid');
+        if (!picker.childNodes.length) {
+            fillEmojiGrid(picker, reactionEmojis, 'chat-reaction-pick');
+        }
+        picker.hidden = false;
+        const anchor = row.querySelector('.msg-react-btn') || row.querySelector('.msg-bubble') || row;
+        positionFixedPicker(picker, anchor);
+    }
+
+    function showReactionError(text) {
+        const el = document.getElementById('msgReactionError');
+        if (el) {
+            el.textContent = text || '';
+        }
+    }
+
+    function sendReaction(messageId, emoji, method) {
+        const id = Number(currentThreadId);
+        if (!id || !messageId) {
+            return;
+        }
+        showReactionError('');
+        const opts = {
+            method: method,
+            headers: headers(method === 'PUT'),
+            credentials: 'same-origin'
+        };
+        if (method === 'PUT') {
+            opts.body = JSON.stringify({ emoji: emoji });
+        }
+        fetch(threadUrl(id, '/messages/' + messageId + '/reaction'), opts)
+            .then(function (r) {
+                return r.json().then(function (data) { return { ok: r.ok, data: data }; });
+            })
+            .then(function (res) {
+                if (!res.ok) {
+                    showReactionError(fieldError(res.data, 'emoji') || 'Не удалось сохранить реакцию.');
+                    return;
+                }
+                applyReactions(res.data.message_id || messageId, res.data.reactions || []);
+                closeReactionPicker();
+            })
+            .catch(function () {
+                showReactionError('Не удалось сохранить реакцию. Проверьте соединение.');
+            });
+    }
+
+    function mineEmojiOnRow(row) {
+        const mine = row ? row.querySelector('.msg-reaction-chip.is-mine') : null;
+        return mine ? mine.getAttribute('data-emoji') : '';
+    }
+
     function headers(json) {
         const h = {
             'Accept': 'application/json',
@@ -309,11 +595,14 @@
         }
 
         const checks = mine ? ticksHtml(!!m.is_read && !opts.pending) : '';
-
-        row.innerHTML =
-            '<div class="msg-inner"><div class="msg-bubble">' + escapeHtml(m.body) +
+        const reactBtn = opts.tempId
+            ? ''
+            : '<button type="button" class="msg-react-btn" aria-label="Добавить реакцию"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>';
+        const inner =
+            '<div class="msg-inner"><div class="msg-bubble' + bigEmojiClass(m.body) + '">' + escapeHtml(m.body) +
             '<div class="msg-meta"><span class="time">' + escapeHtml(fmtTime(m.created_at)) + '</span>' + checks + '</div>' +
-            '</div></div>';
+            '</div>' + reactionsHtml(m.reactions) + '</div>';
+        row.innerHTML = mine ? (reactBtn + inner) : (inner + reactBtn);
 
         if (opts.prepend) {
             box.insertBefore(row, box.firstChild);
@@ -364,12 +653,29 @@
     }
 
     function setComposerEnabled(on) {
-        document.getElementById('msgInput').disabled = !on;
-        document.querySelector('#sendForm button[type="submit"]').disabled = !on;
+        const input = document.getElementById('msgInput');
+        if (input) {
+            input.disabled = !on;
+        }
+        const submit = document.querySelector('#sendForm button[type="submit"]');
+        if (submit) {
+            submit.disabled = !on;
+        }
+        const emojiBtn = document.getElementById('emojiBtn');
+        if (emojiBtn) {
+            emojiBtn.disabled = !on;
+        }
+        if (!on) {
+            closeEmojiPicker();
+            closeReactionPicker();
+        }
     }
 
     function showMsgError(text) {
-        document.getElementById('msgBodyError').textContent = text || '';
+        const el = document.getElementById('msgBodyError');
+        if (el) {
+            el.textContent = text || '';
+        }
     }
 
     function showContactsError(text) {
@@ -563,7 +869,9 @@
                     }
                 }
                 setHeaderPeerClickable(!!currentPeerId || currentIsGroup);
-                setDeleteThreadVisible();
+                if (typeof setDeleteThreadVisible === 'function') {
+                    setDeleteThreadVisible();
+                }
                 hasOlder = (res.messages || []).length >= 40;
                 document.getElementById('threadTitle').textContent = threadListTitle(res.thread);
                 if (typeof setThreadSubtitle === 'function') {
@@ -658,7 +966,7 @@
         try {
             if (threadChannel) {
                 try {
-                    threadChannel.stopListening('.message.created').stopListening('.thread.read');
+                    threadChannel.stopListening('.message.created').stopListening('.thread.read').stopListening('.message.reaction');
                 } catch (e) {}
             }
             threadChannel = window.Echo.private('thread.' + threadId);
@@ -677,6 +985,8 @@
                         opt.setAttribute('data-read', msg.is_read ? '1' : '0');
                         checks.outerHTML = ticksHtml(!!msg.is_read);
                     }
+                    ensureReactButton(opt, true);
+                    applyReactions(msg.id, msg.reactions || []);
                 } else if (!messageExists(msg.id)) {
                     appendMessage(msg);
                 }
@@ -694,6 +1004,12 @@
                 last_message_is_read: Number(msg.user_id) === me ? !!msg.is_read : null
             });
             scrollBottom();
+        });
+        threadChannel.listen('.message.reaction', function (e) {
+            if (!e || !e.message_id) {
+                return;
+            }
+            applyReactions(e.message_id, e.reactions || []);
         });
         threadChannel.listen('.thread.read', function (e) {
             if (e && Number(e.user_id) !== me) {
@@ -786,6 +1102,9 @@
     document.getElementById('sendForm').addEventListener('submit', function (e) {
         e.preventDefault();
         showMsgError('');
+        showReactionError('');
+        closeEmojiPicker();
+        closeReactionPicker();
         const id = Number(currentThreadId);
         if (!id) {
             showMsgError('Сначала выберите диалог слева.');
@@ -850,6 +1169,13 @@
                     if (checks) {
                         checks.outerHTML = ticksHtml(!!m.is_read);
                     }
+                    ensureReactButton(tmp, true);
+                    applyReactions(m.id, m.reactions || []);
+                    const bubble = tmp.querySelector('.msg-bubble');
+                    if (bubble) {
+                        const big = bigEmojiClass(m.body || text);
+                        bubble.className = 'msg-bubble' + big;
+                    }
                 } else if (!messageExists(m.id)) {
                     appendMessage(m);
                 }
@@ -878,6 +1204,115 @@
     });
 
     document.getElementById('msgInput').addEventListener('input', scheduleDraftSave);
+
+    const emojiBtn = document.getElementById('emojiBtn');
+    if (emojiBtn) {
+        emojiBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            toggleEmojiPicker();
+        });
+    }
+
+    const emojiPicker = document.getElementById('emojiPicker');
+    if (emojiPicker) {
+        emojiPicker.addEventListener('click', function (e) {
+            const pick = e.target.closest('.chat-emoji-pick');
+            if (!pick) {
+                return;
+            }
+            const input = document.getElementById('msgInput');
+            insertComposerEmoji(input, pick.getAttribute('data-emoji') || '');
+            if (input) {
+                input.focus();
+            }
+        });
+    }
+
+    const reactionPicker = document.getElementById('reactionPicker');
+    if (reactionPicker) {
+        reactionPicker.addEventListener('click', function (e) {
+            const pick = e.target.closest('.chat-reaction-pick');
+            if (!pick || !reactionPickerMessageId) {
+                return;
+            }
+            const emoji = pick.getAttribute('data-emoji') || '';
+            const row = document.querySelector('#messagesBox [data-mid="' + CSS.escape(String(reactionPickerMessageId)) + '"]');
+            const current = mineEmojiOnRow(row);
+            if (current && current === emoji) {
+                sendReaction(reactionPickerMessageId, emoji, 'DELETE');
+            } else {
+                sendReaction(reactionPickerMessageId, emoji, 'PUT');
+            }
+        });
+    }
+
+    document.getElementById('messagesBox').addEventListener('click', function (e) {
+        const chip = e.target.closest('.msg-reaction-chip');
+        if (chip) {
+            e.preventDefault();
+            const row = chip.closest('.msg-row');
+            const mid = row ? row.getAttribute('data-mid') : '';
+            if (!mid || (row && row.getAttribute('data-temp') === '1')) {
+                return;
+            }
+            const emoji = chip.getAttribute('data-emoji') || '';
+            if (chip.classList.contains('is-mine')) {
+                sendReaction(mid, emoji, 'DELETE');
+            } else {
+                sendReaction(mid, emoji, 'PUT');
+            }
+            return;
+        }
+        const reactBtn = e.target.closest('.msg-react-btn');
+        if (reactBtn) {
+            e.preventDefault();
+            openReactionPickerForRow(reactBtn.closest('.msg-row'));
+        }
+    });
+
+    document.getElementById('messagesBox').addEventListener('pointerdown', function (e) {
+        const bubble = e.target.closest('.msg-bubble');
+        if (!bubble) {
+            return;
+        }
+        const row = bubble.closest('.msg-row');
+        if (!row || row.getAttribute('data-temp') === '1') {
+            return;
+        }
+        clearTimeout(longPressTimer);
+        longPressTimer = setTimeout(function () {
+            openReactionPickerForRow(row);
+        }, 500);
+    });
+    ['pointerup', 'pointercancel', 'pointermove', 'scroll'].forEach(function (ev) {
+        document.getElementById('messagesBox').addEventListener(ev, function () {
+            clearTimeout(longPressTimer);
+        }, { passive: true });
+    });
+
+    document.addEventListener('click', function (e) {
+        const picker = document.getElementById('emojiPicker');
+        const btn = document.getElementById('emojiBtn');
+        const reaction = document.getElementById('reactionPicker');
+        if (picker && !picker.hidden) {
+            if (!(picker.contains(e.target) || (btn && btn.contains(e.target)))) {
+                closeEmojiPicker();
+            }
+        }
+        if (reaction && !reaction.hidden) {
+            if (!(reaction.contains(e.target) || e.target.closest('.msg-react-btn'))) {
+                closeReactionPicker();
+            }
+        }
+    });
+
+    window.addEventListener('resize', function () {
+        const picker = document.getElementById('emojiPicker');
+        const btn = document.getElementById('emojiBtn');
+        if (picker && !picker.hidden && btn) {
+            positionFixedPicker(picker, btn);
+        }
+    });
 
     function contactsModal() {
         return bootstrap.Modal.getOrCreateInstance(document.getElementById('contactsModal'));
@@ -965,7 +1400,9 @@
         lastMessageId = null;
         hasOlder = false;
         setHeaderPeerClickable(false);
-        setDeleteThreadVisible();
+        if (typeof setDeleteThreadVisible === 'function') {
+            setDeleteThreadVisible();
+        }
         const title = document.getElementById('threadTitle');
         if (title) {
             title.textContent = 'Выберите диалог';

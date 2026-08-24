@@ -247,6 +247,14 @@ final class UsersImportCommitService
         if ($row->parentEmail !== null) {
             $cacheKey = $row->parentEmail;
             if (isset($parentCache[$cacheKey])) {
+                $cached = ParentProfile::query()
+                    ->where('partner_id', $partnerId)
+                    ->whereKey($parentCache[$cacheKey])
+                    ->first();
+                if ($cached instanceof ParentProfile) {
+                    UsersImportParentDirectory::fillEmptyFromRow($cached, $row);
+                }
+
                 return ['parent_id' => $parentCache[$cacheKey]];
             }
 
@@ -256,6 +264,7 @@ final class UsersImportCommitService
                 ->first();
 
             if ($existing) {
+                UsersImportParentDirectory::fillEmptyFromRow($existing, $row);
                 $parentCache[$cacheKey] = (int) $existing->id;
 
                 return ['parent_id' => $parentCache[$cacheKey]];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Users;
 
+use App\Models\ParentProfile;
 use App\Models\PartnerLegalEntity;
 use App\Models\Role;
 use App\Models\User;
@@ -191,5 +192,101 @@ final class UsersImportNonAjaxSafetyNetFeatureTest extends CrmTestCase
             (string) $response->headers->get('content-disposition')
         );
         $this->assertNotSame(500, $response->getStatusCode());
+    }
+
+    public function test_commit_non_ajax_fills_nameless_parent_fio_and_keeps_phone(): void
+    {
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => null,
+            'firstname' => null,
+            'email' => 'nonajax-fill-parent@example.test',
+            'phone' => '79627035846',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => (int) Role::query()->where('name', 'user')->value('id'),
+            'lastname' => 'Анзароков',
+            'name' => 'Идар',
+            'email' => 'nonajax-fill-student@example.test',
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $preview = $this->post(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Фамилия ученика' => $student->lastname,
+                    'Имя ученика' => $student->name,
+                    'Группа' => '',
+                    'Юр. лицо' => '',
+                    'Email ученика' => $student->email,
+                    'Email родителя' => $parent->email,
+                    'Фамилия родителя' => 'Анзароков',
+                    'Имя родителя' => 'Довлет',
+                    'Телефон родителя' => '',
+                ]),
+            ]),
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ])
+            ->assertOk()
+            ->assertJsonPath('valid', true);
+
+        $this->assertNotSame('', (string) $preview->json('import_token'));
+
+        $commit = $this->post(route('admin.users.import.commit'), [
+            'import_token' => $preview->json('import_token'),
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        $commit->assertOk()
+            ->assertJsonPath('updated', 1)
+            ->assertJsonStructure(['message', 'created', 'updated']);
+
+        $this->assertNotSame(302, $commit->getStatusCode());
+        $this->assertNotSame('', trim((string) $commit->getContent()));
+        $this->assertNotSame(500, $commit->getStatusCode());
+
+        $parent->refresh();
+        $this->assertSame('Анзароков', $parent->lastname);
+        $this->assertSame('Довлет', $parent->firstname);
+        $this->assertSame('79627035846', $parent->phone);
+        $this->assertSame((int) $parent->id, (int) $student->fresh()->parent_id);
+    }
+
+    public function test_preview_non_ajax_parent_conflict_returns_422_json_not_empty_200(): void
+    {
+        ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванова',
+            'firstname' => 'Анна',
+            'email' => 'nonajax-conflict@example.test',
+            'phone' => '79001112233',
+        ]);
+
+        $response = $this->post(route('admin.users.import.preview'), [
+            'file' => $this->makeImportFile([
+                $this->sampleImportRow($this->legalEntity, [
+                    'Email родителя' => 'nonajax-conflict@example.test',
+                    'Фамилия родителя' => 'Петрова',
+                ]),
+            ]),
+        ], [
+            'HTTP_ACCEPT' => 'application/json',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('valid', false)
+            ->assertJsonFragment([
+                'field' => 'Email родителя',
+                'message' => 'Родитель с таким email уже существует, но данные в файле не совпадают со справочником.',
+            ]);
+
+        $this->assertNotSame('', trim((string) $response->getContent()));
+        $this->assertNotSame(500, $response->getStatusCode());
+        $this->assertNotSame(200, $response->getStatusCode());
     }
 }

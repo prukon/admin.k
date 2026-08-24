@@ -40,6 +40,7 @@
     · чат учебной группы: <a href="/doc#chat-team-groups-index">/doc#chat-team-groups-index</a>
     · служба поддержки: <a href="/doc#chat-support-identity-index">/doc#chat-support-identity-index</a>
     · удаление чата: <a href="/doc#chat-thread-delete-index">/doc#chat-thread-delete-index</a>
+    · смайлы и реакции: <a href="/doc#chat-emoji-index">/doc#chat-emoji-index</a>
     · идентичность 1-на-1: <a href="/doc#chat-private-thread-identity-index">/doc#chat-private-thread-identity-index</a>
     · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
     · мобильная панель: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>
@@ -49,7 +50,9 @@
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы плюс одна
     «Служба поддержки» вместо суперадмина
-    (<a href="/doc#chat-support-identity-index">анонс</a>). Текст без вложений.
+    (<a href="/doc#chat-support-identity-index">анонс</a>). Текст без вложений,
+    Unicode-смайлы из пикера справа в поле и реакции на сообщения
+    (<a href="/doc#chat-emoji-index">анонс смайлов</a>).
     Повторный клик по контакту открывает тот же тред, даже после 0/1 живого
     (<a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).
     Пункт «Чат» в сайдбаре, бейдж <code>badge-info</code> — число непрочитанных (скрыт при 0).
@@ -67,6 +70,8 @@
     <a href="/doc#chat-team-groups-index">анонс</a>).
     В списке слева группа показывает имя чата, не «Диалог» и не ФИО участника
     (<a href="/doc#chat-group-list-title-index">анонс имени в списке</a>).
+    Справа в шапке открытой лички или ручной группы — корзина: soft-delete у всех
+    (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
     Фильтр контактов по учебной группе — селект в модалке
     (<a href="/doc#chat-contacts-team-filter-index">анонс</a>), не сам групповой чат.
     На планшете и телефоне (с 992px) — нижняя панель как в Telegram
@@ -101,6 +106,11 @@
     Учётка <code>superadmin</code> в <code>users</code> не переименовывается:
     в чате это «Служба поддержки», не ФИО и не роль «Суперадмин»
     (<a href="/doc#chat-support-identity-index">анонс</a>).
+    Корзина в шапке удаляет диалог у всех (soft-delete), это не «Покинуть группу»
+    и не авто-чат <code>threads.team_id</code>
+    (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
+    После корзины клик по контакту создаёт <b>новый</b> 1-на-1, не restore leftover
+    с 0 живыми (<a href="/doc#chat-private-thread-identity-index">анонс идентичности</a>).
   </div>
 
   <h2 id="permissions">1) Права</h2>
@@ -123,7 +133,8 @@
         <td>никому, не в базовых ролях</td>
         <td>Кнопка-корзина в шапке открытого диалога и
           <code>DELETE /chat/api/threads/{thread}</code>. Superadmin видит через
-          <code>Gate::before</code> / <code>@can</code>. Авто-чат учебной группы
+          <code>Gate::before</code> / <code>@can</code>, без записи в матрицу.
+          Остальным — только после выдачи скрытого права. Авто-чат учебной группы
           (<code>threads.team_id</code>) этим правом не удаляется.</td>
       </tr>
     </tbody>
@@ -133,8 +144,13 @@
     Гость — редирект на логин / 401 на JSON.
     Ping <code>/presence/ping</code> без <code>messages.view</code> — 200 JSON.
     Superadmin проходит через <code>Gate::before</code>.
-    Существующим школам право выдано миграцией
-    <code>2026_08_16_220000_enable_chat_messages_view_for_base_roles</code>.</p>
+    <code>DELETE /chat/api/threads/{thread}</code> при одном <code>messages.view</code>
+    (без <code>messages.threads.delete</code>) — 403, тред жив.
+    <code>messages.view</code> существующим школам выдано миграцией
+    <code>2026_08_16_220000_enable_chat_messages_view_for_base_roles</code>.
+    Скрытое <code>messages.threads.delete</code> ролям не выдаётся: миграция
+    <code>2026_08_20_003000_add_messages_threads_delete_permission</code>
+    только добавляет право в каталог.</p>
 
   <h2 id="ux">2) Как это выглядит</h2>
   <ol>
@@ -206,7 +222,15 @@
       входящие (<code>.msg-other</code>) влево (не по центру).
       Время/дата в <code>.msg-meta</code> на одной строке (<code>white-space: nowrap</code>),
       даже у сообщения из 1 символа.
-      Композер disabled, пока не выбран диалог. У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
+      Композер disabled, пока не выбран диалог. Справа в поле ввода — кнопка смайлов
+      <code>#emojiBtn</code> (<code>fa-regular fa-face-smile</code>), панель
+      <code>#emojiPicker</code> (~80 Unicode, клик вставляет в <code>#msgInput</code>).
+      Сообщение из 1–3 смайлов без текста — крупный пузырь <code>.is-big-emoji</code>.
+      Реакции: чипы <code>.msg-reactions</code> внизу слева у пузыря; у человека один смайл,
+      в группе можно присоединиться. 1–3 человека — аватарки, 4+ — смайл и число.
+      Ошибка реакции — <code>#msgReactionError</code> / <code>errors.emoji</code>.
+      Подробно — <a href="#emoji">§2.9</a> / <a href="/doc#chat-emoji-index">анонс</a>.
+      У своих сообщений одна серая галочка, пока собеседник не прочитал, и две зелёные — после прочтения
       (сокет <code>thread.read</code>; без HTTP-опроса <code>is_read</code>).
       Под названием в шапке — <code>#threadSubtitle</code>
       (<a href="#header-subtitle">§2.1.1</a>: участники группы / «онлайн» / «был(а) в сети…»).
@@ -218,12 +242,15 @@
       (<code>#groupCardModal</code>, <a href="#groups">§2.4</a>).
       Справа в шапке открытого диалога — корзина <code>#deleteThreadBtn</code>
       (<code>fa-trash</code>) при <code>can(messages.threads.delete)</code>
-      (superadmin через <code>Gate::before</code>). Пока диалог не выбран и у чата учебной группы
+      (superadmin через <code>Gate::before</code>, остальным — после выдачи скрытого права).
+      Подробно — <a href="#thread-delete">§2.8</a> /
+      <a href="/doc#chat-thread-delete-index">анонс</a>.
+      Пока диалог не выбран и у чата учебной группы
       (<code>threads.team_id</code>) кнопки нет. Клик — <code>#confirmDeleteModal</code>
       («Удалить чат»). Успех AJAX: строка исчезает из списка, диалог закрывается, тост
       «Чат удалён.». Ошибка — <code>#threadDeleteError</code> / <code>errors.thread</code>.
       Ошибки — под полями
-      (<code>#msgBodyError</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
+      (<code>#msgBodyError</code>, <code>#msgReactionError</code> / <code>errors.emoji</code>, в модалке контактов <code>#contactsError</code>, в карточке <code>#peerCardError</code>,
       в карточке группы <code>#groupCardError</code>, удаление чата <code>#threadDeleteError</code>).</li>
     <li>История вверх: скролл (в т.ч. свайп) внутри <code>#messagesBox</code>.
       Подгрузка <code>GET .../messages?before_id=</code> начинается заранее
@@ -600,7 +627,9 @@
       и пропадает из inbox (<code>inbox.bump</code> с <code>removed: true</code>;
       <code>applyInboxBump</code> закрывает композер, только если открыт этот тред).
       Если участников не осталось — soft-delete <code>threads</code>, кроме чата
-      учебной группы (<code>threads.team_id</code>).</li>
+      учебной группы (<code>threads.team_id</code>).
+      Корзина в шапке (<a href="#thread-delete">§2.8</a>) — другое: чат пропадает
+      у всех сразу, даже если участники ещё есть.</li>
     <li><b>Добавить участников.</b> Модалка <code>#addGroupMembersModal</code> как шаг 2 создания:
       селект «Все группы» по умолчанию, поиск debounce 250 мс,
       <code>GET /chat/api/users?exclude_thread_id=</code>
@@ -625,7 +654,10 @@
     (<code>threads.team_id</code>, unique). Ручные чаты кнопки «Создать группу»
     без <code>team_id</code>. Селект фильтра контактов этот чат не открывает.
     В inbox: <code>is_group</code>, <code>peer_id: null</code>, заголовок = имя чата
-    (не «Диалог»). Клик по однокласснику — личка, не этот тред.</p>
+    (не «Диалог»). Клик по однокласснику — личка, не этот тред.
+    Корзина в шапке скрыта; <code>DELETE /chat/api/threads/{thread}</code> —
+    422 <code>errors.thread</code> «Нельзя удалить чат учебной группы.»
+    (и у superadmin). Это не «покинуть группу».</p>
   <ol>
     <li><b>Создание.</b> Сразу в <code>TeamService::store</code> при
       <code>POST /admin/teams</code>, даже без учеников и даже если
@@ -737,7 +769,95 @@
       <code>startDialog</code> — <code>!is_group && peer_id</code>.</li>
     <li><b>API.</b> <code>POST /chat/api/threads</code>: AJAX 201 создан / 200 тот же тред,
       native 302 на <code>/chat</code>, 422 <code>errors.user_id</code>,
-      PATCH/PUT/DELETE 405. Выход из группы → send/draft/read 403, не 500 unique.</li>
+      PATCH/PUT/DELETE 405. Выход из группы → send/draft/read 403, не 500 unique.
+      После корзины в шапке тред soft-deleted: store не restore, а <b>новый</b> id
+      (<a href="#thread-delete">§2.8</a>).</li>
+  </ol>
+
+  <h2 id="thread-delete">2.8) Удаление диалога из шапки</h2>
+  <p>Анонс: <a href="/doc#chat-thread-delete-index">/doc#chat-thread-delete-index</a>.
+    Soft-delete лички и <b>ручной</b> группы у всех участников. Не путать с
+    «Покинуть группу» (<a href="#groups">§2.4</a>: выходите только вы, тред может остаться)
+    и с авто-чатом учебной группы (<a href="#team-groups">§2.5</a>: корзины нет, API 422).
+    Не leftover 0 живых (<a href="#private-thread-identity">§2.7</a>: тред жив, store
+    восстанавливает ту же пару).</p>
+  <ol>
+    <li><b>Кнопка.</b> Справа в шапке — только иконка <code>#deleteThreadBtn</code>
+      (<code>fa-trash</code>), без подписи, <code>style="display:none"</code> пока нет
+      открытого диалога. Появляется при <code>can(messages.threads.delete)</code>
+      и живом треде без <code>threads.team_id</code> (личка или ручная группа).
+      Superadmin — через <code>Gate::before</code>, без записи в матрицу. Базовым ролям
+      право не выдано. Клик не открывает карточку шапки
+      (<code>stopPropagation</code>). Модалка — общая <code>#confirmDeleteModal</code>
+      («Удалить чат» / «Вы уверены, что хотите удалить этот чат? Сообщения пропадут
+      у всех участников.»), не fullscreen. Ошибка — <code>#threadDeleteError</code>
+      / <code>errors.thread</code>.</li>
+    <li><b>API.</b> <code>DELETE /chat/api/threads/{thread}</code>
+      (<code>chat.api.threads.destroy</code>, <code>DestroyChatThreadRequest</code>):
+      <code>messages.view</code> + <code>messages.threads.delete</code> + живой участник.
+      AJAX 200 <code>ok</code> + <code>message</code> «Чат удалён.» + <code>thread_id</code>.
+      Без XHR — 302 на <code>/chat</code>, не сырой JSON 200. Soft-delete треда,
+      участников и сообщений (<code>ChatService::deleteThread</code>, сначала
+      <code>last_message_id = null</code>). Авто-чат <code>team_id</code> — 422 под
+      <code>thread</code>. Гость 302/401, без права / не участник 403, нет треда и
+      повторный DELETE 404. GET того же URL — show, <b>не</b> удаление.
+      POST/PATCH/PUT — 405. Show JSON несёт <code>team_id</code> (личка <code>null</code>),
+      чтобы клиент скрыл корзину.</li>
+    <li><b>После удаления.</b> Inbox без строки у всех живых на момент DELETE.
+      Сокет <code>inbox.bump</code> с <code>removed: true</code> (открытый диалог
+      закрывается, без upsert). Клик по тому же контакту — <b>новый</b> 1-на-1
+      без старых сообщений: <code>findPrivateThread</code> не видит soft-deleted тред.</li>
+    <li><b>Клиент</b> (<code>resources/js/chat.js</code>).
+      <code>openThread</code> ставит <code>currentTeamId</code> из
+      <code>res.thread.team_id</code> и вызывает <code>setDeleteThreadVisible</code>.
+      Отмена модалки fetch не шлёт. Успех: строка из кэша, <code>closeCurrentThread</code>,
+      тост <code>showToast</code>. 422/сеть — поле под корзиной, диалог не закрывается.</li>
+    <li><b>Не в этом срезе.</b> Hard-delete, удаление авто-чата учебной группы,
+      кнопка у роли без выдачи скрытого права (ученик/админ/тренер в базовом наборе).</li>
+  </ol>
+
+  <h2 id="emoji">2.9) Смайлы в сообщениях и реакции</h2>
+  <p>Анонс: <a href="/doc#chat-emoji-index">/doc#chat-emoji-index</a>.
+    Это Unicode в <code>messages.body</code> и таблица <code>message_reactions</code>,
+    не стикерпак и не вложения.</p>
+  <ol>
+    <li><b>Пикер ввода.</b> Кнопка <code>#emojiBtn</code> справа внутри поля
+      (<code>.chat-composer-field</code>, как в Telegram), <code>disabled</code> пока нет диалога.
+      Короткий набор ~80 (<code>ChatEmoji::COMPOSER</code>, <code>#composerEmojisJson</code>).
+      Клик вставляет в позицию курсора <code>#msgInput</code>. Панель
+      <code>#emojiPicker</code> не fullscreen. Ошибка отправки по-прежнему
+      <code>#msgBodyError</code> / <code>errors.body</code>.</li>
+    <li><b>Крупные смайлы.</b> Тело из 1–3 emoji-последовательностей (пробелы между ними можно) —
+      класс <code>.msg-bubble.is-big-emoji</code> / <code>is-big-emoji-1..3</code>.
+      Текст рядом или 4+ смайла — обычный пузырь. Считает <code>ChatEmoji::isBigEmojiBody</code>
+      и <code>isBigEmojiMessage</code> в JS.</li>
+    <li><b>Реакции.</b> Несколько чипов на сообщение (👍 и ❤️ рядом), у каждого человека
+      <b>один</b> смайл: новый заменяет прежний. Можно на своё сообщение.
+      В группе другие присоединяются кликом по чипу. Повторный клик по своему — снять.
+      Отображение внизу слева у пузыря (<code>.msg-reactions</code>): при 1–3 реакциях
+      на этот смайл — аватарки, при 4+ — смайл и число (<code>.msg-reaction-count</code>).
+      Свой чип — <code>.is-mine</code>. Добавить: кнопка <code>.msg-react-btn</code> у сообщения
+      (hover / на таче видна) или долгое нажатие на пузырь, панель
+      <code>#reactionPicker</code> из <code>ChatEmoji::REACTIONS</code>.</li>
+    <li><b>API.</b> <code>PUT /chat/api/threads/{thread}/messages/{message}/reaction</code>
+      (<code>chat.api.threads.messages.reaction.update</code>,
+      <code>StoreChatMessageReactionRequest</code>), поле <code>emoji</code> из белого списка.
+      AJAX 200 <code>ok</code> + <code>message_id</code> + <code>reactions</code>.
+      Native PUT → 302 на <code>/chat</code>, запись есть. 422 <code>errors.emoji</code>
+      («Выберите смайлик.» / «Этот смайлик нельзя поставить как реакцию.»).
+      <code>DELETE</code> того же URI снимает свою
+      (<code>DestroyChatMessageReactionRequest</code>). Сообщение не из этого треда / нет id — 404.
+      Не участник — 403. GET/POST/PATCH URI → 404/405.
+      JSON сообщения (store/show/history) несёт <code>reactions[]</code>:
+      <code>emoji</code>, <code>count</code>, <code>mine</code>, <code>user_ids</code>,
+      <code>users</code> (id/name/avatar, только при count ≤ 3, иначе пустой массив).
+      Имя суперадмина в аватарках — «Служба поддержки».</li>
+    <li><b>Realtime.</b> Событие <code>message.reaction</code> в канале <code>thread.{id}</code>
+      (<code>MessageReactionUpdated</code>), payload <code>message_id</code> + <code>reactions</code>.
+      <b>Не</b> шлёт <code>inbox.bump</code>, непрочитанные и превью слева не трогает.
+      Если сокет не connected, реакции подтянутся при открытии диалога.</li>
+    <li><b>Не в этом срезе.</b> Стикеры, кастомные emoji-картинки, реакция в превью inbox,
+      несколько смайлов от одного человека на одно сообщение.</li>
   </ol>
 
   <h2 id="routes">3) Маршруты</h2>
@@ -765,7 +885,9 @@
       <tr><td>POST</td><td><code>/chat/api/threads/{thread}/participants</code></td><td><code>chat.api.threads.participants.store</code></td><td>добавить; поле <code>user_ids</code> (min 1); только admin/superadmin; AJAX JSON, иначе 302; 422 под <code>user_ids</code>; ученик/тренер 403</td></tr>
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/participants/{user}</code></td><td><code>chat.api.threads.participants.destroy</code></td><td>себя — любой участник (покинуть); другого — только admin; AJAX JSON <code>ok</code>+<code>message</code>, иначе 302; 0 участников — soft-delete треда, кроме <code>threads.team_id</code>; GET/PATCH → 404/405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.index</code></td><td><code>after_id</code> / <code>before_id</code> (integer min 1; <code>0</code> → JSON 422 <code>errors.before_id</code> «Некорректный идентификатор сообщения.», нативный GET 302 с ошибкой поля); PATCH/DELETE → 405</td></tr>
-      <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON, иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>POST</td><td><code>/chat/api/threads/{thread}/messages</code></td><td><code>chat.api.threads.messages.store</code></td><td>поле <code>body</code>; AJAX 201 JSON (в т.ч. <code>reactions: []</code>), иначе 302 на <code>/chat</code></td></tr>
+      <tr><td>PUT</td><td><code>/chat/api/threads/{thread}/messages/{message}/reaction</code></td><td><code>chat.api.threads.messages.reaction.update</code></td><td>поле <code>emoji</code> из белого списка; AJAX 200 <code>ok</code>+<code>reactions</code>, иначе 302; 422 <code>errors.emoji</code>; не участник 403; чужое/нет сообщения 404; GET/POST/PATCH → 404/405</td></tr>
+      <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/messages/{message}/reaction</code></td><td><code>chat.api.threads.messages.reaction.destroy</code></td><td>снять свою реакцию; AJAX 200 <code>ok</code>+<code>reactions</code>, иначе 302; GET/POST/PATCH → 404/405</td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/draft</code></td><td><code>chat.api.threads.draft</code></td><td>свой черновик, поле <code>body</code> (пустое — стереть); AJAX JSON <code>ok</code> + <code>draft_body</code>, иначе 302 на <code>/chat</code>; не участник 403; собеседнику не транслируем; GET/POST/DELETE → 404/405</td></tr>
       <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td><code>can(settings.reverbOverlay.manage)</code>; JSON <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>; гость 302/401; без права 403; POST/PATCH/DELETE → 405</td></tr>
@@ -789,6 +911,8 @@
       <code>threads.team_id</code> — чат учебной группы (nullable unique); ручные группы без этой колонки.
       Если колонки ещё нет или флаг 0, тред с <b>тремя и более</b> участниками всё равно группа:
       в списке имя из <code>subject</code>, <code>peer_id: null</code>, дедуп 1-на-1 его не подменяет.
+      Своя таблица <code>message_reactions</code> (<code>message_id</code>, <code>user_id</code>,
+      <code>emoji</code>, UNIQUE пара, один смайл на человека на сообщение).
       Своя колонка <code>participants.draft_body</code> (nullable text, до 5000 символов) — черновик текущего участника, собеседник её не читает.
       <code>participants.unread_count</code> — денормализованный счётчик непрочитанных (бейдж сайдбара = <code>SUM</code>, не <code>COUNT</code> по <code>messages</code>).
       <code>threads.last_message_id</code> — превью списка без скана <code>latestOfMany</code>.
@@ -798,13 +922,17 @@
       soft-deleted строка тоже занимает слот — повторный вход через
       <code>restoreOrCreateParticipant</code> / <code>restoreParticipantIfTrashed</code>, не второй INSERT),
       <code>threads.last_message_id</code>.</li>
-    <li>Модели: <code>App\Models\ChatThread</code>, <code>ChatMessage</code>, <code>ChatParticipant</code>.</li>
-    <li>Логика: <code>App\Services\Chat\ChatService</code> (<code>serializeThreadHeader</code>, <code>membersCountLabel</code>),
+    <li>Модели: <code>App\Models\ChatThread</code>, <code>ChatMessage</code>, <code>ChatParticipant</code>,
+      <code>ChatMessageReaction</code>.</li>
+    <li>Логика: <code>App\Services\Chat\ChatService</code> (<code>serializeThreadHeader</code>, <code>membersCountLabel</code>,
+      <code>setMessageReaction</code> / <code>removeMessageReaction</code>),
+      <code>ChatEmoji</code> (наборы COMPOSER / REACTIONS, крупные emoji-only),
       <code>UserPresence::dialogStatusLabel</code> (подпись лички в шапке),
       <code>TeamGroupChatService</code> (чаты учебных групп),
       <code>TeamGroupChatUserObserver</code>. Контроллер тонкий:
       <code>ChatApiController</code> + Form Request в <code>app/Http/Requests/Chat/</code>
-      (<code>DestroyChatThreadRequest</code> — удаление чата).</li>
+      (<code>DestroyChatThreadRequest</code> — удаление чата,
+      <code>StoreChatMessageReactionRequest</code> / <code>DestroyChatMessageReactionRequest</code> — реакции).</li>
     <li>Контакты: <code>users.partner_id = current_partner</code>, <code>is_enabled=1</code>, без себя.
       В карточке <code>team_title</code> — группы ученика через <code>UserTeamQuery</code>
       (см. <a href="/docs/documentation/student-team-membership">student-team-membership</a>).
@@ -839,7 +967,7 @@
   <ol>
     <li>Каналы (как раньше): <code>thread.{id}</code>, <code>inbox.{userId}</code>, плюс общий <code>user.{id}</code> колокольчика.</li>
     <li>События: <code>message.created</code>, <code>inbox.bump</code> (в т.ч. <code>unread_total</code> для бейджа сайдбара),
-      <code>thread.read</code>.</li>
+      <code>thread.read</code>, <code>message.reaction</code> (реакции, без unread).</li>
     <li>Клиент Echo поднимается в <code>includes/in_app_notifications/echo.blade.php</code>
       (без лишнего <code>wsPath: '/app'</code>: pusher-js сам собирает <code>/app/{key}</code>).
       Бейдж сайдбара слушает inbox в <code>includes/chat/echo.blade.php</code>.
@@ -912,6 +1040,10 @@
     <li><code>ChatDraftFeatureTest</code> — свой <code>draft_body</code> в index/show, чужой не виден, пустое тело стирает, отправка обнуляет, чужое сообщение не стирает мой черновик, <code>last_message</code> в JSON остаётся при черновике, <code>InboxBump</code> с <code>draft_body: ''</code> только отправителю, PATCH draft не шлёт bump, 422 <code>errors.body</code> с русским текстом, 5000 символов ок / 5001 нет, пропущенное <code>body</code> стирает, чужой тред 403, нет треда 404, неверный метод 404/405 (JSON и HTML).</li>
     <li><code>ChatDraftUxFeatureTest</code> — UX: переход в другой диалог не оставляет текст предыдущего в <code>#msgInput</code> (превью «Черновик:» у ушедшего), первый open подставляет серверный черновик без PATCH, повторный клик по тому же диалогу не шлёт PATCH, опрос inbox не затирает поле и локальный черновик, <code>inbox.bump</code> без <code>draft_body</code> не сбрасывает превью, bump отправителя с <code>draft_body: ''</code> убирает «Черновик:», неуспешная отправка возвращает превью, поиск по тексту черновика, XSS-escape, whitespace не рисует «Черновик:», debounce 500 мс (превью сразу, PATCH после).</li>
     <li><code>ChatDraftDocumentationContractTest</code> — анонс <code>/doc#chat-draft-index</code> и §2.2 не противоречат коду (свой <code>draft_body</code>, превью, собеседник не видит, не sessionStorage-only, не Канзас).</li>
+    <li><code>ChatReactionFeatureTest</code> — реакции: свой смайл / смена / снятие, на своё сообщение, join в группе, 1–3 аватарки / 4+ число, два чипа на сообщении, 422 <code>errors.emoji</code>, без <code>inbox.bump</code> и без роста unread, чужой тред 403, чужое сообщение 404, native PUT/DELETE 302, неверный метод 404/405.</li>
+    <li><code>ChatReactionUxFeatureTest</code> — кнопка смайла справа в поле, крупные 1–3 emoji, чип с аватарками / с числом, XSS escape, JS: пикер, <code>message.reaction</code>, <code>errors.emoji</code>.</li>
+    <li><code>ChatEmojiDocumentationContractTest</code> — анонс <code>/doc#chat-emoji-index</code> и §2.9 совпадают с кодом.</li>
+    <li><code>ChatEmojiTest</code> — набор композера 80, allowlist реакций, крупные 1–3 смайла.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>, фильтр контактов <code>?team_id=</code> (ученики группы / <code>none</code> / 422).</li>
     <li><code>ChatUnreadCounterFeatureTest</code> — бейдж берёт <code>participants.unread_count</code> (не <code>COUNT messages</code>), send увеличивает счётчик собеседника, GET show обнуляет, список использует <code>threads.last_message_id</code>, <code>unreadPrivateTotal</code> / <code>unreadGroupTotal</code> делят сумму по <code>threads.is_group</code>.</li>
@@ -1048,12 +1180,13 @@
     <li><code>ChatDocumentationContractTest</code> — анонс <code>/doc#chat-index</code>,
       <code>/doc#chat-presence-index</code>, <code>/doc#chat-group-members-index</code>,
       <code>/doc#chat-private-thread-identity-index</code>,
+      <code>/doc#chat-thread-delete-index</code> / <code>id="thread-delete"</code>,
       <code>/doc#chat-mobile-inbox-split-index</code>
       и эта страница не противоречат UX
       (бейдж info, без вспышки, без HTTP-опроса, Echo без <code>wsPath</code>,
       ping без <code>messages.view</code>, в списке нет красной точки,
       черновик на сервере / превью «Черновик:», состав группы из шапки,
-      UNIQUE лички / leftover «Диалог»,
+      UNIQUE лички / leftover «Диалог», корзина в шапке / soft-delete,
       сплит «Личные» / «Чаты» на узком экране, inbox JSON смешанный).</li>
   </ul>
   <pre><code>php artisan test --env=testing --filter Chat</code></pre>

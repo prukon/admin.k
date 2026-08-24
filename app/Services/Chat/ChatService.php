@@ -6,8 +6,10 @@ namespace App\Services\Chat;
 
 use App\Events\InboxBump;
 use App\Events\MessageCreated;
+use App\Events\MessageReactionUpdated;
 use App\Events\ThreadReadUpdated;
 use App\Models\ChatMessage;
+use App\Models\ChatMessageReaction;
 use App\Models\ChatParticipant;
 use App\Models\ChatThread;
 use App\Models\User;
@@ -110,9 +112,7 @@ class ChatService
 
         return [
             'thread' => $this->serializeThreadHeader($thread, $viewerId),
-            'messages' => $messages
-                ->map(fn (ChatMessage $message) => $this->serializeMessage($thread, $message, $viewerId))
-                ->all(),
+            'messages' => $this->serializeMessages($thread, $messages, $viewerId),
         ];
     }
 
@@ -126,26 +126,30 @@ class ChatService
         if ($afterId !== null) {
             $query->where('id', '>', $afterId);
 
-            return $query
-                ->limit(100)
-                ->get(['id', 'user_id', 'body', 'created_at'])
-                ->sortBy('id')
-                ->values()
-                ->map(fn (ChatMessage $message) => $this->serializeMessage($thread, $message, $viewerId))
-                ->all();
+            return $this->serializeMessages(
+                $thread,
+                $query
+                    ->limit(100)
+                    ->get(['id', 'user_id', 'body', 'created_at'])
+                    ->sortBy('id')
+                    ->values(),
+                $viewerId
+            );
         }
 
         if ($beforeId !== null) {
             $query->where('id', '<', $beforeId);
         }
 
-        return $query
-            ->limit(40)
-            ->get(['id', 'user_id', 'body', 'created_at'])
-            ->reverse()
-            ->values()
-            ->map(fn (ChatMessage $message) => $this->serializeMessage($thread, $message, $viewerId))
-            ->all();
+        return $this->serializeMessages(
+            $thread,
+            $query
+                ->limit(40)
+                ->get(['id', 'user_id', 'body', 'created_at'])
+                ->reverse()
+                ->values(),
+            $viewerId
+        );
     }
 
     /**
@@ -624,7 +628,7 @@ class ChatService
 
             return [
                 'message' => $message,
-                'payload' => $this->serializeMessage($thread, $message, $actorId),
+                'payload' => $this->serializeMessage($thread, $message, $actorId, []),
             ];
         });
 
@@ -990,9 +994,67 @@ class ChatService
     }
 
     /**
+     * @return array{ok: bool, message_id: int, reactions: list<array<string, mixed>>}
+     */
+    public function setMessageReaction(ChatThread $thread, ChatMessage $message, User $actor, string $emoji): array
+    {
+        $actorId = (int) $actor->id;
+
+        DB::transaction(function () use ($message, $actorId, $emoji) {
+            $row = ChatMessageReaction::query()
+                ->where('message_id', $message->id)
+                ->where('user_id', $actorId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($row) {
+                $row->forceFill(['emoji' => $emoji])->save();
+
+                return;
+            }
+
+            ChatMessageReaction::query()->create([
+                'message_id' => $message->id,
+                'user_id' => $actorId,
+                'emoji' => $emoji,
+                'created_at' => now(),
+            ]);
+        });
+
+        $reactions = $this->reactionsForMessage((int) $message->id, $actorId);
+        $this->broadcastReactions($thread, (int) $message->id);
+
+        return [
+            'ok' => true,
+            'message_id' => (int) $message->id,
+            'reactions' => $reactions,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, message_id: int, reactions: list<array<string, mixed>>}
+     */
+    public function removeMessageReaction(ChatThread $thread, ChatMessage $message, User $actor): array
+    {
+        ChatMessageReaction::query()
+            ->where('message_id', $message->id)
+            ->where('user_id', (int) $actor->id)
+            ->delete();
+
+        $reactions = $this->reactionsForMessage((int) $message->id, (int) $actor->id);
+        $this->broadcastReactions($thread, (int) $message->id);
+
+        return [
+            'ok' => true,
+            'message_id' => (int) $message->id,
+            'reactions' => $reactions,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function serializeMessage(ChatThread $thread, ChatMessage $message, int $viewerId): array
+    private function serializeMessage(ChatThread $thread, ChatMessage $message, int $viewerId, array $reactions = []): array
     {
         $isMine = (int) $message->user_id === $viewerId;
 
@@ -1002,7 +1064,116 @@ class ChatService
             'body' => (string) $message->body,
             'created_at' => $message->created_at?->toDateTimeString(),
             'is_read' => $isMine ? $this->isReadByPeer($thread, $message) : null,
+            'reactions' => $reactions,
         ];
+    }
+
+    /**
+     * @param  iterable<int, ChatMessage>  $messages
+     * @return list<array<string, mixed>>
+     */
+    private function serializeMessages(ChatThread $thread, iterable $messages, int $viewerId): array
+    {
+        $collection = collect($messages);
+        $ids = $collection->map(fn (ChatMessage $message) => (int) $message->id)->all();
+        $map = $this->reactionsPayloadByMessageId($ids, $viewerId);
+
+        return $collection
+            ->map(fn (ChatMessage $message) => $this->serializeMessage(
+                $thread,
+                $message,
+                $viewerId,
+                $map[(int) $message->id] ?? []
+            ))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function reactionsForMessage(int $messageId, int $viewerId): array
+    {
+        return $this->reactionsPayloadByMessageId([$messageId], $viewerId)[$messageId] ?? [];
+    }
+
+    /**
+     * @param  list<int>  $messageIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function reactionsPayloadByMessageId(array $messageIds, int $viewerId): array
+    {
+        if ($messageIds === [] || ! $this->hasReactionsTable()) {
+            return [];
+        }
+
+        $rows = ChatMessageReaction::query()
+            ->whereIn('message_id', $messageIds)
+            ->with(['user:'.self::PEER_USER_COLUMNS])
+            ->orderBy('id')
+            ->get();
+
+        /** @var array<int, array<string, array{first_id: int, rows: list<ChatMessageReaction>}>> $grouped */
+        $grouped = [];
+        foreach ($rows as $row) {
+            $mid = (int) $row->message_id;
+            $emoji = (string) $row->emoji;
+            if (! isset($grouped[$mid][$emoji])) {
+                $grouped[$mid][$emoji] = [
+                    'first_id' => (int) $row->id,
+                    'rows' => [],
+                ];
+            }
+            $grouped[$mid][$emoji]['rows'][] = $row;
+        }
+
+        $out = [];
+        foreach ($grouped as $mid => $byEmoji) {
+            uasort($byEmoji, fn (array $a, array $b) => $a['first_id'] <=> $b['first_id']);
+            $chips = [];
+            foreach ($byEmoji as $emoji => $pack) {
+                $chips[] = $this->serializeReactionChip((string) $emoji, $pack['rows'], $viewerId);
+            }
+            $out[$mid] = $chips;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<ChatMessageReaction>  $rows
+     * @return array<string, mixed>
+     */
+    private function serializeReactionChip(string $emoji, array $rows, int $viewerId): array
+    {
+        $users = [];
+        $userIds = [];
+        foreach ($rows as $row) {
+            $uid = (int) $row->user_id;
+            $userIds[] = $uid;
+            $user = $row->user;
+            $users[] = [
+                'id' => $uid,
+                'name' => $this->support->displayName($user, 'Участник'),
+                'avatar' => $this->avatarUrl($user?->image_crop ?? null),
+            ];
+        }
+
+        $count = count($userIds);
+
+        return [
+            'emoji' => $emoji,
+            'count' => $count,
+            'mine' => in_array($viewerId, $userIds, true),
+            'user_ids' => $userIds,
+            'users' => $count <= 3 ? $users : [],
+        ];
+    }
+
+    private function broadcastReactions(ChatThread $thread, int $messageId): void
+    {
+        $reactions = $this->reactionsPayloadByMessageId([$messageId], 0)[$messageId] ?? [];
+        $this->safeBroadcast(new MessageReactionUpdated((int) $thread->id, $messageId, $reactions));
     }
 
     private function isReadByPeer(ChatThread $thread, ChatMessage $message): bool
@@ -1151,6 +1322,16 @@ class ChatService
         static $has = null;
         if ($has === null) {
             $has = Schema::hasColumn('participants', 'draft_body');
+        }
+
+        return $has;
+    }
+
+    private function hasReactionsTable(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            $has = Schema::hasTable('message_reactions');
         }
 
         return $has;

@@ -242,6 +242,223 @@ final class UsersImportFeatureTest extends CrmTestCase
             ->assertJsonFragment(['field' => 'Email родителя']);
     }
 
+    public function test_import_fills_empty_parent_fio_and_keeps_existing_phone(): void
+    {
+        $studentRoleId = $this->studentRoleId();
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => null,
+            'firstname' => null,
+            'middlename' => null,
+            'email' => 'fill-parent@example.test',
+            'phone' => '79627035846',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $studentRoleId,
+            'lastname' => 'Анзароков',
+            'name' => 'Идар',
+            'email' => 'fill-student@example.test',
+            'parent_id' => $parent->id,
+            'is_enabled' => true,
+        ]);
+
+        $file = $this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $student->lastname,
+                'Имя ученика' => $student->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $student->email,
+                'Email родителя' => 'fill-parent@example.test',
+                'Фамилия родителя' => 'Анзароков',
+                'Имя родителя' => 'Довлет',
+                'Телефон родителя' => '',
+            ]),
+        ]);
+
+        $preview = $this->postJson(route('admin.users.import.preview'), ['file' => $file], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('valid', true)
+            ->json();
+
+        $this->postJson(route('admin.users.import.commit'), [
+            'import_token' => $preview['import_token'],
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('updated', 1);
+
+        $parent->refresh();
+        $student->refresh();
+        $this->assertSame('Анзароков', $parent->lastname);
+        $this->assertSame('Довлет', $parent->firstname);
+        $this->assertSame('79627035846', $parent->phone);
+        $this->assertSame((int) $parent->id, (int) $student->parent_id);
+    }
+
+    public function test_preview_fails_when_non_empty_parent_lastname_conflicts_with_directory(): void
+    {
+        ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванова',
+            'firstname' => 'Анна',
+            'email' => 'conflict-parent@example.test',
+            'phone' => '79001112233',
+        ]);
+
+        $file = $this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => 'Иванов',
+                'Имя ученика' => 'Сын',
+                'Email родителя' => 'conflict-parent@example.test',
+                'Фамилия родителя' => 'Петрова',
+                'Имя родителя' => 'Анна',
+            ]),
+        ]);
+
+        $this->postJson(route('admin.users.import.preview'), ['file' => $file], $this->importAjaxHeaders())
+            ->assertStatus(422)
+            ->assertJsonPath('valid', false)
+            ->assertJsonFragment([
+                'field' => 'Email родителя',
+                'message' => 'Родитель с таким email уже существует, но данные в файле не совпадают со справочником.',
+            ]);
+    }
+
+    public function test_import_merges_complementary_parent_fields_across_rows(): void
+    {
+        $file = $this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => 'Один',
+                'Имя ученика' => 'Первый',
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => 'sibling-one@example.test',
+                'Email родителя' => 'merge-parent@example.test',
+                'Фамилия родителя' => 'Иванова',
+            ]),
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => 'Два',
+                'Имя ученика' => 'Второй',
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => 'sibling-two@example.test',
+                'Email родителя' => 'merge-parent@example.test',
+                'Имя родителя' => 'Анна',
+                'Телефон родителя' => '79001112233',
+            ]),
+        ]);
+
+        $preview = $this->previewImportFile($file);
+
+        $this->postJson(route('admin.users.import.commit'), [
+            'import_token' => $preview['import_token'],
+        ], $this->importAjaxHeaders())
+            ->assertOk()
+            ->assertJsonPath('created', 2);
+
+        $parents = ParentProfile::query()
+            ->where('partner_id', $this->partner->id)
+            ->where('email', 'merge-parent@example.test')
+            ->get();
+
+        $this->assertCount(1, $parents);
+        $parent = $parents->first();
+        $this->assertSame('Иванова', $parent->lastname);
+        $this->assertSame('Анна', $parent->firstname);
+        $this->assertSame('79001112233', $parent->phone);
+
+        $one = User::query()->where('email', 'sibling-one@example.test')->first();
+        $two = User::query()->where('email', 'sibling-two@example.test')->first();
+        $this->assertNotNull($one);
+        $this->assertNotNull($two);
+        $this->assertSame((int) $parent->id, (int) $one->parent_id);
+        $this->assertSame((int) $parent->id, (int) $two->parent_id);
+    }
+
+    public function test_import_does_not_overwrite_existing_parent_lastname(): void
+    {
+        $studentRoleId = $this->studentRoleId();
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванова',
+            'firstname' => null,
+            'email' => 'keep-lastname@example.test',
+            'phone' => null,
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $studentRoleId,
+            'email' => 'keep-lastname-student@example.test',
+            'parent_id' => $parent->id,
+        ]);
+
+        $file = $this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $student->lastname,
+                'Имя ученика' => $student->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $student->email,
+                'Email родителя' => 'keep-lastname@example.test',
+                'Фамилия родителя' => '',
+                'Имя родителя' => 'Анна',
+            ]),
+        ]);
+
+        $preview = $this->previewImportFile($file);
+        $this->postJson(route('admin.users.import.commit'), [
+            'import_token' => $preview['import_token'],
+        ], $this->importAjaxHeaders())->assertOk();
+
+        $parent->refresh();
+        $this->assertSame('Иванова', $parent->lastname);
+        $this->assertSame('Анна', $parent->firstname);
+    }
+
+    public function test_preview_ok_when_file_has_only_parent_email_and_directory_already_has_fio(): void
+    {
+        $studentRoleId = $this->studentRoleId();
+        $parent = ParentProfile::query()->create([
+            'partner_id' => $this->partner->id,
+            'lastname' => 'Иванова',
+            'firstname' => 'Анна',
+            'email' => 'email-only-parent@example.test',
+            'phone' => '79001112233',
+        ]);
+
+        $student = User::factory()->create([
+            'partner_id' => $this->partner->id,
+            'role_id' => $studentRoleId,
+            'email' => 'email-only-student@example.test',
+            'parent_id' => $parent->id,
+        ]);
+
+        $file = $this->makeImportFile([
+            $this->sampleImportRow($this->legalEntity, [
+                'Фамилия ученика' => $student->lastname,
+                'Имя ученика' => $student->name,
+                'Группа' => '',
+                'Юр. лицо' => '',
+                'Email ученика' => $student->email,
+                'Email родителя' => 'email-only-parent@example.test',
+            ]),
+        ]);
+
+        $preview = $this->previewImportFile($file);
+
+        $this->postJson(route('admin.users.import.commit'), [
+            'import_token' => $preview['import_token'],
+        ], $this->importAjaxHeaders())->assertOk();
+
+        $parent->refresh();
+        $this->assertSame('Иванова', $parent->lastname);
+        $this->assertSame('Анна', $parent->firstname);
+        $this->assertSame('79001112233', $parent->phone);
+    }
+
     public function test_preview_fails_for_soft_deleted_team_title(): void
     {
         Team::factory()->for($this->partner)->create([

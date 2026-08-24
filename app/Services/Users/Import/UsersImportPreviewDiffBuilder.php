@@ -10,7 +10,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Строит field-level diff для preview импорта (режим update).
- * Семантика совпадает с UsersImportCommitService: полная подстановка из строки.
+ * Семантика совпадает с UsersImportCommitService: полная подстановка полей ученика;
+ * у родителя в справочнике — дозапись пустых ФИО/телефона, пустые ячейки не очищают карточку.
  */
 final class UsersImportPreviewDiffBuilder
 {
@@ -265,25 +266,41 @@ final class UsersImportPreviewDiffBuilder
 
         $targetParentId = $targetParent instanceof ParentProfile ? (int) $targetParent->id : null;
 
-        if ($targetParentId !== null && $currentParentId === $targetParentId) {
-            return null;
+        if ($targetParent instanceof ParentProfile) {
+            $merged = UsersImportParentDirectory::mergeFillEmpty(
+                UsersImportParentDirectory::storedContactFields($targetParent),
+                UsersImportParentDirectory::rowContactFields($row),
+            );
+            $targetLabel = $this->composeParentLabel(
+                $merged['lastname'],
+                $merged['firstname'],
+                $merged['middlename'],
+                $targetParent->email,
+                $merged['phone'],
+            );
+
+            if ($targetParentId === $currentParentId && $targetLabel === $currentLabel) {
+                return null;
+            }
+
+            return new UsersImportFieldChange(
+                field: 'parent',
+                label: 'Родитель',
+                from: $currentParentId === null
+                    ? self::EMPTY_DISPLAY
+                    : ($currentLabel !== '' ? $currentLabel : self::EMPTY_DISPLAY),
+                to: $targetLabel,
+                kind: UsersImportFieldChange::KIND_CHANGED,
+            );
         }
 
-        $targetLabel = $targetParent instanceof ParentProfile
-            ? $this->composeParentLabel(
-                $targetParent->lastname,
-                $targetParent->firstname,
-                $targetParent->middlename,
-                $targetParent->email,
-                $targetParent->phone,
-            )
-            : $this->composeParentLabel(
-                $row->parentLastname,
-                $row->parentFirstname,
-                $row->parentMiddlename,
-                $row->parentEmail,
-                $row->parentPhone,
-            );
+        $targetLabel = $this->composeParentLabel(
+            $row->parentLastname,
+            $row->parentFirstname,
+            $row->parentMiddlename,
+            $row->parentEmail,
+            $row->parentPhone,
+        );
 
         return new UsersImportFieldChange(
             field: 'parent',

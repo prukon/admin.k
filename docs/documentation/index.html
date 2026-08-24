@@ -28,12 +28,95 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="users-import-parent-fill-index">Импорт Excel: дозапись пустых ФИО/телефона родителя (2026‑08)</h2>
+  <div class="note">
+    На <code>/admin/users</code> модалка «Импорт учеников из Excel» (права <code>users.view</code> +
+    <code>users.import</code>). Сопоставление родителя — по email текущего партнёра
+    (без учёта регистра), не по ФИО и не по телефону.
+    <br><br>
+    Раньше preview требовал <b>полного совпадения</b> фамилии, имени, отчества и телефона
+    с карточкой <code>parents</code>. Пустая ячейка в файле при заполненном поле в справочнике
+    (и наоборот) давала 422 «Родитель с таким email уже существует, но данные в файле не совпадают со справочником.»
+    Безымянную карточку (в Select2 — «Родитель #id») нельзя было дополнить ФИО из файла,
+    известный телефон нельзя было не указывать повторно.
+    <br><br>
+    1) <b>Пустые ячейки</b> ФИО/телефона родителя не сравниваются со справочником и <b>не очищают</b> карточку.
+    Это не про ученика: пустой телефон/ДР ученика при update по-прежнему пишут <code>null</code>.
+    <br>
+    2) <b>Дозапись.</b> Непустое значение из файла <b>дописывается</b> только в пустое поле
+    (<code>lastname</code> / <code>firstname</code> / <code>middlename</code> / <code>phone</code>).
+    Уже заполненное поле импорт <b>не перезаписывает</b>.
+    <br>
+    3) <b>Конфликт</b> — только если оба значения заполнены и различаются (тот же текст ошибки,
+    поле «Email родителя»). Несколько строк с одним email родителя дополняют друг друга,
+    пока нет противоречия в одном поле.
+    <br>
+    4) <b>Preview-diff</b> для update показывает «Станет» у родителя <b>после дозаписи</b>
+    (даже если <code>parent_id</code> тот же). Хелпер <code>UsersImportParentDirectory</code>,
+    commit — <code>UsersImportCommitService</code> (сначала дозапись, в sync уходит
+    <code>parent_id</code>, чтобы не затереть ФИО пустым payload).
+    <br>
+    5) <b>После commit</b> безымянная карточка перестаёт отображаться в Select2 как «Родитель #id»:
+    в списке учеников, <code>parents/search</code> и edit JSON видны дописанные ФИО,
+    телефон справочника сохраняется, если в файле он пустой.
+    <br>
+    6) <b>Что не менялось.</b> Все поля родителя пустые при update → отвязка
+    (<code>users.parent_id = null</code>), карточка в справочнике не чистится.
+    Нет email родителя, но есть ФИО → новая карточка на строку.
+    Email не найден у текущего партнёра → создаётся свой <code>parents</code>
+    (чужая организация с тем же email не заполняется).
+    Email родителя в <code>users.email</code> ученика не копируется.
+    Массовой чистки уже существующих безымянных карточек нет — только строки импорта.
+    <br><br>
+    Подробно — <a href="/docs/documentation/admin-users#user-import">admin-users §8.4</a> /
+    <a href="/docs/documentation/admin-users#user-import-parent-fill">родители</a> /
+    <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>.
+    Тесты: <code>UsersImportFeatureTest</code>, <code>UsersImportPreviewDiffFeatureTest</code>,
+    <code>UsersImportParentDirectoryFillFeatureTest</code>,
+    <code>UsersImportParentDirectoryFillFullAccessFeatureTest</code>,
+    <code>UsersImportAjaxContractFeatureTest</code>,
+    <code>UsersImportNonAjaxSafetyNetFeatureTest</code>,
+    <code>UsersImportParentDirectoryTest</code>,
+    <code>UsersImportParentDirectoryDocumentationContractTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (<code>initUsersImportModal</code>).
+  </div>
+
+  <h2 id="chat-emoji-index">Чат: смайлы в сообщениях и реакции (2026‑08)</h2>
+  <div class="note">
+    Unicode-смайлы в тексте и реакции на пузырь, как в Telegram. Это не стикеры,
+    не вложения и не колокольчик. Право то же: <code>messages.view</code>.
+    <br><br>
+    1) <b>Пикер ввода.</b> Справа в поле <code>#msgInput</code> — кнопка
+    <code>#emojiBtn</code> (<code>fa-regular fa-face-smile</code>), пока диалог не выбран —
+    <code>disabled</code>. Короткий набор ~80 (<code>ChatEmoji::COMPOSER</code>).
+    Клик вставляет смайл в курсор. Сообщение из 1–3 смайлов без текста рисуется крупнее
+    (<code>.is-big-emoji</code>).
+    <br>
+    2) <b>Реакции.</b> Несколько чипов на одном сообщении (👍 и ❤️ рядом), у человека
+    один смайл: новый заменяет прежний. Можно на своё. В группе другие присоединяются
+    кликом по чипу. 1–3 человека на этот смайл — аватарки внизу слева у пузыря,
+    4+ — смайл и число. Свой чип повторно снимает реакцию.
+    <br>
+    3) <b>API.</b> <code>PUT /chat/api/threads/{thread}/messages/{message}/reaction</code>
+    (<code>chat.api.threads.messages.reaction.update</code>), поле <code>emoji</code>
+    из <code>ChatEmoji::REACTIONS</code>. AJAX 200 <code>ok</code> + <code>reactions</code>.
+    Native — 302 на <code>/chat</code>. 422 <code>errors.emoji</code> под
+    <code>#msgReactionError</code>. <code>DELETE</code> того же URI снимает свою.
+    Не участник 403, нет сообщения 404. Сокет <code>message.reaction</code> в
+    <code>thread.{id}</code>, <b>без</b> <code>inbox.bump</code> и без бейджа непрочитанных.
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#emoji">chat §emoji</a>.
+    Тесты: <code>ChatReactionFeatureTest</code>, <code>ChatReactionUxFeatureTest</code>,
+    <code>ChatEmojiDocumentationContractTest</code>, <code>ChatEmojiTest</code>.
+  </div>
+
   <h2 id="chat-thread-delete-index">Чат: удаление диалога из шапки (2026‑08)</h2>
   <div class="note">
     Скрытое право <code>messages.threads.delete</code> (группа <code>mainMenu</code>,
     <code>is_visible=0</code>, <b>не</b> в базовых ролях). Superadmin видит корзину
     в шапке открытого диалога через <code>Gate::before</code> / <code>@can</code>,
-    остальным кнопки нет. Это не «покинуть группу» и не авто-чат учебной группы.
+    без записи в матрицу. Остальным кнопки нет, пока не выдадите это право.
+    Это не «покинуть группу» и не авто-чат учебной группы.
     <br><br>
     1) <b>Кнопка.</b> Справа в шапке — только иконка корзины (<code>#deleteThreadBtn</code>,
     <code>fa-trash</code>), без подписи. Пока диалог не выбран — скрыта. У чата с
@@ -54,10 +137,10 @@
     диалог закрывается, тост, корзина скрывается.
     <br>
     3) <b>Не в этом срезе.</b> Hard-delete, удаление авто-чата учебной группы,
-    кнопка у ученика без выдачи права.
+    кнопка у роли без выдачи скрытого права (ученик/админ/тренер в базовом наборе).
     <br><br>
     Код: <code>DestroyChatThreadRequest</code>, <code>ChatService::deleteThread</code>.
-    Подробно — <a href="/docs/documentation/chat">chat</a>.
+    Подробно — <a href="/docs/documentation/chat#thread-delete">chat §удаление</a>.
     Тесты: <code>ChatThreadDeleteFeatureTest</code>,
     <code>ChatThreadDeleteFullAccessFeatureTest</code>,
     <code>ChatThreadDeleteNonAjaxSafetyNetFeatureTest</code>,
@@ -268,6 +351,9 @@
     (<a href="/doc#chat-team-groups-index">авто-чат</a>).
     Включение учётки само личку не возвращает
     (<a href="/doc#chat-team-groups-index">отключение</a>) — нужен клик по контакту.
+    Корзина в шапке — другое: тред soft-deleted, следующий клик создаёт
+    <b>новый</b> id (<a href="/doc#chat-thread-delete-index">анонс удаления</a>),
+    не leftover 0 живых.
     <br><br>
     1) <b>UNIQUE.</b> На <code>participants</code> — <code>UNIQUE (thread_id, user_id)</code>
     (<code>participants_thread_user_unique</code>). Soft-deleted строка тоже занимает слот:
@@ -296,7 +382,9 @@
     5) <b>API.</b> <code>POST /chat/api/threads</code>, поле <code>user_id</code>.
     AJAX: 201 создан / 200 тот же тред. Нативный POST — 302 на <code>/chat</code>
     (запись есть, не сырой JSON 200). 422 под <code>errors.user_id</code>.
-    PATCH/PUT/DELETE URI — 405.
+    PATCH/PUT/DELETE URI коллекции (без id) — 405.
+    <code>DELETE /chat/api/threads/{thread}</code> — корзина в шапке
+    (<a href="/doc#chat-thread-delete-index">анонс удаления</a>), не этот store.
     <br>
     6) <b>Не в этом срезе.</b> Отдельная БД чата, HTTP-опрос inbox, склейка групп
     по одинаковому составу.
@@ -321,6 +409,9 @@
     (<a href="/doc#chat-contacts-team-filter-index">фильтр по группе</a>).
     Карточка человека из личного диалога — как раньше
     (<a href="/doc#chat-presence-index">онлайн / карточка</a>).
+    Это не корзина в шапке
+    (<a href="/doc#chat-thread-delete-index">удаление диалога</a>):
+    «Покинуть» убирает только вас, корзина soft-delete чат у всех.
     <br><br>
     1) <b>Шапка.</b> Клик по аватарке или названию (<code>#threadPeerHit</code>,
     <code>headerPeerActivate</code>; Enter / Space) у группы открывает
@@ -1394,7 +1485,8 @@
     <b>«Служба поддержки»</b>
     (<a href="/doc#chat-support-identity-index">анонс</a>): пункт <b>«Чат»</b> в сайдбаре
     (иконка конверта, <code>fa-message</code>), страница <code>/chat</code>.
-    Текст без вложений. Можно создать групповой чат кнопкой «Создать группу»
+    Текст без вложений. Unicode-смайлы из пикера справа в поле и реакции на сообщения
+    (<a href="/doc#chat-emoji-index">анонс смайлов</a>). Можно создать групповой чат кнопкой «Создать группу»
     (<a href="/doc#chat-groups-index">анонс групп</a>).
     Учебная группа из справочника сразу получает свой чат
     (<a href="/doc#chat-team-groups-index">авто-чат</a>: <code>threads.team_id</code>),
@@ -1507,6 +1599,8 @@
     <code>ChatHeaderSubtitleFeatureTest</code> / <code>ChatHeaderSubtitleUxFeatureTest</code>
     (<a href="/doc#chat-header-subtitle-index">подзаголовок шапки</a>),
     <code>ChatDraftFeatureTest</code> / <code>ChatDraftUxFeatureTest</code> (черновик на сервере и превью «Черновик:»),
+    <code>ChatReactionFeatureTest</code> / <code>ChatReactionUxFeatureTest</code>
+    (<a href="/doc#chat-emoji-index">смайлы и реакции</a>),
     <code>ChatContactsTeamFilterFeatureTest</code> / <code>ChatContactsTeamFilterUxFeatureTest</code>
     (<a href="/doc#chat-contacts-team-filter-index">фильтр контактов по группе</a>),
     <code>ChatGroupThreadFeatureTest</code> / <code>ChatGroupThreadUxFeatureTest</code>
@@ -3629,7 +3723,11 @@
     (пустая ячейка → <code>null</code> / снятие групп / отвязка родителя).
     В саммари — «с изменениями / без изменений»; в таблице preview строки с изменениями идут первыми;
     клик по такой строке раскрывает мини-таблицу «Поле | Было | Станет».
-    Семантика импорта (полная подстановка из строки) не менялась — добавлена только прозрачность перед commit.
+    Для ученика семантика commit (полная подстановка телефона/ДР/групп из строки) не менялась —
+    добавлена прозрачность перед commit.
+    Исключение с 2026‑08: поля карточки родителя при совпадении email — дозапись пустых ФИО/телефона,
+    пустая ячейка справочник <b>не очищает</b>
+    (<a href="/doc#users-import-parent-fill-index">анонс</a>).
     Подробно — <a href="/docs/documentation/admin-users#user-import-preview-diff">admin-users §8.5</a>,
     весь импорт — <a href="/docs/documentation/admin-users#user-import">§8</a>.
   </div>
@@ -3639,6 +3737,8 @@
     На <code>/admin/users</code> — кнопка «Импорт» (право <code>users.import</code> + <code>users.view</code>): загрузка шаблона <code>.xlsx</code>,
     двухфазный процесс «Проверить» → «Импортировать», режим всё-или-ничего, create/update учеников по email, группы (создание при отсутствии), родители, юр. лица только из справочника.
     После проверки — preview-diff для update (см. блок выше).
+    С 2026‑08 родитель по email: пустые ФИО/телефон в файле не требуют полного совпадения со справочником
+    (<a href="/doc#users-import-parent-fill-index">анонс дозаписи</a>).
     Подробно — <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>.
   </div>
 
@@ -3804,7 +3904,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>оверлей статуса Reverb</b> при флаге и <code>can(settings.reverbOverlay.manage)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#cabinet-diagnostics-index">кнопка</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>оверлей статуса Reverb</b> при флаге и <code>can(settings.reverbOverlay.manage)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#cabinet-diagnostics-index">кнопка</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -3850,7 +3950,7 @@
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>
     <li><a href="/docs/documentation/admin-role-staff">Администраторы и кастомные роли: <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>, <code>RoleStaffUserController</code>, soft delete, <code>users.role.update</code>, <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>)</a></li>
     <li><a href="/docs/documentation/student-team-membership"><strong>Ученик ↔ группы (M:N)</strong>: pivot <code>team_user</code>, multiselect <code>team_ids[]</code>, legacy <code>users.team_id</code> (архив), <code>users_prices.team_id</code>, снимок <code>payments.team_id</code>, журнал <code>sync-teams</code>, договоры <code>group_id</code>, отчёты, ЛК (чтение + <b>attach</b> из сайдбара / карандаша при <code>account.user.team.update</code>), консоль <code>/cabinet</code>, «Моя группа»</a></li>
-    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
+    <li><a href="/docs/documentation/admin-users">Клиенты в админке (<code>/admin/users</code>, вкладка «Клиенты», роль <code>user</code>): <b>нейминг «Клиент»</b> (<a href="/doc#users-client-naming-index">анонс</a>), <b>без table-preloader</b> (оверлей только в журнале — <a href="/doc#journal-table-preloader-index">анонс</a>), <b>«Показать N»</b> (§2.0, <code>page_length</code>), <b>колонка «Телефон родителя»</b> (<code>parent_phone</code> / <code>parents.phone</code>) и заголовок «Телефон ученика» (§2.1.0), <b>адрес проживания</b> (<code>users.address</code> → договорный <code>{{child_address}}</code>, §2.5), <b>ФИО ученика в родительном</b> (<code>users.full_name_genitive</code> → <code>{{child_full_name_genitive}}</code>, право <code>users.full_name_genitive</code>, §2.1.7), <b>импорт Excel</b> (<code>users.import</code>, §8) + <b>preview-diff</b> для update (§8.5) + <b>дозапись пустых ФИО/телефона родителя</b> по email (§8.4, <a href="/doc#users-import-parent-fill-index">анонс</a>), <b>родитель из справочника с редактируемым ФИО</b> (§2.1), колонка и фильтр «Договор» (<code>contracts.view</code>), мед./особенности, <b>пол</b> (<code>users.sex</code>, CRM и кабинет), <b>комментарий</b> (<code>users.comment</code>, только CRM), <b>персональная скидка %</b> (<code>users.discount.manage</code>, §2.6), <b>группы</b> (<code>team_ids</code>), <b>welcome-письмо</b> (ручное create с <code>send_welcome_email</code>, лид→клиент, resend пароля — §5.1), <b>ручная смена пароля со всплывайкой</b> (<a href="/doc#admin-password-change-toast-index">анонс</a>), доп. поля</a></li>
     <li><a href="/docs/documentation/school-leads-widget">Заявки с сайта: виджет iframe, CRM (<b>«Показать N»</b> §5.1.4, <b>счётчик «Новых» в сайдбаре</b> §3.1, <b>модалка «Редактирование лида»</b> §5.5.2, <b>автосопоставление родителя из справочника</b> §5.5.5, <b>смена статуса у лида с клиентом</b> §5.5.4, колонки <b>ребёнок→родитель→статус→объект→секция→телефон</b> без «Действий» и без DELETE заявки §5.5.3, лид → клиент → договор без ухода со страницы, <b>welcome-письмо при «Создать клиента»</b> §5.7.1, динамический tooltip кнопки §5.7), <b>настраиваемые статусы</b> с цветными бейджами и <b>inline-сменой статуса</b> в таблице (§5.5.1), non-AJAX 302 для PUT/CRUD статусов, <b>filter multiselect</b> статусов, аудит <code>school_lead.*</code>, Telegram</a></li>
     <li><a href="/docs/documentation/school-leads-landing">Страница заявки партнёра: <code>/lead/{landingSlug}</code>, каскад район → объект → услуга, <b>автовыбор единственного варианта</b> (disabled), <code>district_id</code>, <code>source=landing</code>, <b>автосопоставление родителя</b> при submit (см. widget §5.5.5)</a></li>
     <li><a href="/docs/documentation/blog">Блог: публичные страницы, админка (<code>blog.view</code>), ИИ статей, автопубликация в VK (kidscrm): ИИ-анонс, обложка, очередь <code>default</code></a></li>

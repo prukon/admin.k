@@ -151,6 +151,11 @@
         <a href="/doc#cabinet-attach-team-in-app-index">событие</a>,
         <a href="/doc#cabinet-attach-team-in-app-body-index">текст</a>,
         <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>);</li>
+      <li><code>messages.threads.delete</code> — корзина в шапке чата (soft-delete лички и ручной группы,
+        не авто-чат <code>threads.team_id</code>); скрытое (<code>is_visible=0</code>, группа
+        <code>mainMenu</code>); не в базовых ролях; superadmin видит через <code>Gate::before</code>;
+        <a href="/docs/documentation/chat#thread-delete">chat §2.8</a>,
+        анонс <a href="/doc#chat-thread-delete-index">/doc</a>;</li>
       <li><code>sport_types.manage</code> — создание/редактирование видов спорта (<a href="/docs/documentation/admin-sport-types">admin-sport-types</a>); просмотр <code>sport_types.view</code> в базовый набор <b>входит</b> (с 2026‑07);</li>
       <li><code>legal_entities.sm_register</code> — sm-register в T‑Bank (<a href="/docs/documentation/admin-legal-entities">admin-legal-entities</a>); <code>legal_entities.view</code> и <code>legal_entities.manage</code> в базовый набор входят;</li>
       <li><code>schoolWidget.view</code> — вкладка «Виджет для сайта» (iframe / Telegram); <code>schoolLeads.view</code> и <code>schoolLeadLanding.view</code> в базовый набор входят;</li>

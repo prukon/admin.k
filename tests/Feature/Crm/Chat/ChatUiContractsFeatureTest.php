@@ -38,6 +38,18 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('id="threadAvatar"', $page);
         $this->assertStringContainsString('style="display:none;"', $page);
         $this->assertStringContainsString('id="msgInput"', $page);
+        $this->assertStringContainsString('id="emojiBtn"', $html);
+        $this->assertStringContainsString('id="emojiPicker"', $html);
+        $this->assertStringContainsString('id="reactionPicker"', $html);
+        $this->assertStringContainsString('id="msgReactionError"', $html);
+        $this->assertStringContainsString('data-error-for="emoji"', $html);
+        $this->assertStringContainsString('chat-composer-field', $html);
+        $this->assertMatchesRegularExpression(
+            '/id="emojiBtn"[^>]*\bdisabled/',
+            $html
+        );
+        $this->assertStringContainsString('id="composerEmojisJson"', $html);
+        $this->assertStringContainsString('id="reactionEmojisJson"', $html);
         $this->assertStringContainsString('name="body"', $page);
         $this->assertStringContainsString('autocomplete="off" disabled', $page);
         $this->assertDoesNotMatchRegularExpression(
@@ -262,6 +274,11 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('text-align: left', $middleBlock);
         $this->assertStringNotContainsString('text-align: center', $titleBlock);
         $this->assertStringNotContainsString('text-align: center', $middleBlock);
+        $this->assertStringContainsString('.chat-emoji-btn {', $css);
+        $this->assertStringContainsString('.msg-reactions {', $css);
+        $this->assertStringContainsString('.msg-bubble.is-big-emoji {', $css);
+        $this->assertStringContainsString('.msg-reaction-chip.is-mine {', $css);
+        $this->assertStringContainsString('chat-composer-field', $css);
         $this->assertStringContainsString('.msg-row.msg-mine { justify-content: flex-end; }', $css);
         $this->assertStringContainsString('.msg-row.msg-other { justify-content: flex-start; }', $css);
         $this->assertStringContainsString(

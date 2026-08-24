@@ -53,13 +53,23 @@
                         </div>
                         <div class="border-top p-2 bg-white chat-composer">
                             <form id="sendForm">
-                                <div class="d-flex gap-2">
-                                    <input type="text" class="form-control" id="msgInput" name="body" placeholder="Напишите сообщение…" autocomplete="off" disabled>
+                                <div class="d-flex gap-2 align-items-end">
+                                    <div class="chat-composer-field">
+                                        <input type="text" class="form-control" id="msgInput" name="body" placeholder="Напишите сообщение…" autocomplete="off" disabled>
+                                        <button type="button" class="chat-emoji-btn" id="emojiBtn" aria-label="Смайлики" title="Смайлики" disabled>
+                                            <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
+                                        </button>
+                                        <div id="emojiPicker" class="chat-emoji-picker" hidden></div>
+                                    </div>
                                     <button class="btn btn-success" type="submit" disabled>Отправить</button>
                                 </div>
                                 <div class="text-danger chat-field-error" id="msgBodyError"></div>
+                                <div class="text-danger chat-field-error" id="msgReactionError" data-error-for="emoji"></div>
                             </form>
                         </div>
+                        <div id="reactionPicker" class="chat-reaction-picker" hidden></div>
+                        <div id="composerEmojisJson" hidden>@json(\App\Services\Chat\ChatEmoji::COMPOSER)</div>
+                        <div id="reactionEmojisJson" hidden>@json(\App\Services\Chat\ChatEmoji::REACTIONS)</div>
                     </div>
                 </div>
             </div>

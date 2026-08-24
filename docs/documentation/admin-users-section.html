@@ -96,7 +96,11 @@
   <ul>
     <li>Заголовок страницы раздела: <code>Пользователи</code> (h4, сайдбар тот же). Вкладка учеников и toolbar <code>h1</code> на <code>/admin/users</code>: <code>Клиенты</code>. Модалки ученика: «Создание клиента» / «Редактирование клиента» / «Удаление клиента». JSON: <code>Клиент создан успешно</code>, <code>Клиент успешно обновлён</code>, <code>Клиент успешно удалён</code>. Toast удаления: <code>Клиент успешно удален.</code> (е). Тренеры и сотрудники этот копирайт не получают. Право <code>users.view</code> в матрице прав по-прежнему «Страница "Пользователи"»; группа прав — «Управление клиентами»; label роли <code>user</code> — «Клиент».</li>
     <li>На каждой вкладке — toolbar (добавить, фильтры, колонки), DataTables через <code>KidsCrmDataTable.create</code> — см. <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.</li>
-    <li>На вкладке «Клиенты» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code> (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>, preview-diff — <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>); колонки «Телефон родителя» / «Телефон ученика» — <a href="/docs/documentation/admin-users#user-parent-phone-column">§2.1.0</a>.</li>
+    <li>На вкладке «Клиенты» (<code>/admin/users</code>) дополнительно — кнопка «Импорт» при праве <code>users.import</code>
+      (см. <a href="/docs/documentation/admin-users#user-import">admin-users §8</a>,
+      preview-diff — <a href="/docs/documentation/admin-users#user-import-preview-diff">§8.5</a>,
+      дозапись пустых ФИО/телефона родителя — <a href="/doc#users-import-parent-fill-index">анонс</a>);
+      колонки «Телефон родителя» / «Телефон ученика» — <a href="/docs/documentation/admin-users#user-parent-phone-column">§2.1.0</a>.</li>
     <li>Trait контроллеров: <code>App\Http\Controllers\Admin\Concerns\RendersUsersSectionTabs</code> передаёт в view <code>usersSectionTabs</code> и <code>activeTab</code>.</li>
   </ul>
 

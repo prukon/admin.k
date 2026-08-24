@@ -1140,6 +1140,8 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::delete('/chat/api/threads/{thread}/participants/{user}', [ChatApiController::class, 'destroyParticipant'])->whereNumber('thread')->whereNumber('user')->name('chat.api.threads.participants.destroy');
         Route::get('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'messages'])->whereNumber('thread')->name('chat.api.threads.messages.index');
         Route::post('/chat/api/threads/{thread}/messages', [ChatApiController::class, 'storeMessage'])->whereNumber('thread')->name('chat.api.threads.messages.store');
+        Route::put('/chat/api/threads/{thread}/messages/{message}/reaction', [ChatApiController::class, 'upsertMessageReaction'])->whereNumber('thread')->whereNumber('message')->name('chat.api.threads.messages.reaction.update');
+        Route::delete('/chat/api/threads/{thread}/messages/{message}/reaction', [ChatApiController::class, 'destroyMessageReaction'])->whereNumber('thread')->whereNumber('message')->name('chat.api.threads.messages.reaction.destroy');
         Route::patch('/chat/api/threads/{thread}/read', [ChatApiController::class, 'markRead'])->whereNumber('thread')->name('chat.api.threads.read');
         Route::patch('/chat/api/threads/{thread}/draft', [ChatApiController::class, 'saveDraft'])->whereNumber('thread')->name('chat.api.threads.draft');
     });

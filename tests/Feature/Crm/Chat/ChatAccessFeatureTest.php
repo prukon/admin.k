@@ -17,7 +17,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     /**
      * @return list<array{0: string, 1: string, 2: array<string, mixed>}>
      */
-    private function protectedEndpoints(int $threadId, int $peerId): array
+    private function protectedEndpoints(int $threadId, int $peerId, int $messageId): array
     {
         return [
             ['GET', 'chat.index', []],
@@ -32,6 +32,8 @@ final class ChatAccessFeatureTest extends ChatTestCase
             ['POST', 'chat.api.threads.messages.store', ['thread' => $threadId, 'body' => 'x']],
             ['PATCH', 'chat.api.threads.read', ['thread' => $threadId]],
             ['PATCH', 'chat.api.threads.draft', ['thread' => $threadId, 'body' => 'черновик']],
+            ['PUT', 'chat.api.threads.messages.reaction.update', ['thread' => $threadId, 'message' => $messageId, 'emoji' => '👍']],
+            ['DELETE', 'chat.api.threads.messages.reaction.destroy', ['thread' => $threadId, 'message' => $messageId]],
             ['GET', 'chat.api.threads.participants.index', ['thread' => $threadId]],
             ['POST', 'chat.api.threads.participants.store', ['thread' => $threadId, 'user_ids' => [1]]],
             ['DELETE', 'chat.api.threads.participants.destroy', ['thread' => $threadId, 'user' => $peerId]],
@@ -43,10 +45,11 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $peer = $this->makePeer();
         $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $message = $this->seedMessage($thread, $this->user->id, 'x');
 
         Auth::logout();
 
-        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id, (int) $message->id) as [$method, $name, $params]) {
             $response = $this->hit($method, $name, $params);
             $this->assertNotSame(500, $response->getStatusCode(), $name.' не должен отдавать 500 гостю');
             $this->assertTrue(
@@ -61,10 +64,11 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $peer = $this->makePeer();
         $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $message = $this->seedMessage($thread, $this->user->id, 'x');
 
         Auth::logout();
 
-        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id, (int) $message->id) as [$method, $name, $params]) {
             if ($name === 'chat.index') {
                 continue;
             }
@@ -78,11 +82,12 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $peer = $this->makePeer();
         $thread = $this->createThreadForUsers([$this->user->id, $peer->id]);
+        $message = $this->seedMessage($thread, $this->user->id, 'x');
 
         $denied = $this->createUserWithoutPermission('messages.view', $this->partner);
         $this->actingInPartner($denied);
 
-        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id) as [$method, $name, $params]) {
+        foreach ($this->protectedEndpoints((int) $thread->id, (int) $peer->id, (int) $message->id) as [$method, $name, $params]) {
             $response = $this->hitJson($method, $name, $params);
             $this->assertSame(
                 403,
@@ -116,6 +121,17 @@ final class ChatAccessFeatureTest extends ChatTestCase
         ]);
         $this->assertSame(201, $send->getStatusCode());
         $this->assertNotSame('', trim((string) $send->getContent()));
+        $messageId = (int) $send->json('id');
+        $this->assertGreaterThan(0, $messageId);
+        $this->assertSame([], $send->json('reactions'));
+
+        $this->putJson(route('chat.api.threads.messages.reaction.update', [$threadId, $messageId]), [
+            'emoji' => '👍',
+        ])->assertOk()->assertJsonPath('ok', true)->assertJsonPath('reactions.0.emoji', '👍');
+
+        $this->deleteJson(route('chat.api.threads.messages.reaction.destroy', [$threadId, $messageId]))
+            ->assertOk()
+            ->assertJsonPath('reactions', []);
 
         $this->patchJson(route('chat.api.threads.read', $threadId))->assertOk();
         $this->patchJson(route('chat.api.threads.draft', $threadId), [
@@ -254,7 +270,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $url = route($name, $params);
         $payload = $params;
-        unset($payload['thread'], $payload['user']);
+        unset($payload['thread'], $payload['user'], $payload['message']);
 
         return match (strtoupper($method)) {
             'GET' => $this->get($url),
@@ -271,7 +287,7 @@ final class ChatAccessFeatureTest extends ChatTestCase
     {
         $url = route($name, $params);
         $payload = $params;
-        unset($payload['thread'], $payload['user']);
+        unset($payload['thread'], $payload['user'], $payload['message']);
 
         return match (strtoupper($method)) {
             'GET' => $this->getJson($url),

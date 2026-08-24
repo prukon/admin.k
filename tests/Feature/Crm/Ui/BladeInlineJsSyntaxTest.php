@@ -3503,6 +3503,128 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * P1: модалка импорта учеников — node --check + контракт дозаписи родителя.
+     * Два JS-пути сброса (hidden.bs.modal и «Другой файл») не должны затирать памятку
+     * с правилом «пустые ячейки не трогают справочник».
+     */
+    public function test_users_import_modal_ajax_contract_and_valid_javascript(): void
+    {
+        $modalPath = resource_path('views/admin/users/_import_modal.blade.php');
+        $pagePath = resource_path('views/admin/user.blade.php');
+        $this->assertFileExists($modalPath);
+        $this->assertFileExists($pagePath);
+
+        $modal = (string) file_get_contents($modalPath);
+        $page = (string) file_get_contents($pagePath);
+
+        $this->assertStringStartsWith("@can('users.import')", trim($modal));
+        $this->assertStringContainsString('id="usersImportModal"', $modal);
+        $this->assertStringContainsString('id="usersImportMemoAccordion"', $modal);
+        $this->assertStringContainsString('accordion-button collapsed', $modal);
+        $this->assertStringContainsString('aria-expanded="false"', $modal);
+        $this->assertStringContainsString('не трогают</b> справочник', $modal);
+        $this->assertStringContainsString('дописываются</b> в пустые поля карточки', $modal);
+        $this->assertStringNotContainsString('В справочнике — только при полном совпадении', $modal);
+
+        $filePos = strpos($modal, 'id="users-import-file"');
+        $errorPos = strpos($modal, 'id="users-import-file-error"');
+        $this->assertNotFalse($filePos);
+        $this->assertNotFalse($errorPos);
+        $this->assertGreaterThan($filePos, $errorPos);
+        $this->assertStringContainsString('class="invalid-feedback" id="users-import-file-error"', $modal);
+
+        $this->assertMatchesRegularExpression(
+            '/<button type="button"[^>]*id="users-import-check-btn"/s',
+            $modal
+        );
+        $this->assertMatchesRegularExpression(
+            '/<button type="button"[^>]*id="users-import-commit-btn"/s',
+            $modal
+        );
+        $this->assertStringContainsString('d-none" id="users-import-commit-btn"', $modal);
+        $this->assertStringContainsString('id="users-import-step-preview" class="d-none"', $modal);
+        $this->assertStringContainsString('id="users-import-step-errors" class="d-none"', $modal);
+
+        $this->assertStringContainsString("@can('users.import')", $page);
+        $this->assertStringContainsString('data-bs-target="#usersImportModal"', $page);
+        $this->assertStringContainsString("@include('admin.users._import_modal')", $page);
+
+        preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $page, $matches);
+        $this->assertNotEmpty($matches[1], 'В admin/user.blade.php нет inline <script>');
+
+        $importScriptFound = false;
+        foreach ($matches[1] as $index => $rawScript) {
+            if (! str_contains($rawScript, 'initUsersImportModal')) {
+                continue;
+            }
+            $importScriptFound = true;
+
+            $this->assertStringContainsString('function initUsersImportModal', $rawScript);
+            $this->assertSame(1, substr_count($rawScript, 'function initUsersImportModal'));
+            $this->assertStringContainsString('function resetImportModal', $rawScript);
+            $this->assertStringContainsString("\$modal.on('hidden.bs.modal', resetImportModal)", $rawScript);
+            $this->assertStringContainsString("\$resetBtn.on('click', resetImportModal)", $rawScript);
+            $this->assertSame(1, substr_count($rawScript, "\$modal.on('hidden.bs.modal', resetImportModal)"));
+            $this->assertSame(1, substr_count($rawScript, "\$resetBtn.on('click', resetImportModal)"));
+
+            $resetPos = strpos($rawScript, 'function resetImportModal');
+            $this->assertNotFalse($resetPos);
+            $resetChunk = substr($rawScript, (int) $resetPos, 900);
+            $this->assertStringContainsString("importToken = ''", $resetChunk);
+            $this->assertStringContainsString('$memoAccordion.removeClass(\'d-none\')', $resetChunk);
+            $this->assertStringContainsString('$stepUpload.removeClass(\'d-none\')', $resetChunk);
+            $this->assertStringNotContainsString('$memoAccordion.empty(', $resetChunk);
+            $this->assertStringNotContainsString('form.reset()', $resetChunk);
+
+            $this->assertStringContainsString('function showErrors(message, errors)', $rawScript);
+            $this->assertStringContainsString('item.field', $rawScript);
+            $this->assertStringContainsString('item.message', $rawScript);
+            $this->assertStringContainsString('payload.errors', $rawScript);
+            $this->assertStringContainsString("showErrors(payload.message, payload.errors)", $rawScript);
+            $this->assertStringContainsString('reloadUsersTable()', $rawScript);
+            $this->assertStringContainsString("importToken = response.import_token", $rawScript);
+            $this->assertStringContainsString("formData.append('file', file)", $rawScript);
+            $this->assertStringContainsString("url: previewUrl", $rawScript);
+            $this->assertStringContainsString("url: commitUrl", $rawScript);
+            $this->assertSame(2, substr_count($rawScript, '$.ajax({'));
+            $this->assertStringContainsString('buildChangesTableHtml', $rawScript);
+            $this->assertStringContainsString('change.from', $rawScript);
+            $this->assertStringContainsString('change.to', $rawScript);
+            $this->assertStringContainsString("Выберите файл Excel для импорта.", $rawScript);
+            $this->assertStringContainsString('$fileError.text(', $rawScript);
+            $this->assertStringNotContainsString('form.reset()', $rawScript);
+
+            $js = $this->normalizeBladeScriptForSyntaxCheck($rawScript);
+            $this->assertNotSame('', trim($js));
+
+            $tempFile = sys_get_temp_dir().'/blade-js-users-import-'.uniqid('', true).'.js';
+            try {
+                file_put_contents($tempFile, $js);
+                $output = [];
+                $exitCode = 0;
+                exec('node --check '.escapeshellarg($tempFile).' 2>&1', $output, $exitCode);
+                $this->assertSame(
+                    0,
+                    $exitCode,
+                    sprintf(
+                        "JS syntax error in admin/user.blade.php initUsersImportModal (block #%d):\n%s\n--- preview ---\n%s",
+                        $index + 1,
+                        implode("\n", $output),
+                        mb_substr($js, 0, 800)
+                    )
+                );
+            } finally {
+                @unlink($tempFile);
+            }
+        }
+
+        $this->assertTrue(
+            $importScriptFound,
+            'В admin/user.blade.php не найден script с initUsersImportModal'
+        );
+    }
+
+    /**
      * /admin/users: без table-preloader (он раздувал AdminLTE на всю ширину экрана).
      * CSS тулбара — в @push('styles') / head, не в середине content.
      */

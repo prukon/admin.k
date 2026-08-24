@@ -220,23 +220,27 @@ final class UsersImportValidator
                 continue;
             }
 
-            $fingerprint = UsersImportNormalizer::parentFingerprint($row->parentFingerprintFields());
+            $fields = UsersImportParentDirectory::rowContactFields($row);
 
             if (! isset($seenByEmail[$row->parentEmail])) {
                 $seenByEmail[$row->parentEmail] = [
-                    'fingerprint' => $fingerprint,
+                    'fields' => $fields,
                     'row' => $row->rowNumber,
                 ];
                 continue;
             }
 
-            if ($seenByEmail[$row->parentEmail]['fingerprint'] !== $fingerprint) {
+            $previous = $seenByEmail[$row->parentEmail]['fields'];
+            if (UsersImportParentDirectory::nonEmptyFieldsConflict($previous, $fields)) {
                 $errors[] = new UsersImportRowError(
                     $row->rowNumber,
                     'Email родителя',
                     'Данные родителя не совпадают с строкой ' . $seenByEmail[$row->parentEmail]['row'] . ' при одинаковом email родителя.'
                 );
+                continue;
             }
+
+            $seenByEmail[$row->parentEmail]['fields'] = UsersImportParentDirectory::mergeFillEmpty($previous, $fields);
         }
     }
 
@@ -388,7 +392,7 @@ final class UsersImportValidator
                 ->whereRaw('LOWER(email) = ?', [$row->parentEmail])
                 ->first();
 
-            if ($existingParent !== null && ! $this->parentMatchesExisting($existingParent, $row)) {
+            if ($existingParent !== null && UsersImportParentDirectory::fileConflictsWithStored($existingParent, $row)) {
                 $errors[] = new UsersImportRowError(
                     $row->rowNumber,
                     'Email родителя',
@@ -398,17 +402,6 @@ final class UsersImportValidator
         }
 
         return $errors;
-    }
-
-    private function parentMatchesExisting(\App\Models\ParentProfile $parent, UsersImportRow $row): bool
-    {
-        $compare = static fn (?string $a, ?string $b): bool => ($a ?? '') === ($b ?? '');
-
-        return $compare($parent->lastname, $row->parentLastname)
-            && $compare($parent->firstname, $row->parentFirstname)
-            && $compare($parent->middlename, $row->parentMiddlename)
-            && $compare($parent->phone, $row->parentPhone)
-            && $compare($parent->email !== null ? mb_strtolower((string) $parent->email) : null, $row->parentEmail);
     }
 
     private function resolveStudentMode(string $email, int $partnerId, int $studentRoleId): string
