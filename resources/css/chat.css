@@ -65,7 +65,10 @@ html { touch-action: pan-x pan-y; }
 }
 .msg-author-name {
     font-size: .8125rem; font-weight: 600; line-height: 1.2;
-    margin: 0 0 2px 2px; text-align: left; color: #212529;
+    margin: 0 0 4px; text-align: left; color: #212529;
+}
+.msg-bubble.has-author-name {
+    padding-top: .45rem;
 }
 .msg-inner { display: flex; flex-direction: column; max-width: 75%; min-width: 0; align-items: flex-start; }
 .msg-bubble {

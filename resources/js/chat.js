@@ -621,8 +621,9 @@
         const avatarSrc = m.author_avatar || (mine ? meAvatar : '/img/default-avatar.png');
         const avatarBtn = msgAvatarHtml(m.user_id, avatarSrc);
         const authorName = currentIsGroup && !mine ? msgAuthorNameHtml(m.author_name) : '';
+        const bubbleClass = 'msg-bubble' + bigEmojiClass(m.body) + (authorName ? ' has-author-name' : '');
         const inner =
-            '<div class="msg-inner">' + authorName + '<div class="msg-bubble' + bigEmojiClass(m.body) + '">' + escapeHtml(m.body) +
+            '<div class="msg-inner"><div class="' + bubbleClass + '">' + authorName + escapeHtml(m.body) +
             '<div class="msg-meta"><span class="time">' + escapeHtml(fmtTime(m.created_at)) + '</span>' + checks + '</div>' +
             '</div>' + reactionsHtml(m.reactions) + '</div>';
         row.innerHTML = mine ? (reactBtn + inner + avatarBtn) : (avatarBtn + inner + reactBtn);
