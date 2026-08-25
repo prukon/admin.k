@@ -7,6 +7,8 @@
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     const csrf = csrfMeta ? csrfMeta.content : '';
     const me = Number(root.getAttribute('data-me') || 0);
+    const meAvatar = root.getAttribute('data-me-avatar') || '/img/default-avatar.png';
+    const meName = root.getAttribute('data-me-name') || '';
     const urls = {
         threads: root.getAttribute('data-threads-url'),
         storeThread: root.getAttribute('data-store-thread-url'),
@@ -575,6 +577,32 @@
         return !!document.querySelector('#messagesBox [data-mid="' + CSS.escape(String(id)) + '"]');
     }
 
+    const authorNameColors = ['#e17076', '#faa774', '#a695e7', '#7bc862', '#6ec9cb', '#65aadd', '#ee7aae', '#fa8116'];
+
+    function authorNameColor(userId) {
+        const n = Math.abs(Number(userId) || 0);
+        return authorNameColors[n % authorNameColors.length];
+    }
+
+    function msgAvatarHtml(userId, avatarSrc) {
+        const uid = Number(userId);
+        if (!uid) {
+            return '';
+        }
+        const src = escapeHtml(avatarSrc || '/img/default-avatar.png');
+        return '<button type="button" class="msg-avatar-btn" data-user-id="' + escapeHtml(String(uid)) + '" aria-label="Профиль">'
+            + '<img class="msg-avatar" src="' + src + '" alt="">'
+            + '</button>';
+    }
+
+    function msgAuthorNameHtml(name, userId) {
+        if (!name) {
+            return '';
+        }
+        const color = authorNameColor(userId);
+        return '<div class="msg-author-name" style="color:' + color + '">' + escapeHtml(name) + '</div>';
+    }
+
     function appendMessage(m, opts) {
         opts = opts || {};
         const box = document.getElementById('messagesBox');
@@ -598,11 +626,14 @@
         const reactBtn = opts.tempId
             ? ''
             : '<button type="button" class="msg-react-btn" aria-label="Добавить реакцию"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>';
+        const avatarSrc = m.author_avatar || (mine ? meAvatar : '/img/default-avatar.png');
+        const avatarBtn = msgAvatarHtml(m.user_id, avatarSrc);
+        const authorName = currentIsGroup && !mine ? msgAuthorNameHtml(m.author_name, m.user_id) : '';
         const inner =
-            '<div class="msg-inner"><div class="msg-bubble' + bigEmojiClass(m.body) + '">' + escapeHtml(m.body) +
+            '<div class="msg-inner">' + authorName + '<div class="msg-bubble' + bigEmojiClass(m.body) + '">' + escapeHtml(m.body) +
             '<div class="msg-meta"><span class="time">' + escapeHtml(fmtTime(m.created_at)) + '</span>' + checks + '</div>' +
             '</div>' + reactionsHtml(m.reactions) + '</div>';
-        row.innerHTML = mine ? (reactBtn + inner) : (inner + reactBtn);
+        row.innerHTML = mine ? (reactBtn + inner + avatarBtn) : (avatarBtn + inner + reactBtn);
 
         if (opts.prepend) {
             box.insertBefore(row, box.firstChild);
@@ -1126,7 +1157,14 @@
         const now = new Date();
         const nowSql = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
             + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
-        appendMessage({ user_id: me, body: text, created_at: nowSql, is_read: false }, { mine: true, tempId: tempId, pending: true });
+        appendMessage({
+            user_id: me,
+            body: text,
+            created_at: nowSql,
+            is_read: false,
+            author_avatar: meAvatar,
+            author_name: meName
+        }, { mine: true, tempId: tempId, pending: true });
         upsertThread({
             id: id,
             last_message: text,
@@ -1247,6 +1285,12 @@
     }
 
     document.getElementById('messagesBox').addEventListener('click', function (e) {
+        const avatarBtn = e.target.closest('.msg-avatar-btn');
+        if (avatarBtn) {
+            e.preventDefault();
+            openPeerCard(Number(avatarBtn.getAttribute('data-user-id')));
+            return;
+        }
         const chip = e.target.closest('.msg-reaction-chip');
         if (chip) {
             e.preventDefault();

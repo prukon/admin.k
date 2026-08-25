@@ -5,8 +5,17 @@
 @endpush
 
 @section('content')
+    @php
+        $chatMe = auth()->user();
+        $chatMeAvatar = ($chatMe && $chatMe->image_crop)
+            ? asset('storage/avatars/'.ltrim((string) $chatMe->image_crop, '/'))
+            : asset('img/default-avatar.png');
+        $chatMeName = trim((string) ($chatMe?->full_name ?: $chatMe?->name ?? ''));
+    @endphp
     <div class="container py-3 chat-page" id="chatApp"
          data-me="{{ (int) auth()->id() }}"
+         data-me-avatar="{{ $chatMeAvatar }}"
+         data-me-name="{{ $chatMeName }}"
          data-mobile-tab="messages"
          data-threads-url="{{ route('chat.api.threads.index') }}"
          data-store-thread-url="{{ route('chat.api.threads.store') }}"

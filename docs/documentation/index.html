@@ -2398,8 +2398,9 @@
     max 191, trim). Форма <b>без</b> hidden <code>page</code>: поиск со 2-й страницы
     открывает 1-ю страницу совпадений, а не пустую <code>page=2</code>.
     Скрытые поля держат год / месяц / группу (и <code>fullscreen=1</code>, если уже в URL).
-    <b>Не путать</b> с keyup DataTables: он по-прежнему фильтрует только текущую страницу
-    (<code>paging: false</code>).
+    Кнопка «Найти» и Enter в поле — серверный GET с <code>q</code>
+    (поиск по всей выборке, сброс <code>page</code>).
+    Автопоиск при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.
     <br>
     4) <b>Смена года / месяца / группы</b> — полный GET
     (<code>window.location.href</code>). Обе копии JS
@@ -2416,6 +2417,8 @@
     Документ: <a href="/docs/documentation/schedule-journal#journal-pagination">schedule-journal §2.2</a>,
     объём тестовых данных — <a href="/docs/documentation/dev-seed-data">dev-seed-data</a>.
     Тесты: <code>ScheduleJournalPaginationFeatureTest</code>,
+    <code>ScheduleJournalSearchFeatureTest</code>,
+    <code>ScheduleJournalSearchAccessFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>.
     Локальный прелоадер таблицы — <a href="/doc#journal-table-preloader-index">анонс выше</a>.
   </div>

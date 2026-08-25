@@ -54,10 +54,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    $('#table-search').on('keyup', function () {
-        table.search(this.value).draw();
-    });
-
     function formatDateHuman(dateStr) {
         const months = [
             'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',

@@ -1192,8 +1192,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
-     * P1: пагинация журнала — GET-поиск без hidden page; смена года/месяца/группы
-     * в обеих копиях JS сбрасывает page и не трогает q. journal.blade.php без inline <script>.
+     * P1: пагинация журнала — GET-поиск (кнопка «Найти» / Enter) без hidden page;
+     * смена года/месяца/группы в обеих копиях JS сбрасывает page и не трогает q;
+     * нет keyup/автопоиска в JS. journal.blade.php без inline <script>.
      */
     public function test_schedule_journal_pagination_and_search_js_contract(): void
     {
@@ -1210,6 +1211,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('id="table-search"', $journal);
         $this->assertStringContainsString('name="q"', $journal);
         $this->assertStringContainsString('value="{{ $searchQ ?? \'\' }}"', $journal);
+        $this->assertStringContainsString('<button type="submit"', $journal);
         $this->assertStringContainsString('Найти', $journal);
         $this->assertStringContainsString("@error('year')", $journal);
         $this->assertStringContainsString("@error('month')", $journal);
@@ -1251,10 +1253,23 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 strpos($js, $deletePage),
                 "{$jsPath}: delete('page') должен идти после set('team') при смене фильтра"
             );
-            $this->assertStringNotContainsString("newUrl.searchParams.delete('q')", $js);
+            $filterChangePos = strpos(
+                $js,
+                "$('.schedule-filter-year, .schedule-filter-month, .schedule-filter-team').on('change'"
+            );
+            $formatDatePos = strpos($js, 'function formatDateHuman(dateStr)');
+            $this->assertNotFalse($filterChangePos);
+            $this->assertNotFalse($formatDatePos);
+            $filterChangeChunk = substr($js, $filterChangePos, $formatDatePos - $filterChangePos);
+            $this->assertStringNotContainsString(
+                "newUrl.searchParams.delete('q')",
+                $filterChangeChunk,
+                "{$jsPath}: смена фильтра не должна сбрасывать q"
+            );
             $this->assertStringContainsString('paging: false', $js);
-            $this->assertStringContainsString("$('#table-search').on('keyup'", $js);
-            $this->assertStringContainsString('table.search(this.value).draw()', $js);
+            $this->assertStringNotContainsString('function scheduleJournalApplySearchQuery(', $js);
+            $this->assertStringNotContainsString("$('#table-search').on('keyup'", $js);
+            $this->assertStringNotContainsString('table.search(this.value).draw()', $js);
             $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
 
             $output = [];

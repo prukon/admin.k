@@ -51,7 +51,7 @@ final class ChatAjaxContractFeatureTest extends ChatTestCase
             ->assertCreated()
             ->assertJsonPath('body', 'Привет AJAX')
             ->assertJsonPath('user_id', $this->user->id)
-            ->assertJsonStructure(['id', 'user_id', 'body', 'created_at', 'is_read', 'reactions']);
+            ->assertJsonStructure(['id', 'user_id', 'body', 'created_at', 'is_read', 'reactions', 'author_avatar', 'author_name']);
 
         $this->postJson(route('chat.api.threads.messages.store', $threadId), [
             'body' => '',

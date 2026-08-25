@@ -601,7 +601,7 @@ class ChatService
     {
         $actorId = (int) $actor->id;
 
-        $stored = DB::transaction(function () use ($thread, $actorId, $body) {
+        $stored = DB::transaction(function () use ($thread, $actorId, $body, $actor) {
             $message = ChatMessage::query()->create([
                 'thread_id' => $thread->id,
                 'user_id' => $actorId,
@@ -628,7 +628,7 @@ class ChatService
 
             return [
                 'message' => $message,
-                'payload' => $this->serializeMessage($thread, $message, $actorId, []),
+                'payload' => $this->serializeMessage($thread, $message, $actorId, [], $actor),
             ];
         });
 
@@ -1052,11 +1052,35 @@ class ChatService
     }
 
     /**
+     * @return array{author_avatar: string, author_name: string}
+     */
+    private function authorFieldsForUser(?User $user): array
+    {
+        if ($user === null) {
+            return [
+                'author_avatar' => self::DEFAULT_AVATAR,
+                'author_name' => '',
+            ];
+        }
+
+        $isSupport = $this->support->isSupportUser($user);
+        $fullName = $isSupport
+            ? ChatSupportIdentity::DISPLAY_NAME
+            : trim((string) ($user->full_name ?: $user->name));
+
+        return [
+            'author_avatar' => $this->avatarUrl($user->image_crop ?? null),
+            'author_name' => $fullName !== '' ? $fullName : 'Клиент',
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function serializeMessage(ChatThread $thread, ChatMessage $message, int $viewerId, array $reactions = []): array
+    private function serializeMessage(ChatThread $thread, ChatMessage $message, int $viewerId, array $reactions = [], ?User $author = null): array
     {
         $isMine = (int) $message->user_id === $viewerId;
+        $authorFields = $this->authorFieldsForUser($author);
 
         return [
             'id' => (int) $message->id,
@@ -1065,6 +1089,8 @@ class ChatService
             'created_at' => $message->created_at?->toDateTimeString(),
             'is_read' => $isMine ? $this->isReadByPeer($thread, $message) : null,
             'reactions' => $reactions,
+            'author_avatar' => $authorFields['author_avatar'],
+            'author_name' => $authorFields['author_name'],
         ];
     }
 
@@ -1078,12 +1104,27 @@ class ChatService
         $ids = $collection->map(fn (ChatMessage $message) => (int) $message->id)->all();
         $map = $this->reactionsPayloadByMessageId($ids, $viewerId);
 
+        $userIds = $collection
+            ->map(fn (ChatMessage $message) => (int) $message->user_id)
+            ->unique()
+            ->values()
+            ->all();
+
+        /** @var \Illuminate\Support\Collection<int, User> $authors */
+        $authors = $userIds === []
+            ? collect()
+            : User::query()
+                ->whereIn('id', $userIds)
+                ->get(explode(',', self::PEER_USER_COLUMNS))
+                ->keyBy('id');
+
         return $collection
             ->map(fn (ChatMessage $message) => $this->serializeMessage(
                 $thread,
                 $message,
                 $viewerId,
-                $map[(int) $message->id] ?? []
+                $map[(int) $message->id] ?? [],
+                $authors->get((int) $message->user_id),
             ))
             ->values()
             ->all();

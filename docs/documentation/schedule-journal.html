@@ -58,9 +58,8 @@
   <div class="ok">
     <strong>Пагинация списка и поиск <code>q</code> (2026‑08).</strong>
     Таблица журнала — по 100 учеников текущей выборки (фильтры + ФИО), не все сразу.
-    Занятия и абонементы грузятся только для страницы. «Найти» — серверный GET без
-    hidden <code>page</code>; смена года/месяца/группы сбрасывает страницу и сохраняет
-    <code>q</code>. Keyup DataTables фильтрует только текущую страницу.
+    Занятия и абонементы грузятся только для страницы.     «Найти» и Enter в поле — серверный GET без hidden <code>page</code>; автопоиска при вводе нет.
+    Смена года/месяца/группы сбрасывает страницу и сохраняет <code>q</code>.
     Подробно — <a href="#journal-pagination">§2.2</a>;
     анонс — <a href="/doc#journal-pagination-index">/doc</a>.
   </div>
@@ -214,9 +213,8 @@
     <tbody>
       <tr><td>Больше 100 учеников в выборке</td><td>Пейджер <code>.schedule-journal-pagination</code> («Показаны N–M из K учеников» + Laravel links). Номера строк — <code>$users-&gt;firstItem() + $index</code> (на стр. 2 первая строка = 101).</td></tr>
       <tr><td>100 и меньше</td><td>Пейджера нет: не навязываем блок «из N учеников» и не рисуем <code>page=2</code>.</td></tr>
-      <tr><td>Поиск</td><td>GET-форма «Найти», поле <code>q</code> (фамилия / имя / склейка ФИО, max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team</code> (и <code>fullscreen=1</code>, если уже в URL). <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений, а не пустую page=2.</td></tr>
+      <tr><td>Поиск</td><td>GET-форма «Найти» и Enter в поле <code>q</code> — серверный поиск по всей выборке (фамилия / имя / склейка ФИО; max 191, trim). Скрытые <code>year</code> / <code>month</code> / <code>team</code> (и <code>fullscreen=1</code>, если уже в URL). <b>Нет</b> hidden <code>page</code>: поиск со 2-й страницы открывает 1-ю страницу совпадений. Автопоиска при вводе нет. DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.</td></tr>
       <tr><td>Смена года / месяца / группы</td><td>Полный GET (<code>window.location.href</code>). Обе копии JS (<code>resources/js/schedule.js</code> и hotfix <code>public/js/schedule-journal.js</code>) делают <code>searchParams.delete('page')</code> после <code>set('team')</code> и <b>не</b> удаляют <code>q</code>.</td></tr>
-      <tr><td>DataTables keyup</td><td>Клиентский фильтр только текущей страницы (<code>paging: false</code>). Серверный поиск — кнопка «Найти».</td></tr>
       <tr><td>Валидация</td><td><code>GetScheduleJournalIndexRequest</code>: HTML GET → 302 + session <code>errors[field]</code> под фильтром; JSON (<code>Accept: application/json</code>) → <b>422</b> <code>errors.year|month|team|q|page</code>. Пустой <code>team</code> → <code>all</code>. <code>POST/PATCH/DELETE /schedule</code> → 405, не 500.</td></tr>
     </tbody>
   </table>
@@ -226,8 +224,10 @@
     Тесты: <code>ScheduleJournalPaginationFeatureTest</code>
     (HTTP 200/403/401/302/405/422, UX-баг «все ученики на стр. 1», форма поиска без <code>page</code>,
     пейджер только при &gt;100, пакетная загрузка ULP),
+    <code>ScheduleJournalSearchFeatureTest</code>,
+    <code>ScheduleJournalSearchAccessFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest::test_schedule_journal_pagination_and_search_js_contract</code>
-    (<code>node --check</code> обеих копий JS + контракт сброса <code>page</code>).
+    (<code>node --check</code> обеих копий JS + контракт: нет keyup/автопоиска, сброс <code>page</code> при смене фильтра).
   </p>
 
   <h2 id="journal-table-preloader">2.3) Локальный прелоадер таблицы журнала</h2>
@@ -438,9 +438,9 @@
       гибкий на лимите без <code>lessonPackages.view</code>.</li>
     <li>Модалки «Настройки статусов» / «Личное расписание» <strong>нет</strong>.</li>
     <li>Полноэкранный режим, логи журнала, модалка «Управление группами» (<code>sync-teams</code>).
-      Поиск: кнопка «Найти» — серверный GET <code>q</code> (вся выборка, без hidden <code>page</code>);
-      keyup в том же поле — клиентский фильтр DataTables только текущей страницы
-      (<code>paging: false</code>). Не один и тот же механизм.</li>
+      Поиск: кнопка «Найти» и Enter в поле — серверный GET <code>q</code> по всей выборке
+      (без hidden <code>page</code>); автопоиска при вводе нет.
+      DataTables (<code>paging: false</code>) — только сортировка колонок на текущей странице.</li>
     <li>При загрузке вкладки «Журнал» таблица и пагинация скрыты локальным прелоадером
       (см. <a href="#journal-table-preloader">§2.3</a>):
       <code>#schedule-journal-stage</code> / <code>.schedule-journal-preloader</code>

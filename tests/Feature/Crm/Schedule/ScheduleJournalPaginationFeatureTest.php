@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\DB;
  * Пагинация и серверный поиск учеников в журнале /schedule.
  *
  * P1: HTTP (200/403/401/302/405/422), UX-баг «все ученики на первой странице»,
- * safety-net GET-формы поиска, errors по полям, дефолты пейджера, JS сбрасывает page.
+ * GET-форма поиска (кнопка «Найти» / Enter), errors по полям, дефолты пейджера,
+ * JS при смене фильтра сбрасывает page (без keyup-автопоиска).
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */

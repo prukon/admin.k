@@ -50,9 +50,23 @@ html { touch-action: pan-x pan-y; }
     overscroll-behavior: contain;
     touch-action: pan-y;
 }
-.msg-row { display: flex; width: 100%; margin: .25rem 0; }
+.msg-row { display: flex; width: 100%; margin: .25rem 0; align-items: flex-end; gap: 2px; }
 .msg-row.msg-other { justify-content: flex-start; }
 .msg-row.msg-mine { justify-content: flex-end; }
+.msg-avatar-btn {
+    flex: 0 0 auto; align-self: flex-end; margin: 0 2px 2px;
+    padding: 0; border: 0; background: transparent; border-radius: 50%;
+    cursor: pointer; line-height: 0;
+}
+.msg-avatar-btn:hover { opacity: .85; }
+.msg-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    object-fit: cover; display: block; background: #eee;
+}
+.msg-author-name {
+    font-size: .8125rem; font-weight: 600; line-height: 1.2;
+    margin: 0 0 2px 2px;
+}
 .msg-inner { display: flex; flex-direction: column; max-width: 75%; min-width: 0; }
 .msg-bubble {
     max-width: 100%; min-width: 6.5rem; width: fit-content;
