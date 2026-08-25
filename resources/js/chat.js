@@ -577,11 +577,11 @@
         return !!document.querySelector('#messagesBox [data-mid="' + CSS.escape(String(id)) + '"]');
     }
 
-    const authorNameColors = ['#e17076', '#faa774', '#a695e7', '#7bc862', '#6ec9cb', '#65aadd', '#ee7aae', '#fa8116'];
-
-    function authorNameColor(userId) {
-        const n = Math.abs(Number(userId) || 0);
-        return authorNameColors[n % authorNameColors.length];
+    function msgAuthorNameHtml(name) {
+        if (!name) {
+            return '';
+        }
+        return '<div class="msg-author-name">' + escapeHtml(name) + '</div>';
     }
 
     function msgAvatarHtml(userId, avatarSrc) {
@@ -593,14 +593,6 @@
         return '<button type="button" class="msg-avatar-btn" data-user-id="' + escapeHtml(String(uid)) + '" aria-label="Профиль">'
             + '<img class="msg-avatar" src="' + src + '" alt="">'
             + '</button>';
-    }
-
-    function msgAuthorNameHtml(name, userId) {
-        if (!name) {
-            return '';
-        }
-        const color = authorNameColor(userId);
-        return '<div class="msg-author-name" style="color:' + color + '">' + escapeHtml(name) + '</div>';
     }
 
     function appendMessage(m, opts) {
@@ -628,7 +620,7 @@
             : '<button type="button" class="msg-react-btn" aria-label="Добавить реакцию"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></button>';
         const avatarSrc = m.author_avatar || (mine ? meAvatar : '/img/default-avatar.png');
         const avatarBtn = msgAvatarHtml(m.user_id, avatarSrc);
-        const authorName = currentIsGroup && !mine ? msgAuthorNameHtml(m.author_name, m.user_id) : '';
+        const authorName = currentIsGroup && !mine ? msgAuthorNameHtml(m.author_name) : '';
         const inner =
             '<div class="msg-inner">' + authorName + '<div class="msg-bubble' + bigEmojiClass(m.body) + '">' + escapeHtml(m.body) +
             '<div class="msg-meta"><span class="time">' + escapeHtml(fmtTime(m.created_at)) + '</span>' + checks + '</div>' +

@@ -65,14 +65,14 @@ html { touch-action: pan-x pan-y; }
 }
 .msg-author-name {
     font-size: .8125rem; font-weight: 600; line-height: 1.2;
-    margin: 0 0 2px 2px;
+    margin: 0 0 2px 2px; text-align: left; color: #212529;
 }
-.msg-inner { display: flex; flex-direction: column; max-width: 75%; min-width: 0; }
+.msg-inner { display: flex; flex-direction: column; max-width: 75%; min-width: 0; align-items: flex-start; }
 .msg-bubble {
     max-width: 100%; min-width: 6.5rem; width: fit-content;
     padding: .6rem 4.8rem 1.4rem .9rem; border-radius: 16px;
     background: #fff; position: relative; word-break: break-word;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, .03);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, .03); text-align: left;
 }
 .msg-row.msg-other .msg-bubble { border-bottom-left-radius: 4px; }
 .msg-row.msg-mine .msg-bubble { background: #c7f7c9; border-bottom-right-radius: 4px; }
