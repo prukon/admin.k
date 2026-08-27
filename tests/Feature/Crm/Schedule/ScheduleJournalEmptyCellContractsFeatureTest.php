@@ -65,8 +65,13 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
                 'scheduled_status_id',
                 'visited_status_id',
                 'team_default_trainer_profile_id',
+                'team_default_trainer_profile_ids',
+                'team_default_trainer_profile_ids_by_team',
             ]);
 
+        $byTeam = $response->json('team_default_trainer_profile_ids_by_team') ?? [];
+        $this->assertArrayHasKey((string) $team->id, $byTeam);
+        $this->assertIsArray($byTeam[(string) $team->id]);
         $this->assertSame(
             LessonOccurrenceStatus::scheduledIdForPartner((int) $this->partner->id),
             (int) $response->json('scheduled_status_id')
@@ -75,6 +80,54 @@ final class ScheduleJournalEmptyCellContractsFeatureTest extends ScheduleJournal
         $create = collect($response->json('single_options') ?? [])->firstWhere('lesson_package_id', (int) $template->id);
         $this->assertNotNull($create);
         $this->assertSame('create_new', $create['mode']);
+    }
+
+    public function test_empty_cell_context_returns_default_trainers_by_team(): void
+    {
+        $teamA = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа A']);
+        $teamB = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'Группа B']);
+        $trainerA1 = $this->makeTrainerProfile('A1');
+        $trainerA2 = $this->makeTrainerProfile('A2');
+        $trainerB = $this->makeTrainerProfile('B1');
+
+        foreach ([$trainerA1, $trainerA2] as $profile) {
+            DB::table('team_trainer')->insert([
+                'partner_id' => $this->partner->id,
+                'team_id' => $teamA->id,
+                'trainer_profile_id' => $profile->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        DB::table('team_trainer')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $teamB->id,
+            'trainer_profile_id' => $trainerB->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $student = $this->makeStudent(null);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [
+            (int) $teamA->id,
+            (int) $teamB->id,
+        ]);
+
+        $response = $this->withHeaders($this->ajaxHeaders())
+            ->getJson(route('schedule.empty-cell.context', $student).'?'.http_build_query([
+                'occurrence_date' => '2026-09-11',
+            ]))
+            ->assertOk();
+
+        $byTeam = collect($response->json('team_default_trainer_profile_ids_by_team') ?? [])
+            ->mapWithKeys(fn ($ids, $teamId) => [(int) $teamId => array_map('intval', $ids)])
+            ->all();
+
+        $this->assertSame([$trainerA1->id, $trainerA2->id], $byTeam[(int) $teamA->id] ?? null);
+        $this->assertSame([$trainerB->id], $byTeam[(int) $teamB->id] ?? null);
+        // Без filter team_id и при 2+ группах — дефолт текущей группы ещё не выбран.
+        $this->assertSame([], $response->json('team_default_trainer_profile_ids'));
+        $this->assertNull($response->json('team_default_trainer_profile_id'));
     }
 
     public function test_empty_cell_create_new_option_uses_current_student_discount(): void

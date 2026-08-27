@@ -48,7 +48,7 @@ final class ChatTeamGroupThreadUxFeatureTest extends ChatTestCase
         $chunk = substr($html, $start, $end - $start);
 
         $titlePos = strpos($chunk, 'name="title"');
-        $trainerPos = strpos($chunk, 'name="trainer_profile_id"');
+        $trainerPos = strpos($chunk, 'name="trainer_profile_ids[]"');
         $enabledPos = strpos($chunk, 'name="is_enabled"');
         $this->assertNotFalse($titlePos);
         $this->assertNotFalse($trainerPos);
@@ -60,7 +60,9 @@ final class ChatTeamGroupThreadUxFeatureTest extends ChatTestCase
             '/name="is_enabled"[^>]*>\s*<option value="1">Активен<\/option>/s',
             $chunk
         );
-        $this->assertStringContainsString('<option value="">Без тренера</option>', $chunk);
+        $this->assertStringContainsString('Тренеры', $chunk);
+        $this->assertStringContainsString('js-generic-multiselect-select', $chunk);
+        $this->assertStringContainsString('data-placeholder="Выберите тренеров"', $chunk);
     }
 
     public function test_create_team_modal_hides_trainer_without_trainers_view(): void
@@ -75,6 +77,7 @@ final class ChatTeamGroupThreadUxFeatureTest extends ChatTestCase
         $this->assertNotFalse($start);
         $this->assertNotFalse($end);
         $chunk = substr($html, $start, $end - $start);
+        $this->assertStringNotContainsString('name="trainer_profile_ids[]"', $chunk);
         $this->assertStringNotContainsString('name="trainer_profile_id"', $chunk);
         $this->assertStringContainsString('name="title"', $chunk);
     }

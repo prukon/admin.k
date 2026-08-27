@@ -14,6 +14,7 @@ use App\Services\LessonPackages\SchoolCalendarTrialEligibilityService;
 use App\Services\TeamUserSyncService;
 use App\Support\Money;
 use App\Services\Pricing\UserPercentDiscount;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Контекст модалки «пробное / разовое» на пустой ячейке журнала /schedule.
@@ -62,7 +63,9 @@ final class JournalEmptyCellPlacementContextService
      *     }>,
      *     visited_status_id: int|null,
      *     scheduled_status_id: int|null,
+     *     team_default_trainer_profile_ids: list<int>,
      *     team_default_trainer_profile_id: int|null,
+     *     team_default_trainer_profile_ids_by_team: array<string, list<int>>,
      *     trainers: list<array{id: int, name: string}>
      * }
      */
@@ -111,7 +114,11 @@ final class JournalEmptyCellPlacementContextService
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
         $scheduledStatusId = LessonOccurrenceStatus::scheduledIdForPartner($partnerId);
-        $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $resolvedTeamId);
+        $teamIds = array_map(static fn (array $team): int => (int) $team['id'], $teamsPayload);
+        $defaultsByTeam = $this->teamDefaultTrainerProfileIdsByTeam($partnerId, $teamIds);
+        $teamDefaultIds = $resolvedTeamId !== null
+            ? ($defaultsByTeam[(string) $resolvedTeamId] ?? [])
+            : [];
         $trainers = $this->trainerOptionsForPartner($partnerId);
 
         return [
@@ -134,7 +141,9 @@ final class JournalEmptyCellPlacementContextService
             'flexible_options' => $flexibleOptions,
             'visited_status_id' => $visitedStatusId,
             'scheduled_status_id' => $scheduledStatusId,
-            'team_default_trainer_profile_id' => $teamDefault?->id,
+            'team_default_trainer_profile_ids' => $teamDefaultIds,
+            'team_default_trainer_profile_id' => $teamDefaultIds[0] ?? null,
+            'team_default_trainer_profile_ids_by_team' => $defaultsByTeam,
             'trainers' => $trainers,
         ];
     }
@@ -315,19 +324,62 @@ final class JournalEmptyCellPlacementContextService
             ->all();
     }
 
-    private function teamDefaultTrainerProfile(int $partnerId, ?int $teamId): ?TrainerProfile
+    /**
+     * @param  list<int>  $teamIds
+     * @return array<string, list<int>>
+     */
+    private function teamDefaultTrainerProfileIdsByTeam(int $partnerId, array $teamIds): array
+    {
+        $map = [];
+        foreach ($teamIds as $teamId) {
+            if ($teamId > 0) {
+                $map[(string) $teamId] = [];
+            }
+        }
+
+        if ($map === []) {
+            return [];
+        }
+
+        $rows = DB::table('team_trainer')
+            ->where('partner_id', $partnerId)
+            ->whereIn('team_id', array_map('intval', array_keys($map)))
+            ->orderBy('id')
+            ->get(['team_id', 'trainer_profile_id']);
+
+        foreach ($rows as $row) {
+            $key = (string) ((int) $row->team_id);
+            if (! array_key_exists($key, $map)) {
+                continue;
+            }
+            $map[$key][] = (int) $row->trainer_profile_id;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function teamDefaultTrainerProfileIds(int $partnerId, ?int $teamId): array
     {
         if (! $teamId) {
+            return [];
+        }
+
+        return $this->teamDefaultTrainerProfileIdsByTeam($partnerId, [$teamId])[(string) $teamId] ?? [];
+    }
+
+    private function teamDefaultTrainerProfile(int $partnerId, ?int $teamId): ?TrainerProfile
+    {
+        $ids = $this->teamDefaultTrainerProfileIds($partnerId, $teamId);
+        if ($ids === []) {
             return null;
         }
 
         return TrainerProfile::query()
             ->with('user')
-            ->select('trainer_profiles.*')
-            ->join('team_trainer', 'team_trainer.trainer_profile_id', '=', 'trainer_profiles.id')
-            ->where('team_trainer.partner_id', $partnerId)
-            ->where('team_trainer.team_id', $teamId)
-            ->orderBy('team_trainer.id')
+            ->whereKey($ids[0])
             ->first();
     }
 }

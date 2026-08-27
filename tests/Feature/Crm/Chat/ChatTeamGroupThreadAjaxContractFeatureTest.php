@@ -92,12 +92,12 @@ final class ChatTeamGroupThreadAjaxContractFeatureTest extends ChatTestCase
         $this->postJson(
             route('admin.team.store'),
             $this->teamStorePayload('Тренер422 '.uniqid('', true), [
-                'trainer_profile_id' => 999999,
+                'trainer_profile_ids' => [999999],
             ]),
             $this->teamChatAjaxHeaders()
         )
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['trainer_profile_id']);
+            ->assertJsonValidationErrors(['trainer_profile_ids.0']);
 
         $this->assertNoTeamChatCreated();
     }
@@ -106,7 +106,7 @@ final class ChatTeamGroupThreadAjaxContractFeatureTest extends ChatTestCase
     {
         $profile = $this->makeTrainerProfile('AjaxТренер');
         $withTrainer = $this->storeTeamViaAjax('СТренером '.uniqid('', true), [
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_ids' => [$profile->id],
         ]);
         $this->assertUserInThread($profile->user, $this->teamThread($withTrainer));
 

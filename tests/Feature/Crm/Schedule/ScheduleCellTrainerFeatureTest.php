@@ -249,7 +249,7 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
         ]);
     }
 
-    public function test_team_default_uses_first_linked_trainer(): void
+    public function test_team_default_returns_all_linked_trainers(): void
     {
         $team = Team::factory()->create(['partner_id' => $this->partner->id]);
         $first = $this->makeTrainerProfile('Первый');
@@ -272,7 +272,8 @@ final class ScheduleCellTrainerFeatureTest extends ScheduleJournalTestCase
             'date' => '2026-05-17',
         ]))
             ->assertOk()
-            ->assertJsonPath('team_default_trainer_profile_id', $first->id);
+            ->assertJsonPath('team_default_trainer_profile_id', $first->id)
+            ->assertJsonPath('team_default_trainer_profile_ids', [$first->id, $second->id]);
     }
 
     public function test_update_visited_saves_multiple_trainers_for_salary_credit(): void

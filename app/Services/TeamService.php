@@ -47,13 +47,11 @@ class TeamService
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
-        $trainerProvided = array_key_exists('trainer_profile_id', $data);
-        $trainerProfileId = $trainerProvided
-            ? ($data['trainer_profile_id'] !== null && $data['trainer_profile_id'] !== ''
-                ? (int) $data['trainer_profile_id']
-                : null)
-            : null;
-        unset($data['trainer_profile_id']);
+        $trainerProvided = array_key_exists('trainer_profile_ids', $data);
+        $trainerProfileIds = $trainerProvided
+            ? array_values(array_map('intval', (array) ($data['trainer_profile_ids'] ?? [])))
+            : [];
+        unset($data['trainer_profile_ids']);
 
         $locationProvided = array_key_exists('location_id', $data);
         $locationId = $locationProvided
@@ -90,7 +88,7 @@ class TeamService
         }
 
         if ($trainerProvided) {
-            $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
+            $this->teamTrainerSync->syncTrainersForTeam($team, $trainerProfileIds);
         }
 
         $this->teamGroupChat->ensureThreadForTeam($team);
@@ -104,13 +102,11 @@ class TeamService
         $weekdays = $data['weekdays'] ?? [];
         unset($data['weekdays']);
 
-        $trainerProvided = array_key_exists('trainer_profile_id', $data);
-        $trainerProfileId = $trainerProvided
-            ? ($data['trainer_profile_id'] !== null && $data['trainer_profile_id'] !== ''
-                ? (int) $data['trainer_profile_id']
-                : null)
-            : null;
-        unset($data['trainer_profile_id']);
+        $trainerProvided = array_key_exists('trainer_profile_ids', $data);
+        $trainerProfileIds = $trainerProvided
+            ? array_values(array_map('intval', (array) ($data['trainer_profile_ids'] ?? [])))
+            : [];
+        unset($data['trainer_profile_ids']);
 
         $partnerId = (int) ($team->partner_id ?? $this->partnerContext->partnerId() ?? 0);
 
@@ -148,7 +144,7 @@ class TeamService
                 $team->weekdays()->sync($weekdays);
             }
             if ($trainerProvided) {
-                $this->teamTrainerSync->syncTrainerForTeam($team, $trainerProfileId);
+                $this->teamTrainerSync->syncTrainersForTeam($team, $trainerProfileIds);
             }
         } else {
             throw new \Exception("Ошибка: команда не обновлена или team_id не существует.");

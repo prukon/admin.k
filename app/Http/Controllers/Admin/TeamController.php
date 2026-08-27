@@ -351,8 +351,10 @@ class TeamController extends AdminBaseController
 
             $trainerLabel = '';
             if ($team->relationLoaded('trainerProfiles')) {
-                $trainerProfile = $team->trainerProfiles->first();
-                $trainerLabel = $trainerProfile?->user?->full_name ?? '';
+                $trainerLabel = $team->trainerProfiles
+                    ->map(fn ($profile) => $profile->user?->full_name)
+                    ->filter()
+                    ->implode(', ');
             }
 
             $locationName = '';
@@ -429,7 +431,7 @@ class TeamController extends AdminBaseController
         }
 
         if (! $request->user()->can('trainers.view')) {
-            unset($data['trainer_profile_id']);
+            unset($data['trainer_profile_ids']);
         }
 
         if (! $request->user()->can('locations.view')) {
@@ -481,7 +483,11 @@ class TeamController extends AdminBaseController
             ->firstOrFail();
 
         $weekdays = Weekday::all(); // Получаем все дни недели
-        $trainerProfile = $team->trainerProfiles->first();
+        $trainerProfileIds = $team->trainerProfiles
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
 
         $payload = [
             'id'            => $team->id,
@@ -492,7 +498,7 @@ class TeamController extends AdminBaseController
                 : null,
             'order_by'      => $team->order_by,
             'is_enabled'    => $team->is_enabled,
-            'trainer_profile_id' => $trainerProfile?->id,
+            'trainer_profile_ids' => $trainerProfileIds,
             'team_weekdays' => $team->weekdays, // Дни недели, связанные с командой
             'weekdays'      => $weekdays,       // Все дни недели
         ];
@@ -538,7 +544,7 @@ class TeamController extends AdminBaseController
         }
 
         if (! $request->user()->can('trainers.view')) {
-            unset($data['trainer_profile_id']);
+            unset($data['trainer_profile_ids']);
         }
 
         if (! $request->user()->can('locations.view')) {

@@ -16,49 +16,76 @@ class TeamTrainerSyncService
     }
 
     /**
-     * Назначить одного тренера группе (в UI пока один; таблица many-to-many).
+     * Назначить одного тренера группе (BC: делегирует в syncTrainersForTeam).
      */
     public function syncTrainerForTeam(Team $team, ?int $trainerProfileId): void
     {
+        $this->syncTrainersForTeam(
+            $team,
+            $trainerProfileId ? [(int) $trainerProfileId] : [],
+        );
+    }
+
+    /**
+     * Полная синхронизация тренеров группы (many-to-many).
+     * Пустой массив — снять всех тренеров с группы.
+     *
+     * @param  int[]  $trainerProfileIds
+     */
+    public function syncTrainersForTeam(Team $team, array $trainerProfileIds): void
+    {
         $partnerId = (int) $team->partner_id;
+
+        $trainerProfileIds = array_values(array_unique(array_filter(
+            array_map('intval', $trainerProfileIds),
+            fn (int $id) => $id > 0,
+        )));
+
+        $validIds = $trainerProfileIds === []
+            ? []
+            : TrainerProfile::query()
+                ->where('partner_id', $partnerId)
+                ->whereIn('id', $trainerProfileIds)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+        // Сохраняем порядок, переданный из UI (валидные id).
+        $orderedValidIds = [];
+        foreach ($trainerProfileIds as $id) {
+            if (in_array($id, $validIds, true) && ! in_array($id, $orderedValidIds, true)) {
+                $orderedValidIds[] = $id;
+            }
+        }
 
         DB::table('team_trainer')
             ->where('team_id', $team->id)
             ->where('partner_id', $partnerId)
+            ->when($orderedValidIds !== [], fn ($q) => $q->whereNotIn('trainer_profile_id', $orderedValidIds))
             ->delete();
 
-        if (!$trainerProfileId) {
-            return;
+        foreach ($orderedValidIds as $profileId) {
+            DB::table('team_trainer')->updateOrInsert(
+                [
+                    'team_id' => $team->id,
+                    'trainer_profile_id' => $profileId,
+                ],
+                [
+                    'partner_id' => $partnerId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            );
+
+            $profile = TrainerProfile::query()->whereKey($profileId)->first();
+            if ($profile) {
+                $this->addTrainerToTeamChat($team, $profile);
+            }
         }
-
-        $profile = TrainerProfile::query()
-            ->where('partner_id', $partnerId)
-            ->whereKey($trainerProfileId)
-            ->first();
-
-        if (!$profile) {
-            return;
-        }
-
-        $this->detachOtherTrainersFromTeam($team->id, $partnerId, $profile->id);
-
-        DB::table('team_trainer')->updateOrInsert(
-            [
-                'team_id' => $team->id,
-                'trainer_profile_id' => $profile->id,
-            ],
-            [
-                'partner_id' => $partnerId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-        );
-
-        $this->addTrainerToTeamChat($team, $profile);
     }
 
     /**
-     * Привязать тренера к нескольким группам (на группу — не более одного тренера).
+     * Привязать тренера к нескольким группам (группа может иметь нескольких тренеров).
      *
      * @param  int[]  $teamIds
      */
@@ -85,8 +112,6 @@ class TeamTrainerSyncService
             ->delete();
 
         foreach ($validTeamIds as $teamId) {
-            $this->detachOtherTrainersFromTeam($teamId, $partnerId, $profile->id);
-
             DB::table('team_trainer')->updateOrInsert(
                 [
                     'team_id' => $teamId,
@@ -115,14 +140,5 @@ class TeamTrainerSyncService
         if ($user) {
             $this->teamGroupChat->addUserToTeamChat($team, $user);
         }
-    }
-
-    private function detachOtherTrainersFromTeam(int $teamId, int $partnerId, int $exceptTrainerProfileId): void
-    {
-        DB::table('team_trainer')
-            ->where('team_id', $teamId)
-            ->where('partner_id', $partnerId)
-            ->where('trainer_profile_id', '!=', $exceptTrainerProfileId)
-            ->delete();
     }
 }

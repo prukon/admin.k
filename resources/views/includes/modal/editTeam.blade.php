@@ -96,15 +96,18 @@
                     </div>
 
                     @can('trainers.view')
-                    <div class="mb-3">
-                        <label for="edit-trainer-profile-id" class="form-label">Тренер</label>
-                        <select name="trainer_profile_id" class="form-select" id="edit-trainer-profile-id">
-                            <option value="">Без тренера</option>
+                    <div class="mb-3 generic-multiselect-field">
+                        <label for="edit-trainer-profile-ids" class="form-label">Тренеры</label>
+                        <select id="edit-trainer-profile-ids"
+                                name="trainer_profile_ids[]"
+                                class="form-select js-generic-multiselect-select"
+                                multiple
+                                data-placeholder="Выберите тренеров">
                             @foreach($trainerOptions as $trainer)
                                 <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
                             @endforeach
                         </select>
-                        <div class="invalid-feedback" id="edit-trainer-profile-id-error"></div>
+                        <div class="invalid-feedback d-block" id="edit-trainer-profile-ids-error" data-error-for="trainer_profile_ids"></div>
                     </div>
                     @endcan
 
@@ -161,7 +164,15 @@
         console.log('Debug: edit-team script (jQuery) initialized');
 
         const canViewTeamSchedule = @json(auth()->user()->can('schedule.view'));
+        const canViewTrainers = @json(auth()->user()->can('trainers.view'));
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        const $editTrainersSelect = $('#edit-trainer-profile-ids');
+
+        if (canViewTrainers && $editTrainersSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.init($editTrainersSelect, {
+                dropdownParent: $('#editTeamModal')
+            });
+        }
 
         /**
          * Открытие модалки редактирования:
@@ -183,9 +194,14 @@
                     $('#edit-order_by').val(response.order_by ?? '');
                     $('#edit-activity').val(response.is_enabled);
 
-                    if ($('#edit-trainer-profile-id').length) {
-                        $('#edit-trainer-profile-id').val(response.trainer_profile_id ?? '');
+                    if ($editTrainersSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+                        KidsCrmGenericMultiselectSelect2.setValues(
+                            $editTrainersSelect,
+                            response.trainer_profile_ids || []
+                        );
+                        KidsCrmGenericMultiselectSelect2.clearInvalid($editTrainersSelect);
                     }
+                    $('#edit-trainer-profile-ids-error').text('');
 
                     if ($('#edit-sport-type-id').length) {
                         $('#edit-sport-type-id').val(response.sport_type_id ?? '');
@@ -243,7 +259,15 @@
          */
         $('#update-team-btn').on('click', function() {
             const teamId = $('#edit-team-id').val();
-            const formData = $('#edit-team-form').serialize();
+            let formData = $('#edit-team-form').serialize();
+            // Пустой multiple select не попадает в serialize — явно шлём пустой список,
+            // чтобы sync снял всех тренеров с группы.
+            if ($editTrainersSelect.length) {
+                const selected = $editTrainersSelect.val();
+                if (!selected || !selected.length) {
+                    formData += (formData ? '&' : '') + encodeURIComponent('trainer_profile_ids') + '=';
+                }
+            }
 
             // Сброс ошибок
             $('#edit-title').removeClass('is-invalid');
@@ -252,8 +276,11 @@
             $('#edit-default_duration_minutes-error').text('');
             $('#edit-month_price').removeClass('is-invalid');
             $('#edit-month_price-error').text('');
-            $('#edit-trainer-profile-id').removeClass('is-invalid');
-            $('#edit-trainer-profile-id-error').text('');
+            $editTrainersSelect.removeClass('is-invalid');
+            $('#edit-trainer-profile-ids-error').text('');
+            if (window.KidsCrmGenericMultiselectSelect2 && $editTrainersSelect.length) {
+                KidsCrmGenericMultiselectSelect2.clearInvalid($editTrainersSelect);
+            }
             $('#edit-sport-type-id').removeClass('is-invalid');
             $('#edit-sport-type-id-error').text('');
             $('#edit-location_id-error').text('');
@@ -288,9 +315,14 @@
                             $('#edit-month_price').addClass('is-invalid');
                             $('#edit-month_price-error').text(errors.month_price[0]);
                         }
-                        if (errors.trainer_profile_id && errors.trainer_profile_id.length) {
-                            $('#edit-trainer-profile-id').addClass('is-invalid');
-                            $('#edit-trainer-profile-id-error').text(errors.trainer_profile_id[0]);
+                        const trainerErr = errors.trainer_profile_ids
+                            || errors['trainer_profile_ids.0'];
+                        if (trainerErr && trainerErr.length) {
+                            $editTrainersSelect.addClass('is-invalid');
+                            $('#edit-trainer-profile-ids-error').text(trainerErr[0]);
+                            if (window.KidsCrmGenericMultiselectSelect2) {
+                                KidsCrmGenericMultiselectSelect2.markInvalid($editTrainersSelect);
+                            }
                         }
                         if (errors.sport_type_id && errors.sport_type_id.length) {
                             $('#edit-sport-type-id').addClass('is-invalid');

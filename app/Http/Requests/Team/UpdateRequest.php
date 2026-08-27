@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Team;
 
+use App\Http\Requests\Team\Concerns\TeamTrainerProfileIdsRules;
 use App\Rules\PartnerLegalEntityId;
 use App\Rules\PartnerSportTypeId;
 use App\Services\PartnerContext;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 class UpdateRequest extends FormRequest
 {
+    use TeamTrainerProfileIdsRules;
+
     public function authorize(): bool
     {
         return true;
@@ -18,9 +21,7 @@ class UpdateRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('trainer_profile_id') && $this->input('trainer_profile_id') === '') {
-            $this->merge(['trainer_profile_id' => null]);
-        }
+        $this->prepareTeamTrainerProfileIds();
 
         if ($this->user()?->can('locations.view') && $this->has('location_id') && $this->input('location_id') === '') {
             $this->merge(['location_id' => null]);
@@ -59,18 +60,7 @@ class UpdateRequest extends FormRequest
             'order_by' => 'nullable|integer',
         ];
 
-        if ($this->user()?->can('trainers.view')) {
-            $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
-            $rules['trainer_profile_id'] = [
-                'nullable',
-                'integer',
-                Rule::exists('trainer_profiles', 'id')->where(function ($query) use ($partnerId) {
-                    if ($partnerId > 0) {
-                        $query->where('partner_id', $partnerId);
-                    }
-                }),
-            ];
-        }
+        $rules = array_merge($rules, $this->teamTrainerProfileIdsRules());
 
         if ($this->user()?->can('locations.view')) {
             $partnerId = (int) (app(PartnerContext::class)->partnerId() ?? 0);
@@ -110,19 +100,18 @@ class UpdateRequest extends FormRequest
 
     public function attributes(): array
     {
-        return [
+        return array_merge([
             'title' => 'название группы',
-            'trainer_profile_id' => 'тренер',
             'location_id' => 'объект',
             'sport_type_id' => 'вид спорта',
             'legal_entity_id' => 'юр. лицо',
             'month_price' => 'стоимость по умолчанию',
-        ];
+        ], $this->teamTrainerProfileIdsAttributes());
     }
 
     public function messages(): array
     {
-        return [
+        return array_merge([
             'title.required' => 'Введите название',
             'title.string' => 'Введите название',
             'title.unique' => 'Группа с таким названием уже существует у текущего партнёра',
@@ -131,11 +120,10 @@ class UpdateRequest extends FormRequest
             'default_duration_minutes.max' => 'Длительность слишком большая',
             'month_price.numeric' => 'Стоимость по умолчанию должна быть числом (рубли, можно с копейками)',
             'month_price.min' => 'Стоимость по умолчанию не может быть отрицательной',
-            'trainer_profile_id.exists' => 'Выберите тренера из списка',
             'location_id.exists' => 'Выберите объект из списка текущего партнёра',
             'sport_type_id.exists' => 'Выберите активный вид спорта из списка текущего партнёра',
             'legal_entity_id.integer' => 'Выберите юр. лицо из списка',
             'legal_entity_id.required' => 'Выберите юр. лицо для группы',
-        ];
+        ], $this->teamTrainerProfileIdsMessages());
     }
 }

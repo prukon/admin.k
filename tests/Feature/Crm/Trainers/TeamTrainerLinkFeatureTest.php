@@ -49,7 +49,7 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
             'is_enabled' => 1,
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_ids' => [$profile->id],
         ])->assertOk();
 
         $json = $this->get('/admin/teams/data')->assertOk()->json();
@@ -60,7 +60,7 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         $this->assertStringContainsString('Иван', (string) $row['trainer_label']);
     }
 
-    public function test_team_update_assigns_single_trainer(): void
+    public function test_team_update_assigns_trainers(): void
     {
         $this->grantPermission('trainers.view');
         $this->grantPermission('groups.view');
@@ -71,7 +71,7 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
             'is_enabled' => 1,
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_ids' => [$profile->id],
         ])->assertOk();
 
         $this->assertDatabaseHas('team_trainer', [
@@ -81,7 +81,7 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_assigning_new_trainer_replaces_previous_on_team(): void
+    public function test_team_can_have_multiple_trainers(): void
     {
         $this->grantPermission('trainers.view');
         $this->grantPermission('groups.view');
@@ -93,13 +93,49 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
             'is_enabled' => 1,
+            'trainer_profile_ids' => [$trainerA->id, $trainerB->id],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('team_trainer', [
+            'team_id' => $team->id,
             'trainer_profile_id' => $trainerA->id,
+        ]);
+        $this->assertDatabaseHas('team_trainer', [
+            'team_id' => $team->id,
+            'trainer_profile_id' => $trainerB->id,
+        ]);
+
+        $edit = $this->getJson("/admin/team/{$team->id}/edit")->assertOk()->json();
+        $this->assertEqualsCanonicalizing(
+            [$trainerA->id, $trainerB->id],
+            $edit['trainer_profile_ids'] ?? []
+        );
+
+        $row = collect($this->get('/admin/teams/data')->assertOk()->json('data'))
+            ->firstWhere('id', $team->id);
+        $this->assertStringContainsString('Тренер A', (string) $row['trainer_label']);
+        $this->assertStringContainsString('Тренер B', (string) $row['trainer_label']);
+    }
+
+    public function test_assigning_subset_replaces_previous_trainers_on_team(): void
+    {
+        $this->grantPermission('trainers.view');
+        $this->grantPermission('groups.view');
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $trainerA = $this->makeTrainerProfile('Тренер A');
+        $trainerB = $this->makeTrainerProfile('Тренер B');
+
+        $this->patchJson("/admin/team/{$team->id}", [
+            'title' => $team->title,
+            'is_enabled' => 1,
+            'trainer_profile_ids' => [$trainerA->id],
         ])->assertOk();
 
         $this->patchJson("/admin/team/{$team->id}", [
             'title' => $team->title,
             'is_enabled' => 1,
-            'trainer_profile_id' => $trainerB->id,
+            'trainer_profile_ids' => [$trainerB->id],
         ])->assertOk();
 
         $this->assertDatabaseMissing('team_trainer', [
@@ -112,29 +148,69 @@ final class TeamTrainerLinkFeatureTest extends CrmTestCase
         ]);
     }
 
-    public function test_trainer_update_syncs_teams(): void
+    public function test_empty_trainer_profile_ids_clears_all_team_trainers(): void
+    {
+        $this->grantPermission('trainers.view');
+        $this->grantPermission('groups.view');
+
+        $team = Team::factory()->create(['partner_id' => $this->partner->id]);
+        $trainer = $this->makeTrainerProfile('Тренер Clear');
+
+        $this->patchJson("/admin/team/{$team->id}", [
+            'title' => $team->title,
+            'is_enabled' => 1,
+            'trainer_profile_ids' => [$trainer->id],
+        ])->assertOk();
+
+        $this->patchJson("/admin/team/{$team->id}", [
+            'title' => $team->title,
+            'is_enabled' => 1,
+            'trainer_profile_ids' => [],
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('team_trainer', [
+            'team_id' => $team->id,
+            'trainer_profile_id' => $trainer->id,
+        ]);
+    }
+
+    public function test_trainer_update_syncs_teams_without_detaching_other_trainers(): void
     {
         $this->grantPermission('trainers.view');
 
         $team1 = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'G1']);
         $team2 = Team::factory()->create(['partner_id' => $this->partner->id, 'title' => 'G2']);
-        $profile = $this->makeTrainerProfile('Тренер Sync');
+        $profileA = $this->makeTrainerProfile('Тренер Sync A');
+        $profileB = $this->makeTrainerProfile('Тренер Sync B');
 
-        $this->putJson(route('admin.trainers.update', $profile->id), [
+        DB::table('team_trainer')->insert([
+            'partner_id' => $this->partner->id,
+            'team_id' => $team1->id,
+            'trainer_profile_id' => $profileB->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->putJson(route('admin.trainers.update', $profileA->id), [
             'lastname' => 'Sync',
             'name' => 'Тренер',
-            'email' => $profile->user->email,
+            'email' => $profileA->user->email,
             'is_enabled' => 1,
             'team_ids' => [$team1->id, $team2->id],
         ])->assertOk();
 
         $this->assertDatabaseHas('team_trainer', [
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_id' => $profileA->id,
             'team_id' => $team1->id,
         ]);
         $this->assertDatabaseHas('team_trainer', [
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_id' => $profileA->id,
             'team_id' => $team2->id,
+        ]);
+        // Другой тренер группы не снимается при привязке из карточки тренера.
+        $this->assertDatabaseHas('team_trainer', [
+            'trainer_profile_id' => $profileB->id,
+            'team_id' => $team1->id,
         ]);
     }
 

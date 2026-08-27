@@ -200,12 +200,12 @@
       <tr>
         <td>Таблица</td>
         <td>Нет колонки «Тренер» и пункта в «Поля списка» (<code>@can('trainers.view')</code>, <code>canViewTrainers</code> в JS).</td>
-        <td>Колонка <code>trainer_label</code> — ФИО тренера (<code>User::full_name</code> первого профиля из <code>team_trainer</code>). Пусто → «—».</td>
+        <td>Колонка <code>trainer_label</code> — ФИО тренеров через запятую (<code>User::full_name</code> из <code>team_trainer</code>). Пусто → «—».</td>
       </tr>
       <tr>
         <td>Модалки создания / редактирования</td>
-        <td>Селект <code>trainer_profile_id</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
-        <td>Селект активных тренеров партнёра (<code>trainerOptions</code> в <code>index</code>).</td>
+        <td>Мультиселект <code>trainer_profile_ids[]</code> скрыт; ключ удаляется в <code>TeamController</code> до сохранения.</td>
+        <td>Мультиселект активных тренеров партнёра (<code>trainerOptions</code>, <code>KidsCrmGenericMultiselectSelect2</code>).</td>
       </tr>
       <tr>
         <td>JSON <code>GET /admin/teams/data</code></td>
@@ -337,12 +337,19 @@
     </ul>
   </div>
 
-  <h2>6) Привязка тренера к группе (<code>trainer_profile_id</code>)</h2>
+  <h2>6) Привязка тренеров к группе (<code>trainer_profile_ids[]</code>)</h2>
   <div class="note">
-    Связь many-to-many <code>team_trainer</code>; в UI на группу — <strong>не более одного</strong> тренера (<code>TeamTrainerSyncService::syncTrainerForTeam</code>).<br>
-    Сохранение: <code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — поле <code>trainer_profile_id</code> (id из <code>trainer_profiles</code> текущего партнёра). Пустое значение снимает тренера с группы.<br>
-    <code>GET /admin/team/{id}/edit</code> (JSON) возвращает <code>trainer_profile_id</code> первого связанного профиля.<br>
-    Обратная привязка из карточки тренера — <code>team_ids[]</code> на <code>/admin/trainers</code>. Подробнее: <a href="/docs/documentation/admin-trainers#team-link">Тренеры: привязка к группам</a>.
+    Связь many-to-many <code>team_trainer</code>; в UI на группу — <strong>несколько</strong> тренеров
+    (мультиселект <code>KidsCrmGenericMultiselectSelect2</code>, как «Объекты» у районов;
+    <code>TeamTrainerSyncService::syncTrainersForTeam</code>).<br>
+    Сохранение: <code>POST /admin/teams</code>, <code>PATCH /admin/team/{id}</code> — поле
+    <code>trainer_profile_ids[]</code> (id из <code>trainer_profiles</code> текущего партнёра).
+    Пустой массив снимает всех тренеров с группы.<br>
+    <code>GET /admin/team/{id}/edit</code> (JSON) возвращает <code>trainer_profile_ids</code> (массив id).<br>
+    Колонка списка — ФИО через запятую.<br>
+    Обратная привязка из карточки тренера — <code>team_ids[]</code> на <code>/admin/trainers</code>
+    (не снимает других тренеров с группы). Подробнее:
+    <a href="/docs/documentation/admin-trainers#team-link">Тренеры: привязка к группам</a>.
     Привязка тренера добавляет его в авто-чат группы; отвязка из чата не убирает
     (<a href="/doc#chat-team-groups-index">анонс</a>).
   </div>
@@ -353,7 +360,7 @@
     <li>Eager load: <code>weekdays</code>, <code>trainerProfiles.user</code>, <code>location</code> (при <code>locations.view</code>), <code>sportType</code> (при <code>sport_types.view</code>).</li>
     <li>Поля строки JSON: <code>id</code>, <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>locations_label</code>, <code>locations_label_full</code>, <code>locations_names</code> (при <code>locations.view</code>), <code>weekdays_label</code>, <code>weekdays_items</code>, <code>sport_type_label</code> (при <code>sport_types.view</code>), <code>legal_entity_label</code> / <code>legal_entity_fallback</code> (при multi legal entity mode), <code>month_price</code>, <code>status_label</code>, <code>is_enabled</code>.</li>
     <li><strong>Сортировка</strong> по <code>columns[order.0.column].name</code>: <code>order_by</code>, <code>title</code>, <code>trainer_label</code>, <code>sport_type_label</code> (join <code>sport_types</code>), <code>locations_label</code> (join <code>locations</code> по <code>teams.location_id</code>), <code>month_price</code>, <code>status_label</code>.</li>
-    <li>Обновление <code>weekdays</code> / <code>trainer_profile_id</code> / <code>location_id</code> / <code>sport_type_id</code> / <code>legal_entity_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.2). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
+    <li>Обновление <code>weekdays</code> / <code>trainer_profile_ids</code> / <code>location_id</code> / <code>sport_type_id</code> / <code>legal_entity_id</code> без соответствующего права — ключи отбрасываются в контроллере до сервиса (см. разделы 3–5.2). Поле <code>month_price</code> доступно при любом <code>groups.view</code>.</li>
   </ul>
 
   <h2>8) Базовые роли и конфиг</h2>
@@ -404,7 +411,7 @@
       <li><code>tests/Feature/Crm/Teams/TeamScheduleViewAndPageAccessFeatureTest.php</code> — <code>schedule.view</code>, дни недели в модалках.</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleJournalAccessFeatureTest.php</code> — доступ к <code>/schedule</code> и всем эндпоинтам журнала.</li>
       <li><code>tests/Feature/Crm/Schedule/ScheduleCellTrainerFeatureTest.php</code> — тренер при «Посетил» в ячейке журнала.</li>
-      <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_id</code>, sync <code>team_trainer</code>.</li>
+      <li><code>tests/Feature/Crm/Trainers/TeamTrainerLinkFeatureTest.php</code> — <code>trainer_profile_ids[]</code>, sync <code>team_trainer</code> (несколько тренеров на группу).</li>
       <li><code>tests/Feature/Crm/Teams/TeamControllerTest.php</code> — CRUD, фильтры, изоляция партнёра.</li>
       <li><code>tests/Feature/Crm/Teams/TeamColumnsSettingsTest.php</code> — API настроек колонок.</li>
     </ul>

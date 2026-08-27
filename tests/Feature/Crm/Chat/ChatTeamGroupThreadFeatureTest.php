@@ -158,7 +158,7 @@ final class ChatTeamGroupThreadFeatureTest extends ChatTestCase
         $this->patchJson('/admin/team/'.$team->id, [
             'title' => $team->title,
             'is_enabled' => 1,
-            'trainer_profile_id' => $profile->id,
+            'trainer_profile_ids' => [$profile->id],
         ])->assertOk();
 
         $trainerUser = User::query()->findOrFail((int) $profile->user_id);
@@ -167,7 +167,7 @@ final class ChatTeamGroupThreadFeatureTest extends ChatTestCase
         $this->patchJson('/admin/team/'.$team->id, [
             'title' => $team->title,
             'is_enabled' => 1,
-            'trainer_profile_id' => null,
+            'trainer_profile_ids' => [],
         ])->assertOk();
 
         $this->assertDatabaseMissing('team_trainer', [

@@ -252,7 +252,7 @@ class ScheduleController extends AdminBaseController
                 $user,
                 isset($data['context_team_id']) ? (int) $data['context_team_id'] : null
             );
-        $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $contextTeamId);
+        $teamDefaultIds = $this->teamDefaultTrainerProfileIds($partnerId, $contextTeamId);
         $trainers = $this->trainerOptionsForPartner($partnerId);
 
         $currentStatusId = $selected['lesson_occurrence_status_id'] ?? null;
@@ -291,7 +291,9 @@ class ScheduleController extends AdminBaseController
             'teams_label' => $this->teamUserSync->teamTitlesLabel($user) ?: null,
             'postpay_teams' => $postpayTeams,
             'postpay_team_id' => $resolvedPostpayTeamId,
-            'team_default_trainer_profile_id' => $teamDefault?->id,
+            'team_default_trainer_profile_ids' => $teamDefaultIds,
+            // BC: первый id (старые клиенты / тесты).
+            'team_default_trainer_profile_id' => $teamDefaultIds[0] ?? null,
             'trainer_profile_ids_for_select' => $isVisitedEntry ? $trainerIdsForSelect : [],
             // BC: первый id строкой (старые клиенты / тесты).
             'trainer_profile_id_for_select' => $isVisitedEntry && $trainerIdsForSelect !== []
@@ -841,7 +843,7 @@ class ScheduleController extends AdminBaseController
 
         $visitedStatusId = LessonOccurrenceStatus::attendedIdForPartner($partnerId);
         $scheduledStatusId = LessonOccurrenceStatus::scheduledIdForPartner($partnerId);
-        $teamDefault = $this->teamDefaultTrainerProfile($partnerId, $resolvedTeamId);
+        $teamDefaultIds = $this->teamDefaultTrainerProfileIds($partnerId, $resolvedTeamId);
         $trainers = $this->trainerOptionsForPartner($partnerId);
 
         return response()->json([
@@ -858,7 +860,8 @@ class ScheduleController extends AdminBaseController
             'can_place' => $list !== [],
             'visited_status_id' => $visitedStatusId,
             'scheduled_status_id' => $scheduledStatusId,
-            'team_default_trainer_profile_id' => $teamDefault?->id,
+            'team_default_trainer_profile_ids' => $teamDefaultIds,
+            'team_default_trainer_profile_id' => $teamDefaultIds[0] ?? null,
             'trainers' => $trainers->map(fn (TrainerProfile $profile) => [
                 'id' => $profile->id,
                 'name' => $this->trainerDisplayName($profile),
@@ -1456,19 +1459,37 @@ class ScheduleController extends AdminBaseController
         return $teamIds[0];
     }
 
-    private function teamDefaultTrainerProfile(int $partnerId, ?int $teamId): ?TrainerProfile
+    /**
+     * @return list<int>
+     */
+    private function teamDefaultTrainerProfileIds(int $partnerId, ?int $teamId): array
     {
         if (! $teamId) {
+            return [];
+        }
+
+        return TrainerProfile::query()
+            ->select('trainer_profiles.id')
+            ->join('team_trainer', 'team_trainer.trainer_profile_id', '=', 'trainer_profiles.id')
+            ->where('team_trainer.partner_id', $partnerId)
+            ->where('team_trainer.team_id', $teamId)
+            ->orderBy('team_trainer.id')
+            ->pluck('trainer_profiles.id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    private function teamDefaultTrainerProfile(int $partnerId, ?int $teamId): ?TrainerProfile
+    {
+        $ids = $this->teamDefaultTrainerProfileIds($partnerId, $teamId);
+        if ($ids === []) {
             return null;
         }
 
         return TrainerProfile::query()
             ->with('user')
-            ->select('trainer_profiles.*')
-            ->join('team_trainer', 'team_trainer.trainer_profile_id', '=', 'trainer_profiles.id')
-            ->where('team_trainer.partner_id', $partnerId)
-            ->where('team_trainer.team_id', $teamId)
-            ->orderBy('team_trainer.id')
+            ->whereKey($ids[0])
             ->first();
     }
 

@@ -273,6 +273,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectId === 'flexible-trainer-profile-ids') {
             return $('#flexiblePlaceModal');
         }
+        if (selectId === 'empty-cell-trainer-profile-ids') {
+            return $('#emptyCellPlaceModal');
+        }
         return $select.closest('.modal');
     }
 
@@ -340,13 +343,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ctx.trainer_profile_id_for_select !== null && ctx.trainer_profile_id_for_select !== undefined && ctx.trainer_profile_id_for_select !== '') {
             return [String(ctx.trainer_profile_id_for_select)];
         }
-        if (ctx.team_default_trainer_profile_id) {
-            return [String(ctx.team_default_trainer_profile_id)];
-        }
-        return [];
+        return defaultTrainerIdsFromContext(ctx);
     }
 
     function defaultTrainerIdsFromContext(ctx) {
+        if (ctx && Array.isArray(ctx.team_default_trainer_profile_ids) && ctx.team_default_trainer_profile_ids.length) {
+            return ctx.team_default_trainer_profile_ids.map(String);
+        }
         if (ctx && ctx.team_default_trainer_profile_id) {
             return [String(ctx.team_default_trainer_profile_id)];
         }
@@ -381,11 +384,11 @@ document.addEventListener('DOMContentLoaded', function () {
             $sel.val(selectIds).trigger('change');
         }
         var hint = '';
-        var defaultId = cellContextCache && cellContextCache.team_default_trainer_profile_id
-            ? String(cellContextCache.team_default_trainer_profile_id)
-            : '';
-        if (defaultId && selectIds.length === 1 && selectIds[0] === defaultId) {
-            hint = 'По умолчанию — первый тренер группы.';
+        var defaultIds = defaultTrainerIdsFromContext(cellContextCache);
+        if (defaultIds.length
+            && selectIds.length === defaultIds.length
+            && defaultIds.every(function (id) { return selectIds.indexOf(id) !== -1; })) {
+            hint = 'По умолчанию — тренеры группы.';
         }
         $('#cell-trainer-hint').text(hint);
     }
@@ -772,11 +775,11 @@ document.addEventListener('DOMContentLoaded', function () {
             $sel.val(selectIds).trigger('change');
         }
         var hint = '';
-        var defaultId = flexibleContextCache && flexibleContextCache.team_default_trainer_profile_id
-            ? String(flexibleContextCache.team_default_trainer_profile_id)
-            : '';
-        if (defaultId && selectIds.length === 1 && selectIds[0] === defaultId) {
-            hint = 'По умолчанию — первый тренер группы.';
+        var defaultIds = defaultTrainerIdsFromContext(flexibleContextCache);
+        if (defaultIds.length
+            && selectIds.length === defaultIds.length
+            && defaultIds.every(function (id) { return selectIds.indexOf(id) !== -1; })) {
+            hint = 'По умолчанию — тренеры группы.';
         }
         $('#flexible-trainer-hint').text(hint);
     }
@@ -1541,7 +1544,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function clearEmptyCellErrors() {
         $('#empty-cell-choice-error, #empty-cell-team-error, #empty-cell-fee-error, #empty-cell-status-error, #empty-cell-trainer-error, #empty-cell-comment-error')
             .text('').hide();
-        $('#empty-cell-team-id, #empty-cell-fee-amount, #empty-cell-trainer-profile-id, #empty-cell-comment').removeClass('is-invalid');
+        $('#empty-cell-team-id, #empty-cell-fee-amount, #empty-cell-comment').removeClass('is-invalid');
+        var $trainerSel = $('#empty-cell-trainer-profile-ids');
+        $trainerSel.removeClass('is-invalid');
+        if (window.KidsCrmGenericMultiselectSelect2 && $trainerSel.length) {
+            KidsCrmGenericMultiselectSelect2.clearInvalid($trainerSel);
+        }
     }
 
     function showEmptyCellErrors(errors) {
@@ -1567,9 +1575,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errors.lesson_occurrence_status_id) {
             $('#empty-cell-status-error').text(errors.lesson_occurrence_status_id[0]).show();
         }
-        if (errors.trainer_profile_id) {
-            $('#empty-cell-trainer-profile-id').addClass('is-invalid');
-            $('#empty-cell-trainer-error').text(errors.trainer_profile_id[0]).show();
+        if (errors.trainer_profile_ids || errors['trainer_profile_ids.0'] || errors.trainer_profile_id) {
+            var trainerErr = (errors.trainer_profile_ids
+                || errors['trainer_profile_ids.0']
+                || errors.trainer_profile_id)[0];
+            var $trainerSel = $('#empty-cell-trainer-profile-ids');
+            $trainerSel.addClass('is-invalid');
+            if (window.KidsCrmGenericMultiselectSelect2) {
+                KidsCrmGenericMultiselectSelect2.markInvalid($trainerSel);
+            }
+            $('#empty-cell-trainer-error').text(trainerErr).show();
         }
         if (errors.comment) {
             $('#empty-cell-comment').addClass('is-invalid');
@@ -1578,16 +1593,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (errors.occurrence_date) {
             $('#empty-cell-choice-error').text(errors.occurrence_date[0]).show();
         }
-    }
-
-    function populateEmptyCellTrainerSelect(trainers, selectedValue) {
-        var $sel = $('#empty-cell-trainer-profile-id');
-        $sel.empty();
-        $sel.append($('<option>', {value: '', text: 'Без тренера'}));
-        (trainers || []).forEach(function (trainer) {
-            $sel.append($('<option>', {value: trainer.id, text: trainer.name}));
-        });
-        $sel.val(selectedValue === null || selectedValue === undefined ? '' : String(selectedValue));
     }
 
     function resetEmptyCellStatusDefault() {
@@ -1603,20 +1608,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function syncEmptyCellTrainerBlock() {
         var statusId = $('input[name="empty_cell_lesson_occurrence_status_id"]:checked').val();
+        var $sel = $('#empty-cell-trainer-profile-ids');
         if (!isVisitedStatusId(statusId)) {
             $('#empty-cell-trainer-wrap').addClass('d-none');
+            clearTrainerMultiselect($sel);
+            $('#empty-cell-trainer-hint').text('');
             return;
         }
         $('#empty-cell-trainer-wrap').removeClass('d-none');
-        var defaultId = emptyCellContextCache && emptyCellContextCache.team_default_trainer_profile_id
-            ? emptyCellContextCache.team_default_trainer_profile_id
-            : '';
-        if (!$('#empty-cell-trainer-profile-id').val() && defaultId) {
-            $('#empty-cell-trainer-profile-id').val(String(defaultId));
+        var selectIds = defaultTrainerIdsFromContext(emptyCellContextCache);
+        var trainers = emptyCellContextCache && emptyCellContextCache.trainers
+            ? emptyCellContextCache.trainers
+            : [];
+        if (trainers.length || $sel.find('option').length === 0) {
+            populateTrainerMultiselect($sel, trainers, selectIds);
+        } else if (window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.setValues($sel, selectIds);
+        } else {
+            $sel.val(selectIds).trigger('change');
         }
-        $('#empty-cell-trainer-hint').text(
-            defaultId ? 'По умолчанию подставлен тренер группы (можно сменить).' : ''
-        );
+        var hint = '';
+        var defaultIds = defaultTrainerIdsFromContext(emptyCellContextCache);
+        if (defaultIds.length
+            && selectIds.length === defaultIds.length
+            && defaultIds.every(function (id) { return selectIds.indexOf(id) !== -1; })) {
+            hint = 'По умолчанию — тренеры группы.';
+        }
+        $('#empty-cell-trainer-hint').text(hint);
     }
 
     function renderEmptyCellTeamUi(ctx) {
@@ -1679,6 +1697,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         if (ctx.team_id) {
             $select.val(String(ctx.team_id));
+        } else if (teams.length) {
+            // Явно выбираем первую группу — иначе браузер показывает option без sync дефолтов тренеров.
+            $select.val(String(teams[0].id));
         }
         $display.text('');
     }
@@ -1873,7 +1894,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 renderEmptyCellChoiceOptions(ctx);
                 renderEmptyCellTeamUi(ctx);
-                populateEmptyCellTrainerSelect(ctx.trainers || [], '');
+                var initialTeamId = parseInt($('#empty-cell-team-id').val(), 10)
+                    || (ctx.team_id ? parseInt(ctx.team_id, 10) : null)
+                    || null;
+                if (initialTeamId) {
+                    applyEmptyCellTeamTrainerDefaults(initialTeamId);
+                } else {
+                    populateTrainerMultiselect(
+                        $('#empty-cell-trainer-profile-ids'),
+                        ctx.trainers || [],
+                        []
+                    );
+                }
                 resetEmptyCellStatusDefault();
                 emptyCellPlaceModal.show();
             },
@@ -1898,13 +1930,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     $(document).on('change', 'input[name="empty_cell_lesson_occurrence_status_id"]', syncEmptyCellTrainerBlock);
 
+    function applyEmptyCellTeamTrainerDefaults(teamId) {
+        if (!emptyCellContextCache) {
+            return;
+        }
+        var byTeam = emptyCellContextCache.team_default_trainer_profile_ids_by_team || {};
+        var key = teamId ? String(teamId) : '';
+        var ids = key && Array.isArray(byTeam[key]) ? byTeam[key].map(String) : [];
+        emptyCellContextCache.team_id = teamId || null;
+        emptyCellContextCache.team_default_trainer_profile_ids = ids.map(function (id) {
+            return parseInt(id, 10);
+        }).filter(function (id) { return id > 0; });
+        emptyCellContextCache.team_default_trainer_profile_id = emptyCellContextCache.team_default_trainer_profile_ids[0] || null;
+        syncEmptyCellTrainerBlock();
+    }
+
     $('#empty-cell-team-id').on('change', function () {
         if (!emptyCellContextCache) {
             return;
         }
         var teamId = parseInt($(this).val(), 10) || null;
-        // default trainer may change with team — keep simple: leave current selection
-        emptyCellContextCache.team_id = teamId;
+        applyEmptyCellTeamTrainerDefaults(teamId);
     });
 
     $('#emptyCellPlaceForm').on('submit', function (e) {
@@ -1916,9 +1962,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var date = $('#empty-cell-occurrence-date').val();
         var teamId = $('#empty-cell-team-id').val();
         var statusId = $('input[name="empty_cell_lesson_occurrence_status_id"]:checked').val();
-        var trainerId = '';
+        var trainerIds = [];
         if (isVisitedStatusId(statusId)) {
-            trainerId = $('#empty-cell-trainer-profile-id').val() || '';
+            var rawTrainerIds = $('#empty-cell-trainer-profile-ids').val();
+            trainerIds = Array.isArray(rawTrainerIds) ? rawTrainerIds : [];
         }
         var comment = $('#empty-cell-comment').val() || '';
 
@@ -1941,7 +1988,7 @@ document.addEventListener('DOMContentLoaded', function () {
             team_id: teamId,
             occurrence_date: date,
             lesson_occurrence_status_id: statusId,
-            trainer_profile_id: trainerId,
+            trainer_profile_ids: trainerIds,
             comment: comment
         };
 
@@ -1974,7 +2021,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (response.success) {
                     emptyCellPlaceModal.hide();
                     var result = response.result || {};
-                    enrichResultTrainerNameFromSelect(result, '#empty-cell-trainer-profile-id');
+                    enrichResultTrainerNameFromSelect(result, '#empty-cell-trainer-profile-ids');
                     var $cell = currentCell && currentCell.length
                         ? currentCell
                         : $('#schedule-table .schedule-cell[data-user-id="' + userId + '"][data-date="' + date + '"]');

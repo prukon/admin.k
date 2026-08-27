@@ -1764,7 +1764,7 @@
     <code>POST /cabinet/teams/attach</code>.
     <br>
     4) <b>Тренер.</b> Привязка к группе (<code>TeamTrainerSyncService</code>) добавляет
-    в чат. Отвязка из чата не убирает. Пути: селект тренера в модалке группы
+    в чат. Отвязка из чата не убирает. Пути: мультиселект тренеров в модалке группы
     и <code>team_ids[]</code> на <code>/admin/trainers</code>.
     <br>
     5) <b>Админ / superadmin.</b> Новый админ школы
@@ -3216,7 +3216,7 @@
     <b>Мультитренеры (2026‑08)</b> — в <code>#cellEditModal</code> / <code>#flexiblePlaceModal</code>
     мультиселект <code>trainer_profile_ids[]</code>; pivot
     <code>user_lesson_occurrence_status_event_trainers</code> → нагрузка/ЗП (каждому зачёт);
-    empty-cell — одиночный BC. Подробно:
+    empty-cell — тот же мультиселект (дефолт = тренеры группы). Подробно:
     <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>;
     тесты <code>ScheduleJournalMultiTrainerContractsFeatureTest</code>.
     <br><br>
@@ -3267,7 +3267,7 @@
     Повторное открытие сохранённого «Без тренера» не подставляет дефолт группы
     (<code>trainerIdsForVisited</code> + <code>current_status_id = attended</code>).
     <br>
-    5) Empty-cell — одиночный <code>trainer_profile_id</code> (BC → pivot).
+    5) Empty-cell — мультиселект <code>trainer_profile_ids[]</code> (дефолт = тренеры группы; BC <code>trainer_profile_id</code>).
     <br>
     Документы:
     <a href="/docs/documentation/schedule-journal#visited-trainer">schedule-journal §6</a>,

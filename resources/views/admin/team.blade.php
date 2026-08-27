@@ -370,6 +370,10 @@
     @include('includes.logModal')
 @endsection
 
+@can('trainers.view')
+    @include('partials.select2.generic-multiselect')
+@endcan
+
 @push('scripts')
     <script>
         $(document).ready(function () {

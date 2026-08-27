@@ -45,18 +45,17 @@ final class ScheduleJournalMultiTrainerContractsFeatureTest extends ScheduleJour
         $html = (string) $page->getContent();
         $this->assertStringContainsString('id="cell-trainer-profile-ids"', $html);
         $this->assertStringContainsString('id="flexible-trainer-profile-ids"', $html);
+        $this->assertStringContainsString('id="empty-cell-trainer-profile-ids"', $html);
         $this->assertStringContainsString('name="trainer_profile_ids[]"', $html);
         $this->assertStringContainsString('js-generic-multiselect-select', $html);
         $this->assertStringContainsString('generic-multiselect-field', $html);
         $this->assertStringContainsString('KidsCrmGenericMultiselectSelect2', $html);
         $this->assertStringContainsString('js/schedule-journal.js', $html);
         $this->assertStringContainsString('data-placeholder="Без тренера"', $html);
-        // Empty-cell остаётся одиночным (BC через trainer_profile_id).
-        $this->assertStringContainsString('id="empty-cell-trainer-profile-id"', $html);
-        $this->assertStringContainsString('name="trainer_profile_id"', $html);
-        // Старые одиночные id модалок ячейки/гибкого больше не рендерятся.
+        // Старые одиночные id модалок ячейки/гибкого/empty-cell больше не рендерятся.
         $this->assertDoesNotMatchRegularExpression('/id="cell-trainer-profile-id"(?!s)/', $html);
         $this->assertDoesNotMatchRegularExpression('/id="flexible-trainer-profile-id"(?!s)/', $html);
+        $this->assertDoesNotMatchRegularExpression('/id="empty-cell-trainer-profile-id"(?!s)/', $html);
     }
 
     // -------------------------------------------------------------------------

@@ -941,13 +941,19 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $trainerIdsFnChunk = substr($content, (int) $trainerIdsFnPos, 1400);
         $this->assertStringContainsString('isVisitedStatusId(ctx.current_status_id)', $trainerIdsFnChunk);
         $this->assertStringContainsString('trainer_profile_ids_for_select', $trainerIdsFnChunk);
+        $this->assertStringContainsString('team_default_trainer_profile_ids', $trainerIdsFnChunk);
         $this->assertStringContainsString('team_default_trainer_profile_id', $trainerIdsFnChunk);
         $this->assertStringContainsString('cell-trainer-profile-ids', $content);
         $this->assertStringContainsString('flexible-trainer-profile-ids', $content);
         $this->assertStringContainsString('trainer_profile_ids', $content);
         $this->assertStringContainsString('trainer_profile_ids_for_select', $content);
-        // Дефолт: при «Посетил» без сохранённых — team_default; при не-Посетил — clear.
+        // Дефолт: при «Посетил» без сохранённых — все тренеры группы; при не-Посетил — clear.
+        $this->assertStringContainsString('team_default_trainer_profile_ids', $content);
         $this->assertStringContainsString('team_default_trainer_profile_id', $content);
+        $this->assertStringContainsString('По умолчанию — тренеры группы.', $content);
+        $this->assertStringContainsString('applyEmptyCellTeamTrainerDefaults', $content);
+        $this->assertStringContainsString('team_default_trainer_profile_ids_by_team', $content);
+        $this->assertStringContainsString('initialTeamId', $content);
         $this->assertStringContainsString('clearTrainerMultiselect', $content);
         $this->assertStringContainsString("names.join(', ')", $content);
         // Ошибки валидации под мультиселектом (не только legacy trainer_profile_id).
@@ -1358,6 +1364,7 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('id="empty-cell-status-error"', $content);
         $this->assertStringContainsString('name="empty_cell_lesson_occurrence_status_id"', $content);
         $this->assertStringContainsString('id="empty-cell-trainer-wrap"', $content);
+        $this->assertStringContainsString('id="empty-cell-trainer-profile-ids"', $content);
         $this->assertStringContainsString('id="empty-cell-fee-amount"', $content);
         $this->assertStringContainsString('kids-user-discount-price-wrap', $content);
         $this->assertStringContainsString('id="btnEmptyCellPlace"', $content);

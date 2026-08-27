@@ -111,15 +111,18 @@
                     </div>
 
                     @can('trainers.view')
-                    <div class="mb-3">
-                        <label for="trainer_profile_id" class="form-label">Тренер</label>
-                        <select name="trainer_profile_id" class="form-select" id="trainer_profile_id">
-                            <option value="">Без тренера</option>
+                    <div class="mb-3 generic-multiselect-field">
+                        <label for="trainer_profile_ids" class="form-label">Тренеры</label>
+                        <select id="trainer_profile_ids"
+                                name="trainer_profile_ids[]"
+                                class="form-select js-generic-multiselect-select"
+                                multiple
+                                data-placeholder="Выберите тренеров">
                             @foreach($trainerOptions as $trainer)
                                 <option value="{{ $trainer->id }}">{{ $trainer->user?->full_name }}</option>
                             @endforeach
                         </select>
-                        <div id="trainer_profile_id-error" class="invalid-feedback"></div>
+                        <div id="trainer_profile_ids-error" class="invalid-feedback d-block" data-error-for="trainer_profile_ids"></div>
                     </div>
                     @endcan
 
@@ -178,6 +181,15 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const canViewTrainers = @json(auth()->user()->can('trainers.view'));
+        const $createTrainersSelect = $('#trainer_profile_ids');
+
+        if (canViewTrainers && $createTrainersSelect.length && window.KidsCrmGenericMultiselectSelect2) {
+            KidsCrmGenericMultiselectSelect2.init($createTrainersSelect, {
+                dropdownParent: $('#createTeamModal')
+            });
+        }
+
         function createTeam() {
             const teamForm = document.getElementById('teamForm');
             teamForm.addEventListener('submit', function (e) {
@@ -215,6 +227,14 @@
                         if (monthPriceInput) monthPriceInput.classList.remove('is-invalid');
                         if (monthPriceError) monthPriceError.textContent = '';
 
+                        const trainerInput = document.getElementById('trainer_profile_ids');
+                        const trainerError = document.getElementById('trainer_profile_ids-error');
+                        if (trainerInput) trainerInput.classList.remove('is-invalid');
+                        if (trainerError) trainerError.textContent = '';
+                        if (window.KidsCrmGenericMultiselectSelect2 && trainerInput) {
+                            KidsCrmGenericMultiselectSelect2.clearInvalid($(trainerInput));
+                        }
+
                         if (!ok && status === 422) {
                             const errors = data?.errors || {};
                             if (errors.title?.length) {
@@ -229,13 +249,16 @@
                                 if (monthPriceInput) monthPriceInput.classList.add('is-invalid');
                                 if (monthPriceError) monthPriceError.textContent = errors.month_price[0];
                             }
-                            const trainerInput = document.getElementById('trainer_profile_id');
-                            const trainerError = document.getElementById('trainer_profile_id-error');
-                            if (trainerInput) trainerInput.classList.remove('is-invalid');
-                            if (trainerError) trainerError.textContent = '';
-                            if (errors.trainer_profile_id?.length) {
-                                if (trainerInput) trainerInput.classList.add('is-invalid');
-                                if (trainerError) trainerError.textContent = errors.trainer_profile_id[0];
+                            const trainerErrMsg = errors.trainer_profile_ids?.[0]
+                                || errors['trainer_profile_ids.0']?.[0];
+                            if (trainerErrMsg) {
+                                if (trainerInput) {
+                                    trainerInput.classList.add('is-invalid');
+                                    if (window.KidsCrmGenericMultiselectSelect2) {
+                                        KidsCrmGenericMultiselectSelect2.markInvalid($(trainerInput));
+                                    }
+                                }
+                                if (trainerError) trainerError.textContent = trainerErrMsg;
                             }
                             const sportTypeInput = document.getElementById('sport_type_id');
                             const sportTypeError = document.getElementById('sport_type_id-error');
@@ -266,6 +289,9 @@
 
                         if (data.message) {
                             teamForm.reset();
+                            if (window.KidsCrmGenericMultiselectSelect2 && $createTrainersSelect.length) {
+                                KidsCrmGenericMultiselectSelect2.setValues($createTrainersSelect, []);
+                            }
                             showSuccessModal("Создание группы", "Группа успешно создана.", 1);
                         } else {
                             throw new Error('Произошла ошибка при создании группы.');

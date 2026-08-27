@@ -793,13 +793,16 @@
                                 </div>
                             </div>
 
-                            <div class="cell-edit-section d-none" id="empty-cell-trainer-wrap">
-                                <label for="empty-cell-trainer-profile-id" class="cell-edit-section__label">Тренер</label>
-                                <select class="form-select" id="empty-cell-trainer-profile-id" name="trainer_profile_id">
-                                    <option value="">Без тренера</option>
+                            <div class="cell-edit-section d-none generic-multiselect-field" id="empty-cell-trainer-wrap">
+                                <label for="empty-cell-trainer-profile-ids" class="cell-edit-section__label">Тренеры</label>
+                                <select id="empty-cell-trainer-profile-ids"
+                                        name="trainer_profile_ids[]"
+                                        class="form-select js-generic-multiselect-select"
+                                        multiple
+                                        data-placeholder="Без тренера">
                                 </select>
                                 <div class="form-text text-muted" id="empty-cell-trainer-hint"></div>
-                                <div class="invalid-feedback" id="empty-cell-trainer-error"></div>
+                                <div class="invalid-feedback d-block" id="empty-cell-trainer-error" style="display:none;"></div>
                             </div>
 
                             <div class="cell-edit-section cell-edit-section--last">

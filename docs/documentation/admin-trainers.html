@@ -55,7 +55,7 @@
       </tr>
       <tr>
         <td><code>team_trainer</code></td>
-        <td>Связь группа ↔ тренер (many-to-many с ограничением в UI: на группу — один тренер; у тренера — несколько групп). Поля: <code>partner_id</code>, <code>team_id</code>, <code>trainer_profile_id</code>.</td>
+        <td>Связь группа ↔ тренер (many-to-many: у группы несколько тренеров; у тренера — несколько групп). Поля: <code>partner_id</code>, <code>team_id</code>, <code>trainer_profile_id</code>.</td>
       </tr>
     </tbody>
   </table>
@@ -118,7 +118,7 @@
       </tr>
       <tr>
         <td><code>groups.view</code></td>
-        <td>Нужно для назначения <code>trainer_profile_id</code> при создании/редактировании группы (без <code>trainers.view</code> поле с сервера отбрасывается).</td>
+        <td>Нужно для назначения <code>trainer_profile_ids[]</code> при создании/редактировании группы (без <code>trainers.view</code> поле с сервера отбрасывается).</td>
       </tr>
     </tbody>
   </table>
@@ -137,11 +137,11 @@
   <h2 id="team-link">4) Привязка к группам</h2>
   <p><code>App\Services\TeamTrainerSyncService</code>:</p>
   <ul>
-    <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются. Привязка добавляет тренера в авто-чат группы; отвязка из чата не убирает (<a href="/doc#chat-team-groups-index">анонс</a>).</li>
-    <li><b>Из группы</b> — поле <code>trainer_profile_id</code> в <code>POST/PATCH /admin/team/{id}</code> (<code>TeamController</code>): на группу назначается один тренер; предыдущий тренер группы снимается.</li>
-    <li><b>Список групп</b> — на <code>/admin/teams</code> при <code>trainers.view</code> колонка «Тренер» (<code>trainer_label</code> в JSON <code>/admin/teams/data</code>, настройка в «Поля списка»). Без права колонка скрыта, но поле в JSON остаётся. См. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</li>
+    <li><b>Из карточки тренера</b> — массив <code>team_ids[]</code> в store/update: тренер привязывается к нескольким группам; лишние строки в <code>team_trainer</code> для этого профиля удаляются. Другие тренеры группы <strong>не</strong> снимаются. Привязка добавляет тренера в авто-чат группы; отвязка из чата не убирает (<a href="/doc#chat-team-groups-index">анонс</a>).</li>
+    <li><b>Из группы</b> — поле <code>trainer_profile_ids[]</code> в <code>POST/PATCH /admin/team/{id}</code> (<code>TeamController</code>, мультиселект): на группу назначается один или несколько тренеров; полный sync (пустой массив снимает всех).</li>
+    <li><b>Список групп</b> — на <code>/admin/teams</code> при <code>trainers.view</code> колонка «Тренер» (<code>trainer_label</code> — ФИО через запятую в JSON <code>/admin/teams/data</code>, настройка в «Поля списка»). Без права колонка скрыта, но поле в JSON остаётся. См. <a href="/docs/documentation/admin-teams">Группы (админка)</a>.</li>
   </ul>
-  <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — селект тренера при <code>@can('trainers.view')</code>.</p>
+  <p>UI: чекбоксы групп — <code>resources/views/admin/trainers/_teams_checkboxes.blade.php</code>; в модалках групп — мультиселект тренеров при <code>@can('trainers.view')</code>.</p>
 
   <h2>5) Редактирование пользователя с ролью «Тренер»</h2>
   <div class="note">
@@ -259,7 +259,7 @@
     legacy/primary (первый из списка).
     <br>
     UI: модалки ячейки и гибкого абонемента на <code>/schedule</code>;
-    empty-cell пока одиночный <code>trainer_profile_id</code> (BC → тот же pivot).
+    empty-cell — тот же мультиселект (дефолт = тренеры группы; BC <code>trainer_profile_id</code>).
     Право <code>schedule.view</code> (не <code>trainers.view</code>).
     По умолчанию при первом выборе «Посетил» — первый тренер группы из <code>team_trainer</code>;
     повторное открытие сохранённого «Без тренера» дефолт группы <b>не</b> подставляет.
