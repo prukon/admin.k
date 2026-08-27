@@ -1834,6 +1834,9 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("partials.ui.tooltip-hint", $content);
         $this->assertStringContainsString('dashboard-disabled-pay-hint-tpl', $content);
         $this->assertStringContainsString('kids-tooltip-hint--control', $content);
+        $this->assertStringContainsString('.seasons .kids-tooltip-hint.kids-tooltip-hint--control {', $content);
+        $this->assertStringContainsString('width: 90%', $content);
+        $this->assertStringContainsString('.kids-tooltip-hint--control .new-main-button', $content);
         $this->assertStringContainsString('attachDisabledPayHint', $content);
         $this->assertStringContainsString('detachDisabledPayHint', $content);
         $this->assertStringNotContainsString("newButton.setAttribute('data-kids-tooltip-hint'", $content);

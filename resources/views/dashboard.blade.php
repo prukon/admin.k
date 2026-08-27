@@ -340,11 +340,20 @@
 
         @canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])
         <style>
+            /* Обёртка = та же геометрия, что у .seasons .new-main-button (90% ячейки).
+               Иначе span.d-inline-block сжимается по тексту, кнопка внутри становится уже соседних. */
             .seasons .kids-tooltip-hint.kids-tooltip-hint--control {
+                width: 90%;
+                margin-top: 15px;
+                box-sizing: border-box;
                 color: inherit;
                 line-height: inherit;
                 vertical-align: middle;
                 cursor: help;
+            }
+            .seasons .kids-tooltip-hint.kids-tooltip-hint--control .new-main-button {
+                width: 100%;
+                margin-top: 0;
             }
         </style>
         <template id="dashboard-disabled-pay-hint-tpl">
