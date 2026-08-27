@@ -278,7 +278,10 @@
       <code>setPrices.cabinetPackages.postpay.view</code> (это право <b>не</b> то же, что
       <code>lessonPackages.type.postpay</code> в CRM).
       В payload — <code>is_postpay</code>, <code>postpay_pay_available*</code>.
-      Сумма видна сразу; кнопка оплаты enabled с 1-го числа следующего месяца (МСК), до этого disabled + tooltip.
+      Сумма видна сразу; кнопка оплаты enabled с 1-го числа следующего месяца (МСК), до этого disabled.
+      Ховер «Оплата будет доступна с …» — на обёртке
+      <code>@include('partials.ui.tooltip-hint')</code> (<code>#dashboard-disabled-pay-hint-tpl</code>,
+      <code>kids-tooltip-hint--control</code>), не на самой disabled-кнопке.
       Сервер дублирует правило в resolver. Подробно — <a href="/docs/documentation/postpay#cabinet">postpay § кабинет</a>,
       <a href="/docs/documentation/set-prices-cabinet-packages">set-prices-cabinet-packages</a>.</li>
   </ul>

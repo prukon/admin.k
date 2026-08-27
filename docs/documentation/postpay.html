@@ -183,7 +183,13 @@
       (<code>DashboardController::cabinetUserPricesPayload</code> + sync суммы).</li>
     <li>Сумма видна в течение месяца.</li>
     <li>Кнопка «Оплатить» enabled с <b>1-го числа следующего месяца</b> (Europe/Moscow);
-      до этого — disabled + tooltip «Оплата будет доступна с …».</li>
+      до этого — disabled. Ховер — обёртка из
+      <code>@include('partials.ui.tooltip-hint')</code>
+      (<code>#dashboard-disabled-pay-hint-tpl</code>, класс
+      <code>kids-tooltip-hint--control</code>): tooltip на span, не на кнопке
+      (у <code>.btn:disabled</code> стоит <code>pointer-events: none</code>).
+      Текст: «Оплата будет доступна с …». Init — <code>KidsCrmTooltip</code> scope
+      <code>hint</code> после пересборки ячейки.</li>
     <li>Серверный guard (тот же порог): <code>UserPriceMonthlyFeePaymentResolver</code> —
       до даты → <b>422</b> с тем же текстом; уже оплачено → <b>422</b>; сумма ≤ 0 → <b>422</b>.</li>
   </ul>

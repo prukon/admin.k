@@ -41,6 +41,7 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
         $this->assertStringNotContainsString('class="row seasons"', $html);
         $this->assertStringNotContainsString('id="season-2026"', $html);
         $this->assertStringNotContainsString('id="dashboard-active-team"', $html);
+        $this->assertStringNotContainsString('id="dashboard-disabled-pay-hint-tpl"', $html);
         $this->assertStringContainsString('var dashboardSeasonsEnabled = false', $html);
         $this->assertStringNotContainsString('У вас образовалась задолженность', $html);
     }
@@ -58,6 +59,7 @@ final class DashboardSeasonsSetPricesVisibilityFeatureTest extends StudentTeamPi
 
         $this->assertStringContainsString('class="row seasons"', $html);
         $this->assertStringContainsString('id="season-2026"', $html);
+        $this->assertStringContainsString('id="dashboard-disabled-pay-hint-tpl"', $html);
         $this->assertStringContainsString('var dashboardSeasonsEnabled = true', $html);
         $this->assertStringContainsString('createSeasons()', $html);
     }

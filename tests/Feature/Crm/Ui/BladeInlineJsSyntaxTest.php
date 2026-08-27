@@ -1831,6 +1831,19 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('postpay_pay_available', $content);
         $this->assertStringContainsString('postpayBlocked', $content);
         $this->assertStringContainsString('is_postpay', $content);
+        $this->assertStringContainsString("partials.ui.tooltip-hint", $content);
+        $this->assertStringContainsString('dashboard-disabled-pay-hint-tpl', $content);
+        $this->assertStringContainsString('kids-tooltip-hint--control', $content);
+        $this->assertStringContainsString('attachDisabledPayHint', $content);
+        $this->assertStringContainsString('detachDisabledPayHint', $content);
+        $this->assertStringNotContainsString("newButton.setAttribute('data-kids-tooltip-hint'", $content);
+        $this->assertStringNotContainsString('data-kids-tooltip-hint="1"', $content);
+
+        $hint = resource_path('views/partials/ui/tooltip-hint.blade.php');
+        $this->assertFileExists($hint);
+        $hintContent = (string) file_get_contents($hint);
+        $this->assertStringContainsString('innerHtml', $hintContent);
+        $this->assertStringContainsString('kids-tooltip-hint--control', $hintContent);
 
         preg_match_all('/<script(?![^>]*\bsrc\b)[^>]*>(.*?)<\/script>/is', $content, $matches);
         $this->assertNotEmpty($matches[1], 'В dashboard.blade.php нет inline <script>');

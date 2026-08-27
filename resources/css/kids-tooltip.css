@@ -54,6 +54,14 @@
     outline: none;
 }
 
+/* Обёртка disabled-кнопки: ховер на span (.btn:disabled { pointer-events: none }) */
+.kids-tooltip-hint.kids-tooltip-hint--control {
+    color: inherit;
+    line-height: inherit;
+    vertical-align: middle;
+    cursor: help;
+}
+
 /* Ручная отметка оплаты (абонементы, установка цен) */
 .ulp-paid-manual-hint {
     cursor: help;

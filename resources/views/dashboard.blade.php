@@ -339,6 +339,21 @@
         @endif
 
         @canany(['setPrices.cabinetSeasons.view', 'setPrices.cabinetPackages.postpay.view'])
+        <style>
+            .seasons .kids-tooltip-hint.kids-tooltip-hint--control {
+                color: inherit;
+                line-height: inherit;
+                vertical-align: middle;
+                cursor: help;
+            }
+        </style>
+        <template id="dashboard-disabled-pay-hint-tpl">
+            @include('partials.ui.tooltip-hint', [
+                'title' => 'Оплата будет доступна позже',
+                'wrapperClass' => 'kids-tooltip-hint--control',
+                'innerHtml' => '',
+            ])
+        </template>
         {{--Сезоны--}}
         <div class="row seasons">
             <div class="col-12">
@@ -1224,6 +1239,45 @@
                 }
             }
 
+            // Ховер на disabled «Оплатить»: обёртка из #dashboard-disabled-pay-hint-tpl
+            // (partials.ui.tooltip-hint). У .btn:disabled pointer-events: none.
+            function attachDisabledPayHint(button, hintTitle) {
+                const title = String(hintTitle || '').trim();
+                if (!button || title === '') {
+                    return;
+                }
+                const parent = button.parentElement;
+                if (parent && parent.hasAttribute('data-kids-tooltip-hint')) {
+                    parent.setAttribute('title', title);
+                    parent.setAttribute('aria-label', title);
+                    return;
+                }
+                const tpl = document.getElementById('dashboard-disabled-pay-hint-tpl');
+                if (!tpl || !tpl.content || !tpl.content.firstElementChild) {
+                    return;
+                }
+                const wrap = tpl.content.firstElementChild.cloneNode(true);
+                wrap.setAttribute('title', title);
+                wrap.setAttribute('aria-label', title);
+                if (!button.parentNode) {
+                    return;
+                }
+                button.parentNode.insertBefore(wrap, button);
+                wrap.appendChild(button);
+            }
+
+            function detachDisabledPayHint(button) {
+                if (!button) {
+                    return;
+                }
+                const wrap = button.parentElement;
+                if (!wrap || !wrap.hasAttribute('data-kids-tooltip-hint') || !wrap.parentNode) {
+                    return;
+                }
+                wrap.parentNode.insertBefore(button, wrap);
+                wrap.remove();
+            }
+
             //Поиск и установка соответствующих установленных цен на странице
             function apendPrice(userPrice) {
                 if (!userPrice) {
@@ -1269,6 +1323,7 @@
                         const button = borderPrice.querySelector('.new-main-button');
                         setSeasonPriceAmount(borderPrice, 0);
                         if (button) {
+                            detachDisabledPayHint(button);
                             button.textContent = 'Оплатить';
                             button.setAttribute('disabled', 'disabled');
                             button.classList.remove('buttonPaided');
@@ -1305,10 +1360,6 @@
                             newButton.textContent = 'Оплатить';
                             const paid = !!(matchedData.effective_is_paid ?? matchedData.is_paid);
                             const postpayBlocked = !!matchedData.is_postpay && matchedData.postpay_pay_available === false;
-                            newButton.removeAttribute('data-kids-tooltip-hint');
-                            newButton.removeAttribute('data-bs-toggle');
-                            newButton.removeAttribute('title');
-                            newButton.removeAttribute('data-bs-custom-class');
                             if (paid) {
                                 newButton.textContent = 'Оплачено';
                                 newButton.setAttribute('disabled', 'disabled');
@@ -1319,11 +1370,10 @@
                             } else if (postpayBlocked) {
                                 newButton.setAttribute('disabled', 'disabled');
                                 newButton.classList.remove('buttonPaided');
-                                newButton.setAttribute('data-kids-tooltip-hint', '1');
-                                newButton.setAttribute('data-bs-toggle', 'tooltip');
-                                newButton.setAttribute('data-bs-placement', 'top');
-                                newButton.setAttribute('data-bs-custom-class', 'ulp-assignment-paid-tooltip');
-                                newButton.setAttribute('title', matchedData.postpay_pay_available_label || 'Оплата будет доступна позже');
+                                attachDisabledPayHint(
+                                    newButton,
+                                    matchedData.postpay_pay_available_label || 'Оплата будет доступна позже'
+                                );
                             } else {
                                 newButton.removeAttribute('disabled');
                                 newButton.classList.remove('buttonPaided');
@@ -1345,9 +1395,6 @@
                         const paid = !!(matchedData.effective_is_paid ?? matchedData.is_paid);
                         const postpayBlocked = !!matchedData.is_postpay && matchedData.postpay_pay_available === false;
                         const disabled = paid || Number(matchedData.price) <= 0 || postpayBlocked;
-                        const tipAttrs = (!paid && postpayBlocked)
-                            ? ` data-kids-tooltip-hint="1" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-custom-class="ulp-assignment-paid-tooltip" title="${(matchedData.postpay_pay_available_label || '').replace(/"/g, '&quot;')}"`
-                            : '';
                         formsHtml += `
                     <form action="${paymentUrl}" method="POST" class="mb-1">
                         <input type="hidden" name="_token" value="${csrfToken}">
@@ -1356,7 +1403,7 @@
                         <input type="hidden" name="team_id" value="${matchedData.team_id || ''}">
                         <input type="hidden" name="outSum" value="${matchedData.price > 0 ? matchedData.price : ''}">
                         <button type="submit" class="btn btn-sm btn-bd-primary new-main-button w-100${paid ? ' buttonPaided' : ''}"
-                            ${disabled ? 'disabled' : ''}${tipAttrs}>
+                            ${disabled ? 'disabled' : ''}>
                             ${paid ? 'Оплачено' + (title ? ' (' + title + ')' : '') : label}
                         </button>
                     </form>`;
@@ -1365,6 +1412,17 @@
                     setSeasonPriceAmount(borderPrice, total > 0 ? total : 0);
 
                     buttonWrap.innerHTML = formsHtml;
+                    const multiButtons = buttonWrap.querySelectorAll('.new-main-button');
+                    matchedAll.forEach(function (matchedData, idx) {
+                        const paid = !!(matchedData.effective_is_paid ?? matchedData.is_paid);
+                        const postpayBlocked = !!matchedData.is_postpay && matchedData.postpay_pay_available === false;
+                        if (!paid && postpayBlocked && multiButtons[idx]) {
+                            attachDisabledPayHint(
+                                multiButtons[idx],
+                                matchedData.postpay_pay_available_label || 'Оплата будет доступна позже'
+                            );
+                        }
+                    });
                     if (window.KidsCrmTooltip) {
                         window.KidsCrmTooltip.dispose(buttonWrap, { scopes: ['hint'] });
                         window.KidsCrmTooltip.init(buttonWrap, { scopes: ['hint'] });

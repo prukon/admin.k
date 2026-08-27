@@ -285,6 +285,10 @@ final class DashboardCabinetPackagesTypeAccessFeatureTest extends StudentTeamPiv
         $this->assertStringContainsString('"is_postpay":true', $html);
         $this->assertStringContainsString('Постоплата консоль', $html);
         $this->assertStringContainsString('"price":5500', $html);
+        $this->assertStringContainsString('id="dashboard-disabled-pay-hint-tpl"', $html);
+        $this->assertStringContainsString('kids-tooltip-hint--control', $html);
+        $this->assertStringContainsString('attachDisabledPayHint', $html);
+        $this->assertStringContainsString('data-kids-tooltip-hint', $html);
     }
 
     public function test_pay_form_markup_contains_lesson_package_fields_when_card_visible(): void
