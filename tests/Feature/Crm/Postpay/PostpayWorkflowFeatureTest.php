@@ -219,4 +219,47 @@ final class PostpayWorkflowFeatureTest extends PostpayTestCase
         $this->assertSame(100000, (int) $row->price_cents);
         $this->assertSame(2, $this->countPostpayUtssForStudent());
     }
+
+    public function test_journal_update_returns_payment_status_due_amount_for_unpaid_postpay(): void
+    {
+        $first = $this->withHeaders($this->ajaxHeaders())
+            ->postJson(route('schedule.update'), [
+                'user_id' => $this->student->id,
+                'create_postpay' => 1,
+                'team_id' => $this->team->id,
+                'occurrence_date' => '2026-08-05',
+                'lesson_occurrence_status_id' => $this->attendedStatusId,
+            ]);
+
+        $first->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('result.payment_status.state', 'due')
+            ->assertJsonPath('result.payment_status.amount_cents', 50000)
+            ->assertJsonPath('result.payment_status.amount_label', '500₽');
+
+        $html = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $this->team->id,
+        ]))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<td[^>]*schedule-payment-status[^>]*>[\s\S]*data-journal-payment-status="due"[\s\S]*500₽/',
+            $html
+        );
+
+        $this->ensureUserPriceRow(price: 500, paid: true);
+        $paidHtml = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $this->team->id,
+        ]))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            '/<td[^>]*schedule-payment-status[^>]*>[\s\S]*data-journal-payment-status="paid"/',
+            $paidHtml
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/<td[^>]*schedule-payment-status[^>]*>[\s\S]*data-journal-payment-status="due"/',
+            $paidHtml
+        );
+    }
 }

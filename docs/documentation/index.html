@@ -28,6 +28,141 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="journal-postpay-payment-due-index">Журнал: сумма неоплаченной постоплаты в колонке рубля (2026‑08)</h2>
+  <div class="note">
+    На <code>/schedule</code> колонка с иконкой рубля
+    (<code>th</code>/<code>td.schedule-payment-status</code>) — это <b>статус оплаты месяца</b>,
+    не колонка абонементов (там у postpay ставка «₽ / в день»).
+    Шапка — иконка <code>fa-solid fa-ruble-sign</code> в
+    <code>@include('partials.ui.tooltip-hint')</code>
+    (класс <code>journal-col-header-hint</code>), ховер и <code>aria-label</code>
+    «Статус оплаты». Native <code>title</code> на <code>th</code> нет.
+    Рядом так же подписаны шапки посещений и абонементов
+    («Кол-во посещений», «Название абонемента»).
+    <br><br>
+    1) <b>Что в ячейке.</b> Неоплаченная постоплата с
+    <code>users_prices.price_cents &gt; 0</code> — сумма к оплате
+    <code>{N}₽</code> (<code>state=due</code>, класс
+    <code>journal-monthly-payment-due</code>, без пробела тысяч;
+    копейки — только если они есть в <code>Money::formatRub</code>).
+    Оплаченная постоплата — зелёная галочка, как обычный месяц.
+    Ноль визитов (<code>price_cents = 0</code>) и обычный неоплаченный месяц
+    (не postpay) — пустая ячейка. Жёлтая галочка по-прежнему только у
+    частичной оплаты без postpay-долга
+    (<a href="#journal-monthly-payment-check">галочка по группам</a>).
+    <br>
+    2) <b>Откуда сумма.</b> Канон —
+    <code>PostpayAmountCalculator</code> / <code>PostpayUsersPriceSync</code>:
+    число актуальных статусов с <code>consumes_lesson</code> за месяц
+    <b>этой postpay-группы</b> × цена шаблона, затем скидка снимка
+    <code>users_prices.discount_percent</code>. Колонка читает уже посчитанный
+    <code>users_prices.price_cents</code>
+    (<code>JournalMonthlyPaymentStatusService</code>, <code>dueAmountLabel</code>).
+    Это <b>не</b> «ставка × число в колонке посещений»: счётчик считает
+    все consuming-занятия фильтра (любой тип абонемента), сумма постоплаты —
+    только postpay-визиты своей группы/месяца.
+    <br>
+    3) <b>«Все группы».</b> Несколько неоплаченных postpay — сумма по ним;
+    при 2+ неоплаченных группах ховер «Не оплачено: …».
+    Если часть начислений уже оплачена — в ячейке остаток postpay-долга
+    + ховер «Оплачено: …» / «Не оплачено: …». Конкретная группа —
+    только её строка. «Без группы» — пусто.
+    <br>
+    4) <b>Live.</b> После AJAX без reload сервер кладёт
+    <code>result.payment_status</code>
+    (<code>state</code>, <code>icon_class</code>, <code>hover</code>,
+    <code>amount_cents</code>, <code>amount_label</code>) в ответы
+    <code>POST /schedule/update</code> (в т.ч. <code>create_postpay</code>),
+    <code>DELETE /schedule/occurrence/{utss}</code>,
+    постановки гибкого / пробного / разового.
+    Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>).
+    JS <code>applyJournalPaymentStatus</code> (hotfix
+    <code>public/js/schedule-journal.js</code>) перерисовывает
+    <code>td.schedule-payment-status</code>. Раскладка fixed — по-прежнему
+    <code>window.location.reload()</code>. Отдельного POST колонки нет.
+    Non-AJAX POST/DELETE без <code>X-Requested-With</code> — <b>302</b> на журнал,
+    запись в БД есть, не пустой 200.
+    <br>
+    5) <b>Доступ.</b> Страница и мутации — <code>schedule.view</code>
+    (гость 302/401, без права 403). Право
+    <code>lessonPackages.type.postpay</code> для отметок в журнале не нужно.
+    <br><br>
+    Документ: <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
+    <a href="/docs/documentation/postpay#journal">postpay § журнал</a>,
+    <a href="/docs/documentation/postpay#amount">формула суммы</a>,
+    <a href="/docs/documentation/reusable-ui-partials#tooltip-hint-datatable">reusable-ui-partials §2.1</a>.
+    Тесты: <code>ScheduleJournalPostpayPaymentDueFeatureTest</code>,
+    <code>ScheduleJournalPostpayPaymentDueFullAccessFeatureTest</code>,
+    <code>ScheduleJournalPostpayPaymentDueAjaxContractFeatureTest</code>,
+    <code>ScheduleJournalPostpayPaymentDueNonAjaxSafetyNetFeatureTest</code>,
+    <code>ScheduleJournalMonthlyPaymentStatusFeatureTest</code> (due / paid / скидка / смесь групп),
+    <code>PostpayWorkflowFeatureTest</code> (due JSON),
+    <code>BladeInlineJsSyntaxTest</code> (шапки hint + live JS).
+  </div>
+
+  <h2 id="journal-consuming-count-column">Журнал: колонка «кол-во тренировок» (2026‑08)</h2>
+  <div class="note">
+    На <code>/schedule</code> порядок колонок: № · ФИО · рубль (оплата месяца) ·
+    <b>счётчик</b> · абонементы · дни.
+    Шапка счётчика — иконка <code>fa-solid fa-person-circle-check</code>
+    в <code>@include('partials.ui.tooltip-hint')</code>
+    (класс <code>journal-col-header-hint</code>), ховер и <code>aria-label</code>
+    «Кол-во посещений». Native <code>title</code> на <code>th</code> нет.
+    В документации раздел называется «кол-во тренировок»; в UI журнала на иконке —
+    «Кол-во посещений». Это <b>не</b> колонка ЗП classic
+    (там «кол-во тренировок» = итог строки тренера в нагрузке).
+    <br><br>
+    1) <b>Что считаем.</b> Занятия выбранного месяца из тех же
+    <code>$journalOccurrences</code>, что рисуют дни
+    (<code>ScheduleJournalMonthService::consumingCountsByUser</code>):
+    актуальный статус с флагом «Списывает занятие с абонемента»
+    (<code>consumes_lesson</code>). Системные «Посетил» и «Не посетил», плюс любые
+    свои статусы с флагом. «Запись» / «Отмена» / «Заморозка» / без статуса / пустая
+    ячейка дня — нет. Несколько занятий в день (×N) — каждое отдельно.
+    Тип абонемента (пробное, разовое, постоплата, fixed, flexible) не важен:
+    решает только флаг статуса.
+    <br>
+    2) <b>Ноль</b> — пустая ячейка, не цифра 0.
+    Атрибуты остаются: <code>data-journal-consuming-count="0"</code> и
+    <code>data-order="0"</code> (сортировка DataTables). Число &gt; 0 —
+    <code>font-size: 13px</code>, цвет как у ФИО
+    (<code>#schedule-table td.schedule-consuming-count</code> в
+    <code>resources/css/schedule.css</code> и hotfix
+    <code>public/css/schedule-journal-cells.css</code>).
+    <br>
+    3) <b>Фильтр группы</b> тот же, что у <b>дней</b> таблицы (не как у галочки оплаты):
+    конкретная группа — только её UTSS; «Все группы» — сумма;
+    «Без группы» — без доп. фильтра по <code>team_id</code> (как дни, не пусто
+    принудительно). Смена фильтра — полный GET, сервер пересчитывает колонку.
+    <br>
+    4) <b>Live.</b> После AJAX без reload сервер кладёт
+    <code>result.consuming_count</code> в ответы
+    <code>POST /schedule/update</code>,
+    <code>DELETE /schedule/occurrence/{utss}</code>,
+    постановки гибкого / пробного / разового.
+    Клиент шлёт <code>journal_team_filter</code> (текущий <code>#filter-team</code>);
+    нечисловой мусор, кроме <code>none</code>, сервер считает как <code>all</code>.
+    JS <code>applyJournalConsumingCount</code> пишет число в
+    <code>td.schedule-consuming-count</code> и обновляет <code>data-order</code>;
+    при 0 очищает текст. Раскладка fixed по-прежнему
+    <code>window.location.reload()</code>. Отдельного POST колонки нет.
+    <br>
+    5) <b>Доступ.</b> Страница и мутации журнала — <code>schedule.view</code>
+    (гость 302/401, без права 403). Пробное и разовое на пустой ячейке дополнительно
+    требуют <code>lessonPackages.view</code>.
+    <br><br>
+    Документ: <a href="/docs/documentation/schedule-journal#consuming-count-column">schedule-journal §5.3</a>,
+    <a href="/docs/documentation/reusable-ui-partials#tooltip-hint-datatable">reusable-ui-partials §2.1</a>.
+    Не путать с <a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров §6</a>
+    и с суммой постоплаты в колонке рубля
+    (<a href="#journal-postpay-payment-due-index">анонс</a>): счётчик не умножается на ставку.
+    Тесты: <code>ScheduleJournalConsumingCountColumnFeatureTest</code>,
+    <code>ScheduleJournalConsumingCountColumnFullAccessFeatureTest</code>,
+    <code>ScheduleJournalConsumingCountColumnAjaxContractFeatureTest</code>,
+    <code>ScheduleJournalConsumingCountColumnNonAjaxSafetyNetFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest</code> (колонка + dtColumns + live JS + CSS 13px).
+  </div>
+
   <h2 id="users-import-parent-fill-index">Импорт Excel: дозапись пустых ФИО/телефона родителя (2026‑08)</h2>
   <div class="note">
     На <code>/admin/users</code> модалка «Импорт учеников из Excel» (права <code>users.view</code> +
@@ -1387,6 +1522,16 @@
     <code>BladeInlineJsSyntaxTest</code> (journal + users + нет bind в <code>kids-datatable.js</code>).
   </div>
 
+  <h2 id="journal-table-content-width-index">Журнал: две кнопки «на весь экран» (2026‑08)</h2>
+  <div class="note">
+    <code>#layout-wide-toggle</code> в шапке («На всю ширину экрана») и
+    <code>#btn-fullscreen.schedule-btn-fullscreen</code> в фильтрах журнала
+    растягивают ячейки дней на доступную ширину; ФИО не резинится.
+    В обычной ширине кабинета таблица — <code>max-content</code>.
+    Подробно — <a href="/docs/documentation/schedule-journal#journal-table-content-width">schedule-journal §2.4</a>.
+    Тест: <code>BladeInlineJsSyntaxTest::test_schedule_journal_table_content_width_contract</code>.
+  </div>
+
   <h2 id="assignments-pay-sms-gateway-error-index">Назначения: причина ошибки SMS в модалке (2026‑08)</h2>
   <div class="note">
     Если sms.ru не принял SMS со ссылкой на оплату абонемента, модалка
@@ -2335,6 +2480,10 @@
 
   <h2 id="journal-monthly-payment-check">Журнал: галочка оплаты месяца по группам (2026‑08)</h2>
   <div class="note">
+    Сумма неоплаченной постоплаты в этой же колонке —
+    <a href="#journal-postpay-payment-due-index">отдельный анонс</a>
+    (не путать с колонкой абонементов «₽ / в день»).
+    <br><br>
     Колонка с рублём на <code>/schedule</code> показывает оплату <b>месячного начисления</b>
     (<code>users_prices</code> за выбранный год/месяц), а не «оплачен ли ученик целиком».
     Раньше запрос схлопывал все строки месяца через <code>keyBy(user_id)</code> без
@@ -2349,28 +2498,36 @@
     <code>users_prices</code>). Нулевая сумма игнорируется (это не долг).
     Членство в pivot без начисления на галочку не влияет.
     <br>
-    2) <b>«Все группы»:</b> нет оплаченных начислений — пусто;
+    2) <b>«Все группы»:</b> нет оплаченных начислений и нет неоплаченной постоплаты с суммой —
+    пусто; неоплаченная постоплата — сумма <code>{N}₽</code> (со скидкой);
     все начисления оплачены — зелёная галочка
     (ховер «Все группы оплачены» только если таких начислений <b>два и больше</b>);
-    оплачена часть — жёлтая галочка, ховер две строки
+    оплачена часть и среди неоплаченных есть postpay — сумма постоплаты + ховер групп;
+    оплачена часть без postpay-долга — жёлтая галочка, ховер две строки
     «Оплачено: {группы}» / «Не оплачено: {группы}» (названия по <code>order_by</code> / title).
     <br>
     3) <b>Фильтр конкретной группы</b> — зелёная галочка строго если оплачено начисление
-    этой группы; иначе пусто (жёлтого нет, ховера нет).
+    этой группы; неоплаченная постоплата этой группы — сумма; иначе пусто (жёлтого нет).
     Смена фильтра — полный GET (<code>schedule.js</code> / <code>schedule-journal.js</code>,
     <code>window.location.href</code>), сервер пересчитывает колонку.
+    После AJAX смены статуса / постановки / удаления — <code>result.payment_status</code>
+    и <code>applyJournalPaymentStatus</code> без reload.
     <br>
     4) <b>«Без группы»</b> — галочки нет, даже если за месяц есть <code>users_prices</code>.
     <br>
-    5) Право <code>schedule.view</code>; отдельного API нет (только HTML
-    <code>GET /schedule</code>). Ховер — <code>@include('partials.ui.tooltip-hint')</code>,
-    KidsCrmTooltip scope <code>hint</code>.
+    5) Право <code>schedule.view</code>. Ховер галочки и шапки колонки —
+    <code>@include('partials.ui.tooltip-hint')</code>,
+    KidsCrmTooltip scope <code>hint</code>. Live-сумма постоплаты идёт в JSON мутаций журнала
+    (<code>payment_status</code>, в т.ч. <code>create_postpay</code>), отдельного POST колонки нет.
     <br><br>
     Документ: <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
     <a href="/docs/documentation/payments#users-prices">payments § users_prices</a>,
     <a href="/docs/documentation/reusable-ui-partials">reusable-ui-partials</a>.
     Тесты: <code>ScheduleJournalMonthlyPaymentStatusFeatureTest</code>,
-    <code>BladeInlineJsSyntaxTest</code> (колонка + фильтр группы).
+    <code>ScheduleJournalPostpayPaymentDueFeatureTest</code> /
+    <code>FullAccess</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code>,
+    <code>PostpayWorkflowFeatureTest</code> (due JSON + HTML),
+    <code>BladeInlineJsSyntaxTest</code> (колонка + фильтр группы + live JS + шапки hint).
   </div>
 
   <h2 id="journal-pagination-index">Журнал: пагинация 100 и поиск <code>q</code> (2026‑08)</h2>
@@ -3174,6 +3331,8 @@
     <code>{цена}₽</code> / <code>в&nbsp;день</code>
     (<code>PostpayJournalService::postpayAbonementColumnLabel</code>, класс
     <code>journal-postpay-hint</code>).
+    Сумма к оплате за месяц — в колонке рубля, не здесь
+    (<a href="#journal-postpay-payment-due-index">анонс</a>).
     <br>
     3) <b>Шапка модалок</b> «Статус занятия» / «Установить занятие»:
     ФИО → группа → дата; meta — только пакет/цена (группа не дублируется в meta).
@@ -3930,10 +4089,10 @@
     <li><a href="/docs/documentation/tbank#tests">T‑Bank (мультирасчёты): тесты (security/webhooks/payouts/sm-register/commissions/refunds)</a></li>
     <li><a href="/docs/documentation/reports-payments">Отчёт “Платежи” (админка): колонка/фильтр группы (<code>payments.team_id</code>), локация, <b>активность ученика</b> (<code>status</code>), колонки, <b>«Показать N»</b> (<code>page_length</code>), права, история T‑Bank; ФИО = <code>payments.user_id</code> (в семье — выбранный ребёнок)</a></li>
     <li><a href="/docs/documentation/reports-admin">Отчёты (админка): KidsCrmDataTable, columns-settings, <b>«Показать N»</b> (§1.1, payments / monthly / LTV / intents / fiscal; задолженности и письма — без opt-in), payment-intents / payments / fiscal / emails; фильтры (локация, тренер, активность ученика, <b>«Партнер»</b> для SA — §2.4); <b>«Задолженности»</b> — <code>effective_is_paid</code> / ручная оплата из установки цен (§3.1); <b>«Исходящие письма»</b> — модалка, колонка партнёра, partners-search, фильтр категории <code>email_category=payment_notification</code> (§8)</a></li>
-    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = посещения × ставка, затем <b>скидка по снимку строки</b></a></li>
+    <li><a href="/docs/documentation/postpay"><strong>Постоплата (<code>postpay</code>)</strong>: шаблон (цена за занятие), назначение только в «Установка цен» (без ULP), право <code>lessonPackages.type.postpay</code>, журнал <code>create_postpay</code> / смена статуса / <b>удаление</b> (<code>schedule.occurrence.destroy</code>, без reload), <b>сумма неоплаченного месяца в колонке рубля</b> (<a href="/doc#journal-postpay-payment-due-index">анонс</a>), лок после оплаты, кабинет (месяцы — <code>setPrices.cabinetPackages.postpay.view</code>, оплата с 1-го следующего месяца); сумма месяца = визиты с <code>consumes_lesson</code> × ставка, затем <b>скидка по снимку строки</b></a></li>
     <li><a href="/docs/documentation/lesson-packages">Абонементы: шаблоны (toolbar/DataTable/фильтры/колонки, «Срок действия», аудит <code>lesson_package.*</code>, <code>auto_attendance_enabled</code>), <b>дубль в «Справочниках»</b> (<code>/admin/directories/lesson-packages</code>), вкладка «Статусы занятий» (<b>toolbar / DataTable / история</b> <code>lesson_occurrence_status.*</code>), «Назначение абонементов» (<code>setPrices.packageAssignments.view</code> + <code>lessonPackages.view</code>, <code>team_id</code> при multi legal entity, <b>фильтр «Прошедшие»</b> + красная дата «Посл.» — <a href="/docs/documentation/lesson-packages#assignments-past-lessons">§assignments-past-lessons</a>, <b>фильтр «Удаленные»</b> / soft-deleted + бейдж «Удалён», <b>ручная смена <code>ends_at</code></b>, <b>автопролонгация classic fixed</b> (§auto-prolong; новый цикл = текущий % скидки карточки × цена шаблона), <b>история</b> <code>user_lesson_package.*</code> в т.ч. <code>auto_prolonged</code> / <code>auto_prolong_failed</code>, <b>иконка % у суммы</b> — снимок скидки), публичная ссылка на оплату СБП (<code>/p/{short_code}</code>, длинный <code>/pay/ulp/{token}</code> для закладок), <b>SMS со ссылкой</b> (1 Unicode SMS до 99 999 ₽ — <a href="/doc#ulp-short-pay-link-index">анонс</a>, причина ошибки sms.ru в модалке — <a href="/doc#assignments-pay-sms-gateway-error-index">анонс</a>, <a href="/docs/documentation/lesson-packages#assignments-pay-sms">§assignments-pay-sms</a>), <b>выгрузка Excel</b> (<code>lessonPackages.export</code>), календарь, разовое (<code>no_schedule</code>)</a></li>
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
-    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка, ховер групп — §5.2, <a href="/doc#journal-monthly-payment-check">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
+    <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code> и <code>kansas</code>, <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>

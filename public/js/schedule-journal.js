@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
         {orderable: false},
         {orderable: true},
         {orderable: true},
+        {orderable: true},
         {orderable: false}
     ];
     for (var i = 0; i < numDays; i++) {
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
             info: false,
             ordering: true,
             order: [],
+            autoWidth: false,
             columns: dtColumns,
             dom: 'lrtip',
             language: {
@@ -409,6 +411,111 @@ document.addEventListener('DOMContentLoaded', function () {
             return String(filterVal);
         }
         return '';
+    }
+
+    function journalTeamFilterForRequest() {
+        var v = $('#filter-team').val();
+        if (!v) {
+            return 'all';
+        }
+        return String(v);
+    }
+
+    function withJournalTeamFilter(data) {
+        var filter = journalTeamFilterForRequest();
+        if (Array.isArray(data)) {
+            data.push({name: 'journal_team_filter', value: filter});
+            return data;
+        }
+        data.journal_team_filter = filter;
+        return data;
+    }
+
+    function applyJournalConsumingCount($from, result) {
+        if (!result || !Object.prototype.hasOwnProperty.call(result, 'consuming_count')) {
+            return;
+        }
+        var $row = $from && $from.length ? $from.closest('tr') : $();
+        if (!$row.length) {
+            return;
+        }
+        var $cell = $row.find('td.schedule-consuming-count');
+        if (!$cell.length) {
+            return;
+        }
+        var n = parseInt(result.consuming_count, 10);
+        if (isNaN(n) || n < 1) {
+            n = 0;
+            $cell.empty();
+        } else {
+            $cell.text(String(n));
+        }
+        $cell.attr('data-journal-consuming-count', String(n));
+        $cell.attr('data-order', String(n));
+    }
+
+    function applyJournalPaymentStatus($from, result) {
+        if (!result || !Object.prototype.hasOwnProperty.call(result, 'payment_status')) {
+            return;
+        }
+        var $row = $from && $from.length ? $from.closest('tr') : $();
+        if (!$row.length) {
+            return;
+        }
+        var $cell = $row.find('td.schedule-payment-status');
+        if (!$cell.length) {
+            return;
+        }
+        var st = result.payment_status || {};
+        var state = String(st.state || 'none');
+        var hover = String(st.hover || '').trim();
+        var iconClass = String(st.icon_class || '').trim();
+        var amountLabel = String(st.amount_label || '').trim();
+        var el = $cell.get(0);
+        if (window.KidsCrmTooltip && el) {
+            KidsCrmTooltip.dispose(el, {scopes: ['hint']});
+        }
+        $cell.empty();
+        if (state === 'paid' || state === 'partial') {
+            var $paidWrap = $('<span/>').attr('data-journal-payment-status', state);
+            if (hover !== '') {
+                $paidWrap.append(journalPaymentHintEl(hover, iconClass, false));
+            } else {
+                $paidWrap.append($('<i/>').addClass(iconClass || 'fas fa-circle-check').attr('aria-hidden', 'true'));
+            }
+            $cell.append($paidWrap);
+        } else if (state === 'due' && amountLabel !== '') {
+            var $dueWrap = $('<span/>').attr('data-journal-payment-status', 'due');
+            if (hover !== '') {
+                $dueWrap.append(journalPaymentHintEl(hover, '', true, amountLabel));
+            } else {
+                $dueWrap.append($('<span/>').addClass('journal-monthly-payment-due').text(amountLabel));
+            }
+            $cell.append($dueWrap);
+        }
+        if (window.KidsCrmTooltip && el) {
+            KidsCrmTooltip.init(el, {scopes: ['hint']});
+        }
+    }
+
+    function journalPaymentHintEl(hover, iconClass, isDueAmount, amountLabel) {
+        var $hint = $('<span/>')
+            .addClass('kids-tooltip-hint d-inline-block journal-monthly-payment-hint')
+            .attr({
+                tabindex: '0',
+                'data-kids-tooltip-hint': '1',
+                'data-bs-toggle': 'tooltip',
+                'data-bs-placement': 'top',
+                'data-bs-custom-class': 'ulp-assignment-paid-tooltip',
+                title: hover,
+                'aria-label': hover
+            });
+        if (isDueAmount) {
+            $hint.addClass('journal-monthly-payment-due').text(amountLabel || '');
+        } else {
+            $hint.append($('<i/>').addClass(iconClass || 'fas fa-circle-check').attr('aria-hidden', 'true'));
+        }
+        return $hint;
     }
 
     function clearCellFieldErrors() {
@@ -1095,11 +1202,15 @@ document.addEventListener('DOMContentLoaded', function () {
         options = options || {};
         if (options.deleted === true || result.deleted === true) {
             renderScheduleCellAfterDelete($cell, result);
+            applyJournalConsumingCount($cell, result);
+            applyJournalPaymentStatus($cell, result);
             return;
         }
         var increment = options.increment === true;
         var prevCount = parseInt($cell.attr('data-occurrence-count') || '0', 10);
         if (!increment && prevCount > 1) {
+            applyJournalConsumingCount($cell, result);
+            applyJournalPaymentStatus($cell, result);
             return;
         }
         var count = increment ? prevCount + 1 : Math.max(prevCount, 1);
@@ -1118,6 +1229,8 @@ document.addEventListener('DOMContentLoaded', function () {
             status: result.status || {},
             package_hover: packageHover
         });
+        applyJournalConsumingCount($cell, result);
+        applyJournalPaymentStatus($cell, result);
     }
 
     function stripTrainerHoverLines(text) {
@@ -1505,14 +1618,14 @@ document.addEventListener('DOMContentLoaded', function () {
         $.ajax({
             url: '/schedule/user/' + userId + '/place-flexible-abonement',
             method: 'POST',
-            data: {
+            data: withJournalTeamFilter({
                 user_lesson_package_id: ulpId,
                 team_id: teamId,
                 occurrence_date: date,
                 lesson_occurrence_status_id: statusId,
                 trainer_profile_ids: trainerIds,
                 comment: comment
-            },
+            }),
             headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
             success: function (response) {
                 if (response.success) {
@@ -1984,13 +2097,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         var url;
-        var data = {
+        var data = withJournalTeamFilter({
             team_id: teamId,
             occurrence_date: date,
             lesson_occurrence_status_id: statusId,
             trainer_profile_ids: trainerIds,
             comment: comment
-        };
+        });
 
         if (kind === 'trial') {
             url = '/schedule/user/' + userId + '/place-trial-lesson';
@@ -2287,7 +2400,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        var formData = $(this).serializeArray();
+        var formData = withJournalTeamFilter($(this).serializeArray());
         var chosenStatus = $('input[name="lesson_occurrence_status_id"]:checked').val();
         if (!chosenStatus) {
             $('#cell-status-error').text('Выберите статус.').show();
@@ -2401,9 +2514,9 @@ document.addEventListener('DOMContentLoaded', function () {
         $.ajax({
             url: '/schedule/occurrence/' + utssId,
             method: 'DELETE',
-            data: {
+            data: withJournalTeamFilter({
                 occurrence_date: date
-            },
+            }),
             headers: {'X-CSRF-TOKEN': csrfToken(), 'Accept': 'application/json'},
             success: function (response) {
                 $confirmBtn.prop('disabled', false);
@@ -2461,6 +2574,9 @@ document.addEventListener('DOMContentLoaded', function () {
             $('.wrap-filter-year').show();
         }
         window.history.replaceState({}, '', newUrl);
+        if (table && typeof table.columns === 'function') {
+            table.columns.adjust();
+        }
     });
 
     function clearAbonementErrors() {

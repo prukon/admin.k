@@ -78,6 +78,7 @@
             <div class="schedule-journal-preloader" aria-hidden="true">
                 <div class="spinner-border text-secondary" role="status" aria-label="Загрузка"></div>
             </div>
+            <div class="schedule-journal-table-stack">
             <div class="table-responsive schedule-table-container">
             <table id="schedule-table" class="table table-bordered schedule-table">
                 <thead>
@@ -85,10 +86,28 @@
                     <th class="text-center align-middle sticky-col-1 zi-50 col-number">№</th>
                     <th class="sticky-col-2 zi-50 col-name">ФИО</th>
                     <th class="schedule-payment-status sticky-col-2">
-                        <i class="nav-icon fa-solid fa-ruble-sign"></i>
+                        @include('partials.ui.tooltip-hint', [
+                            'title' => 'Статус оплаты',
+                            'placement' => 'top',
+                            'innerHtml' => '<i class="nav-icon fa-solid fa-ruble-sign"></i>',
+                            'wrapperClass' => 'journal-col-header-hint',
+                        ])
                     </th>
-                    <th class="schedule-col-setup sticky-col-3 text-center" title="Абонементы">
-                        <i class="fa-solid fa-ticket"></i>
+                    <th class="schedule-consuming-count sticky-col-2 text-center">
+                        @include('partials.ui.tooltip-hint', [
+                            'title' => 'Кол-во посещений',
+                            'placement' => 'top',
+                            'innerHtml' => '<i class="nav-icon fa-solid fa-person-circle-check"></i>',
+                            'wrapperClass' => 'journal-col-header-hint',
+                        ])
+                    </th>
+                    <th class="schedule-col-setup sticky-col-3 text-center">
+                        @include('partials.ui.tooltip-hint', [
+                            'title' => 'Название абонемента',
+                            'placement' => 'top',
+                            'innerHtml' => '<i class="fa-solid fa-ticket"></i>',
+                            'wrapperClass' => 'journal-col-header-hint',
+                        ])
                     </th>
 
                     @php
@@ -182,6 +201,7 @@
                         $postpayHintLabels = array_values(array_filter($postpayHintLabels, static fn ($v) => $v !== ''));
                         $postpayHintText = implode("\n", $postpayHintLabels);
                         $postpayHintHover = implode("\n", array_values(array_filter($postpayHintHovers, static fn ($v) => $v !== '')));
+                        $consumingCount = (int) ($journalConsumingCounts[(int) $user->id] ?? 0);
                     @endphp
                     <tr data-user-id="{{ $user->id }}">
                         <td class="text-center align-middle sticky-col-1 number-line">{{ ($users->firstItem() ?? 1) + $index }}</td>
@@ -191,12 +211,13 @@
                                 <small class="text-muted d-block">{{ $user->teams->pluck('title')->join(', ') }}</small>
                             @endif
                         </td>
-                        <td class="text-center">
+                        <td class="text-center align-middle schedule-payment-status">
                             @php
                                 $payStatus = $journalPaymentStatuses[(int) $user->id] ?? null;
                                 $payState = is_array($payStatus) ? (string) ($payStatus['state'] ?? '') : '';
                                 $payHover = is_array($payStatus) ? (string) ($payStatus['hover'] ?? '') : '';
                                 $payIcon = is_array($payStatus) ? (string) ($payStatus['icon_class'] ?? '') : '';
+                                $payAmountLabel = is_array($payStatus) ? (string) ($payStatus['amount_label'] ?? '') : '';
                             @endphp
                             @if($payState === 'paid' || $payState === 'partial')
                                 <span data-journal-payment-status="{{ $payState }}">
@@ -211,6 +232,26 @@
                                         <i class="{{ $payIcon }}" aria-hidden="true"></i>
                                     @endif
                                 </span>
+                            @elseif($payState === 'due' && $payAmountLabel !== '')
+                                <span data-journal-payment-status="due">
+                                    @if($payHover !== '')
+                                        @include('partials.ui.tooltip-hint', [
+                                            'title' => $payHover,
+                                            'placement' => 'top',
+                                            'innerHtml' => e($payAmountLabel),
+                                            'wrapperClass' => 'journal-monthly-payment-hint journal-monthly-payment-due',
+                                        ])
+                                    @else
+                                        <span class="journal-monthly-payment-due">{{ $payAmountLabel }}</span>
+                                    @endif
+                                </span>
+                            @endif
+                        </td>
+                        <td class="text-center align-middle schedule-consuming-count"
+                            data-journal-consuming-count="{{ $consumingCount }}"
+                            data-order="{{ $consumingCount }}">
+                            @if($consumingCount > 0)
+                                {{ $consumingCount }}
                             @endif
                         </td>
                         <td class="text-center align-middle schedule-col-setup schedule-col-abonements">
@@ -401,6 +442,7 @@
                     {{ $users->onEachSide(1)->links() }}
                 </div>
             @endif
+            </div>
         </div>
     </div>
 

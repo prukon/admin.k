@@ -59,6 +59,22 @@ final class ScheduleJournalPackageHoverLabelTest extends TestCase
         );
     }
 
+    public function test_journal_payment_due_amount_label(): void
+    {
+        $this->assertSame(
+            '3600₽',
+            \App\Services\Schedule\JournalMonthlyPaymentStatusService::dueAmountLabel(360000)
+        );
+        $this->assertSame(
+            '0₽',
+            \App\Services\Schedule\JournalMonthlyPaymentStatusService::dueAmountLabel(0)
+        );
+        $this->assertSame(
+            '1500,50₽',
+            \App\Services\Schedule\JournalMonthlyPaymentStatusService::dueAmountLabel(150050)
+        );
+    }
+
     public function test_flexible_abonement_column_label(): void
     {
         $this->assertSame(

@@ -197,6 +197,12 @@
     В схеме <code>classic</code> совпадает с <strong>итогом по строке тренера</strong> в <a href="/docs/documentation/schedule-trainer-workload">«Нагрузке тренеров»</a> при режиме «без групп» (суммы по дням недели):
     один календарный день может учитываться <strong>дважды</strong>, если в этот день были визиты учеников из разных групп с одним тренером.
   </p>
+  <p>
+    Это <b>не</b> колонка журнала <code>/schedule</code>
+    (<a href="/docs/documentation/schedule-journal#consuming-count-column">schedule-journal §5.3</a>,
+    <a href="/doc#journal-consuming-count-column">анонс /doc</a>): там считается число занятий
+    <b>ученика</b> за месяц со статусом <code>consumes_lesson</code>, а не тренировки тренера.
+  </p>
   <p>Сервис: <code>TrainerWorkloadReportService::trainerRowTrainingsTotals($partnerId, $dateFrom, $dateTo)</code> — вызывается при <code>buildReport</code> и перед формированием слепка. Канзас считает иначе (слот + дата) — §12.</p>
 
   <h2>7) Формула итого (classic)</h2>

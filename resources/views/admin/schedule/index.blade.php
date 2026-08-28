@@ -43,7 +43,7 @@
 @push('styles')
     @vite(['resources/css/schedule.css'])
     {{-- Hotfix до следующей Vite-сборки: см. public/css/schedule-journal-cells.css --}}
-    <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/schedule-journal-cells.css') }}?v={{ @filemtime(public_path('css/schedule-journal-cells.css')) ?: time() }}">
     @if(($activeTab ?? 'journal') === 'journal')
         <style>
             #schedule-journal-stage {
@@ -85,11 +85,89 @@
                 min-height: 0;
                 overflow: hidden;
             }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-journal-table-stack {
+                flex: 1 1 auto;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                max-width: 100%;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-journal-pagination {
+                flex: 0 0 auto;
+            }
             .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-table-container {
                 flex: 1 1 auto;
                 min-height: 0;
                 height: auto;
                 overflow: auto;
+            }
+            /* Не резинить колонки; не центрировать: DataTables table.dataTable { margin: 0 auto },
+               style.css .dataTables_wrapper { min-width: 100% }.
+               Пейджер по ширине таблицы, не экрана. */
+            .schedule-journal-table-stack {
+                display: inline-block;
+                width: max-content;
+                max-width: 100%;
+                vertical-align: top;
+            }
+            .schedule-journal-table-stack .schedule-journal-pagination {
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .schedule-table-container {
+                text-align: left;
+            }
+            .schedule-table-container .dataTables_wrapper,
+            #schedule-table_wrapper.dataTables_wrapper {
+                width: max-content !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+            }
+            #schedule-table,
+            #schedule-table.table,
+            table.dataTable#schedule-table {
+                width: max-content !important;
+                margin: 0 !important;
+            }
+            /* Overlay журнала и body.layout-wide: ячейки дней на всю ширину, ФИО не резинится. */
+            .schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack,
+            body.layout-wide .schedule-journal-table-stack {
+                width: 100% !important;
+                max-width: 100%;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper.dataTables_wrapper,
+            .schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper,
+            body.layout-wide #schedule-table_wrapper.dataTables_wrapper,
+            body.layout-wide .schedule-table-container .dataTables_wrapper {
+                width: 100% !important;
+                min-width: 100% !important;
+                margin: 0 !important;
+            }
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table,
+            .schedule-fullscreen-wrapper.fullscreen #schedule-table.table,
+            .schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table,
+            body.layout-wide #schedule-table,
+            body.layout-wide #schedule-table.table,
+            body.layout-wide table.dataTable#schedule-table {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+            .schedule-fullscreen-wrapper.fullscreen .schedule-day-header,
+            body.layout-wide .schedule-day-header {
+                width: auto !important;
+            }
+            .schedule-fullscreen-wrapper.fullscreen th.col-name,
+            .schedule-fullscreen-wrapper.fullscreen td.schedule-user-name,
+            body.layout-wide th.col-name,
+            body.layout-wide td.schedule-user-name {
+                width: 1% !important;
+                max-width: 140px !important;
+                white-space: nowrap;
+            }
+            .schedule-fullscreen-wrapper.fullscreen td.schedule-cell,
+            body.layout-wide td.schedule-cell {
+                width: auto !important;
             }
         </style>
         <noscript>

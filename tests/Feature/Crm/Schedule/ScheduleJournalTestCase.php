@@ -11,8 +11,11 @@ use App\Models\TrainerProfile;
 use App\Models\User;
 use App\Models\UserLessonOccurrenceStatusEvent;
 use App\Models\UserLessonPackage;
+use App\Models\UserPrice;
 use App\Models\UserTeamScheduleSlot;
+use App\Services\LessonPackages\UserLessonOccurrenceStatusService;
 use App\Services\TeamUserSyncService;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Database\Seeders\LessonOccurrenceStatusesSeeder;
 use Illuminate\Database\QueryException;
@@ -556,6 +559,142 @@ abstract class ScheduleJournalTestCase extends CrmTestCase
             'user_lesson_package_id' => $ulp->id,
             'lesson_occurrence_status_id' => $statusId,
         ], $extra);
+    }
+
+    protected function markUtssOccurrenceStatus(UserTeamScheduleSlot $utss, int $statusId): void
+    {
+        $status = LessonOccurrenceStatus::query()->findOrFail($statusId);
+        app(UserLessonOccurrenceStatusService::class)->apply(
+            (int) $utss->partner_id,
+            (int) $utss->user_id,
+            (int) $utss->team_schedule_slot_id,
+            Carbon::parse($utss->starts_at)->format('Y-m-d'),
+            $utss->user_lesson_package_id !== null ? (int) $utss->user_lesson_package_id : null,
+            $status,
+            (int) $this->user->id,
+        );
+    }
+
+    protected function occurrenceStatusIdByCode(string $code): int
+    {
+        $id = LessonOccurrenceStatus::query()
+            ->forPartner((int) $this->partner->id)
+            ->where('code', $code)
+            ->value('id');
+
+        $this->assertNotNull($id, 'Нет статуса с кодом '.$code);
+
+        return (int) $id;
+    }
+
+    protected function journalConsumingCellHtml(string $html, int $userId): string
+    {
+        if (! preg_match(
+            '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/',
+            $html,
+            $rowMatch
+        )) {
+            return '';
+        }
+
+        if (! preg_match(
+            '/<td\b[^>]*class="[^"]*schedule-consuming-count[^"]*"[^>]*>[\s\S]*?<\/td>/',
+            $rowMatch[0],
+            $cellMatch
+        )) {
+            return '';
+        }
+
+        return $cellMatch[0];
+    }
+
+    protected function journalConsumingCellText(string $html, int $userId): string
+    {
+        $cell = $this->journalConsumingCellHtml($html, $userId);
+        if ($cell === '') {
+            return '';
+        }
+        $inner = preg_replace('/^<td\b[^>]*>|<\/td>$/', '', $cell) ?? '';
+
+        return trim(html_entity_decode(strip_tags($inner), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    protected function journalStudentRowHtml(string $html, int $userId): ?string
+    {
+        if (! preg_match(
+            '/<tr[^>]*data-user-id="'.$userId.'"[^>]*>[\s\S]*?<\/tr>/',
+            $html,
+            $rowMatch
+        )) {
+            return null;
+        }
+
+        return $rowMatch[0];
+    }
+
+    protected function journalPaymentCellHtml(string $html, int $userId): string
+    {
+        $row = $this->journalStudentRowHtml($html, $userId);
+        if ($row === null) {
+            return '';
+        }
+
+        if (! preg_match(
+            '/<td\b[^>]*class="[^"]*schedule-payment-status[^"]*"[^>]*>[\s\S]*?<\/td>/',
+            $row,
+            $cellMatch
+        )) {
+            return '';
+        }
+
+        $cell = $cellMatch[0];
+        if (! str_contains($cell, 'data-journal-payment-status') && ! str_contains($cell, 'fa-circle-check')) {
+            return '';
+        }
+
+        return $cell;
+    }
+
+    protected function journalPaymentStatusInHtml(string $html, int $userId): ?string
+    {
+        $cell = $this->journalPaymentCellHtml($html, $userId);
+        if ($cell === '' || ! preg_match('/data-journal-payment-status="([^"]+)"/', $cell, $statusMatch)) {
+            return null;
+        }
+
+        return $statusMatch[1];
+    }
+
+    /**
+     * @return array{0: User, 1: Team, 2: UserPrice, 3: LessonPackage}
+     */
+    protected function makeStudentWithPostpayMonth(
+        int $priceCents = 0,
+        bool $paid = false,
+        int $discountPercent = 0,
+        int $packagePriceCents = 50000,
+        string $month = '2026-08-01',
+    ): array {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $package = LessonPackage::factory()
+            ->forPartner((int) $this->partner->id)
+            ->postpay()
+            ->create([
+                'name' => 'Постоплата журнал',
+                'price_cents' => $packagePriceCents,
+            ]);
+
+        $row = UserPrice::query()->create([
+            'user_id' => $student->id,
+            'team_id' => $team->id,
+            'new_month' => $month,
+            'lesson_package_id' => $package->id,
+            'price_cents' => $priceCents,
+            'discount_percent' => $discountPercent,
+            'is_paid' => $paid ? 1 : 0,
+        ]);
+
+        return [$student, $team, $row, $package];
     }
 
     /**

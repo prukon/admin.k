@@ -170,6 +170,8 @@ class ScheduleController extends AdminBaseController
             (string) $team_id,
         );
 
+        $journalConsumingCounts = $this->journalMonthService->consumingCountsByUser($journalOccurrences);
+
         $teams = Team::where('partner_id', $partnerId)
             ->where('is_enabled', 1)
             ->orderBy('order_by')
@@ -195,6 +197,7 @@ class ScheduleController extends AdminBaseController
             'journalOccurrences',
             'journalAssignments',
             'journalPaymentStatuses',
+            'journalConsumingCounts',
             'postpayUsers',
             'postpayLockedUsers',
             'postpayByUser',
@@ -539,6 +542,14 @@ class ScheduleController extends AdminBaseController
         $message = 'Статус занятия сохранён.';
 
         if ($request->ajax() || $request->expectsJson()) {
+            $result = $this->withJournalConsumingCount(
+                $result,
+                $partnerId,
+                (int) $data['user_id'],
+                (string) $result['occurrence_date'],
+                $request,
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -586,6 +597,14 @@ class ScheduleController extends AdminBaseController
         $message = 'Занятие удалено.';
 
         if ($request->ajax() || $request->expectsJson()) {
+            $result = $this->withJournalConsumingCount(
+                $result,
+                $partnerId,
+                (int) $result['user_id'],
+                (string) $result['occurrence_date'],
+                $request,
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -1015,6 +1034,14 @@ class ScheduleController extends AdminBaseController
         $message = 'Занятие из гибкого абонемента поставлено в журнал.';
 
         if ($request->ajax() || $request->expectsJson()) {
+            $result = $this->withJournalConsumingCount(
+                $result,
+                $partnerId,
+                (int) $user->id,
+                (string) $result['occurrence_date'],
+                $request,
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -1169,6 +1196,14 @@ class ScheduleController extends AdminBaseController
         $message = 'Пробное занятие записано в журнал.';
 
         if ($request->ajax() || $request->expectsJson()) {
+            $result = $this->withJournalConsumingCount(
+                $result,
+                $partnerId,
+                (int) $user->id,
+                (string) $result['occurrence_date'],
+                $request,
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -1319,6 +1354,14 @@ class ScheduleController extends AdminBaseController
         $message = 'Разовое занятие записано в журнал.';
 
         if ($request->ajax() || $request->expectsJson()) {
+            $result = $this->withJournalConsumingCount(
+                $result,
+                $partnerId,
+                (int) $user->id,
+                (string) $result['occurrence_date'],
+                $request,
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -1521,6 +1564,61 @@ class ScheduleController extends AdminBaseController
         }
 
         return ScheduleJournalMonthService::postpayPackageHoverLabel(null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function withJournalConsumingCount(
+        array $result,
+        int $partnerId,
+        int $userId,
+        string $occurrenceDateYmd,
+        Request $request,
+    ): array {
+        $teamFilter = $this->journalTeamFilterFromRequest($request);
+        $start = Carbon::parse($occurrenceDateYmd)->startOfMonth();
+        $counts = $this->journalMonthService->consumingCountsByUser(
+            $this->journalMonthService->occurrencesByUserDate(
+                $partnerId,
+                [$userId],
+                $start,
+                $start->copy()->endOfMonth(),
+                $teamFilter,
+            )
+        );
+        $result['consuming_count'] = (int) ($counts[$userId] ?? 0);
+
+        $monthFirst = $start->format('Y-m-d');
+        $payment = $this->journalMonthlyPaymentStatus->statusesByUser(
+            $partnerId,
+            [$userId],
+            $monthFirst,
+            $teamFilter,
+        );
+        $result['payment_status'] = $payment[$userId] ?? [
+            'state' => JournalMonthlyPaymentStatusService::STATE_NONE,
+            'icon_class' => '',
+            'hover' => '',
+            'amount_cents' => 0,
+            'amount_label' => '',
+        ];
+
+        return $result;
+    }
+
+    private function journalTeamFilterFromRequest(Request $request): string
+    {
+        $raw = trim((string) $request->input('journal_team_filter', 'all'));
+        if ($raw === 'none') {
+            return 'none';
+        }
+        if (ctype_digit($raw) && (int) $raw > 0) {
+            return $raw;
+        }
+
+        return 'all';
     }
 
     /**

@@ -152,6 +152,7 @@ final class ScheduleJournalMonthService
                 'status_icon' => $status?->icon,
                 'status_color' => $status?->color,
                 'status_code' => $status?->code,
+                'consumes_lesson' => (bool) ($status?->consumes_lesson ?? false),
                 'trainer_profile_id' => $trainerIds[0] ?? null,
                 'trainer_profile_ids' => $trainerIds,
                 'trainer_name' => $trainerName,
@@ -172,6 +173,31 @@ final class ScheduleJournalMonthService
         }
 
         return $grouped;
+    }
+
+    /**
+     * Счётчик колонки «кол-во тренировок»: занятия, чей актуальный статус списывает занятие.
+     *
+     * @param  array<string, list<array<string, mixed>>>  $occurrencesByUserDate
+     * @return array<int, int>
+     */
+    public function consumingCountsByUser(array $occurrencesByUserDate): array
+    {
+        $counts = [];
+        foreach ($occurrencesByUserDate as $items) {
+            foreach ($items as $item) {
+                if (empty($item['consumes_lesson'])) {
+                    continue;
+                }
+                $userId = (int) ($item['user_id'] ?? 0);
+                if ($userId < 1) {
+                    continue;
+                }
+                $counts[$userId] = ($counts[$userId] ?? 0) + 1;
+            }
+        }
+
+        return $counts;
     }
 
     /**

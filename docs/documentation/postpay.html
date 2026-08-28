@@ -33,7 +33,8 @@
     <a href="/docs/documentation/lesson-packages">Абонементы</a>,
     <a href="/docs/documentation/lesson-packages-type-postpay">право type.postpay</a>,
     <a href="/docs/documentation/setting-prices-monthly-users">Установка цен</a>,
-    <a href="/docs/documentation/schedule-journal">Журнал</a>,
+    <a href="/docs/documentation/schedule-journal">Журнал</a>
+    (<a href="/doc#journal-postpay-payment-due-index">сумма в колонке рубля</a>),
     <a href="/docs/documentation/dashboard-cabinet">Консоль</a>,
     <a href="/docs/documentation/payments">Оплаты</a>
   </div>
@@ -113,6 +114,10 @@
     не по актуальному % карточки. Канон — <a href="/docs/documentation/money">money</a> вариант А.
     <br>Актуальный статус = последний event по ключу занятия (как в отчётах журнала).
     <br>При 0 посещений — <b>0 ₽</b> (кнопка оплаты недоступна, т.к. сумма ≤ 0).
+    Та же сумма при <code>price_cents &gt; 0</code> и неоплаченном месяце показывается
+    в колонке рубля журнала как <code>{N}₽</code>
+    (<a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
+    <a href="/doc#journal-postpay-payment-due-index">анонс /doc</a>).
     <br>Смена цены шаблона пересчитывает <b>неоплаченные</b> postpay-строки; оплаченные (<code>effective_is_paid</code>) не трогаются.
   </div>
 
@@ -148,9 +153,16 @@
       класс <code>journal-postpay-hint</code>; см.
       <a href="/docs/documentation/schedule-journal#cell-hover-ui">schedule-journal §5.1</a>).</li>
     <li>Колонка с рублём (оплата месяца) смотрит на ту же строку <code>users_prices</code>
-      постоплатного месяца (<code>effective_is_paid</code>, <code>price_cents &gt; 0</code>) —
-      <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>.
-      Это индикатор; лок ячеек после оплаты — §<a href="#lock">3.1</a>.</li>
+      постоплатного месяца — это <b>не</b> колонка абонементов со ставкой «₽ / в день».
+      Пока месяц <b>не</b> оплачен и <code>price_cents &gt; 0</code> — в ячейке сумма к оплате
+      <code>{N}₽</code> (визиты с <code>consumes_lesson</code> × ставка, со скидкой снимка;
+      не «ставка × число в колонке посещений»).
+      После оплаты — зелёная галочка.
+      AJAX журнала (в т.ч. <code>create_postpay</code>) отдаёт
+      <code>result.payment_status</code>, JS обновляет ячейку без reload —
+      <a href="/docs/documentation/schedule-journal#payment-column">schedule-journal §5.2</a>,
+      <a href="/doc#journal-postpay-payment-due-index">анонс /doc</a>.
+      Лок ячеек после оплаты — §<a href="#lock">3.1</a>.</li>
     <li>Ховер ячейки postpay: «Постоплата: {цена}₽ в день»; при «Посетил» —
       доп. строка тренера (как у остальных занятий).</li>
     <li>В модалке «Статус занятия» у статусов с <code>consumes_lesson</code> (в postpay-контексте) —
@@ -268,7 +280,10 @@
       <li><code>PostpaySettingPricesContractsFeatureTest</code> — AJAX/non-AJAX цен + meta</li>
       <li><code>PostpayLessonPackageContractsFeatureTest</code> — store/update шаблона + reject ULP</li>
       <li><code>PostpayTypePermissionAccessFeatureTest</code> — право <code>lessonPackages.type.postpay</code>: UI option, 422/200 store/update, каталог цен, filter data</li>
-      <li><code>PostpayWorkflowFeatureTest</code> — consumes_lesson, manual paid, UI ячеек, resolver, 2 визита</li>
+      <li><code>PostpayWorkflowFeatureTest</code> — consumes_lesson, manual paid, UI ячеек, resolver, 2 визита, due JSON колонки рубля</li>
+      <li><code>ScheduleJournalPostpayPaymentDueFeatureTest</code> / <code>FullAccess</code> /
+        <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> —
+        сумма <code>{N}₽</code> в колонке рубля журнала (доступ, AJAX/non-AJAX, P2)</li>
       <li><code>BladeInlineJsSyntaxTest</code> — <code>schedule.js</code>, <code>settings-prices.js</code>, packages/dashboard postpay scripts</li>
     </ul>
     <pre style="background:#0b1020;color:#e6e6e6;padding:12px;border-radius:8px;overflow:auto;font-size:13px;"><code>php artisan test --env=testing --filter=Postpay</code></pre>

@@ -44,12 +44,16 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
                     'occurrence_date',
                     'comment',
                     'created',
+                    'payment_status' => ['state', 'icon_class', 'hover', 'amount_cents', 'amount_label'],
                     'status' => ['id', 'title', 'icon', 'color'],
                 ],
             ])
             ->assertJsonPath('result.created', true)
             ->assertJsonPath('result.occurrence_date', '2026-08-11')
-            ->assertJsonPath('result.status.id', $this->attendedStatusId);
+            ->assertJsonPath('result.status.id', $this->attendedStatusId)
+            ->assertJsonPath('result.payment_status.state', 'due')
+            ->assertJsonPath('result.payment_status.amount_cents', 50000)
+            ->assertJsonPath('result.payment_status.amount_label', '500₽');
 
         $utss = UserTeamScheduleSlot::query()
             ->where('user_id', $this->student->id)
@@ -203,6 +207,8 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
             ->assertJsonPath('result.utss_id', $utssId)
             ->assertJsonPath('result.occurrence_count', 0)
             ->assertJsonPath('result.is_postpay', true)
+            ->assertJsonPath('result.payment_status.state', 'none')
+            ->assertJsonPath('result.payment_status.amount_cents', 0)
             ->assertJsonStructure([
                 'result' => [
                     'utss_id',
@@ -211,6 +217,7 @@ final class PostpayJournalMutationContractsFeatureTest extends PostpayTestCase
                     'occurrence_count',
                     'is_postpay',
                     'is_flexible',
+                    'payment_status' => ['state', 'icon_class', 'hover', 'amount_cents', 'amount_label'],
                 ],
             ]);
 

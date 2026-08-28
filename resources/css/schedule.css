@@ -15,6 +15,19 @@ body.no-scroll {
     overflow: hidden;
 }
 
+.schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-journal-table-stack {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-journal-pagination {
+    flex: 0 0 auto;
+}
+
 .schedule-fullscreen-wrapper.fullscreen #schedule-journal-stage.is-ready .schedule-table-container {
     flex: 1 1 auto;
     min-height: 0;
@@ -109,6 +122,91 @@ body.no-scroll {
     border-collapse: collapse;
 }
 
+/* Журнал: ширина по содержимому, прижата влево.
+   DataTables: table.dataTable { margin: 0 auto }; style.css: .dataTables_wrapper { min-width: 100% }.
+   Пейджер — по ширине таблицы (не экрана). */
+.schedule-journal-table-stack {
+    display: inline-block;
+    width: max-content;
+    max-width: 100%;
+    vertical-align: top;
+}
+
+.schedule-journal-table-stack .schedule-journal-pagination {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.schedule-table-container {
+    text-align: left;
+}
+
+#schedule-table_wrapper.dataTables_wrapper,
+.schedule-table-container .dataTables_wrapper {
+    width: max-content !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+
+#schedule-table,
+#schedule-table.table,
+table.dataTable#schedule-table {
+    width: max-content !important;
+    margin: 0 !important;
+}
+
+.schedule-table .schedule-col-setup,
+.schedule-table .schedule-col-abonements {
+    width: 1%;
+    white-space: nowrap;
+}
+
+/* Overlay журнала (.schedule-btn-fullscreen) и кабинет body.layout-wide (#layout-wide-toggle):
+   таблица на всю ширину, ячейки дней растягиваются, ФИО не резинится. */
+.schedule-fullscreen-wrapper.fullscreen .schedule-journal-table-stack,
+body.layout-wide .schedule-journal-table-stack {
+    width: 100% !important;
+    max-width: 100%;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-table_wrapper.dataTables_wrapper,
+.schedule-fullscreen-wrapper.fullscreen .schedule-table-container .dataTables_wrapper,
+body.layout-wide #schedule-table_wrapper.dataTables_wrapper,
+body.layout-wide .schedule-table-container .dataTables_wrapper {
+    width: 100% !important;
+    min-width: 100% !important;
+    margin: 0 !important;
+}
+
+.schedule-fullscreen-wrapper.fullscreen #schedule-table,
+.schedule-fullscreen-wrapper.fullscreen #schedule-table.table,
+.schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table,
+body.layout-wide #schedule-table,
+body.layout-wide #schedule-table.table,
+body.layout-wide table.dataTable#schedule-table {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.schedule-fullscreen-wrapper.fullscreen .schedule-day-header,
+body.layout-wide .schedule-day-header {
+    width: auto !important;
+}
+
+.schedule-fullscreen-wrapper.fullscreen th.col-name,
+.schedule-fullscreen-wrapper.fullscreen td.schedule-user-name,
+body.layout-wide th.col-name,
+body.layout-wide td.schedule-user-name {
+    width: 1% !important;
+    max-width: 140px !important;
+    white-space: nowrap;
+}
+
+.schedule-fullscreen-wrapper.fullscreen td.schedule-cell,
+body.layout-wide td.schedule-cell {
+    width: auto !important;
+}
+
 #schedule-table table.dataTable tbody .schedule-user-name {
     /*padding: 0!important;*/
     border-collapse: collapse;
@@ -146,16 +244,55 @@ table.dataTable tbody th, table.dataTable tbody td {
     text-align: center !important;
     vertical-align: middle !important;
     width: 30px;
+    min-width: 30px;
     position: unset;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .schedule-payment-status i {
     width: 30px;
 }
 
+.journal-monthly-payment-due {
+    font-size: 0.75rem;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.schedule-consuming-count {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    width: 30px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+#schedule-table td.schedule-consuming-count {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: inherit;
+}
+
+.schedule-consuming-count i {
+    width: 30px;
+}
+
 .journal-monthly-payment-hint.kids-tooltip-hint {
     color: inherit;
     margin-left: 0;
+}
+
+.journal-col-header-hint.kids-tooltip-hint {
+    color: inherit;
+    margin-left: 0;
+    cursor: default;
 }
 
 

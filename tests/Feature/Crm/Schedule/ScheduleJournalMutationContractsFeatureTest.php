@@ -208,6 +208,8 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.comment', 'AJAX посетил')
             ->assertJsonPath('result.status.id', $this->visitedStatusId)
             ->assertJsonPath('result.trainer_name', null)
+            ->assertJsonPath('result.consuming_count', 1)
+            ->assertJsonPath('result.payment_status.state', 'none')
             ->assertJsonStructure([
                 'result' => [
                     'utss_id',
@@ -215,6 +217,8 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
                     'comment',
                     'created',
                     'trainer_name',
+                    'consuming_count',
+                    'payment_status' => ['state', 'icon_class', 'hover', 'amount_cents', 'amount_label'],
                     'status' => ['id', 'title', 'icon', 'color'],
                 ],
             ]);
@@ -265,12 +269,16 @@ final class ScheduleJournalMutationContractsFeatureTest extends ScheduleJournalT
             ->assertJsonPath('result.deleted', true)
             ->assertJsonPath('result.utss_id', $utss->id)
             ->assertJsonPath('result.is_flexible', false)
+            ->assertJsonPath('result.consuming_count', 0)
+            ->assertJsonPath('result.payment_status.state', 'none')
             ->assertJsonStructure([
                 'result' => [
                     'utss_id',
                     'occurrence_date',
                     'deleted',
                     'occurrence_count',
+                    'consuming_count',
+                    'payment_status' => ['state', 'icon_class', 'hover', 'amount_cents', 'amount_label'],
                     'user_lesson_package_id',
                     'slots_remaining',
                 ],

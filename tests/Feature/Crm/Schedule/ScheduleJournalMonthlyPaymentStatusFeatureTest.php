@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Schedule;
 
+use App\Models\LessonPackage;
 use App\Models\Team;
 use App\Models\User;
 use App\Models\UserPrice;
 use App\Services\Schedule\JournalMonthlyPaymentStatusService;
 use App\Services\TeamUserSyncService;
+use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -16,7 +18,7 @@ use Illuminate\Support\Facades\Auth;
  *
  * P1: HTTP (200/403/401/302), UX-баг «зелёная галочка на неоплаченной группе»,
  * разметка строки ученика, фильтр группы, tooltip-hint, граничные кейсы.
- * Мутаций нет — колонка только GET.
+ * Неоплаченная постоплата — сумма к оплате (due); оплаченная — галочка.
  *
  * @see \Tests\Feature\Crm\Teams\TeamControllerTest::test_store_non_ajax_redirects_and_creates_team
  */
@@ -358,6 +360,115 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->assertSame('paid', $this->paymentStatusInHtml($paidFilter, (int) $student->id));
     }
 
+    public function test_unpaid_postpay_shows_due_amount_not_check(): void
+    {
+        [$student, $team] = $this->makeStudentWithPostpayPrice(360000, false, 0);
+
+        $html = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $team->id,
+        ]))->assertOk()->getContent();
+
+        $cell = $this->paymentCellHtml($html, (int) $student->id);
+        $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
+        $this->assertStringContainsString('3600₽', $cell);
+        $this->assertStringContainsString('journal-monthly-payment-due', $cell);
+        $this->assertStringNotContainsString('fa-circle-check', $cell);
+        $this->assertStringNotContainsString('data-journal-payment-status="paid"', $cell);
+        $this->assertStringNotContainsString('в день', $cell);
+
+        $row = $this->service->statusesByUser(
+            (int) $this->partner->id,
+            [(int) $student->id],
+            '2026-08-01',
+            (string) $team->id,
+        )[(int) $student->id];
+        $this->assertSame(JournalMonthlyPaymentStatusService::STATE_DUE, $row['state']);
+        $this->assertSame(360000, $row['amount_cents']);
+        $this->assertSame('3600₽', $row['amount_label']);
+    }
+
+    public function test_paid_postpay_shows_green_check_not_due_amount(): void
+    {
+        [$student, $team] = $this->makeStudentWithPostpayPrice(360000, true, 0);
+
+        $html = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $team->id,
+        ]))->assertOk()->getContent();
+
+        $cell = $this->paymentCellHtml($html, (int) $student->id);
+        $this->assertStringContainsString('data-journal-payment-status="paid"', $cell);
+        $this->assertStringContainsString('text-success', $cell);
+        $this->assertStringNotContainsString('data-journal-payment-status="due"', $cell);
+        $this->assertStringNotContainsString('journal-monthly-payment-due', $cell);
+        $this->assertStringNotContainsString('3600₽', $cell);
+    }
+
+    public function test_unpaid_postpay_due_amount_includes_student_discount(): void
+    {
+        $gross = 360000;
+        $payable = Money::payableAfterDiscountCents($gross, 10);
+        [$student, $team] = $this->makeStudentWithPostpayPrice($payable, false, 10);
+
+        $html = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $team->id,
+        ]))->assertOk()->getContent();
+
+        $expected = JournalMonthlyPaymentStatusService::dueAmountLabel($payable);
+        $cell = $this->paymentCellHtml($html, (int) $student->id);
+        $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
+        $this->assertStringContainsString($expected, $cell);
+        $this->assertSame(324000, $payable);
+        $this->assertSame('3240₽', $expected);
+    }
+
+    public function test_regular_unpaid_month_does_not_show_due_amount(): void
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->createMonthPrice((int) $student->id, (int) $team->id, false, 500000);
+
+        $html = $this->get(route('schedule.index', [
+            'year' => 2026,
+            'month' => '08',
+            'team' => $team->id,
+        ]))->assertOk()->getContent();
+
+        $this->assertSame('', $this->paymentCellHtml($html, (int) $student->id));
+        $this->assertNull($this->paymentStatusInHtml($html, (int) $student->id));
+    }
+
+    public function test_unpaid_postpay_plus_paid_regular_shows_due_amount_with_partial_hover(): void
+    {
+        [$student, $paidTeam] = $this->makeStudentWithTeam();
+        $student->update(['lastname' => 'ЖурПост', 'name' => 'Студент'.uniqid()]);
+        $student = $student->fresh();
+        $paidTeam->update(['title' => 'ОплРег-'.uniqid(), 'order_by' => 1]);
+        $postpayTeam = Team::factory()->create([
+            'partner_id' => $this->partner->id,
+            'title' => 'ПостНеопл-'.uniqid(),
+            'order_by' => 2,
+        ]);
+        app(TeamUserSyncService::class)->syncTeamsForStudent($student, [(int) $paidTeam->id, (int) $postpayTeam->id]);
+        $this->createMonthPrice((int) $student->id, (int) $paidTeam->id, true, 500000);
+        $this->createPostpayMonthPrice((int) $student->id, (int) $postpayTeam->id, 180000, false, 0);
+
+        $html = $this->get(route('schedule.index', ['year' => 2026, 'month' => '08', 'team' => 'all']))
+            ->assertOk()
+            ->getContent();
+
+        $cell = $this->paymentCellHtml($html, (int) $student->id);
+        $this->assertStringContainsString('data-journal-payment-status="due"', $cell);
+        $this->assertStringContainsString('1800₽', $cell);
+        $this->assertStringNotContainsString('data-journal-payment-status="partial"', $cell);
+        $this->assertStringContainsString('Оплачено: '.$paidTeam->title, $cell);
+        $this->assertStringContainsString('Не оплачено: '.$postpayTeam->title, $cell);
+    }
+
     public function test_other_month_payment_does_not_show_check_in_current_month(): void
     {
         [$student, $team] = $this->makeStudentWithTeam();
@@ -422,6 +533,44 @@ final class ScheduleJournalMonthlyPaymentStatusFeatureTest extends ScheduleJourn
         $this->createMonthPrice((int) $student->id, (int) $teamB->id, $secondPaid, 400000);
 
         return [$student, $teamA, $teamB];
+    }
+
+    /**
+     * @return array{0: User, 1: Team}
+     */
+    private function makeStudentWithPostpayPrice(int $priceCents, bool $paid, int $discountPercent): array
+    {
+        [$student, $team] = $this->makeStudentWithTeam();
+        $this->createPostpayMonthPrice((int) $student->id, (int) $team->id, $priceCents, $paid, $discountPercent);
+
+        return [$student, $team];
+    }
+
+    private function createPostpayMonthPrice(
+        int $userId,
+        int $teamId,
+        int $priceCents,
+        bool $paid,
+        int $discountPercent,
+        string $month = '2026-08-01',
+    ): UserPrice {
+        $package = LessonPackage::factory()
+            ->forPartner((int) $this->partner->id)
+            ->postpay()
+            ->create([
+                'name' => 'Постоплата журнал',
+                'price_cents' => 120000,
+            ]);
+
+        return UserPrice::query()->create([
+            'user_id' => $userId,
+            'team_id' => $teamId,
+            'new_month' => $month,
+            'lesson_package_id' => $package->id,
+            'price_cents' => $priceCents,
+            'discount_percent' => $discountPercent,
+            'is_paid' => $paid ? 1 : 0,
+        ]);
     }
 
     private function createMonthPrice(

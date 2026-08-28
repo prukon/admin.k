@@ -1103,7 +1103,13 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $pagerPos = strpos($journal, 'schedule-journal-pagination');
         $this->assertNotFalse($stagePos);
         $this->assertNotFalse($pagerPos);
-        $this->assertGreaterThan($stagePos, $pagerPos);
+        $this->assertStringContainsString('schedule-journal-table-stack', $journal);
+        $stackPos = strpos($journal, 'schedule-journal-table-stack');
+        $tableContainerPos = strpos($journal, 'schedule-table-container');
+        $this->assertNotFalse($stackPos);
+        $this->assertNotFalse($tableContainerPos);
+        $this->assertGreaterThan($stackPos, $tableContainerPos);
+        $this->assertGreaterThan($tableContainerPos, $pagerPos);
 
         $index = resource_path('views/admin/schedule/index.blade.php');
         $indexContent = (string) file_get_contents($index);
@@ -1144,6 +1150,89 @@ final class BladeInlineJsSyntaxTest extends TestCase
     }
 
     /**
+     * Журнал не резиновый в кабинете (в т.ч. #layout-wide-toggle).
+     * Кнопка .schedule-btn-fullscreen — наоборот, таблица 100% ширины.
+     */
+    public function test_schedule_journal_table_content_width_contract(): void
+    {
+        $css = (string) file_get_contents(resource_path('css/schedule.css'));
+        $hotfixCss = (string) file_get_contents(public_path('css/schedule-journal-cells.css'));
+        foreach ([$css => resource_path('css/schedule.css'), $hotfixCss => public_path('css/schedule-journal-cells.css')] as $chunk => $path) {
+            $this->assertStringContainsString('.schedule-journal-table-stack', $chunk, $path);
+            $this->assertStringContainsString('.schedule-journal-table-stack .schedule-journal-pagination', $chunk, $path);
+            $blockPos = strpos($chunk, '#schedule-table_wrapper.dataTables_wrapper');
+            $this->assertNotFalse($blockPos, $path);
+            $normal = substr($chunk, $blockPos, 380);
+            $this->assertStringContainsString('width: max-content !important', $normal, $path);
+            $this->assertStringContainsString('min-width: 0 !important', $normal, $path);
+            $this->assertStringContainsString('margin: 0 !important', $normal, $path);
+            $this->assertStringNotContainsString('min-width: 100%', $normal, $path);
+            $this->assertStringContainsString('.schedule-col-abonements', $chunk, $path);
+            $fsPos = strpos($chunk, '.schedule-fullscreen-wrapper.fullscreen table.dataTable#schedule-table');
+            $this->assertNotFalse($fsPos, $path);
+            $this->assertGreaterThan($blockPos, $fsPos, $path);
+            $fsBlock = substr($chunk, $fsPos, 900);
+            $this->assertStringContainsString('width: 100% !important', $fsBlock, $path);
+            $this->assertStringContainsString('body.layout-wide table.dataTable#schedule-table', $chunk, $path);
+            $this->assertStringContainsString('body.layout-wide td.schedule-cell', $chunk, $path);
+        }
+
+        $index = resource_path('views/admin/schedule/index.blade.php');
+        $indexContent = (string) file_get_contents($index);
+        $this->assertStringContainsString("asset('css/schedule-journal-cells.css')", $indexContent);
+        $this->assertStringContainsString("filemtime(public_path('css/schedule-journal-cells.css'))", $indexContent);
+        $stylesPos = strpos($indexContent, "@push('styles')");
+        $scriptsPos = strpos($indexContent, "@push('scripts')");
+        $this->assertNotFalse($stylesPos);
+        $this->assertNotFalse($scriptsPos);
+        $stylesChunk = substr($indexContent, $stylesPos, $scriptsPos - $stylesPos);
+        $this->assertStringContainsString('min-width: 0 !important', $stylesChunk);
+        $this->assertStringContainsString('margin: 0 !important', $stylesChunk);
+        $this->assertStringContainsString('table.dataTable#schedule-table', $stylesChunk);
+        $this->assertStringContainsString('schedule-journal-table-stack', $stylesChunk);
+        $this->assertStringContainsString('.schedule-journal-table-stack .schedule-journal-pagination', $stylesChunk);
+        $this->assertStringContainsString('body.layout-wide table.dataTable#schedule-table', $stylesChunk);
+        $this->assertStringContainsString('body.layout-wide td.schedule-cell', $stylesChunk);
+
+        $journal = (string) file_get_contents(resource_path('views/admin/schedule/journal.blade.php'));
+        $stackPos = strpos($journal, 'schedule-journal-table-stack');
+        $tableContainerPos = strpos($journal, 'schedule-table-container');
+        $pagerPos = strpos($journal, 'schedule-journal-pagination');
+        $this->assertNotFalse($stackPos);
+        $this->assertNotFalse($tableContainerPos);
+        $this->assertNotFalse($pagerPos);
+        $this->assertGreaterThan($stackPos, $tableContainerPos);
+        $this->assertGreaterThan($tableContainerPos, $pagerPos);
+
+        $sourceJs = (string) file_get_contents(resource_path('js/schedule.js'));
+        $hotfixJs = (string) file_get_contents(public_path('js/schedule-journal.js'));
+        foreach ([$sourceJs => resource_path('js/schedule.js'), $hotfixJs => public_path('js/schedule-journal.js')] as $js => $path) {
+            $dtPos = strpos($js, '$(\'#schedule-table\').DataTable({');
+            $this->assertNotFalse($dtPos, $path);
+            $dtChunk = substr($js, $dtPos, 450);
+            $this->assertStringContainsString('autoWidth: false', $dtChunk, $path);
+            $btnPos = strpos($js, '$(\'#btn-fullscreen\').on(\'click\'');
+            $this->assertNotFalse($btnPos, $path);
+            $btnChunk = substr($js, $btnPos, 900);
+            $this->assertStringContainsString('table.columns.adjust()', $btnChunk, $path);
+        }
+
+        $docs = (string) file_get_contents(base_path('docs/documentation/schedule-journal.html'));
+        $this->assertStringContainsString('id="journal-table-content-width"', $docs);
+        $this->assertStringContainsString('width: max-content', $docs);
+        $this->assertStringContainsString('schedule-journal-table-stack', $docs);
+        $this->assertStringContainsString('schedule-btn-fullscreen', $docs);
+        $this->assertStringContainsString('body.layout-wide', $docs);
+        $this->assertStringContainsString('td.schedule-cell', $docs);
+        $this->assertStringContainsString('col-name', $docs);
+        $this->assertStringContainsString('autoWidth: false', $docs);
+
+        $indexDocs = (string) file_get_contents(base_path('docs/documentation/index.html'));
+        $this->assertStringContainsString('id="journal-table-content-width-index"', $indexDocs);
+        $this->assertStringContainsString('schedule-journal#journal-table-content-width', $indexDocs);
+    }
+
+    /**
      * P1: колонка оплаты месяца в журнале — серверный HTML + tooltip-hint, без legacy userPrices.
      * Смена фильтра группы в hotfix-копии schedule-journal.js тоже полный GET.
      */
@@ -1158,8 +1247,17 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString('data-journal-payment-status', $content);
         $this->assertStringContainsString('journal-monthly-payment-hint', $content);
         $this->assertStringContainsString("payState === 'paid' || \$payState === 'partial'", $content);
+        $this->assertStringContainsString("\$payState === 'due' && \$payAmountLabel !== ''", $content);
+        $this->assertStringContainsString('journal-monthly-payment-due', $content);
         $this->assertStringContainsString("'iconClass' => \$payIcon", $content);
         $this->assertStringContainsString("'wrapperClass' => 'journal-monthly-payment-hint'", $content);
+        $this->assertStringContainsString("'title' => 'Статус оплаты'", $content);
+        $this->assertStringContainsString("'title' => 'Кол-во посещений'", $content);
+        $this->assertStringContainsString("'title' => 'Название абонемента'", $content);
+        $this->assertStringContainsString("'wrapperClass' => 'journal-col-header-hint'", $content);
+        $this->assertStringContainsString("'innerHtml' => '<i class=\"nav-icon fa-solid fa-ruble-sign\"></i>'", $content);
+        $this->assertStringContainsString("'innerHtml' => '<i class=\"nav-icon fa-solid fa-person-circle-check\"></i>'", $content);
+        $this->assertStringContainsString("'innerHtml' => '<i class=\"fa-solid fa-ticket\"></i>'", $content);
         $this->assertStringNotContainsString('$userPrices[$user->id]', $content);
         $this->assertStringNotContainsString('is_paid == 1', $content);
         $this->assertStringContainsString('id="filter-team"', $content);
@@ -1184,7 +1282,86 @@ final class BladeInlineJsSyntaxTest extends TestCase
             $js = (string) file_get_contents($jsPath);
             $this->assertStringContainsString("newUrl.searchParams.set('team', $('#filter-team').val())", $js);
             $this->assertStringContainsString('window.location.href = newUrl.toString()', $js);
-            $this->assertStringNotContainsString('data-journal-payment-status', $js);
+            $this->assertStringContainsString('function applyJournalPaymentStatus', $js);
+            $this->assertStringContainsString('function journalPaymentHintEl', $js);
+            $this->assertStringContainsString('data-journal-payment-status', $js);
+            $this->assertStringContainsString('td.schedule-payment-status', $js);
+            $this->assertStringContainsString('payment_status', $js);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($jsPath).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$jsPath}:\n".implode("\n", $output)
+            );
+        }
+    }
+
+    /**
+     * Колонка «кол-во тренировок» после оплаты: иконка шапки, пусто при 0,
+     * live-счётчик consuming_count в обеих копиях JS.
+     */
+    public function test_schedule_journal_consuming_count_column_blade_and_js_contract(): void
+    {
+        $blade = resource_path('views/admin/schedule/journal.blade.php');
+        $this->assertFileExists($blade);
+        $content = (string) file_get_contents($blade);
+
+        $this->assertStringContainsString('fa-person-circle-check', $content);
+        $this->assertStringContainsString("'title' => 'Кол-во посещений'", $content);
+        $this->assertStringContainsString("'title' => 'Название абонемента'", $content);
+        $this->assertStringContainsString('journal-col-header-hint', $content);
+        $this->assertStringNotContainsString('title="Кол-во тренировок"', $content);
+        $this->assertStringNotContainsString('title="Абонементы"', $content);
+        $this->assertStringContainsString('schedule-consuming-count', $content);
+        $this->assertStringContainsString('journalConsumingCounts', $content);
+        $this->assertStringContainsString('data-journal-consuming-count', $content);
+        $this->assertStringContainsString('@if($consumingCount > 0)', $content);
+
+        $payPos = strpos($content, 'class="schedule-payment-status');
+        $countPos = strpos($content, 'class="schedule-consuming-count');
+        $abonPos = strpos($content, 'class="schedule-col-setup');
+        $this->assertNotFalse($payPos);
+        $this->assertNotFalse($countPos);
+        $this->assertNotFalse($abonPos);
+        $this->assertLessThan($countPos, $payPos);
+        $this->assertLessThan($abonPos, $countPos);
+
+        foreach ([
+            resource_path('css/schedule.css'),
+            public_path('css/schedule-journal-cells.css'),
+        ] as $cssPath) {
+            $this->assertFileExists($cssPath);
+            $css = (string) file_get_contents($cssPath);
+            $this->assertStringContainsString('#schedule-table td.schedule-consuming-count', $css);
+            $this->assertStringContainsString('font-size: 13px', $css);
+        }
+
+        foreach ([
+            resource_path('js/schedule.js'),
+            public_path('js/schedule-journal.js'),
+        ] as $jsPath) {
+            $this->assertFileExists($jsPath);
+            $js = (string) file_get_contents($jsPath);
+            $this->assertStringContainsString('{orderable: false}', $js);
+            $this->assertStringContainsString('function applyJournalConsumingCount', $js);
+            $this->assertStringContainsString('function withJournalTeamFilter', $js);
+            $this->assertStringContainsString('journal_team_filter', $js);
+            $this->assertStringContainsString('consuming_count', $js);
+            $this->assertStringContainsString('td.schedule-consuming-count', $js);
+            $this->assertStringContainsString("withJournalTeamFilter($(this).serializeArray())", $js);
+            $this->assertStringContainsString('applyJournalConsumingCount($cell, result);', $js);
+            $this->assertGreaterThanOrEqual(3, substr_count($js, 'applyJournalConsumingCount($cell, result);'));
+            $this->assertStringContainsString('function applyJournalPaymentStatus', $js);
+            $this->assertGreaterThanOrEqual(3, substr_count($js, 'applyJournalPaymentStatus($cell, result);'));
+            $this->assertStringContainsString("data: withJournalTeamFilter({", $js);
+
+            $this->assertStringContainsString(
+                "var dtColumns = [\n        {orderable: false},\n        {orderable: true},\n        {orderable: true},\n        {orderable: true},\n        {orderable: false}\n    ];",
+                $js
+            );
 
             $output = [];
             $exitCode = 0;
