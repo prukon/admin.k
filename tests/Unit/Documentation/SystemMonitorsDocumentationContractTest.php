@@ -37,6 +37,8 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('get-user-details', $chunk);
         $this->assertStringContainsString('#js-reverb-status', $chunk);
         $this->assertStringContainsString('#js-online-users', $chunk);
+        $this->assertStringContainsString('#js-partner-switch', $chunk);
+        $this->assertStringContainsString('partner.switch', $chunk);
         $this->assertStringContainsString('/cabinet/system-monitors/online-users', $chunk);
         $this->assertStringContainsString('cabinet.system-monitors.online-users', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitorRequest', $chunk);
@@ -135,6 +137,8 @@ final class SystemMonitorsDocumentationContractTest extends TestCase
         $this->assertStringContainsString('Системные мониторы доступны только с правом просмотра.', $chunk);
         $this->assertStringContainsString('#js-reverb-status', $chunk);
         $this->assertStringContainsString('#js-online-users', $chunk);
+        $this->assertStringContainsString('#js-partner-switch', $chunk);
+        $this->assertStringContainsString('partner.switch', $chunk);
         $this->assertStringContainsString('OnlineUsersMonitorRequest', $chunk);
         $this->assertStringContainsString('SystemMonitors::shouldShow()', $chunk);
         $this->assertStringContainsString('JSON-оверлея на <code>/cabinet</code> нет', $chunk);

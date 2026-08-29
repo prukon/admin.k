@@ -705,6 +705,13 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString('e.preventDefault()', substr($js, $nameFormPos, 220));
         $this->assertStringContainsString('e.preventDefault()', substr($js, $membersFormPos, 220));
 
+        $sortThreadsPos = strpos($js, 'function sortThreads(');
+        $this->assertNotFalse($sortThreadsPos);
+        $sortThreadsChunk = substr($js, $sortThreadsPos, strpos($js, 'function threadListTitle(') - $sortThreadsPos);
+        $this->assertStringContainsString('unread_count', $sortThreadsChunk);
+        $this->assertStringContainsString('last_message_time', $sortThreadsChunk);
+        $this->assertStringNotContainsString('updated_at', $sortThreadsChunk);
+
         $renderThreadsPos = strpos($js, 'function renderThreads(');
         $this->assertNotFalse($renderThreadsPos);
         $renderThreadsChunk = substr($js, $renderThreadsPos, strpos($js, 'function upsertThread(') - $renderThreadsPos);

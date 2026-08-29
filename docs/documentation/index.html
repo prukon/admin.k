@@ -28,6 +28,44 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="chat-inbox-sort-index">Чат: порядок списка — непрочитанные, затем последнее сообщение (2026‑08)</h2>
+  <div class="note">
+    Слева на <code>/chat</code> диалоги идут так: сначала непрочитанные, затем по дате
+    <b>последнего сообщения</b>, чаты без переписки — внизу. Новая пустая группа
+    (ручная «Создать группу» или авто-чат учебной группы) <b>не</b> всплывает над
+    переписками только потому, что у строки свежий <code>threads.updated_at</code>.
+    Не путать время справа в строке с <code>last_seen_at</code>
+    (<a href="/doc#chat-presence-index">онлайн / карточка</a>).
+    <br><br>
+    1) <b>Сервер.</b> <code>GET /chat/api/threads</code>
+    (<code>ChatService::threadsForUser</code>): join живого участника
+    <code>chat_inbox_sort</code>, непрочитанные
+    (<code>participants.unread_count &gt; 0</code>) выше, затем
+    <code>threads.last_message_id</code> DESC, затем <code>threads.id</code> DESC.
+    Без сообщений в JSON <code>last_message_id</code> и
+    <code>last_message_time: null</code> (не fallback на <code>threads.updated_at</code>).
+    Гость 302/401, без <code>messages.view</code> 403. Нативный GET — тот же JSON.
+    <br>
+    2) <b>Клиент.</b> <code>sortThreads</code> в <code>resources/js/chat.js</code>:
+    непрочитанные выше, затем <code>last_message_time</code> (пустое = 0 = вниз),
+    при равенстве больший <code>id</code>. После <code>inbox.bump</code> /
+    <code>upsertThread</code> список пересобирается тем же компаратором.
+    <br>
+    3) <b>Создание группы.</b> <code>inbox.bump</code> пустой группы
+    (<code>groupCreatedBumpPayload</code>): <code>last_message</code> /
+    <code>last_message_time</code> <code>null</code>, <code>unread_count: 0</code>.
+    Если человека добавили в уже живой чат — bump несёт превью последнего сообщения.
+    <br>
+    4) <b>Не в этом срезе.</b> Закреплённые чаты, отдельная сортировка вкладок
+    «Личные» / «Чаты» (на узком экране тот же порядок внутри каждого списка),
+    HTTP-опрос inbox.
+    <br><br>
+    Подробно — <a href="/docs/documentation/chat#inbox-sort">chat §порядок списка</a>.
+    Тесты: <code>ChatInboxSortFeatureTest</code>,
+    <code>ChatInboxSortUxFeatureTest</code>,
+    <code>ChatInboxSortDocumentationContractTest</code>.
+  </div>
+
   <h2 id="online-users-overlay-index">Оверлей «Онлайн» системных мониторов (2026‑08)</h2>
   <div class="note">
     На страницах CRM (лейаут <code>admin2</code>, классы
@@ -138,6 +176,13 @@
     («% — от оплаченных месяцев этого периода и абонементов по дате оплаты»).
     PATCH как у classic: JSON <code>row</code> (комиссия, база, месяца) <b>без</b> <code>reload_table</code> —
     клиент обновляет ячейки из <code>row</code>, input процента не перезаписывает, соседние незавершённые строки не затирает.
+    Успешный PATCH <code>sales_percent</code> (событие <code>change</code> на input, не кнопка «Расчет»)
+    клиент подсвечивает ячейку процента (~1,2 с, класс <code>trainer-salary-cell--saved</code> на <code>td</code>, снимается через 1400 мс).
+    Класс вешает <code>flashSavedField</code> после JSON 200; сервер его не рисует
+    (нет в первом HTML, в <code>table_html</code> после PATCH/GET, в JSON PATCH и на листе слепка).
+    422, PATCH оклада/бонусов/вычетов и «Расчет» ячейку не подсвечивают.
+    Стили — hotfix <code>public/css/trainer-salary.css</code> (вкладка грузит его вместе с <code>public/js/trainer-salary.js</code>).
+    Подробнее: <a href="/docs/documentation/schedule-trainer-salary#sales-percent-saved-flash">ЗП §13.1</a>.
     Hotfix <code>public/js/trainer-salary.js</code> = <code>resources/js/trainer-salary.js</code> (не Vite).
     <br>
     5) <b>HTTP.</b> Гость — 302 / JSON 401. Без <code>view</code> или без схемы у сотрудника — 403. Зритель GET 200, PATCH/POST 403.
@@ -1004,6 +1049,10 @@
     Superadmin видит бейдж только пока свой переключатель включён. Выключил — бейдж скрыт
     (<code>body:not(.system-monitors-on) .system-monitor</code>) на dashboard,
     чате, настройках и остальных страницах CRM.
+    Селект партнёра в шапке <code>#js-partner-switch</code> (право <code>partner.switch</code>)
+    при <code>SystemMonitors::canView()</code> тоже класс <code>system-monitor</code>:
+    тумблер выкл — селект скрыт тем же CSS, POST <code>partner.switch</code> жив.
+    Без права мониторов класс не вешается (селект как раньше).
     <code>GET /get-user-details</code> ключ <code>cabinet_diagnostics</code> не отдаёт.
     Подробно — <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>.
     <br>
@@ -1819,7 +1868,9 @@
     корзина в шапке и удаление диалога
     (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
     <br>
-    2) <b>Страница.</b> Слева список диалогов (непрочитанные сверху). Кнопка <b>«Контакты»</b>
+    2) <b>Страница.</b> Слева список диалогов (непрочитанные сверху, затем по дате последнего
+    сообщения; без переписки — внизу, не по <code>threads.updated_at</code> —
+    <a href="/doc#chat-inbox-sort-index">анонс порядка</a>). Кнопка <b>«Контакты»</b>
     открывает модалку стандартной ширины Bootstrap (не на весь экран, список до 60vh / 520px).
     Рядом — <b>«Создать группу»</b> (визард названия и участников,
     <a href="/doc#chat-groups-index">анонс</a>).
@@ -1911,6 +1962,9 @@
     Подробно: <a href="/docs/documentation/chat">chat</a>.
     Тесты: <code>Chat*FeatureTest</code>, в т.ч. <code>ChatUnreadSidebarFlashUxFeatureTest</code>
     (вспышка бейджа), <code>ChatReverbOverlayFeatureTest</code> (оверлей / status API),
+    <code>ChatInboxSortFeatureTest</code> / <code>ChatInboxSortUxFeatureTest</code>
+    / <code>ChatInboxSortDocumentationContractTest</code>
+    (<a href="/doc#chat-inbox-sort-index">порядок списка</a>),
     <code>ChatPresenceFeatureTest</code> / <code>ChatPresenceUxFeatureTest</code>
     (<a href="/doc#chat-presence-index">онлайн / карточка</a>),
     <code>ChatHeaderSubtitleFeatureTest</code> / <code>ChatHeaderSubtitleUxFeatureTest</code>
@@ -4242,7 +4296,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>порядок списка</b> (<a href="/doc#chat-inbox-sort-index">анонс</a>: непрочитанные, затем последнее сообщение, пустые внизу, не <code>updated_at</code>), <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -4270,7 +4324,7 @@
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
-    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code>, <code>kansas</code> и <code>sales</code> («% от продаж», <a href="/doc#trainer-salary-sales-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#sales">§13</a>), <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
+    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code>, <code>kansas</code> и <code>sales</code> («% от продаж», <a href="/doc#trainer-salary-sales-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#sales">§13</a> / <a href="/docs/documentation/schedule-trainer-salary#sales-percent-saved-flash">§13.1 подсветка %</a>), <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
     <li><a href="/docs/documentation/location-team-bindings"><strong>Объекты ↔ группы</strong> (<code>teams.location_id</code>): одна группа — один объект, sync с <code>/admin/locations</code>, лендинг, слоты, отчёты; удалены pivot <code>location_team</code>, <code>teams.address</code>, <code>teams.training_base</code></a></li>
     <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки (в т.ч. <b>«Абонементы»</b> → <code>/admin/directories/lesson-packages</code>), <code>DirectoriesMenu</code> (подпись сайдбара; абонементы в меню <b>не</b> входят), права, БД, M2M <code>location_admin_user</code> (до 5 админов на объект), лендинг, CRM заявки, автотесты</a></li>

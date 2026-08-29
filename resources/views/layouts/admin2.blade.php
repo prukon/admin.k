@@ -259,9 +259,10 @@
 
             </ul>
 
-            <!-- Форма переключения партнёров -->
+            <!-- Форма переключения партнёров: тот же тумблер, что у оверлеев -->
             @can('partner.switch')
-                <div class="collapse navbar-collapse mr-3">
+                <div id="js-partner-switch"
+                    class="collapse navbar-collapse mr-3{{ \App\Support\SystemMonitors::canView(auth()->user()) ? ' system-monitor' : '' }}">
                     <form action="{{ route('partner.switch') }}" method="POST" class="d-flex ms-auto">
                         @csrf
                         <div>

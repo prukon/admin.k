@@ -65,10 +65,17 @@ class ChatService
     public function threadsForUser(int $userId): array
     {
         $threads = ChatThread::query()
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $userId))
+            ->select('threads.*')
+            ->join('participants as chat_inbox_sort', function ($join) use ($userId) {
+                $join->on('chat_inbox_sort.thread_id', '=', 'threads.id')
+                    ->where('chat_inbox_sort.user_id', $userId)
+                    ->whereNull('chat_inbox_sort.deleted_at');
+            })
             ->with(['participants.user:'.self::PEER_USER_COLUMNS])
             ->with('lastMessage')
-            ->orderByDesc('updated_at')
+            ->orderByRaw('CASE WHEN COALESCE(chat_inbox_sort.unread_count, 0) > 0 THEN 0 ELSE 1 END')
+            ->orderByDesc('threads.last_message_id')
+            ->orderByDesc('threads.id')
             ->limit(100)
             ->get();
 
@@ -941,8 +948,7 @@ class ChatService
             'is_group' => $this->isGroupThread($thread),
             'team_id' => $this->threadTeamId($thread),
             'last_message' => $last ? $this->preview((string) $last->body) : null,
-            'last_message_time' => $last?->created_at?->toDateTimeString()
-                ?? $thread->updated_at?->toDateTimeString(),
+            'last_message_time' => $last?->created_at?->toDateTimeString(),
             'last_message_is_mine' => $lastIsMine,
             'last_message_is_read' => $lastIsMine ? $this->isReadByPeer($thread, $last) : null,
             'unread_count' => $unreadCount,
@@ -1246,6 +1252,10 @@ class ChatService
      */
     private function groupCreatedBumpPayload(ChatThread $thread, int $viewerId): array
     {
+        $thread->loadMissing(['lastMessage', 'participants.user:'.self::PEER_USER_COLUMNS]);
+        $last = $thread->lastMessage;
+        $lastIsMine = $last !== null && (int) $last->user_id === $viewerId;
+
         return [
             'thread_id' => (int) $thread->id,
             'title' => $this->titleForViewer($thread, $viewerId),
@@ -1253,10 +1263,10 @@ class ChatService
             'peer_id' => $this->peerId($thread, $viewerId),
             'peer_is_online' => $this->isPeerOnline($thread, $viewerId),
             'is_group' => true,
-            'last_message' => null,
-            'last_message_time' => $thread->updated_at?->toDateTimeString(),
-            'last_message_is_mine' => false,
-            'last_message_is_read' => null,
+            'last_message' => $last ? $this->preview((string) $last->body) : null,
+            'last_message_time' => $last?->created_at?->toDateTimeString(),
+            'last_message_is_mine' => $lastIsMine,
+            'last_message_is_read' => $lastIsMine ? $this->isReadByPeer($thread, $last) : null,
             'unread_count' => $this->unreadCountForThread((int) $thread->id, $viewerId),
             'unread_total' => $this->unreadTotal($viewerId),
             'draft_body' => '',

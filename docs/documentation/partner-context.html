@@ -52,6 +52,10 @@
   <div class="warn">
     <b>Anti‑leak правило:</b> переключать <code>current_partner</code> через session может только <b>superadmin</b>.
     Для всех остальных текущий партнёр всегда фиксируется как <code>user-&gt;partner_id</code>.
+    Селект в шапке <code>#js-partner-switch</code> (<code>@can('partner.switch')</code>)
+    при праве системных мониторов имеет класс <code>system-monitor</code> и скрыт,
+    пока тумблер выключен (<a href="/doc#system-monitors-index">анонс мониторов</a>).
+    POST переключения от тумблера не зависит.
   </div>
 
   <h2>3) Где включено</h2>

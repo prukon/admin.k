@@ -45,6 +45,7 @@
     · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
     · мобильная панель: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>
     · сплит «Личные» / «Чаты»: <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>
+    · порядок списка: <a href="/doc#chat-inbox-sort-index">/doc#chat-inbox-sort-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a>
     · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a></div>
 
@@ -71,6 +72,8 @@
     <a href="/doc#chat-team-groups-index">анонс</a>).
     В списке слева группа показывает имя чата, не «Диалог» и не ФИО участника
     (<a href="/doc#chat-group-list-title-index">анонс имени в списке</a>).
+    Порядок: непрочитанные сверху, затем дата последнего сообщения, пустые чаты внизу
+    (<a href="/doc#chat-inbox-sort-index">анонс порядка</a>).
     Справа в шапке открытой лички или ручной группы — корзина: soft-delete у всех
     (<a href="/doc#chat-thread-delete-index">анонс удаления</a>).
     Фильтр контактов по учебной группе — селект в модалке
@@ -163,7 +166,12 @@
       При reconnect Echo один раз вызывает <code>KidsCrmChatRefreshInbox</code>
       (на странице чата) или <code>GET /chat/api/unread</code> (на остальных).
       Если открыт тот же диалог, бейдж не вспыхивает (из <code>unread_total</code> вычитается unread этого треда).</li>
-    <li>Слева — список диалогов (непрочитанные выше, затем по времени). Поиск по заголовку (ФИО лички / имя группы), превью и черновику.
+    <li>Слева — список диалогов (непрочитанные выше, затем по <code>last_message_time</code> /
+      <code>threads.last_message_id</code>, не <code>threads.updated_at</code>; без сообщений —
+      <code>last_message_time: null</code>, внизу).
+      Подробно — <a href="#inbox-sort">§2.0</a> /
+      <a href="/doc#chat-inbox-sort-index">анонс порядка</a>.
+      Поиск по заголовку (ФИО лички / имя группы), превью и черновику.
       Заголовок личного диалога, шапка и <code>GET /chat/api/threads/{id}</code> — <code>users.lastname</code> + <code>users.name</code> (если фамилии нет — только имя).
       Исключение: канонический <code>superadmin</code> всегда «Служба поддержки»
       (<a href="#support-identity">§2.6</a> / <a href="/doc#chat-support-identity-index">анонс</a>), не ФИО из учётки.
@@ -281,6 +289,36 @@
       <a href="#mobile-inbox-split">§2.3.1</a> /
       <a href="/doc#chat-mobile-index">анонс панели</a> /
       <a href="/doc#chat-mobile-inbox-split-index">анонс сплита</a>.</li>
+  </ol>
+
+  <h2 id="inbox-sort">2.0) Порядок списка диалогов</h2>
+  <p>Анонс: <a href="/doc#chat-inbox-sort-index">/doc#chat-inbox-sort-index</a>.
+    Не путать время справа в строке с <code>last_seen_at</code>
+    (<a href="#presence">§2.1</a>).</p>
+  <ol>
+    <li><b>Порядок.</b> Непрочитанные (<code>unread_count &gt; 0</code>) выше остальных.
+      Дальше — дата последнего сообщения: JSON <code>last_message_time</code> =
+      <code>messages.created_at</code> у <code>threads.last_message_id</code>.
+      Чаты без сообщений — <code>last_message_time: null</code>, внизу
+      (не <code>threads.updated_at</code>: новая пустая ручная или учебная группа
+      не всплывает над переписками).</li>
+    <li><b>Сервер.</b> <code>ChatService::threadsForUser</code>: join
+      <code>participants as chat_inbox_sort</code> (живой участник зрителя),
+      <code>CASE WHEN COALESCE(unread_count, 0) &gt; 0 THEN 0 ELSE 1 END</code>,
+      затем <code>orderByDesc('threads.last_message_id')</code>,
+      <code>orderByDesc('threads.id')</code>, лимит 100.
+      <code>serializeThread</code> не подставляет <code>updated_at</code> в
+      <code>last_message_time</code>.</li>
+    <li><b>Клиент.</b> <code>sortThreads</code> в <code>resources/js/chat.js</code>
+      повторяет тот же порядок (пустое время = 0). После <code>upsertThread</code> /
+      <code>inbox.bump</code> / refresh inbox список пересобирается.</li>
+    <li><b>Bump создания группы.</b> <code>groupCreatedBumpPayload</code>: без сообщений
+      <code>last_message</code> / <code>last_message_time</code> — <code>null</code>.
+      Добавление в уже живой чат несёт превью последнего сообщения, чтобы строка
+      встала по дате переписки, не внизу.</li>
+    <li><b>Тесты.</b> <code>ChatInboxSortFeatureTest</code>,
+      <code>ChatInboxSortUxFeatureTest</code>,
+      <code>ChatInboxSortDocumentationContractTest</code>.</li>
   </ol>
 
   <h2 id="presence">2.1) Онлайн, галочки исходящего, ФИО родителя, карточка</h2>
@@ -584,7 +622,10 @@
       422 под <code>user_ids</code>. GET/PATCH/PUT/DELETE URI — 404/405.</li>
     <li><b>Список и realtime.</b> Группа сразу в inbox всех участников:
       <code>inbox.bump</code> с <code>is_group: true</code>, <code>unread_count: 0</code>,
-      без первого сообщения. Дедуп 1-на-1 по <code>peer_id</code> группу не прячет.
+      без первого сообщения (<code>last_message</code> / <code>last_message_time</code> — <code>null</code>,
+      не <code>threads.updated_at</code>: пустая группа не всплывает над переписками).
+      Если участника добавили в уже живой чат — bump несёт превью последнего сообщения.
+      Дедуп 1-на-1 по <code>peer_id</code> группу не прячет.
       В списке слева и в шапке — имя чата (<code>threads.subject</code> / JSON <code>title</code>), не «Диалог»
       и не ФИО первого участника; пустое — «Группа» (<code>threadListTitle</code>).
       Под названием в шапке открытой группы — число участников («N участник/участника/участников»,
@@ -876,7 +917,7 @@
     </thead>
     <tbody>
       <tr><td>GET</td><td><code>/chat</code></td><td><code>chat.index</code></td><td>HTML страницы; без <code>messages.view</code> 403; гость 302/401; POST/PATCH/DELETE → 405</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.index</code></td><td>JSON <code>threads</code> + <code>unread_total</code></td></tr>
+      <tr><td>GET</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.index</code></td><td>JSON <code>threads</code> + <code>unread_total</code>; порядок: непрочитанные, затем <code>last_message_id</code> DESC, без сообщений внизу (<code>last_message_time: null</code>, не <code>threads.updated_at</code>)</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads</code></td><td><code>chat.api.threads.store</code></td><td>найти/создать 1-на-1; поле <code>user_id</code>; AJAX 201 (создан) / 200 (тот же тред, в т.ч. после 0/1 живого); иначе 302 на <code>/chat</code>; 422 <code>errors.user_id</code>; GET этого URI — список тредов; PATCH/PUT/DELETE → 405</td></tr>
       <tr><td>POST</td><td><code>/chat/api/threads/groups</code></td><td><code>chat.api.threads.groups.store</code></td><td>создать группу; поля <code>title</code> + <code>user_ids</code> (min 2, не себя); AJAX 201 JSON, иначе 302 на <code>/chat</code>; 422 под <code>title</code> / <code>user_ids</code></td></tr>
       <tr><td>GET</td><td><code>/chat/api/unread</code></td><td><code>chat.api.unread</code></td><td>JSON <code>unread_total</code></td></tr>
@@ -919,7 +960,8 @@
       <code>emoji</code>, UNIQUE пара, один смайл на человека на сообщение).
       Своя колонка <code>participants.draft_body</code> (nullable text, до 5000 символов) — черновик текущего участника, собеседник её не читает.
       <code>participants.unread_count</code> — денормализованный счётчик непрочитанных (бейдж сайдбара = <code>SUM</code>, не <code>COUNT</code> по <code>messages</code>).
-      <code>threads.last_message_id</code> — превью списка без скана <code>latestOfMany</code>.
+      <code>threads.last_message_id</code> — превью списка без скана <code>latestOfMany</code>
+      и сортировка inbox (DESC; <code>NULL</code> — чаты без сообщений внизу).
       Индексы: <code>messages (thread_id, id)</code>, <code>messages (thread_id, created_at)</code>,
       <code>participants (user_id, thread_id)</code>,
       <code>UNIQUE participants (thread_id, user_id)</code> (<code>participants_thread_user_unique</code>;
@@ -1071,6 +1113,9 @@
     <li><code>ChatEmojiDocumentationContractTest</code> — анонс <code>/doc#chat-emoji-index</code> и §2.9 совпадают с кодом.</li>
     <li><code>ChatEmojiTest</code> — набор композера 80, allowlist реакций, крупные 1–3 смайла.</li>
     <li><code>ChatNonAjaxSafetyNetFeatureTest</code> — нативный POST/PATCH → 302 на <code>/chat</code>, запись есть; валидация → 302 <code>errors[field]</code>; AJAX по-прежнему JSON.</li>
+    <li><code>ChatInboxSortFeatureTest</code> — порядок inbox: гость 302/401, без <code>messages.view</code> 403, непрочитанные выше затем <code>last_message_id</code>, пустая ручная/учебная группа и пустая личка с свежим <code>updated_at</code> внизу и <code>last_message_time: null</code>, нативный GET — тот же JSON не HTML, две прочитанные — новее выше, <code>inbox.bump</code> создания группы с null временем, bump добавления в живой чат несёт превью, сообщение в пустой группе поднимает её над другой пустой.</li>
+    <li><code>ChatInboxSortUxFeatureTest</code> — UX: <code>sortThreads</code> непрочитанные / время / пустые; <code>inbox.bump</code> пустой группы с <code>last_message_time: null</code> не всплывает; bump с сообщением поднимает группу.</li>
+    <li><code>ChatInboxSortDocumentationContractTest</code> — анонс <code>/doc#chat-inbox-sort-index</code> и §2.0 не противоречат коду (не <code>updated_at</code>, пустые внизу).</li>
     <li><code>ChatAjaxContractFeatureTest</code> — JSON-структура, <code>errors[field]</code> с текстами, история <code>before_id</code>/<code>after_id</code>, список тредов не сбрасывает unread, GET show — сбрасывает, 404 чужого id, карточка <code>GET /chat/api/users/{id}</code>, фильтр контактов <code>?team_id=</code> (ученики группы / <code>none</code> / 422).</li>
     <li><code>ChatUnreadCounterFeatureTest</code> — бейдж берёт <code>participants.unread_count</code> (не <code>COUNT messages</code>), send увеличивает счётчик собеседника, GET show обнуляет, список использует <code>threads.last_message_id</code>, <code>unreadPrivateTotal</code> / <code>unreadGroupTotal</code> делят сумму по <code>threads.is_group</code>.</li>
     <li><code>ChatContactsTeamFilterFeatureTest</code> — фильтр контактов по группе: гость 302/401, без <code>messages.view</code> 403, со правом 200, нативный GET — JSON-список, невалидный/чужой/удалённый <code>team_id</code> — 422 <code>errors.team_id</code> (нативный не пустой 200), только ученики группы, «Без группы», две группы ученика, отключённый и сам себе скрыты, поиск+фильтр, POST/PATCH/DELETE → 405, селект «Все группы» / «Без группы» / свои группы по <code>order_by</code>.</li>
@@ -1086,7 +1131,8 @@
     <li><code>ChatGroupThreadFeatureTest</code> — создание группы: гость 302/401, без <code>messages.view</code> 403 JSON и нативный POST,
       группа с двумя живыми не подменяется личкой той же пары,
       AJAX 201 (<code>is_group</code>, <code>peer_id: null</code>), повтор с тем же составом — новый тред,
-      группа не прячет 1-на-1 и наоборот, <code>inbox.bump</code> всем участникам с unread 0,
+      группа не прячет 1-на-1 и наоборот, <code>inbox.bump</code> всем участникам с unread 0
+      и <code>last_message_time: null</code> (не <code>updated_at</code>),
       422 под <code>title</code> / <code>user_ids</code> (пробелы, max 100, повторы, неизвестный id, себя, чужая школа, отключённый),
       нативный POST 302 (в т.ч. строковые id), нативный 422 → сессия под полями, PUT/GET/PATCH/DELETE 404/405,
       админ/тренер/superadmin создают, не участник 403, участник видит имя чата (не ФИО первого члена),
@@ -1103,7 +1149,8 @@
       (и bump с <code>is_group</code>+<code>peer_id</code> тоже),
       кнопки десктоп и вкладка «Чаты» открывают модалку названия,
       список рисует имя чата не «Диалог», пустая группа — «Группа», пустая личка — «Диалог»,
-      смешанный список, поиск по имени чата, клик по контакту открывает личку а не группу с тем же человеком.</li>
+      смешанный список, поиск по имени чата, клик по контакту открывает личку а не группу с тем же человеком,
+      пустая новая группа в <code>sortThreads</code> ниже диалогов с <code>last_message_time</code> (непрочитанные выше).</li>
     <li><code>ChatGroupMembersFeatureTest</code> — состав группы: гость 302/401, без права 403,
       список 15 + <code>after_user_id</code>, <code>after_user_id=0</code> 422 под полем,
       не группа / не участник 403, ученик и тренер не добавляют и не кикают (403),

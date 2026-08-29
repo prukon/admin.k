@@ -372,6 +372,23 @@
         return true;
     }
 
+    function flashSavedField(tr, field) {
+        if (!tr || !field) {
+            return;
+        }
+        var input = tr.querySelector('[data-field="' + field + '"]');
+        if (!input) {
+            return;
+        }
+        var cell = input.closest('td') || input;
+        cell.classList.remove('trainer-salary-cell--saved');
+        void cell.offsetWidth;
+        cell.classList.add('trainer-salary-cell--saved');
+        window.setTimeout(function () {
+            cell.classList.remove('trainer-salary-cell--saved');
+        }, 1400);
+    }
+
     function saveDraft(trainerId, field, value, extra, errorRoot) {
         if (!canManage) {
             return;
@@ -442,6 +459,9 @@
 
                     if (result.body && result.body.row) {
                         updateRowFromPayload(result.body.row);
+                    }
+                    if (field === 'sales_percent') {
+                        flashSavedField(tr, 'sales_percent');
                     }
                 })
                 .catch(function (err) {

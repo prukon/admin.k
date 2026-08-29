@@ -173,6 +173,7 @@ final class ChatGroupThreadFeatureTest extends ChatTestCase
             $this->assertSame('Сборная', $event->payload['title']);
             $this->assertNull($event->payload['peer_id']);
             $this->assertNull($event->payload['last_message']);
+            $this->assertNull($event->payload['last_message_time']);
             $this->assertSame(0, (int) $event->payload['unread_count']);
             $this->assertContains($event->userId, [(int) $this->user->id, (int) $a->id, (int) $b->id]);
             $seen[$event->userId] = true;

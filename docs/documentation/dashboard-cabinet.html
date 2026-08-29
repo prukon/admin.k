@@ -423,6 +423,10 @@
     Разметка оверлея есть у тех, у кого есть право; без флага скрыта CSS
     (<code>body:not(.system-monitors-on)</code>). Выключил переключатель —
     оверлеи скрыты на dashboard, чате, настройках и остальных страницах CRM.
+    Селект партнёра <code>#js-partner-switch</code> при том же праве мониторов —
+    класс <code>system-monitor</code>, скрывается вместе с оверлеями;
+    POST <code>/admin/switch-partner</code> (<code>partner.switch</code>) от тумблера не зависит.
+    Без <code>canView()</code> класс на селект не вешается.
     Оверлей <code>#js-online-users</code> в том же стеке над Reverb
     (<code>#system-monitors-stack</code>): партнёр и число, список ФИО
     (<code>lastname</code> + <code>name</code>). Окно онлайна — 120 секунд
@@ -471,7 +475,7 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsAccessFeatureTest.php</code> — гость 302/401, admin/trainer/user без права 403, со скрытым правом 200, superadmin через Gate::before</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsAjaxContractFeatureTest.php</code> — JSON 200 <code>success</code>+<code>system_monitors</code>, 422 <code>errors.system_monitors</code> (пустое / не boolean), 403 JSON, GET/PATCH/PUT/DELETE 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsNonAjaxSafetyNetFeatureTest.php</code> — нативный POST 302 + <code>status</code> (вкл/выкл), с dashboard и с чата; валидация 302 <code>errors.system_monitors</code> без смены флага, не сырой JSON 200</li>
-      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsUxFeatureTest.php</code> — слева от колокольчика; первый заход <code>data-on=0</code> / без <code>system-monitors-on</code>; флаг без права оверлеи не показывает; второй суперадмин не видит чужие оверлеи; 422 откатывает switch и body class; скрытый оверлей не опрашивает <code>/chat/api/reverb-status</code></li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsUxFeatureTest.php</code> — слева от колокольчика; первый заход <code>data-on=0</code> / без <code>system-monitors-on</code>; селект партнёра <code>#js-partner-switch</code> класс <code>system-monitor</code> при праве мониторов; флаг без права оверлеи не показывает; второй суперадмин не видит чужие оверлеи; 422 откатывает switch и body class; скрытый оверлей не опрашивает <code>/chat/api/reverb-status</code></li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersFeatureTest.php</code> — GET онлайн: гость/403/200, группировка по партнёру, 120 с, ученик/тренер/отключённый, «Без партнёра», оверлей над Reverb, опрос только при включённом флаге</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403, со скрытым правом 200 и оверлей в DOM, тренер с выданным правом 200</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAjaxContractFeatureTest.php</code> — пустой снимок, без email/password, окно ровно 120 с, себя и чужой партнёр, «Без названия» / «#id», soft-deleted партнёр, «Без партнёра» последним, GET при выключенном флаге</li>

@@ -73,6 +73,12 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatMobileLayoutUxFeatureTest', $chunk);
         $this->assertStringContainsString('ChatMobileContactsAlignFeatureTest', $chunk);
         $this->assertStringContainsString('ChatMobileContactsAlignUxFeatureTest', $chunk);
+        $this->assertStringContainsString('threads.updated_at', $chunk);
+        $this->assertStringContainsString('без переписки', $chunk);
+        $this->assertStringContainsString('chat-inbox-sort-index', $chunk);
+        $this->assertStringContainsString('ChatInboxSortFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatInboxSortUxFeatureTest', $chunk);
+        $this->assertStringContainsString('ChatInboxSortDocumentationContractTest', $chunk);
         $this->assertStringContainsString('/docs/documentation/chat#mobile', $chunk);
         $this->assertStringContainsString('resources/css/chat.css', $chunk);
         $this->assertStringContainsString('resources/js/chat.js', $chunk);
@@ -231,7 +237,16 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('ChatEmojiDocumentationContractTest', $html);
         $this->assertStringContainsString('message_reactions', $html);
         $this->assertStringContainsString('errors.emoji', $html);
+        $this->assertStringContainsString('ChatAjaxContractFeatureTest', $html);
         $this->assertStringContainsString('ChatUnreadCounterFeatureTest', $html);
+        $this->assertStringContainsString('last_message_time: null', $html);
+        $this->assertStringContainsString('не <code>threads.updated_at</code>', $html);
+        $this->assertStringContainsString('sortThreads', $html);
+        $this->assertStringContainsString('id="inbox-sort"', $html);
+        $this->assertStringContainsString('/doc#chat-inbox-sort-index', $html);
+        $this->assertStringContainsString('ChatInboxSortFeatureTest', $html);
+        $this->assertStringContainsString('ChatInboxSortUxFeatureTest', $html);
+        $this->assertStringContainsString('ChatInboxSortDocumentationContractTest', $html);
         $this->assertStringContainsString('presence/ping', $html);
         $this->assertStringContainsString('last_seen_at', $html);
         $this->assertStringContainsString('parent_full_name', $html);
@@ -1221,6 +1236,27 @@ final class ChatDocumentationContractTest extends TestCase
 
         $this->assertStringContainsString('createGroupThread', $service);
         $this->assertStringContainsString("'is_group' => true", $service);
+        $this->assertStringContainsString("orderByDesc('threads.last_message_id')", $service);
+        $this->assertStringContainsString('chat_inbox_sort', $service);
+
+        $bumpStart = strpos($service, 'private function groupCreatedBumpPayload(');
+        $this->assertNotFalse($bumpStart);
+        $bumpEnd = strpos($service, 'private function titleForViewer(');
+        $this->assertNotFalse($bumpEnd);
+        $this->assertGreaterThan($bumpStart, $bumpEnd);
+        $bumpChunk = substr($service, $bumpStart, $bumpEnd - $bumpStart);
+        $this->assertStringNotContainsString('updated_at', $bumpChunk);
+        $this->assertStringContainsString('$last?->created_at?->toDateTimeString()', $bumpChunk);
+        $this->assertStringContainsString('last_message_time: null', $docs);
+        $this->assertStringContainsString('не <code>threads.updated_at</code>', $docs);
+
+        $sortStart = strpos($js, 'function sortThreads(');
+        $this->assertNotFalse($sortStart);
+        $sortEnd = strpos($js, 'function threadListTitle(');
+        $this->assertNotFalse($sortEnd);
+        $sortChunk = substr($js, $sortStart, $sortEnd - $sortStart);
+        $this->assertStringContainsString('last_message_time', $sortChunk);
+        $this->assertStringNotContainsString('updated_at', $sortChunk);
         $this->assertStringContainsString('return $count > 2;', $service);
         $this->assertStringNotContainsString("->has('participants', '=', 2)", $service);
         $this->assertStringContainsString("where('threads.is_group', false)", $service);
@@ -1252,6 +1288,10 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('setHeaderPeerClickable', $docs);
         $this->assertStringContainsString('Не в этом срезе', $docs);
         $this->assertStringContainsString('ChatNonAjaxSafetyNetFeatureTest', $docs);
+        $this->assertStringContainsString('ChatInboxSortFeatureTest', $docs);
+        $this->assertStringContainsString('ChatInboxSortUxFeatureTest', $docs);
+        $this->assertStringContainsString('ChatInboxSortDocumentationContractTest', $docs);
+        $this->assertStringContainsString('id="inbox-sort"', $docs);
     }
 
     public function test_live_code_matches_documented_team_group_chats(): void
@@ -1538,6 +1578,7 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringNotContainsString("'header_subtitle'", $inboxChunk);
         $this->assertStringNotContainsString("'peer_presence_label'", $inboxChunk);
         $this->assertStringNotContainsString("'members_total'", $inboxChunk);
+        $this->assertStringNotContainsString('updated_at', $inboxChunk);
 
         $this->assertStringContainsString('public const ONLINE_WITHIN_SECONDS = 120;', $presence);
         $this->assertStringContainsString('function dialogStatusLabel(', $presence);

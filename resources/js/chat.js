@@ -448,14 +448,21 @@
     }
 
     function sortThreads(list) {
+        function ts(t) {
+            if (!t || !t.last_message_time) return 0;
+            const d = new Date(String(t.last_message_time).replace(' ', 'T'));
+            const ms = d.getTime();
+            return isNaN(ms) ? 0 : ms;
+        }
         return list.sort(function (a, b) {
             const au = a.unread_count || 0;
             const bu = b.unread_count || 0;
             if (au === 0 && bu > 0) return 1;
             if (au > 0 && bu === 0) return -1;
-            const at = new Date(a.last_message_time || 0).getTime();
-            const bt = new Date(b.last_message_time || 0).getTime();
-            return bt - at;
+            const at = ts(a);
+            const bt = ts(b);
+            if (bt !== at) return bt - at;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
         });
     }
 

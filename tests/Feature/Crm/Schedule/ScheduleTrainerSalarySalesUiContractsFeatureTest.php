@@ -272,6 +272,89 @@ final class ScheduleTrainerSalarySalesUiContractsFeatureTest extends ScheduleTra
         $this->assertArrayNotHasKey('table_html', $response->json());
         $this->assertArrayNotHasKey('month_settings_html', $response->json());
         $this->assertSame($trainer->id, (int) $response->json('row.trainer_profile_id'));
+        $this->assertStringNotContainsString(
+            'trainer-salary-cell--saved',
+            (string) $response->getContent(),
+            'Подсветка % — клиентская; JSON PATCH класс не отдаёт'
+        );
+    }
+
+    public function test_salary_page_loads_hotfix_assets_for_percent_saved_highlight(): void
+    {
+        $this->makeTrainerProfile('CSS подсветка');
+
+        $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('css/trainer-salary.css', $html);
+        $this->assertStringContainsString('js/trainer-salary.js', $html);
+        $this->assertStringContainsString('data-field="sales_percent"', $html);
+        $this->assertStringNotContainsString(
+            'trainer-salary-cell--saved',
+            $html,
+            'Класс успеха вешает клиент после PATCH, сервер при первом открытии его не рисует'
+        );
+    }
+
+    public function test_percent_cell_stays_without_saved_class_after_server_rerender(): void
+    {
+        $trainer = $this->makeTrainerProfile('Сервер без saved');
+
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'sales_percent' => 10,
+        ])
+            ->assertOk()
+            ->assertJsonPath('row.sales_percent', 10);
+        $this->assertArrayNotHasKey('table_html', $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'sales_percent' => 12,
+        ])->assertOk()->json());
+
+        $table = (string) $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->json('table_html');
+        $this->assertStringContainsString('data-field="sales_percent"', $table);
+        $this->assertStringContainsString('value="12"', $this->salesPercentInputHtml($table));
+        $this->assertStringNotContainsString('trainer-salary-cell--saved', $table);
+    }
+
+    public function test_invalid_percent_does_not_leave_saved_highlight_in_table_html(): void
+    {
+        $trainer = $this->makeTrainerProfile('422 без подсветки');
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertOk();
+
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'sales_percent' => '10.5',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['sales_percent']);
+
+        $table = (string) $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->json('table_html');
+        $this->assertStringNotContainsString('trainer-salary-cell--saved', $table);
+        $this->assertStringContainsString('value="0"', $this->salesPercentInputHtml($table));
+    }
+
+    public function test_saving_bonus_does_not_require_percent_highlight_class_from_server(): void
+    {
+        $trainer = $this->makeTrainerProfile('Бонус без подсветки %');
+
+        $response = $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'bonuses' => 50,
+        ])->assertOk();
+        $this->assertArrayNotHasKey('table_html', $response->json());
+
+        $table = (string) $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->json('table_html');
+        $this->assertStringNotContainsString('trainer-salary-cell--saved', $table);
     }
 
     public function test_form_one_and_form_all_also_skip_full_table_reload(): void
@@ -621,6 +704,11 @@ final class ScheduleTrainerSalarySalesUiContractsFeatureTest extends ScheduleTra
         $this->assertStringNotContainsString('trainer-salary-input', $html);
         $this->assertStringNotContainsString('trainer-salary-form-one-btn', $html);
         $this->assertStringNotContainsString('data-field="sales_percent"', $html);
+        $this->assertStringNotContainsString(
+            'trainer-salary-cell--saved',
+            $html,
+            'Лист — слепок, не autosave: класс успеха на сервере не рисуется'
+        );
     }
 
     public function test_draft_edit_after_snapshot_does_not_change_frozen_sheet(): void

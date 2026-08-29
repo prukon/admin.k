@@ -4621,6 +4621,37 @@ final class BladeInlineJsSyntaxTest extends TestCase
                 $saveMatch[0]
             );
             $this->assertStringContainsString('updateRowFromPayload(result.body.row)', $saveMatch[0]);
+            $this->assertStringContainsString("field === 'sales_percent'", $saveMatch[0]);
+            $this->assertStringContainsString("flashSavedField(tr, 'sales_percent')", $saveMatch[0]);
+            $this->assertStringContainsString('function flashSavedField(tr, field)', $content);
+            $this->assertStringContainsString('trainer-salary-cell--saved', $content);
+            $this->assertStringContainsString("input.closest('td')", $content);
+            $this->assertStringContainsString('1400', $content);
+
+            $this->assertSame(
+                1,
+                preg_match('/if \(!result\.ok\) \{[\s\S]*?return;\n                    \}/', $saveMatch[0], $failMatch),
+                'В saveDraft нет ветки ошибки 422'
+            );
+            $this->assertStringNotContainsString(
+                'flashSavedField',
+                $failMatch[0],
+                '422 не должен подсвечивать ячейку процента'
+            );
+            $this->assertSame(1, substr_count($saveMatch[0], 'flashSavedField(tr, \'sales_percent\')'));
+            $this->assertStringNotContainsString("field === 'bonuses'", $saveMatch[0]);
+            $this->assertStringNotContainsString("field === 'base_salary'", $saveMatch[0]);
+
+            $this->assertSame(
+                1,
+                preg_match('/function formOne\([\s\S]*?\n    function formAll/', $content, $formOneMatch),
+                'Не найден formOne'
+            );
+            $this->assertStringNotContainsString(
+                'flashSavedField',
+                $formOneMatch[0],
+                '«Расчет» не подсвечивает ячейку процента — это слепок, не autosave'
+            );
             $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
             $this->assertStringContainsString("'Accept': 'application/json'", $content);
             $this->assertStringContainsString('showRowErrors(tr, result.body.errors)', $content);
@@ -4660,6 +4691,14 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('data-field="rate_per_training"', $table);
         $this->assertStringNotContainsString('data-field="premium_increment"', $table);
         $this->assertStringNotContainsString('applyTableHtml', $table);
+
+        $hotfixCss = (string) file_get_contents(public_path('css/trainer-salary.css'));
+        $this->assertStringContainsString('.trainer-salary-cell--saved', $hotfixCss);
+        $this->assertStringContainsString('trainer-salary-saved-flash', $hotfixCss);
+        $this->assertStringContainsString('#d1e7dd', $hotfixCss);
+        $sourceCss = (string) file_get_contents(resource_path('css/schedule.css'));
+        $this->assertStringContainsString('.trainer-salary-cell--saved', $sourceCss);
+        $this->assertStringContainsString('trainer-salary-saved-flash', $sourceCss);
     }
 
     /**

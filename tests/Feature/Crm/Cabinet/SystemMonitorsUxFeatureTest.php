@@ -80,6 +80,10 @@ final class SystemMonitorsUxFeatureTest extends SystemMonitorsTestCase
         $this->assertStringContainsString('class="reverb-status system-monitor"', $html);
         $this->assertStringContainsString('body:not(.system-monitors-on) .system-monitor', $html);
         $this->assertStringContainsString('display: none !important', $html);
+        $this->assertMatchesRegularExpression(
+            '/id="js-partner-switch"[^>]*\bsystem-monitor\b/',
+            $html
+        );
         $this->assertDoesNotMatchRegularExpression(
             '/id="system-monitors-error"[^>]*is-visible/',
             $html
@@ -107,6 +111,11 @@ final class SystemMonitorsUxFeatureTest extends SystemMonitorsTestCase
             $this->assertStringContainsString('Скрыть системные мониторы', $html);
             $this->assertStringContainsString('id="js-reverb-status"', $html);
             $this->assertStringContainsString('data-status-url="'.route('chat.api.reverb-status').'"', $html);
+            $this->assertMatchesRegularExpression(
+                '/id="js-partner-switch"[^>]*\bsystem-monitor\b/',
+                $html,
+                $url
+            );
         }
     }
 
@@ -122,6 +131,7 @@ final class SystemMonitorsUxFeatureTest extends SystemMonitorsTestCase
 
         $this->assertStringNotContainsString('id="system-monitors-toggle"', $html);
         $this->assertStringNotContainsString('id="js-reverb-status"', $html);
+        $this->assertStringNotContainsString('id="js-partner-switch"', $html);
         $this->assertDoesNotMatchRegularExpression('/<body[^>]*\bsystem-monitors-on\b/', $html);
         $this->assertTrue(
             (bool) $this->user->fresh()->system_monitors,
@@ -176,7 +186,28 @@ final class SystemMonitorsUxFeatureTest extends SystemMonitorsTestCase
             $this->assertStringNotContainsString('id="system-monitors-toggle"', $html, $url);
             $this->assertStringNotContainsString('cabinet.system-monitors.update', $html, $url);
             $this->assertStringNotContainsString('id="js-reverb-status"', $html, $url);
+            $this->assertStringNotContainsString('id="js-partner-switch"', $html, $url);
         }
+    }
+
+    public function test_partner_switch_stays_visible_when_user_has_switch_right_but_no_monitors(): void
+    {
+        $this->asAdmin();
+        $this->grantPermissionToActor($this->user, 'partner.switch');
+        $this->user->forceFill(['system_monitors' => false])->save();
+
+        $html = $this->actingAs($this->user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('id="js-partner-switch"', $html);
+        $this->assertDoesNotMatchRegularExpression(
+            '/id="js-partner-switch"[^>]*\bsystem-monitor\b/',
+            $html
+        );
+        $this->assertStringNotContainsString('id="system-monitors-toggle"', $html);
+        $this->assertDoesNotMatchRegularExpression('/<body[^>]*\bsystem-monitors-on\b/', $html);
     }
 
     public function test_settings_page_has_header_switch_instead_of_reverb_overlay_button(): void

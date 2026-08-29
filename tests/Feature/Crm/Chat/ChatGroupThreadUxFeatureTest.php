@@ -196,6 +196,17 @@ final class ChatGroupThreadUxFeatureTest extends ChatTestCase
         $this->assertSame('Группа', $ui['upsert_empty']['cache_title']);
     }
 
+    public function test_empty_new_group_stays_below_dialogs_with_messages(): void
+    {
+        $ui = $this->simulateGroupListTitle();
+
+        $this->assertSame(
+            [11, 10, 99],
+            array_map('intval', $ui['sort_empty_group']['ids'] ?? []),
+            'Непрочитанные сверху, затем по last_message_time; пустая новая группа — внизу'
+        );
+    }
+
     public function test_mixed_list_keeps_group_chat_name_and_private_peer_name(): void
     {
         $ui = $this->simulateGroupListTitle();
@@ -1013,6 +1024,34 @@ const header = {
     private_named: threadListTitle({ title: 'Иванов Иван', is_group: false })
 };
 
+threadsCache = [
+    {
+        id: 10,
+        title: 'Старый диалог',
+        is_group: false,
+        last_message: 'привет',
+        last_message_time: '2026-08-01 09:30:00',
+        unread_count: 0
+    },
+    {
+        id: 11,
+        title: 'Непрочитанный',
+        is_group: false,
+        last_message: 'входящее',
+        last_message_time: '2026-07-01 09:30:00',
+        unread_count: 2
+    }
+];
+upsertThread({
+    id: 99,
+    title: 'Новая группа',
+    is_group: true,
+    last_message: null,
+    last_message_time: null,
+    unread_count: 0
+});
+const sort_empty_group = { ids: threadsCache.map(function (t) { return t.id; }) };
+
 process.stdout.write(JSON.stringify({
     named: named,
     empty: empty,
@@ -1022,7 +1061,8 @@ process.stdout.write(JSON.stringify({
     after_open: after_open,
     search: search,
     search_dialog_word: search_dialog_word,
-    header: header
+    header: header,
+    sort_empty_group: sort_empty_group
 }));
 JS;
 

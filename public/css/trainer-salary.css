@@ -143,3 +143,22 @@
     width: 6.5rem;
     flex-shrink: 0;
 }
+
+.trainer-salary-cell--saved {
+    background-color: #d1e7dd !important;
+}
+.trainer-salary-cell--saved .trainer-salary-input {
+    border-color: #198754;
+    background-color: #f0faf4;
+    box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.25);
+}
+@keyframes trainer-salary-saved-flash {
+    0% { background-color: #d1e7dd; }
+    100% { background-color: transparent; }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .trainer-salary-cell--saved {
+        animation: trainer-salary-saved-flash 1.2s ease-out;
+        background-color: transparent;
+    }
+}
