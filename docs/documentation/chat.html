@@ -45,7 +45,8 @@
     · имя группы в списке: <a href="/doc#chat-group-list-title-index">/doc#chat-group-list-title-index</a>
     · мобильная панель: <a href="/doc#chat-mobile-index">/doc#chat-mobile-index</a>
     · сплит «Личные» / «Чаты»: <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>
-    · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a></div>
+    · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a>
+    · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы плюс одна
@@ -283,7 +284,10 @@
   </ol>
 
   <h2 id="presence">2.1) Онлайн, галочки исходящего, ФИО родителя, карточка</h2>
-  <p>Анонс на главной: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>.</p>
+  <p>Анонс на главной: <a href="/doc#chat-presence-index">/doc#chat-presence-index</a>.
+    Оверлей «Онлайн» всех партнёров справа снизу — другое:
+    <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a> /
+    <a href="#online-users-overlay">§5.2</a>.</p>
   <ol>
     <li><b>Онлайн.</b> <code>users.last_seen_at</code>, окно 120 секунд (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>,
       сравнение <code>gte</code>: ровно 2 минуты ещё онлайн). Никогда не пинговал — офлайн.
@@ -864,7 +868,7 @@
   <p>Страница и API чата: группа <code>auth</code> + <code>2fa</code> + <code>can:messages.view</code>.
     <code>GET /chat/api/reverb-status</code> — только <code>auth</code> + <code>2fa</code>, без
     <code>messages.view</code>; Form Request —
-    <code>can(settings.reverbOverlay.manage)</code> (superadmin через <code>Gate::before</code>).
+    <code>can(settings.systemMonitors.view)</code> (superadmin через <code>Gate::before</code>).
     <code>POST /presence/ping</code> — тоже без <code>messages.view</code>, любой залогиненный.</p>
   <table>
     <thead>
@@ -890,7 +894,7 @@
       <tr><td>DELETE</td><td><code>/chat/api/threads/{thread}/messages/{message}/reaction</code></td><td><code>chat.api.threads.messages.reaction.destroy</code></td><td>снять свою реакцию; AJAX 200 <code>ok</code>+<code>reactions</code>, иначе 302; GET/POST/PATCH → 404/405</td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/read</code></td><td><code>chat.api.threads.read</code></td><td>помечает диалог прочитанным; AJAX JSON <code>unread_total</code>, иначе 302 на <code>/chat</code></td></tr>
       <tr><td>PATCH</td><td><code>/chat/api/threads/{thread}/draft</code></td><td><code>chat.api.threads.draft</code></td><td>свой черновик, поле <code>body</code> (пустое — стереть); AJAX JSON <code>ok</code> + <code>draft_body</code>, иначе 302 на <code>/chat</code>; не участник 403; собеседнику не транслируем; GET/POST/DELETE → 404/405</td></tr>
-      <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td><code>can(settings.reverbOverlay.manage)</code>; JSON <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>; гость 302/401; без права 403; POST/PATCH/DELETE → 405</td></tr>
+      <tr><td>GET</td><td><code>/chat/api/reverb-status</code></td><td><code>chat.api.reverb-status</code></td><td><code>can(settings.systemMonitors.view)</code>; JSON <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>; гость 302/401; без права 403; POST/PATCH/DELETE → 405</td></tr>
     </tbody>
   </table>
   <p>Чужой тред (не участник) — 403. Пользователь другой школы в <code>user_id</code> — 422,
@@ -988,17 +992,22 @@
       <code>laravel-reverb</code>). Процесс down и сокет <code>connecting</code> — не «всё ок»
       (оверлей <code>is-warn</code> / <code>is-bad</code>, не <code>is-ok</code>).
       Иконка копирует оба значения в буфер.
-      Выключил флаг на <code>/admin/settings</code> — <code>#js-reverb-status</code> нет.
+      Выключил переключатель системных мониторов — <code>#js-reverb-status</code> скрыт.
+      В том же стеке выше — список «Онлайн» по партнёрам
+      (<a href="/doc#online-users-overlay-index">анонс</a>,
+      <a href="#online-users-overlay">§5.2</a>).
       Отдельный анонс: <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>.</li>
   </ol>
 
   <h2 id="reverb-overlay">5.1) Оверлей статуса Reverb</h2>
   <ol>
-    <li>Только <code>can(settings.reverbOverlay.manage)</code> <b>и</b> флаг <code>cabinet_diagnostics</code>
-      (<code>CabinetDiagnostics::shouldShow()</code>, не <code>@can messages.view</code>). Include
+    <li>Только <code>can(settings.systemMonitors.view)</code> <b>и</b> персональный флаг <code>users.system_monitors</code>
+      (<code>SystemMonitors::shouldShow()</code>, не <code>@can messages.view</code>). Include
       <code>includes/chat/reverb_status.blade.php</code> в лейауте <code>admin2</code>
-      после Echo. Бейдж есть и на <code>/admin/settings</code> (<code>sidebar-mini layout-fixed</code>),
-      пока флаг включён. На логине, у admin/trainer/user и при выключенном флаге бейджа нет.</li>
+      после Echo. Разметка есть при праве; без флага скрыта CSS
+      (<code>body:not(.system-monitors-on) .system-monitor</code>). Бейдж есть и на <code>/admin/settings</code> (<code>sidebar-mini layout-fixed</code>),
+      пока переключатель включён. На логине и у admin/trainer/user без права бейджа нет.
+      При праве и выключенном флаге разметка <code>#js-reverb-status</code> есть, скрыта CSS.</li>
     <li>Процесс: TCP на <code>broadcasting.connections.reverb.options</code>
       (тест <code>127.0.0.1:6008</code>, прод <code>127.0.0.1:6009</code>), не на публичный :443.</li>
     <li>Сокет: Echo. Nginx <code>location /app</code> — сниппет <code>nginx.ssl.conf_reverb</code>,
@@ -1007,7 +1016,24 @@
       Down + <code>connecting</code> — не «всё ок».</li>
     <li><code>GET /chat/api/reverb-status</code>: JSON <code>listening</code> / <code>ok</code> /
       <code>host</code> / <code>port</code> / <code>driver</code>. Гость 302/401,
-      без <code>can(settings.reverbOverlay.manage)</code> — 403, мутации 405.</li>
+      без <code>can(settings.systemMonitors.view)</code> — 403, мутации 405.</li>
+  </ol>
+
+  <h2 id="online-users-overlay">5.2) Оверлей «Онлайн» (системные мониторы)</h2>
+  <p>Анонс на главной: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a>.
+    Не путать с §<a href="#presence">2.1</a> (точка в списке диалогов, подзаголовок шапки, карточка):
+    то же окно <code>last_seen_at</code> 120 с и тот же ping, но другой UI и другая выборка
+    (все партнёры, не только текущая школа чата).</p>
+  <ol>
+    <li>Стек <code>#system-monitors-stack</code> в <code>admin2</code>:
+      <code>#js-online-users</code> над <code>#js-reverb-status</code>.
+      Право и флаг как у Reverb (<code>SystemMonitors::shouldShow()</code>).
+      Без права разметки нет. Без флага разметка есть, скрыта CSS.</li>
+    <li><code>GET /cabinet/system-monitors/online-users</code>: JSON <code>ok</code> /
+      <code>total</code> / <code>partners[]</code>. Гость 302/401, без права 403,
+      мутации 405. Нативный GET — JSON. Флаг GET не закрывает.</li>
+    <li>Клиент опрашивает раз в 3 с только при включённом переключателе.
+      Первый кадр без имён. Сбой fetch очищает список («Никого нет онлайн»).</li>
   </ol>
 
   <h2 id="tests">6) Тесты</h2>
@@ -1160,7 +1186,15 @@
       нативный повтор 1-на-1 (в т.ч. после soft-delete собеседника) 302 без второго треда.</li>
     <li><code>ChatUiContractsFeatureTest</code> — композер disabled до выбора диалога, бейдж <code>display:none</code> при 0, пункт меню через <code>@can</code>, JS: <code>preventDefault</code>, <code>setComposerEnabled(true)</code> только в <code>openThread</code>, сброс поиска и фильтра групп контактов, <code>message.created</code> → <code>markThreadRead</code>, оверлей Reverb только у superadmin при включённом флаге, мобильная оболочка (<code>chat-immersive</code>, <code>#chatMobileNav</code>, локальный FA, кнопка «Создать группу»), оба пути <code>renderContacts</code> / <code>renderGroupMembers</code> с <code>.contact-parent</code>.</li>
     <li><code>ChatReverbOverlayFeatureTest</code> — <code>GET /chat/api/reverb-status</code> (гость / без superadmin / JSON-структура / внутренний порт, не client host), оверлей на dashboard, <code>/chat</code> и <code>/admin/settings</code> только при включённом флаге, Echo без <code>wsPath</code>, UX: процесс down + сокет connecting ≠ <code>is-ok</code>.</li>
-    <li><code>SettingsCabinetDiagnosticsAccessFeatureTest</code> / <code>AjaxContract</code> / <code>NonAjaxSafetyNet</code> / <code>UiContracts</code> — кнопка на «Общие»: гость/403/405, JSON 422 под полем, native POST не пустой 200, первый paint чекбокса, бейдж на настройках, JS-откат и 403 без английского <code>message</code>.</li>
+    <li><code>SystemMonitorsToggleFeatureTest</code> — переключатель в шапке, персональный флаг, 422 под полем, native POST, кнопка на «Общие» снята, бейдж Reverb.</li>
+    <li><code>SystemMonitorsAccessFeatureTest</code> / <code>SystemMonitorsAjaxContractFeatureTest</code> /
+      <code>SystemMonitorsNonAjaxSafetyNetFeatureTest</code> / <code>SystemMonitorsUxFeatureTest</code> /
+      <code>SystemMonitorsOnlineUsersFeatureTest</code> /
+      <code>SystemMonitorsOnlineUsersAccessFeatureTest</code> /
+      <code>SystemMonitorsOnlineUsersAjaxContractFeatureTest</code> /
+      <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code> /
+      <code>SystemMonitorsOnlineUsersUxFeatureTest</code> —
+      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн только при включённом флаге, список онлайн по партнёрам.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
       (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>

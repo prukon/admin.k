@@ -56,6 +56,7 @@ class PermissionSeeder extends Seeder
             // group_slug schedule
             ['name' => 'schedule.trainerSalary.view',    'description' => 'ЗП тренеров: просмотр вкладки и черновика',     'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 31],
             ['name' => 'schedule.trainerSalary.manage',  'description' => 'ЗП тренеров: редактирование и формирование слепков', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
+            ['name' => 'schedule.trainerSalary.scheme.sales', 'description' => 'ЗП тренеров: схема «% от продаж» (оклад + процент от оплат учеников)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 28],
             ['name' => 'schedule.trainerSalary.scheme.kansas', 'description' => 'ЗП тренеров: схема «Канзас» (оклад за тренировку + премия от среднего)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 29],
             ['name' => 'schedule.trainerSalary.scheme.classic', 'description' => 'ЗП тренеров: схема «Классическая» (оклад + ставка за тренировку)', 'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 30],
             ['name' => 'scheduleSlots.manage',           'description' => 'Расписание школы: управление слотами',          'group_slug' => 'schedule', 'is_visible' => 0, 'sort_order' => 32],
@@ -142,7 +143,7 @@ class PermissionSeeder extends Seeder
             ['name' => 'settings.force2fa.admins',       'description' => 'Управление обязательной 2FA для админов',         'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 221],
             ['name' => 'settings.queues.manage',         'description' => 'Управление очередями (restart worker)',          'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 222],
             ['name' => 'settings.registration.manage',   'description' => 'Настройки: регистрация на сайте (вкл/выкл)',       'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 223],
-            ['name' => 'settings.reverbOverlay.manage',  'description' => 'Оверлей статуса Reverb',                           'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 224],
+            ['name' => 'settings.systemMonitors.view',   'description' => 'Системные мониторы (оверлеи)',                     'group_slug' => 'settings', 'is_visible' => 0, 'sort_order' => 224],
 
             // group_slug paymentMethods
             ['name' => 'payment.method.robokassa',       'description' => 'Способ оплаты «Робокасса»',                      'group_slug' => 'paymentMethods', 'is_visible' => 0, 'sort_order' => 10],

@@ -175,7 +175,11 @@
     и <a href="/doc#trainer-types-kansas-index">анонс типов на /doc</a>,
     <a href="/doc#trainer-salary-kansas-month-settings-index">анонс настроек месяца</a>.
   </p>
-  <p>Права на расчёт ЗП — отдельные: схема <code>schedule.trainerSalary.scheme.classic</code> или <code>schedule.trainerSalary.scheme.kansas</code> (включает superadmin) плюс <code>schedule.trainerSalary.view</code> / <code>manage</code> (не <code>trainers.view</code>).</p>
+  <p>Права на расчёт ЗП — отдельные: схема <code>schedule.trainerSalary.scheme.classic</code>,
+    <code>schedule.trainerSalary.scheme.kansas</code> или <code>schedule.trainerSalary.scheme.sales</code>
+    (включает superadmin) плюс <code>schedule.trainerSalary.view</code> / <code>manage</code> (не <code>trainers.view</code>).
+    Поля <code>sales_percent</code> на карточке тренера нет — % только в черновике месяца sales
+    (<a href="/doc#trainer-salary-sales-index">анонс</a>).</p>
 
   <h3 id="trainer-welcome-credentials">6.2) Welcome-письмо при создании (<code>send_welcome_email</code>)</h3>
   <div class="note">

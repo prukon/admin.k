@@ -32,6 +32,17 @@ abstract class ScheduleTrainerSalaryTestCase extends ScheduleJournalTestCase
         $this->grantPermission('schedule.trainerSalary.scheme.kansas', $actor);
     }
 
+    protected function grantSalesScheme(?User $actor = null): void
+    {
+        $this->grantPermission('schedule.trainerSalary.scheme.sales', $actor);
+    }
+
+    protected function grantTrainerSalaryViewSales(?User $actor = null): void
+    {
+        $this->grantPermission('schedule.trainerSalary.view', $actor);
+        $this->grantSalesScheme($actor);
+    }
+
     protected function grantTrainerSalaryViewKansas(?User $actor = null): void
     {
         $this->grantPermission('schedule.trainerSalary.view', $actor);
@@ -52,13 +63,22 @@ abstract class ScheduleTrainerSalaryTestCase extends ScheduleJournalTestCase
     protected function useClassicSchemeOnly(?User $actor = null): void
     {
         $this->revokePermission('schedule.trainerSalary.scheme.kansas', $actor);
+        $this->revokePermission('schedule.trainerSalary.scheme.sales', $actor);
         $this->grantClassicScheme($actor);
     }
 
     protected function useKansasSchemeOnly(?User $actor = null): void
     {
         $this->revokePermission('schedule.trainerSalary.scheme.classic', $actor);
+        $this->revokePermission('schedule.trainerSalary.scheme.sales', $actor);
         $this->grantKansasScheme($actor);
+    }
+
+    protected function useSalesSchemeOnly(?User $actor = null): void
+    {
+        $this->revokePermission('schedule.trainerSalary.scheme.classic', $actor);
+        $this->revokePermission('schedule.trainerSalary.scheme.kansas', $actor);
+        $this->grantSalesScheme($actor);
     }
 
     protected function grantPermission(string $permissionName, ?User $actor = null): void

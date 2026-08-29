@@ -42,7 +42,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
         return [
             'mainMenu'        => 18,
             'reports'         => 9,
-            'schedule'        => 6,
+            'schedule'        => 7,
             'directories'     => 8,
             'lessonPackages'  => 4,
             'setPrices'       => 10,
@@ -112,6 +112,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'reports.payments.payout_amount.column.view',
             ],
             'schedule' => [
+                'schedule.trainerSalary.scheme.sales',
                 'schedule.trainerSalary.scheme.kansas',
                 'schedule.trainerSalary.scheme.classic',
                 'schedule.trainerSalary.view',
@@ -201,7 +202,7 @@ final class PermissionGroupsReorganizationFeatureTest extends CrmTestCase
                 'settings.force2fa.admins',
                 'settings.queues.manage',
                 'settings.registration.manage',
-                'settings.reverbOverlay.manage',
+                'settings.systemMonitors.view',
             ],
             'paymentMethods' => [
                 'payment.method.robokassa',

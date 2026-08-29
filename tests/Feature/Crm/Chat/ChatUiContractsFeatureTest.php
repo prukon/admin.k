@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Chat;
 
-use App\Models\Setting;
 use App\Models\Team;
-use App\Support\CabinetDiagnostics;
 
 /**
  * P1: разметка страницы, сайдбар @can, дефолты формы, JS/CSS-контракт (Vite-источники, не только 200 OK).
@@ -809,14 +807,13 @@ final class ChatUiContractsFeatureTest extends ChatTestCase
         $this->assertStringContainsString("@vite(['resources/js/chat.js'])", $blade);
     }
 
-    public function test_reverb_overlay_is_only_for_superadmin_with_diagnostics_and_stays_on_top(): void
+    public function test_reverb_overlay_is_only_for_users_with_system_monitors_permission_and_stays_on_top(): void
     {
-        Setting::setBool(CabinetDiagnostics::SETTING, true, null);
-
         $userHtml = $this->get(route('chat.index'))->assertOk()->getContent();
         $this->assertStringNotContainsString('id="js-reverb-status"', $userHtml);
 
         $superadmin = $this->createUserWithRole('superadmin');
+        $superadmin->forceFill(['system_monitors' => true])->save();
         $this->actingInPartner($superadmin);
         $html = $this->get(route('dashboard'))->assertOk()->getContent();
 

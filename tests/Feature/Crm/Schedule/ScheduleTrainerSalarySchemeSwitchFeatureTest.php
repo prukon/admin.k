@@ -66,6 +66,45 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
         $this->assertSame('kansas', $this->periodScheme(2026, 5));
     }
 
+    public function test_switching_unlocked_month_from_classic_to_sales_resets_draft_fields(): void
+    {
+        $this->useClassicSchemeOnly();
+        $trainer = $this->makeTrainerProfile('Схема sales');
+        $trainer->update(['default_base_salary_cents' => 400000]);
+
+        $this->patchJson(route('schedule.trainer-salary.draft.update', $trainer), [
+            'year' => 2026,
+            'month' => 5,
+            'bonuses' => 80,
+            'rate_per_training' => 50,
+        ])->assertOk();
+
+        $this->useSalesSchemeOnly();
+
+        $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertSee('data-scheme-code="sales"', false)
+            ->assertSee('data-field="sales_percent"', false)
+            ->assertSee('Оплаченные', false)
+            ->assertDontSee('как в отчёте «Нагрузка тренеров»', false)
+            ->getContent();
+
+        $this->assertStringNotContainsString('value="80.00"', $html);
+        $this->assertStringNotContainsString('data-field="rate_per_training"', $html);
+
+        $row = collect(
+            $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+                ->assertOk()
+                ->assertJsonPath('scheme_code', 'sales')
+                ->json('rows')
+        )->firstWhere('trainer_profile_id', $trainer->id);
+        $this->assertNotNull($row);
+        $this->assertSame('4000.00', $row['base_salary']);
+        $this->assertSame(0, $row['sales_percent']);
+        $this->assertSame('0.00', $row['bonuses']);
+        $this->assertSame('sales', $this->periodScheme(2026, 5));
+    }
+
     public function test_visits_from_classic_month_appear_as_kansas_group_rows_after_switch(): void
     {
         $this->useClassicSchemeOnly();
@@ -271,6 +310,47 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
         $this->assertSame('kansas', $this->periodScheme(2026, 5));
     }
 
+    public function test_both_classic_and_sales_granted_unlocked_month_stays_classic(): void
+    {
+        $this->useSalesSchemeOnly();
+        $this->makeTrainerProfile('Sales затем classic');
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'sales');
+
+        $this->grantClassicScheme();
+
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'classic');
+        $this->assertSame('classic', $this->periodScheme(2026, 5));
+        $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('data-field="sales_percent"', $html);
+    }
+
+    public function test_both_kansas_and_sales_granted_unlocked_month_stays_kansas(): void
+    {
+        $this->useSalesSchemeOnly();
+        $this->makeTrainerProfile('Sales затем kansas');
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'sales');
+
+        $this->grantKansasScheme();
+
+        $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->assertJsonPath('scheme_code', 'kansas');
+        $this->assertSame('kansas', $this->periodScheme(2026, 5));
+        $html = (string) $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('data-field="sales_percent"', $html);
+        $this->assertStringContainsString('Настройки месяца', $html);
+    }
+
     public function test_both_schemes_granted_unlocked_kansas_month_becomes_classic(): void
     {
         $this->makeTrainerProfile('Обе схемы');
@@ -310,6 +390,7 @@ final class ScheduleTrainerSalarySchemeSwitchFeatureTest extends ScheduleTrainer
 
         $this->revokePermission('schedule.trainerSalary.scheme.classic');
         $this->revokePermission('schedule.trainerSalary.scheme.kansas');
+        $this->revokePermission('schedule.trainerSalary.scheme.sales');
 
         $this->get(route('schedule.trainer-salary', ['year' => 2026, 'month' => 5]))->assertForbidden();
         $this->getJson(route('schedule.trainer-salary.data', ['year' => 2026, 'month' => 5]))->assertForbidden();

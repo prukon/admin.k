@@ -56,6 +56,7 @@ return [
             // 'schedule.view',
             // 'schedule.trainerSalary.scheme.classic',
             // 'schedule.trainerSalary.scheme.kansas',
+            // 'schedule.trainerSalary.scheme.sales',
             'scheduleSlots.view',
             'scheduleSlots.manage',
             'scheduleSlots.table',

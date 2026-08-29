@@ -146,8 +146,8 @@
       <code>includes/in_app_notifications/echo.blade.php</code>
       (<b>без</b> <code>wsPath: '/app'</code>). Канал <code>user.{id}</code>,
       событие <code>in-app-notification.bell</code>. Кто офлайн — увидит каунтер из БД при следующем заходе.
-      Оверлей процесса/сокета — при флаге <code>cabinet_diagnostics</code> и
-      <code>can(settings.reverbOverlay.manage)</code>
+      Оверлей процесса/сокета — при персональном флаге <code>users.system_monitors</code> и
+      <code>can(settings.systemMonitors.view)</code>
       (<a href="/doc#reverb-status-overlay-index">анонс</a>).</li>
   </ol>
   <p>Форма для админа школы — позже (<code>inAppNotifications.manage</code>). Ручная рассылка по-прежнему только superadmin.</p>

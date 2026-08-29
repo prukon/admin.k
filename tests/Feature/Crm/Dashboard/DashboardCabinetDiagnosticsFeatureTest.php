@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Crm\Dashboard;
 
-use App\Models\Setting;
-use App\Support\CabinetDiagnostics;
 use Illuminate\Support\Facades\Auth;
 use Tests\Feature\Crm\StudentTeams\StudentTeamPivotTestCase;
 
 /**
- * На /cabinet нет JSON-оверлея диагностики: флаг cabinet_diagnostics только для бейджа Reverb.
+ * На /cabinet нет JSON-оверлея диагностики. Бейдж Reverb — через системные мониторы.
  */
 final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestCase
 {
@@ -27,15 +25,10 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
         ]);
     }
 
-    private function enableDiagnosticsSetting(): void
+    public function test_cabinet_has_no_diagnostics_overlay_even_for_superadmin_when_monitors_on(): void
     {
-        Setting::setBool(CabinetDiagnostics::SETTING, true, null);
-    }
-
-    public function test_cabinet_has_no_diagnostics_overlay_even_for_superadmin_when_setting_on(): void
-    {
-        $this->enableDiagnosticsSetting();
         $this->asSuperadmin();
+        $this->user->forceFill(['system_monitors' => true])->save();
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -52,12 +45,14 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
         $this->assertStringNotContainsString('Диагностика консоли', $html);
         $this->assertStringNotContainsString('refreshCabinetDiagnosticsPanel', $html);
         $this->assertStringContainsString('id="js-reverb-status"', $html);
+        $this->assertStringContainsString('id="system-monitors-toggle"', $html);
+        $this->assertMatchesRegularExpression('/<body[^>]*\bsystem-monitors-on\b/', $html);
     }
 
-    public function test_overlay_hidden_for_admin_when_setting_on(): void
+    public function test_overlay_hidden_for_admin_without_permission(): void
     {
-        $this->enableDiagnosticsSetting();
         $this->asAdmin();
+        $this->user->forceFill(['system_monitors' => true])->save();
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -66,12 +61,14 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
         $html = $this->get(route('dashboard'))->assertOk()->getContent();
         $this->assertStringNotContainsString('id="cabinet-diagnostics"', $html);
         $this->assertStringNotContainsString('Диагностика консоли', $html);
+        $this->assertStringNotContainsString('id="js-reverb-status"', $html);
+        $this->assertStringNotContainsString('id="system-monitors-toggle"', $html);
     }
 
     public function test_get_user_details_never_includes_cabinet_diagnostics_payload(): void
     {
-        $this->enableDiagnosticsSetting();
         $this->asSuperadmin();
+        $this->user->forceFill(['system_monitors' => true])->save();
         $this->withSession([
             'current_partner' => $this->partner->id,
             '2fa:passed' => true,
@@ -97,7 +94,6 @@ final class DashboardCabinetDiagnosticsFeatureTest extends StudentTeamPivotTestC
 
     public function test_guest_cannot_open_cabinet_page(): void
     {
-        $this->enableDiagnosticsSetting();
         Auth::logout();
 
         $response = $this->get(route('dashboard'));

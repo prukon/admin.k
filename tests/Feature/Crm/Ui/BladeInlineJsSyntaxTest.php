@@ -75,6 +75,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
         yield 'admin2 layout leftover inline scripts' => ['layouts/admin2.blade.php'];
         yield 'landing layout leftover inline scripts' => ['layouts/landingPage.blade.php'];
         yield 'cabinet layout wide toggle' => ['includes/layout_wide_toggle.blade.php'];
+        yield 'cabinet system monitors toggle' => ['includes/system_monitors_toggle.blade.php'];
+        yield 'cabinet system monitors online users overlay' => ['includes/system_monitors/online_users.blade.php'];
     }
 
     /**
@@ -818,6 +820,13 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringContainsString("credentials: 'same-origin'", $overlay);
         $this->assertStringContainsString("'Accept': 'application/json'", $overlay);
         $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $overlay);
+        $this->assertStringContainsString('function monitorsOn()', $overlay);
+        $this->assertStringContainsString("document.body.classList.contains('system-monitors-on')", $overlay);
+        $this->assertStringContainsString('if (!monitorsOn() || !statusUrl)', $overlay);
+        $this->assertStringContainsString('function startWatching()', $overlay);
+        $this->assertStringContainsString('function stopWatching()', $overlay);
+        $this->assertStringContainsString("document.addEventListener('system-monitors:change'", $overlay);
+        $this->assertStringContainsString('if (monitorsOn())', $overlay);
         $this->assertStringContainsString('setInterval(refreshProcess, 3000)', $overlay);
         $this->assertStringContainsString('setInterval(paint, 1000)', $overlay);
         $this->assertStringContainsString("connection.bind('state_change'", $overlay);
@@ -2246,44 +2255,84 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $this->assertStringNotContainsString('Диагностика консоли', $content);
     }
 
-    public function test_settings_cabinet_diagnostics_button_ajax_contract_and_valid_javascript(): void
+    public function test_settings_page_has_no_cabinet_diagnostics_button(): void
     {
         $path = resource_path('views/admin/setting/setting.blade.php');
         $this->assertFileExists($path);
         $content = (string) file_get_contents($path);
 
-        $this->assertStringContainsString('id="rowCabinetDiagnostics"', $content);
-        $this->assertStringContainsString('id="btnCabinetDiagnostics"', $content);
-        $this->assertStringContainsString('id="cabinetDiagnosticsError"', $content);
-        $this->assertStringContainsString('data-error-for="cabinetDiagnostics"', $content);
-        $this->assertStringContainsString("route('settings.cabinetDiagnostics')", $content);
-        $this->assertStringContainsString('errors.cabinetDiagnostics', $content);
-        $this->assertStringContainsString('$error.text', $content);
-        $this->assertStringContainsString("@can('settings.reverbOverlay.manage')", $content);
-        $this->assertSame(2, substr_count($content, "@can('settings.reverbOverlay.manage')"));
+        $this->assertStringNotContainsString('id="rowCabinetDiagnostics"', $content);
+        $this->assertStringNotContainsString('id="btnCabinetDiagnostics"', $content);
+        $this->assertStringNotContainsString('id="cabinetDiagnosticsError"', $content);
+        $this->assertStringNotContainsString("route('settings.cabinetDiagnostics')", $content);
+        $this->assertStringNotContainsString('errors.cabinetDiagnostics', $content);
+        $this->assertStringNotContainsString("@can('settings.reverbOverlay.manage')", $content);
         $this->assertStringNotContainsString("@can('settings.cabinetDiagnostics.manage')", $content);
         $this->assertStringNotContainsString('canManageCabinetDiagnostics', $content);
-        $this->assertStringContainsString('Оверлей статуса Reverb', $content);
-        $this->assertStringNotContainsString('Диагностика консоли', $content);
+        $this->assertStringNotContainsString('Оверлей статуса Reverb', $content);
+    }
 
-        $handlerStart = strpos($content, "click', '#btnCabinetDiagnostics'");
-        $this->assertNotFalse($handlerStart);
-        $handlerEnd = strpos($content, "@can('settings.registration.manage')", $handlerStart);
-        $this->assertNotFalse($handlerEnd);
-        $handler = substr($content, $handlerStart, $handlerEnd - $handlerStart);
-        $this->assertStringContainsString("\$label.text(active ? 'включён' : 'выключен')", $handler);
-        $this->assertStringNotContainsString('включена', $handler);
-        $this->assertStringNotContainsString('выключена', $handler);
-        $this->assertStringContainsString("\$cb.prop('checked', !active)", $handler);
-        $this->assertStringContainsString('xhr.status !== 403', $handler);
-        $this->assertStringContainsString('Оверлей статуса Reverb доступен только суперадмину.', $handler);
-        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $handler);
-        $this->assertStringContainsString("xhr.responseJSON.errors.cabinetDiagnostics", $handler);
+    public function test_system_monitors_toggle_ajax_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/system_monitors_toggle.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString("@can('settings.systemMonitors.view')", $content);
+        $this->assertStringContainsString('id="system-monitors-toggle"', $content);
+        $this->assertStringContainsString('role="switch"', $content);
+        $this->assertStringContainsString('ios-switch', $content);
+        $this->assertStringContainsString("route('cabinet.system-monitors.update')", $content);
+        $this->assertStringContainsString('errors.system_monitors', $content);
+        $this->assertStringContainsString('data-error-for="system_monitors"', $content);
+        $this->assertStringContainsString('system-monitors:change', $content);
+        $this->assertStringContainsString('system-monitors-on', $content);
+        $this->assertStringContainsString('if (saving)', $content);
+        $this->assertStringContainsString('applyOn(previousOn)', $content);
+        $this->assertStringContainsString('applyOn(savedOn)', $content);
+        $this->assertStringContainsString("method: 'POST'", $content);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+        $this->assertStringContainsString("'Accept': 'application/json'", $content);
+        $this->assertStringContainsString("body.set('system_monitors', nextOn ? '1' : '0')", $content);
+        $this->assertStringNotContainsString("@can('settings.reverbOverlay.manage')", $content);
 
         $this->assertInlineScriptsContainingHaveValidJavascript(
             $path,
-            'btnCabinetDiagnostics',
-            'blade-js-settings-cabinet-diagnostics'
+            'system-monitors-toggle',
+            'blade-js-system-monitors-toggle'
+        );
+    }
+
+    public function test_online_users_overlay_ajax_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/system_monitors/online_users.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="js-online-users"', $content);
+        $this->assertStringContainsString('online-users system-monitor', $content);
+        $this->assertStringContainsString("route('cabinet.system-monitors.online-users')", $content);
+        $this->assertStringContainsString('function monitorsOn()', $content);
+        $this->assertStringContainsString('if (!monitorsOn() || !statusUrl)', $content);
+        $this->assertStringContainsString('setInterval(refreshList, 3000)', $content);
+        $this->assertStringContainsString("document.addEventListener('system-monitors:change'", $content);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+        $this->assertStringContainsString("'Accept': 'application/json'", $content);
+        $this->assertStringContainsString('credentials: \'same-origin\'', $content);
+        $this->assertStringContainsString('Никого нет онлайн', $content);
+        $this->assertStringContainsString('online-users__partner-title', $content);
+        $this->assertStringContainsString('function escapeHtml(value)', $content);
+        $this->assertStringContainsString('e.preventDefault()', $content);
+        $this->assertStringContainsString('e.stopPropagation()', $content);
+        $this->assertStringContainsString('if (pollTimer)', $content);
+        $this->assertStringContainsString('if (data && data.ok)', $content);
+        $this->assertStringContainsString("render({ total: 0, partners: [] })", $content);
+        $this->assertStringContainsString('if (!response.ok)', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'refreshList',
+            'blade-js-online-users-overlay'
         );
     }
 
@@ -4487,6 +4536,8 @@ final class BladeInlineJsSyntaxTest extends TestCase
             resource_path('views/admin/schedule/trainer-salary/kansas/_avg_cell.blade.php'),
             resource_path('views/admin/schedule/trainer-salary/kansas/_month_settings_body.blade.php'),
             resource_path('views/admin/schedule/trainer-salary/kansas/_month_settings_modal.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/sales/_table.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/sales/_sheet_detail_table.blade.php'),
         ] as $blade) {
             $this->assertFileExists($blade);
             $this->assertStringNotContainsString(
@@ -4525,6 +4576,90 @@ final class BladeInlineJsSyntaxTest extends TestCase
         $sheetTable = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/kansas/_sheet_detail_table.blade.php'));
         $this->assertStringNotContainsString('data-kids-tooltip-hint', $sheetTable);
         $this->assertStringNotContainsString("'full' =>", $sheetTable);
+    }
+
+    public function test_trainer_salary_js_sales_live_row_update_contract_is_valid_javascript(): void
+    {
+        $resourcePath = resource_path('js/trainer-salary.js');
+        $publicPath = public_path('js/trainer-salary.js');
+        $this->assertFileExists($resourcePath);
+        $this->assertFileExists($publicPath);
+        $this->assertSame(
+            (string) file_get_contents($resourcePath),
+            (string) file_get_contents($publicPath),
+            'Hotfix public/js/trainer-salary.js должен совпадать с resources/js/trainer-salary.js'
+        );
+
+        foreach ([$resourcePath, $publicPath] as $path) {
+            $content = (string) file_get_contents($path);
+
+            $this->assertSame(
+                1,
+                preg_match('/function updateRowFromPayload\(row\) \{[\s\S]*?\n    function/', $content, $updateMatch),
+                'Не найден updateRowFromPayload — PATCH sales обновляет ячейки из JSON row'
+            );
+            $updateFn = $updateMatch[0];
+            $this->assertStringContainsString("tr.querySelector('.trainer-salary-paid-months')", $updateFn);
+            $this->assertStringContainsString("tr.querySelector('.trainer-salary-paid-packages')", $updateFn);
+            $this->assertStringContainsString("tr.querySelector('.trainer-salary-sales-base')", $updateFn);
+            $this->assertStringContainsString("tr.querySelector('.trainer-salary-commission')", $updateFn);
+            $this->assertStringContainsString('formatMoneyRublesDisplay(row.paid_months)', $updateFn);
+            $this->assertStringContainsString('formatMoneyRublesDisplay(row.commission)', $updateFn);
+            $this->assertStringNotContainsString(
+                "querySelector('[data-field=\"sales_percent\"]')",
+                $updateFn,
+                'PATCH не должен перезаписывать input процента — пользователь мог продолжать ввод'
+            );
+
+            $this->assertSame(
+                1,
+                preg_match('/function saveDraft\([\s\S]*?\n    function formOne/', $content, $saveMatch),
+                'Не найден saveDraft'
+            );
+            $this->assertStringContainsString(
+                'result.body.reload_table && applyTableHtml(result.body.table_html)',
+                $saveMatch[0]
+            );
+            $this->assertStringContainsString('updateRowFromPayload(result.body.row)', $saveMatch[0]);
+            $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+            $this->assertStringContainsString("'Accept': 'application/json'", $content);
+            $this->assertStringContainsString('showRowErrors(tr, result.body.errors)', $content);
+            $this->assertStringContainsString('[data-error-for="', $content);
+
+            $output = [];
+            $exitCode = 0;
+            exec('node --check '.escapeshellarg($path).' 2>&1', $output, $exitCode);
+            $this->assertSame(
+                0,
+                $exitCode,
+                "JS syntax error in {$path}:\n".implode("\n", $output)
+            );
+        }
+
+        foreach ([
+            resource_path('views/admin/schedule/trainer-salary/sales/_table.blade.php'),
+            resource_path('views/admin/schedule/trainer-salary/sales/_sheet_detail_table.blade.php'),
+        ] as $blade) {
+            $this->assertFileExists($blade);
+            $html = (string) file_get_contents($blade);
+            $this->assertStringNotContainsString(
+                '<script',
+                $html,
+                'Таблица sales не должна содержать inline <script> — логика в trainer-salary.js'
+            );
+        }
+
+        $table = (string) file_get_contents(resource_path('views/admin/schedule/trainer-salary/sales/_table.blade.php'));
+        $this->assertStringContainsString('data-field="sales_percent"', $table);
+        $this->assertStringContainsString('step="1"', $table);
+        $this->assertStringContainsString('data-error-for="sales_percent"', $table);
+        $this->assertStringContainsString('trainer-salary-paid-months', $table);
+        $this->assertStringContainsString('trainer-salary-paid-packages', $table);
+        $this->assertStringContainsString('trainer-salary-sales-base', $table);
+        $this->assertStringContainsString('trainer-salary-commission', $table);
+        $this->assertStringNotContainsString('data-field="rate_per_training"', $table);
+        $this->assertStringNotContainsString('data-field="premium_increment"', $table);
+        $this->assertStringNotContainsString('applyTableHtml', $table);
     }
 
     /**

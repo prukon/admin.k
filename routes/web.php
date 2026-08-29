@@ -223,6 +223,14 @@ Route::middleware(['auth', '2fa'])->group(function () {
     Route::post('/cabinet/layout-wide', [\App\Http\Controllers\User\LayoutPreferenceController::class, 'update'])
         ->name('cabinet.layout-wide.update');
 
+    Route::get('/cabinet/system-monitors/online-users', [\App\Http\Controllers\User\SystemMonitorsController::class, 'onlineUsers'])
+        ->middleware('can:settings.systemMonitors.view')
+        ->name('cabinet.system-monitors.online-users');
+
+    Route::post('/cabinet/system-monitors', [\App\Http\Controllers\User\SystemMonitorsController::class, 'update'])
+        ->middleware('can:settings.systemMonitors.view')
+        ->name('cabinet.system-monitors.update');
+
     Route::middleware('can:inAppNotifications.view')->group(function () {
         Route::get('/in-app-notifications', [InAppNotificationController::class, 'index'])
             ->name('inAppNotifications.index');
@@ -901,9 +909,6 @@ Route::middleware(['auth', '2fa'])->group(function () {
         Route::post('admin/settings/force-2fa-admins', [SettingController::class, 'toggleForce2faAdmins'])
             ->middleware('can:settings.force2fa.admins')
             ->name('settings.force2fa.admins');
-        Route::post('admin/settings/cabinet-diagnostics', [SettingController::class, 'toggleCabinetDiagnostics'])
-            ->middleware('can:settings.reverbOverlay.manage')
-            ->name('settings.cabinetDiagnostics');
     });
 
     // Логи текущего партнёра (все типы)

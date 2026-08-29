@@ -40,6 +40,7 @@ class User extends Authenticatable
         'is_on_medical_register' => 'boolean',
         'is_with_disability' => 'boolean',
         'layout_wide' => 'boolean',
+        'system_monitors' => 'boolean',
         'last_seen_at' => 'datetime',
 
         //2FA

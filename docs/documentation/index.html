@@ -28,6 +28,139 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="online-users-overlay-index">Оверлей «Онлайн» системных мониторов (2026‑08)</h2>
+  <div class="note">
+    На страницах CRM (лейаут <code>admin2</code>, классы
+    <code>sidebar-mini layout-fixed</code>, в том числе dashboard, <code>/chat</code>,
+    <code>/admin/settings</code>) справа снизу в стеке
+    <code>#system-monitors-stack</code> (<code>position: fixed; right: 12px; bottom: 12px;
+    z-index: 20000</code>, колонка) — список <b>Онлайн</b>
+    (<code>#js-online-users</code>, класс <code>system-monitor</code>)
+    <b>над</b> бейджем Reverb.
+    Это операционный снимок по всем школам, не зелёная точка и не подзаголовок шапки чата
+    (<a href="/doc#chat-presence-index">онлайн / карточка</a>).
+    Виден при <code>SystemMonitors::shouldShow()</code>: скрытое
+    <code>can(settings.systemMonitors.view)</code> <b>и</b> персональный флаг
+    <code>users.system_monitors</code>. Superadmin — через <code>Gate::before</code>.
+    У admin / trainer / user без выдачи права и на логине / лендинге оверлея нет.
+    JSON-оверлея диагностики на <code>/cabinet</code> нет.
+    Переключатель — <a href="/doc#system-monitors-index">анонс системных мониторов</a>,
+    бейдж процесса/сокета — <a href="/doc#reverb-status-overlay-index">оверлей Reverb</a>.
+    <br><br>
+    1) <b>Кто в списке.</b> <code>users.last_seen_at</code> не старше 120 секунд
+    (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>, ровно 120 ещё онлайн, 121 — нет).
+    Тот же heartbeat, что у чата: <code>POST /presence/ping</code>.
+    Все роли (ученик / тренер / admin / superadmin), все партнёры
+    (сессия <code>current_partner</code> снимок <b>не</b> режет), себя тоже.
+    <code>is_enabled=0</code> входит, если ping свежий. Soft-deleted пользователь — нет.
+    Soft-deleted партнёр всё ещё группирует живых (eager <code>withTrashed()</code>).
+    <br>
+    2) <b>Группы.</b> Блок на партнёра: название и число, ниже ФИО
+    (<code>lastname</code> + <code>name</code>, <code>User::full_name</code>).
+    Сортировка блоков по названию, блок без <code>partner_id</code> —
+    последним, заголовок «Без партнёра». Пустое название школы — «Без названия».
+    Пустое ФИО — <code>#id</code>. Пустой список — «Никого нет онлайн».
+    <br>
+    3) <b>HTTP.</b> <code>GET /cabinet/system-monitors/online-users</code>
+    (<code>cabinet.system-monitors.online-users</code>,
+    <code>can:settings.systemMonitors.view</code>,
+    Form Request <code>OnlineUsersMonitorRequest</code>,
+    снимок <code>OnlineUsersMonitor::snapshot()</code>).
+    Всегда JSON: <code>ok</code>, <code>online_within_seconds</code>, <code>total</code>,
+    <code>partners[]</code> (<code>id</code>, <code>title</code>, <code>count</code>,
+    <code>users[].id</code> / <code>name</code>). Без email / password / <code>last_seen_at</code>
+    в элементе пользователя. Нативный GET без <code>X-Requested-With</code> — тот же JSON,
+    не HTML-страница. Гость — редирект / 401. Без права — 403. POST/PATCH/PUT/DELETE — 405.
+    Персональный флаг GET <b>не</b> закрывает: без флага снимок 200, оверлей в DOM скрыт CSS
+    (<code>body:not(.system-monitors-on) .system-monitor</code>).
+    <br>
+    4) <b>Клиент.</b> Include
+    <code>includes/system_monitors/online_users.blade.php</code> в
+    <code>includes/system_monitors_stack.blade.php</code>
+    (разметка стека при <code>SystemMonitors::canView()</code>).
+    Первый HTML — пустой <code>data-role="list"</code> и «…» в счётчике; имена после fetch.
+    Опрос раз в 3 с, только пока переключатель включён
+    (<code>system-monitors:change</code> / класс <code>system-monitors-on</code>).
+    Повторное включение не плодит второй interval. Сбой fetch / ответ не-ok /
+    тело без <code>ok</code> очищает список, не оставляет прошлых людей.
+    Кнопка копирует текст списка. Имена и названия школ экранируются
+    (<code>escapeHtml</code>), не сырой HTML.
+    <br><br>
+    Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    чат — <a href="/docs/documentation/chat#online-users-overlay">chat §оверлей онлайна</a>.
+    Тесты: <code>SystemMonitorsOnlineUsersFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersAccessFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersUxFeatureTest</code>
+    (пустой первый кадр, XSS, откат списка при ошибке fetch, один poller),
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
+  <h2 id="trainer-salary-sales-index">ЗП тренеров: схема «% от продаж» (2026‑08)</h2>
+  <div class="note">
+    Третья изолированная схема вкладки
+    <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a>
+    (<code>/schedule/trainer-salary</code>): оклад + % от реальных оплат учеников группы.
+    Не путать с Канзасом (премия от среднего посещений) и classic (ставка × тренировки).
+    Подробно — <a href="/docs/documentation/schedule-trainer-salary#sales">ЗП §13</a>.
+    <br><br>
+    1) <b>Включение.</b> Скрытое право <code>schedule.trainerSalary.scheme.sales</code>
+    (описание «ЗП тренеров: схема «% от продаж» (оклад + процент от оплат учеников)»),
+    <code>is_visible=0</code>, <code>sort_order=28</code>, не в базовых ролях,
+    миграция <code>2026_08_29_013000_add_trainer_salary_scheme_sales.php</code> никому не выдаёт.
+    Superadmin ставит галочку роли школы в «Настройки → Права и роли».
+    По умолчанию выключено. Если выданы несколько схем — побеждает первая в реестре
+    (<code>classic</code>, затем <code>kansas</code>, затем <code>sales</code>).
+    Superadmin без выдачи видит модуль, но fallback — <code>classic</code>, не sales.
+    Сотрудникам нужны ещё <code>schedule.trainerSalary.view</code> / <code>manage</code>.
+    <br>
+    2) <b>Формула</b> (копейки, без float):
+    база = оплаченные <code>users_prices</code> месяца вкладки
+    (<code>new_month</code> = 1-е число, <code>effective_is_paid</code>, <code>price_cents &gt; 0</code>)
+    + оплаченные абонементы (<code>user_lesson_packages</code>) по дате оплаты в этом календарном месяце.
+    Комиссия = <code>intdiv(база × %, 100)</code>. Итого = оклад + комиссия + бонусы − вычеты.
+    Ручная «оплачено» входит; явный <code>is_manual_paid=false</code> исключает даже при <code>is_paid=true</code>.
+    Клубный взнос / форма / лагерь / доп. платежи не входят.
+    Месячный ULP, уже учтённый в оплаченном <code>users_prices</code>, в абонементы не дублируется.
+    Абонемент без <code>team_id</code> или без даты оплаты (нет <code>payables.paid_at</code> и нет ручной даты) никому не идёт.
+    <br>
+    3) <b>Чьи продажи.</b> <code>team_id</code> оплаты → тренеры <code>team_trainer</code>.
+    Два тренера группы — каждый 100% базы (свой %). % — целое 0–100, только в черновике месяца
+    (на карточке тренера поля нет, с <code>default_*</code> не копируется).
+    Оклад при первом появлении строки копируется из <code>default_base_salary_cents</code>, дальше правится в черновике.
+    В таблице — все активные тренеры (как classic), даже без оплат; пустого Канзаса «скрыть без визитов» здесь нет.
+    <br>
+    4) <b>Черновик и UX.</b> Колонки: Тренер, Оклад, %, Оплаченные месяца, Абонементы, База продаж, % от продаж, Бонусы, Вычеты, Коммент., Итого, Расчет.
+    Первое открытие и другой месяц: % = 0, <code>step="1"</code>, ошибка под полем <code>data-error-for="sales_percent"</code>.
+    Смена фильтра месяца не копирует % с соседнего месяца.
+    Нет кнопки «Настройки месяца» и модалки Канзаса. Подзаголовок вкладки есть
+    («% — от оплаченных месяцев этого периода и абонементов по дате оплаты»).
+    PATCH как у classic: JSON <code>row</code> (комиссия, база, месяца) <b>без</b> <code>reload_table</code> —
+    клиент обновляет ячейки из <code>row</code>, input процента не перезаписывает, соседние незавершённые строки не затирает.
+    Hotfix <code>public/js/trainer-salary.js</code> = <code>resources/js/trainer-salary.js</code> (не Vite).
+    <br>
+    5) <b>HTTP.</b> Гость — 302 / JSON 401. Без <code>view</code> или без схемы у сотрудника — 403. Зритель GET 200, PATCH/POST 403.
+    Успех PATCH/POST (в том числе без <code>X-Requested-With</code>) — JSON 200, запись в БД, не пустой 200 и не redirect.
+    AJAX-валидация — 422 <code>errors.sales_percent</code> (дробь <code>10.5</code>, &lt;0, &gt;100).
+    Non-AJAX дробный % — 302 + session <code>errors.sales_percent</code>, в БД не пишется.
+    Classic/kansas-поля в PATCH sales игнорируются (не 500). Classic не навязывает целое %.
+    <br>
+    6) <b>Изоляция.</b> Код <code>app/Services/Schedule/TrainerSalary/Schemes/Sales/</code>,
+    таблицы <code>trainer_salary_sales_draft_trainers</code> / <code>trainer_salary_sales_snapshot_trainers</code>,
+    UI <code>resources/views/admin/schedule/trainer-salary/sales/</code>.
+    Classic и Kansas эти поля не читают. Смена схемы без слепка сбрасывает черновик
+    (<a href="/docs/documentation/schedule-trainer-salary#scheme-switch">§1.3</a>): оклад/бонусы/X/% не переносятся.
+    После «Расчет» схема месяца фиксируется. Лист — readonly, правка черновика его не меняет.
+    Тесты: <code>ScheduleTrainerSalarySalesFeatureTest</code>,
+    <code>ScheduleTrainerSalarySalesAccessFeatureTest</code>,
+    <code>ScheduleTrainerSalarySalesUiContractsFeatureTest</code>,
+    <code>BladeInlineJsSyntaxTest::test_trainer_salary_js_sales_live_row_update_contract_is_valid_javascript</code>,
+    <code>TrainerSalarySchemeSalesPermissionCatalogFeatureTest</code>,
+    <code>SalesTrainerSalaryCalculatorTest</code>,
+    <code>TrainerSalarySalesDocumentationContractTest</code>.
+  </div>
+
   <h2 id="journal-postpay-payment-due-index">Журнал: сумма неоплаченной постоплаты в колонке рубля (2026‑08)</h2>
   <div class="note">
     На <code>/schedule</code> колонка с иконкой рубля
@@ -837,48 +970,80 @@
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
-  <h2 id="cabinet-diagnostics-index">Оверлей статуса Reverb: кнопка на /admin/settings (2026‑08)</h2>
+  <h2 id="system-monitors-index">Системные мониторы: переключатель в шапке (2026‑08)</h2>
   <div class="note">
-    На <code>/admin/settings</code> (вкладка «Общие») кнопка <b>Оверлей статуса Reverb</b>
-    (чекбокс + «Применить»). Право <code>settings.reverbOverlay.manage</code>:
-    <code>is_visible=0</code>, никому не выдаётся. Superadmin видит кнопку, потому что
+    В шапке кабинета слева от колокольчика — iOS-переключатель системных мониторов
+    (оверлеи на экране: Reverb и онлайн по партнёрам; логи позже).
+    Право <code>settings.systemMonitors.view</code>:
+    <code>is_visible=0</code>, никому не выдаётся. Superadmin видит переключатель, потому что
     <code>Gate::before</code> обходит проверки (<code>@can</code> /
-    <code>CabinetDiagnostics::actorCanManage()</code>).
+    <code>SystemMonitors::canView()</code>).
     На <code>/cabinet</code> JSON-оверлея диагностики нет.
+    Кнопки на <code>/admin/settings</code> нет.
     <br><br>
-    1) <b>Флаг.</b> Глобальная запись <code>settings.name = cabinet_diagnostics</code>,
-    <code>partner_id = NULL</code>, по умолчанию выкл. POST
-    <code>/admin/settings/cabinet-diagnostics</code> (имя
-    <code>settings.cabinetDiagnostics</code>, внутри <code>can:settings.view</code>
-    и <code>can:settings.reverbOverlay.manage</code>).
-    Без права — 403 JSON под полем/в модалке
-    («Оверлей статуса Reverb доступен только суперадмину.»);
-    клиент <b>не</b> подставляет английский <code>responseJSON.message</code> при 403.
-    422 — <code>errors.cabinetDiagnostics</code> в
-    <code>#cabinetDiagnosticsError</code> («Укажите состояние…» / «Некорректное значение…»).
-    Чекбокс при ошибке откатывается. Подписи <b>включён</b> / <b>выключен</b>
-    (не «включена»). Native POST без <code>X-Requested-With</code> тоже сохраняет флаг
-    (JSON 200 <code>success</code>, не пустой 200 и не 500). GET/PATCH/DELETE этого URI — 404/405.
-    Партнёрская строка <code>cabinet_diagnostics</code> оверлей <b>не</b> включает.
+    1) <b>Флаг.</b> Персональная колонка <code>users.system_monitors</code>,
+    по умолчанию выкл. POST
+    <code>/cabinet/system-monitors</code> (имя
+    <code>cabinet.system-monitors.update</code>,
+    <code>can:settings.systemMonitors.view</code>).
+    Без права — 403 JSON (middleware <code>can:</code>, не пустой 200).
+    Текст Form Request
+    «Системные мониторы доступны только с правом просмотра.» —
+    если запрос дойдёт до Request.
+    422 — <code>errors.system_monitors</code> в
+    <code>#system-monitors-error</code> («Укажите состояние…» / «Некорректное значение…»).
+    Переключатель при ошибке откатывается.
+    Native POST без <code>X-Requested-With</code> тоже сохраняет флаг
+    (редирект + <code>status</code>, не пустой 200 и не 500). GET/PATCH/DELETE этого URI — 404/405.
+    Старого <code>settings.reverbOverlay.manage</code> и глобального
+    <code>cabinet_diagnostics</code> нет.
     <br>
     2) <b>Бейдж Reverb.</b> Флаг включает <code>#js-reverb-status</code>
     в лейауте <code>admin2</code> (<code>sidebar-mini layout-fixed</code>),
     в том числе на самой <code>/admin/settings</code>.
-    Superadmin видит бейдж только пока флаг включён. Выключил — бейджа нет на dashboard,
+    Superadmin видит бейдж только пока свой переключатель включён. Выключил — бейдж скрыт
+    (<code>body:not(.system-monitors-on) .system-monitor</code>) на dashboard,
     чате, настройках и остальных страницах CRM.
-    Первый paint чекбокса: флаг выкл — без <code>checked</code> и «выключен»;
-    флаг вкл — <code>checked</code> и «включён».
     <code>GET /get-user-details</code> ключ <code>cabinet_diagnostics</code> не отдаёт.
     Подробно — <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>.
+    <br>
+    3) <b>Онлайн.</b> Тот же стек <code>#system-monitors-stack</code> (справа снизу:
+    список онлайна над Reverb). <code>#js-online-users</code>, класс
+    <code>system-monitor</code>. GET
+    <code>/cabinet/system-monitors/online-users</code>
+    (<code>cabinet.system-monitors.online-users</code>,
+    <code>can:settings.systemMonitors.view</code>,
+    Form Request <code>OnlineUsersMonitorRequest</code>).
+    Онлайн = <code>users.last_seen_at</code> не старше 120 секунд
+    (<code>UserPresence::ONLINE_WITHIN_SECONDS</code>), все роли,
+    все партнёры, в том числе <code>is_enabled=0</code>, без soft-deleted.
+    JSON: <code>ok</code>, <code>total</code>, <code>partners[]</code>
+    (<code>title</code> + <code>count</code> + <code>users[].name</code> — фамилия имя).
+    Без <code>partner_id</code> — блок «Без партнёра». Гость — редирект/401,
+    без права — 403, POST/PATCH/DELETE — 405.
+    Опрос раз в 3 с, только пока переключатель включён.
+    Первый HTML — пустой список; имена после fetch. Сбой опроса очищает список.
+    GET снимка не зависит от персонального флага.
+    Пустое название школы — «Без названия», пустое ФИО — <code>#id</code>.
+    Подробно — <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.
     <br><br>
-    Подробно — <a href="/docs/documentation/dashboard-cabinet#cabinet-diagnostics">dashboard-cabinet §8</a>,
+    Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
     каталог — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
-    Тесты: <code>SettingsCabinetDiagnosticsPermissionCatalogFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsAccessFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsAjaxContractFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsNonAjaxSafetyNetFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsUiContractsFeatureTest</code>,
+    Тесты: <code>SystemMonitorsPermissionCatalogFeatureTest</code>,
+    <code>SystemMonitorsToggleFeatureTest</code>,
+    <code>SystemMonitorsAccessFeatureTest</code>,
+    <code>SystemMonitorsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsNonAjaxSafetyNetFeatureTest</code>,
+    <code>SystemMonitorsUxFeatureTest</code>
+    (персональный экран второго суперадмина, слева от колокольчика,
+    дефолт выкл, откат 422, опрос Reverb только пока включено),
+    <code>SystemMonitorsOnlineUsersFeatureTest</code>
+    (группировка по партнёру, 120 с, все роли, оверлей над Reverb),
+    <code>SystemMonitorsOnlineUsersAccessFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code>,
+    <code>SystemMonitorsOnlineUsersUxFeatureTest</code>
+    (пустой первый кадр, XSS, откат списка при ошибке fetch),
     <code>DashboardCabinetDiagnosticsFeatureTest</code>,
     <code>ChatReverbOverlayFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
@@ -1168,7 +1333,9 @@
     В чате видно, кто сейчас в кабинете, прочитано ли последнее исходящее,
     ФИО родителя в контактах и карточку человека из шапки диалога.
     Не путать точку онлайна со временем справа в списке и с бейджем непрочитанных
-    (<a href="/doc#chat-index">анонс чата</a>).
+    (<a href="/doc#chat-index">анонс чата</a>)
+    и с оверлеем «Онлайн» системных мониторов (все партнёры справа снизу, не точка в списке) —
+    <a href="/doc#online-users-overlay-index">оверлей онлайна</a>.
     <br><br>
     1) <b>Онлайн.</b> Колонка <code>users.last_seen_at</code>. Онлайн, если значение
     не старше <b>2 минут</b> (ровно 120 секунд ещё онлайн, 121 — уже нет).
@@ -1401,22 +1568,24 @@
     <code>BladeInlineJsSyntaxTest</code> (admin2 / landing + нет Kit).
   </div>
 
-  <h2 id="reverb-status-overlay-index">Оверлей статуса Reverb (флаг на /admin/settings) (2026‑08)</h2>
+  <h2 id="reverb-status-overlay-index">Оверлей статуса Reverb (переключатель системных мониторов) (2026‑08)</h2>
   <div class="note">
     На страницах CRM (лейаут <code>admin2</code>, классы
     <code>sidebar-mini layout-fixed</code>, в том числе <code>/admin/settings</code>)
     superadmin видит бейдж <b>Reverb</b>
     поверх всех окон (<code>z-index: 20000</code>): две строки — <b>процесс</b> и <b>сокет</b>.
-    Бейдж рисуется только если включён флаг
-    (<code>settings.name = cabinet_diagnostics</code>, <code>partner_id = NULL</code>)
-    <b>и</b> <code>can(settings.reverbOverlay.manage)</code>
-    (<code>CabinetDiagnostics::shouldShow()</code>). Право скрытое, никому не выдаётся;
-    superadmin проходит <code>Gate::before</code>. Выключил флаг на
-    <code>/admin/settings</code> — <code>#js-reverb-status</code> нет.
+    Бейдж рисуется только если включён персональный флаг
+    (<code>users.system_monitors</code>)
+    <b>и</b> <code>can(settings.systemMonitors.view)</code>
+    (<code>SystemMonitors::shouldShow()</code>). Право скрытое, никому не выдаётся;
+    superadmin проходит <code>Gate::before</code>. Выключил переключатель в шапке —
+    <code>#js-reverb-status</code> скрыт (<code>body:not(.system-monitors-on)</code>).
     У admin / trainer / user (без выдачи права) и на логине бейджа нет.
     JSON-оверлея диагностики на <code>/cabinet</code> нет.
     Это индикатор realtime чата и колокольчика, не отдельный продукт для школы.
-    Кнопка включения — <a href="/doc#cabinet-diagnostics-index">анонс кнопки</a>.
+    Переключатель — <a href="/doc#system-monitors-index">анонс системных мониторов</a>.
+    Список онлайна в том же стеке выше бейджа —
+    <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.
     <br><br>
     1) <b>Процесс.</b> PHP проверяет TCP на внутреннем
     <code>broadcasting.connections.reverb.options</code>
@@ -1426,7 +1595,7 @@
     иначе nginx «живой», а <code>reverb:start</code> мёртв — и оверлей врёт «up».
     API: <code>GET /chat/api/reverb-status</code> (<code>auth</code> + <code>2fa</code>,
     <b>без</b> <code>messages.view</code>; Form Request —
-    <code>can(settings.reverbOverlay.manage)</code>, superadmin через
+    <code>can(settings.systemMonitors.view)</code>, superadmin через
     <code>Gate::before</code>).
     JSON: <code>listening</code>, <code>ok</code>, <code>host</code>, <code>port</code>, <code>driver</code>.
     Гость — редирект / 401. Без права — 403. POST/PATCH/DELETE — 405.
@@ -1463,11 +1632,11 @@
     <code>…/kidscrm.online/public_html</code>), не старый каталог домена.
     <br><br>
     Подробно — <a href="/docs/documentation/chat#reverb-overlay">chat §оверлей</a>,
-    кнопка — <a href="/doc#cabinet-diagnostics-index">оверлей Reverb на /admin/settings</a>,
+    переключатель — <a href="/doc#system-monitors-index">системные мониторы</a>,
     чат — <a href="/doc#chat-index">анонс чата</a>,
     колокольчик — <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
     Тесты: <code>ChatReverbOverlayFeatureTest</code>,
-    <code>SettingsCabinetDiagnosticsUiContractsFeatureTest</code> (бейдж на настройках, первый paint),
+    <code>SystemMonitorsToggleFeatureTest</code> (бейдж на настройках, первый paint),
     <code>BladeInlineJsSyntaxTest</code> (оверлей + Echo без <code>wsPath</code>),
     <code>ChatAjaxContractFeatureTest</code> (HTTP чата при мёртвом Reverb).
   </div>
@@ -1703,14 +1872,17 @@
     и нет периодического <code>GET /chat/api/unread</code>. Пока сокет не <code>connected</code>,
     бейдж и новые сообщения не подтягиваются; при reconnect — один refresh.
     <br>
-    5) <b>Оверлей Reverb</b> — бейдж <code>#js-reverb-status</code> при включённом флаге
-    и <code>can(settings.reverbOverlay.manage)</code> (по умолчанию superadmin через
-    <code>Gate::before</code>). Кнопка на <code>/admin/settings</code> —
-    <a href="/doc#cabinet-diagnostics-index">анонс кнопки</a>.
+    5) <b>Оверлей Reverb</b> — бейдж <code>#js-reverb-status</code> при включённом персональном флаге
+    и <code>can(settings.systemMonitors.view)</code> (по умолчанию superadmin через
+    <code>Gate::before</code>). Переключатель в шапке —
+    <a href="/doc#system-monitors-index">анонс системных мониторов</a>.
     Бейдж, процесс, сокет, nginx: <a href="/doc#reverb-status-overlay-index">оверлей статуса Reverb</a>
     (процесс на внутреннем порте, сокет Echo, сниппет nginx, без <code>wsPath</code>).
     API <code>GET /chat/api/reverb-status</code> — вне <code>can:messages.view</code>,
-    тот же <code>can(settings.reverbOverlay.manage)</code>.
+    тот же <code>can(settings.systemMonitors.view)</code>.
+    Список «Онлайн» по партнёрам в том же стеке —
+    <a href="/doc#online-users-overlay-index">оверлей онлайна</a>
+    (не точка и не подзаголовок шапки).
     <br>
     6) <b>Native POST/PATCH</b> без <code>X-Requested-With</code> — 302 на <code>/chat</code>,
     запись в БД есть (не сырой JSON 200/201).
@@ -2316,17 +2488,19 @@
   <div class="note">
     Модуль <a href="/docs/documentation/schedule-trainer-salary">«ЗП тренеров»</a>
     (<code>/schedule/trainer-salary</code>) — каталог изолированных схем на школу.
-    Сейчас две: <code>classic</code> (оклад + ставка × тренировки + бонусы − вычеты)
-    и <code>kansas</code> (оклад за тренировку + премия от среднего учеников).
+    Сейчас три: <code>classic</code> (оклад + ставка × тренировки + бонусы − вычеты),
+    <code>kansas</code> (оклад за тренировку + премия от среднего учеников)
+    и <code>sales</code> (оклад + % от оплаченных месяцев и абонементов, <a href="#trainer-salary-sales-index">анонс</a>).
     <br><br>
     1) <b>Как superadmin включает схему.</b>
     Отдельного переключателя на вкладке ЗП нет. В контексте школы:
     Настройки → Права и роли (<code>/admin/settings/rules</code>), группа «Расписание»,
     скрытые права (видны только superadmin):
-    «ЗП тренеров: схема «Классическая»» / «… схема «Канзас»».
+    «ЗП тренеров: схема «Классическая»» / «… схема «Канзас»» / «… схема «% от продаж»».
     Достаточно галочки у любой роли партнёра (обычно <code>admin</code>).
     Сотрудникам для вкладки нужны ещё <code>schedule.trainerSalary.view</code> и при правке
-    <code>manage</code>. Если выданы обе схемы, побеждает <code>classic</code> (первая в реестре).
+    <code>manage</code>. Если выданы несколько схем, побеждает первая в реестре
+    (<code>classic</code>, затем <code>kansas</code>, затем <code>sales</code>).
     Superadmin видит модуль и без выдачи: fallback — classic.
     <br>
     2) <b>Канзас в таблице.</b>
@@ -2346,10 +2520,11 @@
     Пока за месяц нет слепков («Расчет» хотя бы у одного тренера / «Сформировать всех»), период следует
     текущему праву партнёра: открыли страницу (в том числе только <code>view</code>), сменили месяц или PATCH/POST —
     <code>scheme_code</code> обновляется, черновик старой схемы сбрасывается
-    (оклад/бонусы/X не переносятся). Визиты журнала остаются: после classic→kansas
+    (оклад/бонусы/X/% не переносятся). Визиты журнала остаются: после classic→kansas
     под тренерами появятся группы. Повторное открытие уже канзасовского месяца X не обнуляет.
     Гость и сотрудник без схемы период не переключают (302/401/403).
-    Если выданы обе схемы — unlocked-месяц становится <code>classic</code>.
+    Если выданы несколько схем — unlocked-месяц становится первой в реестре
+    (<code>classic</code>, затем <code>kansas</code>, затем <code>sales</code>).
     <br>
     4) <b>После первого слепка</b> схема месяца фиксируется целиком. Листы ЗП остаются как были.
     Новый месяц открывается уже по текущему праву.
@@ -2368,7 +2543,8 @@
     <a href="#trainer-salary-kansas-integer-averages-index">анонс целых средних</a>,
     <a href="/doc#trainer-types-kansas-index">типы тренера</a>,
     <a href="/docs/documentation/schedule-trainer-salary-sheets">листы ЗП</a>,
-    <a href="#trainer-salary-kansas-month-settings-index">настройки месяца и таблица</a>.
+    <a href="#trainer-salary-kansas-month-settings-index">настройки месяца и таблица</a>,
+    <a href="#trainer-salary-sales-index">схема «% от продаж»</a>.
     Тесты: <code>ScheduleTrainerSalarySchemeSwitchFeatureTest</code>,
     <code>ScheduleTrainerSalaryKansasFeatureTest</code>,
     <code>ScheduleTrainerSalaryKansasUiContractsFeatureTest</code>,
@@ -4066,7 +4242,7 @@
     <li><a href="/docs/documentation/setting-prices-monthly-users"><strong>Установка цен → По месяцам / По ученикам</strong>: история бывших участников группы (<code>is_former_member</code>, <code>data-former-team-ids</code>), read-only UI, apply/save/manual только для текущего pivot, <b>персональная скидка ученика</b> (каталог слева / снимок на строках справа)</a></li>
     <li><a href="/docs/documentation/setting-prices-custom-payments"><strong>Установка цен → Дополнительные платежи</strong>: <code>team_id</code>, таблица без «Период», создание/редактирование/удаление, описание на консоли, права <code>setPrices.customPayments.view</code> (не в базовых ролях) + <code>manualPaid.manage</code>, JSON store/update/delete</a></li>
     <li><a href="/docs/documentation/in-app-notifications"><strong>In-app уведомления CRM</strong>: колокольчик (3 последних), лента <code>/in-app-notifications</code>, ссылки в тексте, ручная рассылка superadmin, <b>автособытие «ученик добавил группу»</b> (<a href="/doc#cabinet-attach-team-in-app-index">анонс</a>, admin/trainer школы; <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), права <code>inAppNotifications.view</code> / <code>.manage</code>, очередь + Reverb</a></li>
-    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>оверлей статуса Reverb</b> при флаге и <code>can(settings.reverbOverlay.manage)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#cabinet-diagnostics-index">кнопка</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
+    <li><a href="/docs/documentation/chat"><strong>Чат CRM</strong>: 1-на-1 внутри школы, пункт «Чат», <code>/chat</code>, бейдж <code>badge-info</code> (без вспышки в открытом диалоге), <code>messages.view</code> в базовых ролях, Reverb без <code>wsPath</code> без HTTP-опроса inbox, <b>оверлей статуса Reverb</b> при персональном флаге и <code>can(settings.systemMonitors.view)</code> (<a href="/doc#reverb-status-overlay-index">анонс бейджа</a>, <a href="/doc#system-monitors-index">переключатель</a>: процесс :6008/:6009, сокет, сниппет <code>nginx.ssl.conf_reverb</code>), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата), <b>онлайн / галочки / карточка шапки</b> (<a href="/doc#chat-presence-index">анонс</a>: ping без <code>messages.view</code>, в списке нет красной точки, время = последнее сообщение), <b>подзаголовок шапки</b> (<a href="/doc#chat-header-subtitle-index">анонс</a>: участники группы / «онлайн» / «был(а) в сети», не в списке), <b>черновик сообщения</b> (<a href="/doc#chat-draft-index">анонс</a>: <code>participants.draft_body</code>, превью «Черновик:» в списке, собеседник не видит), <b>фильтр контактов по учебной группе</b> (<a href="/doc#chat-contacts-team-filter-index">анонс</a>: селект в модалке, <code>?team_id=</code>, только ученики / «Без группы»), <b>групповой чат</b> (<a href="/doc#chat-groups-index">анонс</a>: кнопка «Создать группу», <code>threads.is_group</code>, состав из шапки — <a href="/doc#chat-group-members-index">анонс состава</a>; <a href="/doc#chat-group-list-title-index">имя в списке</a> — не «Диалог», не ФИО участника, <code>text-align: left</code>), <b>авто-чат учебной группы</b> (<a href="/doc#chat-team-groups-index">анонс</a>: <code>threads.team_id</code>, не кнопка «Создать группу» и не фильтр контактов), <b>мобильная нижняя панель</b> (<a href="/doc#chat-mobile-index">анонс</a>: с планшета 992px, шапка кабинета видна, в диалоге низ скрыт, prefetch истории, зум выключен только на <code>/chat</code>), <b>сплит «Личные» / «Чаты»</b> (<a href="/doc#chat-mobile-inbox-split-index">анонс</a>: на узком экране личка без групп, «Чаты» — <code>#groupThreads</code> без поиска, бейджи раздельно, сайдбар — сумма, inbox JSON смешанный), <b>служба поддержки</b> (<a href="/doc#chat-support-identity-index">анонс</a>: суперадмин в чате как «Служба поддержки»), <b>идентичность 1-на-1</b> (<a href="/doc#chat-private-thread-identity-index">анонс</a>: UNIQUE участника, leftover 0/1 живой не плодит второй тред, группа из двоих не личка), <b>удаление диалога</b> (<a href="/doc#chat-thread-delete-index">анонс</a>: корзина в шапке, скрытое <code>messages.threads.delete</code>, soft-delete лички и ручной группы, не авто-чат <code>team_id</code>), <b>смайлы и реакции</b> (<a href="/doc#chat-emoji-index">анонс</a>: пикер справа в поле, чипы как в Telegram, без unread), без вложений — <a href="/doc#chat-index">анонс чата</a></a></li>
     <li><a href="/docs/documentation/setting-prices-payment-notifications"><strong>Установка цен → Уведомления</strong>: конструктор правил email по неоплаченным <code>users_prices</code>, право <code>setPrices.paymentNotifications.manage</code>, cron 10:00 MSK, фильтр в «Исходящих письмах»</a></li>
     <li><a href="/docs/documentation/lesson-packages-type-postpay"><strong>Право lessonPackages.type.postpay</strong>: выбор типа «Постоплата»; скрытое; не в базовых ролях; UI шаблонов + store/update + «Установка цен»</a></li>
     <li><a href="/docs/documentation/set-prices-package-assignments"><strong>Право setPrices.packageAssignments.view</strong>: вкладка назначений абонементов в админке; невидимое; не в базовых ролях; вместе с <code>lessonPackages.view</code></a></li>
@@ -4094,7 +4270,7 @@
     <li><a href="/docs/documentation/school-schedule-calendar">Расписание школы: календарь, фильтр «Объект», модалка слота (<b>inline-панели привязки</b>, режим фокуса, Esc/отмена), подписи кнопок <code>"название" (остаток N)</code>, гибкий/фиксированный/разовое, <code>slot-user-bind-actions</code> (<b>group_patterns</b> — автозаполнение шаблона фикса; разовое <code>fee_amount_default</code> = каталог × % карточки), <b>превью цепочки</b> <code>assign-fixed-preview</code> (даты с днём недели, «найдено X из N»), <b>выгрузка Excel</b> (листы «Занятия» / «Назначения», <b>контакты ученика и родителя</b>, <b>исторический остаток</b>), JSON/API, аудит «История»</a></li>
     <li><a href="/docs/documentation/schedule-journal">Журнал расписания: <code>/schedule</code> = дневной view над <code>user_team_schedule_slots</code>; <b>локальный прелоадер таблицы</b> (§2.3, <a href="/doc#journal-table-preloader-index">анонс</a>); <b>таблица по содержимому</b> (§2.4, <a href="/doc#journal-table-content-width-index">анонс</a>); <b>пагинация 100</b> и серверный поиск <code>q</code> (§2.2, <a href="/doc#journal-pagination-index">анонс</a>); раскладка <b>fixed из установки цен</b> (<code>place-fixed-abonement</code>: группа→абонемент, <code>team_locked</code>, шапка ФИО/группа, «Подсказка» дней, читаемое превью — §7); <b>гибкий</b> из установки цен по клику (<code>place-flexible-abonement</code>, hint <code>N/M</code>+«Гибкий» / иконка, статус в модалке, AJAX без reload — §7.3); <b>пробное/разовое</b> на полностью пустой ячейке (<code>empty-cell-context</code> / <code>place-trial-lesson</code> / <code>place-single-lesson</code>, права <code>schedule.view</code>+<code>lessonPackages.view</code>, разовое пишет <code>user_lesson_packages.team_id</code>, <b>create_new</b> — сумма и снимок персональной скидки — §7.4); <b>статус занятия</b> (<code>POST /schedule/update</code>, <b>мультитренеры</b> <code>trainer_profile_ids[]</code> / pivot → ЗП, <code>trainer_name</code> через запятую) и <b>удаление</b> (<code>DELETE /schedule/occurrence/{utss}</code>) — AJAX без reload (§6 / §6.3.1); <b>ховер</b> абонемента + строка тренера(ов) при «Посетил», колонка постоплаты «₽ / в день», контекст модалок ФИО→группа→дата, быстрые даты раскладки (§5.1); <b>колонка оплаты месяца</b> по <code>users_prices</code> (зелёная / жёлтая галочка / <b>сумма неоплаченной постоплаты</b> <code>{N}₽</code> — §5.2, <a href="/doc#journal-postpay-payment-due-index">анонс суммы</a>, <a href="/doc#journal-monthly-payment-check">анонс галочки</a>); <b>колонка «кол-во тренировок»</b> по <code>consumes_lesson</code> (§5.3, <a href="/doc#journal-consuming-count-column">анонс</a>); постоплата <code>create_postpay</code> + лок после оплаты; ×N; справочник статусов</a></li>
     <li><a href="/docs/documentation/schedule-trainer-workload">Нагрузка тренеров: вкладка на <code>/schedule</code>, матрица Пн–Вс, зачёт по pivot <code>user_lesson_occurrence_status_event_trainers</code>, быстрый выбор месяца, AJAX <code>schedule.trainer-workload.data</code></a></li>
-    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code> и <code>kansas</code>, <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
+    <li><a href="/docs/documentation/schedule-trainer-salary">ЗП тренеров: схемы <code>classic</code>, <code>kansas</code> и <code>sales</code> («% от продаж», <a href="/doc#trainer-salary-sales-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#sales">§13</a>), <b>типы тренера</b> (<a href="/doc#trainer-types-kansas-index">анонс</a>), <b>модалка «Настройки месяца»</b> и таблица черновика (<a href="/doc#trainer-salary-kansas-month-settings-index">анонс</a>), <b>целые средние Канзаса</b> (факт 15.1 → 16, база без дробей, <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс</a> / <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">§12.1</a>), включение superadmin в матрице, смена схемы месяца без слепка, черновик, слепки vN / batch, <code>view</code>/<code>manage</code> — <a href="/doc#trainer-salary-kansas-index">анонс Канзаса</a></a></li>
     <li><a href="/docs/documentation/schedule-trainer-salary-sheets">Листы ЗП: архив слепков (readonly), фильтр «Только актуальные», batch и snapshot</a></li>
     <li><a href="/docs/documentation/location-team-bindings"><strong>Объекты ↔ группы</strong> (<code>teams.location_id</code>): одна группа — один объект, sync с <code>/admin/locations</code>, лендинг, слоты, отчёты; удалены pivot <code>location_team</code>, <code>teams.address</code>, <code>teams.training_base</code></a></li>
     <li><a href="/docs/documentation/directories-hierarchy"><strong>Справочники: иерархия Район → Объект → Группа</strong> — обзор, вкладки (в т.ч. <b>«Абонементы»</b> → <code>/admin/directories/lesson-packages</code>), <code>DirectoriesMenu</code> (подпись сайдбара; абонементы в меню <b>не</b> входят), права, БД, M2M <code>location_admin_user</code> (до 5 админов на объект), лендинг, CRM заявки, автотесты</a></li>
@@ -4106,7 +4282,7 @@
     <li><a href="/docs/documentation/admin-users-section"><strong>Раздел «Пользователи» (вкладки по ролям)</strong>: сайдбар/h4 «Пользователи»; вкладка <b>«Клиенты»</b> (<code>/admin/users</code>, роль <code>user</code>, label «Клиент»); <code>/admin/trainers</code>, <code>/admin/administrators</code>, <code>/admin/roles/{name}</code>; <code>UsersSectionTabsResolver</code>, права вкладок — <a href="/doc#users-client-naming-index">анонс нейминга</a></a></li>
     <li><a href="/docs/documentation/admin-trainers">Тренеры (админка): <code>/admin/trainers</code>, вкладка в разделе «Пользователи», роль <code>trainer</code>, <code>trainer_profiles</code>, <b>типы тренера (Канзас)</b> — <a href="/doc#trainer-types-kansas-index">анонс</a>, привязка к группам, <b>мультитренеры в журнале при «Посетил»</b> (pivot → нагрузка/ЗП), <b>welcome-письмо при create</b> (<code>send_welcome_email</code>), <b>форма «Изменить пароль»</b> (<code>display: block</code>) — <a href="/doc#trainer-password-form-index">анонс</a>, <b>смена пароля во всплывайке</b> — <a href="/doc#admin-password-change-toast-index">анонс</a>, фильтр в отчётах</a></li>
     <li><a href="/docs/documentation/parents-and-family-cabinet">Родители и семейный кабинет: справочник <code>parents</code>, <b>правка общей карточки</b> (ФИО / ФИО в родительном / паспорт / адрес / контакты) из админки и ЛК, братья с общим <code>parent_id</code>, переключатель в сайдбаре, <code>active_student</code>, <b>оплата месяца/доп. платежа/абонемента за выбранного ребёнка</b> (<a href="/doc#family-student-payment-index">анонс</a>, <code>FamilyPaymentPayerResolver</code>), <b>добавление группы</b> (сайдбар / карандаш на <code>/cabinet</code> и учётной записи, <code>account.user.team.update</code>, §4.5, колокольчик после attach — <a href="/doc#cabinet-attach-team-in-app-body-index">текст с родителем / без</a>), <b>свой пароль в ЛК</b> (тот же → ошибка под полем — <a href="/doc#account-own-password-index">анонс</a>), <b>автосопоставление из лендинга заявок</b> (см. <a href="/docs/documentation/school-leads-widget#school-lead-parent-match">school-leads-widget §5.5.5</a>), права и изоляция партнёра</a></li>
-    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#cabinet-diagnostics-index">анонс кнопки</a>, <code>can(settings.reverbOverlay.manage)</code> + флаг, JSON-оверлея на <code>/cabinet</code> нет)</a></li>
+    <li><a href="/docs/documentation/dashboard-cabinet"><strong>Консоль (/cabinet)</strong>: блоки оплат (доп. платежи — <code>setPrices.customPayments.view</code>, назначенные абонементы — <code>setPrices.cabinetPackages.fixed/flexible/single.view</code>, постоплата в сезонах — <code>setPrices.cabinetPackages.postpay.view</code>, все не в базовых ролях; сезоны — <code>cabinetSeasons.view</code>), селект «Выбор группы» при 2+ группах (сезоны и абонементы по <code>team_id</code>; без сезонов, если есть карточки ULP; без <code>team_id</code> при селекте скрываются — <a href="/doc#cabinet-ulp-team-filter">анонс</a>), <b>семейная оплата</b> за <code>activeStudent</code> (<a href="/doc#family-student-payment-index">анонс</a>), <b>добавление группы</b> (сайдбар «Группа: … изменить», карандаш у «Группа:», <code>account.user.team.update</code>, §7.1, <a href="/doc#cabinet-attach-team-in-app-body-index">колокольчик с родителем / без</a>), семейный контекст, <code>dashboard.view</code>, <b>оверлей Reverb</b> (<a href="/doc#system-monitors-index">анонс переключателя</a>, <code>can(settings.systemMonitors.view)</code> + персональный флаг, JSON-оверлея на <code>/cabinet</code> нет), <b>оверлей «Онлайн»</b> (<a href="/doc#online-users-overlay-index">анонс</a>: все партнёры, не точка чата)</a></li>
     <li><a href="/docs/documentation/contracts">Договоры (клиентские): список, модалка создания, <b>блок без юрлица группы</b> при шаблоне с <code>legal_entity_*</code>, карточка, revoke/refund, аудит <code>contract.*</code>, вкладка «Шаблоны»</a></li>
     <li><a href="/docs/documentation/contract-templates">Шаблоны договоров DOCX: create/edit/email, <code>fields_schema</code>, системные <code>{{contract_date}}</code> / <code>contract_id</code> / <code>documents_url</code>, <b>подстановка при разрыве скобок Word</b> (§6.2), аккордеон «Юр. лицо» / <code>child_address</code>, версии, аудит</a></li>
     <li><a href="/docs/documentation/account-contract-fill">Заполнение договора родителем: <code>/account-settings/documents</code>, модалка fill, generate PDF (<b>авто <code>{{contract_date}}</code></b>, inject юрлица), подпись SMS, sync профиля, <b>каунтер активных договоров</b> в сайдбаре и на вкладке (§1.0)</a></li>

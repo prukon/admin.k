@@ -189,6 +189,9 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('schedule.trainerSalary.scheme.kansas', function (User $user) {
             return $user->hasPermission('schedule.trainerSalary.scheme.kansas');
         });
+        Gate::define('schedule.trainerSalary.scheme.sales', function (User $user) {
+            return $user->hasPermission('schedule.trainerSalary.scheme.sales');
+        });
 
         // Расписание школы (слоты)
         Gate::define('scheduleSlots.view', function (User $user) {
@@ -318,10 +321,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasPermission('settings.registration.manage');
         });
 
-        // Оверлей статуса Reverb: невидимое право, никому не выдаётся.
+        // Системные мониторы (оверлеи): невидимое право, никому не выдаётся.
         // Superadmin проходит Gate::before.
-        Gate::define('settings.reverbOverlay.manage', function (User $user) {
-            return $user->hasPermission('settings.reverbOverlay.manage');
+        Gate::define('settings.systemMonitors.view', function (User $user) {
+            return $user->hasPermission('settings.systemMonitors.view');
         });
 
         // Страница "Настройки -> Права и роли"

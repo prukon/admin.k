@@ -225,7 +225,7 @@
 
 </head>
 
-<body class="hold-transition sidebar-mini layout-fixed{{ auth()->user()?->layout_wide ? ' layout-wide' : '' }}{{ request()->routeIs('chat.index') ? ' chat-immersive' : '' }}">
+<body class="hold-transition sidebar-mini layout-fixed{{ auth()->user()?->layout_wide ? ' layout-wide' : '' }}{{ \App\Support\SystemMonitors::shouldShow(auth()->user()) ? ' system-monitors-on' : '' }}{{ request()->routeIs('chat.index') ? ' chat-immersive' : '' }}">
     <div class="wrapper">
 
         <!-- Preloader -->
@@ -302,6 +302,8 @@
                         </li>
                     @endforeach
                 @endisset
+
+                @include('includes.system_monitors_toggle')
 
                 @include('includes.in_app_notifications.bell')
 
@@ -510,7 +512,7 @@
 
     @include('includes.in_app_notifications.echo')
     @include('includes.chat.echo')
-    @include('includes.chat.reverb_status')
+    @include('includes.system_monitors_stack')
 
     @if (auth()->check() && optional(auth()->user()->role)->name === 'admin' && !auth()->user()->offer_accepted)
         <script>

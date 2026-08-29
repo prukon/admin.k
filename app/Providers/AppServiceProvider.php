@@ -66,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
             return new \App\Services\Schedule\TrainerSalary\TrainerSalarySchemeRegistry([
                 $app->make(\App\Services\Schedule\TrainerSalary\Schemes\Classic\ClassicTrainerSalaryScheme::class),
                 $app->make(\App\Services\Schedule\TrainerSalary\Schemes\Kansas\KansasTrainerSalaryScheme::class),
+                $app->make(\App\Services\Schedule\TrainerSalary\Schemes\Sales\SalesTrainerSalaryScheme::class),
             ]);
         });
 

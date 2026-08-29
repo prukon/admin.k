@@ -1,5 +1,5 @@
-@if(\App\Support\CabinetDiagnostics::shouldShow(auth()->user()))
-    <div id="js-reverb-status" class="reverb-status" data-status-url="{{ route('chat.api.reverb-status') }}" aria-live="polite">
+@if(\App\Support\SystemMonitors::canView(auth()->user()))
+    <div id="js-reverb-status" class="reverb-status system-monitor" data-status-url="{{ route('chat.api.reverb-status') }}" aria-live="polite">
         <div class="reverb-status__head">
             <div class="reverb-status__title">Reverb</div>
             <button type="button" class="reverb-status__copy" data-role="copy" title="Копировать состояние" aria-label="Копировать состояние">
@@ -18,11 +18,10 @@
         </div>
     </div>
     <style>
+        body:not(.system-monitors-on) .system-monitor {
+            display: none !important;
+        }
         .reverb-status {
-            position: fixed;
-            right: 12px;
-            bottom: 12px;
-            z-index: 20000;
             min-width: 220px;
             padding: 10px 12px;
             border-radius: 8px;
@@ -77,6 +76,12 @@
             var listening = false;
             var processMeta = '';
             var copyTimer = null;
+            var processTimer = null;
+            var paintTimer = null;
+
+            function monitorsOn() {
+                return document.body.classList.contains('system-monitors-on');
+            }
 
             function toneClass(kind) {
                 return kind === 'ok' ? 'is-ok' : (kind === 'warn' ? 'is-warn' : 'is-bad');
@@ -180,7 +185,7 @@
             }
 
             function refreshProcess() {
-                if (!statusUrl) {
+                if (!monitorsOn() || !statusUrl) {
                     return;
                 }
                 fetch(statusUrl, {
@@ -219,15 +224,45 @@
                 });
             }
 
-            paint();
-            refreshProcess();
-            setInterval(refreshProcess, 3000);
-            setInterval(paint, 1000);
+            function startWatching() {
+                if (processTimer || paintTimer) {
+                    return;
+                }
+                paint();
+                refreshProcess();
+                processTimer = setInterval(refreshProcess, 3000);
+                paintTimer = setInterval(paint, 1000);
+            }
+
+            function stopWatching() {
+                if (processTimer) {
+                    clearInterval(processTimer);
+                    processTimer = null;
+                }
+                if (paintTimer) {
+                    clearInterval(paintTimer);
+                    paintTimer = null;
+                }
+            }
+
+            if (monitorsOn()) {
+                startWatching();
+            }
+
+            document.addEventListener('system-monitors:change', function (event) {
+                if (event && event.detail && event.detail.on) {
+                    startWatching();
+                    return;
+                }
+                stopWatching();
+            });
 
             var pusher = window.Echo && window.Echo.connector && window.Echo.connector.pusher;
             if (pusher && pusher.connection && typeof pusher.connection.bind === 'function') {
                 pusher.connection.bind('state_change', function () {
-                    paint();
+                    if (monitorsOn()) {
+                        paint();
+                    }
                 });
             }
         })();

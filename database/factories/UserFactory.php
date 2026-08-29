@@ -60,6 +60,7 @@ class UserFactory extends Factory
 
             'is_enabled' => 1,
             'layout_wide' => false,
+            'system_monitors' => false,
 
             'start_date' => $this->faker->optional()->date(),
             'birthday'   => $this->faker->optional()->date(),

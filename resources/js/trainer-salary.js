@@ -117,6 +117,31 @@
             totalEl.textContent = formatMoneyRublesDisplay(row.total);
         }
 
+        if (row.paid_months != null) {
+            var paidMonths = tr.querySelector('.trainer-salary-paid-months');
+            if (paidMonths) {
+                paidMonths.textContent = formatMoneyRublesDisplay(row.paid_months);
+            }
+        }
+        if (row.paid_packages != null) {
+            var paidPackages = tr.querySelector('.trainer-salary-paid-packages');
+            if (paidPackages) {
+                paidPackages.textContent = formatMoneyRublesDisplay(row.paid_packages);
+            }
+        }
+        if (row.sales_base != null) {
+            var salesBase = tr.querySelector('.trainer-salary-sales-base');
+            if (salesBase) {
+                salesBase.textContent = formatMoneyRublesDisplay(row.sales_base);
+            }
+        }
+        if (row.commission != null) {
+            var commission = tr.querySelector('.trainer-salary-commission');
+            if (commission) {
+                commission.textContent = formatMoneyRublesDisplay(row.commission);
+            }
+        }
+
         if (row.latest_snapshot) {
             var hint = tr.querySelector('.trainer-salary-snapshot-hint');
             if (!hint) {

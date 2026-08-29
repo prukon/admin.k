@@ -60,7 +60,7 @@
     <tbody>
       <tr><td><code>mainMenu</code></td><td>Главное меню</td><td>Корневые пункты навигации (порядок как в боковом меню): <code>dashboard.view</code>, <code>reports.view</code>, …, <code>users.view</code> (описание в матрице — «Страница "Пользователи"», пункт сайдбара тот же), <code>scheduleSlots.view</code> («Расписание школы»), <code>schoolLeads.view</code> («Лиды»), <code>directories.view</code> («Справочники»), …; скрытое <code>messages.threads.delete</code> (корзина в шапке чата, не в базовых ролях)</td></tr>
       <tr><td><code>reports</code></td><td>Отчёты</td><td><code>reports.view</code> (меню), скрытые <code>is_visible=0</code>: <code>reports.emails.view</code>, <code>reports.fiscal.receipts.view</code>, <code>reports.payment.intents.view</code> (Gate в <code>AuthServiceProvider</code>); <code>reports.payments.*</code> и прочие вложенные</td></tr>
-      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
+      <tr><td><code>schedule</code></td><td>Расписание</td><td><code>schedule.trainerSalary.scheme.sales</code>, <code>schedule.trainerSalary.scheme.kansas</code>, <code>schedule.trainerSalary.scheme.classic</code>, <code>schedule.trainerSalary.view</code> / <code>manage</code>, <code>scheduleSlots.manage</code>, <code>scheduleSlots.table</code></td></tr>
       <tr><td><code>directories</code></td><td>Справочники</td><td><code>districts.view</code>, <code>locations.*</code>, <code>sport_types.*</code>, <code>legal_entities.*</code> (пункт меню — <code>directories.view</code> в <code>mainMenu</code>)</td></tr>
       <tr><td><code>lessonPackages</code></td><td>Абонементы</td><td><code>lessonPackages.view</code>, <code>lessonPackages.manualPaid.manage</code>, <code>lessonPackages.export</code> (выгрузка Excel с календаря школы), скрытое <code>lessonPackages.type.postpay</code> (тип «Постоплата»)</td></tr>
       <tr><td><code>setPrices</code></td><td>Установка цен</td><td><code>setPrices.cabinetSeasons.view</code>, <code>setPrices.customPayments.view</code>, <code>setPrices.manualPaid.manage</code>, <code>setPrices.packageAssignments.view</code>, <code>payment.clubfee</code>, <code>setPrices.paymentNotifications.manage</code>, <code>setPrices.cabinetPackages.fixed.view</code> / <code>.flexible.view</code> / <code>.single.view</code> / <code>.postpay.view</code> (консоль по типу)</td></tr>
@@ -69,7 +69,7 @@
       <tr><td><code>partner</code></td><td>Партнёры и сервис</td><td><code>partner.switch</code>, <code>servicePayments.view</code>, <code>partnerWallet.view</code></td></tr>
       <tr><td><code>account</code></td><td>Учетная запись</td><td>Страницы ЛК (<code>account.user.view</code>, …) и поля «свой профиль»: <code>account.user.name.update</code>, <code>account.user.email.update</code>, …; скрытое <code>account.user.team.update</code> — добавление группы в ЛК (сайдбар / карандаш; не в base roles)</td></tr>
       <tr><td><code>users</code></td><td>Управление клиентами</td><td>Поля CRM ученика/сотрудника: <code>users.name.update</code>, <code>users.sex</code>, <code>users.comment</code>, <code>users.discount.manage</code> (персональная скидка, не в базовых ролях), скрытые <code>users.import</code>, <code>users.full_name_genitive</code> (ФИО ученика в родительном; не в базовых ролях), страница тренеров <code>trainers.view</code>. Пункт меню «Пользователи» — это <code>users.view</code> в <code>mainMenu</code>, не эта группа. Колонка роли <code>user</code> в матрице — «Клиент».</td></tr>
-      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, скрытое <code>settings.reverbOverlay.manage</code> (оверлей Reverb, не в базовых ролях)</td></tr>
+      <tr><td><code>settings</code></td><td>Настройки</td><td><code>settings.roles.view</code>, <code>settings.queues.*</code>, <code>viewing.all.logs</code>, <code>settings.force2fa.admins</code>, скрытое <code>settings.systemMonitors.view</code> (системные мониторы / оверлеи, не в базовых ролях)</td></tr>
       <tr><td><code>paymentMethods</code></td><td>Способы оплаты</td><td><code>payment.method.*</code>, <code>tbank.payouts.manage</code>, <code>settings.commission</code></td></tr>
       <tr><td><code>inAppNotifications</code></td><td>Уведомления CRM</td><td><code>inAppNotifications.view</code> (колокольчик/лента, в базовых ролях); скрытое <code>inAppNotifications.manage</code> (форма админа школы зарезервирована, v1 UI нет — создаёт superadmin)</td></tr>
       <tr><td><code>misc</code></td><td>Разное</td><td><code>paying.classes</code></td></tr>
@@ -128,6 +128,11 @@
       <code>/database/migrations/2026_08_14_231500_add_trainer_salary_scheme_kansas.php</code>
       (право в группе <code>schedule</code>, <code>is_visible=0</code>, не в базовых ролях, <b>без</b> выдачи ролям; таблицы ввода Канзаса).
       См. <a href="/docs/documentation/schedule-trainer-salary">schedule-trainer-salary §12</a>.</li>
+    <li>Миграция <code>schedule.trainerSalary.scheme.sales</code>:
+      <code>/database/migrations/2026_08_29_013000_add_trainer_salary_scheme_sales.php</code>
+      (право в группе <code>schedule</code>, <code>is_visible=0</code>, не в базовых ролях, <b>без</b> выдачи ролям; таблицы ввода «% от продаж»).
+      См. <a href="/docs/documentation/schedule-trainer-salary#sales">schedule-trainer-salary §13</a>,
+      анонс <a href="/doc#trainer-salary-sales-index">/doc</a>.</li>
     <li>Миграция <code>lessonPackages.type.postpay</code>:
       <code>/database/migrations/2026_08_04_170000_add_lesson_packages_type_postpay_permission.php</code>
       (право в группе <code>lessonPackages</code>, <code>is_visible = 0</code>, <b>без</b> выдачи ролям).
@@ -141,15 +146,17 @@
       <code>/database/migrations/2026_08_12_210000_revoke_account_user_team_update_from_base_roles.php</code>
       (право уже в каталоге; <code>is_visible=0</code>; снятие с <code>permission_role</code>; не в base roles).
       См. <a href="/docs/documentation/dashboard-cabinet#cabinet-attach-team">dashboard-cabinet §7.1</a>.</li>
-    <li>Оверлей статуса Reverb: скрытое право <code>settings.reverbOverlay.manage</code>
+    <li>Системные мониторы: скрытое право <code>settings.systemMonitors.view</code>
       (<code>is_visible=0</code>, группа <code>settings</code>, <b>без</b> выдачи ролям).
-      Superadmin видит кнопку через <code>Gate::before</code> / <code>@can</code>.
+      Superadmin видит переключатель в шапке через <code>Gate::before</code> / <code>@can</code>.
       JSON-оверлея на <code>/cabinet</code> нет.
-      Старого <code>settings.cabinetDiagnostics.manage</code> нет
+      Старого <code>settings.reverbOverlay.manage</code> нет
+      (миграция <code>2026_08_29_143100_replace_reverb_overlay_permission_with_system_monitors.php</code>).
+      Ранее <code>settings.cabinetDiagnostics.manage</code> уже снято
       (миграция <code>2026_08_18_234000_drop_settings_cabinet_diagnostics_manage_permission.php</code>).
-      Новое право: <code>2026_08_18_235000_add_settings_reverb_overlay_manage_permission.php</code>.
-      См. <a href="/docs/documentation/dashboard-cabinet#cabinet-diagnostics">dashboard-cabinet §8</a>,
-      анонс <a href="/doc#cabinet-diagnostics-index">/doc</a>.</li>
+      См. <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+      анонс переключателя <a href="/doc#system-monitors-index">/doc</a>,
+      список онлайна <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.</li>
     <li>Удаление чата: скрытое право <code>messages.threads.delete</code>
       (<code>is_visible=0</code>, группа <code>mainMenu</code>, <b>без</b> выдачи ролям).
       Superadmin видит корзину через <code>Gate::before</code> / <code>@can</code>.
@@ -173,10 +180,9 @@
   </div>
   <ul>
     <li><code>/tests/Feature/Crm/Permissions/PermissionGroupsReorganizationFeatureTest.php</code> — 14 групп в БД, маппинг прав, UI для superadmin, подмножество групп для admin.</li>
-    <li><code>/tests/Feature/Crm/Permissions/SettingsCabinetDiagnosticsPermissionCatalogFeatureTest.php</code> — <code>settings.reverbOverlay.manage</code> скрытое, не в базовых ролях; <code>settings.cabinetDiagnostics.manage</code> нет.</li>
-    <li><code>/tests/Feature/Crm/Settings/SettingsCabinetDiagnosticsAccessFeatureTest.php</code>,
-      <code>AjaxContract</code>, <code>NonAjaxSafetyNet</code>, <code>UiContracts</code> —
-      HTTP/JSON кнопки оверлея, native POST, первый paint, бейдж на <code>/admin/settings</code>.</li>
+    <li><code>/tests/Feature/Crm/Permissions/SystemMonitorsPermissionCatalogFeatureTest.php</code> — <code>settings.systemMonitors.view</code> скрытое, не в базовых ролях; <code>settings.reverbOverlay.manage</code> нет.</li>
+    <li><code>/tests/Feature/Crm/Cabinet/SystemMonitorsToggleFeatureTest.php</code> —
+      переключатель в шапке, персональный флаг, native POST, первый paint, оверлей Reverb.</li>
     <li><code>/tests/Feature/Crm/Settings/RulesSettingsSectionFullAccessFeatureTest.php</code> — гость / без <code>settings.roles.view</code> → 403; с правом, admin и superadmin → все endpoint'ы вкладки 200.</li>
     <li><code>/tests/Feature/Crm/Users/AdminUsersClientNamingFeatureTest.php</code> — колонка «Клиент», группа «Управление клиентами», <code>users.view</code> = «Страница "Пользователи"».</li>
     <li>См. также: <code>RulesSettingsAccessControlTest</code>, <code>RulesSettingsPageFullAccessFeatureTest</code>, <code>RuleControllerTest</code>.</li>

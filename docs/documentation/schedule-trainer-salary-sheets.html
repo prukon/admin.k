@@ -32,7 +32,7 @@
   </div>
 
   <h2>1) Права</h2>
-  <p>Нужны <code>schedule.trainerSalary.view</code> и включённая схема партнёра (<code>schedule.trainerSalary.scheme.classic</code> или <code>schedule.trainerSalary.scheme.kansas</code>). <code>schedule.view</code> не обязателен. Карточка слепка рисует таблицу той схемы, которой он сформирован (<code>scheme_code</code>).</p>
+  <p>Нужны <code>schedule.trainerSalary.view</code> и включённая схема партнёра (<code>schedule.trainerSalary.scheme.classic</code>, <code>…kansas</code> или <code>…sales</code>). <code>schedule.view</code> не обязателен. Карточка слепка рисует таблицу той схемы, которой он сформирован (<code>scheme_code</code>).</p>
   <table>
     <thead><tr><th>Ситуация</th><th>Результат</th></tr></thead>
     <tbody>
@@ -69,7 +69,8 @@
     <li>Список: <code>trainer_salary_sheets.blade.php</code>, JS <code>trainer-salary-sheets.js</code> (Vite на вкладке листов).</li>
     <li>Деталь: <code>trainer_salary_sheet_show.blade.php</code>. Таблица рисуется по <code>scheme_code</code> слепка:
       classic — <code>trainer-salary/classic/_sheet_detail_table.blade.php</code>,
-      kansas — <code>trainer-salary/kansas/_sheet_detail_table.blade.php</code>
+      kansas — <code>trainer-salary/kansas/_sheet_detail_table.blade.php</code>,
+      sales — <code>trainer-salary/sales/_sheet_detail_table.blade.php</code>
       (класс <code>trainer-salary-table--readonly</code>; у Канзаса видны группы, тип в скобках, X в шапке слепка, подпись <code>Итого:</code>, без кнопки «Расчет»;
       средние — целые без ховера, как заморозил слепок, см. <a href="/docs/documentation/schedule-trainer-salary#kansas-integer-averages">ЗП §12.1</a>
       и <a href="/doc#trainer-salary-kansas-integer-averages-index">анонс на /doc</a>).

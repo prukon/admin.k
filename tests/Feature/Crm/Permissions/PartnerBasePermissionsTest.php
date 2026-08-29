@@ -72,9 +72,9 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('inAppNotifications.manage', $userPerms);
         $this->assertNotContains('inAppNotifications.manage', $adminPerms);
         $this->assertNotContains('inAppNotifications.manage', $trainerPerms);
-        $this->assertNotContains('settings.reverbOverlay.manage', $userPerms);
-        $this->assertNotContains('settings.reverbOverlay.manage', $adminPerms);
-        $this->assertNotContains('settings.reverbOverlay.manage', $trainerPerms);
+        $this->assertNotContains('settings.systemMonitors.view', $userPerms);
+        $this->assertNotContains('settings.systemMonitors.view', $adminPerms);
+        $this->assertNotContains('settings.systemMonitors.view', $trainerPerms);
         $this->assertNotContains('messages.threads.delete', $userPerms);
         $this->assertNotContains('messages.threads.delete', $adminPerms);
         $this->assertNotContains('messages.threads.delete', $trainerPerms);
@@ -156,6 +156,19 @@ class PartnerBasePermissionsTest extends CrmTestCase
         $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $userPerms);
         $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $adminPerms);
         $this->assertNotContains('schedule.trainerSalary.scheme.kansas', $trainerPerms);
+    }
+
+    public function test_new_partner_does_not_assign_trainer_salary_scheme_sales_to_base_roles(): void
+    {
+        $partner = Partner::factory()->create();
+
+        $userPerms = $this->permissionNamesForPartnerRole($partner->id, 'user');
+        $adminPerms = $this->permissionNamesForPartnerRole($partner->id, 'admin');
+        $trainerPerms = $this->permissionNamesForPartnerRole($partner->id, 'trainer');
+
+        $this->assertNotContains('schedule.trainerSalary.scheme.sales', $userPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.sales', $adminPerms);
+        $this->assertNotContains('schedule.trainerSalary.scheme.sales', $trainerPerms);
     }
 
     public function test_new_partner_does_not_assign_payment_clubfee_to_base_roles(): void
