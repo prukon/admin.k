@@ -189,6 +189,11 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('SystemMonitorsOnlineUsersAjaxContractFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest', $html);
         $this->assertStringContainsString('SystemMonitorsOnlineUsersUxFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsAccessFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsAjaxContractFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsNonAjaxSafetyNetFeatureTest', $html);
+        $this->assertStringContainsString('SystemMonitorsOpsUxFeatureTest', $html);
         $this->assertStringContainsString('users.system_monitors', $html);
         $this->assertStringContainsString('settings.systemMonitors.view', $html);
         $this->assertStringContainsString('SystemMonitors::shouldShow()', $html);
@@ -197,6 +202,8 @@ final class ChatDocumentationContractTest extends TestCase
         $this->assertStringContainsString('id="reverb-overlay"', $html);
         $this->assertStringContainsString('id="online-users-overlay"', $html);
         $this->assertStringContainsString('/doc#online-users-overlay-index', $html);
+        $this->assertStringContainsString('id="ops-monitors-overlay"', $html);
+        $this->assertStringContainsString('/doc#ops-monitors-overlay-index', $html);
         $this->assertStringContainsString('/doc#chat-index', $html);
         $this->assertStringNotContainsString('доступ по Form Request только у superadmin', $html);
         $this->assertStringNotContainsString('не-superadmin 403', $html);

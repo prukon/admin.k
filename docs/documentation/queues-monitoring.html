@@ -37,7 +37,11 @@
     <li>Маршруты вкладки остаются внутри стандартного CRM-контекста (<code>auth + 2fa + SetPartner</code>).
       Метрики <code>jobs</code>/<code>failed_jobs</code> и heartbeat worker — глобальные.
       Счётчик и пример <b>просроченных отложенных выплат T‑Bank</b> для пользователя без роли superadmin ограничены <b>текущим партнёром</b>;
-      для superadmin — по всем партнёрам.</li>
+      для superadmin — по всем партнёрам.
+      Источник JSON — <code>QueueStatusSnapshot::full($partnerId)</code>
+      (<code>$partnerId = null</code> у superadmin). Компактный снимок
+      <code>QueueStatusSnapshot::compact()</code> (без LIKE по payload и без выборки выплат)
+      кормит оверлей «Пульт»; там просроченные выплаты всегда по всем школам.</li>
   </ul>
 
   <h2>2) Маршруты</h2>
@@ -130,6 +134,10 @@
     <li>Покрыта структура JSON и базовые метрики статуса очередей.</li>
     <li>Покрыты поля <code>scheduler_status</code>, <code>overdue_scheduled_payouts_count</code>; в расписании присутствует событие <code>* * * * *</code> для heartbeat планировщика.</li>
     <li>Страница выплат: отображение блока при наличии просроченной записи.</li>
+    <li><code>SystemMonitorsOpsAjaxContractFeatureTest</code> — пульт
+      <code>QueueStatusSnapshot::compact()</code> считает просроченные выплаты
+      всех школ; вкладка <code>full($partnerId)</code> у admin с текущей школой
+      ту же чужую выплату не показывает.</li>
   </ul>
 
 </div>

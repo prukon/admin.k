@@ -2336,6 +2336,52 @@ final class BladeInlineJsSyntaxTest extends TestCase
         );
     }
 
+    public function test_ops_monitors_overlay_ajax_contract_and_valid_javascript(): void
+    {
+        $path = resource_path('views/includes/system_monitors/ops.blade.php');
+        $this->assertFileExists($path);
+        $content = (string) file_get_contents($path);
+
+        $this->assertStringContainsString('id="js-ops-monitors"', $content);
+        $this->assertStringContainsString('ops-monitors system-monitor', $content);
+        $this->assertStringContainsString("route('cabinet.system-monitors.ops')", $content);
+        $this->assertStringContainsString('function monitorsOn()', $content);
+        $this->assertStringContainsString('if (!monitorsOn() || !statusUrl)', $content);
+        $this->assertStringContainsString('setInterval(refresh, 5000)', $content);
+        $this->assertStringContainsString("document.addEventListener('system-monitors:change'", $content);
+        $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $content);
+        $this->assertStringContainsString("'Accept': 'application/json'", $content);
+        $this->assertStringContainsString('credentials: \'same-origin\'', $content);
+        $this->assertStringContainsString("partials.ui.tooltip-hint", $content);
+        $this->assertStringContainsString('KidsCrmTooltip', $content);
+        $this->assertStringContainsString('function startWatching()', $content);
+        $this->assertStringContainsString('function stopWatching()', $content);
+        $this->assertStringContainsString('if (pollTimer)', $content);
+        $this->assertStringContainsString('if (data && data.ok)', $content);
+        $this->assertStringContainsString('clear();', $content);
+        $this->assertStringContainsString('if (!response.ok)', $content);
+        $this->assertStringContainsString('node.textContent', $content);
+        $this->assertStringContainsString("ops-monitors__label\">Очередь", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Касса", $content);
+        $this->assertStringContainsString("ops-monitors__label\">500", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Шлюзы", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Вход", $content);
+        $this->assertStringContainsString("ops-monitors__label\">Welcome", $content);
+        $this->assertStringContainsString('function workerLabel(', $content);
+        $this->assertStringContainsString('function schedulerLabel(', $content);
+        $this->assertStringContainsString('function formatAge(', $content);
+        $this->assertStringContainsString("setText('queue-worker'", $content);
+        $this->assertStringContainsString("setText('welcome-user'", $content);
+        $this->assertStringContainsString("welcome.last_user_id", $content);
+        $this->assertStringNotContainsString('href="/admin/settings/queues"', $content);
+
+        $this->assertInlineScriptsContainingHaveValidJavascript(
+            $path,
+            'refresh',
+            'blade-js-ops-monitors-overlay'
+        );
+    }
+
     /**
      * P1: inline JS вкладки «по ученикам» — фильтр former-team-ids + read-only year prices.
      */

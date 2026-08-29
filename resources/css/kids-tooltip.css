@@ -4,12 +4,26 @@
  */
 
 /* Базовый tooltip (текст, иконки-подсказки, ellipsis в таблицах) */
+.tooltip.ulp-assignment-paid-tooltip {
+    --bs-tooltip-bg: #111827;
+    --bs-tooltip-color: #ffffff;
+    --bs-tooltip-opacity: 1;
+    --bs-tooltip-zindex: 20050;
+    z-index: 20050;
+}
+
+.tooltip.ulp-assignment-paid-tooltip.show {
+    opacity: 1;
+}
+
 .tooltip.ulp-assignment-paid-tooltip .tooltip-inner {
     max-width: min(22rem, 85vw);
     text-align: left;
     white-space: pre-wrap;
     font-size: 0.8125rem;
     line-height: 1.45;
+    background-color: #111827;
+    color: #ffffff;
 }
 
 /* Tooltip со списком пунктов */

@@ -38,6 +38,11 @@ abstract class SystemMonitorsTestCase extends CrmTestCase
         return route('cabinet.system-monitors.online-users');
     }
 
+    protected function opsUrl(): string
+    {
+        return route('cabinet.system-monitors.ops');
+    }
+
     /**
      * @return array<string, string>
      */

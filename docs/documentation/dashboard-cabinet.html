@@ -47,12 +47,13 @@
     <code>inAppNotifications.view</code>; это не блок оплат консоли —
     <a href="/docs/documentation/in-app-notifications">in-app-notifications</a>.
     Анонс фильтра абонементов и <code>team_id</code> из журнала — <a href="/doc#cabinet-ulp-team-filter">/doc</a>.
-    Оверлей статуса Reverb и список «Онлайн» по партнёрам — часть системных мониторов: скрытое
+    Оверлей статуса Reverb, список «Онлайн» по партнёрам и «Пульт» — часть системных мониторов: скрытое
     <code>settings.systemMonitors.view</code> (superadmin через
     <code>Gate::before</code>), переключатель в шапке слева от колокольчика,
     персональный флаг <code>users.system_monitors</code> — §<a href="#system-monitors">8</a>,
     анонс переключателя <a href="/doc#system-monitors-index">/doc</a>,
-    анонс списка <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.
+    анонс списка <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>,
+    анонс пульта <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
     JSON-оверлея на <code>/cabinet</code> нет.
   </div>
 
@@ -399,6 +400,7 @@
       <tr><td>Флаг</td><td>персональная колонка <code>users.system_monitors</code>, по умолчанию выкл</td></tr>
       <tr><td>POST</td><td><code>/cabinet/system-monitors</code> (<code>cabinet.system-monitors.update</code>), middleware <code>can:settings.systemMonitors.view</code>, Form Request <code>UpdateSystemMonitorsRequest</code></td></tr>
       <tr><td>GET</td><td><code>/cabinet/system-monitors/online-users</code> (<code>cabinet.system-monitors.online-users</code>), тот же <code>can:</code>, Form Request <code>OnlineUsersMonitorRequest</code></td></tr>
+      <tr><td>GET</td><td><code>/cabinet/system-monitors/ops</code> (<code>cabinet.system-monitors.ops</code>), тот же <code>can:</code>, Form Request <code>OpsMonitorRequest</code></td></tr>
     </tbody>
   </table>
   <p>iOS-переключатель в шапке. Состояние только у текущего пользователя
@@ -443,6 +445,24 @@
     Кнопка копирует текст. Это не точка онлайна в чате
     (<a href="/doc#chat-presence-index">presence</a>) —
     <a href="/doc#online-users-overlay-index">анонс оверлея «Онлайн»</a>.</p>
+  <p>Оверлей <code>#js-ops-monitors</code> («Пульт») в том же стеке над онлайном:
+    шесть строк цифр (очередь, касса, 500, шлюзы, вход, welcome), ховер
+    <code>KidsCrmTooltip</code> у каждого числа, без ссылок.
+    Пузырёк непрозрачный (белый на <code>#111827</code>, opacity 1,
+    <code>z-index: 20050</code>), текст читается и поверх тёмного пульта —
+    <a href="/doc#kids-tooltip-contrast-index">анонс контраста ховера</a>.
+    Снимок <code>App\Support\OpsMonitor::snapshot()</code>, очередь через
+    <code>QueueStatusSnapshot::compact()</code> (вкладка «Очереди» — <code>full()</code>,
+    для не-superadmin по-прежнему режет выплаты текущим партнёром; пульт — все школы).
+    GET <code>/cabinet/system-monitors/ops</code>, Form Request
+    <code>OpsMonitorRequest</code>. Окно 24 ч (просроченные выплаты — без окна).
+    Неизвестный email и истёкший код 2FA в auth не пишутся.
+    HTTP 4xx / CSRF в 500 не пишутся. Welcome <code>STATUS_FAILED</code>
+    всё ещё missing. 500 пишутся из <code>Handler::report</code> в cache, не из <code>my_logs</code>
+    и не из <code>laravel.log</code>. Нативный GET — JSON. Первый HTML — «…»
+    во всех <code>data-role</code>; опрос раз в 5 с; сбой <code>refresh()</code>
+    (сеть / 403) ставит «—».
+    <a href="/doc#ops-monitors-overlay-index">анонс оверлея «Пульт»</a>.</p>
 
   <h2>9) Feature-тесты</h2>
   <div class="note">
@@ -481,6 +501,12 @@
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersAjaxContractFeatureTest.php</code> — пустой снимок, без email/password, окно ровно 120 с, себя и чужой партнёр, «Без названия» / «#id», soft-deleted партнёр, «Без партнёра» последним, GET при выключенном флаге</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML-страница, POST/PATCH/DELETE HTML и JSON 405</li>
       <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOnlineUsersUxFeatureTest.php</code> — первый кадр с пустым списком (и при выкл. флаге); cabinet/чат/настройки; XSS-экранирование ФИО; ошибка fetch / 403 снимает людей; повторное включение не плодит второй poller</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsFeatureTest.php</code> — GET пульта: гость/403/200, стек над онлайном и Reverb, опрос только при включённом флаге</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAccessFeatureTest.php</code> — гость 302/401, admin HTML/JSON 403, со скрытым правом 200 и оверлей в DOM, ученик/тренер с выданным правом 200, без права 403 не пустой 200</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsAjaxContractFeatureTest.php</code> — JSON без email/password/PAN, окно 24 ч, все партнёры, Handler 500 vs 4xx/CSRF, cache шлюзов на Http::fake, неизвестный email, неверный/истёкший 2FA, welcome без/с письмом и STATUS_FAILED, compact vs full overdue</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsNonAjaxSafetyNetFeatureTest.php</code> — нативный GET JSON не HTML (dashboard и чат), POST/PATCH/DELETE 405</li>
+      <li><code>tests/Feature/Crm/Cabinet/SystemMonitorsOpsUxFeatureTest.php</code> — первый кадр все data-role «…»; cabinet/чат/настройки; флаг выкл; чужой суперадмин; ошибка refresh() (сеть/403) ставит «—»; один poller; XSS через textContent; жив/cron/возраст/#id</li>
+      <li><code>tests/Feature/Crm/Ui/KidsCrmTooltipContrastFeatureTest.php</code> — непрозрачный пузырёк KidsCrmTooltip (opacity 1, #111827 / #fff, z-index 20050) на /cabinet вместе с пультом</li>
       <li><code>tests/Feature/Crm/Dashboard/DashboardCabinetDiagnosticsFeatureTest.php</code> — на <code>/cabinet</code> нет JSON-оверлея даже у superadmin; бейдж Reverb при включённом флаге; JSON <code>get-user-details</code> без ключа <code>cabinet_diagnostics</code></li>
       <li><code>tests/Feature/Crm/Chat/ChatReverbOverlayFeatureTest.php</code> — бейдж Reverb в <code>admin2</code> (dashboard / чат / настройки) только у superadmin при включённом флаге</li>
     </ul>

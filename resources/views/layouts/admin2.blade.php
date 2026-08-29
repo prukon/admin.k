@@ -145,6 +145,25 @@
             flex-shrink: 0;
         }
 
+        /* KidsCrmTooltip: непрозрачный пузырёк (Bootstrap по умолчанию opacity 0.9).
+           В <head>, чтобы сработало без npm run build и поверх #system-monitors-stack (z-index 20000). */
+        .tooltip.ulp-assignment-paid-tooltip {
+            --bs-tooltip-bg: #111827;
+            --bs-tooltip-color: #ffffff;
+            --bs-tooltip-opacity: 1;
+            --bs-tooltip-zindex: 20050;
+            z-index: 20050;
+        }
+
+        .tooltip.ulp-assignment-paid-tooltip.show {
+            opacity: 1;
+        }
+
+        .tooltip.ulp-assignment-paid-tooltip .tooltip-inner {
+            background-color: #111827;
+            color: #ffffff;
+        }
+
         /* Ширина кабинета: класс на body с первого кадра (не ждём Vite). */
         .layout-wide .wrapper {
             max-width: none;

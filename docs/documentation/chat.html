@@ -47,7 +47,8 @@
     · сплит «Личные» / «Чаты»: <a href="/doc#chat-mobile-inbox-split-index">/doc#chat-mobile-inbox-split-index</a>
     · порядок списка: <a href="/doc#chat-inbox-sort-index">/doc#chat-inbox-sort-index</a>
     · оверлей Reverb: <a href="/doc#reverb-status-overlay-index">/doc#reverb-status-overlay-index</a>
-    · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a></div>
+    · оверлей «Онлайн»: <a href="/doc#online-users-overlay-index">/doc#online-users-overlay-index</a>
+    · оверлей «Пульт»: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a></div>
 
   <div class="ok">
     <b>Кратко.</b> Личные диалоги 1-на-1 внутри текущей школы плюс одна
@@ -1078,6 +1079,26 @@
       Первый кадр без имён. Сбой fetch очищает список («Никого нет онлайн»).</li>
   </ol>
 
+  <h2 id="ops-monitors-overlay">5.3) Оверлей «Пульт» (системные мониторы)</h2>
+  <p>Анонс на главной: <a href="/doc#ops-monitors-overlay-index">/doc#ops-monitors-overlay-index</a>.
+    Не путать с §<a href="#online-users-overlay">5.2</a> (список людей) и §<a href="#reverb-overlay">5.1</a> (бейдж процесса/сокета).</p>
+  <ol>
+    <li>Стек <code>#system-monitors-stack</code>:
+      <code>#js-ops-monitors</code> над <code>#js-online-users</code> над
+      <code>#js-reverb-status</code>. Право и флаг как у Reverb.
+      Шесть строк цифр, <code>KidsCrmTooltip</code> (непрозрачный пузырёк), без ссылок.
+      Контраст — <a href="/doc#kids-tooltip-contrast-index">/doc#kids-tooltip-contrast-index</a>.</li>
+    <li><code>GET /cabinet/system-monitors/ops</code>: JSON <code>ok</code> /
+      <code>window_hours</code> / <code>queue</code> / <code>till</code> /
+      <code>errors</code> / <code>gateways</code> / <code>auth</code> /
+      <code>welcome</code>. Гость 302/401, без права 403, мутации 405.
+      Нативный GET — JSON. Флаг GET не закрывает. Окно 24 ч, все партнёры.
+      Неизвестный email и истёкший 2FA не считают. 4xx/CSRF не в 500.</li>
+    <li>Клиент опрашивает раз в 5 с только при включённом переключателе.
+      Первый кадр «…» во всех <code>data-role</code>. Сбой <code>refresh()</code>
+      (сеть / 403) ставит «—», не leftover.</li>
+  </ol>
+
   <h2 id="tests">6) Тесты</h2>
   <ul>
     <li><code>ChatPresenceFeatureTest</code> — ping без <code>messages.view</code>, throttle 30с, онлайн ровно 120с / офлайн 121с,
@@ -1240,8 +1261,13 @@
       <code>SystemMonitorsOnlineUsersAccessFeatureTest</code> /
       <code>SystemMonitorsOnlineUsersAjaxContractFeatureTest</code> /
       <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code> /
-      <code>SystemMonitorsOnlineUsersUxFeatureTest</code> —
-      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн только при включённом флаге, список онлайн по партнёрам.</li>
+      <code>SystemMonitorsOnlineUsersUxFeatureTest</code> /
+      <code>SystemMonitorsOpsFeatureTest</code> /
+      <code>SystemMonitorsOpsAccessFeatureTest</code> /
+      <code>SystemMonitorsOpsAjaxContractFeatureTest</code> /
+      <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code> /
+      <code>SystemMonitorsOpsUxFeatureTest</code> —
+      гость/403/200, JSON <code>errors.system_monitors</code>, native 302, персональный экран, откат 422, опрос Reverb/онлайн/пульт только при включённом флаге, список онлайн по партнёрам, пульт шесть строк, refresh 403/сеть → «—», compact vs full overdue, неизвестный email / истёкший 2FA.</li>
     <li><code>ChatUnreadSidebarFlashUxFeatureTest</code> — вспышка бейджа в открытом диалоге: серверный <code>inbox.bump</code> несёт новый unread, клиент на странице чата не красит этот total (прогон реального JS), вне чата и в другом диалоге каунтер показывается.</li>
     <li><code>ChatPartnerScopeFullAccessFeatureTest</code> — partner-scope, дедуп 1-на-1
       (в т.ч. 0/1 живой участник, UNIQUE пары в треде), чужой тред 403 (включая PATCH read и PATCH draft), 422 под полями.</li>

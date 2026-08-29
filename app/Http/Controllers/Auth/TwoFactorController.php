@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\SmsRuService;
+use App\Support\OpsMonitor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -137,6 +138,7 @@ class TwoFactorController extends Controller
         }
         if (!Hash::check($request->input('code'), $user->two_factor_code)) {
             Log::warning('2FA verify: wrong code', ['user_id' => $user->id]);
+            OpsMonitor::recordFailedTwoFactor();
             return back()->withErrors(['code' => 'Неверный код.']);
         }
 

@@ -3,23 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Support\OpsMonitor;
 use App\Models\Setting;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 
-    class LoginController extends Controller
+class LoginController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | Login Controller
-    |--------------------------------------------------------------------------
-    |
-    | This controller handles authenticating users for the application and
-    | redirecting them to your home screen. The controller uses a trait
-    | to conveniently provide its functionality to your applications.
-    |
-    */
-
     use AuthenticatesUsers;
 
     /**
@@ -72,6 +62,8 @@ use Illuminate\Foundation\Auth\AuthenticatesUsers;
         }
 
         // Если пользователь найден, но пароль неверный
+        OpsMonitor::recordFailedLogin();
+
         return back()->withInput()->withErrors([
             'password' => 'Неправильный пароль.',
         ]);

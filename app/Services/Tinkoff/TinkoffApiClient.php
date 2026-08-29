@@ -2,8 +2,10 @@
 
 namespace App\Services\Tinkoff;
 
+use App\Support\OpsMonitor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class TinkoffApiClient
 {
@@ -24,9 +26,19 @@ class TinkoffApiClient
         }
 
         Log::channel('tinkoff')->info('[GET] '.$url, ['query' => $query]);
-        $resp = $req->get($url, $query);
+        try {
+            $resp = $req->get($url, $query);
+        } catch (Throwable $e) {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_TINKOFF, $e->getMessage());
+            throw $e;
+        }
         $json = $resp->json() ?? ['http_status' => $resp->status(), 'body' => $resp->body()];
         Log::channel('tinkoff')->info('[RESP] '.$url, ['json' => $json]);
+        if ($resp->successful()) {
+            OpsMonitor::recordGatewayOk(OpsMonitor::GATEWAY_TINKOFF);
+        } else {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_TINKOFF, 'HTTP '.$resp->status());
+        }
         return $json;
     }
 
@@ -45,10 +57,20 @@ class TinkoffApiClient
         $url = rtrim($baseUrl, '/') . $path;
         Log::channel('tinkoff')->info('[POST] '.$url, ['payload' => $payload]);
 
-        $resp = $req->post($url, $payload);
+        try {
+            $resp = $req->post($url, $payload);
+        } catch (Throwable $e) {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_TINKOFF, $e->getMessage());
+            throw $e;
+        }
         $json = $resp->json() ?? ['http_status' => $resp->status(), 'body' => $resp->body()];
 
         Log::channel('tinkoff')->info('[RESP] '.$url, ['json' => $json]);
+        if ($resp->successful()) {
+            OpsMonitor::recordGatewayOk(OpsMonitor::GATEWAY_TINKOFF);
+        } else {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_TINKOFF, 'HTTP '.$resp->status());
+        }
         return $json;
     }
 }

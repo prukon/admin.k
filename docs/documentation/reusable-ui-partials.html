@@ -103,6 +103,21 @@
   <p>Файлы: <code>resources/js/kids-tooltip.js</code>, <code>resources/css/kids-tooltip.css</code>.</p>
   <p>Единый Bootstrap Tooltip в стиле <code>ulp-assignment-paid-tooltip</code>: текст с ellipsis, списки в ячейках, иконки-подсказки в формах.</p>
 
+  <h3 id="tooltip-contrast">Контраст пузырька</h3>
+  <p>Bootstrap 5 по умолчанию ставит <code>--bs-tooltip-opacity: 0.9</code>.
+    Поверх тёмного оверлея «Пульт» (<code>#system-monitors-stack</code>,
+    <code>z-index: 20000</code>, фон <code>rgba(17, 24, 39, 0.94)</code>) цифры просвечивали
+    сквозь полупрозрачный фон, белый текст не читался.
+    Для <code>.tooltip.ulp-assignment-paid-tooltip</code> (hint / ellipsis / списки):
+    сплошной фон <code>#111827</code>, цвет текста <code>#ffffff</code>,
+    <code>--bs-tooltip-opacity: 1</code>, <code>z-index: 20050</code>.
+    Те же правила дублируются в <code>&lt;style&gt;</code> лейаута <code>admin2</code>
+    (без ожидания Vite / <code>npm run build</code>).
+    Отдельного класса ховера у пульта нет — тот же <code>KidsCrmTooltip</code>.
+    Анонс: <a href="/doc#kids-tooltip-contrast-index">/doc#kids-tooltip-contrast-index</a>.
+    Тесты: <code>KidsCrmTooltipContrastFeatureTest</code>,
+    <code>KidsCrmTooltipContrastDocumentationContractTest</code>.</p>
+
   <h3>JS API (<code>window.KidsCrmTooltip</code>)</h3>
   <table>
     <thead>

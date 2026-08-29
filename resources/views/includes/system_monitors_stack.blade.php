@@ -1,6 +1,7 @@
-{{-- Стек системных мониторов: онлайн сверху, Reverb снизу. --}}
+{{-- Стек системных мониторов: пульт сверху, онлайн, Reverb снизу. --}}
 @if(\App\Support\SystemMonitors::canView(auth()->user()))
     <div id="system-monitors-stack" class="system-monitors-stack">
+        @include('includes.system_monitors.ops')
         @include('includes.system_monitors.online_users')
         @include('includes.chat.reverb_status')
     </div>

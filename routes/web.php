@@ -227,6 +227,10 @@ Route::middleware(['auth', '2fa'])->group(function () {
         ->middleware('can:settings.systemMonitors.view')
         ->name('cabinet.system-monitors.online-users');
 
+    Route::get('/cabinet/system-monitors/ops', [\App\Http\Controllers\User\SystemMonitorsController::class, 'ops'])
+        ->middleware('can:settings.systemMonitors.view')
+        ->name('cabinet.system-monitors.ops');
+
     Route::post('/cabinet/system-monitors', [\App\Http\Controllers\User\SystemMonitorsController::class, 'update'])
         ->middleware('can:settings.systemMonitors.view')
         ->name('cabinet.system-monitors.update');

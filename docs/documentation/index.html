@@ -28,6 +28,25 @@
     <code>/docs/documentation</code> и короткой ссылке <code>/doc</code>.
   </div>
 
+  <h2 id="kids-tooltip-contrast-index">KidsCrmTooltip: непрозрачный ховер, читаемый текст (2026‑08)</h2>
+  <div class="note">
+    Пузырёк <code>KidsCrmTooltip</code> (класс <code>ulp-assignment-paid-tooltip</code>:
+    hint, ellipsis, списки) всегда непрозрачный: белый текст на сплошном
+    <code>#111827</code>, <code>--bs-tooltip-opacity: 1</code>,
+    <code>z-index: 20050</code> — выше стека системных мониторов
+    (<code>#system-monitors-stack</code>, 20000).
+    Bootstrap по умолчанию рисует tooltip с opacity 0.9; поверх тёмного пульта
+    цифры просвечивали сквозь фон, текст не читался.
+    CSS: <code>resources/css/kids-tooltip.css</code> и дубль в
+    <code>layouts/admin2</code> <code>&lt;head&gt;</code> (без ожидания Vite).
+    Не отдельный вид ховера у пульта — тот же модуль, что в таблицах и формах.
+    <br><br>
+    Подробно — <a href="/docs/documentation/reusable-ui-partials#tooltip-contrast">reusable-ui-partials §2 (контраст)</a>,
+    пульт — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>.
+    Тесты: <code>KidsCrmTooltipContrastFeatureTest</code>,
+    <code>KidsCrmTooltipContrastDocumentationContractTest</code>.
+  </div>
+
   <h2 id="chat-inbox-sort-index">Чат: порядок списка — непрочитанные, затем последнее сообщение (2026‑08)</h2>
   <div class="note">
     Слева на <code>/chat</code> диалоги идут так: сначала непрочитанные, затем по дате
@@ -132,6 +151,76 @@
     <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOnlineUsersUxFeatureTest</code>
     (пустой первый кадр, XSS, откат списка при ошибке fetch, один poller),
+    <code>BladeInlineJsSyntaxTest</code>.
+  </div>
+
+  <h2 id="ops-monitors-overlay-index">Оверлей «Пульт» системных мониторов (2026‑08)</h2>
+  <div class="note">
+    Один оверлей <b>Пульт</b> (<code>#js-ops-monitors</code>, класс
+    <code>system-monitor</code>) в стеке
+    <code>#system-monitors-stack</code> (<code>z-index: 20000</code>)
+    <b>над</b> <code>#js-online-users</code> и бейджем Reverb.
+    Шесть строк цифр, без ссылок на отчёты. Ховер у каждого числа —
+    <code>KidsCrmTooltip</code> (partial <code>tooltip-hint</code>, scope hint),
+    что это за число: непрозрачный пузырёк (белый текст на <code>#111827</code>),
+    поверх оверлея читается.
+    Тот же тоггл и
+    <code>can(settings.systemMonitors.view)</code>, что у онлайна.
+    Superadmin — <code>Gate::before</code>. Сессия <code>current_partner</code>
+    снимок <b>не</b> режет (все школы). JSON-оверлея диагностики на
+    <code>/cabinet</code> нет. Не парсим <code>laravel.log</code>.
+    <br><br>
+    1) <b>Окно.</b> 24 часа для Init <code>failed</code>, чеков
+    <code>error</code>, 500, неверного пароля / 2FA, лида без welcome.
+    Просроченные выплаты T‑Bank — «уже просрочены», без окна.
+    <br>
+    2) <b>Строки.</b> Очередь: воркер / cron / <code>jobs</code> /
+    <code>failed_jobs</code> / просроченные выплаты
+    (<code>QueueStatusSnapshot::compact()</code>, без LIKE по payload).
+    Касса: просроченные выплаты, <code>payment_intents.status=failed</code>
+    за 24 ч, <code>fiscal_receipts.status=error</code> за 24 ч.
+    500: reportable-исключения в cache из <code>Handler::report</code>
+    (не <code>my_logs</code>): count, last_class, top_class;
+    <code>last_message</code> обрезка 80 символов, без email/телефона/PAN.
+    Шлюзы: last ok / last fail T‑Bank, sms.ru, CloudKassir
+    (пометки в cache на HTTP). Вход: неверный пароль, неверный код 2FA.
+    Неизвестный email не считает. Истёкший или не сгенерированный код 2FA
+    не считает. HTTP 4xx и CSRF (<code>TokenMismatchException</code>)
+    в счётчик 500 не пишутся.
+    Welcome: лид → клиент за 24 ч без
+    <code>ClientWelcomeCredentialsMail</code> <code>STATUS_SENT</code>
+    (в том числе <code>STATUS_FAILED</code>); без лида и старше 24 ч — нет;
+    last — только <code>#id</code> ученика.
+    Вкладка «Очереди» у не-superadmin режет просроченные выплаты текущим
+    партнёром; пульт считает все школы.
+    <br>
+    3) <b>HTTP.</b> <code>GET /cabinet/system-monitors/ops</code>
+    (<code>cabinet.system-monitors.ops</code>,
+    <code>can:settings.systemMonitors.view</code>,
+    Form Request <code>OpsMonitorRequest</code>,
+    снимок <code>OpsMonitor::snapshot()</code>).
+    Всегда JSON: <code>ok</code>, <code>window_hours</code>,
+    <code>queue</code>, <code>till</code>, <code>errors</code>,
+    <code>gateways</code>, <code>auth</code>, <code>welcome</code>.
+    Нативный GET — JSON, не HTML. Гость — редирект / 401. Без права — 403.
+    POST/PATCH/PUT/DELETE — 405. Персональный флаг GET <b>не</b> закрывает.
+    <br>
+    4) <b>Клиент.</b> Include
+    <code>includes/system_monitors/ops.blade.php</code>.
+    Первый HTML — «…» во всех <code>data-role</code> (и при выключенном флаге).
+    Опрос раз в 5 с, только пока переключатель включён.
+    Сбой fetch / HTTP не-ok (в том числе 403) через реальный
+    <code>refresh()</code> очищает цифры («—»), не оставляет прошлые.
+    Числа через <code>textContent</code>.
+    <br><br>
+    Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
+    очереди — <a href="/docs/documentation/queues-monitoring">queues-monitoring</a>,
+    чат — <a href="/docs/documentation/chat#ops-monitors-overlay">chat §пульт</a>.
+    Тесты: <code>SystemMonitorsOpsFeatureTest</code>,
+    <code>SystemMonitorsOpsAccessFeatureTest</code>,
+    <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
+    <code>SystemMonitorsOpsUxFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
   </div>
 
@@ -1018,7 +1107,7 @@
   <h2 id="system-monitors-index">Системные мониторы: переключатель в шапке (2026‑08)</h2>
   <div class="note">
     В шапке кабинета слева от колокольчика — iOS-переключатель системных мониторов
-    (оверлеи на экране: Reverb и онлайн по партнёрам; логи позже).
+    (оверлеи на экране: Пульт, онлайн по партнёрам, Reverb).
     Право <code>settings.systemMonitors.view</code>:
     <code>is_visible=0</code>, никому не выдаётся. Superadmin видит переключатель, потому что
     <code>Gate::before</code> обходит проверки (<code>@can</code> /
@@ -1075,6 +1164,14 @@
     GET снимка не зависит от персонального флага.
     Пустое название школы — «Без названия», пустое ФИО — <code>#id</code>.
     Подробно — <a href="/doc#online-users-overlay-index">оверлей «Онлайн»</a>.
+    <br>
+    4) <b>Пульт.</b> Тот же стек, <code>#js-ops-monitors</code> над онлайном.
+    Шесть строк цифр + <code>KidsCrmTooltip</code>. GET
+    <code>/cabinet/system-monitors/ops</code>
+    (<code>cabinet.system-monitors.ops</code>,
+    Form Request <code>OpsMonitorRequest</code>,
+    <code>OpsMonitor::snapshot()</code>). Окно 24 ч. Все партнёры.
+    Опрос раз в 5 с. Подробно — <a href="/doc#ops-monitors-overlay-index">оверлей «Пульт»</a>.
     <br><br>
     Подробно — <a href="/docs/documentation/dashboard-cabinet#system-monitors">dashboard-cabinet §8</a>,
     каталог — <a href="/docs/documentation/settings-permission-groups">settings-permission-groups</a>.
@@ -1093,6 +1190,11 @@
     <code>SystemMonitorsOnlineUsersNonAjaxSafetyNetFeatureTest</code>,
     <code>SystemMonitorsOnlineUsersUxFeatureTest</code>
     (пустой первый кадр, XSS, откат списка при ошибке fetch),
+    <code>SystemMonitorsOpsFeatureTest</code>,
+    <code>SystemMonitorsOpsAccessFeatureTest</code>,
+    <code>SystemMonitorsOpsAjaxContractFeatureTest</code>,
+    <code>SystemMonitorsOpsNonAjaxSafetyNetFeatureTest</code>,
+    <code>SystemMonitorsOpsUxFeatureTest</code>,
     <code>DashboardCabinetDiagnosticsFeatureTest</code>,
     <code>ChatReverbOverlayFeatureTest</code>,
     <code>BladeInlineJsSyntaxTest</code>.
@@ -4352,7 +4454,7 @@
   <h2>Переиспользование UI</h2>
   <ul>
     <li><a href="/docs/documentation/admin-layout-sidebar"><strong>Кабинет: стабильный сайдбар</strong>: <code>scrollbar-gutter: stable</code> в <code>admin2</code> / <code>style.css</code>, overflow сайдбара с первого кадра, без OverlayScrollbars; <b>локальный FA 6.5.1</b> вместо Kit/CDN, слот <code>.nav-icon</code> — <a href="/doc#admin-sidebar-stability-index">анонс</a></a></li>
-    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»; <b>общего table-preloader нет</b> — <a href="/doc#journal-table-preloader-index">анонс</a>), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1), <b>всплывайка <code>#kidsMainToast</code></b> (§8, <a href="/doc#success-toast-instead-of-modal-index">анонс</a>)</a></li>
+    <li><a href="/docs/documentation/reusable-ui-partials"><strong>Partial'ы и include</strong>: toolbar, <code>KidsCrmTooltip</code> (непрозрачный пузырёк, <a href="/doc#kids-tooltip-contrast-index">анонс</a>; tooltip только при обрезке текста) / <code>KidsCrmUserDiscount</code> (§2.3, иконка %) / <code>KidsCrmDataTable</code> (типы <code>text</code>, <code>link</code> / кликабельные названия §3.2, <code>money</code>, <code>icon</code>, <code>inline-select</code>, <code>actions</code>, <code>datetime</code>, <code>inline-actions</code>; <code>bindNavLinks</code>; миграция с <code>custom</code> §3.1; opt-in <code>persistPageLength</code> — персональный «Показать N»; <b>общего table-preloader нет</b> — <a href="/doc#journal-table-preloader-index">анонс</a>), ширины колонок, горизонтальный скролл, logModal, <b>единый Select2 multiselect</b> <code>generic-multiselect</code> для модалок (§4.2; в т.ч. тренеры в журнале при «Посетил») и <b>filter multiselect</b> (панели фильтров, §4.1), <b>всплывайка <code>#kidsMainToast</code></b> (§8, <a href="/doc#success-toast-instead-of-modal-index">анонс</a>)</a></li>
   </ul>
 </div>
 </body>

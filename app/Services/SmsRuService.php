@@ -3,6 +3,7 @@
 
 namespace App\Services;
 
+use App\Support\OpsMonitor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -93,6 +94,7 @@ class SmsRuService
                 'to' => $this->maskPhone($phone),
                 'error' => $e->getMessage(),
             ]);
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_SMSRU, $e->getMessage());
             return 'HTTP exception: '.$e->getMessage();
         }
 
@@ -105,6 +107,7 @@ class SmsRuService
         ]);
 
         if (!$response->ok()) {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_SMSRU, 'HTTP '.$status);
             return "HTTP error: {$status}";
         }
 
@@ -116,8 +119,10 @@ class SmsRuService
         if ($global !== 'OK') {
             $text = $json['status_text'] ?? 'Unknown error';
             $code = $json['status_code'] ?? null;
+            $encoded = $this->encodeFailure('API error', (string) $text, is_numeric($code) ? (int) $code : null);
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_SMSRU, $encoded);
 
-            return $this->encodeFailure('API error', (string) $text, is_numeric($code) ? (int) $code : null);
+            return $encoded;
         }
 
         // Если вернулась детализация по номеру
@@ -129,14 +134,19 @@ class SmsRuService
                 $numCode   = $perNumber['status_code'] ?? null;
                 // Можно сохранить sms_id: $perNumber['sms_id'] ?? null;
                 if ($numStatus !== 'OK') {
-                    return $this->encodeFailure(
+                    $encoded = $this->encodeFailure(
                         'SMS error',
                         (string) $numText,
                         is_numeric($numCode) ? (int) $numCode : null
                     );
+                    OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_SMSRU, $encoded);
+
+                    return $encoded;
                 }
             }
         }
+
+        OpsMonitor::recordGatewayOk(OpsMonitor::GATEWAY_SMSRU);
 
         return true;
     }

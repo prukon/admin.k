@@ -2,10 +2,12 @@
 
 namespace App\Services\CloudKassir;
 
+use App\Support\OpsMonitor;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
+use Throwable;
 
 class CloudKassirService
 {
@@ -63,11 +65,16 @@ class CloudKassirService
         Log::info('CloudKassir request', $requestLog);
 
         /** @var Response $response */
-        $response = Http::withBasicAuth($this->publicId, $this->apiSecret)
-            ->withHeaders($headers)
-            ->timeout($this->timeout)
-            ->asJson()
-            ->post($this->baseUrl . $path, $payload);
+        try {
+            $response = Http::withBasicAuth($this->publicId, $this->apiSecret)
+                ->withHeaders($headers)
+                ->timeout($this->timeout)
+                ->asJson()
+                ->post($this->baseUrl . $path, $payload);
+        } catch (Throwable $e) {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_CLOUDKASSIR, $e->getMessage());
+            throw $e;
+        }
 
         $json = $response->json();
 
@@ -81,9 +88,19 @@ class CloudKassirService
         Log::info('CloudKassir response', $responseLog);
 
         if (!is_array($json)) {
+            OpsMonitor::recordGatewayFail(
+                OpsMonitor::GATEWAY_CLOUDKASSIR,
+                'CloudKassir returned non-JSON response. HTTP '.$response->status()
+            );
             throw new RuntimeException(
                 'CloudKassir returned non-JSON response. HTTP ' . $response->status()
             );
+        }
+
+        if ($response->successful()) {
+            OpsMonitor::recordGatewayOk(OpsMonitor::GATEWAY_CLOUDKASSIR);
+        } else {
+            OpsMonitor::recordGatewayFail(OpsMonitor::GATEWAY_CLOUDKASSIR, 'HTTP '.$response->status());
         }
 
         return [

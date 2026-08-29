@@ -2,12 +2,14 @@
 
 namespace App\Exceptions;
 
+use App\Support\OpsMonitor;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -42,6 +44,7 @@ class Handler extends ExceptionHandler
     {
         try {
             $this->logSchoolLeadCsrfMismatchIfNeeded($e);
+            $this->recordOpsMonitorException($e);
             parent::report($e);
         } catch (Throwable $reportException) {
             $this->writeReportFailureSafely($reportException, $e);
@@ -128,6 +131,26 @@ class Handler extends ExceptionHandler
                 'message' => 'Сессия устарела. Обновите страницу и отправьте заявку ещё раз.',
             ], 419);
         });
+    }
+
+    /**
+     * Reportable 500 в cache пульта. 4xx / CSRF / сбой cache не должны ломать report().
+     */
+    private function recordOpsMonitorException(Throwable $e): void
+    {
+        try {
+            if ($e instanceof TokenMismatchException) {
+                return;
+            }
+            if ($e instanceof HttpExceptionInterface && $e->getStatusCode() < 500) {
+                return;
+            }
+            if (! $this->shouldReport($e)) {
+                return;
+            }
+            OpsMonitor::recordException($e);
+        } catch (Throwable) {
+        }
     }
 
     /**

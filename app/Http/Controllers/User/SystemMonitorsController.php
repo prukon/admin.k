@@ -4,8 +4,10 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\OnlineUsersMonitorRequest;
+use App\Http\Requests\User\OpsMonitorRequest;
 use App\Http\Requests\User\UpdateSystemMonitorsRequest;
 use App\Support\OnlineUsersMonitor;
+use App\Support\OpsMonitor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
@@ -14,6 +16,11 @@ class SystemMonitorsController extends Controller
     public function onlineUsers(OnlineUsersMonitorRequest $request): JsonResponse
     {
         return response()->json(OnlineUsersMonitor::snapshot());
+    }
+
+    public function ops(OpsMonitorRequest $request): JsonResponse
+    {
+        return response()->json(OpsMonitor::snapshot());
     }
 
     public function update(UpdateSystemMonitorsRequest $request): JsonResponse|RedirectResponse
